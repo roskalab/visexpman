@@ -26,7 +26,7 @@ class VisualStimulation(object):
         __import__('users.' + self.user + '.' + config_module_name)
         #instantiate configuration class
         setattr(self,  'config',  getattr(getattr(getattr(users,  self.user),  config_module_name), self.config_class)('..'))
-        #HERE TO CONTINUE!!!!!!!!!!!!!        
+        #HERE TO CONTINUE!!!!!!!!!!!!!: find out run mode, experiment, load experiment class        
     
     def find_out_config(self):
         '''

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project visexpman -->
-<!-- Saved: 2011-05-20, 12:14:29 -->
+<!-- Saved: 2011-05-20, 18:35:11 -->
 <!-- Copyright (C) 2011 Zoltan Raics, zoltan.raics@fmi.ch -->
 <Project version="4.6">
   <Language>en</Language>
@@ -53,6 +53,10 @@
     <Source>engine/generic/parametric_control.py</Source>
     <Source>engine/generic/parameter.py</Source>
     <Source>__init__.py</Source>
+    <Source>engine/__init__.py</Source>
+    <Source>engine/visual_stimulation/__init__.py</Source>
+    <Source>engine/hardware_interface/__init__.py</Source>
+    <Source>users/zoltan/__init__.py</Source>
   </Sources>
   <Forms>
   </Forms>
