@@ -2,14 +2,16 @@ import sys
 import os.path
 import os 
 
-import Parameter
+import parameter
+
+PRINT_PAR_NAMES = False
 
 class Config(object):
     def __init__(self,  base_path = None):
         print 'Loaded configuration class: ' + self.__class__.__name__        
         self.base_path = base_path
         self._create_generic_parameters()        
-        self._create_parameter_aliases()        
+        self._create_parameter_aliases()
         self._create_application_parameters()        
         self._create_parameter_aliases()        
         self._set_user_specific_parameters()        
@@ -19,24 +21,26 @@ class Config(object):
         
     def _create_generic_parameters(self):
         if self.base_path != None:
-            self.BASE_PATH_p = Parameter.Parameter(self.base_path, is_path = True)
+            self.BASE_PATH_p = parameter.Parameter(self.base_path, is_path = True)
         elif os.name == 'nt' and os.path.exists(os.path.dirname(sys.argv[0])):
-            self.BASE_PATH_p = Parameter.Parameter(os.path.dirname(sys.argv[0]), is_path = True)
+            self.BASE_PATH_p = parameter.Parameter(os.path.dirname(sys.argv[0]), is_path = True)
         else:
-            self.BASE_PATH_p = Parameter.Parameter(os.getcwd(), is_path = True)
+            self.BASE_PATH_p = parameter.Parameter(os.getcwd(), is_path = True)
 
     def _create_parameters_from_locals(self,  locals): 
         for k,  v in locals.items():
+            if PRINT_PAR_NAMES:
+                print k, v
             if k.isupper() and k.find('_RANGE') == -1:                
                 if isinstance(v,  list):
                     if len(v) == 1: #when no range is provied (list of strings or dictionaries)
-                        setattr(self,  k + '_p',  Parameter.Parameter(v[0]))
+                        setattr(self,  k + '_p',  parameter.Parameter(v[0]))
                     else:
-                        setattr(self,  k + '_p',  Parameter.Parameter(v[0],  range_ = v[1]))
+                        setattr(self,  k + '_p',  parameter.Parameter(v[0],  range_ = v[1]))
                 elif k.find('_PATH') != -1: #"PATH" is encoded into variable name
-                    setattr(self,  k + '_p',  Parameter.Parameter(v,  is_path = True))
+                    setattr(self,  k + '_p',  parameter.Parameter(v,  is_path = True))
                 else:
-                    setattr(self,  k + '_p',  Parameter.Parameter(v))
+                    setattr(self,  k + '_p',  parameter.Parameter(v))
 
     def _set_parameters_from_locals(self,  locals):
         for k,  v in locals.items():

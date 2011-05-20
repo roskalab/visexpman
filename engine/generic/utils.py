@@ -319,6 +319,37 @@ def text_to_screen(text,  position = (0, 0),  color = [1.0,  1.0,  1.0]):
         glRasterPos2f(position[0] + 0.01 * i, position[1])
         glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(text[i]))
 
+def find_files_and_folders(start_path,  extension = None):
+        '''
+        Finds all folders and files. With extension the files can be filtered
+        '''
+        directories = []
+        all_files  = []
+        directories = []
+        for root, dirs, files in os.walk(start_path):            
+            for dir in dirs:
+                directories.append(root + os.sep + dir)
+            for file in files:
+                if extension != None:
+                    if file.split('.')[1] == extension:
+                        all_files.append(root + os.sep + file)
+                else:
+                    all_files.append(root + os.sep + file)    
+        return directories, all_files
+        
+def find_class_in_module(modules,  class_name):
+    '''
+    Finds the module where a certain class declaration resides
+    '''
+    module_found = None
+    class_declaration_strings = ['class ' + class_name,  'class  ' + class_name]
+    for module in modules:
+         module_content = read_text_file(module)
+         for class_declaration_string in class_declaration_strings:
+            if module_content.find(class_declaration_string) != -1:
+                module_found = module.split(os.sep)[-1].split('.')[0]                
+    return module_found
+
 
 if __name__ == "__main__":
 #    print convert_color((1.0,  0.5,  0.5))

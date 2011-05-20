@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Project SYSTEM "Project-4.6.dtd">
+<!-- eric4 project file for project visexpman -->
+<!-- Saved: 2011-05-20, 12:14:29 -->
+<!-- Copyright (C) 2011 Zoltan Raics, zoltan.raics@fmi.ch -->
+<Project version="4.6">
+  <Language>en</Language>
+  <ProgLanguage mixed="0">Python</ProgLanguage>
+  <ProjectType>Other</ProjectType>
+  <Description>Vision experiment manager software.</Description>
+  <Version>0.1</Version>
+  <Author>Zoltan Raics</Author>
+  <Email>zoltan.raics@fmi.ch</Email>
+  <Sources>
+    <Source>users/example/shapestimulus_example.py</Source>
+    <Source>users/example/image_example.py</Source>
+    <Source>users/example/checkerboard_example.py</Source>
+    <Source>users/example/grating_example.py</Source>
+    <Source>users/example/ring_example.py</Source>
+    <Source>users/example/hardware_examples.py</Source>
+    <Source>users/daniel/miguel_setup.py</Source>
+    <Source>users/daniel/movingdot.py</Source>
+    <Source>users/daniel/sparsedots_prepare.py</Source>
+    <Source>users/__init__.py</Source>
+    <Source>users/zoltan/flash_screen_stimulus.py</Source>
+    <Source>users/zoltan/configurations.py</Source>
+    <Source>users/zoltan/flash_colors_stimulus.py</Source>
+    <Source>users/zoltan/test/test_stimulus.py</Source>
+    <Source>users/zoltan/test/remote_interface_tester.py</Source>
+    <Source>users/zoltan/test/stimulus_library_test_data.py</Source>
+    <Source>users/karl/electrophysiology_configuration.py</Source>
+    <Source>users/templateuser/moving_rectangles_stimulus.py</Source>
+    <Source>users/templateuser/checkerboard_stimulus.py</Source>
+    <Source>users/templateuser/template_configuration.py</Source>
+    <Source>users/templateuser/gratings_stimulus.py</Source>
+    <Source>users/templateuser/increasing_spot_stimulus.py</Source>
+    <Source>users/templateuser/ds_stimulus.py</Source>
+    <Source>users/peter/mea_configurations.py</Source>
+    <Source>engine/run_virtual_reality.py</Source>
+    <Source>engine/visual_stimulation/configuration.py</Source>
+    <Source>engine/visual_stimulation/experiment.py</Source>
+    <Source>engine/visual_stimulation/stimulation_control.py</Source>
+    <Source>engine/visual_stimulation/stimulation_library.py</Source>
+    <Source>engine/visual_stimulation/user_interface.py</Source>
+    <Source>engine/visual_stimulation/command_handler.py</Source>
+    <Source>engine/run_visual_stimulation.py</Source>
+    <Source>engine/hardware_interface/daq_instrument.py</Source>
+    <Source>engine/hardware_interface/instrument.py</Source>
+    <Source>engine/hardware_interface/udp_interface.py</Source>
+    <Source>engine/generic/utils.py</Source>
+    <Source>engine/generic/configuration.py</Source>
+    <Source>engine/generic/__init__.py</Source>
+    <Source>engine/generic/parametric_control.py</Source>
+    <Source>engine/generic/parameter.py</Source>
+    <Source>__init__.py</Source>
+  </Sources>
+  <Forms>
+  </Forms>
+  <Translations>
+  </Translations>
+  <Resources>
+  </Resources>
+  <Interfaces>
+  </Interfaces>
+  <Others>
+  </Others>
+  <Vcs>
+    <VcsType>None</VcsType>
+  </Vcs>
+  <FiletypeAssociations>
+    <FiletypeAssociation pattern="*.pyw" type="SOURCES" />
+    <FiletypeAssociation pattern="*.idl" type="INTERFACES" />
+    <FiletypeAssociation pattern="*.py" type="SOURCES" />
+    <FiletypeAssociation pattern="*.ptl" type="SOURCES" />
+  </FiletypeAssociations>
+</Project>

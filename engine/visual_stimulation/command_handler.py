@@ -1,6 +1,6 @@
 import os
 import time
-import utils
+import generic.utils
 
 class CommandHandler():
     '''

@@ -3,15 +3,10 @@ import os
 
 from OpenGL.GL import *
 
-try:
-    import psychopy.visual
-    import psychopy.event
-    import psychopy.monitors
-except ImportError:
-    pass
-import pygame
-
-import utils
+import psychopy.visual
+import psychopy.event
+import psychopy.monitors
+import generic.utils
 
 class UserInterface():
     '''

@@ -1,4 +1,8 @@
-class TemplateConfig(Configuration.PresentinatorConfig):
+import visual_stimulation.configuration
+import os
+import generic.parameter
+
+class TemplateConfig(visual_stimulation.configuration.VisualStimulationConfig):
     
     def _set_user_specific_parameters(self):
 #        #display parameters:
@@ -91,28 +95,15 @@ class TemplateConfig(Configuration.PresentinatorConfig):
 #        ACTION_BETWEEN_STIMULUS = 'no' #keystroke, wait_xx in sec. no =  off
         self._set_parameters_from_locals(locals())        
         
-class RemoteTesterConfig(Configuration.PresentinatorConfig):
+class RemoteTesterConfig(visual_stimulation.configuration.VisualStimulationConfig):
     
     def _set_user_specific_parameters(self):                
         ENABLE_PARALLEL_PORT =False        
         FULLSCR = False
         SCREEN_RESOLUTION = [800,  600]        
         self._set_parameters_from_locals(locals())
-
-class SafestartConfig(Configuration.PresentinatorConfig):
-    
-    def _set_user_specific_parameters(self):
-        FILTERWHEEL_ENABLE = False
-        RUN_MODE = 'user interface'
-        ENABLE_PARALLEL_PORT = False
-        UDP_ENABLE = False        
-        FULLSCR = False
-        SCREEN_RESOLUTION = [800,  600]
         
-        
-        self._set_parameters_from_locals(locals())
-        
-class UbuntuDeveloperConfig(Configuration.PresentinatorConfig):
+class UbuntuDeveloperConfig(visual_stimulation.configuration.VisualStimulationConfig):
     
     def _set_user_specific_parameters(self):
         RUN_MODE = 'single experiment'
@@ -123,9 +114,9 @@ class UbuntuDeveloperConfig(Configuration.PresentinatorConfig):
         SINGLE_EXPERIMENT = 'ShapeTest'
 #        SINGLE_EXPERIMENT = 'GratingMaskTest'
 #        SINGLE_EXPERIMENT = 'DrumStimTest'
-        LOG_PATH = '../../presentinator/data/log/'
-        ARCHIVE_PATH = '../../presentinator/data'
-        CAPTURE_PATH = '../../presentinator/data/capture'
+#        LOG_PATH = '../../presentinator/data/log/'
+#        ARCHIVE_PATH = '../../presentinator/data'
+#        CAPTURE_PATH = '../../presentinator/data/capture'
         ENABLE_PARALLEL_PORT = True
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCR = True
@@ -144,14 +135,14 @@ class UbuntuDeveloperConfig(Configuration.PresentinatorConfig):
         
         #multiple stimulus control
         STIMULUS_LIST = ['MyStimulus1',  'MyStimulus2']
-        self.STIMULUS_LIST_p = generic.Parameter.Parameter(STIMULUS_LIST )
+        self.STIMULUS_LIST_p = generic.parameter.Parameter(STIMULUS_LIST )
         
         SEGMENT_DURATION = 2
         ACTION_BETWEEN_STIMULUS = 'off'
         
         self._set_parameters_from_locals(locals())
         
-class WindowsDeveloperConfig(Configuration.PresentinatorConfig):
+class WindowsDeveloperConfig(visual_stimulation.configuration.VisualStimulationConfig):
     
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
@@ -180,7 +171,7 @@ class WindowsDeveloperConfig(Configuration.PresentinatorConfig):
         
         self._set_parameters_from_locals(locals())
 
-class WindowsConfig(Configuration.PresentinatorConfig):
+class WindowsConfig(visual_stimulation.configuration.VisualStimulationConfig):
     #NOT TESTED
     def _set_user_specific_parameters(self):        
         ENABLE_PARALLEL_PORT = True        
@@ -199,111 +190,7 @@ class WindowsConfig(Configuration.PresentinatorConfig):
         
         self._set_parameters_from_locals(locals())
 
-
-        
-class KarlWindowsConfig(Configuration.PresentinatorConfig):   
-    def _set_user_specific_parameters(self):
-        RUN_MODE = 'user interface' 
-        FILTERWHEEL_ENABLE = True       
-        ENABLE_PARALLEL_PORT = True        
-        FULLSCR = True
-        SCREEN_RESOLUTION = [1024,  768]
-        ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        SERVER_UDP_IP = '172.27.34.12'
-        ARCHIVE_PATH = self.BASE_PATH + os.sep + 'data'
-        LOG_PATH = self.BASE_PATH + os.sep + 'data'
-        EXPECTED_FRAME_RATE = 75.0
-        MAX_FRAME_RATE = 75.0
-        FILTERWHEEL_SERIAL_PORT = [{
-                                    'port' :  'COM1',
-                                    'baudrate' : 9600,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    },
-                                    {
-                                    'port' :  'COM3',
-                                    'baudrate' : 9600,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    },
-                                    ]
-
-        
-        self._set_parameters_from_locals(locals())
-        
-class PetersConfig(Configuration.PresentinatorConfig):
-    
-    def _set_user_specific_parameters(self):
-        ACQUISITION_TRIGGER_PIN = 4
-        FRAME_TRIGGER_PIN = 6
-        RUN_MODE = 'user interface'
-        LOG_PATH = '../data'
-        ARCHIVE_PATH = '../data'
-        CAPTURE_PATH = '../data'
-        ENABLE_PARALLEL_PORT = True
-#        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
-        FULLSCR = True
-        SCREEN_RESOLUTION = [800,   600]
-        SCREEN_RESOLUTION = [1680,   1050]
-        ENABLE_FRAME_CAPTURE = False
-        
-        EXPECTED_FRAME_RATE = 30.0
-        MAX_FRAME_RATE = 30.0
-        FRAME_WAIT_FACTOR = 0.7
-
-        GAMMA = 1.0
-        FILTERWHEEL_ENABLE = True
-
-        FILTERWHEEL_SERIAL_PORT = [{
-                                    'port' :  '/dev/ttyUSB0',
-                                    'baudrate' : 115200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    }]
-        
-        self._set_parameters_from_locals(locals())
-        
-class MiguelWindowsConfig(Configuration.PresentinatorConfig):   
-    def _set_user_specific_parameters(self):
-        RUN_MODE = 'single experiment'
-        RUN_MODE = 'user interface' 
-        SINGLE_EXPERIMENT = 'MultipleDotTest'
-        FILTERWHEEL_ENABLE = False       
-        ENABLE_PARALLEL_PORT = True        
-        FULLSCR = True
-        SCREEN_RESOLUTION = [1024,  768]
-        ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 2
-        SERVER_UDP_IP = '172.27.34.9'
-        ARCHIVE_PATH = self.BASE_PATH + os.sep + 'data'
-        LOG_PATH = self.BASE_PATH + os.sep + 'data'
-        EXPECTED_FRAME_RATE = 75.0
-        MAX_FRAME_RATE = 75.0
-        UM_TO_PIXEL_SCALE = 3.0
-        FILTERWHEEL_SERIAL_PORT = [{
-                                    'port' :  'COM1',
-                                    'baudrate' : 9600,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    },
-                                    {
-                                    'port' :  'COM3',
-                                    'baudrate' : 9600,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    },
-                                    ]
-
-        
-        self._set_parameters_from_locals(locals())
-        
-class LaserProjectorConfig(Configuration.PresentinatorConfig):
+class LaserProjectorConfig(visual_stimulation.configuration.VisualStimulationConfig):
     #NOT TESTED
     def _set_user_specific_parameters(self):        
         SCREEN_RESOLUTION = [800, 600]
@@ -319,26 +206,8 @@ class LaserProjectorConfig(Configuration.PresentinatorConfig):
         self._set_parameters_from_locals(locals())
         
 if __name__ == "__main__":
-    c = DefaultConfig()
-    c.print_parameters() 
-    
-    c = TemplateConfig()
-    c.print_parameters() 
-
-    c = RemoteTesterConfig()
-    c.print_parameters() 
-    
-    c = QuickstartConfig()
-    c.print_parameters() 
     
     c = UbuntuDeveloperConfig()
     c.print_parameters() 
     
-    c = WindowsConfig()
-    c.print_parameters() 
-    
-    c = KarlWindowsConfig()
-    c.print_parameters() 
-    
-    c = LaserProjectorConfig()
-    c.print_parameters() 
+

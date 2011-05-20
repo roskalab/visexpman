@@ -1,5 +1,5 @@
 import os.path
-import utils
+import generic.utils
 
 class StimulusLibraryTestData():
     

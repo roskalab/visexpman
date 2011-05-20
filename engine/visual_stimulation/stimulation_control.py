@@ -6,25 +6,21 @@ import numpy
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
-try:
-    import psychopy.log
-except ImportError:
-    pass
+import psychopy.log
     
-import pygame
+
 #import modules for stimulus files:
 #from random import *
 #from numpy import *
 
-import utils
-import Presentinator
-import Experiment
-import generic.Instrument
+import generic.utils
+import experiment
+import hardware_interface.instrument
 
 #if self.config.ENABLE_PARALLEL_PORT:
 #    import parallel
     
-import StimulationLibrary
+import stimulation_library
 
 class StimulationControl():
     '''

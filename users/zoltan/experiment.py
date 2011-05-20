@@ -6,24 +6,9 @@
 #        
 #        self._create_parameters_from_locals(locals())    
 #    
-#    
+#      
 
-    
-
-class Experiment():
-    
-    def __init__(self,  stimulus_library):
-        self.st = stimulus_library
-        self.config = stimulus_library.config        
-        self.experimentconfig = getattr(self.__name__+'Config')()
-        
-    def run(self):
-        pass
-        
-    def cleanup(self):
-        pass
-
-class MultipleStimulus(Experiment):
+class MultipleStimulus(experiment.Experiment):
     
     def run(self):
         self.stimulus_set = []

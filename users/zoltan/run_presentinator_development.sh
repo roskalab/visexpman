@@ -1,4 +1,5 @@
 #!/bin/bash
 rmmod lp
 modprobe ppdev
-python Presentinator.py "UbuntuDeveloperConfig"
+cd ../../engine
+python run_visual_stimulation.py "zoltan/UbuntuDeveloperConfig"

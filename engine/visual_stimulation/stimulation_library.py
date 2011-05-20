@@ -10,21 +10,16 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
-try:
-    import psychopy.visual
-    import psychopy.core
-    import psychopy.log
-except ImportError:
-    pass
-import pygame
+import psychopy.visual
+import psychopy.core
+import psychopy.log
 
 
-import utils
-import generic.utilities
+import generic.utils
 
-import ParametricControl
+import generic.parametric_control
 
-import TestData
+import stimulus_library_test_data
     
 class Stimulations():
     """

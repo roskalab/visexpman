@@ -1,18 +1,20 @@
 import os
 import sys
-import generic.Configuration
-import generic.Parameter
+#
+#if os.name == 'nt':
+#    sys.path.append(os.path.dirname(sys.argv[0]) + '\generic' )
+#else:
+#    sys.path.append('../generic' )
+
+import generic.configuration
+import generic.parameter
 import serial
 import numpy
 
 import unittest
 
-if os.name == 'nt':
-    sys.path.append(os.path.dirname(sys.argv[0]) + '\generic' )
-else:
-    sys.path.append('generic' )
 
-class PresentinatorConfig(generic.Configuration.Config):
+class VisualStimulationConfig(generic.configuration.Config):
     def _create_application_parameters(self):
         '''
         By overdefining this function, the application/user etc specific parameters can be definced here:
@@ -69,14 +71,14 @@ class PresentinatorConfig(generic.Configuration.Config):
         UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
         
         #paths
-        DEFAULT_IMAGE_PATH = self.BASE_PATH + os.sep + 'images/default.bmp'
+        DEFAULT_IMAGE_PATH = self.BASE_PATH + os.sep + 'data' + os.sep + 'images/default.bmp'
         LOG_PATH = self.BASE_PATH
-        STIMULATION_EXAMPLES_PATH = self.BASE_PATH + os.sep + 'stimulus_examples'
-        STIMULATION_FOLDER_PATH = self.BASE_PATH + os.sep + 'stimulations'
+        STIMULATION_EXAMPLES_PATH = self.BASE_PATH + os.sep + 'users' + os.sep + 'example'
+        STIMULATION_FOLDER_PATH = self.BASE_PATH + os.sep + 'users' + os.sep + 'templateuser'
         ARCHIVE_PATH = self.BASE_PATH
         CAPTURE_PATH = self.BASE_PATH
-        BULLSEYE_PATH = self.BASE_PATH + os.sep + 'images/bullseye.bmp'
-        TEMP_IMAGE_PATH = self.BASE_PATH + os.sep + 'images/tmp.bmp'
+        BULLSEYE_PATH = self.BASE_PATH + os.sep + 'data' + os.sep + 'images/bullseye.bmp'
+        TEMP_IMAGE_PATH = self.BASE_PATH + os.sep + 'data' + os.sep + 'images/tmp.bmp'
         
         #commands (including commands which are accepted only from udp interface)
         CMD_START = 's'        
@@ -152,19 +154,19 @@ class PresentinatorConfig(generic.Configuration.Config):
         '''
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
         '''
-        self.PIXEL_TO_UM_SCALE_p = generic.Parameter.Parameter(1.0 / self.UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
+        self.PIXEL_TO_UM_SCALE_p = generic.parameter.Parameter(1.0 / self.UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
         
         ACQUISITION_TRIGGER_ON = 1<<self.ACQUISITION_TRIGGER_PIN
-        self.ACQUISITION_TRIGGER_ON_p = generic.Parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
-        self.ACQUISITION_TRIGGER_OFF_p = generic.Parameter.Parameter(0,  range_ = [0,  255])
-        self.FRAME_TRIGGER_ON_p = generic.Parameter.Parameter(ACQUISITION_TRIGGER_ON | 1<<self.FRAME_TRIGGER_PIN,  range_ = [0,  255])
-        self.FRAME_TRIGGER_OFF_p = generic.Parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
+        self.ACQUISITION_TRIGGER_ON_p = generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
+        self.ACQUISITION_TRIGGER_OFF_p = generic.parameter.Parameter(0,  range_ = [0,  255])
+        self.FRAME_TRIGGER_ON_p = generic.parameter.Parameter(ACQUISITION_TRIGGER_ON | 1<<self.FRAME_TRIGGER_PIN,  range_ = [0,  255])
+        self.FRAME_TRIGGER_OFF_p = generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
         
         screen_resolution = 1.0 / numpy.array(self.SCREEN_RESOLUTION)
         um_to_norm_scale = 2.0 * self.PIXEL_TO_UM_SCALE_p.v * screen_resolution        
-        self.UM_TO_NORM_SCALE_p = generic.Parameter.Parameter(um_to_norm_scale)
+        self.UM_TO_NORM_SCALE_p = generic.parameter.Parameter(um_to_norm_scale)
 
-class TestConfig(generic.Configuration.Config):
+class TestConfig(generic.configuration.Config):
     def _create_application_parameters(self):
         PAR1 = 'par'
         PAR2 = 'par2'
@@ -190,9 +192,22 @@ class testParameter(unittest.TestCase):
         t = TestConfig()
         self.assertEqual((t.PAR1,  t.PAR2,  t.PAR3),  ('par1', 'par2',  t.PAR1+t.PAR2))
         
+class SafestartConfig(VisualStimulationConfig):
+    
+    def _set_user_specific_parameters(self):
+        FILTERWHEEL_ENABLE = False
+        RUN_MODE = 'user interface'
+        ENABLE_PARALLEL_PORT = False
+        UDP_ENABLE = False        
+        FULLSCR = False
+        SCREEN_RESOLUTION = [800,  600]
+        
+        
+        self._set_parameters_from_locals(locals())        
+
 if __name__ == "__main__":
 #    unittest.main()    
-    c = PresentinatorConfig()
+    c = VisualStimulationConfig()
     c.print_parameters()
     
     

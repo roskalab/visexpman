@@ -1,6 +1,6 @@
 import serial
 import os
-import Configuration
+import generic.configuration
 import unittest
 import time
 import threading
@@ -112,7 +112,7 @@ class Filterwheel(Instrument):
         except AttributeError:
             pass
             
-class testConfig(Configuration.Config):
+class testConfig(generic.configuration.Config):
     def _create_application_parameters(self):
         if os.name == 'nt':
             port = 'COM6'
