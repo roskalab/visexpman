@@ -1,4 +1,4 @@
 c:
 cd C:\Program Files\PsychoPy2
-python %~dp0Presentinator.py "SafestartConfig"
+python %~dp0run_visual_stimulation.py
 pause

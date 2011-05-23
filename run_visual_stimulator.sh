@@ -1,4 +1,5 @@
 #!/bin/bash
 rmmod lp
 modprobe ppdev
-python Presentinator.py
+cd engine
+python run_visual_stimulation.py "user/config_class"

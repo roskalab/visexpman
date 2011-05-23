@@ -1,12 +1,13 @@
+import sys
 import math
 import random
 import numpy
 import os.path
 import os
-import pygame
+#import pygame
 import time
-from OpenGL.GL import *
-from OpenGL.GLUT import *
+#from OpenGL.GL import *
+#from OpenGL.GLUT import *
 
 
 # valid color configurations: 1.0; 255; (1.0, 0.4, 0), invalid color configuration: (255, 0, 128)
@@ -150,8 +151,8 @@ def um_to_normalized_display(value, config):
     '''
     if not isinstance(value,  list):
         value = [value,  value]
-    normalized_x = 2.0 * config.PIXEL_TO_UM_SCALE * float(value[0]) / config.SCREEN_RESOLUTION[0]
-    normalized_y = 2.0 * config.PIXEL_TO_UM_SCALE * float(value[1]) / config.SCREEN_RESOLUTION[1]
+    normalized_x = 2.0 * config.PIXEL_TO_UM_SCALE * float(value[0]) / config.SCREEN_RESOLUTION['col']
+    normalized_y = 2.0 * config.PIXEL_TO_UM_SCALE * float(value[1]) / config.SCREEN_RESOLUTION['row']
     return [normalized_x,  normalized_y]
 
 def random_colors(n,  frames = 1,  greyscale = False,  inital_seed = 0):
@@ -337,7 +338,7 @@ def find_files_and_folders(start_path,  extension = None):
                     all_files.append(root + os.sep + file)    
         return directories, all_files
         
-def find_class_in_module(modules,  class_name):
+def find_class_in_module(modules,  class_name, module_name_with_hierarchy = False):
     '''
     Finds the module where a certain class declaration resides
     '''
@@ -347,9 +348,57 @@ def find_class_in_module(modules,  class_name):
          module_content = read_text_file(module)
          for class_declaration_string in class_declaration_strings:
             if module_content.find(class_declaration_string) != -1:
-                module_found = module.split(os.sep)[-1].split('.')[0]                
+                if module_name_with_hierarchy:
+                    items = module.split(os.sep)                    
+                    module_found = ''
+                    for item in items:
+                        stripped_from_extension = item.replace('.py', '')                        
+                        if stripped_from_extension.replace('_', '').isalnum():
+                            module_found = module_found + '.' + stripped_from_extension
+                    module_found = module_found[1:]
+                else:
+                    module_found = module.split(os.sep)[-1].split('.')[0]
     return module_found
+    
+def prepare_dynamic_class_instantiation(modules,  class_name):        
+    """
+    Imports the necessary module and returns a reference to the class that could be sued for instantiation
+    """
+    #import experiment class
+    module_name = find_class_in_module(modules, class_name,  module_name_with_hierarchy = True)
+    __import__(module_name)
+    #get referece to class and return with it
+    return getattr(sys.modules[module_name], class_name)
 
+def rc(raw):
+    if isinstance(raw[0], list) or isinstance(raw[0], tuple):
+        if isinstance(raw[0][0], float):
+            return numpy.array(zip((raw[1], raw[0])),dtype={'names':['col','row'],'formats':[numpy.float,numpy.float]})
+        else:
+            return numpy.array(zip((raw[1], raw[0])),dtype={'names':['col','row'],'formats':[numpy.uint16,numpy.uint16]})
+    else:
+        if isinstance(raw[0], float):
+            return numpy.array((raw[1], raw[0]),dtype={'names':['col','row'],'formats':[numpy.float,numpy.float]})
+        else:
+            return numpy.array((raw[1], raw[0]),dtype={'names':['col','row'],'formats':[numpy.uint16,numpy.uint16]})
+
+def coordinate_transform(coordinates, origo, x_axis_positive_direction, y_axis_positive_direction):
+    '''
+    Transforms coordinates to the native coordinate system of visual stimulation software where the origo is in the center of the screen 
+    and the positive directions of on the axis's are up and right
+    
+    Supported inputs:
+    -1 d tuples
+    -1,2 or 3 d lists
+    -1,2 or 3 d numpy arrays
+    '''
+#    if isinstance(coordinates, list) or isinstance(coordinates, tuple):
+#    elif isinstance
+
+def coordinate_transform_single_point(point, origo, x_axis_positive_direction, y_axis_positive_direction):
+    x = origo['col'] + x_axis_positive_direction * point[0]
+    y = origo['row'] + y_axis_positive_direction * point[1]
+    return x, y
 
 if __name__ == "__main__":
 #    print convert_color((1.0,  0.5,  0.5))
@@ -357,12 +406,12 @@ if __name__ == "__main__":
 #    print convert_color(0.2)
 #    print convert_color(127)
 #    print convert_color(0)
-#    print convert_int_color((1,  1,  1))    
+#    print convert_int_color((1,  1,  1))
 #    print convert_color_from_pp(convert_color(0.5))
 #    w = generate_waveform('sin',  80,  40,  2,  0,  0)
 #    from matplotlib.pyplot import figure, plot, show,  legend,  title
 #    figure(1)
-#    plot(w) 
+#    plot(w)
 #    show()
 #    circle_to_numpy(5)
     

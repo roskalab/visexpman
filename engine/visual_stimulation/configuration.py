@@ -1,13 +1,9 @@
 import os
 import sys
-#
-#if os.name == 'nt':
-#    sys.path.append(os.path.dirname(sys.argv[0]) + '\generic' )
-#else:
-#    sys.path.append('../generic' )
 
 import generic.configuration
 import generic.parameter
+import generic.utils as utils
 import serial
 import numpy
 
@@ -41,17 +37,25 @@ class VisualStimulationConfig(generic.configuration.Config):
         RUN_MODE = ['single experiment',  ['single experiment',  'user interface',  'unknown']]
         
         #this a valid stimulation file path or an experiment object name
-        SINGLE_EXPERIMENT = 'undefined'
+        EXPERIMENT = 'undefined'
+        EXPERIMENT_CONFIG = 'undefined'
+        PRE_EXPERIMENT = 'undefined'
+        ENABLE_PRE_EXPERIMENT = False
         
         #display parameters:
-        SCREEN_RESOLUTION = [[1680, 1050],  [[200,  200],  [2000,  2000]]]
+        SCREEN_RESOLUTION = utils.rc([600, 800])        
         FULLSCR = True
-        EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
-        MAX_FRAME_RATE = [60.0,  FPS_RANGE]
+        SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
+        SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]
         FRAME_DELAY_TOLERANCE = [1.0,  [1e-2,  10.0]]
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
         GAMMA = [1.0,  [1e-2,  10]]
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
+        
+        #Coordinate system parameters
+        ORIGO = utils.rc((0, 0))
+        X_AXIS_POSITIVE_DIRECTION = ['right',  ['left', 'right', 'undefined']]
+        Y_AXIS_POSITIVE_DIRECTION = ['up',  ['up', 'down', 'undefined']]
         
         #pixel scaling
         UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel        
@@ -63,7 +67,7 @@ class VisualStimulationConfig(generic.configuration.Config):
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         
         #Network/UDP settings
-        SERVER_UDP_IP = '172.27.29.15'
+        SERVER_UDP_IP = '172.27.29.6'
         WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
         CLIENT_UDP_IP = ''
         UDP_ENABLE = True
@@ -162,7 +166,10 @@ class VisualStimulationConfig(generic.configuration.Config):
         self.FRAME_TRIGGER_ON_p = generic.parameter.Parameter(ACQUISITION_TRIGGER_ON | 1<<self.FRAME_TRIGGER_PIN,  range_ = [0,  255])
         self.FRAME_TRIGGER_OFF_p = generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
         
-        screen_resolution = 1.0 / numpy.array(self.SCREEN_RESOLUTION)
+        if isinstance(self.SCREEN_RESOLUTION, list):
+            screen_resolution = 1.0 / numpy.array(self.SCREEN_RESOLUTION)
+        elif isinstance(self.SCREEN_RESOLUTION, numpy.ndarray):
+            screen_resolution = 1.0 / numpy.array([self.SCREEN_RESOLUTION['col'], self.SCREEN_RESOLUTION['row']])
         um_to_norm_scale = 2.0 * self.PIXEL_TO_UM_SCALE_p.v * screen_resolution        
         self.UM_TO_NORM_SCALE_p = generic.parameter.Parameter(um_to_norm_scale)
 
@@ -200,8 +207,7 @@ class SafestartConfig(VisualStimulationConfig):
         ENABLE_PARALLEL_PORT = False
         UDP_ENABLE = False        
         FULLSCR = False
-        SCREEN_RESOLUTION = [800,  600]
-        
+        SCREEN_RESOLUTION = utils.rc([600, 800])        
         
         self._set_parameters_from_locals(locals())        
 

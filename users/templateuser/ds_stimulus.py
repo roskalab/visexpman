@@ -22,8 +22,8 @@ for ori in oris:
         
     start_pos = (int(-0.5 * path_length * cos(ori_rad)), int(-0.5 * path_length * sin(ori_rad)))  
     
-    posx = ['prev + ' + str(float(speed) / self.config.EXPECTED_FRAME_RATE) + '* cos(' + str(ori_rad) + ')',  []]
-    posy = ['prev + ' + str(float(speed) / self.config.EXPECTED_FRAME_RATE) + '* sin(' + str(ori_rad) + ')',  []]
+    posx = ['prev + ' + str(float(speed) / self.config.SCREEN_EXPECTED_FRAME_RATE) + '* cos(' + str(ori_rad) + ')',  []]
+    posy = ['prev + ' + str(float(speed) / self.config.SCREEN_EXPECTED_FRAME_RATE) + '* sin(' + str(ori_rad) + ')',  []]
     ori_ = ['',  []]  #unconfigured parametric control
     color_r = ['', []]
     color_g = ['', []]

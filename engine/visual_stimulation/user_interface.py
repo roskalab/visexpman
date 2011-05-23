@@ -1,8 +1,6 @@
 import time
 import os
 
-from OpenGL.GL import *
-
 import psychopy.visual
 import psychopy.event
 import psychopy.monitors
@@ -16,9 +14,9 @@ class UserInterface():
         
         self.config = config
         #Initializing display, setting screen resolution, background color, hiding mouse cursor, quantities are interpreted in pixels        
-        self.screen = psychopy.visual.Window(self.config.SCREEN_RESOLUTION, color = utils.convert_color(self.config.BACKGROUND_COLOR), colorSpace = 'rgb',  fullscr = self.config.FULLSCR, allowGUI = False,  units="pix") #create a window
+        self.screen = psychopy.visual.Window([self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']], color = generic.utils.convert_color(self.config.BACKGROUND_COLOR), colorSpace = 'rgb',  fullscr = self.config.FULLSCR, allowGUI = False,  units="pix") #create a window
         #Set acceptable framerate and give warning when frame drop occurs
-        self.screen._refreshThreshold=1/float(self.config.EXPECTED_FRAME_RATE)+float(self.config.FRAME_DELAY_TOLERANCE) * 1e-3
+        self.screen._refreshThreshold=1/float(self.config.SCREEN_EXPECTED_FRAME_RATE)+float(self.config.FRAME_DELAY_TOLERANCE) * 1e-3
         self.screen.setGamma(self.config.GAMMA)        
         
         #shortcuts to stimulus files
@@ -34,9 +32,9 @@ class UserInterface():
         
         #Display menu
         position = (0, 0)   
-        if self.config.TEXT_ENABLE:
+        if self.config.TEXT_ENABLE and not self.config.ENABLE_PRE_EXPERIMENT:
             self.menu = psychopy.visual.TextStim(self.screen,  text = self.config.MENU_TEXT + self.listStimulusFiles(),  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE) 
-            position = (0,  int(-0.4 * self.config.SCREEN_RESOLUTION[1]))
+            position = (0,  int(-0.4 * self.config.SCREEN_RESOLUTION['row']))
             self.message = psychopy.visual.TextStim(self.screen,  text = '',  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)
             self.user_interface_items = [self.menu,  self.message]             
         
@@ -49,7 +47,7 @@ class UserInterface():
         '''
         Update Psychopy items that make the user interface
         '''
-        if self.config.TEXT_ENABLE and self.clear_stimulus:            
+        if self.config.TEXT_ENABLE and self.clear_stimulus and not self.config.ENABLE_PRE_EXPERIMENT:            
             for user_interface_item in self.user_interface_items:
                 user_interface_item.draw()
             self.screen.flip()
@@ -61,7 +59,7 @@ class UserInterface():
         self.message_text = self.message_text + '\n' + txt
         if len(self.message_text) > self.config.MAX_MESSAGE_LENGTH:
             self.message_text = self.message_text[len(self.message_text) - self.config.MAX_MESSAGE_LENGTH:len(self.message_text)]
-        if self.config.TEXT_ENABLE and self.clear_stimulus:            
+        if self.config.TEXT_ENABLE and self.clear_stimulus and not self.config.ENABLE_PRE_EXPERIMENT:            
             self.message.setText(self.message_text)
             self.message.draw()        
             self.screen.flip()
@@ -110,7 +108,7 @@ class UserInterface():
         '''
         Lists and displays stimulus files that can be found in the default stimulus file folder
         '''
-        stimulus_files = utils.filtered_file_list(self.config.STIMULATION_FOLDER_PATH,  ['stimulus',  'example'])
+        stimulus_files = generic.utils.filtered_file_list(self.config.STIMULATION_FOLDER_PATH,  ['stimulus',  'example'])
         stimulus_files.sort()
         stimulus_files_string = '\n\n'
         index = 0        
@@ -119,7 +117,8 @@ class UserInterface():
             index = index + 1
         return stimulus_files_string
         
-    def close(self):        
+    def close(self):
+        pass
         self.screen.close()        
         
 if __name__ == "__main__":

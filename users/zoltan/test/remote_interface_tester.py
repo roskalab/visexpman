@@ -2,10 +2,25 @@ import sys
 import socket
 import os.path
 import time
+sys.path.append('../../../engine')
+import visual_stimulation.configuration
+import generic.utils as utils
 
-import Configurations
 
-conf = Configurations.RemoteTesterConfig(os.getcwd())
+class RemoteTesterConfig(visual_stimulation.configuration.VisualStimulationConfig):
+    
+    def _set_user_specific_parameters(self):                
+        ENABLE_PARALLEL_PORT =False
+        FULLSCR = False
+        SCREEN_RESOLUTION = utils.rc[600,  800]
+        self._set_parameters_from_locals(locals())
+
+#Call params:
+# 1. 1. argument: string of commands
+# 2. 1. argument "t"
+#     2. argument: path of stimfile to be sent
+
+conf = RemoteTesterConfig('../../..')
 
 try:
     command = sys.argv[1]

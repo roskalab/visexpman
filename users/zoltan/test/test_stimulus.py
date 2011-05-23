@@ -15,7 +15,7 @@ posttest_delay = 0.0
 self.st.clear_screen(duration = preset_time,  color = 0.0)
 
 if test == 0:
-    for i in range(int(self.config.EXPECTED_FRAME_RATE * test_time * 0.5)):
+    for i in range(int(self.config.SCREEN_EXPECTED_FRAME_RATE * test_time * 0.5)):
         self.st.clear_screen(duration = 0.0,  color = 1.0)
         self.st.clear_screen(duration = 0.0,  color = 0.0)
 elif test == 1:

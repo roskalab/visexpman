@@ -37,7 +37,7 @@ for i in range(8):
     elif example_i == 5:
         #show circles with random color, size and position
         duration = 3.0
-        n_frames = int(duration * self.config.EXPECTED_FRAME_RATE)
+        n_frames = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
         col = utils.random_colors(n_frames)
         from numpy import random
         pos = random.rand(n_frames,  2)

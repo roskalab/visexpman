@@ -13,13 +13,10 @@ from OpenGL.GLUT import *
 import psychopy.visual
 import psychopy.core
 import psychopy.log
-
-
 import generic.utils
-
 import generic.parametric_control
-
-import stimulus_library_test_data
+sys.path.append('..' ) 
+import users.zoltan.test.stimulus_library_test_data
     
 class Stimulations():
     """
@@ -41,7 +38,7 @@ class Stimulations():
         self.checkerboard = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
         self.gratings = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
         self.image_list = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
-        self.backgroundColor = utils.convert_color(self.config.BACKGROUND_COLOR)        
+        self.backgroundColor = generic.utils.convert_color(self.config.BACKGROUND_COLOR)        
         
         self.flip_time = time.time()
         self.flip_times = []        
@@ -67,7 +64,7 @@ class Stimulations():
             if flip == True:
                 self._flip(trigger = True)
         else:
-            for i in range(int(float(duration) * float(self.config.EXPECTED_FRAME_RATE))):
+            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):
                 if isinstance(stimulus, list):
                     for stimulus_item in stimulus:
                         stimulus_item.draw()
@@ -125,8 +122,8 @@ class Stimulations():
         
     #Externally callable functions showing different visual patterns
     def set_background(self,  color):        
-        self.screen.setColor(utils.convert_color(color))
-        self.backgroundColor = utils.convert_color(color)        
+        self.screen.setColor(generic.utils.convert_color(color))
+        self.backgroundColor = generic.utils.convert_color(color)        
         
     def clear_screen(self, duration = 0.0,  color = None):
         
@@ -141,7 +138,7 @@ class Stimulations():
         if duration == 0.0:
             self._flip()
         else:
-            for i in range(int(duration * self.config.EXPECTED_FRAME_RATE)):
+            for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
                 self._flip()
                 
     def show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [],  size = None):
@@ -156,7 +153,7 @@ class Stimulations():
         position: position of image on screen in pixels. This can be controlled by parameters and a formula when images in a folder are shown
         
         If duration is 0, then each image will be shown for one display update time. 
-        Otherwise duration shall be the multiple of 1/EXPECTED_FRAME_RATE to avoid dropped frames            
+        Otherwise duration shall be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE to avoid dropped frames            
         
         Usage:
             Show a single image which path is image_path for 1 second in a centered position:
@@ -178,8 +175,8 @@ class Stimulations():
             image_file_paths.sort()
             #initialize parametric control
             start_time = time.time()            
-            posx_parametric_control = ParametricControl.ParametricControl(position[0],  start_time)
-            posy_parametric_control = ParametricControl.ParametricControl(position[1],  start_time) 
+            posx_parametric_control = generic.parametric_control.ParametricControl(position[0],  start_time)
+            posy_parametric_control = generic.parametric_control.ParametricControl(position[1],  start_time) 
             
             for image_file_path in image_file_paths:
                 if len(formula) > 0:
@@ -208,11 +205,11 @@ class Stimulations():
             
             #initialize parametric control
             start_time = time.time()            
-            posx_parametric_control = ParametricControl.ParametricControl(position[0],  start_time)
-            posy_parametric_control = ParametricControl.ParametricControl(position[1],  start_time)             
+            posx_parametric_control = generic.parametric_control.ParametricControl(position[0],  start_time)
+            posy_parametric_control = generic.parametric_control.ParametricControl(position[1],  start_time)             
             if len(formula) > 0:
                 #parametric control
-                for i in range(int(float(duration) * float(self.config.EXPECTED_FRAME_RATE))):
+                for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):
                     parametric_data_x = formula[0]
                     parametric_data_y = formula[1] 
                     actual_time_tick = time.time()
@@ -237,7 +234,7 @@ class Stimulations():
                     if flip:
                     	self._flip(trigger = True)
         else:
-            for i in range(int(float(duration) * float(self.config.EXPECTED_FRAME_RATE))):                    
+            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                    
                     self.image.setImage(path)            
                     self.image.draw()
                     if i == 0:
@@ -294,7 +291,7 @@ class Stimulations():
         '''
         
         position = pos
-        converted_color = utils.convert_color(color)
+        converted_color = generic.utils.convert_color(color)
         if  formula != []:
             parametric_control_enable = True
         else:
@@ -311,14 +308,14 @@ class Stimulations():
         if shape == 'rect' or shape == 'rectangle':
             vertices = [[-0.5 * size_adjusted[0], -0.5 * size_adjusted[1]],  [-0.5 * size_adjusted[0], 0.5 * size_adjusted[1]],  [0.5 * size_adjusted[0], 0.5 * size_adjusted[1]],  [0.5 * size_adjusted[0], -0.5 * size_adjusted[1]]]
         elif shape == 'circle' or shape == 'annulus' or shape == 'annuli':
-            vertices = utils.calculate_circle_vertices(size_adjusted,  1.0)
+            vertices = generic.utils.calculate_circle_vertices(size_adjusted,  1.0)
         
         if shape == 'annulus' or shape == 'annuli':
             if isinstance(ring_size, list):
                 _ring_size = [size_adjusted[0] - ring_size[0] * self.config.PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size[1] * self.config.PIXEL_TO_UM_SCALE]
             else:
                 _ring_size = [size_adjusted[0] - ring_size * self.config.PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size * self.config.PIXEL_TO_UM_SCALE]
-            inner_circle_vertices = utils.calculate_circle_vertices(_ring_size,  1.0) 
+            inner_circle_vertices = generic.utils.calculate_circle_vertices(_ring_size,  1.0) 
         
         if duration == 0.0:            
             #show shape for a single frame
@@ -343,14 +340,14 @@ class Stimulations():
             #initialize parametric control
             if parametric_control_enable:
                 #convert color to Presentinator color format so that parametric control could handle this format
-                color_presentinator_format = utils.convert_color_from_pp(converted_color)                
+                color_presentinator_format = generic.utils.convert_color_from_pp(converted_color)                
                 start_time = time.time()
-                posx_pc = ParametricControl.ParametricControl(position[0],  start_time)
-                posy_pc = ParametricControl.ParametricControl(position[1],  start_time) 
-                ori_pc = ParametricControl.ParametricControl(orientation,  start_time)                 
-                color_r_pc = ParametricControl.ParametricControl(color_presentinator_format[0],  start_time) 
-                color_g_pc = ParametricControl.ParametricControl(color_presentinator_format[1],  start_time) 
-                color_b_pc = ParametricControl.ParametricControl(color_presentinator_format[2],  start_time)          
+                posx_pc = generic.parametric_control.ParametricControl(position[0],  start_time)
+                posy_pc = generic.parametric_control.ParametricControl(position[1],  start_time) 
+                ori_pc = generic.parametric_control.ParametricControl(orientation,  start_time)                 
+                color_r_pc = generic.parametric_control.ParametricControl(color_presentinator_format[0],  start_time) 
+                color_g_pc = generic.parametric_control.ParametricControl(color_presentinator_format[1],  start_time) 
+                color_b_pc = generic.parametric_control.ParametricControl(color_presentinator_format[2],  start_time)          
                 
                 posx_pars = formula[0]
                 posy_pars = formula[1]
@@ -359,7 +356,7 @@ class Stimulations():
                 color_g_pars = formula[4]
                 color_b_pars = formula[5]
             
-            for i in range(int(float(duration) * float(self.config.EXPECTED_FRAME_RATE))):                                               
+            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                                               
                 #parametric control                
                 if parametric_control_enable: 
                     actual_time_tick = time.time()                    
@@ -371,7 +368,7 @@ class Stimulations():
                     color_b_pc.update(value = None,  parameters = color_b_pars[1],  formula = color_b_pars[0],  time_tick = actual_time_tick)
                     position_to_set = (posx_pc.value,  posy_pc.value)
                     orientation_to_set = ori_pc.value
-                    color_to_set = utils.convert_color((color_r_pc.value,  color_g_pc.value,  color_b_pc.value))
+                    color_to_set = generic.utils.convert_color((color_r_pc.value,  color_g_pc.value,  color_b_pc.value))
                 else:
                     position_to_set = position                    
                     orientation_to_set = orientation                    
@@ -445,7 +442,7 @@ class Stimulations():
         texture = Image.new('RGBA',  n_checkers_fixed) 
         for row in range(n_checkers[1]):
             for column in range(n_checkers[0]):            
-                texture.putpixel((column, row),  utils.convert_int_color(utils.convert_color_from_pp(utils.convert_color(color[row * n_checkers[0] + column]))))
+                texture.putpixel((column, row),  generic.utils.convert_int_color(generic.utils.convert_color_from_pp(generic.utils.convert_color(color[row * n_checkers[0] + column]))))
         
         self.checkerboard.setPos(pos_offset)
         self.checkerboard.setTex(texture) 
@@ -556,16 +553,16 @@ class Stimulations():
             for slice in range(n_slices):
                 start_angle = slice_angle * slice
                 end_angle = slice_angle * (slice + 1)
-                vertices = utils.calculate_circle_vertices(outer_r,  start_angle = start_angle,  end_angle = end_angle+1)               
+                vertices = generic.utils.calculate_circle_vertices(outer_r,  start_angle = start_angle,  end_angle = end_angle+1)               
                 
                 try:
-                    color = utils.convert_color(colors[(n_rings -1 - ring) * n_slices + slice])
+                    color = generic.utils.convert_color(colors[(n_rings -1 - ring) * n_slices + slice])
                 except IndexError:
                     color = (-1.0,  -1.0,  -1.0)
                 
                 self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = color,  fillColor = color,  vertices =  vertices,  pos = pos_p))                
             if inner_circles:
-                vertices  = utils.calculate_circle_vertices(inner_r)
+                vertices  = generic.utils.calculate_circle_vertices(inner_r)
                 self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = (-1.0,  -1.0,  -1.0),  fillColor = (-1.0,  -1.0,  -1.0),  vertices =  vertices,  pos = pos_p))
                 
         self._show_stimulus(duration,  self.ring,  flip)  
@@ -602,7 +599,7 @@ class Stimulations():
         """        
         
         if spatial_frequency == -1:
-            spatial_frequency_to_set = self.config.SCREEN_RESOLUTION[0]
+            spatial_frequency_to_set = self.config.SCREEN_RESOLUTION['col']
         else:
             spatial_frequency_to_set = spatial_frequency
             
@@ -621,10 +618,10 @@ class Stimulations():
         
         #If gratings are to be shown on fullscreen, modify display area so that no ungrated parts are on the screen considering rotation
         if display_area_adjusted[0] == 0:            
-            display_area_adjusted[0] = int(self.config.SCREEN_RESOLUTION[0] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION[1] * abs(math.sin(orientation_rad)))
-            screen_width = self.config.SCREEN_RESOLUTION[0]
+            display_area_adjusted[0] = int(self.config.SCREEN_RESOLUTION['col'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['row'] * abs(math.sin(orientation_rad)))
+            screen_width = self.config.SCREEN_RESOLUTION['col']
         if display_area_adjusted[1] == 0:            
-            display_area_adjusted[1] = int(self.config.SCREEN_RESOLUTION[1] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION[0] * abs(math.sin(orientation_rad)))    
+            display_area_adjusted[1] = int(self.config.SCREEN_RESOLUTION['row'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['col'] * abs(math.sin(orientation_rad)))    
         
         #generate texture        
         period_scale = float(display_area_adjusted[0]) / float(spatial_frequency_to_set * self.config.PIXEL_TO_UM_SCALE)
@@ -667,9 +664,9 @@ class Stimulations():
             color_offset_adjusted[i] = 2.0 * color_offset_adjusted[i]  - 1.0 + 0.5 * color_contrast_adjusted[i]         
 
         #generate stimulus profiles
-        stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, duty_cycle)
-        stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, duty_cycle)
-        stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, duty_cycle)
+        stimulus_profile_r = generic.utils.generate_waveform(profile_adjusted[0], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, duty_cycle)
+        stimulus_profile_g = generic.utils.generate_waveform(profile_adjusted[1], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, duty_cycle)
+        stimulus_profile_b = generic.utils.generate_waveform(profile_adjusted[2], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, duty_cycle)
         stimulus_profile = numpy.array([stimulus_profile_r,  stimulus_profile_g,  stimulus_profile_b])
         stimulus_profile = stimulus_profile.transpose()
     
@@ -716,14 +713,14 @@ class Stimulations():
         self.gratings.setPos(pos_adjusted)       
         
         # calculate phase step considering stimulus size, frame rate and velocity
-        movement_per_frame = float(velocity * self.config.PIXEL_TO_UM_SCALE) / self.config.EXPECTED_FRAME_RATE
+        movement_per_frame = float(velocity * self.config.PIXEL_TO_UM_SCALE) / self.config.SCREEN_EXPECTED_FRAME_RATE
         phase_step = movement_per_frame / screen_width / display_width_correction       
         
         if duration == 0.0:            
             self.gratings.draw()
             self._flip(trigger = True)
         else:
-            for i in range(int(float(duration) * float(self.config.EXPECTED_FRAME_RATE))):                                                 
+            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                                                 
                 self.gratings.setPhase(phase_step,  '+')
                 self.gratings.draw()
                 self._flip(trigger = True)
@@ -736,22 +733,19 @@ class Stimulations():
         '''
         Shows a huge number (up to several hunders) of dots.
         Parameters:
-            dot_sizes: a two dimensional list of dot sizes in um. The first dimension is the frames, the second one is for the individual dots.
-            dot_positions: two dimensional list of dot positions (x, y) in um. Dimensions organized just like dot_sizes parameter
-            color: can be a single tuple of the rgb values that apply to each dots over the whole stimulation. 
+            dot_sizes: a two dimensional list of dot sizes in um. The first dimension is the frames, the second one is for the individual dots. Both list and numpy formats are supported
+            dot_positions: two dimensional list of dot positions (x, y) in um. Dimensions organized just like dot_sizes parameter. Both list and numpy formats are supported
+            color: can be a single tuple of the rgb values that apply to each dots over the whole stimulation. Both list and numpy formats are supported
                     Optionally a two dimensional list can be provided where the dimensions are organized as above controlling the color of each dot individually
             duration: duration of each frame in s. When 0, frame is shown for one frame time.       
         
         '''     
-        
-        #TODO: dot config is coming in numpy array
-        
         self.screen.logOnFlip('show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')',  psychopy.log.DATA)
         
         st = time.time()
         
         radius = 1.0
-        vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
+        vertices = generic.utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)        
         
         n_frames = len(dot_positions)
         n_vertices = len(vertices)
@@ -774,7 +768,7 @@ class Stimulations():
         if duration == 0:
             n_frames_per_pattern = 1
         else:
-            n_frames_per_pattern = int(float(duration) * float(self.config.EXPECTED_FRAME_RATE))          
+            n_frames_per_pattern = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))          
             
 #        print time.time() - st
         
@@ -790,11 +784,15 @@ class Stimulations():
                 for dot_i in range(n_dots_at_frame[frame_i]):
                     if isinstance(color[0],  list):
                         glColor3fv(color[frame_i][dot_i])
+                    elif isinstance(color[0], numpy.ndarray):
+                        glColor3fv(color[frame_i][dot_i].tolist())
                     else:
                         glColor3fv(color)
                     glDrawArrays(GL_POLYGON,  dot_i * n_vertices, n_vertices)
-                    
-                self._flip()
+                if i == 0:
+                    self._flip(trigger = True)
+                else:
+                    self._flip(trigger = False)
                 if self.stimulation_control.abort_stimulus():
                     break
                 
@@ -811,11 +809,11 @@ class Stimulations():
             contraction: ratio of contraction in respect of stripe_width_at_base           
             
         '''
-        #TODO: antialiasing would be nice
+        #NOTE: antialiasing would be nice
         n_vertices_per_stripe = 20 #number of vertices per arc
-        delta_angle = rpm / 60.0 * 360.0 / self.config.EXPECTED_FRAME_RATE        
+        delta_angle = rpm / 60.0 * 360.0 / self.config.SCREEN_EXPECTED_FRAME_RATE        
         
-        n_frames = int(duration * self.config.EXPECTED_FRAME_RATE)
+        n_frames = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
         outer_arc_diameter = drum_base_size + 2 * drum_height
         angle_range_per_stripe = 360.0 / float(n_stripes)
         angle_range_inner = angle_range_per_stripe * duty_cycle
@@ -830,13 +828,13 @@ class Stimulations():
                 outer_arc_vertices = (outer_arc_vertices * outer_arc_diameter + pos) * self.config.UM_TO_NORM_SCALE            
                 vertices[n_stripes * frame_i * 2 * n_vertices_per_stripe + stripe * 2 * n_vertices_per_stripe: n_stripes * frame_i * 2 * n_vertices_per_stripe + (stripe + 1) * 2 * n_vertices_per_stripe] = numpy.concatenate((outer_arc_vertices,  inner_arc_vertices[::-1]))
             
-        background_color_converted = utils.convert_to_rgb(background_color)
+        background_color_converted = generic.utils.convert_to_rgb(background_color)
         glClearColor(background_color_converted[0],  background_color_converted[1],  background_color_converted[2],  0.0)
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         for frame_i in range(n_frames):            
             glClear(GL_COLOR_BUFFER_BIT)            
-            glColor3fv(utils.convert_to_rgb(color))
+            glColor3fv(generic.utils.convert_to_rgb(color))
             for stripe in range(n_stripes):
                 glDrawArrays(GL_POLYGON,  frame_i * n_stripes * 2 * n_vertices_per_stripe + stripe * 2 * n_vertices_per_stripe, 2 * n_vertices_per_stripe)
             self._flip()
@@ -897,7 +895,7 @@ class Stimulations():
                 self._flip(trigger = True)                                     
                 self.image_list.draw()
             else:
-                for i in range(int(float(duration) * float(self.config.EXPECTED_FRAME_RATE))):                 
+                for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                 
                     if i == 0:
                         self._flip(trigger = True)
                     else:
@@ -914,12 +912,12 @@ class Stimulations():
     def _display_test_message(self,  message,  duration = 1.5):
     	if self.config.TEXT_ENABLE:
             self.test_message.setText(message)
-            for i in range(int(duration * self.config.EXPECTED_FRAME_RATE)):
+            for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
                 self.test_message.draw()
                 self._flip()
         
     def stimulation_library_test(self):   
-        stimulus_library_test_data = TestData.StimulusLibraryTestData(self.config)
+        stimulus_library_test_data = users.zoltan.test.stimulus_library_test_data.StimulusLibraryTestData(self.config)
         if stimulus_library_test_data.run_test['show_image() tests']:           
             test_datas =  stimulus_library_test_data.test_data_set[0]
             for test_data in test_datas:

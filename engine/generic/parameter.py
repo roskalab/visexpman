@@ -85,7 +85,7 @@ class Parameter(object):
                 self._type = 'enumerated'
         
         if exceptionType != None:
-            raise exceptionType
+            raise exceptionType(value)
         else:
             self.v = value
             
@@ -148,8 +148,8 @@ class Parameter(object):
         else:
             exceptionType = InvalidParameterRange
                 
-        if exceptionType != None:
-            raise exceptionType
+        if exceptionType != None:            
+            raise exceptionType(self.v)
 
     def set(self,  new_value):
         self.v = new_value

@@ -5,7 +5,7 @@ box_size = [20, 20]
 duration = 2.0 #s
 color = 'BW' #BW = balck and white, GS = greyscale
 
-n_frames = int(duration * self.config.EXPECTED_FRAME_RATE)
+n_frames = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
 cols = utils.random_colors(n_checkers[0] * n_checkers[1],  frames = n_frames,  greyscale = True,  inital_seed = 2) 
 if color == 'BW':
     from numpy import *

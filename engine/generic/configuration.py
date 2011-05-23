@@ -28,10 +28,10 @@ class Config(object):
             self.BASE_PATH_p = parameter.Parameter(os.getcwd(), is_path = True)
 
     def _create_parameters_from_locals(self,  locals): 
-        for k,  v in locals.items():
-            if PRINT_PAR_NAMES:
-                print k, v
-            if k.isupper() and k.find('_RANGE') == -1:                
+        for k,  v in locals.items():            
+            if k.isupper() and k.find('_RANGE') == -1:
+                if PRINT_PAR_NAMES:
+                    print k, v
                 if isinstance(v,  list):
                     if len(v) == 1: #when no range is provied (list of strings or dictionaries)
                         setattr(self,  k + '_p',  parameter.Parameter(v[0]))

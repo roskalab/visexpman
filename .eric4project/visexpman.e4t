@@ -1,51 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project visexpman -->
-<!-- Saved: 2011-05-20, 18:35:11 -->
+<!-- Saved: 2011-05-23, 17:26:17 -->
 <Tasks version="4.2">
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: handle invalid filterwheel ID</Summary>
-    <Description></Description>
-    <Created>2011-05-20, 12:22:44</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/command_handler.py</Filename>
-      <Linenumber>44</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: dot config is coming in numpy array</Summary>
-    <Description></Description>
-    <Created>2011-05-20, 12:31:34</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/stimulation_library.py</Filename>
-      <Linenumber>747</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: antialiasing would be nice</Summary>
-    <Description></Description>
-    <Created>2011-05-20, 12:31:34</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/stimulation_library.py</Filename>
-      <Linenumber>814</Linenumber>
-    </Resource>
-  </Task>
   <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: untested</Summary>
     <Description></Description>
-    <Created>2011-05-20, 15:28:04</Created>
+    <Created>2011-05-23, 12:08:31</Created>
     <Resource>
       <Filename>engine/generic/parameter.py</Filename>
       <Linenumber>106</Linenumber>
     </Resource>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: exec shall be eliminated</Summary>
+    <Summary>TODO: handle invalid filterwheel ID</Summary>
     <Description></Description>
-    <Created>2011-05-20, 16:53:52</Created>
+    <Created>2011-05-23, 15:45:20</Created>
     <Resource>
-      <Filename>engine/visual_stimulation/stimulation_control.py</Filename>
-      <Linenumber>179</Linenumber>
+      <Filename>engine/visual_stimulation/command_handler.py</Filename>
+      <Linenumber>44</Linenumber>
     </Resource>
   </Task>
 </Tasks>

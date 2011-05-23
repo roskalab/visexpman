@@ -4,8 +4,8 @@ class TemplateConfig(Configuration.PresentinatorConfig):
 #        #display parameters:
 #        SCREEN_RESOLUTION = [[1680, 1050],  [[200,  200],  [2000,  2000]]]
 #        FULLSCR = True
-#        EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
-#        MAX_FRAME_RATE = [60.0,  FPS_RANGE]
+#        SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
+#        SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]
 #        FRAME_DELAY_TOLERANCE = [1.0,  [1e-2,  10.0]]
 #        BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
 #        GAMMA = [1.0,  [1e-2,  10]]
@@ -91,4 +91,3 @@ class TemplateConfig(Configuration.PresentinatorConfig):
 #        ACTION_BETWEEN_STIMULUS = 'no' #keystroke, wait_xx in sec. no =  off
         self._set_parameters_from_locals(locals())        
         
-

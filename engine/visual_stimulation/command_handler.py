@@ -57,7 +57,7 @@ class CommandHandler():
                     parsed_bytes = len(self.command_buffer)
                 elif cmd == self.config.CMD_SEND_FILE: #transfer file and start it
                     bytes_to_parse = self.command_buffer[1:]
-                    parsed_bytes = len(self.command_buffer[1:]) + 1 #THIS MAY BE TEMPORARY
+                    parsed_bytes = len(self.command_buffer[1:]) + 1 #THIS MAY BE TEMPORARY                    
                     self.stimulation_control.setStimulationScript(bytes_to_parse)
                     self.stimulation_control.runStimulation()
                     result = 'file transferred and loaded'
@@ -110,9 +110,9 @@ class CommandHandler():
                     self.stimulation_control.setStimulationFile(file)
                     parsed_bytes = len(stimulus_filename) + 2
                     result =  'load file ' + stimulus_filename
-                elif ord(cmd) >= 48 and ord(cmd) <= 58:  #select stimulation from defualt stimulation folder
+                elif ord(cmd) >= 48 and ord(cmd) <= 58:  #select stimulation from default stimulation folder
                     file_index = int(self.command_buffer[0])
-                    files = utils.filtered_file_list(self.config.STIMULATION_FOLDER_PATH,  ['stimulus',  'example'])
+                    files = generic.utils.filtered_file_list(self.config.STIMULATION_FOLDER_PATH,  ['stimulus',  'example'])
                     files.sort()
                     file = self.config.STIMULATION_FOLDER_PATH + os.sep + files[file_index]
                     self.stimulation_control.setStimulationFile(file)

@@ -20,7 +20,7 @@ if eagle_stimulus:
     off_time = 0.0
     on_time = 0.0
     import numpy
-    sizes = numpy.linspace(start_size,  end_size,  duration * self.config.EXPECTED_FRAME_RATE)
+    sizes = numpy.linspace(start_size,  end_size,  duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
     n = 2
 
 for i in range(n):

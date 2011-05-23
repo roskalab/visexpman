@@ -1,5 +1,5 @@
 import os.path
-import generic.utils
+import generic.utils as utils
 
 class StimulusLibraryTestData():
     
@@ -19,7 +19,7 @@ class StimulusLibraryTestData():
                             'show_gratings() test': True,
                             }
 
-        screen_size = [self.config.SCREEN_RESOLUTION[0] / self.config.PIXEL_TO_UM_SCALE,  self.config.SCREEN_RESOLUTION[1] / self.config.PIXEL_TO_UM_SCALE]  
+        screen_size = [self.config.SCREEN_RESOLUTION['col'] / self.config.PIXEL_TO_UM_SCALE,  self.config.SCREEN_RESOLUTION['row'] / self.config.PIXEL_TO_UM_SCALE]  
 
         parameters = [1.0/60.0 * screen_size[0],  1.0/60.0 * screen_size[1]]
 
@@ -93,7 +93,7 @@ class StimulusLibraryTestData():
                                             'test name': 'play video',
                                             'expected result': 'Video is played positioned to the top right side of the screen',
                                             'position' : (0,  0.35 * screen_size[1]), 
-                                            'video_file_path' : 'video/natural_scene',                                    
+                                            'video_file_path' : '../data/video/natural_scene',                                    
                                             }, 
                                             ]
                                             

@@ -1,5 +1,5 @@
 #examples for grating stimulus
-#self.st.show_gratings(duration = 0.0,  profile = 'sqr',  spatial_frequency = SCREEN_RESOLUTION[0],  display_area = (0,  0),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1,  color_offset = 0,  pos = (0,  0), duty_cycle = 0.5)
+#self.st.show_gratings(duration = 0.0,  profile = 'sqr',  spatial_frequency = SCREEN_RESOLUTION['col'],  display_area = (0,  0),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1,  color_offset = 0,  pos = (0,  0), duty_cycle = 0.5)
 #user_log_file_path = '/home/log.txt'
 
 example = 0
