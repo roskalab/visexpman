@@ -8,7 +8,7 @@ import os
 import time
 #from OpenGL.GL import *
 #from OpenGL.GLUT import *
-
+import unittest
 
 # valid color configurations: 1.0; 255; (1.0, 0.4, 0), invalid color configuration: (255, 0, 128)
 
@@ -151,8 +151,8 @@ def um_to_normalized_display(value, config):
     '''
     if not isinstance(value,  list):
         value = [value,  value]
-    normalized_x = 2.0 * config.PIXEL_TO_UM_SCALE * float(value[0]) / config.SCREEN_RESOLUTION['col']
-    normalized_y = 2.0 * config.PIXEL_TO_UM_SCALE * float(value[1]) / config.SCREEN_RESOLUTION['row']
+    normalized_x = 2.0 * config.SCREEN_PIXEL_TO_UM_SCALE * float(value[0]) / config.SCREEN_RESOLUTION['col']
+    normalized_y = 2.0 * config.SCREEN_PIXEL_TO_UM_SCALE * float(value[1]) / config.SCREEN_RESOLUTION['row']
     return [normalized_x,  normalized_y]
 
 def random_colors(n,  frames = 1,  greyscale = False,  inital_seed = 0):
@@ -370,51 +370,144 @@ def prepare_dynamic_class_instantiation(modules,  class_name):
     #get referece to class and return with it
     return getattr(sys.modules[module_name], class_name)
 
-def rc(raw):
-    if isinstance(raw[0], list) or isinstance(raw[0], tuple):
-        if isinstance(raw[0][0], float):
-            return numpy.array(zip((raw[1], raw[0])),dtype={'names':['col','row'],'formats':[numpy.float,numpy.float]})
+def rc(raw):    
+    if isinstance(raw, numpy.ndarray):
+        #input is a numpy array
+        if raw.dtype == numpy.float:
+            return numpy.array(zip(raw[1], raw[0]),dtype={'names':['col','row'],'formats':[numpy.float,numpy.float]})
         else:
-            return numpy.array(zip((raw[1], raw[0])),dtype={'names':['col','row'],'formats':[numpy.uint16,numpy.uint16]})
+            return numpy.array(zip(raw[1], raw[0]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
     else:
+        #input is a tuple
         if isinstance(raw[0], float):
             return numpy.array((raw[1], raw[0]),dtype={'names':['col','row'],'formats':[numpy.float,numpy.float]})
         else:
-            return numpy.array((raw[1], raw[0]),dtype={'names':['col','row'],'formats':[numpy.uint16,numpy.uint16]})
+            return numpy.array((raw[1], raw[0]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
 
+def cr(raw):    
+    if isinstance(raw, numpy.ndarray):
+        #input is a numpy array
+        if raw.dtype == numpy.float:
+            return numpy.array(zip(raw[0], raw[1]),dtype={'names':['col','row'],'formats':[numpy.float,numpy.float]})
+        else:
+            return numpy.array(zip(raw[0], raw[1]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
+    else:
+        #input is a tuple
+        if isinstance(raw[0], float):
+            return numpy.array((raw[0], raw[1]),dtype={'names':['col','row'],'formats':[numpy.float,numpy.float]})
+        else:
+            return numpy.array((raw[0], raw[1]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
+            
+def rc_add(operand1, operand2):
+    '''
+    supported inputs:
+    - single rc + single rc
+    - array of rc + array of rc
+    - single rc + array of rc
+    - array of rc + single rc
+    (- constant + single rc
+    - constant + array of rc)
+    '''
+    if isinstance(operand1, numpy.ndarray) and (isinstance(operand2, numpy.ndarray)):
+        if operand1.shape == () and operand2.shape == ():
+            return rc((operand1['row'] + operand2['row'], operand1['col'] + operand2['col']))
+        elif operand1.shape != () and operand2.shape != ():
+            rows = operand1[:]['row'] + operand2[:]['row']
+            cols = operand1[:]['col'] + operand2[:]['col']
+            return rc(numpy.array([rows, cols]))
+        elif operand1.shape == () and operand2.shape != ():
+            rows = operand1['row'] + operand2[:]['row']
+            cols = operand1['col'] + operand2[:]['col']
+            return rc(numpy.array([rows, cols]))
+        elif operand1.shape != () and operand2.shape == ():
+            rows = operand1[:]['row'] + operand2['row']
+            cols = operand1[:]['col'] + operand2['col']
+            return rc(numpy.array([rows, cols]))
+    
+    
+def rc_multiply(operand1, operand2):
+    if isinstance(operand1, numpy.ndarray) and (isinstance(operand2, numpy.ndarray)):
+        if operand1.shape == () and operand2.shape == ():
+            return rc((operand1['row'] * operand2['row'], operand1['col'] * operand2['col']))
+        elif operand1.shape != () and operand2.shape != ():
+            rows = operand1[:]['row'] * operand2[:]['row']
+            cols = operand1[:]['col'] * operand2[:]['col']
+            return rc(numpy.array([rows, cols]))
+        elif operand1.shape == () and operand2.shape != ():
+            rows = operand1['row'] * operand2[:]['row']
+            cols = operand1['col'] * operand2[:]['col']
+            return rc(numpy.array([rows, cols]))
+        elif operand1.shape != () and operand2.shape == ():
+            rows = operand1[:]['row'] * operand2['row']
+            cols = operand1[:]['col'] * operand2['col']
+            return rc(numpy.array([rows, cols]))    
+
+def rc_multiply_with_constant(rc_value, constant):
+    if rc_value.shape == ():
+            return rc((rc_value['row'] * constant, rc_value['col'] * constant))
+    else:
+            rows = rc_value[:]['row'] * constant
+            cols = rc_value[:]['col'] * constant
+            return rc(numpy.array([rows, cols]))
+    
 def coordinate_transform(coordinates, origo, x_axis_positive_direction, y_axis_positive_direction):
     '''
     Transforms coordinates to the native coordinate system of visual stimulation software where the origo is in the center of the screen 
     and the positive directions of on the axis's are up and right
-    
-    Supported inputs:
-    -1 d tuples
-    -1,2 or 3 d lists
-    -1,2 or 3 d numpy arrays
-    '''
-#    if isinstance(coordinates, list) or isinstance(coordinates, tuple):
-#    elif isinstance
+    -1 or 2 d numpy arrays where each item of the array is in row,column format
+    '''    
+    if x_axis_positive_direction == 'right':
+        x_axis_positive_direction_ = 1
+    elif x_axis_positive_direction == 'left':
+        x_axis_positive_direction_ = -1
+    if y_axis_positive_direction == 'up':
+        y_axis_positive_direction_ = 1
+    elif y_axis_positive_direction == 'down':
+        y_axis_positive_direction_ = -1
+    axis_direction = rc((y_axis_positive_direction_, x_axis_positive_direction_))    
+    return rc_add(rc_multiply(axis_direction, coordinates), origo)
 
-def coordinate_transform_single_point(point, origo, x_axis_positive_direction, y_axis_positive_direction):
-    x = origo['col'] + x_axis_positive_direction * point[0]
-    y = origo['row'] + y_axis_positive_direction * point[1]
-    return x, y
+def coordinate_transform_single_point(point, origo, axis_direction):
+    '''
+    axis_direction: row-column format, row - y axis, column - x axis
+    '''
+    x = float(origo['col']) + float(axis_direction['col']) * float(point['col'])
+    y = float(origo['row']) + float(axis_direction['row']) * float(point['row'])
+    if isinstance(point['row'], int):
+        x = int(x)
+        y = int(y)
+    return rc((y, x))
+
+class testCoordinateTransformation(unittest.TestCase):
+    pass
 
 if __name__ == "__main__":
-#    print convert_color((1.0,  0.5,  0.5))
-#    print convert_color([1.0,  0.5,  0.5])
-#    print convert_color(0.2)
-#    print convert_color(127)
-#    print convert_color(0)
-#    print convert_int_color((1,  1,  1))
-#    print convert_color_from_pp(convert_color(0.5))
-#    w = generate_waveform('sin',  80,  40,  2,  0,  0)
-#    from matplotlib.pyplot import figure, plot, show,  legend,  title
-#    figure(1)
-#    plot(w)
-#    show()
-#    circle_to_numpy(5)
+#    unittest.main()
+    a = [1.0, 2.0, 3.0]
+    b = [10.0, 20.0, 30.0]
+    c = rc(numpy.array([a, b]))    
+#    p = coordinate_transform_single_point(rc((0.0, 1.0)), rc((100.0, -100.0)), rc((-1, 1)) )
+#    print p['row']
+#    print p['col']
+
+#    print rc_multiply(rc((2, 0)), rc((1, 1)))
+#    print rc_multiply(rc(numpy.array([a, b])), rc((0, -10)))
+#    print rc_multiply(rc(numpy.array([a, b])), rc(numpy.array([a, b])))
+#    print a[:]['row']
+
+#    res = coordinate_transform(cr((100, 100)), cr((-100, 100)), 'right', 'down')
+#    print res['col'], res['row']
     
-#    print filtered_file_list('stimulus_examples',  ('example',  'ring'))   
-    import generic
-#    a = generic.Configuration()
+    cols = [0,  100, -100]
+    rows = [0,  100, 100]
+    coords = cr(numpy.array([cols, rows]))    
+    print coords.shape
+    res = coordinate_transform(coords, cr((-100, 100)), 'right', 'down')    
+#    print res
+    print rc_multiply_with_constant(c, 10)
+    a = numpy.zeros((3, coords.shape[0]))
+    a[0][0] = coords[1]['row']
+    
+    print a
+    
+    

@@ -19,7 +19,7 @@ class StimulusLibraryTestData():
                             'show_gratings() test': True,
                             }
 
-        screen_size = [self.config.SCREEN_RESOLUTION['col'] / self.config.PIXEL_TO_UM_SCALE,  self.config.SCREEN_RESOLUTION['row'] / self.config.PIXEL_TO_UM_SCALE]  
+        screen_size = [self.config.SCREEN_RESOLUTION['col'] / self.config.SCREEN_PIXEL_TO_UM_SCALE,  self.config.SCREEN_RESOLUTION['row'] / self.config.SCREEN_PIXEL_TO_UM_SCALE]  
 
         parameters = [1.0/60.0 * screen_size[0],  1.0/60.0 * screen_size[1]]
 

@@ -2,17 +2,12 @@ import visual_stimulation.configuration
 import os
 import generic.parameter
 import generic.utils as utils
-
-class TemplateConfig(visual_stimulation.configuration.VisualStimulationConfig):
-    
-    def _set_user_specific_parameters(self):
-        self._set_parameters_from_locals(locals())
         
 class UbuntuDeveloperConfig(visual_stimulation.configuration.VisualStimulationConfig):
     
     def _set_user_specific_parameters(self):
         RUN_MODE = 'single experiment'
-#        RUN_MODE = 'user interface'
+        RUN_MODE = 'user interface'
         EXPERIMENT = self.STIMULATION_FOLDER_PATH + os.sep + 'gratings_stimulus.py'
         EXPERIMENT = self.STIMULATION_FOLDER_PATH + os.sep + 'increasing_spot_stimulus.py'
         EXPERIMENT = 'MultipleDotTest'
@@ -28,7 +23,7 @@ class UbuntuDeveloperConfig(visual_stimulation.configuration.VisualStimulationCo
         ENABLE_PARALLEL_PORT = True
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCR = True
-#        FULLSCR = False
+        FULLSCR = False
 #        SCREEN_RESOLUTION = [1024,  768]
         SCREEN_RESOLUTION = utils.rc([600,   800])
 #        SCREEN_RESOLUTION = [1680,   1050]
@@ -47,10 +42,20 @@ class UbuntuDeveloperConfig(visual_stimulation.configuration.VisualStimulationCo
         
         SEGMENT_DURATION = 2
         ACTION_BETWEEN_STIMULUS = 'off'
-        
-        ORIGO = utils.rc((0, 0))
-        X_AXIS_POSITIVE_DIRECTION = 'right'
-        Y_AXIS_POSITIVE_DIRECTION = 'up'
+
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+        corner = False
+        if corner:
+            ORIGO = utils.cr((-0.5 * SCREEN_RESOLUTION['col'], 0.5 * SCREEN_RESOLUTION['row']))
+            X_AXIS_POSITIVE_DIRECTION = 'right'
+            Y_AXIS_POSITIVE_DIRECTION = 'down'
+        else:
+            ORIGO = utils.cr((0, 0))
+            X_AXIS_POSITIVE_DIRECTION = 'right'
+            Y_AXIS_POSITIVE_DIRECTION = 'up'
+            
+        ACQUISITION_TRIGGER_PIN = 2
+        FRAME_TRIGGER_PIN = 0
         
         self._set_parameters_from_locals(locals())
         

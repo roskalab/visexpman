@@ -58,7 +58,7 @@ class VisualStimulationConfig(generic.configuration.Config):
         Y_AXIS_POSITIVE_DIRECTION = ['up',  ['up', 'down', 'undefined']]
         
         #pixel scaling
-        UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel        
+        SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel        
         
         #parallel port
         ENABLE_PARALLEL_PORT = True
@@ -158,7 +158,7 @@ class VisualStimulationConfig(generic.configuration.Config):
         '''
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
         '''
-        self.PIXEL_TO_UM_SCALE_p = generic.parameter.Parameter(1.0 / self.UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
+        self.SCREEN_PIXEL_TO_UM_SCALE_p = generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
         
         ACQUISITION_TRIGGER_ON = 1<<self.ACQUISITION_TRIGGER_PIN
         self.ACQUISITION_TRIGGER_ON_p = generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
@@ -170,8 +170,8 @@ class VisualStimulationConfig(generic.configuration.Config):
             screen_resolution = 1.0 / numpy.array(self.SCREEN_RESOLUTION)
         elif isinstance(self.SCREEN_RESOLUTION, numpy.ndarray):
             screen_resolution = 1.0 / numpy.array([self.SCREEN_RESOLUTION['col'], self.SCREEN_RESOLUTION['row']])
-        um_to_norm_scale = 2.0 * self.PIXEL_TO_UM_SCALE_p.v * screen_resolution        
-        self.UM_TO_NORM_SCALE_p = generic.parameter.Parameter(um_to_norm_scale)
+        SCREEN_UM_TO_NORM_SCALE = 2.0 * self.SCREEN_PIXEL_TO_UM_SCALE_p.v * screen_resolution        
+        self.SCREEN_UM_TO_NORM_SCALE_p = generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
 
 class TestConfig(generic.configuration.Config):
     def _create_application_parameters(self):

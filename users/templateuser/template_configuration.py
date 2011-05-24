@@ -11,7 +11,7 @@ class TemplateConfig(Configuration.PresentinatorConfig):
 #        GAMMA = [1.0,  [1e-2,  10]]
 #        
 #        #pixel scaling
-#        UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel        
+#        SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel        
 #        
 #        #parallel port
 #        ENABLE_PARALLEL_PORT = True

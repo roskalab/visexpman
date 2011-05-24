@@ -101,7 +101,7 @@ class Stimulations():
         if self.config.ACTION_BETWEEN_STIMULUS != 'no':
             elapsed_time = int(now - self.stimulation_control.stimulation_start_time)
             if elapsed_time % self.config.SEGMENT_DURATION == 0 and elapsed_time >= self.config.SEGMENT_DURATION :                
-                psychopy.log.data('Pause')                 
+                psychopy.log.data('Pause')
                 if self.config.ACTION_BETWEEN_STIMULUS == 'keystroke':
                     while True:
                         if self.stimulation_control.is_next_pressed():
@@ -168,7 +168,7 @@ class Stimulations():
                 start_position = (10,10)
                 show_image('directory_path',  0.0,  start_position,  formula)             
         '''
-        position_p = (self.config.PIXEL_TO_UM_SCALE * position[0],  self.config.PIXEL_TO_UM_SCALE * position[1])
+        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
         if os.path.isdir(path) == True:
             #when content of directory is to be shown
             image_file_paths = os.listdir(path)
@@ -199,7 +199,7 @@ class Stimulations():
             #resize file
             if size != None and size != (0,  0):                
                 stimulus_image = Image.open(path)
-                stimulus_image = stimulus_image.resize((int(size[0] * self.config.PIXEL_TO_UM_SCALE), int(size[1] * self.config.PIXEL_TO_UM_SCALE)))
+                stimulus_image = stimulus_image.resize((int(size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE), int(size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)))
                 stimulus_image.save(self.config.TEMP_IMAGE_PATH)
                 path_adjusted = self.config.TEMP_IMAGE_PATH
             
@@ -226,7 +226,7 @@ class Stimulations():
         
 
     def _show_image_file(self,  path,  duration,  position, flip = True):
-        self.image.setPos((self.config.PIXEL_TO_UM_SCALE * position[0],  self.config.PIXEL_TO_UM_SCALE * position[1]))        
+        self.image.setPos((self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1]))        
         self.screen.logOnFlip('_show_image_file(' + path + ', ' + str(duration) + ', ' + str(position) + ')',  psychopy.log.DATA)
         if duration == 0:                                        
                     self.image.setImage(path)
@@ -250,7 +250,7 @@ class Stimulations():
         Plays a movie file. Pressing 'a' aborts the playback. The video is positioned according to the value of position parameter
         Parametric control of position is no possible. Some frames are always dropped.
         '''        
-        position_p = (self.config.PIXEL_TO_UM_SCALE * position[0],  self.config.PIXEL_TO_UM_SCALE * position[1])
+        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
         self.movie = psychopy.visual.MovieStim(self.screen,  filename = video_file_path,  pos = position_p) 
         msg = 'video size: ' + str(self.movie.format.height) + ', ' + str(self.movie.format.width)
         psychopy.log.data(msg)
@@ -298,11 +298,11 @@ class Stimulations():
             parametric_control_enable = False
         
         if isinstance(size, int) or isinstance(size, float):
-            size_adjusted = [size * self.config.PIXEL_TO_UM_SCALE,  size * self.config.PIXEL_TO_UM_SCALE]
+            size_adjusted = [size * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size * self.config.SCREEN_PIXEL_TO_UM_SCALE]
         else:
             size_adjusted = []
             for item in size:
-                size_adjusted.append(item * self.config.PIXEL_TO_UM_SCALE)        
+                size_adjusted.append(item * self.config.SCREEN_PIXEL_TO_UM_SCALE)        
         
         #calculate the coordinates of the shape's vertices
         if shape == 'rect' or shape == 'rectangle':
@@ -312,9 +312,9 @@ class Stimulations():
         
         if shape == 'annulus' or shape == 'annuli':
             if isinstance(ring_size, list):
-                _ring_size = [size_adjusted[0] - ring_size[0] * self.config.PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size[1] * self.config.PIXEL_TO_UM_SCALE]
+                _ring_size = [size_adjusted[0] - ring_size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE]
             else:
-                _ring_size = [size_adjusted[0] - ring_size * self.config.PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size * self.config.PIXEL_TO_UM_SCALE]
+                _ring_size = [size_adjusted[0] - ring_size * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size * self.config.SCREEN_PIXEL_TO_UM_SCALE]
             inner_circle_vertices = generic.utils.calculate_circle_vertices(_ring_size,  1.0) 
         
         if duration == 0.0:            
@@ -323,14 +323,14 @@ class Stimulations():
             self.shape.setVertices(vertices)
             self.shape.setFillColor(converted_color)            
             self.shape.setLineColor(converted_color)
-            self.shape.setPos((position[0] * self.config.PIXEL_TO_UM_SCALE,  position[1] * self.config.PIXEL_TO_UM_SCALE))
+            self.shape.setPos((position[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
             self.shape.setOri(orientation)            
             
             if shape == 'annulus' or shape == 'annuli':
                     self.inner_circle.setVertices(inner_circle_vertices) 
                     self.inner_circle.setFillColor(self.backgroundColor)                
                     self.inner_circle.setLineColor(self.backgroundColor)
-                    self.inner_circle.setPos((position[0] * self.config.PIXEL_TO_UM_SCALE,  position[1] * self.config.PIXEL_TO_UM_SCALE))
+                    self.inner_circle.setPos((position[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
                     self.inner_circle.setOri(orientation)
                     
             self.shape.draw()
@@ -378,14 +378,14 @@ class Stimulations():
                 self.shape.setVertices(vertices)                 
                 self.shape.setFillColor(color_to_set)                
                 self.shape.setLineColor(color_to_set)  
-                self.shape.setPos((position_to_set[0] * self.config.PIXEL_TO_UM_SCALE,  position_to_set[1] * self.config.PIXEL_TO_UM_SCALE))
+                self.shape.setPos((position_to_set[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position_to_set[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
                 self.shape.setOri(orientation_to_set)                
                 
                 if shape == 'annulus' or shape == 'annuli':
                     self.inner_circle.setVertices(inner_circle_vertices) 
                     self.inner_circle.setFillColor(self.backgroundColor)                
                     self.inner_circle.setLineColor(self.backgroundColor)
-                    self.inner_circle.setPos((position_to_set[0] * self.config.PIXEL_TO_UM_SCALE,  position_to_set[1] * self.config.PIXEL_TO_UM_SCALE))
+                    self.inner_circle.setPos((position_to_set[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position_to_set[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
                     self.inner_circle.setOri(orientation_to_set)
                 
                 self.shape.draw() 
@@ -421,8 +421,8 @@ class Stimulations():
                 self.st.show_checkerboard(n_checkers, duration = 0, pos = (0, 0), color = cols[i], box_size = box_size)
         '''
         
-        box_size_p = (box_size[0] * self.config.PIXEL_TO_UM_SCALE,  box_size[1] * self.config.PIXEL_TO_UM_SCALE)
-        pos_p = (pos[0] * self.config.PIXEL_TO_UM_SCALE,  pos[1] * self.config.PIXEL_TO_UM_SCALE)
+        box_size_p = (box_size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  box_size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
+        pos_p = (pos[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  pos[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
         
         #check if number of boxes are the power of two
         max_checker_number = max(n_checkers)
@@ -491,7 +491,7 @@ class Stimulations():
         """        
         self.screen.logOnFlip('show_rings(' + str(n_rings)+ ', ' + str(diameter) + ', ' + str(inner_diameter) + ', ' + str(duration)  + ', ' + str(n_slices)  + ', ' + str(colors[:self.config.MAX_LOG_COLORS])  + ', ' + str(pos)  + ')',  psychopy.log.DATA)
         
-        pos_p = (pos[0] * self.config.PIXEL_TO_UM_SCALE,  pos[1] * self.config.PIXEL_TO_UM_SCALE)        
+        pos_p = (pos[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  pos[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)        
         outer_diameter = diameter       
         
         #sort diameter lists to avoid putting a bigger circle on a smaller one
@@ -540,15 +540,15 @@ class Stimulations():
         for ring in range(n_rings):
             #diameter can be a list (ellipse) or a single integer (circle)            
             if isinstance(outer_diameter[ring],  list):                
-                outer_r = [outer_diameter[ring][0]  * self.config.PIXEL_TO_UM_SCALE, outer_diameter[ring][1]  * self.config.PIXEL_TO_UM_SCALE]
+                outer_r = [outer_diameter[ring][0]  * self.config.SCREEN_PIXEL_TO_UM_SCALE, outer_diameter[ring][1]  * self.config.SCREEN_PIXEL_TO_UM_SCALE]
             else:
-                outer_r = (outer_diameter[ring] * self.config.PIXEL_TO_UM_SCALE,  outer_diameter[ring] * self.config.PIXEL_TO_UM_SCALE)                
+                outer_r = (outer_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  outer_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE)                
             
             if inner_circles:
                 if isinstance(inner_diameter[ring],  list):
-                    inner_r = (inner_diameter[ring][0] * self.config.PIXEL_TO_UM_SCALE,  inner_diameter[ring][1] * self.config.PIXEL_TO_UM_SCALE)
+                    inner_r = (inner_diameter[ring][0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  inner_diameter[ring][1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
                 else:                    
-                    inner_r = (inner_diameter[ring] * self.config.PIXEL_TO_UM_SCALE,  inner_diameter[ring] * self.config.PIXEL_TO_UM_SCALE)            
+                    inner_r = (inner_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  inner_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE)            
             
             for slice in range(n_slices):
                 start_angle = slice_angle * slice
@@ -605,16 +605,35 @@ class Stimulations():
             
         self.screen.logOnFlip('show_gratings(' + str(duration)+ ', ' + str(profile) + ', ' + str(spatial_frequency_to_set) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')',  psychopy.log.DATA)       
    
+        if isinstance(pos, numpy.ndarray):
+            column_index = 'col'
+            row_index = 'row'
+            pos_rc = pos            
+        else:
+            column_index = 0
+            row_index = 1
+            pos_rc = generic.utils.rc(pos)
+            
+        pos_transformed = generic.utils.coordinate_transform(generic.utils.rc_multiply_with_constant(pos_rc, self.config.SCREEN_PIXEL_TO_UM_SCALE), self.config.ORIGO, self.config.X_AXIS_POSITIVE_DIRECTION, self.config.Y_AXIS_POSITIVE_DIRECTION)
+            
         pos_adjusted = []
-        pos_adjusted.append(pos[0] * self.config.PIXEL_TO_UM_SCALE)
-        pos_adjusted.append(pos[1] * self.config.PIXEL_TO_UM_SCALE)
+        pos_adjusted.append(pos_transformed['col'])
+        pos_adjusted.append(pos_transformed['row'])
+
         
         orientation_rad = orientation * math.pi / 180.0
         
-        screen_width = display_area[0] * self.config.PIXEL_TO_UM_SCALE
+        if isinstance(display_area, numpy.ndarray):
+            column_index = 'col'
+            row_index = 'row'
+        else:
+            column_index = 0
+            row_index = 1
+        
+        screen_width = display_area[column_index] * self.config.SCREEN_PIXEL_TO_UM_SCALE
         display_area_adjusted = []
-        display_area_adjusted.append(display_area[0] * self.config.PIXEL_TO_UM_SCALE)
-        display_area_adjusted.append(display_area[1] * self.config.PIXEL_TO_UM_SCALE) 
+        display_area_adjusted.append(display_area[column_index] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
+        display_area_adjusted.append(display_area[row_index] * self.config.SCREEN_PIXEL_TO_UM_SCALE) 
         
         #If gratings are to be shown on fullscreen, modify display area so that no ungrated parts are on the screen considering rotation
         if display_area_adjusted[0] == 0:            
@@ -624,7 +643,7 @@ class Stimulations():
             display_area_adjusted[1] = int(self.config.SCREEN_RESOLUTION['row'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['col'] * abs(math.sin(orientation_rad)))    
         
         #generate texture        
-        period_scale = float(display_area_adjusted[0]) / float(spatial_frequency_to_set * self.config.PIXEL_TO_UM_SCALE)
+        period_scale = float(display_area_adjusted[0]) / float(spatial_frequency_to_set * self.config.SCREEN_PIXEL_TO_UM_SCALE)
         period = float(self.config.GRATING_TEXTURE_RESOLUTION) / period_scale
         period_original = period
         
@@ -713,7 +732,7 @@ class Stimulations():
         self.gratings.setPos(pos_adjusted)       
         
         # calculate phase step considering stimulus size, frame rate and velocity
-        movement_per_frame = float(velocity * self.config.PIXEL_TO_UM_SCALE) / self.config.SCREEN_EXPECTED_FRAME_RATE
+        movement_per_frame = float(velocity * self.config.SCREEN_PIXEL_TO_UM_SCALE) / self.config.SCREEN_EXPECTED_FRAME_RATE
         phase_step = movement_per_frame / screen_width / display_width_correction       
         
         if duration == 0.0:            
@@ -728,60 +747,62 @@ class Stimulations():
                     break
                     
                     
-    def show_dots(self,  dot_sizes, dot_positions, duration = 0.0,  color = (1.0,  1.0,  1.0)):        
-        
+    def show_dots(self,  dot_sizes, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0)):        
         '''
         Shows a huge number (up to several hunders) of dots.
         Parameters:
-            dot_sizes: a two dimensional list of dot sizes in um. The first dimension is the frames, the second one is for the individual dots. Both list and numpy formats are supported
-            dot_positions: two dimensional list of dot positions (x, y) in um. Dimensions organized just like dot_sizes parameter. Both list and numpy formats are supported
+            dot_sizes: one dimensional list of dot sizes in um. 
+            dot_positions: one dimensional list of dot positions (row, col) in um.
+            ndots: number of dots per frame
             color: can be a single tuple of the rgb values that apply to each dots over the whole stimulation. Both list and numpy formats are supported
                     Optionally a two dimensional list can be provided where the dimensions are organized as above controlling the color of each dot individually
-            duration: duration of each frame in s. When 0, frame is shown for one frame time.       
+            duration: duration of each frame in s. When 0, frame is shown for one frame time.
+            
+        The dot_sizes and dot_positions are expected to be in a linear list. Based on the ndots, these will be segmented to frames assuming 
+        that on each frame the number of dots are equal.
         
-        '''     
+        '''
         self.screen.logOnFlip('show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')',  psychopy.log.DATA)
         
         st = time.time()
         
         radius = 1.0
-        vertices = generic.utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)        
+        vertices = generic.utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
         
-        n_frames = len(dot_positions)
+        n_frames = len(dot_positions) / ndots        
         n_vertices = len(vertices)
-        
-        n_dots_at_frame = numpy.zeros((n_frames),   dtype=int)
-        for frame_i in range(n_frames):
-            n_dots_at_frame[frame_i] = len(dot_positions[frame_i])
-            
-        frames_vertices = numpy.zeros((n_dots_at_frame.sum() * n_vertices,  2))        
-        pixel_scale = numpy.array(self.config.UM_TO_NORM_SCALE)        
+        #convert dot positions from user coordinate system                    
+        transformed_dot_positions = generic.utils.coordinate_transform(dot_positions, self.config.ORIGO, self.config.X_AXIS_POSITIVE_DIRECTION, self.config.Y_AXIS_POSITIVE_DIRECTION)        
+
+        frames_vertices = numpy.zeros((n_frames * ndots * n_vertices,  2)) 
+        pixel_scale = numpy.array(self.config.SCREEN_UM_TO_NORM_SCALE)
         index = 0
         for frame_i in range(n_frames):
-            for dot_i in range(n_dots_at_frame[frame_i]):
-                dot_size = dot_sizes[frame_i][dot_i]
-                dot_position = dot_positions[frame_i][dot_i]
-                dot_to_screen =  self.config.UM_TO_NORM_SCALE * (vertices * dot_size + dot_position)
+            for dot_i in range(ndots):
+                dot_index = frame_i * ndots + dot_i
+                dot_size = dot_sizes[dot_index]
+                dot_position = numpy.array((transformed_dot_positions[dot_index]['col'], transformed_dot_positions[dot_index]['row']))
+                dot_to_screen =  self.config.SCREEN_UM_TO_NORM_SCALE * (vertices * dot_size + dot_position)
                 frames_vertices[index: index + n_vertices] = dot_to_screen
-                index = index + n_vertices                
-                    
+                index = index + n_vertices
+
         if duration == 0:
             n_frames_per_pattern = 1
         else:
-            n_frames_per_pattern = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))          
-            
+            n_frames_per_pattern = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
+        
 #        print time.time() - st
         
         glEnableClientState(GL_VERTEX_ARRAY)
         dot_pointer = 0
         for frame_i in range(n_frames):            
             start_i = dot_pointer * n_vertices
-            end_i = (dot_pointer + n_dots_at_frame[frame_i]) * n_vertices
-            dot_pointer = dot_pointer + n_dots_at_frame[frame_i]
+            end_i = (dot_pointer + ndots) * n_vertices
+            dot_pointer = dot_pointer + ndots
             glClear(GL_COLOR_BUFFER_BIT)
             glVertexPointerf(frames_vertices[start_i:end_i])
             for i in range(n_frames_per_pattern):
-                for dot_i in range(n_dots_at_frame[frame_i]):
+                for dot_i in range(ndots):
                     if isinstance(color[0],  list):
                         glColor3fv(color[frame_i][dot_i])
                     elif isinstance(color[0], numpy.ndarray):
@@ -823,9 +844,9 @@ class Stimulations():
             for stripe in range(n_stripes):
                 angle = stripe * angle_range_per_stripe + delta_angle * frame_i
                 inner_arc_vertices = generic.utilities.arc_vertices(1.0, n_vertices_per_stripe,  angle, angle_range_inner)
-                inner_arc_vertices = (inner_arc_vertices * numpy.array(drum_base_size) + pos) * self.config.UM_TO_NORM_SCALE            
+                inner_arc_vertices = (inner_arc_vertices * numpy.array(drum_base_size) + pos) * self.config.SCREEN_UM_TO_NORM_SCALE            
                 outer_arc_vertices = generic.utilities.arc_vertices(1.0, n_vertices_per_stripe,  angle, angle_range_outer)
-                outer_arc_vertices = (outer_arc_vertices * outer_arc_diameter + pos) * self.config.UM_TO_NORM_SCALE            
+                outer_arc_vertices = (outer_arc_vertices * outer_arc_diameter + pos) * self.config.SCREEN_UM_TO_NORM_SCALE            
                 vertices[n_stripes * frame_i * 2 * n_vertices_per_stripe + stripe * 2 * n_vertices_per_stripe: n_stripes * frame_i * 2 * n_vertices_per_stripe + (stripe + 1) * 2 * n_vertices_per_stripe] = numpy.concatenate((outer_arc_vertices,  inner_arc_vertices[::-1]))
             
         background_color_converted = generic.utils.convert_to_rgb(background_color)
@@ -854,7 +875,7 @@ class Stimulations():
                                 [-0.5 * size,  0.5 * size], 
                                 ])
 
-        vertices = vertices  * self.config.UM_TO_NORM_SCALE
+        vertices = vertices  * self.config.SCREEN_UM_TO_NORM_SCALE
         
         vert = numpy.zeros((n_frames,  4,  2))
         for i in range(n_frames):

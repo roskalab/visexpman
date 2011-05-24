@@ -9,15 +9,16 @@ class Pre(visual_stimulation.experiment.PreExperiment):
        
 class DotsExperimentConfig(visual_stimulation.experiment.ExperimentConfig):
     def _create_application_parameters(self):        
-        NDOTS = [200, [1, 1000]]
-        NFRAMES = [1*75, [1, 3000]]
-        PATTERN_DURATION = [0.0, [0.0, 2.0]]
+        NDOTS = [10, [1, 1000]]
+        NFRAMES = [3, [1, 3000]]
+        PATTERN_DURATION = [1.5, [0.0, 2.0]]
+        RANDOM_DOTS = True
         self._create_parameters_from_locals(locals())
 
 class MultipleDotTest(visual_stimulation.experiment.Experiment):
     def run(self):
+#        self.st.show_gratings(duration = 2.0, orientation = 45, velocity = 300, spatial_frequency = 100, display_area =  generic.utils.cr((200,  200)), pos = generic.utils.cr((100, 100)))        
         import random
-#        print generic.utils.rc([random.random(),  random.random()])['row']
         random.seed(0)
         dot_sizes = []
         dot_positions = []
@@ -31,19 +32,27 @@ class MultipleDotTest(visual_stimulation.experiment.Experiment):
             for i in range(dots):
                 coords = (random.random(),  random.random())
                 coords = generic.utils.rc(coords)
-                dot_positions_per_frame.append([coords['col'] * self.config.SCREEN_RESOLUTION['col'] - self.config.SCREEN_RESOLUTION['col'] * 0.5, coords['row'] * self.config.SCREEN_RESOLUTION['row'] - 0.5 * self.config.SCREEN_RESOLUTION['row']])
-                dot_sizes_per_frame.append(10 + 19 * random.random())
-            dot_sizes.append(dot_sizes_per_frame)
-            dot_positions.append(dot_positions_per_frame)
-           
+                dot_positions.append([coords['col'] * self.config.SCREEN_RESOLUTION['col'] - self.config.SCREEN_RESOLUTION['col'] * 0.5, coords['row'] * self.config.SCREEN_RESOLUTION['row'] - 0.5 * self.config.SCREEN_RESOLUTION['row']])
+                dot_sizes.append(10 + 100 * random.random())                
+
+        
+        dot_positions = generic.utils.cr(numpy.array(dot_positions).transpose())
+        dot_sizes = numpy.array(dot_sizes)        
+        
         if isinstance(self.experiment_config.NDOTS, list):
             colors = generic.utils.random_colors(max(self.experiment_config.NDOTS), self.experiment_config.NFRAMES,  greyscale = True,  inital_seed = 0)
         else:
             colors = generic.utils.random_colors(self.experiment_config.NDOTS, self.experiment_config.NFRAMES,  greyscale = True,  inital_seed = 0)
         if self.experiment_config.NFRAMES == 1:
             colors = [colors]
-        
-        self.st.show_dots(numpy.array(dot_sizes), numpy.array(dot_positions), duration = self.experiment_config.PATTERN_DURATION,  color = numpy.array(colors))        
+            
+        if self.experiment_config.RANDOM_DOTS:
+            self.st.show_dots(dot_sizes, dot_positions, self.experiment_config.NDOTS, duration = self.experiment_config.PATTERN_DURATION,  color = numpy.array(colors))
+        else:
+            dot_sizes = numpy.array([10, 10, 10, 10])
+            dot_positions = generic.utils.cr(numpy.array([[100, 100, 0, 0], [100, 0, 0, 100]]))
+            ndots = 4
+            self.st.show_dots(dot_sizes, dot_positions, ndots, duration = 2.0,  color = (1.0, 1.0, 1.0))
         
 class MyExperimentConfig(visual_stimulation.experiment.ExperimentConfig):
     def _create_application_parameters(self):
