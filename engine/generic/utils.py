@@ -4,7 +4,9 @@ import random
 import numpy
 import os.path
 import os
-#import pygame
+
+if sys.argv[0] !='run_visual_stimulation.py':
+    import pygame
 import time
 #from OpenGL.GL import *
 #from OpenGL.GLUT import *
@@ -216,9 +218,6 @@ def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  col
     print numpy.asarray(image)
     return numpy.asarray(image)
 
-    
-    
-
 def retina2screen(widths, speed=None, config=None, option=None):
     '''converts microns on retina to cycles per pixel on screen
     '''
@@ -370,34 +369,32 @@ def prepare_dynamic_class_instantiation(modules,  class_name):
     #get referece to class and return with it
     return getattr(sys.modules[module_name], class_name)
 
-def rc(raw):    
-    if isinstance(raw, numpy.ndarray):
-        #input is a numpy array
-        if raw.dtype == numpy.float:
-            return numpy.array(zip(raw[1], raw[0]),dtype={'names':['col','row'],'formats':[numpy.float,numpy.float]})
-        else:
-            return numpy.array(zip(raw[1], raw[0]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
-    else:
-        #input is a tuple
-        if isinstance(raw[0], float):
-            return numpy.array((raw[1], raw[0]),dtype={'names':['col','row'],'formats':[numpy.float,numpy.float]})
-        else:
-            return numpy.array((raw[1], raw[0]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
+def rc(raw):
+    return rc_pack(raw, order = 'rc')
 
-def cr(raw):    
+def cr(raw):
+    return rc_pack(raw, order = 'cr')    
+            
+def rc_pack(raw, order = 'rc'):
+    if order == 'rc':
+        index_first = 1
+        index_second = 0
+    elif order == 'cr':
+        index_first = 0
+        index_second = 1    
     if isinstance(raw, numpy.ndarray):
         #input is a numpy array
         if raw.dtype == numpy.float:
-            return numpy.array(zip(raw[0], raw[1]),dtype={'names':['col','row'],'formats':[numpy.float,numpy.float]})
+            return numpy.array(zip(raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.float32,numpy.float32]})
         else:
-            return numpy.array(zip(raw[0], raw[1]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
+            return numpy.array(zip(raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
     else:
         #input is a tuple
         if isinstance(raw[0], float):
-            return numpy.array((raw[0], raw[1]),dtype={'names':['col','row'],'formats':[numpy.float,numpy.float]})
+            return numpy.array((raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.float32,numpy.float32]})
         else:
-            return numpy.array((raw[0], raw[1]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
-            
+            return numpy.array((raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
+
 def rc_add(operand1, operand2):
     '''
     supported inputs:
@@ -450,21 +447,21 @@ def rc_multiply_with_constant(rc_value, constant):
             cols = rc_value[:]['col'] * constant
             return rc(numpy.array([rows, cols]))
     
-def coordinate_transform(coordinates, origo, x_axis_positive_direction, y_axis_positive_direction):
+def coordinate_transform(coordinates, origo, horizontal_axis_positive_direction, vertical_axis_positive_direction):
     '''
     Transforms coordinates to the native coordinate system of visual stimulation software where the origo is in the center of the screen 
     and the positive directions of on the axis's are up and right
     -1 or 2 d numpy arrays where each item of the array is in row,column format
     '''    
-    if x_axis_positive_direction == 'right':
-        x_axis_positive_direction_ = 1
-    elif x_axis_positive_direction == 'left':
-        x_axis_positive_direction_ = -1
-    if y_axis_positive_direction == 'up':
-        y_axis_positive_direction_ = 1
-    elif y_axis_positive_direction == 'down':
-        y_axis_positive_direction_ = -1
-    axis_direction = rc((y_axis_positive_direction_, x_axis_positive_direction_))    
+    if horizontal_axis_positive_direction == 'right':
+        horizontal_axis_positive_direction_ = 1
+    elif horizontal_axis_positive_direction == 'left':
+        horizontal_axis_positive_direction_ = -1
+    if vertical_axis_positive_direction == 'up':
+        vertical_axis_positive_direction_ = 1
+    elif vertical_axis_positive_direction == 'down':
+        vertical_axis_positive_direction_ = -1
+    axis_direction = rc((vertical_axis_positive_direction_, horizontal_axis_positive_direction_))    
     return rc_add(rc_multiply(axis_direction, coordinates), origo)
 
 def coordinate_transform_single_point(point, origo, axis_direction):

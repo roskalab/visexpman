@@ -11,6 +11,7 @@ import visual_stimulation.user_interface
 import hardware_interface.udp_interface
 import visual_stimulation.stimulation_control
 import visual_stimulation.command_handler
+import visual_stimulation.configuration
 sys.path.append('..' ) 
 import users
 
@@ -26,16 +27,21 @@ class VisualStimulation(object):
         #find out config class and user name from command line arguments
         self.find_out_config()
         #Lists all folders and python modules residing in the user's folder
-        self.directories, self.python_modules = generic.utils.find_files_and_folders('..' + os.sep + 'users' + os.sep + self.user,  'py')        
+        self.directories, self.python_modules = generic.utils.find_files_and_folders('..' + os.sep + 'users' + os.sep + self.user,  'py')
         #all directories are added to python path
         for directory in self.directories:
             sys.path.append(directory)            
         #find module where the configuration class resides
         config_module_name = generic.utils.find_class_in_module(self.python_modules, self.config_class)
-        __import__('users.' + self.user + '.' + config_module_name)
-        #instantiate configuration class        
+        
+        if self.config_class == 'SafestartConfig':            
+            #instantiate safe start configuration
+            setattr(self,  'config',  getattr(visual_stimulation.configuration, self.config_class)('..'))
+        else:
+            __import__('users.' + self.user + '.' + config_module_name)
+            #instantiate configuration class
         setattr(self,  'config',  getattr(getattr(getattr(users,  self.user),  config_module_name), self.config_class)('..'))
-        #create screen
+        #create screen        
         self.user_interface = visual_stimulation.user_interface.UserInterface(self.config)
         #initialize network interface
         self.udp_interface = hardware_interface.udp_interface.UdpInterface(self.config)
@@ -77,6 +83,7 @@ class VisualStimulation(object):
                     if res != 'no command executed':
                         self.user_interface.user_interface_handler(res)
                         if self.config.ENABLE_PRE_EXPERIMENT:
+                            #rerun pre experiment
                             self.stimulation_control.runStimulation(self.config.PRE_EXPERIMENT)
                         if res == 'quit':
                             self.user_interface.close()
@@ -95,6 +102,7 @@ class VisualStimulation(object):
         separators = [' ',  '.',  ',',  '/',  '\\']
         if len(sys.argv) == 1:
             self.config_class = 'SafestartConfig'
+            self.user = ''
         elif len(sys.argv) == 2:
             for separator in separators:
                 if sys.argv[1].find(separator) != -1:

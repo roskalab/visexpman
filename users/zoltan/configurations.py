@@ -2,18 +2,28 @@ import visual_stimulation.configuration
 import os
 import generic.parameter
 import generic.utils as utils
+
+class VRConfig(visual_stimulation.configuration.VisualStimulationConfig):
+    def _set_user_specific_parameters(self):
+        FULLSCR = True
+        BACKGROUND_COLOR = [0.0,  0.0, 0.0]
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+        SCREEN_RESOLUTION = utils.cr([1600, 900])
+#        SCREEN_RESOLUTION = utils.cr([1680, 1050])
+#        SCREEN_RESOLUTION = utils.cr([3280, 1050])
+        self._set_parameters_from_locals(locals())
         
 class UbuntuDeveloperConfig(visual_stimulation.configuration.VisualStimulationConfig):
     
     def _set_user_specific_parameters(self):
         RUN_MODE = 'single experiment'
-        RUN_MODE = 'user interface'
+#        RUN_MODE = 'user interface'
         EXPERIMENT = self.STIMULATION_FOLDER_PATH + os.sep + 'gratings_stimulus.py'
         EXPERIMENT = self.STIMULATION_FOLDER_PATH + os.sep + 'increasing_spot_stimulus.py'
         EXPERIMENT = 'MultipleDotTest'
         EXPERIMENT_CONFIG = 'DotsExperimentConfig'
         PRE_EXPERIMENT = 'Pre'
-        ENABLE_PRE_EXPERIMENT = False
+        ENABLE_PRE_EXPERIMENT = True
 #        EXPERIMENT = 'ShapeTest'
 #        SINGLE_EXPERIMENT = 'GratingMaskTest'
 #        SINGLE_EXPERIMENT = 'DrumStimTest'
@@ -47,12 +57,12 @@ class UbuntuDeveloperConfig(visual_stimulation.configuration.VisualStimulationCo
         corner = False
         if corner:
             ORIGO = utils.cr((-0.5 * SCREEN_RESOLUTION['col'], 0.5 * SCREEN_RESOLUTION['row']))
-            X_AXIS_POSITIVE_DIRECTION = 'right'
-            Y_AXIS_POSITIVE_DIRECTION = 'down'
+            HORIZONTAL_AXIS_POSITIVE_DIRECTION = 'right'
+            VERTICAL_AXIS_POSITIVE_DIRECTION = 'down'
         else:
             ORIGO = utils.cr((0, 0))
-            X_AXIS_POSITIVE_DIRECTION = 'right'
-            Y_AXIS_POSITIVE_DIRECTION = 'up'
+            HORIZONTAL_AXIS_POSITIVE_DIRECTION = 'right'
+            VERTICAL_AXIS_POSITIVE_DIRECTION = 'up'
             
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0

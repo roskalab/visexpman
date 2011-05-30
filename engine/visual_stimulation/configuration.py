@@ -54,8 +54,8 @@ class VisualStimulationConfig(generic.configuration.Config):
         
         #Coordinate system parameters
         ORIGO = utils.rc((0, 0))
-        X_AXIS_POSITIVE_DIRECTION = ['right',  ['left', 'right', 'undefined']]
-        Y_AXIS_POSITIVE_DIRECTION = ['up',  ['up', 'down', 'undefined']]
+        HORIZONTAL_AXIS_POSITIVE_DIRECTION = ['right',  ['left', 'right', 'undefined']]
+        VERTICAL_AXIS_POSITIVE_DIRECTION = ['up',  ['up', 'down', 'undefined']]
         
         #pixel scaling
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel        

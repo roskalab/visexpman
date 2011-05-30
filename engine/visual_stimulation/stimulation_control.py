@@ -76,10 +76,11 @@ class StimulationControl():
             for i in range(len(self.config.FILTERWHEEL_SERIAL_PORT)):
                 self.filterwheels.append(generic.Instrument.Filterwheel(self.config,  id = i))
                 
-        if self.config.ENABLE_PRE_EXPERIMENT:
-            self.init_experiment(self.config.EXPERIMENT, self.config.EXPERIMENT_CONFIG, self.config.PRE_EXPERIMENT)
-        else:
-            self.init_experiment(self.config.EXPERIMENT, self.config.EXPERIMENT_CONFIG)
+        if self.visual_stimulation.config_class != 'SafestartConfig':
+            if self.config.ENABLE_PRE_EXPERIMENT:
+                self.init_experiment(self.config.EXPERIMENT, self.config.EXPERIMENT_CONFIG, self.config.PRE_EXPERIMENT)
+            else:
+                self.init_experiment(self.config.EXPERIMENT, self.config.EXPERIMENT_CONFIG)
                 
     def init_experiment(self, experiment_class_name, experiment_config_class_name, pre_experiment_class_name = None):
         #import experiment class

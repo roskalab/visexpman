@@ -614,7 +614,7 @@ class Stimulations():
             row_index = 1
             pos_rc = generic.utils.rc(pos)
             
-        pos_transformed = generic.utils.coordinate_transform(generic.utils.rc_multiply_with_constant(pos_rc, self.config.SCREEN_PIXEL_TO_UM_SCALE), self.config.ORIGO, self.config.X_AXIS_POSITIVE_DIRECTION, self.config.Y_AXIS_POSITIVE_DIRECTION)
+        pos_transformed = generic.utils.coordinate_transform(generic.utils.rc_multiply_with_constant(pos_rc, self.config.SCREEN_PIXEL_TO_UM_SCALE), self.config.ORIGO, self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.config.VERTICAL_AXIS_POSITIVE_DIRECTION)
             
         pos_adjusted = []
         pos_adjusted.append(pos_transformed['col'])
@@ -772,7 +772,7 @@ class Stimulations():
         n_frames = len(dot_positions) / ndots        
         n_vertices = len(vertices)
         #convert dot positions from user coordinate system                    
-        transformed_dot_positions = generic.utils.coordinate_transform(dot_positions, self.config.ORIGO, self.config.X_AXIS_POSITIVE_DIRECTION, self.config.Y_AXIS_POSITIVE_DIRECTION)        
+        transformed_dot_positions = generic.utils.coordinate_transform(dot_positions, self.config.ORIGO, self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.config.VERTICAL_AXIS_POSITIVE_DIRECTION)        
 
         frames_vertices = numpy.zeros((n_frames * ndots * n_vertices,  2)) 
         pixel_scale = numpy.array(self.config.SCREEN_UM_TO_NORM_SCALE)

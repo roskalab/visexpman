@@ -2,22 +2,36 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 import pygame
-import Configurations
-import generic.utilities
+import generic.utils
 import time
 import numpy
 import Image
+import sys
+sys.path.append('..')
+import users.zoltan.configurations
 
 texture_size = 1000
 class VirtualReality(object):
     def __init__(self):
-        self.config_class = 'UbuntuDeveloperConfig'
-        setattr(self,  'config',  getattr(Configurations, self.config_class)())        
+        import sys
+        from PyQt4 import QtGui
+
+        app = QtGui.QApplication(sys.argv)
+
+        widget = QtGui.QWidget()
+        widget.resize(250, 150)
+        widget.setWindowTitle('simple')
+        widget.show()
+
+        sys.exit(app.exec_())
+
+        self.config = users.zoltan.configurations.VRConfig('..')         
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
         if self.config.FULLSCR:
             flags = flags | pygame.FULLSCREEN
-        self.screen = pygame.display.set_mode(self.config.SCREEN_RESOLUTION, flags)
+        self.screen = pygame.display.set_mode([self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']], flags)
         pygame.mouse.set_visible(False)
+        print pygame.display.list_modes()
         glEnable(GL_DEPTH_TEST)
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
         
@@ -158,7 +172,7 @@ class VirtualReality(object):
             glDisable(GL_TEXTURE_GEN_S)
             glDisable(GL_TEXTURE_GEN_T)
             
-            generic.utilities.flip_screen(1.0/60.0)
+            generic.utils.flip_screen(1.0/60.0)
             
 #            generic.utilities.text_to_screen('hello')
             
@@ -213,7 +227,7 @@ class VirtualReality(object):
     def create_2dtexture(self):
         self.texture2d = numpy.linspace(0.0,  numpy.pi,  texture_size)        
         self.texture2d = numpy.concatenate((numpy.sin(self.texture2d),  numpy.cos(self.texture2d[::-1])))
-        im = Image.open('textures/wood.jpg')
+        im = Image.open('../data/textures/wood.jpg')
         ix, iy, image = im.size[0], im.size[1], im.tostring('raw', 'RGBX', 0, -1)
         self.ID2 = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.ID2)
