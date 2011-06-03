@@ -21,12 +21,12 @@ class RetinaConfig(visual_stimulation.configuration.VisualStimulationConfig):
         up_left_corner_origo = False
         if up_left_corner_origo:
             ORIGO = utils.cr((-0.5 * SCREEN_RESOLUTION['col'], 0.5 * SCREEN_RESOLUTION['row']))
-            X_AXIS_POSITIVE_DIRECTION = 'right'
-            Y_AXIS_POSITIVE_DIRECTION = 'down'
+            HORIZONTAL_AXIS_POSITIVE_DIRECTION = 'right'
+            VERTICAL_AXIS_POSITIVE_DIRECTION = 'down'
         else:
             ORIGO = utils.cr((0, 0))
-            X_AXIS_POSITIVE_DIRECTION = 'right'
-            Y_AXIS_POSITIVE_DIRECTION = 'up'
+            HORIZONTAL_AXIS_POSITIVE_DIRECTION = 'right'
+            VERTICAL_AXIS_POSITIVE_DIRECTION = 'up'
         
         FILTERWHEEL_ENABLE = True
         ENABLE_PARALLEL_PORT = True 
