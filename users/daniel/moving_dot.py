@@ -42,16 +42,16 @@ class MovingDotPreExperiment(visual_stimulation.experiment.PreExperiment):
         # we want at least 2 repetitions in the same recording, but the best is to
         # keep all repetitions in the same recording
         angleset = numpy.sort(numpy.unique(self.ANGLES))
-        diameter_pix = utils.retina2screen(self.DIAMETER_UM,config=self,option='pixels')' 
-        speed_pix = utils.retina2screen(self.SPEED,config=self,option='pixels')' 
-        gridstep_pix = floor(self.GRIDSTEP*diameter_pix)
+        diameter_pix = utils.retina2screen(self.DIAMETER_UM,config=self,option='pixels')
+        speed_pix = utils.retina2screen(self.SPEED,config=self,option='pixels')
+        gridstep_pix = numpy.floor(self.GRIDSTEP*diameter_pix)
         movestep_pix = hw.ifi*speed_pix
         h=self.SCREEN_RESOLUTION['row']#monitor.resolution.height
         w=self.SCREEN_RESOLUTION['col']#monitor.resolution.width
-        hlines_r,hlines_c = numpy.meshgrid(numpy.ceil(diameter_pix/2):gridstep_pix:w-numpy.ceil(diameter_pix/2),
-            -diameter_pix:movestep_pix:h+diameter_pix)
-        vlines_c,vlines_r = numpy.meshgrid(numpy.ceil(diameter_pix/2):gridstep_pix:h-numpy.ceil(diameter_pix/2),
-            -diameter_pix:movestep_pix:w+diameter_pix)
+        hlines_r,hlines_c = numpy.meshgrid(range(numpy.ceil(diameter_pix/2), w-numpy.ceil(diameter_pix/2),gridstep_pix),  
+            range(-diameter_pix, h+diameter_pix, movestep_pix))
+        vlines_c,vlines_r = numpy.meshgrid(range(numpy.ceil(diameter_pix/2), h-numpy.ceil(diameter_pix/2),gridstep_pix), 
+            range(-diameter_pix, w+diameter_pix, movestep_pix))
         # we go along the diagonal from origin to bottom right and take perpicular diagonals' starting
         # and ing coords and lengths
 
@@ -60,7 +60,7 @@ class MovingDotPreExperiment(visual_stimulation.experiment.PreExperiment):
 
         diag_dur = 4*dlines_len.sum()/speed_pix/self.NDOTS
         line_len={'ver0': (w+(diameter_pix*2))*numpy.ones(1,size(vlines_r,2)), 
-            'hor0' : (h+(diameter_pix*2))*numpy.ones(1,size(hlines_r,2))}
+                        'hor0' : (h+(diameter_pix*2))*numpy.ones(1,size(hlines_r,2))}
         ver_dur = 2*line_len['ver0'].sum()/speed_pix/self.NDOTS
         hor_dur = 2*line_len['hor0'].sum()/speed_pix/self.NDOTS
         total_dur = (self.PDURATION*8+diag_dur+ver_dur+hor_dur)*self.REPEATS
@@ -79,91 +79,83 @@ class MovingDotPreExperiment(visual_stimulation.experiment.PreExperiment):
         #ANGLES = 0:45:315
         dirs = [0,11,11,1-1,1-1,1-1,-1-1,-11,-1]
         #screen('closeall')
-        for a = 1:len(angleset)
-            for b = 1:nblocks
+        for a in range(len(angleset)):
+            for b in range(nblocks):
                 # subsample the trajectories keeping only every nblocks'th line
-                if any(angleset(a)==[0,90,180,270])
-                    if any(angleset(a)==[90,270])
-                        vr = vlines_r(:,b:nblocks:) vc=vlines_c(:,b:nblocks:)
-                        if angleset(a)==270
-                            vr = vr(:-1:1,:) vc = vc(:-1:1,:)
-                        
-                    elseif any(angleset(a)==[0,180]) # dots run horizontally
-                        vr = hlines_r(:,b:nblocks:) vc=hlines_c(:,b:nblocks:)
-                        if angleset(a)==180
-                            vr = vr(:-1:1,:) vc = vc(:-1:1,:)
-                        
-                    
-                    segm_length = size(vr,2)/self.NDOTS
-                    cl =1:size(vr,2)
+                if numpy.any(angleset[a]==[0,90,180,270]):
+                    if numpy.any(angleset[a]==[90,270]):
+                        vr = vlines_r[:,b:-1, nblocks] 
+                        vc=vlines_c[:,b:-1, nblocks]
+                        if angleset[a]==270: # swap coordinates
+                            vr = vr[0:-1:1] 
+                            vc = vc[0:1:-1]
+                    elif numpy.any(angleset[a]==[0,180]): # dots run horizontally
+                        vr = hlines_r[:,b:-1, nblocks]
+                        vc= hlines_c[:,b:-1, nblocks]
+                        if angleset[a]==180:
+                            vr = vr[0:1:-1]
+                            vc = vc[0:1:-1]
+                    segm_length = vr.shape[1]/self.NDOTS
+                    cl =range(vr.shape[1])
                     #partsep = [zeros(1,self.NDOTS),size(vr,2)]
-                    partsep = 0 : numpy.ceil(segm_length): size(vr,2)
-                    if len(partsep)<self.NDOTS+1 partsep(self.NDOTS+1)=size(vr,2)
-                    for d1 = 2:self.NDOTS+1
-                        dots_line_i{d1-1} = partsep(d1-1)+1:partsep(d1)
-                    
-                    for s1 = 1 : self.NDOTS #each dot runs through a full line
-                        dl = numel(vr(:,dots_line_i{s1}))
-                        drc{s1} = [reshape(vr(:,dots_line_i{s1}),[1,dl])...
-                            reshape(vc(:,dots_line_i{s1}),[1,dl])]
-                        if s1>1 && dl < len(drc{s1-1}) # a dot will run shorter than the others
-                            drc{s1} = [drc{s1},-diameter_pix*ones(2,len(drc{s1-1})-dl)] # complete with coordinate outside of the screen
-                        
-                    
-                else
-                    [row_col_f,linelengths_f]= diagonal_tr(angleset(a),diameter_pix,gridstep_pix,movestep_pix,w,h)
-                    row_col =row_col_f(b:nblocks:)
-                    linelengths = linelengths_f(b:nblocks:)
-                    segm_len = sum(linelengths)/self.NDOTS
-                    cl =cumsum(linelengths)
-                    partsep = [zeros(1,self.NDOTS),len(linelengths)]
-                    for d1 = 2:self.NDOTS+1
-                        [remain(d1),partsep(d1)] = min(abs(cl-(d1-1)*segm_len))
-                        dots_line_i{d1-1} = partsep(d1-1)+1:partsep(d1)
-                    
-                    while 1
-                        for d1 = 2:self.NDOTS+1
-                            drc{d1-1}=[row_col{dots_line_i{d1-1}}]
-                            part_len(d1-1) = sum(linelengths(dots_line_i{d1-1}))
-                        
-                        [sv,si] = min(part_len) # shortest dot path
-                        [lv,li] = max(part_len) # longest dot path
-                        takeable_i = dots_line_i{li}
-                        takeable_lengths=linelengths(takeable_i)
-                        if any(takeable_lengths< (lv-sv)/2)
-                            [mlv,mli] = min(abs(takeable_lengths-(lv-sv)/2)) # moved line
-                            taken_line_i = dots_line_i{li}(mli)
-                            dots_line_i{li} = dots_line_i{li}([1:mli-1,mli+1:])
-                            dots_line_i{si} = [dots_line_i{si} taken_line_i]
-                        else
+                    partsep = range(0 , vr.shape[1], numpy.ceil(segm_length))
+                    if len(partsep)<self.NDOTS+1:
+                        partsep[self.NDOTS+1]= vr.shape[1]
+                    for d1 in range(1, self.NDOTS+1):
+                        # check here: allocation needed
+                        dots_line_i[d1-1] = range(partsep[d1-1]+1, partsep[d1])
+                    for s1 in range(self.NDOTS): #each dot runs through a full line
+                        dl = numpy.prod(vr[:,dots_line_i[s1]].shape)
+                        drc[s1] = [numpy.reshape(vr[:,dots_line_i[s1]],[1,dl]), 
+                            numpy.reshape(vc[:,dots_line_i[s1]],[1,dl])]
+                        if s1>1 and dl < len(drc[s1-1]): # a dot will run shorter than the others
+                            drc[s1] = [drc[s1],-diameter_pix*numpy.ones(2,len(drc[s1-1])-dl)] # complete with coordinate outside of the screen
+                else:
+                    row_col_f,linelengths_f = diagonal_tr(angleset[a],diameter_pix,gridstep_pix,movestep_pix,w,h)
+                    row_col =row_col_f[b:-1:nblocks]
+                    linelengths = linelengths_f[b:-1: nblocks]
+                    segm_len = linelengths.sum()/self.NDOTS
+                    cl =numpy.cumsum(linelengths)
+                    partsep = [numpy.zeros(1,self.NDOTS),len(linelengths)]
+                    for d1 in range(1, self.NDOTS):
+                        partsep[d1] = numpy.argmin(numpy.abs(cl-(d1-1)*segm_len))
+                        dots_line_i[d1-1] = range(partsep[d1-1]+1,partsep[d1])
+                    while 1:
+                        for d1 in range(1, self.NDOTS):
+                            drc[d1-1]=[row_col[dots_line_i[d1-1]]]
+                            part_len(d1-1) = sum(linelengths(dots_line_i[d1-1]))
+                        si = numpy.argmin(part_len) # shortest dot path
+                        li = numpy.argmax(part_len) # longest dot path
+                        takeable_i = dots_line_i[li]
+                        takeable_lengths=linelengths[takeable_i]
+                        midpoint = part_len[li]-part_len[si]
+                        if numpy.any(takeable_lengths<midpoint):
+                            mli = numpy.argmin(numpy.abs(takeable_lengths-midpoint)) # moved line
+                            taken_line_i = dots_line_i[li][mli]
+                            dll = len(dots_line_i[li])
+                            dots_line_i[li] = dots_line_i[li][numpy.c_[range(mli-1),range(mli+1, dll)]]
+                            dots_line_i[si] = numpy.c_[dots_line_i[si],  taken_line_i]
+                        else:
                             break
-                        
-                    
-                    for s1 = 1 : self.NDOTS #each dot runs through a full line
-                        drc{s1}=[row_col{dots_line_i{s1}}]
-                        ml(s1) = len(drc{s1})
-                    
-                    for s1 = 1:self.NDOTS
-                        if len(drc{s1})<max(ml) # a dot will run shorter than the others
-                            drc{s1} = [drc{s1},-diameter_pix*ones(2,max(ml)-len(drc{s1}))] # complete with coordinate outside of the screen
-                        
-                    
-                
-                arow_col{b,a} = drc
-            
-
-        row_col = {}
+                    for s1 in range(self.NDOTS): #each dot runs through a full line
+                        drc[s1]=[row_col[dots_line_i[s1]]]
+                        ml[s1] = len(drc[s1])
+                    for s1 in range(self.NDOTS):
+                        if len(drc[s1])<max(ml): # a dot will run shorter than the others
+                            drc[s1] = numpy.c_[drc[s1],-diameter_pix*numpy.ones(2,max(ml)-len(drc[s1]))] # complete with coordinate outside of the screen
+                arow_col[b,a] = drc
+        row_col = []
         angle_ = []
         block_ = []
-        for b = 1 : nblocks
-            for a1 = 1 : len(allangles)
-                cai = find(angleset==allangles(a1))
-                for f = 1 : len(arow_col{b,cai}{1})
+        for b in range(nblocks):
+            for a1 in range(len(allangles)):
+                cai = numpy.where(angleset==allangles[a1])[0]
+                for f in range(len(arow_col[b,cai][1])):
                     coords = []
-                    for n=1:self.NDOTS
-                        coords(+1,:) = arow_col{b,cai}{n}(:,f) 
+                    for n in range(self.NDOTS):
+                        coords[+1,:] = arow_col[b,cai][n](:,f) 
                     
-                    row_col{+1} = coords
+                    row_col[+1] = coords
                 
                 angle_(+1) = len(row_col)
             
@@ -171,27 +163,27 @@ class MovingDotPreExperiment(visual_stimulation.experiment.PreExperiment):
 
 def [row_col,dlines_len]= diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h)
 cornerskip = numpy.ceil(diameter_pix/2)+diameter_pix
-pos_diag{1} = cornerskip:gridstep_pix:h/sqrt(2) # spacing of diagonals running from bottomleft 
-diag_start_row{1} = sqrt(2)*pos_diag{1}
-diag_start_col{1} = ones(size(diag_start_row{1}))
-diag__row{1} = ones(size(diag_start_row{1}))
-diag__col{1} = diag_start_row{1}
+pos_diag[1] = cornerskip:gridstep_pix:h/sqrt(2) # spacing of diagonals running from bottomleft 
+diag_start_row[1] = sqrt(2)*pos_diag[1]
+diag_start_col[1] = ones(size(diag_start_row[1]))
+diag__row[1] = ones(size(diag_start_row[1]))
+diag__col[1] = diag_start_row[1]
 # we reached the bottom line, now keep row fixed and col moves till w
-pos_diag{2} = pos_diag{1}()+gridstep_pix:gridstep_pix:w/sqrt(2)
+pos_diag[2] = pos_diag[1]()+gridstep_pix:gridstep_pix:w/sqrt(2)
 #!!! small glitch in start coord's first value
-diag_start_col{2} = sqrt(2)*pos_diag{2}-h
-diag_start_row{2} = ones(size(diag_start_col{2}))*diag_start_row{1}()
-diag__col{2} = sqrt(2)*pos_diag{2}
-diag__row{2} = ones(size(diag__col{2}))
+diag_start_col[2] = sqrt(2)*pos_diag[2]-h
+diag_start_row[2] = ones(size(diag_start_col[2]))*diag_start_row[1]()
+diag__col[2] = sqrt(2)*pos_diag[2]
+diag__row[2] = ones(size(diag__col[2]))
 # we reached the right edge of the screen,
 p = sqrt(2)*w-2*cornerskip
-pos_diag{3} = pos_diag{2}()+gridstep_pix:gridstep_pix:p
-diag_start_col{3} = sqrt(2)*pos_diag{3}-h
-diag_start_row{3} = ones(size(diag_start_col{3}))*diag_start_row{1}()
-diag__row{3} = w - sqrt(2)*(w*sqrt(2)-pos_diag{3})
-diag__col{3} = ones(size(diag__row{3}))*w
+pos_diag[3] = pos_diag[2]()+gridstep_pix:gridstep_pix:p
+diag_start_col[3] = sqrt(2)*pos_diag[3]-h
+diag_start_row[3] = ones(size(diag_start_col[3]))*diag_start_row[1]()
+diag__row[3] = w - sqrt(2)*(w*sqrt(2)-pos_diag[3])
+diag__col[3] = ones(size(diag__row[3]))*w
 
-dlines_len=[]dlines={}
+dlines_len=[]dlines=[]
 offs= diameter_pix*1/sqrt(2)
 swap=0oppositedir=0 # 45 degrees
 if any(angle == [45+180,135+180])
@@ -203,19 +195,19 @@ if any(angle==[135,135+180])
 dfl =0
 if dfl, screen('closeall') 
 for d1 = 1 : len(pos_diag)
-    for d2 = 1 : len(pos_diag{d1})
-        dlines_len(+1) = sqrt((diag_start_row{d1}(d2)+offs-(diag__row{d1}(d2)-offs))^2+...
-            (diag_start_col{d1}(d2)-offs-(diag__row{d1}(d2)+offs))^2)
+    for d2 = 1 : len(pos_diag[d1])
+        dlines_len(+1) = sqrt((diag_start_row[d1](d2)+offs-(diag__row[d1](d2)-offs))^2+...
+            (diag_start_col[d1](d2)-offs-(diag__row[d1](d2)+offs))^2)
         npix = numpy.ceil(dlines_len()/movestep_pix)
         if swap # 
-            s_r = h-diag_start_row{d1}(d2)-offs
-            e_r = h-diag__row{d1}(d2)+offs
+            s_r = h-diag_start_row[d1](d2)-offs
+            e_r = h-diag__row[d1](d2)+offs
         else
-            s_r = diag_start_row{d1}(d2)+offs
-            e_r = diag__row{d1}(d2)-offs
+            s_r = diag_start_row[d1](d2)+offs
+            e_r = diag__row[d1](d2)-offs
         
-        s_c = diag_start_col{d1}(d2)-offs
-        e_c = diag__col{d1}(d2)+offs
+        s_c = diag_start_col[d1](d2)-offs
+        e_c = diag__col[d1](d2)+offs
         if oppositedir
             aline_row = linspace(e_r,s_r,npix)
             aline_col = linspace(e_c,s_c,npix)
@@ -225,12 +217,12 @@ for d1 = 1 : len(pos_diag)
         
         if dfl
             plot([1,w],[1,1])hold onplot([1,1],[1,h])plot([w,w],[1,h])plot([1,w],[h,h])
-            plot(diag_start_col{d1}(d2),diag_start_row{d1}(d2),'gx')
-            plot(diag__col{d1}(d2),diag__row{d1}(d2),'go')
+            plot(diag_start_col[d1](d2),diag_start_row[d1](d2),'gx')
+            plot(diag__col[d1](d2),diag__row[d1](d2),'go')
             plot(s_c,s_r,'rx') plot(e_c,e_r,'ro')
             plot(aline_col,aline_row,'.')axis equalaxis([1-diameter_pix,w+diameter_pix,1-diameter_pix,h+diameter_pix])axis ij #plot in PTB's coordinate system
         
-        dlines{+1}= [aline_colaline_row]
+        dlines[+1]= [aline_colaline_row]
     
 
 if dfl
@@ -311,7 +303,7 @@ def circle_coord(diameter,  resolution = 1.0,  image_size = None,  color = 1.0, 
         s = StringIO.StringIO()
         zf = zipfile.ZipFile(s, 'w')
         zf.write(__file__)
-        savemat(filename, {'xy':xyv, 'debug_frames':self.debug_frames,'creating_code':s.getvalue(), 'seed':self.cfg.seed})
+        savemat(filename, ['xy':xyv, 'debug_frames':self.debug_frames,'creating_code':s.getvalue(), 'seed':self.cfg.seed])
         rawdata2avi_menc(self.debug_frames, '/data/temp/test.avi')
         
 def generate_filename(args):
@@ -323,15 +315,15 @@ def generate_filename(args):
     radii = l2s(args[1])
     if len(type)==0 or type=='random':
         n_dots,nframes,interleave,interleave_step = args[2:]
-        fn = radii+'{0:.0f}-{1:.0f}-{2:.0f}-{3:.0f}.mat'.format(n_dots[0], nframes[0], interleave[0], interleave_step[0])
+        fn = radii+'[0:.0f]-[1:.0f]-[2:.0f]-[3:.0f].mat'.format(n_dots[0], nframes[0], interleave[0], interleave_step[0])
     elif type=='fixed':
         n_dots,gridstep_factor,nblocks,sec_per_block,frames_per_sec=args[1:]
-        fn = radii+'{0}-{1:1.2f}-{2}-{3}-{4}.mat'.format(n_dots, gridstep_factor,
+        fn = radii+'[0]-[1:1.2f]-[2]-[3]-[4].mat'.format(n_dots, gridstep_factor,
                                         nblocks, sec_per_block, frames_per_sec)
     elif type=='fixed_compl_random':
         res,ONOFFratio,enforce_complete_dots,bglevel, gridstep_factor,\
             nblocks, white_area_variation_factor,sec_per_block, iniduration, frames_per_sec, bi = args[2:]
-        fn = radii+'_{0}_{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_{9}'.format(l2s(res, '-','1.0f'),  l2s(gridstep_factor,'-',  '1.2f'),
+        fn = radii+'_[0]_[1]_[2]_[3]_[4]_[5]_[6]_[7]_[8]_[9]'.format(l2s(res, '-','1.0f'),  l2s(gridstep_factor,'-',  '1.2f'),
                             l2s(enforce_complete_dots,'-',  '1.0f'), l2s(sec_per_block), l2s(iniduration), l2s(frames_per_sec, '', '1.2f'), l2s(ONOFFratio, '-', '1.2f'),  
                             l2s(white_area_variation_factor, '', '1.2f'), l2s(bglevel),l2s(bi))
     return fn
