@@ -93,7 +93,7 @@ class Parameter(object):
         exceptionType = None        
         if self._type == 'path':
             if not os.path.exists(self.v):
-                exceptionType = InvalidParameterValue
+                exceptionType = IOError
             elif range_ != None:
                 exceptionType = InvalidParameterRange
         elif self._type == 'dict':

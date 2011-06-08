@@ -1,6 +1,10 @@
-import serial
+
+try:
+    import serial
+except:
+    pass
 import os
-import generic.configuration
+import visexpman.engine.generic.configuration
 import unittest
 import time
 import threading
@@ -112,7 +116,7 @@ class Filterwheel(Instrument):
         except AttributeError:
             pass
             
-class testConfig(generic.configuration.Config):
+class testConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         if os.name == 'nt':
             port = 'COM6'

@@ -4,9 +4,6 @@ import random
 import numpy
 import os.path
 import os
-
-if sys.argv[0] !='run_visual_stimulation.py':
-    import pygame
 import time
 #from OpenGL.GL import *
 #from OpenGL.GLUT import *
@@ -115,6 +112,21 @@ def calculate_circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  en
                 vertices[-1] = numpy.array([0,  0])
 
     return vertices
+
+def coordinate_system(type, SCREEN_RESOLUTION=None):
+    '''looks up proper settings for commonly used coordinate system conventions'''
+    if type=='ulcorner':
+        if SCREEN_RESOLUTION == None: raise ValueError('Screen resolution is needed for converting to upper-left corner origo coordinate system.')
+        ORIGO = cr((-0.5 * SCREEN_RESOLUTION['col'], 0.5 * SCREEN_RESOLUTION['row']))
+        HORIZONTAL_AXIS_POSITIVE_DIRECTION = 'right'
+        VERTICAL_AXIS_POSITIVE_DIRECTION = 'down'
+    elif type=='center':
+        ORIGO = cr((0, 0))
+        HORIZONTAL_AXIS_POSITIVE_DIRECTION = 'right'
+        VERTICAL_AXIS_POSITIVE_DIRECTION = 'up'
+    else:
+        raise ValueError('Coordinate system type '+type+' not recognized')
+    return ORIGO, HORIZONTAL_AXIS_POSITIVE_DIRECTION, VERTICAL_AXIS_POSITIVE_DIRECTION
     
 def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):
     wave = []
@@ -310,6 +322,7 @@ def arc_vertices(diameter, n_vertices,  angle,  angle_range,  pos = [0, 0]):
     return vertices * numpy.array(diameter_list) + numpy.array(pos)
     
 def flip_screen(delay):
+    import pygame
     time.sleep(delay)
     pygame.display.flip()
     

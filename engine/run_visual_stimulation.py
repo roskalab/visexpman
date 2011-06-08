@@ -1,10 +1,4 @@
-import sys
-import os
-import os.path
-
-if os.name == 'nt':
-    from OpenGL.GL import *
-    from OpenGL.GLUT import *
+import visexpman
 
 import generic.utils
 import visual_stimulation.user_interface
@@ -12,25 +6,30 @@ import hardware_interface.udp_interface
 import visual_stimulation.stimulation_control
 import visual_stimulation.command_handler
 import visual_stimulation.configuration
-sys.path.append('..' ) 
-import users
-
+import visexpman.users as users
+import pkgutil
+import inspect
 
 class UnsupportedCommandLineArguments(Exception):
     pass
 
 class VisualStimulation(object):
-    def __init__(self):
+    def __init__(self, config_class, user):
         '''
         Find out configuration and load the appropriate config nad experiment modules, classes
         '''
-        #find out config class and user name from command line arguments
-        self.find_out_config()
+        self.config_class=config_class
+        self.user=user
         #Lists all folders and python modules residing in the user's folder
+        for importer, modname, ispkg in pkgutil.iter_modules('visexpman.users'+self.user):
+            __import__('visexpman.users.'+self.user)
+            m= __import__('visexpman.users.'+self.user+'.'+modname)
+            m = getattr(getattr(visexpman.users, self.user), modname)
+            for modname in inspect.getmembers(m):
+                if modname[0] == config_class:
+                    self.config = modname[1]()
+                    pass
         self.directories, self.python_modules = generic.utils.find_files_and_folders('..' + os.sep + 'users' + os.sep + self.user,  'py')
-        #all directories are added to python path
-        for directory in self.directories:
-            sys.path.append(directory)            
         #find module where the configuration class resides
         config_module_name = generic.utils.find_class_in_module(self.python_modules, self.config_class)
         
@@ -39,7 +38,9 @@ class VisualStimulation(object):
             setattr(self,  'config',  getattr(visual_stimulation.configuration, self.config_class)('..'))
         else:
             __import__('users.' + self.user + '.' + config_module_name)
-            #instantiate configuration class
+        #instantiate configuration class
+            
+        # mi van ha senki nem definialt usert???
         setattr(self,  'config',  getattr(getattr(getattr(users,  self.user),  config_module_name), self.config_class)('..'))
         #create screen        
         self.user_interface = visual_stimulation.user_interface.UserInterface(self.config)
@@ -91,28 +92,29 @@ class VisualStimulation(object):
         else:
             print 'invalid run mode'
     
-    def find_out_config(self):
-        '''
-        Finds out configuration from the calling arguments. The following options are supported:
-        - No argument: SafestartConfig is loaded
-        - Username and config class name is encoded into one argument in the following form:
-            user<separator>configclass, where separator can be: . , / \ <space> 
-        - username and config class are provided as separate arguments
-        '''        
-        separators = [' ',  '.',  ',',  '/',  '\\']
-        if len(sys.argv) == 1:
-            self.config_class = 'SafestartConfig'
-            self.user = ''
-        elif len(sys.argv) == 2:
-            for separator in separators:
-                if sys.argv[1].find(separator) != -1:
-                    self.user = sys.argv[1].split(separator)[0]
-                    self.config_class = sys.argv[1].split(separator)[1]
-        elif len(sys.argv) == 3:
-            self.config_class = sys.argv[1]
-            self.user = sys.argv[2]
-        else:
-            raise UnsupportedCommandLineArguments
+def find_out_config():
+    '''
+    Finds out configuration from the calling arguments. The following options are supported:
+    - No argument: SafestartConfig is loaded
+    - Username and config class name is encoded into one argument in the following form:
+        user<separator>configclass, where separator can be: . , / \ <space> 
+    - username and config class are provided as separate arguments
+    '''        
+    separators = [' ',  '.',  ',',  '/',  '\\']
+    if len(sys.argv) == 1:
+        config_class = 'SafestartConfig'
+        user = ''
+    elif len(sys.argv) == 2:
+        for separator in separators:
+            if sys.argv[1].find(separator) != -1:
+                user = sys.argv[1].split(separator)[0]
+                config_class = sys.argv[1].split(separator)[1]
+    elif len(sys.argv) == 3:
+        config_class = sys.argv[1]
+        user = sys.argv[2]
+    else:
+        raise UnsupportedCommandLineArguments
+    return config_class,  user
 
 if __name__ == "__main__":    
-    VisualStimulation().run()
+    VisualStimulation(*find_out_config()).run()

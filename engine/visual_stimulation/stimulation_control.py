@@ -14,17 +14,15 @@ import psychopy.log
 #from random import *
 #from numpy import *
 
-import generic.utils as utils
 import experiment
-import hardware_interface.instrument
+import visexpman.engine.hardware_interface.instrument
 
 #if self.config.ENABLE_PARALLEL_PORT:
 #    import parallel
     
 import stimulation_library
 
-sys.path.append('..' ) 
-import users
+import visexpman.users as users
 
 class StimulationControl():
     '''

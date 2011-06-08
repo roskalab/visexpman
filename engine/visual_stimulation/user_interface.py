@@ -4,7 +4,6 @@ import os
 import psychopy.visual
 import psychopy.event
 import psychopy.monitors
-import generic.utils
 
 class UserInterface():
     '''
@@ -14,7 +13,7 @@ class UserInterface():
         
         self.config = config
         #Initializing display, setting screen resolution, background color, hiding mouse cursor, quantities are interpreted in pixels        
-        self.screen = psychopy.visual.Window([self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']], color = generic.utils.convert_color(self.config.BACKGROUND_COLOR), colorSpace = 'rgb',  fullscr = self.config.FULLSCR, allowGUI = False,  units="pix") #create a window
+        self.screen = psychopy.visual.Window([self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']], color = utils.convert_color(self.config.BACKGROUND_COLOR), colorSpace = 'rgb',  fullscr = self.config.FULLSCR, allowGUI = False,  units="pix") #create a window
         #Set acceptable framerate and give warning when frame drop occurs
         self.screen._refreshThreshold=1/float(self.config.SCREEN_EXPECTED_FRAME_RATE)+float(self.config.FRAME_DELAY_TOLERANCE) * 1e-3
         self.screen.setGamma(self.config.GAMMA)        
@@ -108,7 +107,7 @@ class UserInterface():
         '''
         Lists and displays stimulus files that can be found in the default stimulus file folder
         '''
-        stimulus_files = generic.utils.filtered_file_list(self.config.STIMULATION_FOLDER_PATH,  ['stimulus',  'example'])
+        stimulus_files = utils.filtered_file_list(self.config.STIMULATION_FOLDER_PATH,  ['stimulus',  'example'])
         stimulus_files.sort()
         stimulus_files_string = '\n\n'
         index = 0        

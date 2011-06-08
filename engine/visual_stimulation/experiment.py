@@ -1,6 +1,5 @@
-import generic.configuration
-
-class ExperimentConfig(generic.configuration.Config):
+from visexpman.engine.generic.configuration import Config
+class ExperimentConfig(Config):
     pass
 
 class Experiment():

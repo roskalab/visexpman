@@ -7,19 +7,22 @@ import parameter
 PRINT_PAR_NAMES = False
 
 class Config(object):
-    def __init__(self,  base_path = None):
-        print 'Loaded configuration class: ' + self.__class__.__name__        
-        self.base_path = base_path
+    def __init__(self):
+#should avoid using print, use logger.info or something similar
+#print 'Loaded configuration class: ' + self.__class__.__name__        
         self._create_generic_parameters()        
         self._create_parameter_aliases()
         self._create_application_parameters()        
-        self._create_parameter_aliases()        
+        self._create_parameter_aliases()     # ezt miert nem a create applic parameters hivja meg?   
         self._set_user_specific_parameters()        
         self._calculate_parameters()        
         #check for new parameters created by calculate_parameters method, get their names and load them:        
         self._create_parameter_aliases()
         
     def _create_generic_parameters(self):
+        self.PACKAGE_PATH_p = parameter.Parameter(os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0], is_path=True)
+        return
+        # I am not sure these below make sense
         if self.base_path != None:
             self.BASE_PATH_p = parameter.Parameter(self.base_path, is_path = True)
         elif os.name == 'nt' and os.path.exists(os.path.dirname(sys.argv[0])):
@@ -28,19 +31,29 @@ class Config(object):
             self.BASE_PATH_p = parameter.Parameter(os.getcwd(), is_path = True)
 
     def _create_parameters_from_locals(self,  locals): 
-        for k,  v in locals.items():            
+        for k,  v in locals.items():         
+            if hasattr(self, k):  # parameter was already initialized, just update with new value
+                self.set(k, v)
+                continue
             if k.isupper() and k.find('_RANGE') == -1:
                 if PRINT_PAR_NAMES:
                     print k, v
                 if isinstance(v,  list):
-                    if len(v) == 1: #when no range is provied (list of strings or dictionaries)
-                        setattr(self,  k + '_p',  parameter.Parameter(v[0]))
-                    else:
+                    if len(v)==2 and ((isinstance(v[1], (list, tuple)) and v[1][0] !='not_range') or v[1]==None):
                         setattr(self,  k + '_p',  parameter.Parameter(v[0],  range_ = v[1]))
+                    elif len(v) == 1: #when no range is provied (list of strings or dictionaries) # why we do this???
+                        setattr(self,  k + '_p',  parameter.Parameter(v[0]))
+                    elif len(v)==2 and isinstance(v[1], (list, tuple)) and v[1][0] =='not_range':
+                        # in theory such data would not be used as data
+                        # for the rare case when parameter is a two element list, seond element is a 4 element list with first element 'not_range', meaning that second element is also data and should be treated as data
+                        v[1] = v[1][1:] # remove helper string
+                        setattr(self,  k + '_p',  parameter.Parameter(v))
+                    else:
+                        setattr(self,  k + '_p',  parameter.Parameter(v))                        
                 elif k.find('_PATH') != -1: #"PATH" is encoded into variable name
                     setattr(self,  k + '_p',  parameter.Parameter(v,  is_path = True))
                 else:
-                    setattr(self,  k + '_p',  parameter.Parameter(v))
+                    setattr(self,  k + '_p', parameter.Parameter(v))
 
     def _set_parameters_from_locals(self,  locals):
         for k,  v in locals.items():

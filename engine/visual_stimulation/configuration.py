@@ -1,21 +1,23 @@
 import os
 import sys
-
-import generic.configuration
-import generic.parameter
-import generic.utils as utils
-import serial
 import numpy
+import visexpman
+import visexpman.engine.generic.utils as utils
+try:
+    import serial
+except:
+    pass
 
 import unittest
 
 
-class VisualStimulationConfig(generic.configuration.Config):
+class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         '''
         By overdefining this function, the application/user etc specific parameters can be definced here:
             self.PAR_p =              
         '''        
+        visexpman.engine.generic.configuration.Config._create_application_parameters(self)
         #system parameters
         if os.name == 'nt':
             OS_TYPE = 'win'
@@ -52,10 +54,11 @@ class VisualStimulationConfig(generic.configuration.Config):
         GAMMA = [1.0,  [1e-2,  10]]
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
         
-        #Coordinate system parameters
-        ORIGO = utils.rc((0, 0))
-        HORIZONTAL_AXIS_POSITIVE_DIRECTION = ['right',  ['left', 'right', 'undefined']]
-        VERTICAL_AXIS_POSITIVE_DIRECTION = ['up',  ['up', 'down', 'undefined']]
+        #Coordinate system selection
+        COORDINATE_SYSTEM = ['undefined', ['ulcorner','center', 'undefined']] 
+        ORIGO = utils.rc((numpy.inf, numpy.inf))
+        HORIZONTAL_AXIS_POSITIVE_DIRECTION = ['undefined',  ['left', 'right', 'undefined']]
+        VERTICAL_AXIS_POSITIVE_DIRECTION = ['undefined',  ['up', 'down', 'undefined']]
         
         #pixel scaling
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel        
@@ -74,15 +77,6 @@ class VisualStimulationConfig(generic.configuration.Config):
         UDP_PORT = [446,  [300,  65000]]
         UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
         
-        #paths
-        DEFAULT_IMAGE_PATH = self.BASE_PATH + os.sep + 'data' + os.sep + 'images/default.bmp'
-        LOG_PATH = self.BASE_PATH
-        STIMULATION_EXAMPLES_PATH = self.BASE_PATH + os.sep + 'users' + os.sep + 'example'
-        STIMULATION_FOLDER_PATH = self.BASE_PATH + os.sep + 'users' + os.sep + 'templateuser'
-        ARCHIVE_PATH = self.BASE_PATH
-        CAPTURE_PATH = self.BASE_PATH
-        BULLSEYE_PATH = self.BASE_PATH + os.sep + 'data' + os.sep + 'images/bullseye.bmp'
-        TEMP_IMAGE_PATH = self.BASE_PATH + os.sep + 'data' + os.sep + 'images/tmp.bmp'
         
         #commands (including commands which are accepted only from udp interface)
         CMD_START = 's'        
@@ -158,22 +152,36 @@ class VisualStimulationConfig(generic.configuration.Config):
         '''
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
         '''
-        self.SCREEN_PIXEL_TO_UM_SCALE_p = generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
+        #paths
+        DEFAULT_IMAGE_PATH = os.path.join(self.BASE_PATH ,'images','default.bmp')
+        LOG_PATH = self.BASE_PATH
+        ARCHIVE_PATH = self.BASE_PATH
+        CAPTURE_PATH = self.BASE_PATH
+        BULLSEYE_PATH = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'
+        TEMP_IMAGE_PATH = self.BASE_PATH + os.sep + 'temp'+os.sep+'tmp.bmp'
+        self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX
+        
+        self.SCREEN_PIXEL_TO_UM_SCALE_p = visexpman.engine.generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
         
         ACQUISITION_TRIGGER_ON = 1<<self.ACQUISITION_TRIGGER_PIN
-        self.ACQUISITION_TRIGGER_ON_p = generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
-        self.ACQUISITION_TRIGGER_OFF_p = generic.parameter.Parameter(0,  range_ = [0,  255])
-        self.FRAME_TRIGGER_ON_p = generic.parameter.Parameter(ACQUISITION_TRIGGER_ON | 1<<self.FRAME_TRIGGER_PIN,  range_ = [0,  255])
-        self.FRAME_TRIGGER_OFF_p = generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
+        self.ACQUISITION_TRIGGER_ON_p = visexpman.engine.generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
+        self.ACQUISITION_TRIGGER_OFF_p = visexpman.engine.generic.parameter.Parameter(0,  range_ = [0,  255])
+        self.FRAME_TRIGGER_ON_p = visexpman.engine.generic.parameter.Parameter(ACQUISITION_TRIGGER_ON | 1<<self.FRAME_TRIGGER_PIN,  range_ = [0,  255])
+        self.FRAME_TRIGGER_OFF_p = visexpman.engine.generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
         
         if isinstance(self.SCREEN_RESOLUTION, list):
             screen_resolution = 1.0 / numpy.array(self.SCREEN_RESOLUTION)
         elif isinstance(self.SCREEN_RESOLUTION, numpy.ndarray):
             screen_resolution = 1.0 / numpy.array([self.SCREEN_RESOLUTION['col'], self.SCREEN_RESOLUTION['row']])
         SCREEN_UM_TO_NORM_SCALE = 2.0 * self.SCREEN_PIXEL_TO_UM_SCALE_p.v * screen_resolution        
-        self.SCREEN_UM_TO_NORM_SCALE_p = generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
+        self.SCREEN_UM_TO_NORM_SCALE_p = visexpman.engine.generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
 
-class TestConfig(generic.configuration.Config):
+        if self.COORDINATE_SYSTEM != 'undefined':
+            self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
+        else:
+            raise ValueError('No coordinate system selected in config,  nor explicit settings for origo and axes was given.')
+            
+class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         PAR1 = 'par'
         PAR2 = 'par2'
@@ -191,7 +199,7 @@ class TestConfig(generic.configuration.Config):
         '''
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
         '''        
-        self.PAR3_p = generic.Parameter.Parameter(self.PAR1+self.PAR2) 
+        self.PAR3_p = visexpman.engine.generic.Parameter.Parameter(self.PAR1+self.PAR2) 
         self.PAR3 = self.PAR3_p.v
     
 class testParameter(unittest.TestCase):

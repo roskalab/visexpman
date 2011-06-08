@@ -13,10 +13,8 @@ from OpenGL.GLUT import *
 import psychopy.visual
 import psychopy.core
 import psychopy.log
-import generic.utils
-import generic.parametric_control
-sys.path.append('..' ) 
-import users.zoltan.test.stimulus_library_test_data
+import visexpman.engine.generic.parametric_control
+import visexpman.users.zoltan.test.stimulus_library_test_data
     
 class Stimulations():
     """
@@ -38,7 +36,7 @@ class Stimulations():
         self.checkerboard = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
         self.gratings = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
         self.image_list = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
-        self.backgroundColor = generic.utils.convert_color(self.config.BACKGROUND_COLOR)        
+        self.backgroundColor = utils.convert_color(self.config.BACKGROUND_COLOR)        
         
         self.flip_time = time.time()
         self.flip_times = []        
@@ -122,8 +120,8 @@ class Stimulations():
         
     #Externally callable functions showing different visual patterns
     def set_background(self,  color):        
-        self.screen.setColor(generic.utils.convert_color(color))
-        self.backgroundColor = generic.utils.convert_color(color)        
+        self.screen.setColor(utils.convert_color(color))
+        self.backgroundColor = utils.convert_color(color)        
         
     def clear_screen(self, duration = 0.0,  color = None):
         
@@ -175,8 +173,8 @@ class Stimulations():
             image_file_paths.sort()
             #initialize parametric control
             start_time = time.time()            
-            posx_parametric_control = generic.parametric_control.ParametricControl(position[0],  start_time)
-            posy_parametric_control = generic.parametric_control.ParametricControl(position[1],  start_time) 
+            posx_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
+            posy_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time) 
             
             for image_file_path in image_file_paths:
                 if len(formula) > 0:
@@ -205,8 +203,8 @@ class Stimulations():
             
             #initialize parametric control
             start_time = time.time()            
-            posx_parametric_control = generic.parametric_control.ParametricControl(position[0],  start_time)
-            posy_parametric_control = generic.parametric_control.ParametricControl(position[1],  start_time)             
+            posx_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
+            posy_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time)             
             if len(formula) > 0:
                 #parametric control
                 for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):
@@ -291,7 +289,7 @@ class Stimulations():
         '''
         
         position = pos
-        converted_color = generic.utils.convert_color(color)
+        converted_color = utils.convert_color(color)
         if  formula != []:
             parametric_control_enable = True
         else:
@@ -308,14 +306,14 @@ class Stimulations():
         if shape == 'rect' or shape == 'rectangle':
             vertices = [[-0.5 * size_adjusted[0], -0.5 * size_adjusted[1]],  [-0.5 * size_adjusted[0], 0.5 * size_adjusted[1]],  [0.5 * size_adjusted[0], 0.5 * size_adjusted[1]],  [0.5 * size_adjusted[0], -0.5 * size_adjusted[1]]]
         elif shape == 'circle' or shape == 'annulus' or shape == 'annuli':
-            vertices = generic.utils.calculate_circle_vertices(size_adjusted,  1.0)
+            vertices = utils.calculate_circle_vertices(size_adjusted,  1.0)
         
         if shape == 'annulus' or shape == 'annuli':
             if isinstance(ring_size, list):
                 _ring_size = [size_adjusted[0] - ring_size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE]
             else:
                 _ring_size = [size_adjusted[0] - ring_size * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size * self.config.SCREEN_PIXEL_TO_UM_SCALE]
-            inner_circle_vertices = generic.utils.calculate_circle_vertices(_ring_size,  1.0) 
+            inner_circle_vertices = utils.calculate_circle_vertices(_ring_size,  1.0) 
         
         if duration == 0.0:            
             #show shape for a single frame
@@ -340,14 +338,14 @@ class Stimulations():
             #initialize parametric control
             if parametric_control_enable:
                 #convert color to Presentinator color format so that parametric control could handle this format
-                color_presentinator_format = generic.utils.convert_color_from_pp(converted_color)                
+                color_presentinator_format = utils.convert_color_from_pp(converted_color)                
                 start_time = time.time()
-                posx_pc = generic.parametric_control.ParametricControl(position[0],  start_time)
-                posy_pc = generic.parametric_control.ParametricControl(position[1],  start_time) 
-                ori_pc = generic.parametric_control.ParametricControl(orientation,  start_time)                 
-                color_r_pc = generic.parametric_control.ParametricControl(color_presentinator_format[0],  start_time) 
-                color_g_pc = generic.parametric_control.ParametricControl(color_presentinator_format[1],  start_time) 
-                color_b_pc = generic.parametric_control.ParametricControl(color_presentinator_format[2],  start_time)          
+                posx_pc = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
+                posy_pc = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time) 
+                ori_pc = visexpman.engine.generic.parametric_control.ParametricControl(orientation,  start_time)                 
+                color_r_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[0],  start_time) 
+                color_g_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[1],  start_time) 
+                color_b_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[2],  start_time)          
                 
                 posx_pars = formula[0]
                 posy_pars = formula[1]
@@ -368,7 +366,7 @@ class Stimulations():
                     color_b_pc.update(value = None,  parameters = color_b_pars[1],  formula = color_b_pars[0],  time_tick = actual_time_tick)
                     position_to_set = (posx_pc.value,  posy_pc.value)
                     orientation_to_set = ori_pc.value
-                    color_to_set = generic.utils.convert_color((color_r_pc.value,  color_g_pc.value,  color_b_pc.value))
+                    color_to_set = utils.convert_color((color_r_pc.value,  color_g_pc.value,  color_b_pc.value))
                 else:
                     position_to_set = position                    
                     orientation_to_set = orientation                    
@@ -442,7 +440,7 @@ class Stimulations():
         texture = Image.new('RGBA',  n_checkers_fixed) 
         for row in range(n_checkers[1]):
             for column in range(n_checkers[0]):            
-                texture.putpixel((column, row),  generic.utils.convert_int_color(generic.utils.convert_color_from_pp(generic.utils.convert_color(color[row * n_checkers[0] + column]))))
+                texture.putpixel((column, row),  utils.convert_int_color(utils.convert_color_from_pp(utils.convert_color(color[row * n_checkers[0] + column]))))
         
         self.checkerboard.setPos(pos_offset)
         self.checkerboard.setTex(texture) 
@@ -553,16 +551,16 @@ class Stimulations():
             for slice in range(n_slices):
                 start_angle = slice_angle * slice
                 end_angle = slice_angle * (slice + 1)
-                vertices = generic.utils.calculate_circle_vertices(outer_r,  start_angle = start_angle,  end_angle = end_angle+1)               
+                vertices = utils.calculate_circle_vertices(outer_r,  start_angle = start_angle,  end_angle = end_angle+1)               
                 
                 try:
-                    color = generic.utils.convert_color(colors[(n_rings -1 - ring) * n_slices + slice])
+                    color = utils.convert_color(colors[(n_rings -1 - ring) * n_slices + slice])
                 except IndexError:
                     color = (-1.0,  -1.0,  -1.0)
                 
                 self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = color,  fillColor = color,  vertices =  vertices,  pos = pos_p))                
             if inner_circles:
-                vertices  = generic.utils.calculate_circle_vertices(inner_r)
+                vertices  = utils.calculate_circle_vertices(inner_r)
                 self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = (-1.0,  -1.0,  -1.0),  fillColor = (-1.0,  -1.0,  -1.0),  vertices =  vertices,  pos = pos_p))
                 
         self._show_stimulus(duration,  self.ring,  flip)  
@@ -612,9 +610,9 @@ class Stimulations():
         else:
             column_index = 0
             row_index = 1
-            pos_rc = generic.utils.rc(pos)
+            pos_rc = utils.rc(pos)
             
-        pos_transformed = generic.utils.coordinate_transform(generic.utils.rc_multiply_with_constant(pos_rc, self.config.SCREEN_PIXEL_TO_UM_SCALE), self.config.ORIGO, self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.config.VERTICAL_AXIS_POSITIVE_DIRECTION)
+        pos_transformed = utils.coordinate_transform(utils.rc_multiply_with_constant(pos_rc, self.config.SCREEN_PIXEL_TO_UM_SCALE), self.config.ORIGO, self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.config.VERTICAL_AXIS_POSITIVE_DIRECTION)
             
         pos_adjusted = []
         pos_adjusted.append(pos_transformed['col'])
@@ -683,9 +681,9 @@ class Stimulations():
             color_offset_adjusted[i] = 2.0 * color_offset_adjusted[i]  - 1.0 + 0.5 * color_contrast_adjusted[i]         
 
         #generate stimulus profiles
-        stimulus_profile_r = generic.utils.generate_waveform(profile_adjusted[0], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, duty_cycle)
-        stimulus_profile_g = generic.utils.generate_waveform(profile_adjusted[1], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, duty_cycle)
-        stimulus_profile_b = generic.utils.generate_waveform(profile_adjusted[2], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, duty_cycle)
+        stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, duty_cycle)
+        stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, duty_cycle)
+        stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, duty_cycle)
         stimulus_profile = numpy.array([stimulus_profile_r,  stimulus_profile_g,  stimulus_profile_b])
         stimulus_profile = stimulus_profile.transpose()
     
@@ -767,12 +765,12 @@ class Stimulations():
         st = time.time()
         
         radius = 1.0
-        vertices = generic.utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
+        vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
         
         n_frames = len(dot_positions) / ndots        
         n_vertices = len(vertices)
         #convert dot positions from user coordinate system                    
-        transformed_dot_positions = generic.utils.coordinate_transform(dot_positions, self.config.ORIGO, self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.config.VERTICAL_AXIS_POSITIVE_DIRECTION)        
+        transformed_dot_positions = utils.coordinate_transform(dot_positions, self.config.ORIGO, self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.config.VERTICAL_AXIS_POSITIVE_DIRECTION)        
 
         frames_vertices = numpy.zeros((n_frames * ndots * n_vertices,  2)) 
         pixel_scale = numpy.array(self.config.SCREEN_UM_TO_NORM_SCALE)
@@ -843,19 +841,19 @@ class Stimulations():
         for frame_i in range(n_frames):
             for stripe in range(n_stripes):
                 angle = stripe * angle_range_per_stripe + delta_angle * frame_i
-                inner_arc_vertices = generic.utilities.arc_vertices(1.0, n_vertices_per_stripe,  angle, angle_range_inner)
+                inner_arc_vertices = visexpman.engine.generic.utilities.arc_vertices(1.0, n_vertices_per_stripe,  angle, angle_range_inner)
                 inner_arc_vertices = (inner_arc_vertices * numpy.array(drum_base_size) + pos) * self.config.SCREEN_UM_TO_NORM_SCALE            
-                outer_arc_vertices = generic.utilities.arc_vertices(1.0, n_vertices_per_stripe,  angle, angle_range_outer)
+                outer_arc_vertices = visexpman.engine.generic.utilities.arc_vertices(1.0, n_vertices_per_stripe,  angle, angle_range_outer)
                 outer_arc_vertices = (outer_arc_vertices * outer_arc_diameter + pos) * self.config.SCREEN_UM_TO_NORM_SCALE            
                 vertices[n_stripes * frame_i * 2 * n_vertices_per_stripe + stripe * 2 * n_vertices_per_stripe: n_stripes * frame_i * 2 * n_vertices_per_stripe + (stripe + 1) * 2 * n_vertices_per_stripe] = numpy.concatenate((outer_arc_vertices,  inner_arc_vertices[::-1]))
             
-        background_color_converted = generic.utils.convert_to_rgb(background_color)
+        background_color_converted = utils.convert_to_rgb(background_color)
         glClearColor(background_color_converted[0],  background_color_converted[1],  background_color_converted[2],  0.0)
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         for frame_i in range(n_frames):            
             glClear(GL_COLOR_BUFFER_BIT)            
-            glColor3fv(generic.utils.convert_to_rgb(color))
+            glColor3fv(utils.convert_to_rgb(color))
             for stripe in range(n_stripes):
                 glDrawArrays(GL_POLYGON,  frame_i * n_stripes * 2 * n_vertices_per_stripe + stripe * 2 * n_vertices_per_stripe, 2 * n_vertices_per_stripe)
             self._flip()
@@ -938,7 +936,7 @@ class Stimulations():
                 self._flip()
         
     def stimulation_library_test(self):   
-        stimulus_library_test_data = users.zoltan.test.stimulus_library_test_data.StimulusLibraryTestData(self.config)
+        stimulus_library_test_data = visexpman.users.zoltan.test.stimulus_library_test_data.StimulusLibraryTestData(self.config)
         if stimulus_library_test_data.run_test['show_image() tests']:           
             test_datas =  stimulus_library_test_data.test_data_set[0]
             for test_data in test_datas:
