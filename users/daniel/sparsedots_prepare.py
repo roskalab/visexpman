@@ -1,4 +1,4 @@
-import utils
+from visexpman.engine.generic import utils
 import numpy
 from scipy.ndimage.morphology import binary_erosion,  binary_dilation
 import Helpers

@@ -37,7 +37,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #run options: single experiment, user interface
         RUN_MODE = ['single experiment',  ['single experiment',  'user interface',  'unknown']]
-        
+            
         #this a valid stimulation file path or an experiment object name
         EXPERIMENT = 'undefined'
         EXPERIMENT_CONFIG = 'undefined'

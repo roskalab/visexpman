@@ -124,8 +124,6 @@ class MBP(VisualStimulationConfig):
         GAMMA = 1.0
         FILTERWHEEL_ENABLE = False
         
-        #multiple stimulus control
-        STIMULUS_LIST = ['MyStimulus1',  'MyStimulus2']
         #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
         

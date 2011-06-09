@@ -61,6 +61,7 @@ class CommandHandler():
                     self.stimulation_control.runStimulation()
                     result = 'file transferred and loaded'
                 elif cmd == self.config.CMD_BULLSEYE: #show bullseye
+                # stimulus fajlla kene alakitani
                     try:
                         bullseye_size = float(self.command_buffer[1:].replace(' ',  ''))
                     except ValueError:

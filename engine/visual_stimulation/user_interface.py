@@ -1,6 +1,6 @@
 import time
 import os
-
+from visexpman.engine.generic import utils
 import psychopy.visual
 import psychopy.event
 import psychopy.monitors
@@ -9,7 +9,7 @@ class UserInterface():
     '''
     UserInterface is responsible for handling keystrokes and displaying messages on screen. Display handling is taken over by StimulationControl when software leaves idle state       
     '''
-    def __init__(self,  config):
+    def __init__(self,  config,  caller):
         
         self.config = config
         #Initializing display, setting screen resolution, background color, hiding mouse cursor, quantities are interpreted in pixels        
@@ -18,21 +18,13 @@ class UserInterface():
         self.screen._refreshThreshold=1/float(self.config.SCREEN_EXPECTED_FRAME_RATE)+float(self.config.FRAME_DELAY_TOLERANCE) * 1e-3
         self.screen.setGamma(self.config.GAMMA)        
         
-        #shortcuts to stimulus files
-        n_stimulus_files = len(os.listdir(self.config.STIMULATION_FOLDER_PATH))
-        if n_stimulus_files > 10:
-            n_stimulus_files = 10
-        stimulus_file_shortcut = []
-        for i in range (n_stimulus_files):
-            stimulus_file_shortcut.append(str(i))        
-        self.accepted_keys = self.config.KEYS + stimulus_file_shortcut 
-        
-        self.clear_stimulus = True
+        #shortcuts to experiment classes, max 10
+        self.accepted_keys = self.config.KEYS + '{0}'.format(range(len(caller.experiment_list)))#stimulus_file_shortcut 
         
         #Display menu
         position = (0, 0)   
         if self.config.TEXT_ENABLE and not self.config.ENABLE_PRE_EXPERIMENT:
-            self.menu = psychopy.visual.TextStim(self.screen,  text = self.config.MENU_TEXT + self.listStimulusFiles(),  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE) 
+            self.menu = psychopy.visual.TextStim(self.screen,  text = self.config.MENU_TEXT + experiment_choices(caller.experiment_list),  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE) 
             position = (0,  int(-0.4 * self.config.SCREEN_RESOLUTION['row']))
             self.message = psychopy.visual.TextStim(self.screen,  text = '',  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)
             self.user_interface_items = [self.menu,  self.message]             
@@ -46,7 +38,7 @@ class UserInterface():
         '''
         Update Psychopy items that make the user interface
         '''
-        if self.config.TEXT_ENABLE and self.clear_stimulus and not self.config.ENABLE_PRE_EXPERIMENT:            
+        if self.config.TEXT_ENABLE and not self.config.ENABLE_PRE_EXPERIMENT:            
             for user_interface_item in self.user_interface_items:
                 user_interface_item.draw()
             self.screen.flip()
@@ -58,7 +50,7 @@ class UserInterface():
         self.message_text = self.message_text + '\n' + txt
         if len(self.message_text) > self.config.MAX_MESSAGE_LENGTH:
             self.message_text = self.message_text[len(self.message_text) - self.config.MAX_MESSAGE_LENGTH:len(self.message_text)]
-        if self.config.TEXT_ENABLE and self.clear_stimulus and not self.config.ENABLE_PRE_EXPERIMENT:            
+        if self.config.TEXT_ENABLE and not self.config.ENABLE_PRE_EXPERIMENT:            
             self.message.setText(self.message_text)
             self.message.draw()        
             self.screen.flip()
@@ -102,23 +94,17 @@ class UserInterface():
             
         self.command = command
         return command
-        
-    def listStimulusFiles(self):
-        '''
-        Lists and displays stimulus files that can be found in the default stimulus file folder
-        '''
-        stimulus_files = utils.filtered_file_list(self.config.STIMULATION_FOLDER_PATH,  ['stimulus',  'example'])
-        stimulus_files.sort()
-        stimulus_files_string = '\n\n'
-        index = 0        
-        for stimulus_file in stimulus_files:            
-            stimulus_files_string = stimulus_files_string + str(index) + ' ' + stimulus_file + '\n'
-            index = index + 1
-        return stimulus_files_string
-        
+                
     def close(self):
         pass
         self.screen.close()        
+        
+def experiment_choices(expriment_list):
+    '''
+    Lists and displays stimulus files that can be found in the default stimulus file folder
+    '''
+    return '\n'.join([str(i)+' '+experiment_list[i] for i in range(len(experiment_list))])
+        
         
 if __name__ == "__main__":
 #    print '------------------------------start------------------------------'

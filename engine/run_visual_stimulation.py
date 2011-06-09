@@ -1,5 +1,5 @@
 import visexpman
-
+import os
 import generic.utils
 import visual_stimulation.user_interface
 import hardware_interface.udp_interface
@@ -16,34 +16,31 @@ class UnsupportedCommandLineArguments(Exception):
 class VisualStimulation(object):
     def __init__(self, config_class, user):
         '''
-        Find out configuration and load the appropriate config nad experiment modules, classes
+        Find out configuration and load the appropriate config and experiment modules, classes
         '''
         self.config_class=config_class
         self.user=user
         #Lists all folders and python modules residing in the user's folder
-        for importer, modname, ispkg in pkgutil.iter_modules('visexpman.users'+self.user):
-            __import__('visexpman.users.'+self.user)
-            m= __import__('visexpman.users.'+self.user+'.'+modname)
-            m = getattr(getattr(visexpman.users, self.user), modname)
-            for modname in inspect.getmembers(m):
-                if modname[0] == config_class:
-                    self.config = modname[1]()
-                    pass
-        self.directories, self.python_modules = generic.utils.find_files_and_folders('..' + os.sep + 'users' + os.sep + self.user,  'py')
-        #find module where the configuration class resides
-        config_module_name = generic.utils.find_class_in_module(self.python_modules, self.config_class)
-        
+        # this way of discovering classes has the drawback that modules searched must not have syntax errors
+        self.experiment_list = []
+        __import__('visexpman.users.'+self.user)
+        for importer, modname, ispkg in pkgutil.iter_modules(getattr(visexpman.users, self.user).__path__,  'visexpman.users.'+self.user+'.'):
+            m= __import__(modname, fromlist='dummy')
+            for attr in inspect.getmembers(m, inspect.isclass):
+                if attr[0] == config_class:
+                    self.config = attr[1]()
+                    continue
+                elif attr[0].find('__')==-1 and visexpman.engine.visual_stimulation.experiment.Experiment in inspect.getmro(attr[1]): # test if it inherits experiment
+                    self.experiment_list.append(attr[1]())
+        if len(self.experiment_list) > 10: raise RuntimeError('Maximum 10 different experiment types are allowed') 
         if self.config_class == 'SafestartConfig':            
             #instantiate safe start configuration
             setattr(self,  'config',  getattr(visual_stimulation.configuration, self.config_class)('..'))
-        else:
-            __import__('users.' + self.user + '.' + config_module_name)
-        #instantiate configuration class
             
         # mi van ha senki nem definialt usert???
-        setattr(self,  'config',  getattr(getattr(getattr(users,  self.user),  config_module_name), self.config_class)('..'))
+        #setattr(self,  'config',  getattr(getattr(getattr(users,  self.user),  config_module_name), self.config_class)('..'))
         #create screen        
-        self.user_interface = visual_stimulation.user_interface.UserInterface(self.config)
+        self.user_interface = visual_stimulation.user_interface.UserInterface(self.config, self)
         #initialize network interface
         self.udp_interface = hardware_interface.udp_interface.UdpInterface(self.config)
         #initialize stimulation control
