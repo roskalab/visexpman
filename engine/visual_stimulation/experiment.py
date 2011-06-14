@@ -1,13 +1,27 @@
+import visexpman
 from visexpman.engine.generic.configuration import Config
+from visexpman.engine.generic import utils
 class ExperimentConfig(Config):
-    pass
+    def __init__(self, machine_config):
+        Config.__init__(self, machine_config)
+        
+    def create_runnable(self):
+        if self.runnable == None:
+            raise ValueError('You must specify the class which will run the experiment')
+        else: 
+            self.runnable= utils.fetch_classes('visexpman.users.'+self.machine_config.user, classname = self.runnable,  classtype = visexpman.engine.visual_stimulation.experiment.Experiment)[0][1](self) # instantiates the code that will run the actual stimulation
+    def run(self):
+        if self.runnable == None:
+            raise ValueError('Specified stimulus class is not instantiated.')
+        else:
+            self.runnable.run()
+    
+    
 
 class Experiment():
     
-    def __init__(self,  stimulus_library,  experiment_config):
-        self.st = stimulus_library
-        self.config = stimulus_library.config        
-        self.experiment_config = experiment_config()
+    def __init__(self, experiment_config):
+        self.experiment_config = experiment_config
         
     def run(self):
         pass

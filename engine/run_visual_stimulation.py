@@ -7,8 +7,7 @@ import visual_stimulation.stimulation_control
 import visual_stimulation.command_handler
 import visual_stimulation.configuration
 import visexpman.users as users
-import pkgutil
-import inspect
+
 
 class UnsupportedCommandLineArguments(Exception):
     pass
@@ -18,27 +17,14 @@ class VisualStimulation(object):
         '''
         Find out configuration and load the appropriate config and experiment modules, classes
         '''
-        self.config_class=config_class
-        self.user=user
+        self.config=generic.utils.fetch_classes('visexpman.users.'+user, classname=config_class, classtype=visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig)[0][1]()
+        self.config.user=user
         #Lists all folders and python modules residing in the user's folder
         # this way of discovering classes has the drawback that modules searched must not have syntax errors
-        self.experiment_list = []
-        __import__('visexpman.users.'+self.user)
-        for importer, modname, ispkg in pkgutil.iter_modules(getattr(visexpman.users, self.user).__path__,  'visexpman.users.'+self.user+'.'):
-            m= __import__(modname, fromlist='dummy')
-            for attr in inspect.getmembers(m, inspect.isclass):
-                if attr[0] == config_class:
-                    self.config = attr[1]()
-                    continue
-                elif attr[0].find('__')==-1 and visexpman.engine.visual_stimulation.experiment.Experiment in inspect.getmro(attr[1]): # test if it inherits experiment
-                    self.experiment_list.append(attr[1]())
-        if len(self.experiment_list) > 10: raise RuntimeError('Maximum 10 different experiment types are allowed') 
-        if self.config_class == 'SafestartConfig':            
-            #instantiate safe start configuration
-            setattr(self,  'config',  getattr(visual_stimulation.configuration, self.config_class)('..'))
-            
-        # mi van ha senki nem definialt usert???
-        #setattr(self,  'config',  getattr(getattr(getattr(users,  self.user),  config_module_name), self.config_class)('..'))
+        classname = self.config.EXPERIMENT
+        self.experiment_config_list = generic.utils.fetch_classes('visexpman.users.'+self.config.user,  classtype=visexpman.engine.visual_stimulation.experiment.ExperimentConfig)
+        if len(self.experiment_config_list) > 10: raise RuntimeError('Maximum 10 different experiment types are allowed') 
+        self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config) # select and instantiate stimulus as specified in machine config
         #create screen        
         self.user_interface = visual_stimulation.user_interface.UserInterface(self.config, self)
         #initialize network interface
@@ -55,19 +41,7 @@ class VisualStimulation(object):
         Run application. Check for commands coming from either keyboard or network. Command is parsed and handled by command handler
         '''        
         if self.config.RUN_MODE == 'single experiment':
-            if os.path.exists(self.config.EXPERIMENT):
-                self.stimulation_control.setStimulationFile(self.config.EXPERIMENT)
                 self.stimulation_control.runStimulation()
-            else:
-                try:
-                    getattr(getattr(getattr(users,  self.user),  self.stimulation_control.experiment_module_name), self.config.EXPERIMENT)
-                    class_exists = True
-                except:
-                    print 'invalid experiment class'
-                    class_exists = False
-                if class_exists:
-                    self.stimulation_control.runStimulation(self.config.EXPERIMENT)
-                
         elif self.config.RUN_MODE == 'user interface':
                 while True:
                     #check command interfaces:

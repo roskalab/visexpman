@@ -23,19 +23,21 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.GRIDSTEP = 1/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
+        self.runnable = 'MovingDot'
+        self.pre_runnable = 'MovingDotPre'
+        self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
         self._create_parameters_from_locals(locals())
-        
+        experiment.ExperimentConfig.__init__(self) # needs to be called so that runnable is instantiated and other checks are done
 
+class MovingDotPre(experiment.PreExperiment):    
+    def run(self):
+        #calls to stimulation library
+        pass
 
 class MovingDot(experiment.Experiment):
     
     def run(self):
-        dot_sizes, dot_positions = movingdot_prepare(self)
-        pass
-
-class MovingDotPreExperiment(experiment.PreExperiment):    
-    def run(self):
-        #calls to stimulation library
+        dot_sizes, dot_positions = self.prepare()
         pass
 
     def prepare(self):
@@ -275,8 +277,11 @@ class MovingDotTestConfig(experiment.ExperimentConfig):
         self.GRIDSTEP = 1/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
+        self.runnable = 'MovingDot'
+        self.pre_runnable = 'MovingDotPre'
+        self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
         self._create_parameters_from_locals(locals())
-
+        experiment.ExperimentConfig.create_runnable(self) # needs to be called so that runnable is instantiated and other checks are done
 
 if __name__ == '__main__':
     import visexpman

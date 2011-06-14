@@ -8,7 +8,7 @@ import numpy
 from OpenGL.GL import *
 from OpenGL.GLU import *
 import psychopy.log
-    
+from visexpman.engine.generic import utils    
 
 #import modules for stimulus files:
 #from random import *
@@ -28,9 +28,9 @@ class StimulationControl():
     '''
     StimulationControl handles stimulation sequences, generating TTL triggers and log stimulation events with timestamps
     '''
-    def __init__(self, visual_stimulation, config, user_interface,  udp_interface):
+    def __init__(self, visual_stimulation_runner, config, user_interface,  udp_interface):
         
-        self.visual_stimulation = visual_stimulation
+        self.visual_stimulation_runner = visual_stimulation_runner
         self.config = config
         self.stimulation_file = ''            
         self.user_interface = user_interface
@@ -73,37 +73,6 @@ class StimulationControl():
             self.filterwheels = []
             for i in range(len(self.config.FILTERWHEEL_SERIAL_PORT)):
                 self.filterwheels.append(generic.Instrument.Filterwheel(self.config,  id = i))
-                
-        if self.visual_stimulation.config_class != 'SafestartConfig':
-            if self.config.ENABLE_PRE_EXPERIMENT:
-                self.init_experiment(self.config.EXPERIMENT, self.config.EXPERIMENT_CONFIG, self.config.PRE_EXPERIMENT)
-            else:
-                self.init_experiment(self.config.EXPERIMENT, self.config.EXPERIMENT_CONFIG)
-                
-    def init_experiment(self, experiment_class_name, experiment_config_class_name, pre_experiment_class_name = None):
-        #import experiment class
-        self.experiment_module_name = utils.find_class_in_module(self.visual_stimulation.python_modules, experiment_class_name)
-        __import__('users.' + self.visual_stimulation.user + '.' + self.experiment_module_name)
-        #find module where experiment config resides
-        self.experiment_config_module_name = utils.find_class_in_module(self.visual_stimulation.python_modules, experiment_config_class_name)
-        #import experiment config module
-        __import__('users.' + self.visual_stimulation.user + '.' + self.experiment_config_module_name)
-        #find reference to experiment config class
-        self.experiment_config = getattr(getattr(getattr(users,  self.visual_stimulation.user),  self.experiment_config_module_name), experiment_config_class_name)
-        if pre_experiment_class_name != None:
-            #find module where pre experiment class can be found
-            self.pre_experiment_module_name = utils.find_class_in_module(self.visual_stimulation.python_modules, pre_experiment_class_name)
-            #import pre experiment class
-            __import__('users.' + self.visual_stimulation.user + '.' + self.pre_experiment_module_name)
-            
-    def setStimulationFile(self,  filename):
-        self.stimulation_file = filename
-        
-    def setStimulationScript(self,  script):
-        self.stimulation_script = script
-        
-    def setMesurementId(self,  id):
-        self.measurement_id = id
         
     def abort_stimulus(self):
         '''
@@ -160,11 +129,11 @@ class StimulationControl():
         f.write(string_to_file)
         f.close()
     
-    def runStimulation(self,  runnable_class = None):
+    def runStimulation(self):
         '''
         Runs stimulation and takes care of triggering and frame interval watching
         '''        
-        if os.path.isfile(self.stimulation_file) or len(self.stimulation_script) > 0 or runnable_class != None:
+        if hasattr(self.visual_stimulation_runner, 'selected_experiment_config') and hasattr(self.visual_stimulation_runner.selected_experiment_config, 'run'):
             #save log file index which is the current size of log file
             self.log_file_index = len(utils.read_text_file(self.logfile_path))
             self.state = 'stimulation'
@@ -176,29 +145,7 @@ class StimulationControl():
                 self.parallel.setData(self.config.ACQUISITION_TRIGGER_ON)
             self.stimulation_start_time = time.time()
             
-            if runnable_class != None:
-                e = getattr(getattr(getattr(users,  self.visual_stimulation.user),  self.experiment_module_name), runnable_class)(self.st, self.experiment_config)
-                e.run()
-                log_string  = 'Executed stimulation class: ' + runnable_class
-            elif len(self.stimulation_script) == 0:
-                execfile(self.stimulation_file)
-                log_string  = 'Executed stimulation: ' + self.stimulation_file
-            else:
-                exec(self.stimulation_script)
-                log_string  = 'Executed stimulation: \r\n' + self.stimulation_script
-                self.stimulation_script = ''
-                #call experiment class if the called_experiment and called_experiment_config variables exist indicating that an experiment class is called from the remote machine
-                try:
-                    #find experiment config class reference
-                    called_experiment_config = utils.prepare_dynamic_class_instantiation(self.visual_stimulation.python_modules, called_experiment_config)
-                    #find experiment class reference
-                    called_experiment = utils.prepare_dynamic_class_instantiation(self.visual_stimulation.python_modules, called_experiment)
-                    #create and run experiment
-                    e = called_experiment(self.st, called_experiment_config)
-                    e.run()
-                except NameError:
-                    pass
-            
+            self.visual_stimulation_runner.selected_experiment_config.run()
             psychopy.log.data(log_string)            
                 
             if self.config.ENABLE_PARALLEL_PORT:
@@ -234,7 +181,7 @@ class StimulationControl():
             self.state = 'idle'
             return 'OK'
         else:
-            return 'stimulation file does not exist'
+            raise AttributeError('Stimulus config class does not have a run method?')
     
     
 

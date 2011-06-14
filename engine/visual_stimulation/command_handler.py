@@ -115,7 +115,7 @@ class CommandHandler():
                     files = generic.utils.filtered_file_list(self.config.STIMULATION_FOLDER_PATH,  ['stimulus',  'example'])
                     files.sort()
                     file = self.config.STIMULATION_FOLDER_PATH + os.sep + files[file_index]
-                    self.stimulation_control.setStimulationFile(file)
+                    self.stimulation_control.selected_experiment_config = file
                     parsed_bytes = 1
                     result =  'load stimulation '  + self.command_buffer[0] + ' ' + self.stimulation_control.stimulation_file                
                 else:

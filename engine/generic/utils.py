@@ -8,6 +8,8 @@ import time
 #from OpenGL.GL import *
 #from OpenGL.GLUT import *
 import unittest
+import pkgutil
+import inspect
 
 # valid color configurations: 1.0; 255; (1.0, 0.4, 0), invalid color configuration: (255, 0, 128)
 
@@ -158,6 +160,28 @@ def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0
             value = 0
         wave.append(value)    
     return wave            
+    
+def fetch_classes(basemodule, classname=None,  classtype=None,  exclude_classtypes=[]):
+    '''Looks for the specified class, imports it and returns as class instance.
+    Use cases:
+    1. just specify user, others left as default: returns all classes
+    2. specify user and classname: returns specific class without checking its type
+    3. specify user, classname and classtype:
+    4. specify user, classname, classtype and list of classes that should not be in the ancestor tree of the class
+    '''
+    import visexpman
+    bm=__import__(basemodule, fromlist='dummy')
+    class_list=[]
+    for importer, modname, ispkg in pkgutil.iter_modules(bm.__path__,  bm.__name__+'.'):
+        m= __import__(modname, fromlist='dummy')
+        for attr in inspect.getmembers(m, inspect.isclass):
+            omro = inspect.getmro(attr[1])
+            any_wrong_in_class_tree = [cl in omro for cl in exclude_classtypes]
+            if sum(any_wrong_in_class_tree) >0: continue # the class hyerarchy contains ancestors that should not be in this class' ancestor list
+            if (attr[0] == classname or classname==None) and ((len(omro)>1 and classtype == omro[1]) or classtype==None):
+                class_list.append((m, attr[1]))
+                # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run
+    return class_list
     
 def um_to_normalized_display(value, config):
     '''

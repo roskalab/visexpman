@@ -105,15 +105,13 @@ class RC3DWindowsConfig(VisualStimulationConfig):
 class MBP(VisualStimulationConfig):
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
-        EXPERIMENT = 'MultipleDotTest'
-        EXPERIMENT_CONFIG = 'DotsExperimentConfig'
-        PRE_EXPERIMENT = 'Pre'
-        ENABLE_PRE_EXPERIMENT = True
+        EXPERIMENT_CONFIG = 'MovingDotTestConfig'
         LOG_PATH = '/var/log/'
         BASE_PATH='/Users/hd/Documents/DataBase'
         ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
         CAPTURE_PATH = os.path.join(BASE_PATH,'capture')#'../../../presentinator/data/capture'
         ENABLE_PARALLEL_PORT = False
+        UDP_ENABLE = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCR = False
         SCREEN_RESOLUTION = utils.rc([600,   800])

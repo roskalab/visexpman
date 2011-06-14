@@ -15,7 +15,8 @@ import psychopy.core
 import psychopy.log
 import visexpman.engine.generic.parametric_control
 import visexpman.users.zoltan.test.stimulus_library_test_data
-    
+from visexpman.engine.generic import utils
+
 class Stimulations():
     """
     Contains all the externally callable stimulation patterns:

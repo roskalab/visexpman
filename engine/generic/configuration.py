@@ -7,9 +7,10 @@ import parameter
 PRINT_PAR_NAMES = False
 
 class Config(object):
-    def __init__(self):
+    def __init__(self, machine_config=None):
 #should avoid using print, use logger.info or something similar
-#print 'Loaded configuration class: ' + self.__class__.__name__        
+#print 'Loaded configuration class: ' + self.__class__.__name__    
+        self.machine_config = machine_config
         self._create_generic_parameters()        
         self._create_parameter_aliases()
         self._create_application_parameters()        

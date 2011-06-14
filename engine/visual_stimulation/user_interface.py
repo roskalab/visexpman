@@ -4,7 +4,6 @@ from visexpman.engine.generic import utils
 import psychopy.visual
 import psychopy.event
 import psychopy.monitors
-
 class UserInterface():
     '''
     UserInterface is responsible for handling keystrokes and displaying messages on screen. Display handling is taken over by StimulationControl when software leaves idle state       
@@ -19,12 +18,12 @@ class UserInterface():
         self.screen.setGamma(self.config.GAMMA)        
         
         #shortcuts to experiment classes, max 10
-        self.accepted_keys = self.config.KEYS + '{0}'.format(range(len(caller.experiment_list)))#stimulus_file_shortcut 
+        self.accepted_keys = self.config.KEYS + ['{0}'.format(i) for i in range(len(caller.experiment_config_list))]#stimulus_file_shortcut 
         
         #Display menu
         position = (0, 0)   
         if self.config.TEXT_ENABLE and not self.config.ENABLE_PRE_EXPERIMENT:
-            self.menu = psychopy.visual.TextStim(self.screen,  text = self.config.MENU_TEXT + experiment_choices(caller.experiment_list),  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE) 
+            self.menu = psychopy.visual.TextStim(self.screen,  text = self.config.MENU_TEXT + experiment_choices(caller.experiment_config_list),  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE) 
             position = (0,  int(-0.4 * self.config.SCREEN_RESOLUTION['row']))
             self.message = psychopy.visual.TextStim(self.screen,  text = '',  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)
             self.user_interface_items = [self.menu,  self.message]             
@@ -99,11 +98,11 @@ class UserInterface():
         pass
         self.screen.close()        
         
-def experiment_choices(expriment_list):
+def experiment_choices(experiment_list):
     '''
     Lists and displays stimulus files that can be found in the default stimulus file folder
     '''
-    return '\n'.join([str(i)+' '+experiment_list[i] for i in range(len(experiment_list))])
+    return '\n'.join([str(i)+' '+experiment_list[i][1].__name__ for i in range(len(experiment_list))])
         
         
 if __name__ == "__main__":
