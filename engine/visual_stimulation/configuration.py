@@ -39,10 +39,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         RUN_MODE = ['single experiment',  ['single experiment',  'user interface',  'unknown']]
             
         #this a valid stimulation file path or an experiment object name
-        EXPERIMENT = 'undefined'
         EXPERIMENT_CONFIG = 'undefined'
-        PRE_EXPERIMENT = 'undefined'
-        ENABLE_PRE_EXPERIMENT = False
         
         #display parameters:
         SCREEN_RESOLUTION = utils.rc([600, 800])        
@@ -61,6 +58,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         VERTICAL_AXIS_POSITIVE_DIRECTION = ['undefined',  ['up', 'down', 'undefined']]
         
         #pixel scaling
+        IMAGE_PROJECTED_ON_RETINA = True
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel        
         
         #parallel port

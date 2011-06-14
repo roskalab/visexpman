@@ -4,7 +4,9 @@ import Helpers
 from Helpers import normalize,  imshow
 #from MultiLinePlot import WXPlot as WP
 import Image
+import numpy
 from visexpman.engine.visual_stimulation import experiment
+from visexpman.engine.generic import utils
 #import visexpman.engine.generic.configuration
 #import visexpman.engine.generic.utils
 
@@ -43,10 +45,10 @@ class MovingDot(experiment.Experiment):
     def prepare(self):
         # we want at least 2 repetitions in the same recording, but the best is to
         # keep all repetitions in the same recording
-        angleset = numpy.sort(numpy.unique(self.ANGLES))
-        diameter_pix = utils.retina2screen(self.DIAMETER_UM,config=self,option='pixels')
+        angleset = numpy.sort(numpy.unique(self.experiment_config.ANGLES))
+        diameter_pix = utils.retina2screen(self.experiment_config.DIAMETER_UM,config=self.experiment_config,option='pixels')
         speed_pix = utils.retina2screen(self.SPEED,config=self,option='pixels')
-        gridstep_pix = numpy.floor(self.GRIDSTEP*diameter_pix)
+        gridstep_pix = numpy.floor(self.experiment_config.GRIDSTEP*diameter_pix)
         movestep_pix = hw.ifi*speed_pix
         h=self.SCREEN_RESOLUTION['row']#monitor.resolution.height
         w=self.SCREEN_RESOLUTION['col']#monitor.resolution.width
@@ -60,19 +62,19 @@ class MovingDot(experiment.Experiment):
         # diagonals run from bottom left to top right
         dlines,dlines_len = self.diagonal_tr(45,diameter_pix,gridstep_pix,movestep_pix,w,h)
 
-        diag_dur = 4*dlines_len.sum()/speed_pix/self.NDOTS
+        diag_dur = 4*dlines_len.sum()/speed_pix/self.experiment_config.NDOTS
         line_len={'ver0': (w+(diameter_pix*2))*numpy.ones(1,size(vlines_r,2)), 
                         'hor0' : (h+(diameter_pix*2))*numpy.ones(1,size(hlines_r,2))}
-        ver_dur = 2*line_len['ver0'].sum()/speed_pix/self.NDOTS
-        hor_dur = 2*line_len['hor0'].sum()/speed_pix/self.NDOTS
-        total_dur = (self.PDURATION*8+diag_dur+ver_dur+hor_dur)*self.REPEATS
+        ver_dur = 2*line_len['ver0'].sum()/speed_pix/self.experiment_config.NDOTS
+        hor_dur = 2*line_len['hor0'].sum()/speed_pix/self.experiment_config.NDOTS
+        total_dur = (self.experiment_config.PDURATION*8+diag_dur+ver_dur+hor_dur)*self.experiment_config.REPEATS
         nblocks = numpy.ceil(total_dur/hw.maxdur_perrec)
         block_dur = total_dur/nblocks
         block_dur = block_dur
         # we divide the grid into multiple recording blocks if necessary, all
         # ANGLES and repetitions are played within a block
-        allangles0 = numpy.repmat(angleset, [1,self.REPEATS])
-        permlist = self.getpermlist(len(allangles0), self.RANDOMIZE)
+        allangles0 = numpy.repmat(angleset, [1,self.experiment_config.REPEATS])
+        permlist = self.getpermlist(len(allangles0), self.experiment_config.RANDOMIZE)
         allangles = allangles0(permlist)
         ANGLES = allangles
         dot_tra = {}
@@ -97,16 +99,16 @@ class MovingDot(experiment.Experiment):
                         if angleset[a]==180:
                             vr = vr[0:1:-1]
                             vc = vc[0:1:-1]
-                    segm_length = vr.shape[0]/self.NDOTS
+                    segm_length = vr.shape[0]/self.experiment_config.NDOTS
                     cl =range(vr.shape[0])
-                    #partsep = [zeros(1,self.NDOTS),size(vr,2)]
+                    #partsep = [zeros(1,self.experiment_config.NDOTS),size(vr,2)]
                     partsep = range(0 , vr.shape[0], numpy.ceil(segm_length))
-                    if len(partsep)<self.NDOTS+1:
-                        partsep[self.NDOTS+1]= vr.shape[0]
-                    for d1 in range(1, self.NDOTS+1):
+                    if len(partsep)<self.experiment_config.NDOTS+1:
+                        partsep[self.experiment_config.NDOTS+1]= vr.shape[0]
+                    for d1 in range(1, self.experiment_config.NDOTS+1):
                         # check here: allocation needed
                         dots_line_i[d1-1] = range(partsep[d1-1]+1, partsep[d1])
-                    for s1 in range(self.NDOTS): #each dot runs through a full line
+                    for s1 in range(self.experiment_config.NDOTS): #each dot runs through a full line
                         dl = numpy.prod(vr[:,dots_line_i[s1]].shape)
                         drc[s1] = [numpy.reshape(vr[:,dots_line_i[s1]],[1,dl]), 
                             numpy.reshape(vc[:,dots_line_i[s1]],[1,dl])]
@@ -116,14 +118,14 @@ class MovingDot(experiment.Experiment):
                     row_col_f,linelengths_f = diagonal_tr(angleset[a],diameter_pix,gridstep_pix,movestep_pix,w,h)
                     row_col =row_col_f[b:-1:nblocks]
                     linelengths = linelengths_f[b:-1: nblocks]
-                    segm_len = linelengths.sum()/self.NDOTS
+                    segm_len = linelengths.sum()/self.experiment_config.NDOTS
                     cl =numpy.cumsum(linelengths)
-                    partsep = [numpy.zeros(1,self.NDOTS),len(linelengths)]
-                    for d1 in range(1, self.NDOTS):
+                    partsep = [numpy.zeros(1,self.experiment_config.NDOTS),len(linelengths)]
+                    for d1 in range(1, self.experiment_config.NDOTS):
                         partsep[d1] = numpy.argmin(numpy.abs(cl-(d1-1)*segm_len))
                         dots_line_i[d1-1] = range(partsep[d1-1]+1,partsep[d1])
                     while 1:
-                        for d1 in range(1, self.NDOTS):
+                        for d1 in range(1, self.experiment_config.NDOTS):
                             drc[d1-1]=[row_col[dots_line_i[d1-1]]]
                             part_len[d1-1] = sum(linelengths(dots_line_i[d1-1]))
                         si = numpy.argmin(part_len) # shortest dot path
@@ -139,10 +141,10 @@ class MovingDot(experiment.Experiment):
                             dots_line_i[si] = numpy.c_[dots_line_i[si],  taken_line_i]
                         else:
                             break
-                    for s1 in range(self.NDOTS): #each dot runs through a full line
+                    for s1 in range(self.experiment_config.NDOTS): #each dot runs through a full line
                         drc[s1]=[row_col[dots_line_i[s1]]]
                         ml[s1] = len(drc[s1])
-                    for s1 in range(self.NDOTS):
+                    for s1 in range(self.experiment_config.NDOTS):
                         if len(drc[s1])<max(ml): # a dot will run shorter than the others
                             drc[s1] = numpy.c_[drc[s1],-diameter_pix*numpy.ones(2,max(ml)-len(drc[s1]))] # complete with coordinate outside of the screen
                 arow_col[b,a] = drc
@@ -154,7 +156,7 @@ class MovingDot(experiment.Experiment):
                 cai = numpy.where(angleset==allangles[a1])[0]
                 for f in range(len(arow_col[b,cai][0])):
                     coords = []
-                    for n in range(self.NDOTS):
+                    for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[b,cai][n][:,f])
                     row_col.append(coords)
                 
@@ -279,6 +281,7 @@ class MovingDotTestConfig(experiment.ExperimentConfig):
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'
         self.pre_runnable = 'MovingDotPre'
+        self.IMAGE_PROJECTED_ON_RETINA = False
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
         self._create_parameters_from_locals(locals())
         experiment.ExperimentConfig.create_runnable(self) # needs to be called so that runnable is instantiated and other checks are done

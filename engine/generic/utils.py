@@ -257,33 +257,33 @@ def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  col
 def retina2screen(widths, speed=None, config=None, option=None):
     '''converts microns on retina to cycles per pixel on screen
     '''
-    if monitor['directly_onto_retina'] == 0:
+    if config.IMAGE_PROJECTED_ON_RETINA == 0:
         visualangles = um2degrees(widths) # 300um is 10 degrees
         #widthsonmonitor = tan(2*pi/360*visualangles)*monitor.distancefrom_mouseeye/monitor.pixelwidth #in pixels
-        widthsonmonitor = numpy.pi/180*visualangles*monitor['distance_from_mouse_eye']/monitor['pixel_width'] #in pixels
+        widthsonmonitor = numpy.pi/180*visualangles*config.SCREEN_DISTANCE_FROM_MOUSE_EYE/SCREEN_PIXEL_WIDTH #in pixels
         if not option is None and option=='pixels':
             return widthsonmonitor
 
-        no_periods_onscreen = monitor['resolution']['width']/(widthsonmonitor*2)
-        cyclesperpixel = no_periods_onscreen/monitor['resolution']['width']
+        no_periods_onscreen = config.SCREEN_RESOLUTION['col']/(widthsonmonitor*2)
+        cyclesperpixel = no_periods_onscreen/config.SCREEN_RESOLUTION['col']
         if speed is None:
             return cyclesperpixel
         else: # calculates cycles per second from width on retina and um per second on the retina
             onecycle_pix = 1/cyclesperpixel
             for i in range(len(widths)):
             # from micrometers/s on the retina to cycles per pixel on screen
-                speedonmonitor[i] = numpy.pi/180*um2degrees(speed)*monitor['distancefrom_mouseeye']/monitor['pixelwidth']
+                speedonmonitor[i] = numpy.pi/180*um2degrees(speed)*config.SCREEN_DISTANCE_FROM_MOUSE_EYE/config.SCREEN_PIXEL_WIDTH
                 cyclespersecond[i] = speedonmonitor[i]/(widthsonmonitor[i]*2) # divide by period, i.e. width*2
-                time4onecycle_onscreen[i] = (monitor['resolution']['width']/onecycle_pix[i])/cyclespersecond[i]
+                time4onecycle_onscreen[i] = (config.SCREEN_RESOLUTION['col']/onecycle_pix[i])/cyclespersecond[i]
             return cyclesperpixel, time4onecycle_onscreen
-    elif monitor['directlyonretina']==1:
-        widthsonmonitor = widths/monitor['um2pixels']
-        no_periods_onscreen = monitor['resolution']['width']/(widthsonmonitor*2)
+    elif config.IMAGE_PROJECTED_ON_RETINA==1:
+        widthsonmonitor = widths/config.SCREEN_UM_TO_PIXEL_SCALE
+        no_periods_onscreen = config.SCREEN_RESOLUTION['col']/(widthsonmonitor*2)
         if speed is None:
-            cyclesperpixel = no_periods_onscreen/monitor['resolution']['width']
+            cyclesperpixel = no_periods_onscreen/config.SCREEN_RESOLUTION['col']
             return cyclesperpixel
         else: # calculates cycles per second from width on retina and um per second on the retina
-            cyclesperpixel = no_periods_onscreen/monitor['resolution']['width']
+            cyclesperpixel = no_periods_onscreen/config.SCREEN_RESOLUTION['col']
             onecycle_pix = 1/cyclesperpixel
             for i in range(len(widths)):
             # from micrometers/s on the retina to cycles per pixel on screen

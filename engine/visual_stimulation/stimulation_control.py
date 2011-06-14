@@ -17,6 +17,8 @@ from visexpman.engine.generic import utils
 import experiment
 import visexpman.engine.hardware_interface.instrument
 
+import threading
+
 #if self.config.ENABLE_PARALLEL_PORT:
 #    import parallel
     
@@ -144,7 +146,8 @@ class StimulationControl():
             if self.config.ENABLE_PARALLEL_PORT:
                 self.parallel.setData(self.config.ACQUISITION_TRIGGER_ON)
             self.stimulation_start_time = time.time()
-            
+            if hasattr(self.visual_stimulation_runner.selected_experiment_config, 'pre_runnable') and self.visual_stimulation_runner.selected_experiment_config.pre_runnable is not None:
+                self.visual_stimulation_runner.selected_experiment_config.pre_runnable.run()
             self.visual_stimulation_runner.selected_experiment_config.run()
             psychopy.log.data(log_string)            
                 
@@ -157,10 +160,7 @@ class StimulationControl():
             psychopy.log.flush()
             if self.config.ENABLE_FRAME_CAPTURE:
                 self.user_interface.screen.saveMovieFrames(self.config.CAPTURE_PATH + '/captured' + str(time.time()).replace('.', '') + '.bmp')            
-                
-            if runnable_class != None:
-                e.cleanup()
-            
+#                e.cleanup()
             #save stimulus, source and log files into zip            
             log = self.last_stimulus_log()
             
@@ -179,11 +179,8 @@ class StimulationControl():
 
             self.zip_py_files(zip_path,  self.config.BASE_PATH, log)
             self.state = 'idle'
-            return 'OK'
         else:
             raise AttributeError('Stimulus config class does not have a run method?')
-    
-    
 
 if __name__ == "__main__":
     pass

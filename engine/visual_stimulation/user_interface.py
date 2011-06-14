@@ -22,7 +22,7 @@ class UserInterface():
         
         #Display menu
         position = (0, 0)   
-        if self.config.TEXT_ENABLE and not self.config.ENABLE_PRE_EXPERIMENT:
+        if self.config.TEXT_ENABLE:
             self.menu = psychopy.visual.TextStim(self.screen,  text = self.config.MENU_TEXT + experiment_choices(caller.experiment_config_list),  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE) 
             position = (0,  int(-0.4 * self.config.SCREEN_RESOLUTION['row']))
             self.message = psychopy.visual.TextStim(self.screen,  text = '',  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)
@@ -37,7 +37,7 @@ class UserInterface():
         '''
         Update Psychopy items that make the user interface
         '''
-        if self.config.TEXT_ENABLE and not self.config.ENABLE_PRE_EXPERIMENT:            
+        if self.config.TEXT_ENABLE:            
             for user_interface_item in self.user_interface_items:
                 user_interface_item.draw()
             self.screen.flip()
