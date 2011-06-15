@@ -93,63 +93,54 @@ class Parameter(object):
         exceptionType = None        
         if self._type == 'path':
             if not os.path.exists(self.v):
-                exceptionType = IOError
+                raise IOError('Path does not exist')
             elif range_ != None:
-                exceptionType = InvalidParameterRange
+                raise InvalidParameterRange
         elif self._type == 'dict':
             if range_ != None:
-                exceptionType = InvalidParameterRange
+                raise InvalidParameterRange
         elif self._type == 'string':
             if range_ != None:
-                exceptionType = InvalidParameterRange
+                raise InvalidParameterRange
         elif self._type == 'array':
             #TODO: untested
             if range_ != None:
-                exceptionType = InvalidParameterRange
+                raise InvalidParameterRange
         elif self._type == 'switch':
             if range_ != None:
-                exceptionType = InvalidParameterRange
+                raise InvalidParameterRange
         elif self._type == 'enumerated':
             in_range = False
-            for range_item in range_:
-                if self.v == range_item:
-                    in_range = True
-                    break
-            if not in_range:
-                exceptionType = OutOfRangeParameterValue
+            if not self.v in range_:
+                raise OutOfRangeParameterValue
         elif self._type == 'numeric':            
             if range_ == None:                
-                exceptionType = InvalidParameterRange
+                raise InvalidParameterRange
             elif len(range_) != 2:                
-                exceptionType = InvalidParameterRange
+                raise InvalidParameterRange
             elif not ((isinstance(range_[0],  int) or isinstance(range_[0],  float)) and (isinstance(range_[1],  int) or isinstance(range_[1],  float))) and (isinstance(self.v,  int) or isinstance(self.v,  float)):
                 if not isinstance(self.v,  list):
-                    exceptionType = InvalidParameterRange
+                    raise InvalidParameterRange
             elif isinstance(self.v,  list):                
                 if len(range_[0]) != len(self.v) or len(range_[1]) != len(self.v):
-                    exceptionType = InvalidParameterRange
+                    raise InvalidParameterRange
                 for range_item in range_:
                     for range_item_item in range_item:
                         if (not isinstance(range_item_item,  int)) and (not isinstance(range_item_item,  float)):
-                            exceptionType = InvalidParameterRange                            
+                            raise InvalidParameterRange                            
                 for item in self.v:
                     if (not isinstance(range_item_item,  int)) and (not isinstance(range_item_item,  float)):
-                        exceptionType = InvalidParameterValue
-                        
-                if exceptionType == None:
-                    for i in range(len(range_[0])):
-                        if not self.v[i] >= range_[0][i] and self.v[i] <= range_[1][i]:
-                            exceptionType = OutOfRangeParameterValue
-                            break
-                
+                        raise InvalidParameterValue
+                #check if value is in the specified range. For every element in the data list there should be a pair of range values
+                for i in range(len(range_[0])):
+                    if not self.v[i] >= range_[0][i] and self.v[i] <= range_[1][i]:
+                        raise OutOfRangeParameterValue
             else:
                 if not(range_[0] <= self.v and range_[1] >= self.v):
-                    exceptionType = OutOfRangeParameterValue
+                    raise OutOfRangeParameterValue
         else:
-            exceptionType = InvalidParameterRange
+            raise InvalidParameterRange
                 
-        if exceptionType != None:            
-            raise exceptionType(self.v)
 
     def set(self,  new_value):
         self.v = new_value

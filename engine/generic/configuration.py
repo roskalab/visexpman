@@ -15,7 +15,8 @@ class Config(object):
         self._create_parameter_aliases()
         self._create_application_parameters()        
         self._create_parameter_aliases()     # ezt miert nem a create applic parameters hivja meg?   
-        self._set_user_specific_parameters()        
+        self._set_user_specific_parameters()      
+        self._create_parameter_aliases()     # ezt miert nem a create applic parameters hivja meg?   
         self._calculate_parameters()        
         #check for new parameters created by calculate_parameters method, get their names and load them:        
         self._create_parameter_aliases()
@@ -35,8 +36,7 @@ class Config(object):
         for k,  v in locals.items():         
             if hasattr(self, k):  # parameter was already initialized, just update with new value
                 self.set(k, v)
-                continue
-            if k.isupper() and k.find('_RANGE') == -1:
+            elif k.isupper() and k.find('_RANGE') == -1:
                 if PRINT_PAR_NAMES:
                     print k, v
                 if isinstance(v,  list):

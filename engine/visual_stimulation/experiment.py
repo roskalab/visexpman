@@ -4,7 +4,8 @@ from visexpman.engine.generic import utils
 class ExperimentConfig(Config):
     def __init__(self, machine_config):
         Config.__init__(self, machine_config)
-        
+        self.create_runnable() # needs to be called so that runnable is instantiated and other checks are done
+
     def create_runnable(self):
         if self.runnable == None:
             raise ValueError('You must specify the class which will run the experiment')

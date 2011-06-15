@@ -46,12 +46,12 @@ class MovingDot(experiment.Experiment):
         # we want at least 2 repetitions in the same recording, but the best is to
         # keep all repetitions in the same recording
         angleset = numpy.sort(numpy.unique(self.experiment_config.ANGLES))
-        diameter_pix = utils.retina2screen(self.experiment_config.DIAMETER_UM,config=self.experiment_config,option='pixels')
-        speed_pix = utils.retina2screen(self.SPEED,config=self,option='pixels')
+        diameter_pix = utils.retina2screen(self.experiment_config.DIAMETER_UM,machine_config=self.experiment_config.machine_config,option='pixels')
+        speed_pix = utils.retina2screen(self.experiment_config.SPEED,machine_config=self.experiment_config.machine_config,option='pixels')
         gridstep_pix = numpy.floor(self.experiment_config.GRIDSTEP*diameter_pix)
-        movestep_pix = hw.ifi*speed_pix
-        h=self.SCREEN_RESOLUTION['row']#monitor.resolution.height
-        w=self.SCREEN_RESOLUTION['col']#monitor.resolution.width
+        movestep_pix = self.experiment_config.machine_config.SCREEN_EXPECTED_FRAME_RATE*speed_pix
+        h=self.experiment_config.machine_config.SCREEN_RESOLUTION['row']#monitor.resolution.height
+        w=self.experiment_config.machine_config.SCREEN_RESOLUTION['col']#monitor.resolution.width
         hlines_r,hlines_c = numpy.meshgrid(range(numpy.ceil(diameter_pix/2), w-numpy.ceil(diameter_pix/2),gridstep_pix),  
             range(-diameter_pix, h+diameter_pix, movestep_pix))
         vlines_c,vlines_r = numpy.meshgrid(range(numpy.ceil(diameter_pix/2), h-numpy.ceil(diameter_pix/2),gridstep_pix), 
@@ -60,7 +60,7 @@ class MovingDot(experiment.Experiment):
         # and ing coords and lengths
 
         # diagonals run from bottom left to top right
-        dlines,dlines_len = self.diagonal_tr(45,diameter_pix,gridstep_pix,movestep_pix,w,h)
+        dlines,dlines_len = diagonal_tr(45,diameter_pix,gridstep_pix,movestep_pix,w,h)
 
         diag_dur = 4*dlines_len.sum()/speed_pix/self.experiment_config.NDOTS
         line_len={'ver0': (w+(diameter_pix*2))*numpy.ones(1,size(vlines_r,2)), 
@@ -74,7 +74,7 @@ class MovingDot(experiment.Experiment):
         # we divide the grid into multiple recording blocks if necessary, all
         # ANGLES and repetitions are played within a block
         allangles0 = numpy.repmat(angleset, [1,self.experiment_config.REPEATS])
-        permlist = self.getpermlist(len(allangles0), self.experiment_config.RANDOMIZE)
+        permlist = getpermlist(len(allangles0), self.experiment_config.RANDOMIZE)
         allangles = allangles0(permlist)
         ANGLES = allangles
         dot_tra = {}
@@ -163,105 +163,105 @@ class MovingDot(experiment.Experiment):
                 angle_end.append(len(row_col))
             block_end.append(row_col)
 
-    def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
-        cornerskip = numpy.ceil(diameter_pix/2)+diameter_pix
-        pos_diag[0] = range(cornerskip, h/numpy.sqrt(2), gridstep_pix) # spacing of diagonals running from bottomleft 
-        diag_start_row[0] = numpy.sqrt(2)*pos_diag[0]
-        diag_start_col[0] = numpy.ones(diag_start_row[0].shape)
-        diag__row[0] = numpy.ones(diag_start_row[0].shape)
-        diag__col[0] = diag_start_row[0]
-        # we reached the bottom line, now keep row fixed and col moves till w
-        pos_diag[1] = range(pos_diag[0][-1]+gridstep_pix, w/numpy.sqrt(2), gridstep_pix)
-        #!!! small glitch in start coord's first value
-        diag_start_col[1] = numpy.sqrt(2)*pos_diag[1]-h
-        diag_start_row[1] = numpy.ones(diag_start_col[1].shape)*diag_start_row[0][-1]
-        diag_end_col[1] = numpy.sqrt(2)*pos_diag[1]
-        diag_end_row[1] = numpy.ones(diag_end_col[1][-1])
-        # we reached the right edge of the screen,
-        p = numpy.sqrt(2)*w-2*cornerskip
-        pos_diag[2] = range(pos_diag[1][-1]+gridstep_pix, p, gridstep_pix)
-        diag_start_col[2] = numpy.sqrt(2)*pos_diag[2]-h
-        diag_start_row[2] = numpy.ones(diag_start_col[2].shape)*diag_start_row[0][-1]
-        diag_end_row[2] = w - numpy.sqrt(2)*(w*numpy.sqrt(2)-pos_diag[2])
-        diag_end_col[2] = numpy.ones(diag_end_row[2].shape)*w
+def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
+    cornerskip = numpy.ceil(diameter_pix/2)+diameter_pix
+    pos_diag[0] = range(cornerskip, h/numpy.sqrt(2), gridstep_pix) # spacing of diagonals running from bottomleft 
+    diag_start_row[0] = numpy.sqrt(2)*pos_diag[0]
+    diag_start_col[0] = numpy.ones(diag_start_row[0].shape)
+    diag__row[0] = numpy.ones(diag_start_row[0].shape)
+    diag__col[0] = diag_start_row[0]
+    # we reached the bottom line, now keep row fixed and col moves till w
+    pos_diag[1] = range(pos_diag[0][-1]+gridstep_pix, w/numpy.sqrt(2), gridstep_pix)
+    #!!! small glitch in start coord's first value
+    diag_start_col[1] = numpy.sqrt(2)*pos_diag[1]-h
+    diag_start_row[1] = numpy.ones(diag_start_col[1].shape)*diag_start_row[0][-1]
+    diag_end_col[1] = numpy.sqrt(2)*pos_diag[1]
+    diag_end_row[1] = numpy.ones(diag_end_col[1][-1])
+    # we reached the right edge of the screen,
+    p = numpy.sqrt(2)*w-2*cornerskip
+    pos_diag[2] = range(pos_diag[1][-1]+gridstep_pix, p, gridstep_pix)
+    diag_start_col[2] = numpy.sqrt(2)*pos_diag[2]-h
+    diag_start_row[2] = numpy.ones(diag_start_col[2].shape)*diag_start_row[0][-1]
+    diag_end_row[2] = w - numpy.sqrt(2)*(w*numpy.sqrt(2)-pos_diag[2])
+    diag_end_col[2] = numpy.ones(diag_end_row[2].shape)*w
 
-        dlines_len=[]
-        dlines=[]
-        offs= diameter_pix*1/numpy.sqrt(2)
-        swap=0
-        oppositedir=0 # 45 degrees
-        if numpy.any(angle == [45+180,135+180]):
-            oppositedir = 1
-        if numpy.any(angle==[135,135+180]):
-            swap = 1
-        dfl =0
-        if dfl:
-            full = QPlotWindow(None, visible=False)
-        for d1 in range(len(pos_diag)):
-            for d2 in range(len(pos_diag[d1])):
-                dlines_len.append(numpy.sqrt((diag_start_row[d1][d2]+offs-(diag__row[d1][d2]-offs))**2+
-                    (diag_start_col[d1][d2]-offs-(diag__row[d1][d2]+offs))**2))
-                npix = numpy.ceil(dlines_len[-1]/movestep_pix)
-                if swap: # 
-                    s_r = h-diag_start_row[d1][d2]-offs
-                    e_r = h-diag__row[d1][d2]+offs
-                else:
-                    s_r = diag_start_row[d1][d2]+offs
-                    e_r = diag__row[d1][d2]-offs
-                
-                s_c = diag_start_col[d1][d2]-offs
-                e_c = diag__col[d1][d2]+offs
-                if oppositedir:
-                    aline_row = numpy.linspace(e_r,s_r,npix)
-                    aline_col = numpy.linspace(e_c,s_c,npix)
-                else:
-                    aline_row = numpy.linspace(s_r,e_r,npix)
-                    aline_col = numpy.linspace(s_c,e_c,npix)
-                
-                if dfl:
-                    full.p.setdata([w, 0, 0, h, w, h, w, h],n=[0, 0, 0, 0, w, 0, 0, h],  penwidth=w,  color=Qt.Qt.black)#, vlines =self.rawfullblockstartinds)
-                    full.p.adddata(diag_start_row[d1][d2],diag_start_col[d1][d2], color=Qt.Qt.green, type='x')
-                    full.p.adddata(diag_end_row[d1][d2],diag_end_col[d1][d2], color=Qt.Qt.blue, type='x')
-                    full.p.adddata(s_r,s_c, color=Qt.Qt.red, type='x')
-                    full.p.adddata(e_r,e_c, color=Qt.Qt.darkRed, type='x')
-                    full.p.addata(aline_row,aline_col)
-                    #axis equal
-                    #axis([1-diameter_pix,w+diameter_pix,1-diameter_pix,h+diameter_pix])axis ij #plot in PTB's coordinate system
-                dlines.append([aline_col, aline_row])
-        row_col = dlines
-        return row_col,dlines_len
+    dlines_len=[]
+    dlines=[]
+    offs= diameter_pix*1/numpy.sqrt(2)
+    swap=0
+    oppositedir=0 # 45 degrees
+    if numpy.any(angle == [45+180,135+180]):
+        oppositedir = 1
+    if numpy.any(angle==[135,135+180]):
+        swap = 1
+    dfl =0
+    if dfl:
+        full = QPlotWindow(None, visible=False)
+    for d1 in range(len(pos_diag)):
+        for d2 in range(len(pos_diag[d1])):
+            dlines_len.append(numpy.sqrt((diag_start_row[d1][d2]+offs-(diag_start_row[d1][d2]-offs))**2+
+                (diag_start_col[d1][d2]-offs-(diag_start_row[d1][d2]+offs))**2))
+            npix = numpy.ceil(dlines_len[-1]/movestep_pix)
+            if swap: # 
+                s_r = h-diag_start_row[d1][d2]-offs
+                e_r = h-diag__row[d1][d2]+offs
+            else:
+                s_r = diag_start_row[d1][d2]+offs
+                e_r = diag__row[d1][d2]-offs
+            
+            s_c = diag_start_col[d1][d2]-offs
+            e_c = diag__col[d1][d2]+offs
+            if oppositedir:
+                aline_row = numpy.linspace(e_r,s_r,npix)
+                aline_col = numpy.linspace(e_c,s_c,npix)
+            else:
+                aline_row = numpy.linspace(s_r,e_r,npix)
+                aline_col = numpy.linspace(s_c,e_c,npix)
+            
+            if dfl:
+                full.p.setdata([w, 0, 0, h, w, h, w, h],n=[0, 0, 0, 0, w, 0, 0, h],  penwidth=w,  color=Qt.Qt.black)#, vlines =self.rawfullblockstartinds)
+                full.p.adddata(diag_start_row[d1][d2],diag_start_col[d1][d2], color=Qt.Qt.green, type='x')
+                full.p.adddata(diag_end_row[d1][d2],diag_end_col[d1][d2], color=Qt.Qt.blue, type='x')
+                full.p.adddata(s_r,s_c, color=Qt.Qt.red, type='x')
+                full.p.adddata(e_r,e_c, color=Qt.Qt.darkRed, type='x')
+                full.p.addata(aline_row,aline_col)
+                #axis equal
+                #axis([1-diameter_pix,w+diameter_pix,1-diameter_pix,h+diameter_pix])axis ij #plot in PTB's coordinate system
+            dlines.append([aline_col, aline_row])
+    row_col = dlines
+    return row_col,dlines_len
         
-    def getpermlist(veclength,RANDOMIZE):
-        if veclength > 256:
-            raise ValueError('Predefined random order is only for vectors with max len 256')
-        fullpermlist = [200,212,180,52,115,84,122,123,2,113,119,168,112,202,153,80,126,78,59,154,131,118,251,167,141,105,51,181,254,15,135,189,173,188,159,45,158,245,10,124,156,190,11,221,208,54,106,71,102,91,66,151,148,225,175,152,48,146,172,98,47,145,57,28,201,55,13,9,82,32,114,163,93,64,228,162,29,27,187,134,164,253,127,218,35,109,237,211,17,4,72,116,230,165,233,207,96,198,234,81,213,191,62,238,8,183,65,89,161,99,133,38,197,142,111,132,196,169,195,75,58,139,250,244,193,21,90,6,242,63,43,69,30,14,37,226,206,140,240,255,76,34,223,110,67,61,125,166,20,239,79,107,121,120,219,40,209,231,104,108,128,224,70,155,92,24,176,204,235,229,26,56,252,178,136,74,3,12,117,101,186,130,203,39,16,232,137,246,36,249,7,143,241,129,95,31,138,220,210,185,50,97,214,68,85,243,73,88,215,77,41,149,248,194,25,182,23,256,5,236,1,33,103,157,217,19,192,18,147,170,179,174,83,49,44,184,144,53,22,199,222,150,216,227,100,171,42,94,177,86,46,247,205,60,87,160]
-        if RANDOMIZE:
-            permlist = fullpermlist[fullpermlist<veclength+1] # pick only values that address the vector's values
-        else:
-            permlist = range(veclength)
-        return permlist
+def getpermlist(veclength,RANDOMIZE):
+    if veclength > 256:
+        raise ValueError('Predefined random order is only for vectors with max len 256')
+    fullpermlist = [200,212,180,52,115,84,122,123,2,113,119,168,112,202,153,80,126,78,59,154,131,118,251,167,141,105,51,181,254,15,135,189,173,188,159,45,158,245,10,124,156,190,11,221,208,54,106,71,102,91,66,151,148,225,175,152,48,146,172,98,47,145,57,28,201,55,13,9,82,32,114,163,93,64,228,162,29,27,187,134,164,253,127,218,35,109,237,211,17,4,72,116,230,165,233,207,96,198,234,81,213,191,62,238,8,183,65,89,161,99,133,38,197,142,111,132,196,169,195,75,58,139,250,244,193,21,90,6,242,63,43,69,30,14,37,226,206,140,240,255,76,34,223,110,67,61,125,166,20,239,79,107,121,120,219,40,209,231,104,108,128,224,70,155,92,24,176,204,235,229,26,56,252,178,136,74,3,12,117,101,186,130,203,39,16,232,137,246,36,249,7,143,241,129,95,31,138,220,210,185,50,97,214,68,85,243,73,88,215,77,41,149,248,194,25,182,23,256,5,236,1,33,103,157,217,19,192,18,147,170,179,174,83,49,44,184,144,53,22,199,222,150,216,227,100,171,42,94,177,86,46,247,205,60,87,160]
+    if RANDOMIZE:
+        permlist = fullpermlist[fullpermlist<veclength+1] # pick only values that address the vector's values
+    else:
+        permlist = range(veclength)
+    return permlist
 
    
-    def generate_filename(args):
-        '''creates a string that is used as mat file name to store random dot
-        positions
-        This method has to be the exact port of the matlab def with the same name'''
-        type = args[0]
-        if hasattr(type, 'tostring'): type=type.tostring()
-        radii = l2s(args[0])
-        if len(type)==0 or type=='random':
-            n_dots,nframes,interleave,interleave_step = args[2:]
-            fn = radii+'[0:.0f]-[1:.0f]-[2:.0f]-[3:.0f].mat'.format(n_dots[0], nframes[0], interleave[0], interleave_step[0])
-        elif type=='fixed':
-            n_dots,gridstep_factor,nblocks,sec_per_block,frames_per_sec=args[1:]
-            fn = radii+'[0]-[1:1.2f]-[1]-[2]-[4].mat'.format(n_dots, gridstep_factor,
-                                            nblocks, sec_per_block, frames_per_sec)
-        elif type=='fixed_compl_random':
-            res,ONOFFratio,enforce_complete_dots,bglevel, gridstep_factor,\
-                nblocks, white_area_variation_factor,sec_per_block, iniduration, frames_per_sec, bi = args[2:]
-            fn = radii+'_[0]_[0]_[1]_[2]_[4]_[5]_[6]_[7]_[8]_[9]'.format(l2s(res, '-','1.0f'),  l2s(gridstep_factor,'-',  '1.2f'),
-                                l2s(enforce_complete_dots,'-',  '1.0f'), l2s(sec_per_block), l2s(iniduration), l2s(frames_per_sec, '', '1.2f'), l2s(ONOFFratio, '-', '1.2f'),  
-                                l2s(white_area_variation_factor, '', '1.2f'), l2s(bglevel),l2s(bi))
+def generate_filename(args):
+    '''creates a string that is used as mat file name to store random dot
+    positions
+    This method has to be the exact port of the matlab def with the same name'''
+    type = args[0]
+    if hasattr(type, 'tostring'): type=type.tostring()
+    radii = l2s(args[0])
+    if len(type)==0 or type=='random':
+        n_dots,nframes,interleave,interleave_step = args[2:]
+        fn = radii+'[0:.0f]-[1:.0f]-[2:.0f]-[3:.0f].mat'.format(n_dots[0], nframes[0], interleave[0], interleave_step[0])
+    elif type=='fixed':
+        n_dots,gridstep_factor,nblocks,sec_per_block,frames_per_sec=args[1:]
+        fn = radii+'[0]-[1:1.2f]-[1]-[2]-[4].mat'.format(n_dots, gridstep_factor,
+                                        nblocks, sec_per_block, frames_per_sec)
+    elif type=='fixed_compl_random':
+        res,ONOFFratio,enforce_complete_dots,bglevel, gridstep_factor,\
+            nblocks, white_area_variation_factor,sec_per_block, iniduration, frames_per_sec, bi = args[2:]
+        fn = radii+'_[0]_[0]_[1]_[2]_[4]_[5]_[6]_[7]_[8]_[9]'.format(l2s(res, '-','1.0f'),  l2s(gridstep_factor,'-',  '1.2f'),
+                            l2s(enforce_complete_dots,'-',  '1.0f'), l2s(sec_per_block), l2s(iniduration), l2s(frames_per_sec, '', '1.2f'), l2s(ONOFFratio, '-', '1.2f'),  
+                            l2s(white_area_variation_factor, '', '1.2f'), l2s(bglevel),l2s(bi))
         return fn
         
 class MovingDotTestConfig(experiment.ExperimentConfig):
@@ -276,15 +276,13 @@ class MovingDotTestConfig(experiment.ExperimentConfig):
         self.AMPLITUDE = 0.5
         self.REPEATS = 2
         self.PDURATION = 0
-        self.GRIDSTEP = 1/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+        self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'
         self.pre_runnable = 'MovingDotPre'
-        self.IMAGE_PROJECTED_ON_RETINA = False
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
         self._create_parameters_from_locals(locals())
-        experiment.ExperimentConfig.create_runnable(self) # needs to be called so that runnable is instantiated and other checks are done
 
 if __name__ == '__main__':
     import visexpman

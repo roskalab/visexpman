@@ -118,7 +118,10 @@ class MBP(VisualStimulationConfig):
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
-        FRAME_WAIT_FACTOR = 0
+        IMAGE_PROJECTED_ON_RETINA = False
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [25, [0, 100]] #cm
+        SCREEN_PIXEL_WIDTH = [0.014, [0, 0.5]] # mm
+        FRAME_WAIT_FACTOR = 0 
         GAMMA = 1.0
         FILTERWHEEL_ENABLE = False
         
@@ -134,7 +137,7 @@ class MBP(VisualStimulationConfig):
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         VisualStimulationConfig._create_parameters_from_locals(self, locals())
-        VisualStimulationConfig._set_parameters_from_locals(self, locals())
+        #VisualStimulationConfig._set_parameters_from_locals(self, locals())
         
 if __name__ == "__main__":
     
