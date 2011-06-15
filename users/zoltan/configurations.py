@@ -2,6 +2,28 @@ import visual_stimulation.configuration
 import os
 import generic.parameter
 import generic.utils as utils
+import generic.configuration
+
+class GraphicsTestConfig(generic.configuration.Config):
+    def _create_application_parameters(self):
+        FPS_RANGE = (1.0,  200.0) 
+        COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
+        
+        SCREEN_RESOLUTION = utils.rc([600, 800])        
+        FULLSCREEN = False
+        SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
+        SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]        
+        BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
+        FRAME_WAIT_FACTOR = [1.0,  [0.0,  1.0]]
+        FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]
+        COORDINATE_SYSTEM = 'center' #ulcorner
+#        COORDINATE_SYSTEM = 'ulcorner'
+     
+        
+        self._create_parameters_from_locals(locals())
+        
+    def _calculate_parameters(self):
+        self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
 
 class VRConfig(visual_stimulation.configuration.VisualStimulationConfig):
     def _set_user_specific_parameters(self):

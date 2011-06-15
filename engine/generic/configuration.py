@@ -15,6 +15,8 @@ class Config(object):
         self._create_parameter_aliases()
         self._create_application_parameters()        
         self._create_parameter_aliases()     # ezt miert nem a create applic parameters hivja meg?   
+		#The _create_application_parameters and the _calculate_parameters methods will be overdefined in the child classes. 
+        #The _create_parameter_aliases function shall be called at the end of _create_parameters_from_locals        
         self._set_user_specific_parameters()      
         self._create_parameter_aliases()     # ezt miert nem a create applic parameters hivja meg?   
         self._calculate_parameters()        

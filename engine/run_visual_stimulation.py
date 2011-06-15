@@ -1,5 +1,11 @@
 import visexpman
 import os
+#While psychopy is not completely eliminated, this import is necessary under windows systems
+if os.name == 'nt':
+    from OpenGL.GL import *
+    from OpenGL.GLUT import *
+    
+import visexpman
 import generic.utils
 import visual_stimulation.user_interface
 import hardware_interface.udp_interface
@@ -16,6 +22,14 @@ class VisualStimulation(object):
     def __init__(self, config_class, user):
         '''
         Find out configuration and load the appropriate config and experiment modules, classes
+
+		At the initialization the followings has to be accomplised:
+        - find config class and instantiate it 
+        - instantiate user interface, udp, stimulation control and command handler
+        - create experiment list containing all the experiment classes residing in user folder
+        - instantiate pre experiment config and pre experiment
+        - experiment has to be instantiated in stimulation control not here!!!!     
+
         '''
         self.config=generic.utils.fetch_classes('visexpman.users.'+user, classname=config_class, classtype=visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig)[0][1]()
         self.config.user=user

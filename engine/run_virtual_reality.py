@@ -16,16 +16,16 @@ class VirtualReality(object):
         import sys
         from PyQt4 import QtGui
 
-        app = QtGui.QApplication(sys.argv)
+#        app = QtGui.QApplication(sys.argv)
+#
+#        widget = QtGui.QWidget()
+#        widget.resize(250, 150)
+#        widget.setWindowTitle('simple')
+#        widget.show()
+#
+#        sys.exit(app.exec_())
 
-        widget = QtGui.QWidget()
-        widget.resize(250, 150)
-        widget.setWindowTitle('simple')
-        widget.show()
-
-        sys.exit(app.exec_())
-
-        self.config = users.zoltan.configurations.VRConfig('..')         
+        self.config = users.zoltan.configurations.VRConfig()
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
         if self.config.FULLSCR:
             flags = flags | pygame.FULLSCREEN

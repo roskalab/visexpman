@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project visexpman -->
-<!-- Saved: 2011-05-30, 13:38:20 -->
+<!-- Saved: 2011-06-15, 08:48:49 -->
 <Tasks version="4.2">
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: handle invalid filterwheel ID</Summary>
-    <Description></Description>
-    <Created>2011-05-23, 15:45:20</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/command_handler.py</Filename>
-      <Linenumber>44</Linenumber>
-    </Resource>
-  </Task>
   <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: untested</Summary>
     <Description></Description>
-    <Created>2011-05-24, 09:42:23</Created>
+    <Created>2011-06-13, 15:36:26</Created>
     <Resource>
       <Filename>engine/generic/parameter.py</Filename>
       <Linenumber>106</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: handle invalid filterwheel ID</Summary>
+    <Description></Description>
+    <Created>2011-06-14, 09:14:48</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/command_handler.py</Filename>
+      <Linenumber>43</Linenumber>
     </Resource>
   </Task>
 </Tasks>

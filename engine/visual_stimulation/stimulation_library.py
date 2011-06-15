@@ -199,8 +199,8 @@ class Stimulations():
             if size != None and size != (0,  0):                
                 stimulus_image = Image.open(path)
                 stimulus_image = stimulus_image.resize((int(size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE), int(size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)))
-                stimulus_image.save(self.config.TEMP_IMAGE_PATH)
-                path_adjusted = self.config.TEMP_IMAGE_PATH
+                stimulus_image.save(self.config.TEMP_IMAGE_PTH)
+                path_adjusted = self.config.TEMP_IMAGE_PTH
             
             #initialize parametric control
             start_time = time.time()            

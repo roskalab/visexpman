@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project visexpman -->
-<!-- Saved: 2011-05-24, 15:58:19 -->
+<!-- Saved: 2011-06-14, 17:17:12 -->
 <!-- Copyright (C) 2011 Zoltan Raics, zoltan.raics@fmi.ch -->
 <Project version="4.6">
   <Language>en</Language>
@@ -63,6 +63,9 @@
     <Source>users/zoltan/test/remote_experiment.py</Source>
     <Source>users/daniel/__init__.py</Source>
     <Source>users/templateuser/__init__.py</Source>
+    <Source>engine/generic/graphics.py</Source>
+    <Source>engine/run_vr_optical_simulation.py</Source>
+    <Source>users/karl/vision_spatial_resolution_experiment.py</Source>
   </Sources>
   <Forms>
   </Forms>
