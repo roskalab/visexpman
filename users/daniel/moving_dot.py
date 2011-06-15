@@ -49,13 +49,13 @@ class MovingDot(experiment.Experiment):
         diameter_pix = utils.retina2screen(self.experiment_config.DIAMETER_UM,machine_config=self.experiment_config.machine_config,option='pixels')
         speed_pix = utils.retina2screen(self.experiment_config.SPEED,machine_config=self.experiment_config.machine_config,option='pixels')
         gridstep_pix = numpy.floor(self.experiment_config.GRIDSTEP*diameter_pix)
-        movestep_pix = self.experiment_config.machine_config.SCREEN_EXPECTED_FRAME_RATE*speed_pix
+        movestep_pix = speed_pix/self.experiment_config.machine_config.SCREEN_EXPECTED_FRAME_RATE
         h=self.experiment_config.machine_config.SCREEN_RESOLUTION['row']#monitor.resolution.height
         w=self.experiment_config.machine_config.SCREEN_RESOLUTION['col']#monitor.resolution.width
-        hlines_r,hlines_c = numpy.meshgrid(range(numpy.ceil(diameter_pix/2), w-numpy.ceil(diameter_pix/2),gridstep_pix),  
-            range(-diameter_pix, h+diameter_pix, movestep_pix))
-        vlines_c,vlines_r = numpy.meshgrid(range(numpy.ceil(diameter_pix/2), h-numpy.ceil(diameter_pix/2),gridstep_pix), 
-            range(-diameter_pix, w+diameter_pix, movestep_pix))
+        hlines_r,hlines_c = numpy.meshgrid(numpy.arange(numpy.ceil(diameter_pix/2), w-numpy.ceil(diameter_pix/2),gridstep_pix),  
+            numpy.arange(-diameter_pix, h+diameter_pix, movestep_pix))
+        vlines_c,vlines_r = numpy.meshgrid(numpy.arange(numpy.ceil(diameter_pix/2), h-numpy.ceil(diameter_pix/2),gridstep_pix), 
+            numpy.arange(-diameter_pix, w+diameter_pix, movestep_pix))
         # we go along the diagonal from origin to bottom right and take perpicular diagonals' starting
         # and ing coords and lengths
 
@@ -164,14 +164,18 @@ class MovingDot(experiment.Experiment):
             block_end.append(row_col)
 
 def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
+    ''' Calculates positions of the dot(s) for each movie frame along the lines dissecting the screen at 45 degrees'''
     cornerskip = numpy.ceil(diameter_pix/2)+diameter_pix
-    pos_diag[0] = range(cornerskip, h/numpy.sqrt(2), gridstep_pix) # spacing of diagonals running from bottomleft 
+    pos_diag = [0 for i in range(3)] #preallocate list. Using this prealloc we can assign elements explicitly (not with append) that makes the code clearer for this algorithm
+    diag_start_row = [0 for i in range(3)] ; diag_end_col = [0 for i in range(3)] 
+    diag_start_col = [0 for i in range(3)] ; diag_end_row = [0 for i in range(3)] 
+    pos_diag[0] = numpy.arange(cornerskip, h/numpy.sqrt(2), gridstep_pix) # spacing of diagonals running from bottomleft 
     diag_start_row[0] = numpy.sqrt(2)*pos_diag[0]
     diag_start_col[0] = numpy.ones(diag_start_row[0].shape)
-    diag__row[0] = numpy.ones(diag_start_row[0].shape)
-    diag__col[0] = diag_start_row[0]
+    diag_end_row[0] = numpy.ones(diag_start_row[0].shape)
+    diag_end_col[0] = diag_start_row[0].copy()
     # we reached the bottom line, now keep row fixed and col moves till w
-    pos_diag[1] = range(pos_diag[0][-1]+gridstep_pix, w/numpy.sqrt(2), gridstep_pix)
+    pos_diag[1] = numpy.arange(pos_diag[0][-1]+gridstep_pix, w/numpy.sqrt(2), gridstep_pix)
     #!!! small glitch in start coord's first value
     diag_start_col[1] = numpy.sqrt(2)*pos_diag[1]-h
     diag_start_row[1] = numpy.ones(diag_start_col[1].shape)*diag_start_row[0][-1]
@@ -179,7 +183,7 @@ def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
     diag_end_row[1] = numpy.ones(diag_end_col[1][-1])
     # we reached the right edge of the screen,
     p = numpy.sqrt(2)*w-2*cornerskip
-    pos_diag[2] = range(pos_diag[1][-1]+gridstep_pix, p, gridstep_pix)
+    pos_diag[2] = numpy.arange(pos_diag[1][-1]+gridstep_pix, p, gridstep_pix)
     diag_start_col[2] = numpy.sqrt(2)*pos_diag[2]-h
     diag_start_row[2] = numpy.ones(diag_start_col[2].shape)*diag_start_row[0][-1]
     diag_end_row[2] = w - numpy.sqrt(2)*(w*numpy.sqrt(2)-pos_diag[2])
@@ -204,13 +208,13 @@ def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
             npix = numpy.ceil(dlines_len[-1]/movestep_pix)
             if swap: # 
                 s_r = h-diag_start_row[d1][d2]-offs
-                e_r = h-diag__row[d1][d2]+offs
+                e_r = h-diag_end_row[d1][d2]+offs
             else:
                 s_r = diag_start_row[d1][d2]+offs
-                e_r = diag__row[d1][d2]-offs
+                e_r = diag_end_row[d1][d2]-offs
             
             s_c = diag_start_col[d1][d2]-offs
-            e_c = diag__col[d1][d2]+offs
+            e_c = diag_end_col[d1][d2]+offs
             if oppositedir:
                 aline_row = numpy.linspace(e_r,s_r,npix)
                 aline_col = numpy.linspace(e_c,s_c,npix)
