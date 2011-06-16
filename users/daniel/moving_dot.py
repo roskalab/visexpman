@@ -62,26 +62,24 @@ class MovingDot(experiment.Experiment):
         # diagonals run from bottom left to top right
         dlines,dlines_len = diagonal_tr(45,diameter_pix,gridstep_pix,movestep_pix,w,h)
 
-        diag_dur = 4*dlines_len.sum()/speed_pix/self.experiment_config.NDOTS
-        line_len={'ver0': (w+(diameter_pix*2))*numpy.ones(1,size(vlines_r,2)), 
-                        'hor0' : (h+(diameter_pix*2))*numpy.ones(1,size(hlines_r,2))}
+        diag_dur = 4*sum(dlines_len)/speed_pix/self.experiment_config.NDOTS
+        line_len={'ver0': (w+(diameter_pix*2))*numpy.ones((1,vlines_r.shape[1])), 
+                        'hor0' : (h+(diameter_pix*2))*numpy.ones((1,hlines_r.shape[1]))}
         ver_dur = 2*line_len['ver0'].sum()/speed_pix/self.experiment_config.NDOTS
         hor_dur = 2*line_len['hor0'].sum()/speed_pix/self.experiment_config.NDOTS
         total_dur = (self.experiment_config.PDURATION*8+diag_dur+ver_dur+hor_dur)*self.experiment_config.REPEATS
-        nblocks = numpy.ceil(total_dur/hw.maxdur_perrec)
+        nblocks = numpy.ceil(total_dur/self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION)[0]
         block_dur = total_dur/nblocks
         block_dur = block_dur
         # we divide the grid into multiple recording blocks if necessary, all
         # ANGLES and repetitions are played within a block
-        allangles0 = numpy.repmat(angleset, [1,self.experiment_config.REPEATS])
-        permlist = getpermlist(len(allangles0), self.experiment_config.RANDOMIZE)
-        allangles = allangles0(permlist)
+        allangles0 = numpy.tile(angleset, [self.experiment_config.REPEATS])
+        permlist = getpermlist(allangles0.shape[0], self.experiment_config.RANDOMIZE)
+        allangles = allangles0[permlist]
         ANGLES = allangles
-        dot_tra = {}
         # coords are in matrix coordinates: origin is topleft corner. 0 degree runs
         # from left to right.
         #ANGLES = 0:45:315
-        dirs = [0,11,11,1-1,1-1,1-1,-1-1,-11,-1]
         #screen('closeall')
         for a in range(len(angleset)):
             for b in range(nblocks):
@@ -94,12 +92,14 @@ class MovingDot(experiment.Experiment):
                             vr = vr[0:-1:1] 
                             vc = vc[0:1:-1]
                     elif numpy.any(angleset[a]==[0,180]): # dots run horizontally
-                        vr = hlines_r[:,b:-1, nblocks]
-                        vc= hlines_c[:,b:-1, nblocks]
+                        vr = hlines_r[:,b:-1:nblocks]
+                        vc= hlines_c[:,b:-1:nblocks]
                         if angleset[a]==180:
                             vr = vr[0:1:-1]
                             vc = vc[0:1:-1]
-                    segm_length = vr.shape[0]/self.experiment_config.NDOTS
+                    # try to balance the dot run lengths (in case of multiple dots) so that most of the time the number of dots on screen is constant        
+                    
+                    segm_length = vr.shape[0]/self.experiment_config.NDOTS #length of the trajectory 1 dot has to run in the stimulation segment
                     cl =range(vr.shape[0])
                     #partsep = [zeros(1,self.experiment_config.NDOTS),size(vr,2)]
                     partsep = range(0 , vr.shape[0], numpy.ceil(segm_length))
@@ -180,10 +180,10 @@ def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
     diag_start_col[1] = numpy.sqrt(2)*pos_diag[1]-h
     diag_start_row[1] = numpy.ones(diag_start_col[1].shape)*diag_start_row[0][-1]
     diag_end_col[1] = numpy.sqrt(2)*pos_diag[1]
-    diag_end_row[1] = numpy.ones(diag_end_col[1][-1])
+    diag_end_row[1] = numpy.ones(diag_end_col[1].shape)
     # we reached the right edge of the screen,
-    p = numpy.sqrt(2)*w-2*cornerskip
-    pos_diag[2] = numpy.arange(pos_diag[1][-1]+gridstep_pix, p, gridstep_pix)
+    endp = numpy.sqrt(2)*w-2*cornerskip
+    pos_diag[2] = numpy.arange(pos_diag[1][-1]+gridstep_pix, endp, gridstep_pix)
     diag_start_col[2] = numpy.sqrt(2)*pos_diag[2]-h
     diag_start_row[2] = numpy.ones(diag_start_col[2].shape)*diag_start_row[0][-1]
     diag_end_row[2] = w - numpy.sqrt(2)*(w*numpy.sqrt(2)-pos_diag[2])
@@ -203,8 +203,8 @@ def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
         full = QPlotWindow(None, visible=False)
     for d1 in range(len(pos_diag)):
         for d2 in range(len(pos_diag[d1])):
-            dlines_len.append(numpy.sqrt((diag_start_row[d1][d2]+offs-(diag_start_row[d1][d2]-offs))**2+
-                (diag_start_col[d1][d2]-offs-(diag_start_row[d1][d2]+offs))**2))
+            dlines_len.append(numpy.sqrt((diag_start_row[d1][d2]+offs-(diag_end_row[d1][d2]-offs))**2+
+                (diag_start_col[d1][d2]-offs-(diag_end_col[d1][d2]+offs))**2))
             npix = numpy.ceil(dlines_len[-1]/movestep_pix)
             if swap: # 
                 s_r = h-diag_start_row[d1][d2]-offs
@@ -231,18 +231,24 @@ def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
                 full.p.addata(aline_row,aline_col)
                 #axis equal
                 #axis([1-diameter_pix,w+diameter_pix,1-diameter_pix,h+diameter_pix])axis ij #plot in PTB's coordinate system
-            dlines.append([aline_col, aline_row])
+            dlines.append(numpy.c_[aline_col, aline_row])
     row_col = dlines
     return row_col,dlines_len
         
 def getpermlist(veclength,RANDOMIZE):
     if veclength > 256:
         raise ValueError('Predefined random order is only for vectors with max len 256')
-    fullpermlist = [200,212,180,52,115,84,122,123,2,113,119,168,112,202,153,80,126,78,59,154,131,118,251,167,141,105,51,181,254,15,135,189,173,188,159,45,158,245,10,124,156,190,11,221,208,54,106,71,102,91,66,151,148,225,175,152,48,146,172,98,47,145,57,28,201,55,13,9,82,32,114,163,93,64,228,162,29,27,187,134,164,253,127,218,35,109,237,211,17,4,72,116,230,165,233,207,96,198,234,81,213,191,62,238,8,183,65,89,161,99,133,38,197,142,111,132,196,169,195,75,58,139,250,244,193,21,90,6,242,63,43,69,30,14,37,226,206,140,240,255,76,34,223,110,67,61,125,166,20,239,79,107,121,120,219,40,209,231,104,108,128,224,70,155,92,24,176,204,235,229,26,56,252,178,136,74,3,12,117,101,186,130,203,39,16,232,137,246,36,249,7,143,241,129,95,31,138,220,210,185,50,97,214,68,85,243,73,88,215,77,41,149,248,194,25,182,23,256,5,236,1,33,103,157,217,19,192,18,147,170,179,174,83,49,44,184,144,53,22,199,222,150,216,227,100,171,42,94,177,86,46,247,205,60,87,160]
+    fullpermlist = numpy.array([200,212,180,52,115,84,122,123,2,113,119,168,112,202,153,80,126,78,59,154,131,118,251,167,141,105,51,181,254,
+                15,135,189,173,188,159,45,158,245,10,124,156,190,11,221,208,54,106,71,102,91,66,151,148,225,175,152,48,146,172,98,47,145,57,
+                28,201,55,13,9,82,32,114,163,93,64,228,162,29,27,187,134,164,253,127,218,35,109,237,211,17,4,72,116,230,165,233,207,96,198,234,
+                81,213,191,62,238,8,183,65,89,161,99,133,38,197,142,111,132,196,169,195,75,58,139,250,244,193,21,90,6,242,63,43,69,30,14,37,226,206,
+                140,240,255,76,34,223,110,67,61,125,166,20,239,79,107,121,120,219,40,209,231,104,108,128,224,70,155,92,24,176,204,235,229,26,56,252,
+                178,136,74,3,12,117,101,186,130,203,39,16,232,137,246,36,249,7,143,241,129,95,31,138,220,210,185,50,97,214,68,85,243,73,88,215,77,41,
+                149,248,194,25,182,23,256,5,236,1,33,103,157,217,19,192,18,147,170,179,174,83,49,44,184,144,53,22,199,222,150,216,227,100,171,42,94,177,86,46,247,205,60,87,160])-1 # was defined in matlab so we transform to 0 based indexing
     if RANDOMIZE:
-        permlist = fullpermlist[fullpermlist<veclength+1] # pick only values that address the vector's values
+        permlist = fullpermlist[fullpermlist<veclength] # pick only values that address the vector's values
     else:
-        permlist = range(veclength)
+        permlist = numpy.arange(veclength)
     return permlist
 
    

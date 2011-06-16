@@ -129,6 +129,7 @@ class MBP(VisualStimulationConfig):
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
         
         SEGMENT_DURATION = 2
+        MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
         ACTION_BETWEEN_STIMULUS = 'off'
 
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
