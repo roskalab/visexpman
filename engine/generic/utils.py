@@ -419,14 +419,18 @@ def rc_pack(raw, order = 'rc'):
     elif order == 'cr':
         index_first = 0
         index_second = 1    
-    if isinstance(raw, numpy.ndarray):
+    if isinstance(raw, numpy.ndarray) and raw.ndim==2:
         #input is a numpy array
+        if raw.ndim==2 and raw.shape[1]==2:
+            raw=raw.T
         if raw.dtype == numpy.float:
             return numpy.array(zip(raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.float32,numpy.float32]})
         else:
             return numpy.array(zip(raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
+    elif isinstance(raw, numpy.ndarray) and raw.ndim > 2:
+        raise TypeError('Input data dimension must be 2. Call rc_flatten if you want data to be flattened before conversion')
     else:
-        #input is a tuple
+        #input is a tuple or 1D numpy array: this case has to be handled separately so that indexing mydata['row'] returns a value and not an array.
         if isinstance(raw[0], float):
             return numpy.array((raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.float32,numpy.float32]})
         else:
@@ -475,6 +479,8 @@ def rc_multiply(operand1, operand2):
             rows = operand1[:]['row'] * operand2['row']
             cols = operand1[:]['col'] * operand2['col']
             return rc(numpy.array([rows, cols]))    
+    else:
+        raise TypeError('When multiplying two arrays of row_col type, make sure both operands have the row_col type') 
 
 def rc_multiply_with_constant(rc_value, constant):
     if rc_value.shape == ():

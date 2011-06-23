@@ -813,7 +813,7 @@ class Stimulations():
                     self._flip(trigger = True)
                 else:
                     self._flip(trigger = False)
-                if self.stimulation_control.abort_stimulus():
+                if self.stimulation_control.visual_stimulation_runner.abort:
                     break
                 
         glDisableClientState(GL_VERTEX_ARRAY)

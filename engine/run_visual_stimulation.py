@@ -4,7 +4,7 @@ import os
 if os.name == 'nt':
     from OpenGL.GL import *
     from OpenGL.GLUT import *
-    
+import time
 import visexpman
 import generic.utils
 import visual_stimulation.user_interface
@@ -31,6 +31,7 @@ class VisualStimulation(object):
         - experiment has to be instantiated in stimulation control not here!!!!     
 
         '''
+        self.state = 'init'
         self.config=generic.utils.fetch_classes('visexpman.users.'+user, classname=config_class, classtype=visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig)[0][1]()
         self.config.user=user
         #Lists all folders and python modules residing in the user's folder
@@ -41,40 +42,32 @@ class VisualStimulation(object):
         self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config) # select and instantiate stimulus as specified in machine config
         #create screen        
         self.user_interface = visual_stimulation.user_interface.UserInterface(self.config, self)
-        #initialize network interface
-        self.udp_interface = hardware_interface.udp_interface.UdpInterface(self.config)
-        #initialize stimulation control
-        self.stimulation_control = visual_stimulation.stimulation_control.StimulationControl(self, self.config,  self.user_interface,  self.udp_interface)
-        #set up command handler
-        self.command_handler =  visual_stimulation.command_handler.CommandHandler(self.config,  self.stimulation_control,  self.udp_interface,   self.user_interface)
-        self.stimulation_control.runStimulation()
+        self.stimulation_control = visual_stimulation.stimulation_control.StimulationControl(self, self.config,  self.user_interface)
+        self.command_handler =  visual_stimulation.command_handler.CommandHandler(self.config,  self.stimulation_control,  self.user_interface, self)
+        self.tcpip_listener = hardware_interface.udp_interface.TcpipListener(args=(self.config, self))
+        self.tcpip_listener.start()
+        self.abort=False
+        self.command_buffer = []
+        self.selected_experiment_config.pre_runnable.run()
+        self.state='idle'
+       # self.stimulation_control.runStimulation() #ez itt miert van hiva?
 
     def run(self):
         '''
         Run application. Check for commands coming from either keyboard or network. Command is parsed and handled by command handler
         '''        
-        if self.config.RUN_MODE == 'single experiment':
-                self.stimulation_control.runStimulation()
-        elif self.config.RUN_MODE == 'user interface':
-                while True:
-                    #check command interfaces:
-                    command_buffer = self.user_interface.user_interface_handler()
-                    udp_command =  self.udp_interface.checkBuffer()
-                    if udp_command != '':
-                        self.udp_interface.send(udp_command + ' OK') 
-                    command_buffer = command_buffer + udp_command
-                    #parse commands
-                    res = self.command_handler.parse(self.stimulation_control.state,  command_buffer)            
-                    if res != 'no command executed':
-                        self.user_interface.user_interface_handler(res)
-                        if self.config.ENABLE_PRE_EXPERIMENT:
-                            #rerun pre experiment
-                            self.stimulation_control.runStimulation(self.config.PRE_EXPERIMENT)
-                        if res == 'quit':
-                            self.user_interface.close()
-                            break
-        else:
-            print 'invalid run mode'
+        while self.abort==False:
+            # run the Pre class of the currently selected experiment
+            if self.state =='new_stimulus' and hasattr(self.selected_experiment_config, 'pre_runnable') and self.selected_experiment_config.pre_runnable is not None:
+                self.state= 'idle'
+                self.selected_experiment_config.pre_runnable.run()
+            else:
+                if len(self.command_buffer)>0:
+                    result = self.command_handler.parse(self.command_buffer[0]) # parse 1 item at once, tcpip can add more during processing but this should be safe since we always use the first element here
+                    del self.command_buffer[0]
+                time.sleep(0.1)
+        self.user_interface.close()
+        print 'run ended'
     
 def find_out_config():
     '''

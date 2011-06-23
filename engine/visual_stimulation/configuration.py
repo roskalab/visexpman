@@ -77,19 +77,20 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         
         #commands (including commands which are accepted only from udp interface)
-        CMD_START = 's'        
-        CMD_BULLSEYE = 'b'
-        CMD_QUIT = 'q'
-        CMD_SEND_FILE = 't'
-        CMD_SET_STIMULUS_FILE_START = '<'
-        CMD_SET_STIMULUS_FILE_END = '>'
-        CMD_GET_LOG = 'g'
-        CMD_CLEAR_LOG = 'l' # This command shall not be used because log file gets corrupted
-        CMD_SET_MEASUREMENT_ID = 'i'
-        CMD_START_TEST = 'y'
-        CMD_SET_BACKGROUND_COLOR = 'c'
-        CMD_NEXT_SEGMENT = 'n'
-        CMD_ABORT_STIMULUS = 'a'
+        COMMANDS = {'s':'start_stimulation',    
+        'b':'bullseye', 
+        'q':'quit', 
+        't':'send_file', 
+        '<':'set_stimulus_file_start', 
+        '>':'set_stimulus_file_end', 
+        'g':'get_log', 
+        'l':'clear_log',  # This command shall not be used because log file gets corrupted
+        'm':'toggle_menu', 
+        'i':'set_measurement_id', 
+        'y':'start_test', 
+        'c':'set_background_color', 
+        'n':'next_segment', 
+        'a':'abort_stimulus'}
         
         #debug
         ENABLE_FRAME_CAPTURE = False
@@ -110,7 +111,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         MENU_TEXT = \
             's - start stimulus\nb - bullseye\n<filename> - load filename stimulus\nq - quit'
-        KEYS = [[CMD_START,  CMD_BULLSEYE,  CMD_QUIT,  CMD_START_TEST],  None] #valid key commands
+        KEYS = [['s', 'b', '','q'],  None] #valid key commands
         MAX_MESSAGE_LENGTH = [200,  [10,  1000]] #length of message displayed on screen
 
         #example config

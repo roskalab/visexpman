@@ -1,5 +1,45 @@
 import socket
+import threading
+import sys
 
+class TcpipListener(threading.Thread):
+    '''Listens to tcpip messages and parses them'''
+    def __init__(self, group=None, target=None, name=None,
+                 args=(), kwargs=None, verbose=None):
+        threading.Thread.__init__(self, group=group, target=target, name=name,
+                                  verbose=verbose)
+        self.config = args[0]
+        self.runner = args[1]
+        self.setDaemon(True)
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # Bind the socket to the port
+        server_address = ('localhost', 10000)
+        self.socket.bind(server_address)
+        return
+        
+    def run(self):
+        self.socket.listen(1)
+        while True:
+            connection, client_address = self.socket.accept()
+            try:
+                # Receive the data in small chunks
+                data = ''
+                while True:
+                    newdata = connection.recv(16)
+                    data = data+newdata
+                    if len(newdata)==0:
+                        print >>sys.stderr, 'received "%s"' % data
+                        #while self.runner.state !='idle':
+                          #  time.sleep(0.3) # do not put data into buffer while processing buffer contents, even if it is 
+                        self.runner.command_buffer.append(data) # append to list is thread safe
+                        break
+            except Exception as e:
+                print e
+                pass
+            finally:
+                # Clean up the connection
+                connection.close()
+            
 class UdpInterface():
     """
     Udp server instance. This class handles all the UDP related communications (including sending/receiving files)

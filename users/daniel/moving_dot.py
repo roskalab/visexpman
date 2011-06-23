@@ -7,8 +7,10 @@ import Image
 import numpy
 from visexpman.engine.visual_stimulation import experiment
 from visexpman.engine.generic import utils
+from visexpman.engine.visual_stimulation import stimulation_library as stl
 #import visexpman.engine.generic.configuration
 #import visexpman.engine.generic.utils
+import time
 
 class MovingDotConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
@@ -34,12 +36,18 @@ class MovingDotConfig(experiment.ExperimentConfig):
 class MovingDotPre(experiment.PreExperiment):    
     def run(self):
         #calls to stimulation library
+        print 'pre running'
+        time.sleep(0.2)
         pass
 
 class MovingDot(experiment.Experiment):
-    
-    def run(self):
-        dot_sizes, dot_positions = self.prepare()
+    def __init__(self, experiment_config):
+        experiment.Experiment.__init__(self, experiment_config)
+        self.prepare()
+        
+    def run(self, stl):
+        for dot_row_col in self.row_col:
+            stl.show_dots(self.diameter_pix, dot_row_col, self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
         pass
 
     def prepare(self):
@@ -47,13 +55,14 @@ class MovingDot(experiment.Experiment):
         # keep all repetitions in the same recording
         angleset = numpy.sort(numpy.unique(self.experiment_config.ANGLES))
         diameter_pix = utils.retina2screen(self.experiment_config.DIAMETER_UM,machine_config=self.experiment_config.machine_config,option='pixels')
+        self.diameter_pix = diameter_pix
         speed_pix = utils.retina2screen(self.experiment_config.SPEED,machine_config=self.experiment_config.machine_config,option='pixels')
         gridstep_pix = numpy.floor(self.experiment_config.GRIDSTEP*diameter_pix)
         movestep_pix = speed_pix/self.experiment_config.machine_config.SCREEN_EXPECTED_FRAME_RATE
         h=self.experiment_config.machine_config.SCREEN_RESOLUTION['row']#monitor.resolution.height
         w=self.experiment_config.machine_config.SCREEN_RESOLUTION['col']#monitor.resolution.width
         hlines_r,hlines_c = numpy.meshgrid(numpy.arange(numpy.ceil(diameter_pix/2), w-numpy.ceil(diameter_pix/2),gridstep_pix),  
-            numpy.arange(-diameter_pix, h+diameter_pix, movestep_pix))
+            numpy.arange(-diameter_pix, h+diameter_pix+0.1, movestep_pix))
         vlines_c,vlines_r = numpy.meshgrid(numpy.arange(numpy.ceil(diameter_pix/2), h-numpy.ceil(diameter_pix/2),gridstep_pix), 
             numpy.arange(-diameter_pix, w+diameter_pix, movestep_pix))
         # we go along the diagonal from origin to bottom right and take perpicular diagonals' starting
@@ -81,22 +90,25 @@ class MovingDot(experiment.Experiment):
         # from left to right.
         #ANGLES = 0:45:315
         #screen('closeall')
+        arow_col = []
         for a in range(len(angleset)):
+            arow_col.append([])
             for b in range(nblocks):
+                arow_col[a].append([])
                 # subsample the trajectories keeping only every nblocks'th line
                 if numpy.any(angleset[a]==[0,90,180,270]):
                     if numpy.any(angleset[a]==[90,270]):
-                        vr = vlines_r[:,b:-1, nblocks] 
-                        vc=vlines_c[:,b:-1, nblocks]
+                        vr = vlines_r[:,b::nblocks] 
+                        vc=vlines_c[:,b::nblocks]
                         if angleset[a]==270: # swap coordinates
-                            vr = vr[0:-1:1] 
-                            vc = vc[0:1:-1]
+                            vr = vr[-1::-1] 
+                            vc = vc[-1::-1]
                     elif numpy.any(angleset[a]==[0,180]): # dots run horizontally
-                        vr = hlines_r[:,b:-1:nblocks]
-                        vc= hlines_c[:,b:-1:nblocks]
+                        vr = hlines_r[:,b::nblocks]
+                        vc= hlines_c[:,b::nblocks]
                         if angleset[a]==180:
-                            vr = vr[0:1:-1]
-                            vc = vc[0:1:-1]
+                            vr = vr[-1::-1]
+                            vc = vc[-1::-1]
                     # try to balance the dot run lengths (in case of multiple dots) so that most of the time the number of dots on screen is constant        
                     
                     segm_length = vr.shape[0]/self.experiment_config.NDOTS #length of the trajectory 1 dot has to run in the stimulation segment
@@ -104,30 +116,31 @@ class MovingDot(experiment.Experiment):
                     #partsep = [zeros(1,self.experiment_config.NDOTS),size(vr,2)]
                     partsep = range(0 , vr.shape[0], numpy.ceil(segm_length))
                     if len(partsep)<self.experiment_config.NDOTS+1:
-                        partsep[self.experiment_config.NDOTS+1]= vr.shape[0]
-                    for d1 in range(1, self.experiment_config.NDOTS+1):
-                        # check here: allocation needed
-                        dots_line_i[d1-1] = range(partsep[d1-1]+1, partsep[d1])
+                        partsep.append(vr.shape[1])
+                    dots_line_i = [range(partsep[d1-1], partsep[d1]) for d1 in range(1, self.experiment_config.NDOTS+1)]
+                    drc=[]
                     for s1 in range(self.experiment_config.NDOTS): #each dot runs through a full line
                         dl = numpy.prod(vr[:,dots_line_i[s1]].shape)
-                        drc[s1] = [numpy.reshape(vr[:,dots_line_i[s1]],[1,dl]), 
-                            numpy.reshape(vc[:,dots_line_i[s1]],[1,dl])]
+                        drc.append(numpy.r_[numpy.reshape(vr[:,dots_line_i[s1]],[1,dl]), 
+                            numpy.reshape(vc[:,dots_line_i[s1]],[1,dl])])
                         if s1>1 and dl < len(drc[s1-1]): # a dot will run shorter than the others
-                            drc[s1] = [drc[s1],-diameter_pix*numpy.ones(2,len(drc[s1-1])-dl)] # complete with coordinate outside of the screen
+                        # the following line was not tested in python (works in matlab)
+                            drc[s1] = numpy.c_[drc[s1],-diameter_pix*numpy.ones(2,len(drc[s1-1])-dl)] # complete with coordinate outside of the screen
                 else:
                     row_col_f,linelengths_f = diagonal_tr(angleset[a],diameter_pix,gridstep_pix,movestep_pix,w,h)
-                    row_col =row_col_f[b:-1:nblocks]
-                    linelengths = linelengths_f[b:-1: nblocks]
+                    row_col =row_col_f[b::nblocks]
+                    linelengths = linelengths_f[b:: nblocks]
                     segm_len = linelengths.sum()/self.experiment_config.NDOTS
                     cl =numpy.cumsum(linelengths)
-                    partsep = [numpy.zeros(1,self.experiment_config.NDOTS),len(linelengths)]
-                    for d1 in range(1, self.experiment_config.NDOTS):
-                        partsep[d1] = numpy.argmin(numpy.abs(cl-(d1-1)*segm_len))
-                        dots_line_i[d1-1] = range(partsep[d1-1]+1,partsep[d1])
+                    partsep = numpy.c_[numpy.zeros((1,self.experiment_config.NDOTS)),len(linelengths)].T
+                    for d1 in range(1, self.experiment_config.NDOTS+1):
+                        partsep[d1] = numpy.argmin(numpy.abs(cl-(d1)*segm_len))
+                        dots_line_i[d1-1] = range(partsep[d1-1],partsep[d1]+1)
                     while 1:
-                        for d1 in range(1, self.experiment_config.NDOTS):
-                            drc[d1-1]=[row_col[dots_line_i[d1-1]]]
-                            part_len[d1-1] = sum(linelengths(dots_line_i[d1-1]))
+                        part_len = []
+                        for d1 in range(1, self.experiment_config.NDOTS+1):
+                            drc[d1-1]=numpy.vstack(row_col[dots_line_i[d1-1]]).T
+                            part_len.append(sum(linelengths[dots_line_i[d1-1]]))
                         si = numpy.argmin(part_len) # shortest dot path
                         li = numpy.argmax(part_len) # longest dot path
                         takeable_i = dots_line_i[li]
@@ -141,28 +154,29 @@ class MovingDot(experiment.Experiment):
                             dots_line_i[si] = numpy.c_[dots_line_i[si],  taken_line_i]
                         else:
                             break
+                    ml=[]
                     for s1 in range(self.experiment_config.NDOTS): #each dot runs through a full line
-                        drc[s1]=[row_col[dots_line_i[s1]]]
-                        ml[s1] = len(drc[s1])
+                        drc[s1]= numpy.vstack(row_col[dots_line_i[s1]]).T#row_col[dots_line_i[s1]]
+                        ml.append(len(drc[s1]))
                     for s1 in range(self.experiment_config.NDOTS):
                         if len(drc[s1])<max(ml): # a dot will run shorter than the others
                             drc[s1] = numpy.c_[drc[s1],-diameter_pix*numpy.ones(2,max(ml)-len(drc[s1]))] # complete with coordinate outside of the screen
-                arow_col[b,a] = drc
-        row_col = []
-        angle_end = []
-        block_end = []
+                arow_col[a][b] = drc
+        self.row_col = []
+        self.angle_end = []
+        self.block_end = []
+        # create a list of coordinates where dots have to be shown, note when a direction subblock ends, and when a block ends (in case the stimulus has to be split into blocks due to recording duration limit)
         for b in range(nblocks):
             for a1 in range(len(allangles)):
                 cai = numpy.where(angleset==allangles[a1])[0]
-                for f in range(len(arow_col[b,cai][0])):
+                for f in range(arow_col[cai][b][0].shape[1]):
                     coords = []
                     for n in range(self.experiment_config.NDOTS):
-                        coords.append(arow_col[b,cai][n][:,f])
-                    row_col.append(coords)
-                
-                angle_end.append(len(row_col))
-            block_end.append(row_col)
-
+                        coords.append(arow_col[cai][b][n][:,f])
+                    self.row_col.append(utils.rc(numpy.array(coords)))
+                self.angle_end.append(len(self.row_col))
+            self.block_end.append(len(self.row_col))
+    
 def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
     ''' Calculates positions of the dot(s) for each movie frame along the lines dissecting the screen at 45 degrees'''
     cornerskip = numpy.ceil(diameter_pix/2)+diameter_pix
@@ -233,7 +247,7 @@ def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
                 #axis([1-diameter_pix,w+diameter_pix,1-diameter_pix,h+diameter_pix])axis ij #plot in PTB's coordinate system
             dlines.append(numpy.c_[aline_col, aline_row])
     row_col = dlines
-    return row_col,dlines_len
+    return numpy.array(row_col),numpy.array(dlines_len) #using array instead of list enables fancy indexing of elements when splitting lines into blocks
         
 def getpermlist(veclength,RANDOMIZE):
     if veclength > 256:
@@ -294,7 +308,47 @@ class MovingDotTestConfig(experiment.ExperimentConfig):
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
         self._create_parameters_from_locals(locals())
 
+def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):
+    '''This method is intended to be run as a thread and sends multiple message-parameter pairs. 
+    Between sending individual message-parameter pairs, we wait pause_before amount of time. This can be used to allow remote side do its processing.'''
+    import socket
+    import struct
+#    l_onoff = 1                                                                                                                                                           
+  #  l_linger = 0                                                                                                                                                          
+    #sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,                                                                                                                     
+      #           struct.pack('ii', l_onoff, l_linger))
+    # Send data
+    for i in range(len(messages)):
+        while vs_runner.state !='idle':
+            time.sleep(0.2)
+        time.sleep(pause_before[i])
+        print 'slept ' + str(pause_before[i])
+        try:
+            sock = socket.create_connection(('localhost', 10000))
+            sock.sendall('SOC'+messages[i]+'EOC'+parameters[i]+'EOP')
+        except Exception as e:
+            print e
+        finally:  
+            sock.close()
+        
+    return
+
+def run_stimulation(vs):
+    vs.run()
+    
 if __name__ == '__main__':
     import visexpman
+    import threading
     from visexpman.engine.run_visual_stimulation import VisualStimulation
-    VisualStimulation('MBP', 'daniel').run()
+    vs_runner = VisualStimulation('MBP', 'daniel')
+    messages = ['start_stimulation']
+    parameters = ['']
+    pause_before = [1, 2]
+    sender = threading.Thread(target=send_tcpip_sequence, args=(vs_runner, messages, parameters, pause_before))
+    sender.setDaemon(True)
+    sender.start()
+    vs_runner.run()
+#    runner = threading.Thread(target=run_stimulation, args=(vs_runner, ))
+#    runner.setDaemon(True)
+#    runner.start()
+    pass

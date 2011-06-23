@@ -30,13 +30,13 @@ class StimulationControl():
     '''
     StimulationControl handles stimulation sequences, generating TTL triggers and log stimulation events with timestamps
     '''
-    def __init__(self, visual_stimulation_runner, config, user_interface,  udp_interface):
+    def __init__(self, visual_stimulation_runner, config, user_interface):
         
         self.visual_stimulation_runner = visual_stimulation_runner
         self.config = config
         self.stimulation_file = ''            
         self.user_interface = user_interface
-        self.udp_interface = udp_interface
+        #self.udp_interface = udp_interface
         if self.config.ENABLE_PARALLEL_PORT:
             import parallel
             try:
@@ -75,15 +75,6 @@ class StimulationControl():
             self.filterwheels = []
             for i in range(len(self.config.FILTERWHEEL_SERIAL_PORT)):
                 self.filterwheels.append(generic.Instrument.Filterwheel(self.config,  id = i))
-        
-    def abort_stimulus(self):
-        '''
-        Checks if there is a request for aborting the running stimulation
-        '''        
-        if self.udp_interface.isAbortReceived() or self.user_interface.isAbortPressed():
-            return True
-        else:
-            return False
             
     def is_next_pressed(self):
         return self.user_interface.is_next_pressed()
@@ -138,7 +129,7 @@ class StimulationControl():
         if hasattr(self.visual_stimulation_runner, 'selected_experiment_config') and hasattr(self.visual_stimulation_runner.selected_experiment_config, 'run'):
             #save log file index which is the current size of log file
             self.log_file_index = len(utils.read_text_file(self.logfile_path))
-            self.state = 'stimulation'
+            self.visual_stimulation_runner.state = 'stimulation'
             
             psychopy.log.data('Measurement ID: ' + self.measurement_id)
 
@@ -148,7 +139,7 @@ class StimulationControl():
             self.stimulation_start_time = time.time()
             if hasattr(self.visual_stimulation_runner.selected_experiment_config, 'pre_runnable') and self.visual_stimulation_runner.selected_experiment_config.pre_runnable is not None:
                 self.visual_stimulation_runner.selected_experiment_config.pre_runnable.run()
-            self.visual_stimulation_runner.selected_experiment_config.run()
+            self.visual_stimulation_runner.selected_experiment_config.run(self.st)
             psychopy.log.data(log_string)            
                 
             if self.config.ENABLE_PARALLEL_PORT:
@@ -178,7 +169,7 @@ class StimulationControl():
                         f.close()
 
             self.zip_py_files(zip_path,  self.config.BASE_PATH, log)
-            self.state = 'idle'
+            self.visual_stimulation_runner.state = 'idle'
         else:
             raise AttributeError('Stimulus config class does not have a run method?')
 

@@ -12,11 +12,11 @@ class ExperimentConfig(Config):
         else: 
             self.runnable= utils.fetch_classes('visexpman.users.'+self.machine_config.user, classname = self.runnable,  classtype = visexpman.engine.visual_stimulation.experiment.Experiment)[0][1](self) # instantiates the code that will run the actual stimulation
             self.pre_runnable = utils.fetch_classes('visexpman.users.'+self.machine_config.user, classtype = visexpman.engine.visual_stimulation.experiment.PreExperiment)[0][1](self) # instantiates the code that will run the actual stimulation
-    def run(self):
+    def run(self, stl):
         if self.runnable == None:
             raise ValueError('Specified stimulus class is not instantiated.')
         else:
-            self.runnable.run()
+            self.runnable.run(stl)
     
     
 
@@ -33,7 +33,7 @@ class Experiment():
 
 class PreExperiment(Experiment):
     '''
-    The run method of this experiment will be called prior the experiment to provide some initial stimulus while the experimental setup is being set up
+    The run method of this experiment will be called prior the experiment to provide some initial stimulus while the experimental setup is being set up.
     '''
     pass
     

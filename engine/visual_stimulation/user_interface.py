@@ -83,7 +83,7 @@ class UserInterface():
         """        
         keys_pressed = psychopy.event.getKeys(self.accepted_keys)
         if len(keys_pressed) > 0:
-            command = keys_pressed[0]
+            command = 'SOC'+self.config.COMMANDS[keys_pressed[0]]+'EOC' #replace pressed key with command from command lookup table defined for the machine running the user interface
         else:
             command = ''
             
