@@ -70,7 +70,7 @@ class Screen(object):
         
         self.scale_screen()
         
-        self.initialize_lighting()
+        self.initialization()
         
     def create_screen(self):
         '''
@@ -105,9 +105,10 @@ class Screen(object):
             run_loop = True
             while run_loop:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+
                 #default view is set
                 self.set_view((0, 0, 0),  0, 0, 0)
-                #glDisable(GL_LIGHTING) if light is enabled
+                #glDisable(GL_LIGHTING) if light is enabled               
                 self.render_before_set_view()
                 self.set_view(self.position,  self.heading,  self.roll, self.pitch)
                 self.draw_scene()
@@ -176,7 +177,7 @@ class Screen(object):
     def set_view(self, position,  heading,  roll, pitch):
         '''
         Sets viewing by translating and rotating model.
-        '''
+        '''        
         glMatrixMode (GL_MODELVIEW)
         glLoadIdentity()
         glRotatef(roll,  0.0, 0.0, 1.0)
@@ -184,7 +185,7 @@ class Screen(object):
         glRotatef(heading, 0.0, 1.0, 0.0)
         glTranslatef(position[0],  position[1],  position[2])
         
-    def initialize_lighting(self):
+    def initialization(self):
         pass
         
     def render_text(self, text, color = (1.0,  1.0,  1.0), position = (0.0, 0.0)):
@@ -248,7 +249,7 @@ class Screen(object):
         Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels).save(path)        
         
     #Placeholder functions that user can overdefine
-    def render_before_set_view(self):
+    def render_before_set_view(self):        
         #placeholder for graphics items that shall not be translated or rotated by user when viewport is adjusted
         pass
         
@@ -268,7 +269,7 @@ class Screen(object):
     def keyboard_handler(self, key_pressed):
         '''
         Watches keyboard and modifies position, heading, roll and pitch of model
-        '''
+        '''        
         if key_pressed == 'up':
             self.position[1] = self.position[1] + self.position_step
         elif key_pressed == 'down':
