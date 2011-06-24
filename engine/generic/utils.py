@@ -521,6 +521,15 @@ def coordinate_transform_single_point(point, origo, axis_direction):
 class testCoordinateTransformation(unittest.TestCase):
     pass
 
+def in_range(number,  range1,  range2):
+    if range1 < range2:
+        if number >= range1 and number <= range2:
+            return True        
+    else:
+        if number >= range2 and number <= range1:
+            return True
+    return False
+
 if __name__ == "__main__":
 #    unittest.main()
     a = [1.0, 2.0, 3.0]

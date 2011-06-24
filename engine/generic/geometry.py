@@ -1,5 +1,6 @@
 import numpy
 import unittest
+import utils
 #def point_inside_polygon(point, polygon):
 
 def angle_between_vectors(v1, v2):
@@ -57,22 +58,48 @@ def is_point_in_polygon(point, polygon):
 # plane:
     pass
 
-def line_segment_intersection(line1_point, line1_direction, line1_range, line2_point, line2_direction, line2_range):
+def line_segment_ray_intersection(line_point1, line_point2, ray_point, ray_direction):
+    line_point = line_point1
+    line_direction = line_point1 - line_point2
+    intersection_exists, intersection = line_intersection(line_point, line_direction, ray_point, ray_direction)    
+    if intersection_exists:
+        ray_range = []
+        #determine ranges for checking if intersection of line is on the ray and line segment.
+        #range is set to -inf if ray_direction is less than 0, otherwise inf
+        for component in ray_direction:
+            if component > 0:
+                ray_range.append(float('inf'))
+            else:
+                ray_range.append(float('-inf'))
+                
+        if utils.in_range(intersection[0], ray_point[0], ray_range[0]) and\
+        utils.in_range(intersection[1], ray_point[1], ray_range[1]) and\
+        utils.in_range(intersection[2], ray_point[2], ray_range[2]):            
+            return intersection_exists, intersection
+        else:
+            return False, None
+        
+    else:
+        return False, None
+
+def line_segment_intersection(line1_point1, line1_point2, line2_point1, line2_point2):
     '''
     line range: 2x3 numpy array, each row is the min,max pair on one axis
     '''
+    line1_point = line1_point1
+    line1_direction = line1_point1 - line1_point2
+    line2_point = line2_point1
+    line2_direction = line2_point1 - line2_point2
     intersection_exists, intersection = line_intersection(line1_point, line1_direction, line2_point, line2_direction)
-    if intersection[0] >= line1_range[0, 0] and intersection[0] <= line1_range[0, 1] and \
-    intersection[0] >= line2_range[0, 0] and intersection[0] <= line2_range[0, 1] and \
-    intersection[1] >= line1_range[1, 0] and intersection[1] <= line1_range[1, 1] and \
-    intersection[1] >= line2_range[1, 0] and intersection[1] <= line2_range[1, 1] and \
-    intersection[2] >= line1_range[2, 0] and intersection[2] <= line1_range[2, 1] and \
-    intersection[2] >= line2_range[2, 0] and intersection[2] <= line2_range[2, 1]:
-        return intersection_exists, intersection
+    if intersection_exists:
+        if utils.in_range(intersection[0], line1_point1[0], line1_point2[0]) and\
+        utils.in_range(intersection[1], line1_point1[1], line1_point2[1]) and\
+        utils.in_range(intersection[2], line1_point1[2], line1_point2[2]):
+            return intersection_exists, intersection
+        else:
+            return False, None
     else:
-        return False, intersection
-    
-    
+        return False, None
     
 def line_intersection(line1_point, line1_direction, line2_point, line2_direction):
     '''
@@ -90,7 +117,6 @@ def line_intersection(line1_point, line1_direction, line2_point, line2_direction
         A = numpy.matrix([[line1_direction[0], -line2_direction[0]], [line1_direction[1], -line2_direction[1]]])
         b = numpy.matrix([line2_point[0] - line1_point[0], line2_point[1] - line1_point[1]])
         result = numpy.linalg.inv(A) * b.transpose()
-#        print type(result),  result[0][0]
         result = numpy.asarray(result).reshape(-1)
         z1 = line1_point[2] + line1_direction[2] * result[0]
         z2 = line2_point[2] + line2_direction[2] * result[1]        
@@ -99,9 +125,8 @@ def line_intersection(line1_point, line1_direction, line2_point, line2_direction
         else:
             intersection_exists = True        
             x = line1_point[0] + line1_direction[0] * result[0]
-            y = line1_point[1] + line1_direction[1] * result[1]
-            intersection = numpy.array([x, y, z1])
-#            print x, y, z1, z2, result
+            y = line1_point[1] + line1_direction[1] * result[0]
+            intersection = numpy.array([x, y, z1])            
     return intersection_exists, intersection
     
 def are_vectors_parallel(v1, v2):
@@ -175,9 +200,77 @@ class testGeometry(unittest.TestCase):
                  'line1_direction': numpy.array([1.0, 1.0, 0.0]), 
                  'line2_direction': numpy.array([1.0, 0.0, 0.0]), 
                  'result' : (True,  numpy.array([1.0, 1.0, 0.0]))
+                 }, 
+                {
+                 'line1_point': numpy.array([0.0, 0.0, 1.0]), 
+                 'line2_point': numpy.array([0.0, 1.0, 1.0]), 
+                 'line1_direction': numpy.array([1.0, 1.0, 0.0]), 
+                 'line2_direction': numpy.array([1.0, 0.0, 0.0]), 
+                 'result' : (True,  numpy.array([1.0, 1.0, 1.0]))
+                 }, 
+                {
+                 'line1_point': numpy.array([0.0, 4.0, 3.0]), 
+                 'line2_point': numpy.array([0.0, 0.0, 3.0]), 
+                 'line1_direction': numpy.array([5.0, -4.0, -3.0]), 
+                 'line2_direction': numpy.array([5.0, 4.0, -3.0]), 
+                 'result' : (True,  numpy.array([2.5, 2.0, 1.5]))
+                 }, 
+                 {
+                 'line1_point': numpy.array([0.0, 4.0, 3.0]), 
+                 'line2_point': numpy.array([0.0, 0.0, 3.0]), 
+                 'line1_direction': numpy.array([5.0, -4.0, -3.0]), 
+                 'line2_direction': numpy.array([5.0, 4.0, 3.0]), 
+                 'result' : (False,  None)
+                 }, 
+                 {
+                 'line1_point': numpy.array([0.0, 0.0, 0.0]), 
+                 'line2_point': numpy.array([0.0, 0.0, 1.0]), 
+                 'line1_direction': numpy.array([0.0, 0.0, -1.0]), 
+                 'line2_direction': numpy.array([0.0, 0.0, 0.0]), 
+                 'result' : (False,  None)
+                 }, 
+                 {
+                 'line1_point1': numpy.array([0.0, 0.0, 0.0]), 
+                 'line1_point2': numpy.array([1.0, 1.0, 0.0]), 
+                 'line2_point1': numpy.array([1.0, 0.0, 0.0]), 
+                 'line2_point2': numpy.array([0.0, 1.0, 0.0]), 
+                 'result' : (True, numpy.array([0.5, 0.5, 0.0]))
+                 }, 
+                 {
+                 'line1_point1': numpy.array([0.0, 0.0, 0.0]), 
+                 'line1_point2': numpy.array([0.0, 1.0, 0.0]), 
+                 'line2_point1': numpy.array([-0.5, 0.0, 0.0]), 
+                 'line2_point2': numpy.array([0.5, 0.0, 0.0]), 
+                 'result' : (True, numpy.array([0.0, 0.0, 0.0]))
+                 }, 
+                 {
+                 'line1_point1': numpy.array([0.0, 0.0, 0.0]), 
+                 'line1_point2': numpy.array([1.0, 0.0, 0.0]), 
+                 'line2_point1': numpy.array([2.0, 0.0, 0.0]), 
+                 'line2_point2': numpy.array([2.0, 1.0, 0.0]), 
+                 'result' : (False, None)
+                 }, 
+                 {
+                 'line1_point1': numpy.array([0.0, 0.0, 0.0]), 
+                 'line1_point2': numpy.array([1.0, 0.0, 0.0]), 
+                 'line2_point1': numpy.array([2.0, 0.0, 0.0]), 
+                 'line2_point2': numpy.array([3.0, 0.0, 0.0]), 
+                 'result' : (False, None)
+                 }, 
+                 {
+                 'line_point1': numpy.array([0.0, 0.0, 0.0]), 
+                 'line_point2': numpy.array([1.0, 0.0, 0.0]), 
+                 'ray_point': numpy.array([0.5, 0.5, 0.0]), 
+                 'ray_direction': numpy.array([0.0, -1.0, 0.0]), 
+                 'result' : (True, numpy.array([0.5, 0.0, 0.0]))
+                 }, 
+                 {
+                 'line_point1': numpy.array([0.0, 0.0, 0.0]), 
+                 'line_point2': numpy.array([1.0, 0.0, 0.0]), 
+                 'ray_point': numpy.array([0.5, 0.5, 0.0]), 
+                 'ray_direction': numpy.array([0.0, 1.0, 0.0]), 
+                 'result' : (False, None)
                  }
-
-
                  ]
     
     
@@ -220,6 +313,56 @@ class testGeometry(unittest.TestCase):
         case = 7
         result = line_intersection( self.__class__.test_data[case]['line1_point'],  self.__class__.test_data[case]['line1_direction'], self.__class__.test_data[case]['line2_point'],  self.__class__.test_data[case]['line2_direction'])
         self.assertEqual((result[0], result[1][0], result[1][1], result[1][2]), (self.__class__.test_data[case]['result'][0], self.__class__.test_data[case]['result'][1][0], self.__class__.test_data[case]['result'][1][1], self.__class__.test_data[case]['result'][1][2]))        
+        
+    def test_08_lines_intersecting(self):
+        case = 8
+        result = line_intersection( self.__class__.test_data[case]['line1_point'],  self.__class__.test_data[case]['line1_direction'], self.__class__.test_data[case]['line2_point'],  self.__class__.test_data[case]['line2_direction'])
+        self.assertEqual((result[0], result[1][0], result[1][1], result[1][2]), (self.__class__.test_data[case]['result'][0], self.__class__.test_data[case]['result'][1][0], self.__class__.test_data[case]['result'][1][1], self.__class__.test_data[case]['result'][1][2]))        
+
+    def test_09_lines_intersecting(self):
+        case = 9
+        result = line_intersection( self.__class__.test_data[case]['line1_point'],  self.__class__.test_data[case]['line1_direction'], self.__class__.test_data[case]['line2_point'],  self.__class__.test_data[case]['line2_direction'])
+        self.assertEqual((result[0], result[1][0], result[1][1], result[1][2]), (self.__class__.test_data[case]['result'][0], self.__class__.test_data[case]['result'][1][0], self.__class__.test_data[case]['result'][1][1], self.__class__.test_data[case]['result'][1][2]))        
+
+    def test_10_lines_not_intersecting(self):
+        case = 10
+        result = line_intersection( self.__class__.test_data[case]['line1_point'],  self.__class__.test_data[case]['line1_direction'], self.__class__.test_data[case]['line2_point'],  self.__class__.test_data[case]['line2_direction'])
+        self.assertEqual(result, self.__class__.test_data[case]['result'])
+        
+    def test_11_lines_not_intersecting(self):
+        case = 11
+        result = line_intersection( self.__class__.test_data[case]['line1_point'],  self.__class__.test_data[case]['line1_direction'], self.__class__.test_data[case]['line2_point'],  self.__class__.test_data[case]['line2_direction'])
+        self.assertEqual(result, self.__class__.test_data[case]['result'])
+        
+    def test_12_line_segments_intersecting(self):
+        case = 12
+        result = line_segment_intersection( self.__class__.test_data[case]['line1_point1'], self.__class__.test_data[case]['line1_point2'], self.__class__.test_data[case]['line2_point1'], self.__class__.test_data[case]['line2_point2'])
+        self.assertEqual((result[0], result[1][0], result[1][1], result[1][2]), (self.__class__.test_data[case]['result'][0], self.__class__.test_data[case]['result'][1][0], self.__class__.test_data[case]['result'][1][1], self.__class__.test_data[case]['result'][1][2]))        
+        
+    def test_13_line_segments_intersecting(self):
+        case = 13
+        result = line_segment_intersection( self.__class__.test_data[case]['line1_point1'], self.__class__.test_data[case]['line1_point2'], self.__class__.test_data[case]['line2_point1'], self.__class__.test_data[case]['line2_point2'])
+        self.assertEqual((result[0], result[1][0], result[1][1], result[1][2]), (self.__class__.test_data[case]['result'][0], self.__class__.test_data[case]['result'][1][0], self.__class__.test_data[case]['result'][1][1], self.__class__.test_data[case]['result'][1][2]))        
+
+    def test_14_line_segments_not_intersecting(self):
+        case = 14
+        result = line_segment_intersection( self.__class__.test_data[case]['line1_point1'], self.__class__.test_data[case]['line1_point2'], self.__class__.test_data[case]['line2_point1'], self.__class__.test_data[case]['line2_point2'])
+        self.assertEqual(result, self.__class__.test_data[case]['result'])
+        
+    def test_15_line_segments_not_intersecting(self):
+        case = 15
+        result = line_segment_intersection( self.__class__.test_data[case]['line1_point1'], self.__class__.test_data[case]['line1_point2'], self.__class__.test_data[case]['line2_point1'], self.__class__.test_data[case]['line2_point2'])
+        self.assertEqual(result, self.__class__.test_data[case]['result'])
+        
+    def test_16_line_segment_ray_intersecting(self):
+        case = 16
+        result = line_segment_ray_intersection( self.__class__.test_data[case]['line_point1'], self.__class__.test_data[case]['line_point2'], self.__class__.test_data[case]['ray_point'], self.__class__.test_data[case]['ray_direction'])
+        self.assertEqual((result[0], result[1][0], result[1][1], result[1][2]), (self.__class__.test_data[case]['result'][0], self.__class__.test_data[case]['result'][1][0], self.__class__.test_data[case]['result'][1][1], self.__class__.test_data[case]['result'][1][2]))        
+
+    def test_17_line_segment_ray_not_intersecting(self):
+        case = 17
+        result = line_segment_ray_intersection( self.__class__.test_data[case]['line_point1'], self.__class__.test_data[case]['line_point2'], self.__class__.test_data[case]['ray_point'], self.__class__.test_data[case]['ray_direction'])
+        self.assertEqual(result, self.__class__.test_data[case]['result'])        
 
 if __name__ == "__main__":
     unittest.main()
@@ -229,7 +372,7 @@ if __name__ == "__main__":
                  'line2_point': numpy.array([1.0, 0.0, 0.0]), 
                  'line1_direction': numpy.array([1.0, 1.0, 0.0]), 
                  'line2_direction': numpy.array([0.0, 1.0, 0.0]), 
-                 'result' : (True,  numpy.array([1.0, 2.0, 0.0]))                 
+                 'result' : (True,  numpy.array([1.0, 2.0, 0.0]))              
                  }
                  
                  
