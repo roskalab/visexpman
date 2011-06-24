@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project visexpman -->
-<!-- Saved: 2011-06-24, 09:20:11 -->
+<!-- Saved: 2011-06-24, 18:07:43 -->
 <!-- Copyright (C) 2011 Zoltan Raics, zoltan.raics@fmi.ch -->
 <Project version="4.6">
   <Language>en</Language>
@@ -65,6 +65,10 @@
     <Source>engine/run_vr_optical_simulation.py</Source>
     <Source>users/daniel/configurations.py</Source>
     <Source>users/daniel/moving_dot.py</Source>
+    <Source>engine/optics/ray_reflection.py</Source>
+    <Source>engine/optics/__init__.py</Source>
+    <Source>engine/optics/angular_amplification_mirror.py</Source>
+    <Source>engine/generic/geometry.py</Source>
   </Sources>
   <Forms>
   </Forms>
