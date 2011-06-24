@@ -340,7 +340,7 @@ if __name__ == '__main__':
     import visexpman
     import threading
     from visexpman.engine.run_visual_stimulation import VisualStimulation
-    vs_runner = VisualStimulation('MBP', 'daniel')
+    vs_runner = VisualStimulation('ZoliTester', 'daniel')
     messages = ['start_stimulation']
     parameters = ['']
     pause_before = [1, 2]

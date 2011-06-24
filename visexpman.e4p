@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project visexpman -->
-<!-- Saved: 2011-06-14, 17:17:12 -->
+<!-- Saved: 2011-06-24, 09:20:11 -->
 <!-- Copyright (C) 2011 Zoltan Raics, zoltan.raics@fmi.ch -->
 <Project version="4.6">
   <Language>en</Language>
@@ -18,8 +18,6 @@
     <Source>users/example/grating_example.py</Source>
     <Source>users/example/ring_example.py</Source>
     <Source>users/example/hardware_examples.py</Source>
-    <Source>users/daniel/miguel_setup.py</Source>
-    <Source>users/daniel/movingdot.py</Source>
     <Source>users/daniel/sparsedots_prepare.py</Source>
     <Source>users/__init__.py</Source>
     <Source>users/zoltan/flash_screen_stimulus.py</Source>
@@ -65,7 +63,8 @@
     <Source>users/templateuser/__init__.py</Source>
     <Source>engine/generic/graphics.py</Source>
     <Source>engine/run_vr_optical_simulation.py</Source>
-    <Source>users/karl/vision_spatial_resolution_experiment.py</Source>
+    <Source>users/daniel/configurations.py</Source>
+    <Source>users/daniel/moving_dot.py</Source>
   </Sources>
   <Forms>
   </Forms>

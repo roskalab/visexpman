@@ -4,7 +4,7 @@ import os
 
 import parameter
 
-PRINT_PAR_NAMES = False
+PRINT_PAR_NAMES = True
 
 class Config(object):
     def __init__(self, machine_config=None):
