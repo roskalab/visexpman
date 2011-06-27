@@ -9,44 +9,110 @@ import visexpman
 import generic.graphics
 import visexpman.users.zoltan.configurations
 import visexpman.engine.optics.ray_reflection as ray_relfection
+import visexpman.engine.generic.geometry as geometry
 
 class RayReflection(generic.graphics.Screen):
     def initialization(self):
-        self.optics = ray_relfection.Optics()
         self.alignment()
         
     def alignment(self):
-        mirror_size = 30.0
-        ray_start_point = numpy.array([- mirror_size, 0.5 * mirror_size, 0.5 * mirror_size])
-        ray_direction = numpy.array([0.0, -1.0, 0.0])
+        unit = 10.0
+        number_of_mirror_vertices = 4
+        number_of_reflections = 3
+        number_of_mirrors = 2
+
+        initial_ray_start_point = numpy.array([0.0 * unit, 1.0 * unit, 0.5 * unit])
+        initial_ray_direction = numpy.array([1.0 * unit, -1.0 * unit, 0.0])
         self.mirror = numpy.array([
-                              [0.0, 0.0, 0.0],
-                              [0.0, 0.0, mirror_size],
-                              [mirror_size, 0.5 * mirror_size, mirror_size],
-                              [mirror_size, 0.5 * mirror_size, 0.0],
+                              [0.0, 0.0, 0.0], 
+                              [0.0, 0.0, unit], 
+                              [10 * unit, 0.0, unit], 
+                              [10 * unit, 0.0, 0.0], 
+                              [0.0, unit, 0.0], 
+                              [0.0, unit, unit], 
+                              [10 * unit, unit, unit], 
+                              [10 * unit, unit, 0.0],
                               ])
 
-        st = time.time()        
-        reflected_ray_vector, intersection = self.optics.reflection(ray_start_point,  ray_direction, self.mirror)        
-        print time.time() - st
-        self.rays = numpy.array([ray_start_point, intersection, intersection + reflected_ray_vector * 100.0])        
+        self.mirrors = [self.mirror[:4],  self.mirror[4:]]
+        st = time.time()
+        reflected_ray_start_points = [initial_ray_start_point]
+        reflected_ray_directions = []
+        
+        mirror_i = 0
+        for reflection_count in range(number_of_reflections):
+            if reflection_count == 0:
+                ray_start_point = initial_ray_start_point
+                ray_direction = initial_ray_direction
+            else:
+                ray_start_point = reflected_ray_start_points[-1]
+                ray_direction = reflected_ray_directions[-1]
+                
+            for mirror_count in range(number_of_mirrors):
+                reflected_ray_direction, reflected_ray_start_point = ray_relfection.reflection(ray_start_point, ray_direction, self.mirrors[mirror_count])
+                #TODO: here the right reflection must be selected
+#                print reflected_ray_direction, reflected_ray_start_point, ray_direction, ray_start_point#, geometry.distance_between_points(reflected_ray_start_point, ray_start_point)
+                if reflected_ray_start_point != None and reflected_ray_direction != None:
+                    if geometry.distance_between_points(reflected_ray_start_point, ray_start_point) > 1.0e-4:
+                        print mirror_count
+                        reflected_ray_start_points.append(reflected_ray_start_point)
+                        reflected_ray_directions.append(reflected_ray_direction)
+
+        if len(reflected_ray_directions) > 0:
+            reflected_ray_start_points.append(reflected_ray_start_points[-1] + 3.0 * unit * reflected_ray_directions[-1])
+        self.rays = numpy.array(reflected_ray_start_points)
+#        print self.rays
+#        self.rays = None
         
 
+#        mirror_i = 0
+#        reflected_ray_direction, reflected_ray_start_point = ray_relfection.reflection(ray_start_point,  ray_direction, self.mirror[mirror_i * number_of_mirror_vertices:(mirror_i + 1) * number_of_mirror_vertices-1])
+#        print ray_start_point, ray_direction, reflected_ray_start_point, reflected_ray_direction
+#        for i in range(number_of_reflections):
+#            if i == 0:
+#                ray_start_point = initial_ray_start_point
+#                ray_direction = initial_ray_direction
+#            else:
+#                ray_start_point = reflected_ray_start_points[-1]
+#                ray_direction = reflected_ray_directions[-1]
+#                
+#            for mirror_i in range(number_of_mirrors):
+#                reflected_ray_direction, reflected_ray_start_point = ray_relfection.reflection(ray_start_point,  ray_direction, self.mirror[mirror_i * number_of_mirror_vertices:(mirror_i + 1) * number_of_mirror_vertices-1])
+#                print reflected_ray_direction, reflected_ray_start_point, ray_start_point, ray_direction#, self.mirror[mirror_i * number_of_mirror_vertices:(mirror_i + 1) * number_of_mirror_vertices]
+##                print self.mirror[mirror_i * number_of_mirror_vertices:(mirror_i + 1) * number_of_mirror_vertices]
+#                if reflected_ray_direction != None and reflected_ray_start_point != None:
+#                    reflected_ray_start_points.append(reflected_ray_start_point)
+#                    reflected_ray_directions.append(reflected_ray_direction)
+#                    break
+#
+#        reflected_ray_start_points.append(reflected_ray_start_points[-1] + reflected_ray_direction[-1] * 100.0)
+#        self.reflected_ray_start_points = numpy.array(reflected_ray_start_points)
+#        print self.reflected_ray_start_points
+        print time.time() - st
+#        if reflected_ray_vector == None:
+#            self.rays = numpy.array([ray_start_point, ray_start_point+ ray_direction * 50.0, ray_start_point + ray_direction * 100.0])
+#        else:
+#            self.rays = numpy.array([ray_start_point, intersection, intersection + reflected_ray_vector * 200.0])
+#            
+#        if reflected1_ray_vector == None:
+#            self.rays1 = None
+#        else:
+#            self.rays1 = numpy.array([intersection1, intersection1 + reflected1_ray_vector * 200.0])
 
     def draw_scene(self):
-        
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(self.mirror)
-        glColor3fv((1.0, 1.0, 1.0))
+        glColor3fv((1.0, 0.7, 1.0))
         glDrawArrays(GL_POLYGON, 0, 4)
-        
-        glLineWidth(2)
-        glVertexPointerf(self.rays)
-        glColor3fv((1.0, 0.0, 0.0))
-        glDrawArrays(GL_LINES, 0, 2)
-        glColor3fv((0.0, 0.0, 1.0))
-        glDrawArrays(GL_LINES, 1, 2)
-        
+        glColor3fv((1.0, 1.0, 0.7))
+        glDrawArrays(GL_POLYGON, 4, 4)
+        if self.rays != None:
+            glLineWidth(2)
+            glVertexPointerf(self.rays)
+            for i in range(self.rays.shape[0]-1):
+                glColor3fv((1.0, float(i) * 0.2, 0.0))
+                glDrawArrays(GL_LINES, i, 2)
+
         glDisableClientState(GL_VERTEX_ARRAY) 
         
     def render_before_set_view(self):
