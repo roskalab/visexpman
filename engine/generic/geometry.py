@@ -60,6 +60,7 @@ def ray_polygon_intersection(ray_starting_point,  ray_direction,  polygon):
         return (False, None)
     
 def is_point_in_polygon(point, polygon):
+#    print point, polygon
     '''
     The number of intersections between a ray starting from the point and the sides of the polygon are checked.
     If this number is odd, the point must be inside the polygon, otherwise outside.
@@ -68,7 +69,8 @@ def is_point_in_polygon(point, polygon):
     
     Assuming that the point and the polygon are in the same plane
     '''
-#    print point, polygon
+    debug = False
+    if debug: print '---------------------------'
     testing_ray_starting_point = point
     testing_ray_direction = polygon[0] - point
     testing_ray_directions = [testing_ray_direction, -testing_ray_direction]
@@ -86,17 +88,21 @@ def is_point_in_polygon(point, polygon):
                 index = 0
             intersection_exists, intersection = line_segment_ray_intersection(polygon[i], polygon[index], testing_ray_starting_point, testing_ray_direction)
             #intersection is appended if that value is not yet in the list. This is necessary because ray points to one of the vertexes and that vertex is 
-            #the endpoint of two line segments and therefore that would result a redundant intersection 
+            #the endpoint of two line segments and therefore that would result a redundant intersection
+            
+            if debug: print polygon[i], polygon[index], testing_ray_direction, testing_ray_starting_point, intersection
+            if debug: print '\n'
             if len(intersections) == 0 and intersection_exists:
                 intersections.append(intersection)
             elif len(intersections) != 0 and intersection_exists:
                 is_in_list = False
                 for intersection_ in intersections:
-                    test_array = intersection_ - intersection
-                    if test_array[0] == 0.0 and test_array[1] == 0.0 and test_array[2] == 0.0:
+                    test_array = abs(intersection_ - intersection)
+                    if test_array[0] <= 1.0e-5 and test_array[1] <= 1.0e-5 and test_array[2] <= 1.0e-5:
                         is_in_list = True
                 if not is_in_list:
                     intersections.append(intersection)
+
         n_intersections.append(len(intersections))
         
     if n_intersections[0] % 2 == 1 and n_intersections[1] % 2 == 1:
@@ -162,7 +168,7 @@ def plane_line_intersection(line_start_point,  line_direction, polygon):
 def line_segment_ray_intersection(line_point1, line_point2, ray_point, ray_direction):
     line_point = line_point1
     line_direction = line_point1 - line_point2
-    intersection_exists, intersection = line_intersection(line_point, line_direction, ray_point, ray_direction)    
+    intersection_exists, intersection = line_intersection(line_point, line_direction, ray_point, ray_direction)
     if intersection_exists:
         ray_range = []
         #determine ranges for checking if intersection of line is on the ray and line segment.
@@ -225,8 +231,8 @@ def line_intersection(line1_point, line1_direction, line2_point, line2_direction
             result = A_inv * b.transpose()
             result = numpy.asarray(result).reshape(-1)
             z1 = line1_point[2] + line1_direction[2] * result[0]
-            z2 = line2_point[2] + line2_direction[2] * result[1]        
-            if z1 != z2:
+            z2 = line2_point[2] + line2_direction[2] * result[1]
+            if abs(z1 - z2) > 1e-5:
                 intersection_exists = False
             else:
                 intersection_exists = True        
@@ -242,7 +248,7 @@ def line_intersection(line1_point, line1_direction, line2_point, line2_direction
             result = numpy.asarray(result).reshape(-1)
             y1 = line1_point[1] + line1_direction[1] * result[0]
             y2 = line2_point[1] + line2_direction[1] * result[1]        
-            if y1 != y2:
+            if abs(y1 - y2) > 1e-5:
                 intersection_exists = False
             else:
                 intersection_exists = True        
@@ -646,7 +652,7 @@ class testGeometry(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+#    unittest.main()
     test_data =  [               {
                  'line_point1': numpy.array([0.0, 1.0, 0.0]), 
                  'line_point2': numpy.array([1.0, 1.0, 0.0]), 
@@ -662,8 +668,8 @@ if __name__ == "__main__":
                  'result' : (False, None)
                  },           
                                   {
-                 'polygon': numpy.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]]), 
-                 'point': numpy.array([-1.0, 1.0, 0.0]),                  
+                 'polygon': numpy.array([[0.0, 0.0, 0.0], [0.0, 0.0, 1.0], [10.0, 0.0, 1.0], [10.0, 0.0, 0.0]]), 
+                 'point': numpy.array([3.0, 0.0, 0.5]),                  
                  'result' : False
                  }, 
                  {
@@ -672,8 +678,26 @@ if __name__ == "__main__":
                  'line2_point': numpy.array([0.5, 0.5, 0.5]), 
                  'line2_direction': numpy.array([-1.0, -1.0, -1.0]), 
                  },
+                 {
+                 'line_point1': numpy.array([-73.86058148,  -96.41814145,   88.02361333]), 
+                 'line_point2': numpy.array([-73.86058148,   96.41814145,   88.02361333]), 
+                 'ray_point': numpy.array([  0. ,          82.39527733,   88.02361333]), 
+                 'ray_direction': numpy.array([ -7.38605815e+01,    1.40228641e+01,    2.84217094e-14]), 
+                 'result' : (False, None)
+                 },       
+                                  {
+                 'polygon': numpy.array( [[-73.86058148,   96.41814145,   88.02361333], 
+                                             [ 73.86058148 ,  96.41814145,   88.02361333], 
+                                             [ 73.86058148 , -96.41814145,   88.02361333], 
+                                             [-73.86058148,  -96.41814145,   88.02361333]]), 
+                 'point': numpy.array([  0.   ,        82.39527733,   88.02361333]),                  
+                 'result' : False
+                 }, 
+                 
+                 
+
                  ]
-    index = 3
+    index = 5
 #    print line_segment_ray_intersection(test_data[index]['line_point1'], test_data[index]['line_point2'], test_data[index]['ray_point'], test_data[index]['ray_direction'])
-#    print is_point_in_polygon(test_data[index]['point'], test_data[index]['polygon'])
+    print is_point_in_polygon(test_data[index]['point'], test_data[index]['polygon'])
 #    print line_intersection(test_data[index]['line1_point'], test_data[index]['line1_direction'], test_data[index]['line2_point'], test_data[index]['line2_direction'])

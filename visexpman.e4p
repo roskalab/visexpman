@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project visexpman -->
-<!-- Saved: 2011-06-24, 18:07:43 -->
+<!-- Saved: 2011-06-30, 17:26:21 -->
 <!-- Copyright (C) 2011 Zoltan Raics, zoltan.raics@fmi.ch -->
 <Project version="4.6">
   <Language>en</Language>
@@ -69,6 +69,7 @@
     <Source>engine/optics/__init__.py</Source>
     <Source>engine/optics/angular_amplification_mirror.py</Source>
     <Source>engine/generic/geometry.py</Source>
+    <Source>engine/optics/surface_meshes.py</Source>
   </Sources>
   <Forms>
   </Forms>

@@ -43,7 +43,7 @@ class AngularAmplificationMirrror(object):
         profile_image.save('/home/zoltan/profile.png')    
         profile_image.show()
 
-a = AngularAmplificationMirrror(12, 300.0) #12, 39
+a = AngularAmplificationMirrror(1.0, 100.0) #12, 39
 a.calculate_mirror_profile()
 a.show_mirror_profile()
 print min(a.invalid_angles), max(a.invalid_angles)
