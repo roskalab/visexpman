@@ -79,6 +79,23 @@ class Instrument(threading.Thread):
         self.close_instrument()
         self.close_communication_interface()
         
+class Shutter(Instrument):
+    def init_communication_interface(self, config):        
+        self.serial_port = serial.Serial(port =config.SHUTTER_SERIAL_PORT[self.id]['port'], 
+                                                    baudrate = config.SHUTTER_SERIAL_PORT[self.id]['baudrate'],
+                                                    parity = config.SHUTTER_SERIAL_PORT[self.id]['parity'],
+                                                    stopbits = config.SHUTTER_SERIAL_PORT[self.id]['stopbits'],
+                                                    bytesize = config.SHUTTER_SERIAL_PORT[self.id]['bytesize'])
+            
+    def toggle(self):
+        self.serial_port.write('ens\r')
+        
+    def close_communication_interface(self):
+        try:
+            self.serial_port.close()
+        except AttributeError:
+            pass
+
 class Filterwheel(Instrument):
     def init_communication_interface(self, config):        
         self.serial_port = serial.Serial(port =config.FILTERWHEEL_SERIAL_PORT[self.id]['port'], 
