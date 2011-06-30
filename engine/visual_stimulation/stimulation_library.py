@@ -928,6 +928,7 @@ class Stimulations():
 
     def set_parallel(self,  bitmask):
         if self.config.ENABLE_PARALLEL_PORT:
+            self.bitmask = bitmask
             self.parallel.setData(self.config.ACQUISITION_TRIGGER_ON | bitmask)
                         
     def _display_test_message(self,  message,  duration = 1.5):
