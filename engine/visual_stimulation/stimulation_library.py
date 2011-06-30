@@ -45,7 +45,8 @@ class Stimulations():
         self.test_message = psychopy.visual.TextStim(self.screen,  text = '',  pos = (0, 0),  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)        
         
         if self.config.ENABLE_PARALLEL_PORT:
-            import parallel           
+            import parallel
+            self.bitmask = 0
         
     #Helper functions for showing stimulus
     def _show_stimulus(self,  duration, stimulus, flip = True):
@@ -115,9 +116,9 @@ class Stimulations():
         Generates frame trigger pulses
         '''
         if self.config.ENABLE_PARALLEL_PORT:
-            self.parallel.setData(self.config.FRAME_TRIGGER_ON)
+            self.parallel.setData(self.config.FRAME_TRIGGER_ON | self.bitmask)
             time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
-            self.parallel.setData(self.config.FRAME_TRIGGER_OFF)
+            self.parallel.setData(self.config.FRAME_TRIGGER_OFF | self.bitmask)
         
     #Externally callable functions showing different visual patterns
     def set_background(self,  color):        
