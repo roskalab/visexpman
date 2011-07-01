@@ -1,6 +1,9 @@
 import numpy
 import unittest
 import utils
+import visexpman.users.zoltan.configurations
+
+preceision = visexpman.users.zoltan.configurations.GEOMETRY_PRECISION
 
 def angle_between_vectors(v1, v2):
         '''
@@ -242,19 +245,40 @@ def line_intersection(line1_point, line1_direction, line2_point, line2_direction
         except numpy.linalg.LinAlgError:
             #When parametric equation cannot be solved for x and y, try to solve it for x and z
             A = numpy.matrix([[line1_direction[0], -line2_direction[0]], [line1_direction[2], -line2_direction[2]]])
-            A_inv = numpy.linalg.inv(A)
-            b = numpy.matrix([line2_point[0] - line1_point[0], line2_point[2] - line1_point[2]])
-            result = A_inv * b.transpose()
-            result = numpy.asarray(result).reshape(-1)
-            y1 = line1_point[1] + line1_direction[1] * result[0]
-            y2 = line2_point[1] + line2_direction[1] * result[1]        
-            if abs(y1 - y2) > 1e-5:
-                intersection_exists = False
-            else:
-                intersection_exists = True        
-                x = line1_point[0] + line1_direction[0] * result[0]
-                z = line1_point[2] + line1_direction[2] * result[0]
-                intersection = numpy.array([x, y1, z])
+            try:
+                A_inv = numpy.linalg.inv(A)
+                b = numpy.matrix([line2_point[0] - line1_point[0], line2_point[2] - line1_point[2]])
+                result = A_inv * b.transpose()
+                result = numpy.asarray(result).reshape(-1)
+                y1 = line1_point[1] + line1_direction[1] * result[0]
+                y2 = line2_point[1] + line2_direction[1] * result[1]        
+                if abs(y1 - y2) > 1e-5:
+                    intersection_exists = False
+                else:
+                    intersection_exists = True        
+                    x = line1_point[0] + line1_direction[0] * result[0]
+                    z = line1_point[2] + line1_direction[2] * result[0]
+                    intersection = numpy.array([x, y1, z])
+            except:
+                A = numpy.matrix([[line1_direction[1], -line2_direction[1]], [line1_direction[2], -line2_direction[2]]])
+                try:
+                    A_inv = numpy.linalg.inv(A)
+                    b = numpy.matrix([line2_point[1] - line1_point[1], line2_point[2] - line1_point[2]])
+                    result = A_inv * b.transpose()
+                    result = numpy.asarray(result).reshape(-1)
+                    x1 = line1_point[0] + line1_direction[0] * result[0]
+                    x2 = line2_point[0] + line2_direction[0] * result[1]        
+                    if abs(x1 - x2) > 1e-5:
+                        intersection_exists = False
+                    else:
+                        intersection_exists = True        
+                        y = line1_point[1] + line1_direction[1] * result[0]
+                        z = line1_point[2] + line1_direction[2] * result[0]
+                        intersection = numpy.array([x1, y, z])
+                except:
+                    intersection_exists = False                
+    if intersection != None:
+        intersection = numpy.round(intersection, preceision)
     return intersection_exists, intersection
     
 def are_vectors_parallel(v1, v2):

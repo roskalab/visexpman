@@ -4,12 +4,14 @@ import generic.parameter
 import generic.utils as utils
 import generic.configuration
 
+GEOMETRY_PRECISION = 3
+
 class GraphicsTestConfig(generic.configuration.Config):
     def _create_application_parameters(self):
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         
-        SCREEN_RESOLUTION = utils.rc([600, 800])        
+        SCREEN_RESOLUTION = utils.rc([768, 1024])        
         FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
         SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]        
@@ -18,6 +20,7 @@ class GraphicsTestConfig(generic.configuration.Config):
         FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]
         COORDINATE_SYSTEM = 'center' #ulcorner
 #        COORDINATE_SYSTEM = 'ulcorner'
+
      
         
         self._create_parameters_from_locals(locals())

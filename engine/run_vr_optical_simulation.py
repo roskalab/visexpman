@@ -8,8 +8,9 @@ import numpy
 import visexpman
 import generic.graphics
 import visexpman.users.zoltan.configurations
-import visexpman.engine.optics.ray_reflection as ray_relfection
-import visexpman.engine.optics.surface_meshes as surface_meshes
+import visexpman.users.zoltan.optics.ray_reflection as ray_relfection
+import visexpman.users.zoltan.optics.angular_amplification_mirror as angular_amplification_mirror
+import visexpman.users.zoltan.optics.surface_meshes as surface_meshes
 import visexpman.engine.generic.geometry as geometry
 
 class RayReflection(generic.graphics.Screen):
@@ -23,27 +24,8 @@ class RayReflection(generic.graphics.Screen):
         
 #    def generate_rays(self):
 #        grid = numpy.linspace(0.0,  1.0,  11)
-        
-    def alignment(self):
-        
-        st = time.time()
-        unit = 100.0
-        number_of_reflections = 1
-        self.line_color_step = 1.0 / 0.8
-        self.number_of_shape_vertices = 3
-        
-        initial_ray_start_point = numpy.array([[0.0 * unit, 0.0 * unit, 0.0 * unit], [0.0 * unit, 0.0 * unit, 0.0 * unit]])
-        initial_ray_direction = numpy.array([[0.0 * unit, 0.1 * unit, 1.0 * unit], [0.0 * unit, 0.2 * unit, 1.0 * unit]])
-        
-        initial_ray_start_point = numpy.array([[0.0 * unit, 0.0 * unit, 0.0 * unit], [0.0 * unit, 0.0 * unit, 0.0 * unit], [0.0 * unit, 0.0 * unit, 0.0 * unit], [0.0 * unit, 0.0 * unit, 0.0 * unit]])
-        initial_ray_direction = numpy.array([[0.0 * unit, 0.1 * unit, 1.0 * unit], [0.0 * unit, 0.2 * unit, 1.0 * unit], [0.1 * unit, 0.1 * unit, 1.0 * unit], [0.1 * unit, 0.2 * unit, 1.0 * unit]])
-        
-#        initial_ray_start_point = numpy.array([[0.5 * unit, 0.0 * unit, 0.0 * unit]])
-#        initial_ray_direction = numpy.array([[0.0 * unit, 0.2 * unit, 1.0 * unit]])
-        
-        initial_ray_direction = -1 * initial_ray_direction
-        initial_ray_start_point = initial_ray_start_point + numpy.array([0.0,  0.0, 5.0 * unit])
-        
+
+    def toroid(self):
         horizontal_radius = 3.0 * unit
         horizontal_angle_range = [-90.0, 90.0]
         vertical_radius = 2.0 * unit
@@ -57,40 +39,61 @@ class RayReflection(generic.graphics.Screen):
 #        vertical_angle_range = [-30.0, 30.0]
 #        mesh_size = [1.0 * unit, 1.0 * unit]
 
-        self.screen, self.number_of_shapes = surface_meshes.toroid_mesh(horizontal_radius, horizontal_angle_range, vertical_radius, vertical_angle_range, mesh_size)        
+        self.screen, self.number_of_shapes = surface_meshes.toroid_mesh(horizontal_radius, horizontal_angle_range, vertical_radius, vertical_angle_range, mesh_size)
         
-#        for i in range(1000):
-#            if not self.test_reflection(0,  10):
-#                print i
-        #START OF TEST MIRROR
-#        import random
-#        preceision = 3
-#        random.seed(0)
-#        test_rotation = []
-#        for i in range(2):
-#            test_rotation.append(unit * round(random.random(), preceision))
-#            
-#        test_pitch = unit * round(random.random(), preceision)
-#        
-#        self.screen = numpy.array([[0.0, 0.0, 1.0 * unit], [1.0 * unit,  0.0,  1.0 * unit + test_rotation[0]], [0.0 * unit, 1.0 * unit, 1.0 * unit + test_pitch], [0.0, 0.0, 1.0 * unit], [-1.0 * unit,  0.0,  1.0 * unit + test_rotation[1]], [0.0 * unit, 1.0 * unit, 1.0 * unit + test_pitch]])
-#        self.number_of_shapes = 1        
-#        #END OF TEST MIRROR  
-#        
+    def alignment(self):
+        #Angular amplification works between 0.5 - 1.5 focal distance range
+        #TODO: add reflective mirror and toroid canvas then determine focal distance
+        st = time.time()
+        unit = 500.0
+        number_of_reflections = 2
+        self.line_color_step = 1.0 / 0.8
+        self.number_of_shape_vertices = 3
         
+        initial_ray_start_point = numpy.array([[0.0 * unit, 0.0 * unit, 0.0 * unit], [0.0 * unit, 0.0 * unit, 0.0 * unit]])
+        initial_ray_direction = numpy.array([[0.0 * unit, 0.1 * unit, 1.0 * unit], [0.0 * unit, 0.2 * unit, 1.0 * unit]])
+        
+        initial_ray_start_point = numpy.array([[0.0 * unit, 1.0 * unit, 0.0 * unit], [0.0 * unit, 1.0 * unit, 0.0 * unit], [0.0 * unit, 1.0 * unit, 0.0 * unit], [0.0 * unit, 1.0 * unit, 0.0 * unit]])
+        initial_ray_direction = numpy.array([[0.01 * unit, -1.0 * unit, 0.0 * unit], [0.1 * unit, -1.0 * unit, 0.0 * unit], [0.2 * unit, -1.0 * unit, 0.0 * unit], [0.3 * unit, -1.0 * unit, 0.0 * unit]])
+        
+        dist =10.0
+        offset = 0.0
+        ray_x = [-0.00101, -0.002, -0.00301, -0.004, -0.005]
+        initial_ray_start_point = numpy.array([[offset * unit, dist * unit, 0.0 * unit], [offset * unit, dist * unit, 0.0 * unit], [offset * unit, dist * unit, 0.0 * unit], [offset * unit, dist * unit, 0.0 * unit], [offset * unit, dist * unit, 0.0 * unit]])
+        initial_ray_direction = numpy.array([[ray_x[0] * unit, -1.0 * unit, 0.0 * unit], [ray_x[1] * unit, -1.0 * unit, 0.0 * unit], [ray_x[2] * unit, -1.0 * unit, 0.0 * unit], [ray_x[3] * unit, -1.0 * unit, 0.0 * unit], [ray_x[4]* unit, -1.0 * unit, 0.0 * unit]])
 
+#        initial_ray_start_point = numpy.array([[offset * unit, dist * unit, 0.0 * unit], [offset * unit, dist * unit, 0.0 * unit]])
+#        initial_ray_direction = numpy.array([[ray_x[0] * unit, 1.0 * unit, 0.0 * unit], [ray_x[-1] * unit, 1.0 * unit, 0.0 * unit]])
+        
+#        self.plane_mirror = numpy.array([[-0.5 * unit,  0.5 * unit, -0.5 * unit], [0.5 * unit,  0.5 * unit, -0.5 * unit], [0.5 * unit,  0.5 * unit, 0.5 * unit], [-0.5 * unit,  0.5 * unit, 0.5 * unit]])
+        
+        amplification = 12.0
+        focal_distance = 10.0*unit
+        mesh_size = 0.051 * 1.0 * unit
+        reflect = True
+        angle_range = [0.0, 1.0]
+        ang_res = 100
+        
+        mirror_profile, invalid_angles = angular_amplification_mirror.calculate_angular_amplification_mirror_profile(amplification, focal_distance, angle_range =angle_range, angular_resolution = ang_res)
+        self.screen, self.number_of_shapes = surface_meshes.aam_mesh(focal_distance, amplification, mesh_size, mirror_profile)
+        print self.number_of_shapes
         self.mirrors = []
         for i in range(self.number_of_shapes):
             self.mirrors.append(self.screen[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])
+#        self.mirrors.append(self.plane_mirror[0:3])
+#        self.mirrors.append(self.plane_mirror[1:4])
         self.mirrors = numpy.array(self.mirrors)
-        
+            
         self.rays = []
-        for i in range(initial_ray_start_point.shape[0]):
-            is_reflection, rays = ray_relfection.multiple_reflections(self.mirrors,  initial_ray_start_point[i], initial_ray_direction[i], number_of_reflections)
-            self.rays.append(rays)
+        if reflect:
+            for i in range(initial_ray_start_point.shape[0]):
+                is_reflection, rays = ray_relfection.multiple_reflections(self.mirrors,  initial_ray_start_point[i], initial_ray_direction[i], number_of_reflections)
+                print is_reflection
+                self.rays.append(rays)
             
         
         
-        self.axis = numpy.array([[0.0, 0.0, 0.0], [100.0 * unit, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 100.0 * unit, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 100.0 * unit]])
+        self.axis = numpy.array([[0.0, 0.0, 0.0], [1.0 * unit, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 1.0 * unit, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 1.0 * unit]])
         
         print time.time() - st
         
@@ -118,7 +121,7 @@ class RayReflection(generic.graphics.Screen):
         #END OF TEST MIRROR
 
         self.mirrors = []
-        for i in range(self.number_of_shapes):
+        for i in range(self.number_of_shapes+2):
             self.mirrors.append(self.screen[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])
         self.mirrors = numpy.array(self.mirrors)
         
@@ -155,6 +158,12 @@ class RayReflection(generic.graphics.Screen):
         glDrawArrays(GL_LINES, 4, 2)
         glDisableClientState(GL_VERTEX_ARRAY) 
         
+#        #draw plane mirror
+#        glEnableClientState(GL_VERTEX_ARRAY)
+#        glVertexPointerf(self.plane_mirror)
+#        glColor4fv((0.5, 0.5, 0.5, 0.2))
+#        glDrawArrays(GL_POLYGON, 0, 4)
+#        glDisableClientState(GL_VERTEX_ARRAY) 
         
         #draw toroid screen
         glEnableClientState(GL_VERTEX_ARRAY)

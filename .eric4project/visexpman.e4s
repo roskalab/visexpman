@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE Session SYSTEM "Session-4.4.dtd">
+<!-- eric4 session file for project visexpman -->
+<!-- This file was generated automatically, do not edit. -->
+<!-- Saved: 2011-07-01, 10:18:25 -->
+<Session version="4.4">
+  <Filenames>
+    <Filename cline="0" cindex="0" folds="" zoom="0">/home/zoltan/development/repository/visexpman/engine/optics/angular_amplification_mirror.py</Filename>
+    <Filename cline="0" cindex="0" folds="" zoom="0">/home/zoltan/development/repository/visexpman/engine/optics/surface_meshes.py</Filename>
+  </Filenames>
+  <ActiveWindow cline="0" cindex="0">/home/zoltan/development/repository/visexpman/engine/optics/surface_meshes.py</ActiveWindow>
+  <Breakpoints>
+  </Breakpoints>
+  <Watchexpressions>
+  </Watchexpressions>
+  <DebugInfo>
+    <CommandLine></CommandLine>
+    <WorkingDirectory></WorkingDirectory>
+    <Environment></Environment>
+    <ReportExceptions value="True" />
+    <Exceptions>
+    </Exceptions>
+    <IgnoredExceptions>
+    </IgnoredExceptions>
+    <AutoClearShell value="True" />
+    <TracePython value="False" />
+    <AutoContinue value="True" />
+    <CovexcPattern></CovexcPattern>
+  </DebugInfo>
+  <Bookmarks>
+  </Bookmarks>
+</Session>
