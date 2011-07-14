@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project visexpman -->
-<!-- Saved: 2011-07-11, 13:30:03 -->
+<!-- Saved: 2011-07-14, 16:27:45 -->
 <Tasks version="4.2">
   <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: handle invalid filterwheel ID</Summary>
@@ -22,12 +22,12 @@
     </Resource>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: add reflective mirror and toroid canvas then determine focal distance</Summary>
+    <Summary>TODO:precision from parameter</Summary>
     <Description></Description>
-    <Created>2011-07-04, 09:50:58</Created>
+    <Created>2011-07-14, 15:09:50</Created>
     <Resource>
-      <Filename>engine/run_vr_optical_simulation.py</Filename>
-      <Linenumber>46</Linenumber>
+      <Filename>engine/generic/geometry.py</Filename>
+      <Linenumber>108</Linenumber>
     </Resource>
   </Task>
 </Tasks>

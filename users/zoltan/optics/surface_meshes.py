@@ -11,6 +11,8 @@ def mesh_point(mesh_size, angle_range, radius):
 def toroid_mesh(horizontal_radius, horizontal_angle_range, vertical_radius, vertical_angle_range, mesh_size):
     '''
     First calculate radiuses for horizontally aligned circles that make the toroid
+    
+    mesh_size = horizontal mesh, vertical mesh
     '''
     precision = visexpman.users.zoltan.configurations.GEOMETRY_PRECISION
     vertical_n_mesh_points = mesh_point(mesh_size[1], vertical_angle_range, vertical_radius)
@@ -92,14 +94,15 @@ def aam_mesh(focal_distance, amplification, mesh_size, mirror_profile):
                 polygons.append(mesh_points[horizontal_index, vertical_index+1])
                 polygons.append(mesh_points[horizontal_index+1, vertical_index+1])
                 
-                
-    polygons = numpy.array(polygons).round(precision)
+    #round to precision and flip it hirzontally so that the mirror looks "down"
+    polygons = -numpy.array(polygons).round(precision)
             
 #    print mesh_points.shape, mirror_profile.shape, number_of_shapes
 #    print mirror_profile
 #    print mesh_points
 #    print angles
 #    print polygons.shape
+    
     return polygons,  2 * number_of_shapes[0] * number_of_shapes[1] - number_of_shapes[1]
             
 

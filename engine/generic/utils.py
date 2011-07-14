@@ -517,16 +517,33 @@ def coordinate_transform_single_point(point, origo, axis_direction):
         x = int(x)
         y = int(y)
     return rc((y, x))
+    
+def arc_perimeter(radius,  angle):
+    '''
+    angle is in degree
+    '''
+    slice_ratio = angle / 360.0
+    return numpy.pi  * 2 *radius * slice_ratio
+    
 
 class testCoordinateTransformation(unittest.TestCase):
     pass
 
-def in_range(number,  range1,  range2):
-    if range1 < range2:
-        if number >= range1 and number <= range2:
+def in_range(number,  range1,  range2, preceision = None):
+    if preceision != None:
+        number_rounded = round(number, preceision)
+        range1_rounded = round(range1, preceision)
+        range2_rounded = round(range2, preceision)
+    else:
+        number_rounded = number
+        range1_rounded = range1
+        range2_rounded = range2
+        
+    if range1_rounded < range2_rounded:
+        if number_rounded >= range1_rounded and number_rounded <= range2_rounded:
             return True        
     else:
-        if number >= range2 and number <= range1:
+        if number_rounded >= range2_rounded and number_rounded <= range1_rounded:
             return True
     return False
 

@@ -52,8 +52,10 @@ class Screen(object):
         self.heading = 0.0
         self.roll = 0.0
         self.pitch = 0.0
+        self.scale = 0.8
         self.position_step = 10.0
         self.angle_step = 10.0
+        self.scale_step = 0.05
         self.flip_time = time.time()
         self.flip_time_previous = self.flip_time
         self.frame_rate = 0.0
@@ -107,10 +109,10 @@ class Screen(object):
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
                 #default view is set
-                self.set_view((0, 0, 0),  0, 0, 0)
+                self.set_view((0, 0, 0),  0, 0, 0, 1.0)
                 #glDisable(GL_LIGHTING) if light is enabled               
                 self.render_before_set_view()
-                self.set_view(self.position,  self.heading,  self.roll, self.pitch)
+                self.set_view(self.position,  self.heading,  self.roll, self.pitch, self.scale)
                 self.draw_scene()
                 self.flip()
                 for event in pygame.event.get():
@@ -174,12 +176,13 @@ class Screen(object):
         glClearColor(color[0], color[1], color[2], 0.0)
         glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)        
         
-    def set_view(self, position,  heading,  roll, pitch):
+    def set_view(self, position,  heading,  roll, pitch, scale):
         '''
         Sets viewing by translating and rotating model.
         '''        
         glMatrixMode (GL_MODELVIEW)
         glLoadIdentity()
+        glScalef(scale,  scale, scale)
         glRotatef(roll,  0.0, 0.0, 1.0)
         glRotatef(pitch, 1.0, 0.0, 0.0)
         glRotatef(heading, 0.0, 1.0, 0.0)
@@ -248,6 +251,28 @@ class Screen(object):
         pixels = glReadPixels(0, 0, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)
         Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels).save(path)        
         
+    def cuboid_vertices(self, sizes):
+        vertices = numpy.array([
+                                [sizes[0], sizes[1], sizes[2]],
+                                [-sizes[0], sizes[1], sizes[2]],
+                                [-sizes[0], sizes[1], -sizes[2]],
+                                [sizes[0], sizes[1], -sizes[2]],
+                                [sizes[0], -sizes[1], sizes[2]],
+                                [-sizes[0], -sizes[1], sizes[2]],
+                                [-sizes[0], -sizes[1], -sizes[2]],
+                                [sizes[0], -sizes[1], -sizes[2]],                                
+                               ])
+        vertices = 0.5 * vertices
+        vertices = numpy.array([
+                                vertices[0], vertices[1], vertices[2], vertices[3], 
+                                vertices[0], vertices[1], vertices[5], vertices[4], 
+                                vertices[1], vertices[2], vertices[6], vertices[5],
+                                vertices[4], vertices[5], vertices[6], vertices[7], 
+                                vertices[0], vertices[3], vertices[7], vertices[4], 
+                                vertices[2], vertices[3], vertices[7], vertices[6]
+                                ])
+        
+        return vertices
     #Placeholder functions that user can overdefine
     def render_before_set_view(self):        
         #placeholder for graphics items that shall not be translated or rotated by user when viewport is adjusted
@@ -294,6 +319,12 @@ class Screen(object):
             self.pitch = self.pitch + self.angle_step
         elif key_pressed == 'x':
             self.pitch = self.pitch - self.angle_step
+        elif key_pressed == '1':
+            if self.scale > 0.0:
+                self.scale = self.scale - self.scale_step            
+        elif key_pressed == '2':
+            self.scale = self.scale + self.scale_step
+        
         
 if __name__ == "__main__": 
     pass

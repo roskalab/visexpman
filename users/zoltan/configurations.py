@@ -160,6 +160,36 @@ class LaserProjectorConfig(visual_stimulation.configuration.VisualStimulationCon
         LOG_PATH = self.BASE_PATH
         
         self._set_parameters_from_locals(locals())
+
+class ScreenTestConfig(generic.configuration.Config):
+    
+    def _set_user_specific_parameters(self):
+        RUN_MODE = 'user interface'
+        LOG_PATH = 'data'
+        ARCHIVE_PATH = 'data'
+        CAPTURE_PATH = 'data'
+        ENABLE_PARALLEL_PORT = False
+        FULLSCR = False
+        SCREEN_RESOLUTION = [1680, 1050]
+#        SCREEN_RESOLUTION = [800, 600]
+        SCREEN_RESOLUTION = [1024, 768]
+        ENABLE_FRAME_CAPTURE = False
+        
+        EXPECTED_FRAME_RATE = 60.0
+        MAX_FRAME_RATE = 60.0
+        FRAME_WAIT_FACTOR = 0.7
+
+        GAMMA = 1.0
+        FILTERWHEEL_ENABLE = False
+        
+        #multiple stimulus control
+        STIMULUS_LIST = ['MyStimulus1',  'MyStimulus2']
+        self.STIMULUS_LIST_p = generic.Parameter.Parameter(STIMULUS_LIST )
+        
+        SEGMENT_DURATION = 2
+        ACTION_BETWEEN_STIMULUS = 'off'
+        
+        self._set_parameters_from_locals(locals())
         
 if __name__ == "__main__":
     

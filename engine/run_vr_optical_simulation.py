@@ -12,415 +12,232 @@ import visexpman.users.zoltan.optics.ray_reflection as ray_relfection
 import visexpman.users.zoltan.optics.angular_amplification_mirror as angular_amplification_mirror
 import visexpman.users.zoltan.optics.surface_meshes as surface_meshes
 import visexpman.engine.generic.geometry as geometry
+import visexpman.users.zoltan.optics.toroid_screen as toroid_screen
 
-class RayReflection(generic.graphics.Screen):
-    #BUGS: 
-    #1. ray is not reflected from some shapes with various alignment
-    #2. ray is not reflected from the boundary of two adjacent mirrors  - FIXED
+class VirtualRealityOpticalAlignment(generic.graphics.Screen):
+    '''
+    1 unit = 1mm
+    '''
     def initialization(self):
+        #Define axis to display
+        axis_length = 1000.0
+        self.axis = numpy.array([[0.0, 0.0, 0.0], [axis_length, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, axis_length, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, axis_length]])
+        #create objects for simulation and calculate light reflections
         self.alignment()
+        #enable blending to display transparent objects
         glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)        
         
-#    def generate_rays(self):
-#        grid = numpy.linspace(0.0,  1.0,  11)
-
-    def toroid(self):
+    def toroid(self,  center = None):
+        viewing_angle = 180.0
+        height = 800.0
+        inner_radius = 170.0
+        horizontal_radius = 440.0
+        toroid_screen_data = toroid_screen.ToroidScreen(viewing_angle,  height,  inner_radius,  horizontal_radius)
+        
+        #== High resolution toroid ==
+        unit = 200.0
         horizontal_radius = 3.0 * unit
         horizontal_angle_range = [-90.0, 90.0]
         vertical_radius = 2.0 * unit
         vertical_angle_range = [-90.0, 90.0]
         mesh_size = [0.31 * 1.0 * unit, 0.21 * 1.0 * unit]
-        
-#        #four triangles
-#        horizontal_radius = 3.0 * unit
-#        horizontal_angle_range = [-30.0, 30.0]
-#        vertical_radius = 2.0 * unit
-#        vertical_angle_range = [-30.0, 30.0]
-#        mesh_size = [1.0 * unit, 1.0 * unit]
 
-        self.screen, self.number_of_shapes = surface_meshes.toroid_mesh(horizontal_radius, horizontal_angle_range, vertical_radius, vertical_angle_range, mesh_size)
-        
+        #== Very low resolution toroid (four triangles) ==
+        horizontal_radius = 3.0 * unit
+        horizontal_angle_range = [-30.0, 30.0]
+        vertical_radius = 2.0 * unit
+        vertical_angle_range = [-30.0, 30.0]
+        mesh_size = [1.0 * unit, 1.0 * unit]
+
+        #== Low resolution toroid ==
+        horizontal_radius = toroid_screen_data.horizontal_radius
+        horizontal_angle_range = [-0.5 * viewing_angle, 0.5 * viewing_angle]
+        vertical_radius = toroid_screen_data.vertical_radius
+        vertical_angle_range = toroid_screen_data.vertical_angle_range
+        mesh_size = [0.2 * toroid_screen_data.horizontal_perimeter_endcap , 0.1 * toroid_screen_data.vertical_perimeter]
+
+        self.screen, self.number_of_toroid_shapes = surface_meshes.toroid_mesh(horizontal_radius, horizontal_angle_range, vertical_radius, vertical_angle_range, mesh_size)
+        if center != None:
+            self.screen = self.screen + center
+                
     def alignment(self):
-        #Angular amplification works between 0.5 - 1.5 focal distance range
-        #TODO: add reflective mirror and toroid canvas then determine focal distance
         st = time.time()
-        unit = 500.0
-        number_of_reflections = 2
+        #== General settings for optical simulation ==
+        reflect = True
+        number_of_reflections = 1
         self.line_color_step = 1.0 / 0.8
         self.number_of_shape_vertices = 3
+        #== Enable optical objects ==
+        self.enable_plane_mirror = True
+        self.enable_aam_mirror = True
+        self.enable_toroid = True
+        self.enable_projector = True
+        #== Size / position of optical objects ==
+        #== Projector configuration ==
+        projector_position = [0.0, 410.0, -140.0]
+        projector_orientation = [0.0, -1.0 , 0.15 ]
+        self.projector_size = [120.0, 40.0, 115.0]
+        self.projector = self.cuboid_vertices(self.projector_size)
+        self.projector = self.projector + numpy.array(projector_position)
+        projection_distance = 600.0
+        projected_image_size  = 380.0
+        aspect_ratio = [4, 3]
         
-        initial_ray_start_point = numpy.array([[0.0 * unit, 0.0 * unit, 0.0 * unit], [0.0 * unit, 0.0 * unit, 0.0 * unit]])
-        initial_ray_direction = numpy.array([[0.0 * unit, 0.1 * unit, 1.0 * unit], [0.0 * unit, 0.2 * unit, 1.0 * unit]])
+        #The projected image with the beamer's lens form a pyramid. The vector pointing from the apex to the vertices of the base are calculated here:
+        unit = numpy.sqrt(projected_image_size ** 2 / (numpy.array(aspect_ratio).sum()))
         
-        initial_ray_start_point = numpy.array([[0.0 * unit, 1.0 * unit, 0.0 * unit], [0.0 * unit, 1.0 * unit, 0.0 * unit], [0.0 * unit, 1.0 * unit, 0.0 * unit], [0.0 * unit, 1.0 * unit, 0.0 * unit]])
-        initial_ray_direction = numpy.array([[0.01 * unit, -1.0 * unit, 0.0 * unit], [0.1 * unit, -1.0 * unit, 0.0 * unit], [0.2 * unit, -1.0 * unit, 0.0 * unit], [0.3 * unit, -1.0 * unit, 0.0 * unit]])
+        rotation_angles = numpy.arctan(numpy.array([0.5 * unit * aspect_ratio[0], 0.5 * unit * aspect_ratio[1]]) / projection_distance)
+        rotation_matrix_x = numpy.matrix([
+                                          [1.0, 0.0, 0.0], 
+                                          [0.0, numpy.cos(rotation_angles[0]), -numpy.sin(rotation_angles[0])], 
+                                          [0.0, numpy.sin(rotation_angles[0]), numpy.cos(rotation_angles[0])], 
+                                        ])
+        rotation_matrix_y = numpy.matrix([
+                                          [numpy.cos(rotation_angles[1]), 0.0, numpy.sin(rotation_angles[1])], 
+                                          [0.0, 1.0, 0.0],         
+                                          [-numpy.sin(rotation_angles[1]), 0.0, numpy.cos(rotation_angles[1])], 
+                                        ])
+        ray = rotation_matrix_x * rotation_matrix_y * numpy.matrix(projector_orientation).transpose()
         
-        dist =10.0
-        offset = 0.0
-        ray_x = [-0.00101, -0.002, -0.00301, -0.004, -0.005]
-        initial_ray_start_point = numpy.array([[offset * unit, dist * unit, 0.0 * unit], [offset * unit, dist * unit, 0.0 * unit], [offset * unit, dist * unit, 0.0 * unit], [offset * unit, dist * unit, 0.0 * unit], [offset * unit, dist * unit, 0.0 * unit]])
-        initial_ray_direction = numpy.array([[ray_x[0] * unit, -1.0 * unit, 0.0 * unit], [ray_x[1] * unit, -1.0 * unit, 0.0 * unit], [ray_x[2] * unit, -1.0 * unit, 0.0 * unit], [ray_x[3] * unit, -1.0 * unit, 0.0 * unit], [ray_x[4]* unit, -1.0 * unit, 0.0 * unit]])
+        ray = ray.transpose()[0]
+        print ray
+        
+        initial_ray_start_point = numpy.array([projector_position, projector_position, projector_position, projector_position, projector_position])
+        initial_ray_direction = numpy.array([projector_orientation, projector_orientation, projector_orientation, projector_orientation, projector_orientation])
+        initial_ray_start_point = numpy.array([projector_position, projector_position])
+        initial_ray_direction = numpy.array([projector_orientation, ray])
 
-#        initial_ray_start_point = numpy.array([[offset * unit, dist * unit, 0.0 * unit], [offset * unit, dist * unit, 0.0 * unit]])
-#        initial_ray_direction = numpy.array([[ray_x[0] * unit, 1.0 * unit, 0.0 * unit], [ray_x[-1] * unit, 1.0 * unit, 0.0 * unit]])
-        
-#        self.plane_mirror = numpy.array([[-0.5 * unit,  0.5 * unit, -0.5 * unit], [0.5 * unit,  0.5 * unit, -0.5 * unit], [0.5 * unit,  0.5 * unit, 0.5 * unit], [-0.5 * unit,  0.5 * unit, 0.5 * unit]])
-        
+#        projected_image_forming_vector = numpy.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [-1.0, 1.0, 1.0], [-1.0, -1.0, 1.0], [1.0, -1.0, 1.0]])
+#        projected_image_forming_vector = projected_image_forming_vector * pyramid_apex_to_base_vertex_vector
+#        initial_ray_direction = initial_ray_direction + projected_image_forming_vector
+#        print initial_ray_direction
+        #==Plane mirror ==
+        mirror_position = numpy.array([0, 250.0, -50])
+        mirror_size = 150
+        mirror_tilt = 10.0
+        mirror_tilt = (mirror_tilt + 0.0) * numpy.pi / 180.0
+        z_adjustment = round(0.5 * mirror_size * numpy.cos(mirror_tilt), visexpman.users.zoltan.configurations.GEOMETRY_PRECISION)
+        y_adjustment = round(0.5 * mirror_size * numpy.sin(mirror_tilt), visexpman.users.zoltan.configurations.GEOMETRY_PRECISION)
+        self.plane_mirror = numpy.array([[-0.5 * mirror_size, - y_adjustment, -z_adjustment],
+                                                            [0.5 * mirror_size,  - y_adjustment, -z_adjustment],
+                                                            [0.5 * mirror_size, y_adjustment, z_adjustment],
+                                                            [-0.5 * mirror_size, y_adjustment, z_adjustment]])
+        self.plane_mirror = self.plane_mirror + mirror_position
+        #== Angular amplification mirror ==
+        aam_position = numpy.array([0, 330, 0])
         amplification = 12.0
-        focal_distance = 10.0*unit
-        mesh_size = 0.051 * 1.0 * unit
-        reflect = True
-        angle_range = [0.0, 1.0]
-        ang_res = 100
-        
+        focal_distance = 14500.0
+        mesh_size = 0.510141 * 100
+        angle_range = [0.0, 0.3]
+        ang_res = 2
         mirror_profile, invalid_angles = angular_amplification_mirror.calculate_angular_amplification_mirror_profile(amplification, focal_distance, angle_range =angle_range, angular_resolution = ang_res)
-        self.screen, self.number_of_shapes = surface_meshes.aam_mesh(focal_distance, amplification, mesh_size, mirror_profile)
-        print self.number_of_shapes
-        self.mirrors = []
-        for i in range(self.number_of_shapes):
-            self.mirrors.append(self.screen[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])
-#        self.mirrors.append(self.plane_mirror[0:3])
-#        self.mirrors.append(self.plane_mirror[1:4])
-        self.mirrors = numpy.array(self.mirrors)
+        self.aam, self.number_of_aam_shapes = surface_meshes.aam_mesh(focal_distance, amplification, mesh_size, mirror_profile)
+        self.aam = self.aam + aam_position
+        #== Toroid screen ==
+        screen_position = numpy.array([0, 0, 0])
+        self.toroid(screen_position)
             
+        #== Collect all mirror objects ==
+        self.mirrors = []
+        if self.enable_aam_mirror:
+            for i in range(self.number_of_aam_shapes):
+                self.mirrors.append(self.aam[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])
+        
+        if self.enable_plane_mirror:
+            self.mirrors.append(self.plane_mirror[0:3])
+            self.mirrors.append(self.plane_mirror[1:4])    
+            
+        if self.enable_toroid:
+            for i in range(self.number_of_toroid_shapes):
+                self.mirrors.append(self.screen[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])
+            
+        #== Calculate reflections ==
         self.rays = []
         if reflect:
             for i in range(initial_ray_start_point.shape[0]):
                 is_reflection, rays = ray_relfection.multiple_reflections(self.mirrors,  initial_ray_start_point[i], initial_ray_direction[i], number_of_reflections)
                 print is_reflection
                 self.rays.append(rays)
-            
+
+        flatten_rays = []
+        self.ray_chain_mask = []
+        for ray_chain in self.rays:
+            for ray in ray_chain:
+                flatten_rays.append(ray)            
+                self.ray_chain_mask.append(True)
+            self.ray_chain_mask[-1] = False
+        self.rays = numpy.array(flatten_rays)
+        #== put together vertexes ==
+        self.vertices = numpy.concatenate((self.axis, self.rays, self.plane_mirror, self.aam, self.screen, self.projector))
         
-        
-        self.axis = numpy.array([[0.0, 0.0, 0.0], [1.0 * unit, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, 1.0 * unit, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, 1.0 * unit]])
-        
+        print self.rays
         print time.time() - st
-        
-    def test_reflection(self, seed_in,  prec):
-        unit = 100.0
-        number_of_reflections = 1
-        self.line_color_step = 1.0 / 0.8
-        self.number_of_shape_vertices = 3
-        
-        initial_ray_start_point = numpy.array([[0.5 * unit, 0.0 * unit, 0.0 * unit]])
-        initial_ray_direction = numpy.array([[0.0 * unit, 0.2 * unit, 1.0 * unit]])
-        
-        #START OF TEST MIRROR
-        import random
-        preceision = prec
-        random.seed(seed_in)
-        test_rotation = []
-        for i in range(2):
-            test_rotation.append(1.0 * unit * round(random.random(), preceision))
-            
-        test_pitch = 1.0 * unit * round(random.random(), preceision)
-        
-        self.screen = numpy.array([[0.0, 0.0, 1.0 * unit], [1.0 * unit,  0.0,  1.0 * unit + test_rotation[0]], [0.0 * unit, 1.0 * unit, 1.0 * unit + test_pitch], [0.0, 0.0, 1.0 * unit], [-1.0 * unit,  0.0,  1.0 * unit + test_rotation[1]], [0.0 * unit, 1.0 * unit, 1.0 * unit + test_pitch]])
-        self.number_of_shapes = 1        
-        #END OF TEST MIRROR
-
-        self.mirrors = []
-        for i in range(self.number_of_shapes+2):
-            self.mirrors.append(self.screen[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])
-        self.mirrors = numpy.array(self.mirrors)
-        
-        self.rays = []
-        for i in range(initial_ray_start_point.shape[0]):
-            is_reflection, rays = ray_relfection.multiple_reflections(self.mirrors,  initial_ray_start_point[i], initial_ray_direction[i], number_of_reflections)
-            self.rays.append(rays)
-        return is_reflection
-
+    
     def draw_scene(self):
+        #draw x,y and z axis 
         glEnableClientState(GL_VERTEX_ARRAY)
-        for i in range(len(self.rays)):
-            intensity = 0.5 + float(i+1)/(2*len(self.rays))
-            glColor3fv((intensity, intensity, intensity))
-#            glColor3fv((1.0, 1.0, 1.0))
-            if self.rays[i] != None:
-                glLineWidth(1)
-                glVertexPointerf(self.rays[i])
-                for i in range(self.rays[0].shape[0]-1):                    
-                    glDrawArrays(GL_LINES, i, 2)
-        glDisableClientState(GL_VERTEX_ARRAY) 
-
-        #draw x,y and z axis
-        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(self.vertices)
         glLineWidth(1)
-        glColor3fv((1.0, 0.0, 0.0))
-        glVertexPointerf(self.axis)
-        glDrawArrays(GL_LINES, 0, 2)
-        glColor3fv((0.0, 1.0, 0.0))
-        glVertexPointerf(self.axis)
+        glColor4fv((1.0, 0.0, 0.0, 1.0))
+        glDrawArrays(GL_LINES, 0 , 2)
+        glColor4fv((0.0, 1.0, 0.0, 1.0))
         glDrawArrays(GL_LINES, 2, 2)
-        glColor3fv((0.0, 0.0, 1.0))
-        glVertexPointerf(self.axis)
+        glColor4fv((0.0, 0.0, 1.0, 1.0))
         glDrawArrays(GL_LINES, 4, 2)
-        glDisableClientState(GL_VERTEX_ARRAY) 
+        vertex_array_offset = 6
         
-#        #draw plane mirror
-#        glEnableClientState(GL_VERTEX_ARRAY)
-#        glVertexPointerf(self.plane_mirror)
-#        glColor4fv((0.5, 0.5, 0.5, 0.2))
-#        glDrawArrays(GL_POLYGON, 0, 4)
-#        glDisableClientState(GL_VERTEX_ARRAY) 
+        #== Draw light rays ==
+        glLineWidth(2)
+        for i in range(int(self.rays.shape[0]-1)):
+            intensity = 0.5 + float(i+1)/(2*self.rays.shape[0])
+            glColor3fv((intensity, intensity, intensity))
+            if self.ray_chain_mask[i]:
+                glDrawArrays(GL_LINES, vertex_array_offset + i, 2)
+        vertex_array_offset = vertex_array_offset + self.rays.shape[0]
         
+        #== Draw optical objects ==
+        #draw plane mirror
+        if self.enable_plane_mirror:
+            glColor4fv((0.5, 0.5, 0.5, 0.7))
+            glDrawArrays(GL_POLYGON, vertex_array_offset, 4)
+        vertex_array_offset = vertex_array_offset + 4
+        #draw aam mirror
+        if self.enable_aam_mirror:
+            for i in range(self.number_of_aam_shapes):
+                r = float(i) / self.number_of_aam_shapes
+                g = 1.0 - r
+                b = 1.0
+                alpha = 0.5
+                glColor4fv((r, g, b,  alpha))
+                glDrawArrays(GL_POLYGON, vertex_array_offset + i*self.number_of_shape_vertices ,  self.number_of_shape_vertices)
+        vertex_array_offset = vertex_array_offset + self.number_of_aam_shapes * self.number_of_shape_vertices
         #draw toroid screen
-        glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointerf(self.screen)
-        for i in range(self.number_of_shapes):
-            r = float(i) / self.number_of_shapes
-            g = 1.0 - r
-            b = 1.0
-            alpha = 0.5
-#            if i == 2:
-#                r = 0.5
-#                b = 0.5
-#                g = 0.5
-#                print self.screen[i*4:(i+1)*4]
-                
-            glColor4fv((r, g, b,  alpha))
-            glDrawArrays(GL_POLYGON, i*self.number_of_shape_vertices, self.number_of_shape_vertices)
-            
+        if self.enable_toroid:
+            for i in range(self.number_of_toroid_shapes):
+                r = float(i) / self.number_of_toroid_shapes
+                g = 1.0 - r
+                b = 1.0 - r
+                alpha = 0.5
+                glColor4fv((r, g, b,  alpha))
+                glDrawArrays(GL_POLYGON, vertex_array_offset + i*self.number_of_shape_vertices ,  self.number_of_shape_vertices)
+        vertex_array_offset = vertex_array_offset + self.number_of_toroid_shapes * self.number_of_shape_vertices
         
-        glDisableClientState(GL_VERTEX_ARRAY) 
+        #== Draw other objects == 
+        #draw projector
+        if self.enable_projector:
+            glColor4fv((0.2, 0.5, 0.9, 0.5))
+            for i in range(6):
+                glDrawArrays(GL_POLYGON, vertex_array_offset + i*4, 4)
         
+        glDisableClientState(GL_VERTEX_ARRAY)
+
     def render_before_set_view(self):
-        msg = str(self.position) + "%2.0f, %2.0f, %2.0f,%2.2f, %f"%(self.heading,  self.roll, self.pitch, self.frame_rate, self.wait_time_left)
+        msg = str(self.position) + "%2.0f, %2.0f, %2.0f, %2.1f,%2.2f, %f"%(self.heading,  self.roll, self.pitch, self.scale, self.frame_rate, self.wait_time_left)
         self.render_text(msg, color = (0.8, 0.8, 0.8), position = (-400, -250))
 
-#class OpticSimulationScreen(generic.graphics.Screen):
-#    def draw_hole_cubes(self):
-#        hole_size = 10
-#        frame_width = 100        
-#        glTranslatef(frame_width,  0,  0)
-#        glutSolidCube(frame_width)
-#        glTranslatef(0, frame_width,  0)
-#        glutSolidCube(frame_width)
-#        glTranslatef(-frame_width, 0, 0)
-#        glutSolidCube(frame_width)
-#        glTranslatef(-frame_width, 0, 0)
-#        glutSolidCube(frame_width)
-#        glTranslatef(0, -frame_width, 0)
-#        glutSolidCube(frame_width)
-#        glTranslatef(0, -frame_width, 0)
-#        glutSolidCube(frame_width)
-#        glTranslatef(frame_width, 0, 0)
-#        glutSolidCube(frame_width)
-#        glTranslatef(frame_width, 0, 0)
-#        glutSolidCube(frame_width)
-#
-#    
-#    def draw_scene(self):
-##        self.light()
-##        self.draw_hole()
-##        glColor3fv((0.2, 0.2, 0.2))
-##        glRectf(-300.0, -300.0, 300.0, 300.0)
-#
-#        
-##        glMatrixMode(GL_MODELVIEW)
-##        glPushMatrix()
-#        
-#        
-##        glutSolidCube(100)
-##        glTranslatef(-150,  0,  0) 
-##        glutSolidSphere(100, 200, 200)
-##        glTranslatef(100,  0,  -200) 
-##        glutSolidSphere(150, 200, 200)
-#        
-#
-##        glColorMask(0,0,0,0)
-##        glDisable(GL_DEPTH_TEST)
-#        self.draw_hole_cubes()
-##        glEnable(GL_DEPTH_TEST)
-##        glColorMask(1,1,1,1)
-##        
-##        glPushMatrix()
-##        glScalef(1.0, -1.0, 1.0)
-##        
-##        glTranslatef(0.0, 0.0, 100.0)
-##        
-#        glColor3fv((1.0, 0.0, 0.0))
-#        glTranslatef(0,  0,  -300)
-#        glutSolidSphere(150, 200, 200)
-#        glTranslatef(0,  0,  300)        
-#        
-##        glPopMatrix()
-##        
-###        glEnable(GL_BLEND)
-##        glColor4f(1.0, 1.0, 1.0, 0.5)
-###        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)        
-##        self.draw_hole_cubes()        
-###        glDisable(GL_BLEND)
-##        glTranslatef(0.0, 0.0, 100.0)
-##        
-##        glColor3fv((1.0, 0.0, 0.0))
-##        glTranslatef(0, 0, -300)
-##        glutSolidSphere(150, 200, 200)
-##        glTranslatef(0, 0, 300)        
-##
-##    #blend test
-##        
-##        
-##        
-##        
-##        
-##        glPopMatrix()
-##        
-#        
-#        
-#        
-#
-##        color = (1.0, 0.0, 0.0)
-##        glColor3fv(color)
-##        glRectf(-10.0, -10.0, 10.0, 10.0)
-##        glColor3fv((0.0, 1.0, 0.0))
-##        glRectf(90.0, 90.0, 110.0, 110.0)
-##        glRectf(-140.0, 140.0, -160.0, 160.0)
-##        glRectf(-190.0, -190.0, -210.0, -210.0)
-##        glRectf(240.0, -240.0, 260.0, -260.0)
-##        
-##        glColor3fv((0.0, 0.0, 1.0))
-##        glRectf(240.0, 240.0, 260.0, 260.0)
-#    
-#    
-#    def render_before_set_view(self):
-#        msg = str(self.position) + "%2.0f, %2.0f, %2.0f,%2.2f, %f"%(self.heading,  self.roll, self.pitch, self.frame_rate, self.wait_time_left)
-#        #glDisable(GL_LIGHTING)
-#        self.render_text(msg, color = (0.8, 0.8, 0.8), position = (-400, -250))
-#        #glEnable(GL_LIGHTING)
-##        self.render_imagefile('../data/images/vision_spatial_resolution.png')
-#
-#    def initialization(self):
-#        glEnable(GL_NORMALIZE)
-#        glShadeModel(GL_SMOOTH)
-#        glMaterialfv(GL_FRONT, GL_DIFFUSE, (1.0, 1.0, 1.0, 0.0))
-#        glMaterialfv(GL_FRONT, GL_AMBIENT, (1.0, 1.0, 1.0, 0.0))       
-#        
-#        glLightfv(GL_LIGHT0, GL_DIFFUSE, (0.4,0.4,0.4))
-#        
-#        glLightModelfv(GL_LIGHT_MODEL_AMBIENT, (0.6, 0.6, 0.6))        
-#        glLightModelfv(GL_LIGHT_MODEL_LOCAL_VIEWER, 1)
-#        
-#        glEnable(GL_LIGHT0)
-#        glEnable(GL_LIGHTING)
-
-
-        
-#    def light(self):
-#        glLightfv(GL_LIGHT0, GL_POSITION, (0.0,0.0,100.0, 1.0))
-#
-#
-#
-#        
-#        
-#
-#        
-#    def draw_hole(self):
-#        glMatrixMode(GL_MODELVIEW)
-#        glPushMatrix()
-#        
-#        glRotatef(0,  0.0, 0.0, 1.0)
-#        glTranslatef(0,  0,  100) 
-#        size = (200, 200)
-#        hole = (50, 50)
-#        hole_position = (75, 75)
-#        vertices = numpy.array([
-#                                [0, 0, 0],
-#                                [hole_position[0], 0, 0],
-#                                [hole_position[0], size[1], 0],
-#                                [0,  size[1], 0],
-#                                [hole_position[0], 0, 0],
-#                                [hole_position[0]+hole[0], 0, 0],
-#                                [hole_position[0]+hole[0], hole_position[1], 0],
-#                                [hole_position[0], hole_position[1], 0],
-#                                [hole_position[0], hole_position[1] + hole[1], 0],
-#                                [hole_position[0] + hole[0], hole_position[1] + hole[1], 0],
-#                                [hole_position[0] + hole[0], size[1], 0],
-#                                [hole_position[0], size[1], 0],
-#                                [hole_position[0] + hole[0], 0, 0],
-#                                [size[0], 0, 0],
-#                                [size[0], size[1], 0],
-#                                [hole_position[0] + hole[0], size[1], 0],
-#                                ])
-#                                
-#        normals = numpy.array([
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],
-#                                [0, 0, 1],                               
-#                               ])
-#
-#        glColor3fv((1.0, 0.0, 0.0))
-#        glEnableClientState(GL_NORMAL_ARRAY)
-#        glEnableClientState(GL_VERTEX_ARRAY)
-#        glVertexPointerf(vertices)
-#        glNormalPointerf(normals)
-#        for i in range(4):
-#            glColor3fv((1.0, 0.0, i * 0.23))
-#            glDrawArrays(GL_POLYGON, i * 4, 4)
-#
-#        glDisableClientState(GL_VERTEX_ARRAY)
-#        glDisableClientState(GL_NORMAL_ARRAY)
-#        
-#        glPopMatrix()
-#        
-#    def draw_rect(self):
-#        position = (200, 150)
-#        position = (0, 0)
-#        size = [400 , 300]
-#        color = (1.0,  1.0, 1.0)
-#        vertices = numpy.array(
-#                            [
-#                            [0.5 * size[0] + position[0], 0.5 * size[1] + position[1], 0.0],
-#                            [0.5 * size[0] + position[0], -0.5 * size[1] + position[1], 0.0],
-#                            [-0.5 * size[0] + position[0], -0.5 * size[1] + position[1], 0.0],
-#                            [-0.5 * size[0] + position[0], 0.5 * size[1] + position[1], 0.0],
-#                            [0.5 * size[0] + position[0], 0.0, 0.5 * size[1] + position[1]],
-#                            [0.5 * size[0] + position[0], 0.0, -0.5 * size[1] + position[1]],
-#                            [-0.5 * size[0] + position[0], 0.0, -0.5 * size[1] + position[1]],
-#                            [-0.5 * size[0] + position[0], 0.0, 0.5 * size[1] + position[1]],
-#                            ])
-#                            
-#        vertices = numpy.array([
-#                               [0, 0, 0], 
-#                               [100, 0, 0],
-#                               [100, 100, 0],
-#                               [0, 100, 0], 
-#                               [0, 0, 0], 
-#                               [100, 0, 0],
-#                               [100, 0, 100],
-#                               [0, 0, 100],
-#                               [0, 0, 0], 
-#                               [0, 100, 0], 
-#                               [0, 100, 100], 
-#                               [0, 0, 100]
-#                               
-#                               ])
-#
-#        glColor3fv(color)
-#        glEnableClientState(GL_VERTEX_ARRAY)
-#        glVertexPointerf(vertices)
-#        glDrawArrays(GL_POLYGON, 0, 4)
-#        glColor3fv((1.0, 0.0, 0.0))
-#        glDrawArrays(GL_POLYGON, 4, 4)
-#        glColor3fv((0.0, 0.0, 1.0))
-#        glDrawArrays(GL_POLYGON, 8, 4)
-#        glDisableClientState(GL_VERTEX_ARRAY)
 
 config = visexpman.users.zoltan.configurations.GraphicsTestConfig()
-g = RayReflection(config, graphics_mode = 'standalone')
+g = VirtualRealityOpticalAlignment(config, graphics_mode = 'standalone')
 g.run()
 g.close_screen()

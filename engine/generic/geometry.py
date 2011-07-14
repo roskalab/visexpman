@@ -1,9 +1,13 @@
 import numpy
 import unittest
 import utils
-import visexpman.users.zoltan.configurations
 
-preceision = visexpman.users.zoltan.configurations.GEOMETRY_PRECISION
+
+if __name__ == "__main__":
+    preceision = 3
+else:
+    import visexpman.users.zoltan.configurations
+    preceision = visexpman.users.zoltan.configurations.GEOMETRY_PRECISION
 
 def angle_between_vectors(v1, v2):
         '''
@@ -101,6 +105,7 @@ def is_point_in_polygon(point, polygon):
                 is_in_list = False
                 for intersection_ in intersections:
                     test_array = abs(intersection_ - intersection)
+#TODO:precision from parameter
                     if test_array[0] <= 1.0e-5 and test_array[1] <= 1.0e-5 and test_array[2] <= 1.0e-5:
                         is_in_list = True
                 if not is_in_list:
@@ -157,7 +162,9 @@ def plane_line_intersection(line_start_point,  line_direction, polygon):
                                 line_start_point[1] - line_direction[1] * line_parameter, 
                                 line_start_point[2] - line_direction[2] * line_parameter, 
                                 ])
-                                
+                      
+    #round to preceision - does not work
+#    intersection = numpy.round(intersection, preceision)
     #check wether the intersection exists
     intersection_exists = True
     for item in intersection:
@@ -182,12 +189,12 @@ def line_segment_ray_intersection(line_point1, line_point2, ray_point, ray_direc
             else:
                 ray_range.append(float('-inf'))
 
-        if utils.in_range(intersection[0], ray_point[0], ray_range[0]) and\
-        utils.in_range(intersection[1], ray_point[1], ray_range[1]) and\
-        utils.in_range(intersection[2], ray_point[2], ray_range[2]) and\
-        utils.in_range(intersection[0], line_point1[0], line_point2[0]) and\
-        utils.in_range(intersection[1], line_point1[1], line_point2[1]) and\
-        utils.in_range(intersection[2], line_point1[2], line_point2[2]):
+        if utils.in_range(intersection[0], ray_point[0], ray_range[0], preceision = preceision) and\
+        utils.in_range(intersection[1], ray_point[1], ray_range[1], preceision = preceision) and\
+        utils.in_range(intersection[2], ray_point[2], ray_range[2], preceision = preceision) and\
+        utils.in_range(intersection[0], line_point1[0], line_point2[0], preceision = preceision) and\
+        utils.in_range(intersection[1], line_point1[1], line_point2[1], preceision = preceision) and\
+        utils.in_range(intersection[2], line_point1[2], line_point2[2], preceision = preceision):
             return intersection_exists, intersection
         else:
             return False, None
@@ -217,13 +224,76 @@ def line_segment_intersection(line1_point1, line1_point2, line2_point1, line2_po
 def line_intersection(line1_point, line1_direction, line2_point, line2_direction):
     '''
     1. check if lines are parallel
+    2. find closest points
+    The parameter values of each line are calculated as follows:
+    M1 = a - x , u, u x v (M1 is a 3x3 matrix)
+    s = det M1 / |u x v| **2
+    
+    M2 = a - x , v, u x v (M2 is a 3x3 matrix)
+    t = det M2 / |u x v| **2
+    
+    Where:
+    a: line1_point
+    v: line1_direction
+    x: line2_point
+    u: line2_direction
+    s: parameter of line1
+    t: parameter of line2
+    
+    Substituting s and t into the line equations, the closest points are given
+    
+    3. Check if distance closest points is below tolerance
+    4. If exists, the intersection is the halfway point between closest points
+    '''
+    debug = False
+    intersection = None
+    intersection_exists = False
+    tolerance = 10.0 ** -preceision
+    if are_vectors_parallel(line1_direction, line2_direction):
+        intersection_exists = False
+    else:
+        vector_orthogonal_to_both_lines = numpy.cross(line2_direction, line1_direction)
+        square_of_lenght_of_vector_orthogonal_to_both_lines = (vector_orthogonal_to_both_lines ** 2).sum()
+        #calculate parameter of lines where the closest point is
+        par1 = numpy.matrix([line1_point - line2_point, line2_direction,vector_orthogonal_to_both_lines])
+        par1 = numpy.linalg.det(par1) / square_of_lenght_of_vector_orthogonal_to_both_lines
+        par2 = numpy.matrix([line1_point - line2_point, line1_direction,vector_orthogonal_to_both_lines])
+        par2 = numpy.linalg.det(par2) / square_of_lenght_of_vector_orthogonal_to_both_lines
+        line1_closest_point = line1_point + line1_direction * par1
+        line2_closest_point = line2_point + line2_direction * par2
+        distance_between_lines = numpy.sqrt(((line1_closest_point - line2_closest_point) ** 2).sum())
+        if distance_between_lines < tolerance:
+            intersection = line1_closest_point + (line2_closest_point - line1_closest_point)/2
+            intersection_exists = True
+
+        if debug:
+            print line1_closest_point
+            print line2_closest_point
+            print distance_between_lines
+            print intersection
+        
+    return intersection_exists, intersection
+        
+    
+def line_intersection_old(line1_point, line1_direction, line2_point, line2_direction):
+    '''
+    1. check if lines are parallel
     2. calculate s and t parameters
     3. check if substitution results equal z coordinates
     4. calculate x,y and z coordinates of intersection
     '''
-    #check if lines are not parallel: direction vectors shall not be the multiple of each other
+    debug = False
     intersection = None
     intersection_exists = False
+    tolerance = 10.0 ** -(preceision-1)
+    tolerance = 10.0 ** -5
+    
+    #==calculate distance between lines==
+    # distance = (a-c) dot (bxd) / |bxd| where a and c are arbitrary points of the lines, b and d are the direction vectors
+    dir_cross = numpy.cross(line1_direction, line2_direction)
+    distance_between_lines = numpy.dot((line1_point - line2_point), dir_cross) / numpy.sqrt((dir_cross ** 2).sum())
+    print distance_between_lines
+    
     if are_vectors_parallel(line1_direction, line2_direction):
         intersection_exists = False
     else:
@@ -235,7 +305,8 @@ def line_intersection(line1_point, line1_direction, line2_point, line2_direction
             result = numpy.asarray(result).reshape(-1)
             z1 = line1_point[2] + line1_direction[2] * result[0]
             z2 = line2_point[2] + line2_direction[2] * result[1]
-            if abs(z1 - z2) > 1e-5:
+            if debug: print 'z: %f,%f'%(z1, z2)
+            if abs(z1 - z2) > tolerance:
                 intersection_exists = False
             else:
                 intersection_exists = True        
@@ -251,8 +322,9 @@ def line_intersection(line1_point, line1_direction, line2_point, line2_direction
                 result = A_inv * b.transpose()
                 result = numpy.asarray(result).reshape(-1)
                 y1 = line1_point[1] + line1_direction[1] * result[0]
-                y2 = line2_point[1] + line2_direction[1] * result[1]        
-                if abs(y1 - y2) > 1e-5:
+                y2 = line2_point[1] + line2_direction[1] * result[1]
+                if debug: print 'y: %f,%f'%(y1, y2)
+                if abs(y1 - y2) > tolerance:
                     intersection_exists = False
                 else:
                     intersection_exists = True        
@@ -267,8 +339,9 @@ def line_intersection(line1_point, line1_direction, line2_point, line2_direction
                     result = A_inv * b.transpose()
                     result = numpy.asarray(result).reshape(-1)
                     x1 = line1_point[0] + line1_direction[0] * result[0]
-                    x2 = line2_point[0] + line2_direction[0] * result[1]        
-                    if abs(x1 - x2) > 1e-5:
+                    x2 = line2_point[0] + line2_direction[0] * result[1]
+                    if debug: print 'x: %f,%f'%(x1, x2)
+                    if abs(x1 - x2) > tolerance:
                         intersection_exists = False
                     else:
                         intersection_exists = True        
@@ -276,14 +349,23 @@ def line_intersection(line1_point, line1_direction, line2_point, line2_direction
                         z = line1_point[2] + line1_direction[2] * result[0]
                         intersection = numpy.array([x1, y, z])
                 except:
-                    intersection_exists = False                
+                    intersection_exists = False
     if intersection != None:
         intersection = numpy.round(intersection, preceision)
+        
+#    if distance_between_lines < tolerance:
+#        intersection_exists = True
     return intersection_exists, intersection
     
 def are_vectors_parallel(v1, v2):
     vector_ratio = v1/v2
-    vector_ratio_test = vector_ratio - vector_ratio[0]
+    
+    vector_ratio_offset = numpy.inf
+    for component in vector_ratio:
+        if not numpy.isnan(component) and component < vector_ratio_offset:
+            vector_ratio_offset = component
+        
+    vector_ratio_test = vector_ratio - vector_ratio_offset
     if vector_ratio_test.sum() == 0.0:
         is_parallel = True
     elif numpy.isnan(vector_ratio_test.sum()):
@@ -676,7 +758,7 @@ class testGeometry(unittest.TestCase):
 
 
 if __name__ == "__main__":
-#    unittest.main()
+    unittest.main()
     test_data =  [               {
                  'line_point1': numpy.array([0.0, 1.0, 0.0]), 
                  'line_point2': numpy.array([1.0, 1.0, 0.0]), 
@@ -696,11 +778,12 @@ if __name__ == "__main__":
                  'point': numpy.array([3.0, 0.0, 0.5]),                  
                  'result' : False
                  }, 
+                 #LINE
                  {
-                 'line1_point': numpy.array([0.0, 0.0, 0.0]), 
-                 'line1_direction': numpy.array([0.0, 0.0, 1.0]), 
-                 'line2_point': numpy.array([0.5, 0.5, 0.5]), 
-                 'line2_direction': numpy.array([-1.0, -1.0, -1.0]), 
+                 'line1_point': numpy.array([0.0, 1.0, 0.0]), 
+                 'line1_direction': numpy.array([0.0, 1.0, 0.0]), 
+                 'line2_point': numpy.array([0.0, 0.0, 0.0]), 
+                 'line2_direction': numpy.array([1.0, 0.0, 0.0]), 
                  },
                  {
                  'line_point1': numpy.array([-73.86058148,  -96.41814145,   88.02361333]), 
@@ -721,7 +804,7 @@ if __name__ == "__main__":
                  
 
                  ]
-    index = 5
+    index = 3
 #    print line_segment_ray_intersection(test_data[index]['line_point1'], test_data[index]['line_point2'], test_data[index]['ray_point'], test_data[index]['ray_direction'])
-    print is_point_in_polygon(test_data[index]['point'], test_data[index]['polygon'])
+#    print is_point_in_polygon(test_data[index]['point'], test_data[index]['polygon'])
 #    print line_intersection(test_data[index]['line1_point'], test_data[index]['line1_direction'], test_data[index]['line2_point'], test_data[index]['line2_direction'])
