@@ -384,6 +384,31 @@ def are_vectors_parallel(v1, v2):
         is_parallel = False
     return is_parallel
     
+def rotate_vector(vector, angle):
+    '''
+    angle: about x, y and z axis
+    '''
+    rotation_matrix_x = numpy.matrix([
+                                      [1.0, 0.0, 0.0],
+                                      [0.0, numpy.cos(angle[0]), -numpy.sin(angle[0])],
+                                      [0.0, numpy.sin(angle[0]), numpy.cos(angle[0])],
+                                      ])
+    rotation_matrix_y = numpy.matrix([
+                                       [numpy.cos(angle[1]), 0.0, numpy.sin(angle[1])],
+                                      [0.0, 1.0, 0.0],
+                                      [-numpy.sin(angle[1]), 0.0, numpy.cos(angle[1])],
+                                      ])
+                                      
+    rotation_matrix_z = numpy.matrix([
+                                       [numpy.cos(angle[2]), -numpy.sin(angle[2]), 0.0],
+                                      [numpy.sin(angle[2]), numpy.cos(angle[2]), 0.0],
+                                      [0.0, 0.0, 1.0],
+                                      ])
+                                      
+    vector_matrix = numpy.matrix(vector)
+    vector_matrix = vector_matrix.transpose()
+    return numpy.squeeze(numpy.asarray((rotation_matrix_x * rotation_matrix_y * rotation_matrix_z * vector_matrix).transpose()))
+    
 class testGeometry(unittest.TestCase):
     
     test_data = [
@@ -758,7 +783,7 @@ class testGeometry(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+#    unittest.main()
     test_data =  [               {
                  'line_point1': numpy.array([0.0, 1.0, 0.0]), 
                  'line_point2': numpy.array([1.0, 1.0, 0.0]), 
@@ -805,6 +830,10 @@ if __name__ == "__main__":
 
                  ]
     index = 3
+    
 #    print line_segment_ray_intersection(test_data[index]['line_point1'], test_data[index]['line_point2'], test_data[index]['ray_point'], test_data[index]['ray_direction'])
 #    print is_point_in_polygon(test_data[index]['point'], test_data[index]['polygon'])
 #    print line_intersection(test_data[index]['line1_point'], test_data[index]['line1_direction'], test_data[index]['line2_point'], test_data[index]['line2_direction'])
+    vector = numpy.array([1, 0, 0])
+    angle = numpy.array([0, 90, 90])
+    print rotate_vector(vector, angle * numpy.pi/180.0)

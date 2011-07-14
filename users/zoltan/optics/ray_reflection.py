@@ -54,9 +54,9 @@ def multiple_reflections(mirrors,  initial_ray_start_point, initial_ray_directio
                     reflected_ray_directions.append(reflected_ray_direction)
 
     if len(reflected_ray_directions) > 0:
-        reflected_ray_start_points.append(reflected_ray_start_points[-1] + 5.0 * reflected_ray_directions[-1])
+        reflected_ray_start_points.append(reflected_ray_start_points[-1] + 50.0 * reflected_ray_directions[-1])
     else:
-        reflected_ray_start_points.append(initial_ray_start_point + 5.0 * initial_ray_direction)
+        reflected_ray_start_points.append(initial_ray_start_point + 50.0 * initial_ray_direction)
     rays = numpy.array(reflected_ray_start_points)
     return is_reflection, rays
 

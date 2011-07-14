@@ -76,8 +76,8 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         #== Size / position of optical objects ==
         #== Projector configuration ==
         projector_position = [0.0, 410.0, -140.0]
-        projector_orientation = [0.0, -1.0 , 0.15 ]
-        self.projector_size = [120.0, 40.0, 115.0]
+        projector_orientation = [0.0, -1.0 , 0.55 ]
+        self.projector_size = [30, 30,30] #The realistic sizes are: [120.0, 40.0, 115.0]
         self.projector = self.cuboid_vertices(self.projector_size)
         self.projector = self.projector + numpy.array(projector_position)
         projection_distance = 600.0
@@ -88,30 +88,18 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         unit = numpy.sqrt(projected_image_size ** 2 / (numpy.array(aspect_ratio).sum()))
         
         rotation_angles = numpy.arctan(numpy.array([0.5 * unit * aspect_ratio[0], 0.5 * unit * aspect_ratio[1]]) / projection_distance)
-        rotation_matrix_x = numpy.matrix([
-                                          [1.0, 0.0, 0.0], 
-                                          [0.0, numpy.cos(rotation_angles[0]), -numpy.sin(rotation_angles[0])], 
-                                          [0.0, numpy.sin(rotation_angles[0]), numpy.cos(rotation_angles[0])], 
-                                        ])
-        rotation_matrix_y = numpy.matrix([
-                                          [numpy.cos(rotation_angles[1]), 0.0, numpy.sin(rotation_angles[1])], 
-                                          [0.0, 1.0, 0.0],         
-                                          [-numpy.sin(rotation_angles[1]), 0.0, numpy.cos(rotation_angles[1])], 
-                                        ])
-        ray = rotation_matrix_x * rotation_matrix_y * numpy.matrix(projector_orientation).transpose()
         
-        ray = ray.transpose()[0]
-        print ray
+        
+        ray1 = geometry.rotate_vector(projector_orientation, numpy.array([0.0, rotation_angles[0], rotation_angles[1]]))
+        ray2 = geometry.rotate_vector(projector_orientation, numpy.array([0.0, -rotation_angles[0], rotation_angles[1]]))        
+        ray3 = geometry.rotate_vector(projector_orientation, numpy.array([0.0, -rotation_angles[0], -rotation_angles[1]]))
+        ray4 = geometry.rotate_vector(projector_orientation, numpy.array([0.0, rotation_angles[0], -rotation_angles[1]]))
         
         initial_ray_start_point = numpy.array([projector_position, projector_position, projector_position, projector_position, projector_position])
-        initial_ray_direction = numpy.array([projector_orientation, projector_orientation, projector_orientation, projector_orientation, projector_orientation])
-        initial_ray_start_point = numpy.array([projector_position, projector_position])
-        initial_ray_direction = numpy.array([projector_orientation, ray])
+        initial_ray_direction = numpy.array([projector_orientation, ray1, ray2, ray3, ray4])
+#        initial_ray_start_point = numpy.array([projector_position])
+#        initial_ray_direction = numpy.array([ray1])
 
-#        projected_image_forming_vector = numpy.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [-1.0, 1.0, 1.0], [-1.0, -1.0, 1.0], [1.0, -1.0, 1.0]])
-#        projected_image_forming_vector = projected_image_forming_vector * pyramid_apex_to_base_vertex_vector
-#        initial_ray_direction = initial_ray_direction + projected_image_forming_vector
-#        print initial_ray_direction
         #==Plane mirror ==
         mirror_position = numpy.array([0, 250.0, -50])
         mirror_size = 150
