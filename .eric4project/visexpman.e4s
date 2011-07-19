@@ -2,13 +2,12 @@
 <!DOCTYPE Session SYSTEM "Session-4.4.dtd">
 <!-- eric4 session file for project visexpman -->
 <!-- This file was generated automatically, do not edit. -->
-<!-- Saved: 2011-07-14, 17:13:48 -->
+<!-- Saved: 2011-07-18, 11:19:57 -->
 <Session version="4.4">
   <Filenames>
     <Filename cline="0" cindex="0" folds="" zoom="0">/home/zoltan/development/repository/visexpman/engine/run_vr_optical_simulation.py</Filename>
-    <Filename cline="0" cindex="0" folds="" zoom="0">/home/zoltan/development/repository/visexpman/engine/generic/geometry.py</Filename>
   </Filenames>
-  <ActiveWindow cline="0" cindex="0">/home/zoltan/development/repository/visexpman/engine/generic/geometry.py</ActiveWindow>
+  <ActiveWindow cline="0" cindex="0">/home/zoltan/development/repository/visexpman/engine/run_vr_optical_simulation.py</ActiveWindow>
   <Breakpoints>
   </Breakpoints>
   <Watchexpressions>

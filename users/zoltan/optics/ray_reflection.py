@@ -1,7 +1,11 @@
+
+#This module shall be renamed, because all optical calculations are to be kept here
 import numpy
+import visual as v
 import visexpman.engine.generic.geometry as geometry
 
-  
+last_ray_length = 1.0
+
 def reflection(ray_start_point,  ray_direction, polygon):
     '''
     polygon is at least three vertexes in x,y,z format
@@ -26,8 +30,7 @@ def multiple_reflections(mirrors,  initial_ray_start_point, initial_ray_directio
     '''
     is_reflection = False
     reflected_ray_start_points = [initial_ray_start_point]
-    reflected_ray_directions = []    
-    
+    reflected_ray_directions = []
     for reflection_count in range(number_of_reflections):
         if reflection_count == 0:
             ray_start_point = initial_ray_start_point
@@ -36,14 +39,23 @@ def multiple_reflections(mirrors,  initial_ray_start_point, initial_ray_directio
             if len(reflected_ray_start_points) > 0 and len(reflected_ray_directions) > 0:
                 ray_start_point = reflected_ray_start_points[-1]
                 ray_direction = reflected_ray_directions[-1]
-            
+
         mirrors_hit = 0
-        for mirror_count in range(len(mirrors)):                
+        for mirror_count in range(len(mirrors)):
             reflected_ray_start_point, reflected_ray_direction  = reflection(ray_start_point, ray_direction, mirrors[mirror_count])
 #            print reflected_ray_start_point, reflected_ray_direction, ray_start_point, ray_direction
             if reflected_ray_start_point != None and reflected_ray_direction != None:
                 mirrors_hit = mirrors_hit + 1
-                if mirrors_hit == 2:
+                if mirrors_hit >= 2:
+                    distance1 = geometry.vector_length(ray_start_point - reflected_ray_start_point)
+                    distance2 = geometry.vector_length(ray_start_point - reflected_ray_start_points[-1])
+#                    print distance1, distance2
+                    #the closest is chosen
+                    if distance1 < distance2:
+                        reflected_ray_directions[-1] = reflected_ray_direction
+                        reflected_ray_start_points[-1] = reflected_ray_start_point
+#                        mirrors_hit = mirrors_hit - 1
+
                     #two mirrors are hit when the ray is incident to a corner. This time the incident ray is reflected back
                     #if mirrors are not in the same plane, the relfection is calculated only one of the mirrors, the one that is earlier in the mirror list
                     pass
@@ -54,13 +66,63 @@ def multiple_reflections(mirrors,  initial_ray_start_point, initial_ray_directio
                     reflected_ray_directions.append(reflected_ray_direction)
 
     if len(reflected_ray_directions) > 0:
-        reflected_ray_start_points.append(reflected_ray_start_points[-1] + 50.0 * reflected_ray_directions[-1])
+        reflected_ray_start_points.append(reflected_ray_start_points[-1] + last_ray_length * reflected_ray_directions[-1])
     else:
-        reflected_ray_start_points.append(initial_ray_start_point + 50.0 * initial_ray_direction)
+        reflected_ray_start_points.append(initial_ray_start_point + last_ray_length * initial_ray_direction)
     rays = numpy.array(reflected_ray_start_points)
     return is_reflection, rays
-
+    
+def pyramid_projection(apex, direction, height, base_hypotenuse, aspect_ratio, half_angle_rays = False):
+    '''
+    calculates the direction vectors to the four corners of a projected image from the projector
+    '''
+    unit = numpy.sqrt(base_hypotenuse ** 2 / (1 + aspect_ratio ** 2))
+    side1 = unit
+    side2 = aspect_ratio * unit
+    direction_normalized = geometry.normalize_vector(direction)
+    center_of_base = apex + direction_normalized * height
+    
+    #assuming that the projection heads always to z axis
+    base_vector1 = direction_normalized
+    base_vector2 = numpy.array([1.0, 0.0, 0.0])
+    base_vector3 = geometry.normalize_vector(numpy.cross(base_vector1, base_vector2))
+    
+    #angles of rotation
+    angle2 = numpy.arctan(0.5 * side1 / height)
+    angle3 = numpy.arctan(0.5 * side2 / height)
+    
+    corners = [[1, 1]]#, [1, -1]]#, [1, 1], [-1, 1]]
+#    corners=[[0, 1]]
+    pyramid_base_vertices = []
+    for corner in corners:
+        pyramid_base_vertices.append(center_of_base + corner[0] * base_vector2 * 0.5 * side1 + corner[1] * base_vector3 * 0.5 * side2)
+        
+    if half_angle_rays:
+        for corner in corners:
+            pyramid_base_vertices.append(center_of_base + corner[0] * base_vector2 * 0.25 * side1 + corner[1] * base_vector3 * 0.25 * side2)
+            
+        for corner in corners:
+            pyramid_base_vertices.append(center_of_base + corner[0] * base_vector2 * 0.1 * side1 + corner[1] * base_vector3 * 0.1 * side2)
+        
+    pyramid_base_vertices = numpy.array(pyramid_base_vertices) - apex
+    return pyramid_base_vertices
+    
 if __name__ == "__main__": 
+#    apex = numpy.array([0,1, 0])
+#    direction = numpy.array([-1, -1, 0])
+#    height = 1.0
+#    base_hypotenuse = 1.414
+#    aspect_ratio = 1.0
+#    print pyramid_projection(apex, direction, height, base_hypotenuse, aspect_ratio)
+    depth1 = -3.0
+    depth2 = -10.0
+    mirrors = numpy.array([
+                           [[0.0, depth1, 10.0], [10.0, depth1, -10.0], [-10.0, depth1, -10.0]], 
+                           [[0.0, depth2, 10.0], [10.0, depth2, -10.0], [-10.0, depth2, -10.0]]
+                           ])
+    initial_ray_start_point = numpy.array([0.0, 1.0, 0.0])
+    initial_ray_direction = numpy.array([0.0, -1.0, 0.0])
+    print multiple_reflections(mirrors,  initial_ray_start_point, initial_ray_direction, 1)
     
     #Config 1:
 #    ray_start_point = numpy.array([0.0, 100.0, 50.0])
@@ -72,12 +134,12 @@ if __name__ == "__main__":
 #                                                  ] )
                                                   
     #Config 2:
-    ray_start_point = numpy.array([2.0, 1.0, 0.5])
-    ray_direction = numpy.array([1.0, -1.0, 0.0]) #check if ray goes to opposite direction how the algorithm work
-    polygon = numpy.array([[0.0, 0.0, 0.0], 
-                                                   [0.0, 0.0, 1.0], 
-                                                   [10.0, 0.0, 1.0], 
-                                                   [10.0, 0.0, 0.0], 
-                                                  ] )
-
-    print reflection(ray_start_point,  ray_direction, polygon), ray_start_point,  ray_direction
+#    ray_start_point = numpy.array([2.0, 1.0, 0.5])
+#    ray_direction = numpy.array([1.0, -1.0, 0.0]) #check if ray goes to opposite direction how the algorithm work
+#    polygon = numpy.array([[0.0, 0.0, 0.0], 
+#                                                   [0.0, 0.0, 1.0], 
+#                                                   [10.0, 0.0, 1.0], 
+#                                                   [10.0, 0.0, 0.0], 
+#                                                  ] )
+#
+#    print reflection(ray_start_point,  ray_direction, polygon), ray_start_point,  ray_direction

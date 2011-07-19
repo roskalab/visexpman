@@ -6,8 +6,11 @@ import utils
 if __name__ == "__main__":
     preceision = 3
 else:
-    import visexpman.users.zoltan.configurations
-    preceision = visexpman.users.zoltan.configurations.GEOMETRY_PRECISION
+    try:
+        import visexpman.users.zoltan.configurations
+        preceision = visexpman.users.zoltan.configurations.GEOMETRY_PRECISION
+    except:
+        preceision = 3
 
 def angle_between_vectors(v1, v2):
         '''
@@ -386,7 +389,7 @@ def are_vectors_parallel(v1, v2):
     
 def rotate_vector(vector, angle):
     '''
-    angle: about x, y and z axis
+    angle: about x, y and z axis, in radian
     '''
     rotation_matrix_x = numpy.matrix([
                                       [1.0, 0.0, 0.0],
@@ -834,6 +837,6 @@ if __name__ == "__main__":
 #    print line_segment_ray_intersection(test_data[index]['line_point1'], test_data[index]['line_point2'], test_data[index]['ray_point'], test_data[index]['ray_direction'])
 #    print is_point_in_polygon(test_data[index]['point'], test_data[index]['polygon'])
 #    print line_intersection(test_data[index]['line1_point'], test_data[index]['line1_direction'], test_data[index]['line2_point'], test_data[index]['line2_direction'])
-    vector = numpy.array([1, 0, 0])
-    angle = numpy.array([0, 90, 90])
+    vector = numpy.array([0, 0, 1])
+    angle = numpy.array([45, 45, 0])
     print rotate_vector(vector, angle * numpy.pi/180.0)

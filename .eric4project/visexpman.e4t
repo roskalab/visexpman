@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project visexpman -->
-<!-- Saved: 2011-07-14, 16:27:45 -->
+<!-- Saved: 2011-07-19, 13:02:24 -->
 <Tasks version="4.2">
   <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: handle invalid filterwheel ID</Summary>
@@ -24,10 +24,10 @@
   <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO:precision from parameter</Summary>
     <Description></Description>
-    <Created>2011-07-14, 15:09:50</Created>
+    <Created>2011-07-18, 20:28:29</Created>
     <Resource>
       <Filename>engine/generic/geometry.py</Filename>
-      <Linenumber>108</Linenumber>
+      <Linenumber>111</Linenumber>
     </Resource>
   </Task>
 </Tasks>

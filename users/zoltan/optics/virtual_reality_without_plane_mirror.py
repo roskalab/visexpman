@@ -70,17 +70,17 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         st = time.time()
         #== General settings for optical simulation ==
         reflect = True
-        number_of_reflections = 3
+        number_of_reflections = 2
         self.line_color_step = 1.0 / 0.8
         self.number_of_shape_vertices = 3
         #== Enable optical objects ==
-        self.enable_plane_mirror = True
-        self.enable_aam_mirror = False
+        self.enable_plane_mirror = False
+        self.enable_aam_mirror = True
         self.enable_toroid = True
         self.enable_projector = True
         #== Size / position of optical objects ==
         #== Angular amplification mirror ==
-        aam_position = numpy.array([0, 320, 0])
+        aam_position = numpy.array([0, 410, 0])
         amplification = 12.0
         focal_distance = 14500.0
         mesh_size = 0.510141 * 100*0.7
@@ -91,10 +91,10 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         self.aam = self.aam + aam_position
         
         #==Plane mirror ==
-        relative_position_to_aam = numpy.array([0.0, -90.0, 0.0])
+        relative_position_to_aam = numpy.array([0.0, 0*-90.0, 0.0])
         mirror_position = aam_position + relative_position_to_aam
-        mirror_size = 150
-        mirror_tilt = 0*21.0
+        mirror_size = 70
+        mirror_tilt = 0.0
         mirror_tilt = (mirror_tilt + 0.0) * numpy.pi / 180.0
         z_adjustment = round(0.5 * mirror_size * numpy.cos(mirror_tilt), visexpman.users.zoltan.configurations.GEOMETRY_PRECISION)
         y_adjustment = round(0.5 * mirror_size * numpy.sin(mirror_tilt), visexpman.users.zoltan.configurations.GEOMETRY_PRECISION)
@@ -106,9 +106,9 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
 #        self.plane_mirror = self.plane_mirror[0:3]
 
         #== Projector configuration ==
-        relative_position_to_plane_mirror = numpy.array([0.0, 150.0, -150.0])
+        relative_position_to_plane_mirror = numpy.array([0.0, -90.0, 0.0])
         projector_position = relative_position_to_plane_mirror + mirror_position
-        projector_orientation = [0.0, -1.0 ,1.0 ]
+        projector_orientation = [0.0, 1.0 ,0.0 ]
         self.projector_size = [30, 30,30] #The realistic sizes of Acer k11: [120.0, 40.0, 115.0]
         self.projector = self.cuboid_vertices(self.projector_size)
         self.projector = self.projector + numpy.array(projector_position)
@@ -135,9 +135,9 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
             initial_ray_direction = numpy.array([projector_orientation, corner_rays[0], corner_rays[1], corner_rays[2], corner_rays[3]])
 #        initial_ray_start_point = numpy.array([projector_position])
 #        initial_ray_direction = numpy.array([ray1])
-        ind = 0
-        initial_ray_start_point = initial_ray_start_point[ind:ind+1]
-        initial_ray_direction = initial_ray_direction[ind:ind+1]
+#        ind = 3
+#        initial_ray_start_point = initial_ray_start_point[ind:ind+1]
+#        initial_ray_direction = initial_ray_direction[ind:ind+1]
 
         
         
@@ -160,14 +160,13 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         
         #== Collect all mirror objects ==
         self.mirrors = []
+        if self.enable_aam_mirror:
+            for i in range(self.number_of_aam_shapes):
+                self.mirrors.append(self.aam[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])
         
         if self.enable_plane_mirror:
             self.mirrors.append(numpy.delete(self.plane_mirror, 3, 0))
             self.mirrors.append(numpy.delete(self.plane_mirror, 1, 0))
-                
-        if self.enable_aam_mirror:
-            for i in range(self.number_of_aam_shapes):
-                self.mirrors.append(self.aam[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])
             
         if self.enable_toroid:
             for i in range(self.number_of_toroid_shapes):
