@@ -21,8 +21,8 @@ class PPRLConfig(VisualStimulationConfig):
         CAPTURE_PATH = '../../../presentinator/data/capture'
         ENABLE_PARALLEL_PORT = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
-        FULLSCR = True
-        FULLSCR = False
+        FULLSCREEN = True
+        FULLSCREEN = False
         SCREEN_RESOLUTION = utils.rc([600,   800])
 #        SCREEN_RESOLUTION = [1680,   1050]
         ENABLE_FRAME_CAPTURE = False
@@ -69,7 +69,7 @@ class K247AWindowsConfig(VisualStimulationConfig):
         CAPTURE_PATH = '..' + os.sep + 'data'
         ENABLE_PARALLEL_PORT = False
         #STIMULATION_FOLDER_PATH = self.BASE_PATH + os.sep + 'stimulus_examples'
-        FULLSCR = False
+        FULLSCREEN = False
         SCREEN_RESOLUTION = [800, 600]
         GAMMA = 1.0
         TEXT_COLOR = [1.0, 0.0, 0.0]
@@ -87,7 +87,7 @@ class RC3DWindowsConfig(VisualStimulationConfig):
     #NOT TESTED
     def _set_user_specific_parameters(self):        
         ENABLE_PARALLEL_PORT = True        
-        FULLSCR = True
+        FULLSCREEN = True
         SCREEN_RESOLUTION = [1600,  1200]
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
@@ -113,7 +113,7 @@ class MBP(VisualStimulationConfig):
         ENABLE_PARALLEL_PORT = False
         UDP_ENABLE = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
-        FULLSCR = False
+        FULLSCREEN = False
         SCREEN_RESOLUTION = utils.rc([768,   1024])
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
@@ -144,15 +144,15 @@ class ZoliTester(VisualStimulationConfig):
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
-        LOG_PATH = '/home/zoltan/Downloads'
-        BASE_PATH= '/home/zoltan/development/data'
+        LOG_PATH = 'C:\\_development\\virtual_reality\\software\\data'
+        BASE_PATH= 'C:\\_development\\virtual_reality\\software\\data'
         ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
         CAPTURE_PATH = os.path.join(BASE_PATH,'capture')#'../../../presentinator/data/capture'
         ENABLE_PARALLEL_PORT = False
         UDP_ENABLE = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
-        FULLSCR = False
-        SCREEN_RESOLUTION = utils.rc([768,   1024])
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.rc([768, 1024])
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
@@ -162,6 +162,7 @@ class ZoliTester(VisualStimulationConfig):
         FRAME_WAIT_FACTOR = 0 
         GAMMA = 1.0
         FILTERWHEEL_ENABLE = False
+        TEXT_ENABLE = False
         
         #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
@@ -176,7 +177,6 @@ class ZoliTester(VisualStimulationConfig):
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         VisualStimulationConfig._create_parameters_from_locals(self, locals())
-        #VisualStimulationConfig._set_parameters_from_locals(self, locals())
 
 
 if __name__ == "__main__":

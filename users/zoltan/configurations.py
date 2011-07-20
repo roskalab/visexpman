@@ -1,12 +1,12 @@
-import visual_stimulation.configuration
+import visexpman.engine.visual_stimulation.configuration
 import os
-import generic.parameter
-import generic.utils as utils
-import generic.configuration
+import visexpman.engine.generic.parameter
+import visexpman.engine.generic.utils as utils
+import visexpman.engine.generic.configuration
 
 GEOMETRY_PRECISION = 3
 
-class GraphicsTestConfig(generic.configuration.Config):
+class GraphicsTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
@@ -27,10 +27,10 @@ class GraphicsTestConfig(generic.configuration.Config):
         
     def _calculate_parameters(self):
         self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
-
-class VRConfig(visual_stimulation.configuration.VisualStimulationConfig):
+        
+class VRConfig(visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig):
     def _set_user_specific_parameters(self):
-        FULLSCR = True
+        FULLSCREEN = True
         BACKGROUND_COLOR = [0.0,  0.0, 0.0]
         SCREEN_RESOLUTION = utils.cr([800, 600])
         SCREEN_RESOLUTION = utils.cr([1600, 900])
@@ -38,7 +38,7 @@ class VRConfig(visual_stimulation.configuration.VisualStimulationConfig):
 #        SCREEN_RESOLUTION = utils.cr([3280, 1050])
         self._set_parameters_from_locals(locals())
         
-class UbuntuDeveloperConfig(visual_stimulation.configuration.VisualStimulationConfig):
+class UbuntuDeveloperConfig(visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig):
     
     def _set_user_specific_parameters(self):
         RUN_MODE = 'single experiment'
@@ -57,8 +57,8 @@ class UbuntuDeveloperConfig(visual_stimulation.configuration.VisualStimulationCo
         CAPTURE_PATH = '../../../presentinator/data/capture'
         ENABLE_PARALLEL_PORT = True
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
-        FULLSCR = True
-        FULLSCR = False
+        FULLSCREEN = True
+        FULLSCREEN = False
 #        SCREEN_RESOLUTION = [1024,  768]
         SCREEN_RESOLUTION = utils.rc([600,   800])
 #        SCREEN_RESOLUTION = [1680,   1050]
@@ -94,7 +94,7 @@ class UbuntuDeveloperConfig(visual_stimulation.configuration.VisualStimulationCo
         
         self._set_parameters_from_locals(locals())
         
-class WindowsDeveloperConfig(visual_stimulation.configuration.VisualStimulationConfig):
+class WindowsDeveloperConfig(visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig):
     
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
@@ -113,7 +113,7 @@ class WindowsDeveloperConfig(visual_stimulation.configuration.VisualStimulationC
         CAPTURE_PATH = '..' + os.sep + 'data'
         ENABLE_PARALLEL_PORT = False
         #STIMULATION_FOLDER_PATH = self.BASE_PATH + os.sep + 'stimulus_examples'
-        FULLSCR = False
+        FULLSCREEN = False
         SCREEN_RESOLUTION = [800, 600]
         GAMMA = 1.0
         TEXT_COLOR = [1.0, 0.0, 0.0]
@@ -127,41 +127,8 @@ class WindowsDeveloperConfig(visual_stimulation.configuration.VisualStimulationC
         
         self._set_parameters_from_locals(locals())
 
-class WindowsConfig(visual_stimulation.configuration.VisualStimulationConfig):
-    #NOT TESTED
-    def _set_user_specific_parameters(self):        
-        ENABLE_PARALLEL_PORT = True        
-        FULLSCR = True
-        SCREEN_RESOLUTION = [1600,  1200]
-        ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 2
-        SERVER_UDP_IP = '172.27.26.10'
-        ARCHIVE_PATH = self.BASE_PATH
-        LOG_PATH = self.BASE_PATH
-        #test steps:
-        # 1. frame rate 60
-        # 2. parallel port OK
-        # 3 network control
-        # 4 stimulus types
-        
-        self._set_parameters_from_locals(locals())
 
-class LaserProjectorConfig(visual_stimulation.configuration.VisualStimulationConfig):
-    #NOT TESTED
-    def _set_user_specific_parameters(self):        
-        SCREEN_RESOLUTION = [800, 600]
-        FULLSCR = True
-        ENABLE_PARALLEL_PORT = True
-        ACQUISITION_TRIGGER_PIN = 6
-        FRAME_TRIGGER_PIN = 7
-        TEXT_ENABLE = True
-        SCREEN_EXPECTED_FRAME_RATE = 37.0
-        ARCHIVE_PATH = self.BASE_PATH
-        LOG_PATH = self.BASE_PATH
-        
-        self._set_parameters_from_locals(locals())
-
-class ScreenTestConfig(generic.configuration.Config):
+class ScreenTestConfig(visexpman.engine.generic.configuration.Config):
     
     def _set_user_specific_parameters(self):
         RUN_MODE = 'user interface'

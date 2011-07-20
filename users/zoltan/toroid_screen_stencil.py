@@ -226,15 +226,16 @@ class ToroidScreen(object):
         if path != None:
             test_image.save(path)
         test_image.show()
-    
-viewing_angle = 180.0
-height = 800.0
-inner_radius = 170.0
-horizontal_radius = 440.0
-ts = ToroidScreen(viewing_angle,  height,  inner_radius,  horizontal_radius)
-#ts.gooseneck_bending(3.50874, path = '/home/zoltan/gb.bmp')
-#ts.goosneck_mapping()
-ts.screen_stencil(path = '/home/zoltan/screen_stencil.bmp')
-#ts.printer_scaling_test(3.50874, path = '/home/zoltan/printer_test.bmp')
-print ts.depth
-print 2*ts.vertical_radius
+
+if __name__ == "__main__":    
+    viewing_angle = 180.0
+    height = 800.0
+    inner_radius = 170.0
+    horizontal_radius = 440.0
+    ts = ToroidScreen(viewing_angle,  height,  inner_radius,  horizontal_radius)
+    #ts.gooseneck_bending(3.50874, path = '/home/zoltan/gb.bmp')
+    #ts.goosneck_mapping()
+    ts.screen_stencil(path = '/home/zoltan/screen_stencil.bmp')
+    #ts.printer_scaling_test(3.50874, path = '/home/zoltan/printer_test.bmp')
+    print ts.depth
+    print 2*ts.vertical_radius

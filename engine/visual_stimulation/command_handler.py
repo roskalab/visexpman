@@ -26,7 +26,7 @@ class CommandHandler():
             return  'filterwheel' + str(filterwheel) + str(filter_position)
             
     def start_stimulation(self, par):
-        return 'start stimulus ' + self.stimulation_control.runStimulation()
+        return 'start stimulus ' + str(self.stimulation_control.runStimulation())
         
     def set_background_color(self, par):
         try:
@@ -116,6 +116,7 @@ class CommandHandler():
 #                    self.stimulation_control.selected_experiment_config = file
 #                    parsed_bytes = 1
 #                    result =  'load stimulation '  + self.command_buffer[0] + ' ' + self.stimulation_control.stimulation_file                
+        print 'command executed' #this is only for development purposes, later this shall be removed
         return result
     
 def test():

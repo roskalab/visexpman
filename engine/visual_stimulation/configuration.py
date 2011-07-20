@@ -26,7 +26,6 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         else:
             OS_TYPE = 'unknown'
         
-        
         #parameter with range: list[0] - value, list[1] - range
         #path parameter: parameter name contains '_PATH'
         #string list: list[1] - empty
@@ -43,13 +42,14 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #display parameters:
         SCREEN_RESOLUTION = utils.rc([600, 800])        
-        FULLSCR = True
+        FULLSCREEN = True
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
         SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]
         FRAME_DELAY_TOLERANCE = [1.0,  [1e-2,  10.0]]
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
         GAMMA = [1.0,  [1e-2,  10]]
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
+        FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]
         
         #Coordinate system selection
         COORDINATE_SYSTEM = ['undefined', ['ulcorner','center', 'undefined']] 
@@ -104,7 +104,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #user interface
         TEXT_ENABLE = True
-        TEXT_COLOR = [[1.0,  -1.0,  -1.0] ,  [[-1.0,  -1.0,  -1.0],  [1.0,  1.0,  1.0]]]
+        TEXT_COLOR = [[1.0,  0.0,  0.0] ,  [[0.0, 0.0, 0.0],  [1.0,  1.0,  1.0]]]
         TEXT_SIZE = [12,  [2,  20]]
         
         STATES = [['idle',  'stimulation'],  None]
@@ -157,7 +157,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         ARCHIVE_PATH = self.BASE_PATH
         CAPTURE_PATH = self.BASE_PATH
         BULLSEYE_PATH = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'
-        TEMP_IMAGE_PATH = self.BASE_PATH + os.sep + 'temp'+os.sep+'tmp.bmp'
+        TEMP_IMAGE_PTH = self.BASE_PATH + os.sep + 'temp'+os.sep+'tmp.bmp'
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX
         
         self.SCREEN_PIXEL_TO_UM_SCALE_p = visexpman.engine.generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])

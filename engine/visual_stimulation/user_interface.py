@@ -1,9 +1,10 @@
 import time
 import os
 from visexpman.engine.generic import utils
-import psychopy.visual
-import psychopy.event
-import psychopy.monitors
+import visexpman.engine.generic.graphics as graphics
+# import psychopy.visual
+# import psychopy.event
+# import psychopy.monitors
 class UserInterface():
     '''
     UserInterface is responsible for handling keystrokes and displaying messages on screen. Display handling is taken over by StimulationControl when software leaves idle state       
@@ -11,11 +12,11 @@ class UserInterface():
     def __init__(self,  config,  caller):
         
         self.config = config
-        #Initializing display, setting screen resolution, background color, hiding mouse cursor, quantities are interpreted in pixels        
-        self.screen = psychopy.visual.Window([self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']], color = utils.convert_color(self.config.BACKGROUND_COLOR), colorSpace = 'rgb',  fullscr = self.config.FULLSCR, allowGUI = False,  units="pix") #create a window
+        #Initializing display, setting screen resolution, background color, hiding mouse cursor, quantities are interpreted in pixels
+        self.screen = graphics.Screen(self.config, graphics_mode = 'external') #create a window
         #Set acceptable framerate and give warning when frame drop occurs
         self.screen._refreshThreshold=1/float(self.config.SCREEN_EXPECTED_FRAME_RATE)+float(self.config.FRAME_DELAY_TOLERANCE) * 1e-3
-        self.screen.setGamma(self.config.GAMMA)        
+        #TODO: self.screen.setGamma(self.config.GAMMA)
         
         #shortcuts to experiment classes, max 10
         self.accepted_keys = self.config.KEYS + ['{0}'.format(i) for i in range(len(caller.experiment_config_list))]#stimulus_file_shortcut 
@@ -38,6 +39,7 @@ class UserInterface():
         Update Psychopy items that make the user interface
         '''
         if self.config.TEXT_ENABLE:            
+#             self.screen.render_text(self, text, color = self.config.TEXT_COLOR)
             for user_interface_item in self.user_interface_items:
                 user_interface_item.draw()
             self.screen.flip()

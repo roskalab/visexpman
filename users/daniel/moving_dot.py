@@ -1,7 +1,10 @@
 '''calculates positions of n dots moving in 8 directions through the screen'''
 import visexpman
-import Helpers
-from Helpers import normalize,  imshow
+try:
+    import Helpers
+    from Helpers import normalize,  imshow
+except:
+    pass
 #from MultiLinePlot import WXPlot as WP
 import Image
 import numpy
@@ -46,6 +49,7 @@ class MovingDot(experiment.Experiment):
         self.prepare()
         
     def run(self, stl):
+    
         for dot_row_col in self.row_col:
             stl.show_dots(self.diameter_pix, dot_row_col, self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
         pass
@@ -293,21 +297,21 @@ class MovingDotTestConfig(experiment.ExperimentConfig):
         #place for experiment parameters
         #parameter with range: list[0] - value, list[0] - range
         #path parameter: parameter name contains '_PATH'
-        #string list: list[0] - empty        
+        #string list: list[0] - empty
         self.DIAMETER_UM = [200]
-        self.ANGLES = [0,  90,  180,  270,  45,  135,  225,  315] # degrees
+        self.ANGLES = [0]#,  90,  180,  270,  45,  135,  225,  315] # degrees
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
-        self.REPEATS = 2
+        self.REPEATS = 1#2
         self.PDURATION = 0
-        self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+        self.GRIDSTEP = 1.0/3.0#3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'
         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
         self._create_parameters_from_locals(locals())
-
+        
 def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):
     '''This method is intended to be run as a thread and sends multiple message-parameter pairs. 
     Between sending individual message-parameter pairs, we wait pause_before amount of time. This can be used to allow remote side do its processing.'''

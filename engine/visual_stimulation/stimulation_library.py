@@ -10,9 +10,9 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
-import psychopy.visual
-import psychopy.core
-import psychopy.log
+# import psychopy.visual
+# import psychopy.core
+# import psychopy.log
 import visexpman.engine.generic.parametric_control
 import visexpman.users.zoltan.test.stimulus_library_test_data
 from visexpman.engine.generic import utils
@@ -29,20 +29,20 @@ class Stimulations():
         self.parallel = parallel
         start_time = time.time()         
         
-        self.image = psychopy.visual.SimpleImageStim(self.screen,  image = self.config.DEFAULT_IMAGE_PATH)         
-        self.shape = psychopy.visual.ShapeStim(self.screen)
-        self.inner_circle = psychopy.visual.ShapeStim(self.screen)
+        #self.image = psychopy.visual.SimpleImageStim(self.screen,  image = self.config.DEFAULT_IMAGE_PATH)         
+        #self.shape = psychopy.visual.ShapeStim(self.screen)
+        #self.inner_circle = psychopy.visual.ShapeStim(self.screen)
         
         default_texture = Image.new('RGBA',  (16, 16))
-        self.checkerboard = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
-        self.gratings = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
-        self.image_list = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
+        #self.checkerboard = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
+        #self.gratings = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
+        #self.image_list = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
         self.backgroundColor = utils.convert_color(self.config.BACKGROUND_COLOR)        
         
         self.flip_time = time.time()
-        self.flip_times = []        
+        self.flip_times = []
         
-        self.test_message = psychopy.visual.TextStim(self.screen,  text = '',  pos = (0, 0),  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)        
+        #self.test_message = psychopy.visual.TextStim(self.screen,  text = '',  pos = (0, 0),  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)        
         
         if self.config.ENABLE_PARALLEL_PORT:
             import parallel
@@ -95,13 +95,14 @@ class Stimulations():
             self._frame_trigger_pulse()
             
         if self.config.ENABLE_FRAME_CAPTURE:            
-            self.screen.getMovieFrame()            
+            pass
+#             self.screen.getMovieFrame()            
         
         #periodic pause
         if self.config.ACTION_BETWEEN_STIMULUS != 'no':
             elapsed_time = int(now - self.stimulation_control.stimulation_start_time)
             if elapsed_time % self.config.SEGMENT_DURATION == 0 and elapsed_time >= self.config.SEGMENT_DURATION :                
-                psychopy.log.data('Pause')
+#                 psychopy.log.data('Pause')
                 if self.config.ACTION_BETWEEN_STIMULUS == 'keystroke':
                     while True:
                         if self.stimulation_control.is_next_pressed():
@@ -122,7 +123,7 @@ class Stimulations():
         
     #Externally callable functions showing different visual patterns
     def set_background(self,  color):        
-        self.screen.setColor(utils.convert_color(color))
+#        self.screen.setColor(utils.convert_color(color))
         self.backgroundColor = utils.convert_color(color)        
         
     def clear_screen(self, duration = 0.0,  color = None):
@@ -132,9 +133,10 @@ class Stimulations():
         else:
             color_to_set = color
             
-        self.screen.logOnFlip('clear_screen(' + str(duration) + ', ' + str(color_to_set) + ')',  psychopy.log.DATA)
+#         self.screen.logOnFlip('clear_screen(' + str(duration) + ', ' + str(color_to_set) + ')',  psychopy.log.DATA)
+        self.screen.clear_screen(color = color_to_set)
         self.set_background(color_to_set)
-        self.screen.clearBuffer()
+#         self.screen.clearBuffer()
         if duration == 0.0:
             self._flip()
         else:
@@ -762,18 +764,17 @@ class Stimulations():
         that on each frame the number of dots are equal.
         
         '''
-        self.screen.logOnFlip('show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')',  psychopy.log.DATA)
+        #self.screen.logOnFlip('show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')',  psychopy.log.DATA)
         
         st = time.time()
         
         radius = 1.0
         vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
-        
         n_frames = len(dot_positions) / ndots        
         n_vertices = len(vertices)
         #convert dot positions from user coordinate system                    
-        transformed_dot_positions = utils.coordinate_transform(dot_positions, self.config.ORIGO, self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.config.VERTICAL_AXIS_POSITIVE_DIRECTION)        
-
+#         transformed_dot_positions = utils.coordinate_transform(dot_positions, self.config.ORIGO, self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.config.VERTICAL_AXIS_POSITIVE_DIRECTION)
+        transformed_dot_positions = dot_positions
         frames_vertices = numpy.zeros((n_frames * ndots * n_vertices,  2)) 
         pixel_scale = numpy.array(self.config.SCREEN_UM_TO_NORM_SCALE)
         index = 0
@@ -782,7 +783,7 @@ class Stimulations():
                 dot_index = frame_i * ndots + dot_i
                 dot_size = dot_sizes[dot_index]
                 dot_position = numpy.array((transformed_dot_positions[dot_index]['col'], transformed_dot_positions[dot_index]['row']))
-                dot_to_screen =  self.config.SCREEN_UM_TO_NORM_SCALE * (vertices * dot_size + dot_position)
+                dot_to_screen =  self.config.SCREEN_UM_TO_PIXEL_SCALE * (vertices * dot_size + dot_position)
                 frames_vertices[index: index + n_vertices] = dot_to_screen
                 index = index + n_vertices
 
@@ -791,15 +792,14 @@ class Stimulations():
         else:
             n_frames_per_pattern = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         
-#        print time.time() - st
-        
+#        print time.time() - st        
         glEnableClientState(GL_VERTEX_ARRAY)
         dot_pointer = 0
         for frame_i in range(n_frames):            
             start_i = dot_pointer * n_vertices
             end_i = (dot_pointer + ndots) * n_vertices
             dot_pointer = dot_pointer + ndots
-            glClear(GL_COLOR_BUFFER_BIT)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glVertexPointerf(frames_vertices[start_i:end_i])
             for i in range(n_frames_per_pattern):
                 for dot_i in range(ndots):
@@ -821,6 +821,7 @@ class Stimulations():
         
     def show_drum(self,  duration,  rpm,  n_stripes,  drum_base_size ,  drum_height, contraction,  pos = (0, 0),  color = 1.0,  background_color = 0.0,  duty_cycle = 0.5):
         '''
+        THIS IS OBSOLETE
         Parameters:
             duration: duration of stimulus in s
             rpm: rotaional speed in rpm

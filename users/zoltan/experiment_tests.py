@@ -1,65 +1,65 @@
 import numpy
-import visual_stimulation.experiment
-import generic.configuration
-import generic.utils
+import visexpman.engine.visual_stimulation.experiment as experiment
+import visexpman.engine.generic.configuration
+import visexpman.engine.generic.utils
 
-class Pre(visual_stimulation.experiment.PreExperiment):    
-    def run(self):
-        self.st.show_shape(shape = 'circle',  duration = 0.0,  pos = (0,  0),  color = [1.0,  1.0,  1.0],  orientation = 0.0,  size = [10,  10])
+# class Pre(experiment.PreExperiment):
+#     def run(self):
+#         self.st.show_shape(shape = 'circle',  duration = 0.0,  pos = (0,  0),  color = [1.0,  1.0,  1.0],  orientation = 0.0,  size = [10,  10])
        
-class DotsExperimentConfig(visual_stimulation.experiment.ExperimentConfig):
-    def _create_application_parameters(self):        
-        NDOTS = [10, [1, 1000]]
-        NFRAMES = [3, [1, 3000]]
-        PATTERN_DURATION = [1.5, [0.0, 2.0]]
-        RANDOM_DOTS = True
-        self._create_parameters_from_locals(locals())
+# class DotsExperimentConfig(experiment.ExperimentConfig):
+#     def _create_application_parameters(self):
+#         NDOTS = [10, [1, 1000]]
+#         NFRAMES = [3, [1, 3000]]
+#         PATTERN_DURATION = [1.5, [0.0, 2.0]]
+#         RANDOM_DOTS = True
+#         self._create_parameters_from_locals(locals())
 
-class MultipleDotTest(visual_stimulation.experiment.Experiment):
-    def run(self):
-#        self.st.show_gratings(duration = 2.0, orientation = 45, velocity = 300, spatial_frequency = 100, display_area =  generic.utils.cr((200,  200)), pos = generic.utils.cr((100, 100)))        
-        import random
-        random.seed(0)
-        dot_sizes = []
-        dot_positions = []
-        for j in range(self.experiment_config.NFRAMES):
-            dot_sizes_per_frame = []
-            dot_positions_per_frame = []
-            if isinstance(self.experiment_config.NDOTS,  list):
-                dots = ndots[j]
-            else:
-                dots = self.experiment_config.NDOTS
-            for i in range(dots):
-                coords = (random.random(),  random.random())
-                coords = generic.utils.rc(coords)
-                dot_positions.append([coords['col'] * self.config.SCREEN_RESOLUTION['col'] - self.config.SCREEN_RESOLUTION['col'] * 0.5, coords['row'] * self.config.SCREEN_RESOLUTION['row'] - 0.5 * self.config.SCREEN_RESOLUTION['row']])
-                dot_sizes.append(10 + 100 * random.random())                
-
+# class MultipleDotTest(experiment.Experiment):
+#     def run(self):
+# #        self.st.show_gratings(duration = 2.0, orientation = 45, velocity = 300, spatial_frequency = 100, display_area =  generic.utils.cr((200,  200)), pos = generic.utils.cr((100, 100)))        
+#         import random
+#         random.seed(0)
+#         dot_sizes = []
+#         dot_positions = []
+#         for j in range(self.experiment_config.NFRAMES):
+#             dot_sizes_per_frame = []
+#             dot_positions_per_frame = []
+#             if isinstance(self.experiment_config.NDOTS,  list):
+#                 dots = ndots[j]
+#             else:
+#                 dots = self.experiment_config.NDOTS
+#             for i in range(dots):
+#                 coords = (random.random(),  random.random())
+#                 coords = generic.utils.rc(coords)
+#                 dot_positions.append([coords['col'] * self.config.SCREEN_RESOLUTION['col'] - self.config.SCREEN_RESOLUTION['col'] * 0.5, coords['row'] * self.config.SCREEN_RESOLUTION['row'] - 0.5 * self.config.SCREEN_RESOLUTION['row']])
+#                 dot_sizes.append(10 + 100 * random.random())                
+# 
+#         
+#         dot_positions = generic.utils.cr(numpy.array(dot_positions).transpose())
+#         dot_sizes = numpy.array(dot_sizes)        
+#         
+#         if isinstance(self.experiment_config.NDOTS, list):
+#             colors = generic.utils.random_colors(max(self.experiment_config.NDOTS), self.experiment_config.NFRAMES,  greyscale = True,  inital_seed = 0)
+#         else:
+#             colors = generic.utils.random_colors(self.experiment_config.NDOTS, self.experiment_config.NFRAMES,  greyscale = True,  inital_seed = 0)
+#         if self.experiment_config.NFRAMES == 1:
+#             colors = [colors]
+#             
+#         if self.experiment_config.RANDOM_DOTS:
+#             self.st.show_dots(dot_sizes, dot_positions, self.experiment_config.NDOTS, duration = self.experiment_config.PATTERN_DURATION,  color = numpy.array(colors))
+#         else:
+#             dot_sizes = numpy.array([10, 10, 10, 10])
+#             dot_positions = generic.utils.cr(numpy.array([[100, 100, 0, 0], [100, 0, 0, 100]]))
+#             ndots = 4
+#             self.st.show_dots(dot_sizes, dot_positions, ndots, duration = 2.0,  color = (1.0, 1.0, 1.0))
         
-        dot_positions = generic.utils.cr(numpy.array(dot_positions).transpose())
-        dot_sizes = numpy.array(dot_sizes)        
-        
-        if isinstance(self.experiment_config.NDOTS, list):
-            colors = generic.utils.random_colors(max(self.experiment_config.NDOTS), self.experiment_config.NFRAMES,  greyscale = True,  inital_seed = 0)
-        else:
-            colors = generic.utils.random_colors(self.experiment_config.NDOTS, self.experiment_config.NFRAMES,  greyscale = True,  inital_seed = 0)
-        if self.experiment_config.NFRAMES == 1:
-            colors = [colors]
-            
-        if self.experiment_config.RANDOM_DOTS:
-            self.st.show_dots(dot_sizes, dot_positions, self.experiment_config.NDOTS, duration = self.experiment_config.PATTERN_DURATION,  color = numpy.array(colors))
-        else:
-            dot_sizes = numpy.array([10, 10, 10, 10])
-            dot_positions = generic.utils.cr(numpy.array([[100, 100, 0, 0], [100, 0, 0, 100]]))
-            ndots = 4
-            self.st.show_dots(dot_sizes, dot_positions, ndots, duration = 2.0,  color = (1.0, 1.0, 1.0))
-        
-class MyExperimentConfig(visual_stimulation.experiment.ExperimentConfig):
+class MyExperimentConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
         PAR = 'dummy'
         self._create_parameters_from_locals(locals())
 
-class MyStimulus1(visual_stimulation.experiment.Experiment):
+class MyStimulus1(experiment.Experiment):
     
     def run(self):
         off_time1 = 1.0
@@ -71,7 +71,7 @@ class MyStimulus1(visual_stimulation.experiment.Experiment):
         self.st.clear_screen(duration = off_time2,  color = self.config.BACKGROUND_COLOR)
 
 
-class MyStimulus2(visual_stimulation.experiment.Experiment):
+class MyStimulus2(experiment.Experiment):
     
     def run(self):
         off_time1 = 1.0
@@ -82,7 +82,7 @@ class MyStimulus2(visual_stimulation.experiment.Experiment):
         self.st.clear_screen(duration = on_time,  color = color)
         self.st.clear_screen(duration = off_time2,  color = self.config.BACKGROUND_COLOR)
 
-class OpenGLTest(visual_stimulation.experiment.Experiment):
+class OpenGLTest(experiment.Experiment):
     def run(self):
         size = 100.0
         vertices = numpy.array([[0.5 * size,  0.5 * size, 0],
@@ -118,7 +118,7 @@ class OpenGLTest(visual_stimulation.experiment.Experiment):
         self.st.clear_screen(duration = 0.1,  color = (1.0, 0.0, 0.0))
         
 
-class ShapeTest(visual_stimulation.experiment.Experiment):
+class ShapeTest(experiment.Experiment):
     def run(self):        
 
         self.st.show_shape_new()
@@ -126,7 +126,7 @@ class ShapeTest(visual_stimulation.experiment.Experiment):
 #            pos = (-500+130*i,  0)
 #            self.st.show_image(self.config.DEFAULT_IMAGE_PATH,  position = pos)
 
-class GratingMaskTest(visual_stimulation.experiment.Experiment):
+class GratingMaskTest(experiment.Experiment):
     def run(self):
         self.st.show_gratings(duration = 10.0, orientation = 45, velocity = 600, spatial_frequency = 300)
 
@@ -143,7 +143,7 @@ class GratingMaskTest(visual_stimulation.experiment.Experiment):
 #            
 #        self.st.clear_screen(duration = posttest_delay,  color = 0.0)
         
-class DrumStimTest(visual_stimulation.experiment.Experiment):
+class DrumStimTest(experiment.Experiment):
     def run(self):
         duration  = 10.0
         rpm = 10

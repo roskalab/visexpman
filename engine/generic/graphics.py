@@ -123,7 +123,7 @@ class Screen(object):
                         if key_pressed == 'escape':
                             run_loop = False
                         self.keyboard_handler(key_pressed)
-        elif self.mode == 'external':
+        elif self.mode == 'external':            
             pass
     
     def flip(self):
@@ -140,7 +140,10 @@ class Screen(object):
             time.sleep(self.wait_time_left)
         pygame.display.flip()
         self.flip_time = time.time()
-        self.frame_rate = 1.0 / (self.flip_time - self.flip_time_previous)
+        if self.flip_time - self.flip_time_previous != 0.0:
+            self.frame_rate = 1.0 / (self.flip_time - self.flip_time_previous)
+        else:
+            self.frame_rate = self.config.SCREEN_EXPECTED_FRAME_RATE
         self.after_flip()
         self.flip_time_previous = self.flip_time
         
