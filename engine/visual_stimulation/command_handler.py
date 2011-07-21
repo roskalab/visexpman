@@ -117,6 +117,8 @@ class CommandHandler():
 #                    parsed_bytes = 1
 #                    result =  'load stimulation '  + self.command_buffer[0] + ' ' + self.stimulation_control.stimulation_file                
         print 'command executed' #this is only for development purposes, later this shall be removed
+        import sys
+        sys.exit()
         return result
     
 def test():

@@ -7,7 +7,7 @@ import numpy
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
-#import psychopy.log
+import logging
 from visexpman.engine.generic import utils    
 
 #import modules for stimulus files:
