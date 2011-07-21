@@ -38,9 +38,9 @@ class VisualStimulation(object):
         # this way of discovering classes has the drawback that modules searched must not have syntax errors
         classname = self.config.EXPERIMENT_CONFIG
         self.experiment_config_list = generic.utils.fetch_classes('visexpman.users.'+self.config.user,  classtype=visexpman.engine.visual_stimulation.experiment.ExperimentConfig)
-        if len(self.experiment_config_list) > 10: raise RuntimeError('Maximum 10 different experiment types are allowed') 
+        if len(self.experiment_config_list) > 10: raise RuntimeError('Maximum 10 different experiment types are allowed')
         self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config) # select and instantiate stimulus as specified in machine config
-        #create screen        
+        #create screen
         self.user_interface = visual_stimulation.user_interface.UserInterface(self.config, self)
         self.stimulation_control = visual_stimulation.stimulation_control.StimulationControl(self, self.config,  self.user_interface)
         self.command_handler =  visual_stimulation.command_handler.CommandHandler(self.config,  self.stimulation_control,  self.user_interface, self)
@@ -55,7 +55,7 @@ class VisualStimulation(object):
     def run(self):
         '''
         Run application. Check for commands coming from either keyboard or network. Command is parsed and handled by command handler
-        '''        
+        '''  
         while self.abort==False:
             # run the Pre class of the currently selected experiment
             if self.state =='new_stimulus' and hasattr(self.selected_experiment_config, 'pre_runnable') and self.selected_experiment_config.pre_runnable is not None:

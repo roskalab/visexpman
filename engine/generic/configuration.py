@@ -13,7 +13,7 @@ class Config(object):
         self.machine_config = machine_config
         self._create_generic_parameters()        
         self._create_parameter_aliases()
-        self._create_application_parameters()        
+        self._create_application_parameters()
         self._create_parameter_aliases()     # ezt miert nem a create applic parameters hivja meg?   
 		#The _create_application_parameters and the _calculate_parameters methods will be overdefined in the child classes. 
         #The _create_parameter_aliases function shall be called at the end of _create_parameters_from_locals        

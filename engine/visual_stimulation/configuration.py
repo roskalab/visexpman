@@ -26,7 +26,6 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         else:
             OS_TYPE = 'unknown'
         
-        
         #parameter with range: list[0] - value, list[1] - range
         #path parameter: parameter name contains '_PATH'
         #string list: list[1] - empty
@@ -43,13 +42,14 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #display parameters:
         SCREEN_RESOLUTION = utils.rc([600, 800])        
-        FULLSCR = True
+        FULLSCREEN = True
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
         SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]
         FRAME_DELAY_TOLERANCE = [1.0,  [1e-2,  10.0]]
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
         GAMMA = [1.0,  [1e-2,  10]]
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
+        FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]
         
         #Coordinate system selection
         COORDINATE_SYSTEM = ['undefined', ['ulcorner','center', 'undefined']] 
@@ -104,7 +104,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #user interface
         TEXT_ENABLE = True
-        TEXT_COLOR = [[1.0,  -1.0,  -1.0] ,  [[-1.0,  -1.0,  -1.0],  [1.0,  1.0,  1.0]]]
+        TEXT_COLOR = [[1.0,  0.0,  0.0] ,  [[0.0, 0.0, 0.0],  [1.0,  1.0,  1.0]]]
         TEXT_SIZE = [12,  [2,  20]]
         
         STATES = [['idle',  'stimulation'],  None]

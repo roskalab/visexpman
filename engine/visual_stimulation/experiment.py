@@ -12,7 +12,7 @@ class ExperimentConfig(Config):
         else: 
             self.runnable= utils.fetch_classes('visexpman.users.'+self.machine_config.user, classname = self.runnable,  classtype = visexpman.engine.visual_stimulation.experiment.Experiment)[0][1](self) # instantiates the code that will run the actual stimulation
             self.pre_runnable = utils.fetch_classes('visexpman.users.'+self.machine_config.user, classtype = visexpman.engine.visual_stimulation.experiment.PreExperiment)[0][1](self) # instantiates the code that will run the actual stimulation
-    def run(self, stl):  #RZ: What is stl?
+    def run(self, stl):  #RZ: What is stl? Why is the experiment started by the experiment config class?
         if self.runnable == None:
             raise ValueError('Specified stimulus class is not instantiated.')
         else:

@@ -7,7 +7,7 @@ import numpy
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
-import psychopy.log
+#import psychopy.log
 from visexpman.engine.generic import utils    
 
 #import modules for stimulus files:
@@ -63,12 +63,12 @@ class StimulationControl():
         #initialize event logging
         self.logfile_path = self.config.LOG_PATH + os.sep + 'log' + str(time.time()).replace('.', '') + '.txt'       
         
-        self.logfile = psychopy.log.LogFile(self.logfile_path,  level = psychopy.log.DATA,  filemode = 'w')        
+        #self.logfile = psychopy.log.LogFile(self.logfile_path,  level = psychopy.log.DATA,  filemode = 'w')        
             
         self.log_file_index = 0        
-        psychopy.log.console.setLevel(psychopy.log.WARNING)
+        #psychopy.log.console.setLevel(psychopy.log.WARNING)
             
-        self._disable_frame_interval_watch()
+        #self._disable_frame_interval_watch()
         
         #intitialize filterwheels
         if self.config.FILTERWHEEL_ENABLE:
@@ -125,35 +125,35 @@ class StimulationControl():
     def runStimulation(self):
         '''
         Runs stimulation and takes care of triggering and frame interval watching
-        '''        
+        '''
         if hasattr(self.visual_stimulation_runner, 'selected_experiment_config') and hasattr(self.visual_stimulation_runner.selected_experiment_config, 'run'):
             #save log file index which is the current size of log file
-            self.log_file_index = len(utils.read_text_file(self.logfile_path))
+            #self.log_file_index = len(utils.read_text_file(self.logfile_path))
             self.visual_stimulation_runner.state = 'stimulation'
             
-            psychopy.log.data('Measurement ID: ' + self.measurement_id)
+            #psychopy.log.data('Measurement ID: ' + self.measurement_id)
 
-            self._enable_frame_interval_watch()
+            #self._enable_frame_interval_watch()
             if self.config.ENABLE_PARALLEL_PORT:
                 self.parallel.setData(self.config.ACQUISITION_TRIGGER_ON)
             self.stimulation_start_time = time.time()
             if hasattr(self.visual_stimulation_runner.selected_experiment_config, 'pre_runnable') and self.visual_stimulation_runner.selected_experiment_config.pre_runnable is not None:
                 self.visual_stimulation_runner.selected_experiment_config.pre_runnable.run()
             self.visual_stimulation_runner.selected_experiment_config.run(self.st)
-            psychopy.log.data(log_string)            
+            #psychopy.log.data(log_string)            
                 
             if self.config.ENABLE_PARALLEL_PORT:
                 self.parallel.setData(self.config.ACQUISITION_TRIGGER_OFF)
                        
-            self._disable_frame_interval_watch()
+            #self._disable_frame_interval_watch()
             self.st.set_background(self.config.BACKGROUND_COLOR)            
             
-            psychopy.log.flush()
+            #psychopy.log.flush()
             if self.config.ENABLE_FRAME_CAPTURE:
                 self.user_interface.screen.saveMovieFrames(self.config.CAPTURE_PATH + '/captured' + str(time.time()).replace('.', '') + '.bmp')            
 #                e.cleanup()
             #save stimulus, source and log files into zip            
-            log = self.last_stimulus_log()
+            #log = self.last_stimulus_log()
             
             if len(self.config.ARCHIVE_PATH)  == 0:
                 zip_path = self.config.ARCHIVE_PATH + str(time.time()).replace('.', '') + '.zip'
@@ -168,7 +168,7 @@ class StimulationControl():
                         f.write(log)
                         f.close()
 
-            self.zip_py_files(zip_path,  self.config.BASE_PATH, log)
+#             self.zip_py_files(zip_path,  self.config.BASE_PATH, log)
             self.visual_stimulation_runner.state = 'idle'
         else:
             raise AttributeError('Stimulus config class does not have a run method?')
