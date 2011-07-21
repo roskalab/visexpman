@@ -124,7 +124,7 @@ def is_point_in_polygon(point, polygon):
 def plane_ray_intersection(line_start_point,  line_direction, polygon):
     intersection_exists, intersection = plane_line_intersection(line_start_point,  line_direction, polygon)
     if intersection_exists:
-        #check if line start point - intersection direrction is the same that is defined by line_direction
+        #check if line start point - intersection direction is the same that is defined by line_direction
         for item in ((intersection - line_start_point) / line_direction):
             if item < 0.0:
                 intersection_exists = False

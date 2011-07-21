@@ -7,6 +7,9 @@ from visexpman.engine.generic import utils
 from visexpman.engine.visual_stimulation import stimulation_library as stl
 from visexpman.engine.visual_stimulation.configuration import VisualStimulationConfig
 
+#TMP
+from OpenGL.GL import *
+
 class MultipleDotsTester(VisualStimulationConfig):
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
@@ -19,7 +22,7 @@ class MultipleDotsTester(VisualStimulationConfig):
         UDP_ENABLE = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.rc([768,   1024])
+        SCREEN_RESOLUTION = utils.rc([500, 500])
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
@@ -40,6 +43,7 @@ class MultipleDotsTester(VisualStimulationConfig):
 
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         COORDINATE_SYSTEM='ulcorner'
+#         COORDINATE_SYSTEM='center'
             
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
@@ -47,9 +51,9 @@ class MultipleDotsTester(VisualStimulationConfig):
         
 class DotsExperimentConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
-        self.NDOTS = 10
-        self.NFRAMES = 3
-        self.PATTERN_DURATION = 1.5
+        self.NDOTS = 30
+        self.NFRAMES = 10
+        self.PATTERN_DURATION = 1.0
         self.RANDOM_DOTS = True
         self.runnable = 'MultipleDotTest'
         self.pre_runnable = 'MultipleDotTestPre'
@@ -77,7 +81,7 @@ class MultipleDotTest(experiment.Experiment):
             for i in range(dots):
                 coords = (random.random(),  random.random())
                 coords = utils.rc(coords)
-                dot_positions.append([coords['col'] * self.config.SCREEN_RESOLUTION['col'] - self.config.SCREEN_RESOLUTION['col'] * 0.5, coords['row'] * self.config.SCREEN_RESOLUTION['row'] - 0.5 * self.config.SCREEN_RESOLUTION['row']])
+                dot_positions.append([coords['col'] * self.config.SCREEN_RESOLUTION['col'] - self.config.SCREEN_RESOLUTION['col'] * 0.0, coords['row'] * self.config.SCREEN_RESOLUTION['row'] - 0.0 * self.config.SCREEN_RESOLUTION['row']])
                 dot_sizes.append(10 + 100 * random.random())                
         
         dot_positions = utils.cr(numpy.array(dot_positions).transpose())
@@ -90,13 +94,28 @@ class MultipleDotTest(experiment.Experiment):
         if self.experiment_config.NFRAMES == 1:
             colors = [colors]
             
+#         vertices = numpy.array([[0.0,0.0],[100.0,100.0],[0.0,500.0]])
+#         glEnableClientState(GL_VERTEX_ARRAY)
+#         glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+#         glColor3fv((1.0,1.0,1.0))
+#         glVertexPointerf(vertices)
+#         glDrawArrays(GL_POLYGON,  0, 3)
+#         stl._flip()
+#         
+#         glDisableClientState(GL_VERTEX_ARRAY)
+#         
+#         time.sleep(1.0)
+            
+            
         if self.experiment_config.RANDOM_DOTS:
             stl.show_dots(dot_sizes, dot_positions, self.experiment_config.NDOTS, duration = self.experiment_config.PATTERN_DURATION,  color = numpy.array(colors))
         else:
-            dot_sizes = numpy.array([10, 10, 10, 10])
-            dot_positions = generic.utils.cr(numpy.array([[100, 100, 0, 0], [100, 0, 0, 100]]))
-            ndots = 4
-            stl.show_dots(dot_sizes, dot_positions, ndots, duration = 2.0,  color = (1.0, 1.0, 1.0))
+            side = 240.0
+            dot_sizes = numpy.array([50, 30, 30, 30, 30, 20])
+            colors = numpy.array([[[1.0,0.0,0.0],[1.0,1.0,1.0],[0.0,1.0,0.0],[0.0,0.0,1.0],[0.0,1.0,1.0],[0.8,0.0,0.0]]])
+            dot_positions = utils.cr(numpy.array([[0, side, side, -side, -side, 1.5 * side], [0, side, -side, -side, side, 1.5 * side]]))
+            ndots = 6
+            stl.show_dots(dot_sizes, dot_positions, ndots, duration = 4.0,  color = colors)
             
 def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):
     '''This method is intended to be run as a thread and sends multiple message-parameter pairs. 
