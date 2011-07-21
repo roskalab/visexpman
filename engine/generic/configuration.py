@@ -55,6 +55,8 @@ class Config(object):
                         setattr(self,  k + '_p',  parameter.Parameter(v))                        
                 elif k.find('_PATH') != -1: #"PATH" is encoded into variable name
                     setattr(self,  k + '_p',  parameter.Parameter(v,  is_path = True))
+                elif k.find('_FILE') != -1: #variable name ends with _FILE
+                    setattr(self,  k + '_p',  parameter.Parameter(v,  is_file = True))
                 else:
                     setattr(self,  k + '_p', parameter.Parameter(v))
 

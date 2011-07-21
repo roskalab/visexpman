@@ -30,13 +30,13 @@ class Parameter(object):
     - set    
     ''' 
     
-    def __init__(self,  value,  range_ = None,  is_path = False):
+    def __init__(self,  value,  range_ = None,  is_path = False, is_file=False):
         self.v = None
         self.range_ = range_
-        self._detect_type(value, range_ = range_,  is_path = is_path)
+        self._detect_type(value, range_ = range_,  is_path = is_path,  is_file=is_file)
         self._check_parameter_range(range_)
 
-    def _detect_type(self,  value, range_ = None,  is_path = False):
+    def _detect_type(self,  value, range_ = None,  is_path = False,  is_file=False):
         '''
         Determine type of value based on the value itself, the range and the path switch.
         The following exceptions are thrown:
@@ -71,6 +71,8 @@ class Parameter(object):
         elif isinstance(value,  str):
             if is_path:
                 self._type = 'path'
+            elif is_file:
+                self._type = 'file'
             else:
                 self._type = 'string'
         elif isinstance(value,  bool):
@@ -93,7 +95,12 @@ class Parameter(object):
         exceptionType = None        
         if self._type == 'path':
             if not os.path.exists(self.v):
-                raise IOError('Path does not exist')
+                raise IOError('Path '+self.v+' does not exist')
+            elif range_ != None:
+                raise InvalidParameterRange
+        elif self._type == 'file':
+            if not os.path.exists(os.path.split(self.v)[0]):
+                raise IOError('Path to file '+self.v+' does not exist')
             elif range_ != None:
                 raise InvalidParameterRange
         elif self._type == 'dict':

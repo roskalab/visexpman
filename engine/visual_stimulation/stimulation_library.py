@@ -28,8 +28,9 @@ class Stimulations():
         self.stimulation_control = stimulation_control
         self.parallel = parallel
         start_time = time.time()         
-        
-        self.image = psychopy.visual.SimpleImageStim(self.screen,  image = self.config.DEFAULT_IMAGE_PATH)         
+        if not os.path.exists(self.config.DEFAULT_IMAGE_FILE) or os.stat(self.config.DEFAULT_IMAGE_FILE)[6]==0: # check for zeros sized file too
+            Image.fromarray(numpy.ones((128, 128, 3), numpy.uint8)).save(self.config.DEFAULT_IMAGE_FILE, 'bmp')
+        self.image = psychopy.visual.SimpleImageStim(self.screen,  image = self.config.DEFAULT_IMAGE_FILE)         
         self.shape = psychopy.visual.ShapeStim(self.screen)
         self.inner_circle = psychopy.visual.ShapeStim(self.screen)
         

@@ -1,8 +1,6 @@
 from visexpman.engine.generic import utils
 import numpy
 from scipy.ndimage.morphology import binary_erosion,  binary_dilation
-import Helpers
-from Helpers import normalize, l2s,  imshow
 #from MultiLinePlot import WXPlot as WP
 from numpy.random import shuffle as nshuffle
 from numpy.random import random_integers
@@ -64,11 +62,11 @@ def find_free_gridpoint(previous_frame_mask,current_frame_mask,dot_diameters,cdo
         cmask = binary_dilation(current_frame_mask, iterations = numpy.ceil(dot_diameters[cdotsize]/2)) 
         comb_mask = pmask*(-cmask)
         possible= comb_mask.nonzero()
-    free_gp = numpy.intersect1d(gridpoints[cdotsize],Helpers.rc(possible)) # which grid point lie in the valid range?
+    free_gp = numpy.intersect1d(gridpoints[cdotsize],utils.rc(possible)) # which grid point lie in the valid range?
     if len(free_gp)==0: # pick a random location
         # find lowest disk sized area in omap where possible is true
         gpr = numpy.random.random_integers(0, len(possible[0])-1, 1)
-        gp = Helpers.rc((possible[0][gpr], possible[1][gpr]))
+        gp = utils.rc((possible[0][gpr], possible[1][gpr]))
         extra = True
     else:
         extra = False
@@ -114,7 +112,7 @@ def  translate_dot(heightwidth,center, dot_coord):
     vp = (r>0) * (r<heightwidth[0]) * (c>0) * (c<heightwidth[1])
     r= r[vp]
     c= c[vp]
-    return Helpers.rc(numpy.c_[r, c])
+    return utils.rc(numpy.c_[r, c])
 
 def circle_coord(diameter,  resolution = 1.0,  image_size = None,  color = 1.0,  pos = (0, 0)):
     '''
@@ -194,10 +192,10 @@ class SparseDots():
         self.cfg=cfg
         numpy.random.seed(cfg.seed)
          # measure number of pixels that dot types occupy on screen
-        self.dot_coord = [Helpers.rc(list(disk((0, 0), di2/2))) for di2 in cfg.dot_diameter_pixels]
+        self.dot_coord = [utils.rc(list(disk((0, 0), di2/2))) for di2 in cfg.dot_diameter_pixels]
         dot_area = numpy.array([len(d) for d in self.dot_coord])
         # precompute dot coordinates that contain off pixels too
-        self.dotmask_coord =  [Helpers.rc(list(disk((0, 0), di2/2*(1+cfg.ONOFFratio)))) for di2 in cfg.dot_diameter_pixels]
+        self.dotmask_coord =  [utils.rc(list(disk((0, 0), di2/2*(1+cfg.ONOFFratio)))) for di2 in cfg.dot_diameter_pixels]
         n_dots_cover_screen = [numpy.ceil(cfg.mres/(di2*(1+2*cfg.ONOFFratio))).prod() for di2 in cfg.dot_diameter_pixels]
         self.onedot_perframe = numpy.nonzero(dot_area>cfg.target_white_active_in_frame)[0] # these types will be shown not in every frame
         multidot_perframe = numpy.nonzero(dot_area<=cfg.target_white_active_in_frame)[0]
@@ -209,7 +207,7 @@ class SparseDots():
             if s1 in cfg.enforce_complete_dots: 
                 bound = cfg.dot_diameter_pixels[s1]/2
             else: bound = 0
-            gridpoints.append(Helpers.rc_flatten(numpy.meshgrid(numpy.arange(bound, cfg.monitor['resolution']['height']-bound, gridstep),
+            gridpoints.append(utils.rc_flatten(numpy.meshgrid(numpy.arange(bound, cfg.monitor['resolution']['height']-bound, gridstep),
                 numpy.arange(bound, cfg.monitor['resolution']['width']-bound, gridstep))))
         
         dots_per_size = numpy.r_[[numpy.floor(float(dot_area[ds1+1])/dot_area[ds1])  for ds1 in range(len(cfg.dot_diameter_pixels)-1)], [1]] 

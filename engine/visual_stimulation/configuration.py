@@ -152,12 +152,12 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
         '''
         #paths
-        DEFAULT_IMAGE_PATH = os.path.join(self.BASE_PATH ,'images','default.bmp')
+        DEFAULT_IMAGE_FILE = os.path.join(self.BASE_PATH ,'images','default.bmp')
         LOG_PATH = self.BASE_PATH
         ARCHIVE_PATH = self.BASE_PATH
         CAPTURE_PATH = self.BASE_PATH
-        BULLSEYE_PATH = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'
-        TEMP_IMAGE_PATH = self.BASE_PATH + os.sep + 'temp'+os.sep+'tmp.bmp'
+        BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'
+        TEMP_IMAGE_FILE = os.path.join(self.BASE_PATH, 'temp', 'tmp.bmp')
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX
         
         self.SCREEN_PIXEL_TO_UM_SCALE_p = visexpman.engine.generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])

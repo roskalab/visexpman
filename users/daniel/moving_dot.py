@@ -1,7 +1,5 @@
 '''calculates positions of n dots moving in 8 directions through the screen'''
 import visexpman
-import Helpers
-from Helpers import normalize,  imshow
 #from MultiLinePlot import WXPlot as WP
 import Image
 import numpy
@@ -330,7 +328,7 @@ def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):
             print e
         finally:  
             sock.close()
-        
+    print 'everything sent,  returning'
     return
 
 def run_stimulation(vs):
@@ -339,8 +337,9 @@ def run_stimulation(vs):
 if __name__ == '__main__':
     import visexpman
     import threading
+    import sys
     from visexpman.engine.run_visual_stimulation import VisualStimulation
-    vs_runner = VisualStimulation('ZoliTester', 'daniel')
+    vs_runner = VisualStimulation(sys.argv[1], 'daniel') #first argument should be a class name
     messages = ['start_stimulation']
     parameters = ['']
     pause_before = [1, 2]
