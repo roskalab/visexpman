@@ -70,6 +70,8 @@ class Screen(object):
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
         glEnable(GL_DEPTH_TEST)
         
+        self.image_texture_id = glGenTextures(1)
+        
         self.scale_screen()
         
         self.initialization()
@@ -218,8 +220,7 @@ class Screen(object):
         im = Image.open(path)
         im = im.convert('RGBX')
         self.image_size = im.size
-        ix, iy, image = im.size[0], im.size[1], im.tostring('raw', 'RGBX', 0, -1)
-        self.image_texture_id = glGenTextures(1)
+        ix, iy, image = im.size[0], im.size[1], im.tostring('raw', 'RGBX', 0, -1)        
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, ix, iy, 0, GL_RGBA, GL_UNSIGNED_BYTE, image)

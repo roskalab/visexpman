@@ -13,7 +13,7 @@ from OpenGL.GL import *
 class MultipleDotsTester(VisualStimulationConfig):
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
-        EXPERIMENT_CONFIG = 'DotsExperimentConfig'
+        EXPERIMENT_CONFIG = 'GratingExperimentConfig'
         LOG_PATH = 'C:\\_development\\virtual_reality\\software\\data'
         BASE_PATH= 'C:\\_development\\virtual_reality\\software\\data'
         ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
@@ -43,17 +43,31 @@ class MultipleDotsTester(VisualStimulationConfig):
 
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         COORDINATE_SYSTEM='ulcorner'
-#         COORDINATE_SYSTEM='center'
+        COORDINATE_SYSTEM='center'
             
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         self._create_parameters_from_locals(locals())
         
+class GratingExperimentConfig(experiment.ExperimentConfig):
+    def _create_application_parameters(self):
+        self.runnable = 'GratingTest'
+        self.pre_runnable = 'MultipleDotTestPre'
+        self._create_parameters_from_locals(locals())
+
+class GratingTest(experiment.Experiment):
+    def run(self, stl):
+        stl.show_gratings(duration = 4.0, profile = 'sqr', orientation = 45, velocity = 50.0, spatial_frequency = 40, display_area =  utils.cr((250, 250)), pos = utils.cr((0, 0)))
+
+            
+#         stl.show_gratings(duration = 1.0, display_area = (100,100))
+        
+        
 class DotsExperimentConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
         self.NDOTS = 30
         self.NFRAMES = 10
-        self.PATTERN_DURATION = 1.0
+        self.PATTERN_DURATION = 0.0
         self.RANDOM_DOTS = True
         self.runnable = 'MultipleDotTest'
         self.pre_runnable = 'MultipleDotTestPre'
@@ -93,19 +107,6 @@ class MultipleDotTest(experiment.Experiment):
             colors = utils.random_colors(self.experiment_config.NDOTS, self.experiment_config.NFRAMES,  greyscale = True,  inital_seed = 0)
         if self.experiment_config.NFRAMES == 1:
             colors = [colors]
-            
-#         vertices = numpy.array([[0.0,0.0],[100.0,100.0],[0.0,500.0]])
-#         glEnableClientState(GL_VERTEX_ARRAY)
-#         glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-#         glColor3fv((1.0,1.0,1.0))
-#         glVertexPointerf(vertices)
-#         glDrawArrays(GL_POLYGON,  0, 3)
-#         stl._flip()
-#         
-#         glDisableClientState(GL_VERTEX_ARRAY)
-#         
-#         time.sleep(1.0)
-            
             
         if self.experiment_config.RANDOM_DOTS:
             stl.show_dots(dot_sizes, dot_positions, self.experiment_config.NDOTS, duration = self.experiment_config.PATTERN_DURATION,  color = numpy.array(colors))

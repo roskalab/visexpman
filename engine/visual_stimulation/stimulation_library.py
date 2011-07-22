@@ -28,20 +28,22 @@ class Stimulations():
         self.stimulation_control = stimulation_control
         self.parallel = parallel
         start_time = time.time()         
-        if not os.path.exists(self.config.DEFAULT_IMAGE_FILE) or os.stat(self.config.DEFAULT_IMAGE_FILE)[6]==0: # check for zeros sized file too
-            Image.fromarray(numpy.ones((128, 128, 3), numpy.uint8)).save(self.config.DEFAULT_IMAGE_FILE, 'bmp')
-        #self.image = psychopy.visual.SimpleImageStim(self.screen,  image = self.config.DEFAULT_IMAGE_FILE)         
+        
+        #self.image = psychopy.visual.SimpleImageStim(self.screen,  image = self.config.DEFAULT_IMAGE_PATH)         
         #self.shape = psychopy.visual.ShapeStim(self.screen)
         #self.inner_circle = psychopy.visual.ShapeStim(self.screen)
         
         default_texture = Image.new('RGBA',  (16, 16))
         #self.checkerboard = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
-        #self.gratings = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
+        self.gratings_texture = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, self.gratings_texture)
+        glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         #self.image_list = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
         self.backgroundColor = utils.convert_color(self.config.BACKGROUND_COLOR)        
         
         self.flip_time = time.time()
         self.flip_times = []
+        self.log_on_flip_message = ''
         
         #self.test_message = psychopy.visual.TextStim(self.screen,  text = '',  pos = (0, 0),  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)        
         
@@ -88,16 +90,16 @@ class Stimulations():
         if self.stimulation_control.wait_time > 0.0:
             if wait > 0.0:
                 time.sleep(wait)           
-        self.screen.flip()        
-            
+        self.screen.flip()       
         self.flip_time = time.time()
+        self.stimulation_control.log.info('%2.3f\t%2.2f\t%s'%(self.flip_time,self.screen.frame_rate,self.log_on_flip_message))
         
         if trigger:
             self._frame_trigger_pulse()
             
         if self.config.ENABLE_FRAME_CAPTURE:            
             pass
-#             self.screen.getMovieFrame()            
+#             self.screen.getMovieFrame()
         
         #periodic pause
         if self.config.ACTION_BETWEEN_STIMULUS != 'no':
@@ -135,6 +137,7 @@ class Stimulations():
             color_to_set = color
             
 #         self.screen.logOnFlip('clear_screen(' + str(duration) + ', ' + str(color_to_set) + ')',  psychopy.log.DATA)
+        self.log_on_flip_message = 'show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')'        
         self.screen.clear_screen(color = color_to_set)
         self.set_background(color_to_set)
 #         self.screen.clearBuffer()
@@ -570,7 +573,7 @@ class Stimulations():
                 
         self._show_stimulus(duration,  self.ring,  flip)  
                     
-    def show_gratings(self,  duration = 0.0,  profile = 'sqr',  spatial_frequency =-1,  display_area = (0,  0),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1,  color_offset = 0,  pos = (0,  0),  duty_cycle = 0.5,  noise_intensity = 0):
+    def show_gratings(self, duration = 0.0,  profile = 'sqr',  spatial_frequency =-1,  display_area = (0,  0),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = (0,  0),  duty_cycle = 1.0,  noise_intensity = 0):
         """
         This stimulation shows gratings with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -581,15 +584,15 @@ class Stimulations():
                 - 'sin': sine
                 - 'cos': cosine
                 profile parameter can be a list of these keywords. Then different profiles are applied to each color channel
-            - spatial_frequency: length of one period in um (pixel)
+            - spatial_frequency: length of one bar in um (pixel)
             - display area
             - orientation: orientation of gratings in degrees
             - starting_phase: starting phase of stimulus in degrees
-            - velocity: velocity of the movement of gratings in pixel/s
+            - velocity: velocity of the movement of gratings in um/s
             - color_contrast: color contrast of grating stimuli. Can be a single intensity value of an rgb value. Accepted range: 0...1
             - color_offset: color (intensity) offset of stimulus. Can be a single intensity value of an rgb value. Accepted range: 0...1
             - pos: position of stimuli
-            - duty_cycle: duty cycle of grating stimulus with sqr profile
+            - duty_cycle: duty cycle of grating stimulus with sqr profile. Its interpretation is different from the usual one: duty cycle tells how many times the spatial frequency is the width of the black stripe
             - noise_intensity: Maximum contrast of random noise mixed to the stimulus.
         
         Usage examples:
@@ -600,64 +603,55 @@ class Stimulations():
         3) Show gratings with sawtooth profile on a 500x500 area where the color contrast is light red and the color offset is light blue
             show_gratings(duration = 3.0, profile = 'saw', velocity = 100, spatial_frequency = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
         """        
-        
         if spatial_frequency == -1:
-            spatial_frequency_to_set = self.config.SCREEN_RESOLUTION['col']
+            bar_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
         else:
-            spatial_frequency_to_set = spatial_frequency
-            
-        self.screen.logOnFlip('show_gratings(' + str(duration)+ ', ' + str(profile) + ', ' + str(spatial_frequency_to_set) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')',  psychopy.log.DATA)       
-   
-        if isinstance(pos, numpy.ndarray):
-            column_index = 'col'
-            row_index = 'row'
-            pos_rc = pos            
-        else:
-            column_index = 0
-            row_index = 1
-            pos_rc = utils.rc(pos)
-            
-        pos_transformed = utils.coordinate_transform(utils.rc_multiply_with_constant(pos_rc, self.config.SCREEN_PIXEL_TO_UM_SCALE), self.config.ORIGO, self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.config.VERTICAL_AXIS_POSITIVE_DIRECTION)
+            bar_width = spatial_frequency * self.config.SCREEN_PIXEL_TO_UM_SCALE
+        #== Logging ==
+        self.log_on_flip_message = 'show_gratings(' + str(duration)+ ', ' + str(profile) + ', ' + str(spatial_frequency) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
+        self.stimulation_control.log.info(self.log_on_flip_message)
+        self.log_on_flip_message = 'show_gratings'
+        
+        #== Prepare ==
+        orientation_rad = orientation * math.pi / 180.0        
+                
+        pos_transformed = utils.rc_multiply_with_constant(pos, self.config.SCREEN_PIXEL_TO_UM_SCALE)
             
         pos_adjusted = []
         pos_adjusted.append(pos_transformed['col'])
         pos_adjusted.append(pos_transformed['row'])
-
         
-        orientation_rad = orientation * math.pi / 180.0
-        
-        if isinstance(display_area, numpy.ndarray):
-            column_index = 'col'
-            row_index = 'row'
+        if display_area['col'] == 0:
+            screen_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
         else:
-            column_index = 0
-            row_index = 1
-        
-        screen_width = display_area[column_index] * self.config.SCREEN_PIXEL_TO_UM_SCALE
+            screen_width = display_area['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
         display_area_adjusted = []
-        display_area_adjusted.append(display_area[column_index] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
-        display_area_adjusted.append(display_area[row_index] * self.config.SCREEN_PIXEL_TO_UM_SCALE) 
+        display_area_adjusted.append(display_area['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
+        display_area_adjusted.append(display_area['row'] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
+        display_area_adjusted = numpy.array(display_area_adjusted)
+        
+        pixel_velocity = -velocity * self.config.SCREEN_PIXEL_TO_UM_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / screen_width        
         
         #If gratings are to be shown on fullscreen, modify display area so that no ungrated parts are on the screen considering rotation
         if display_area_adjusted[0] == 0:            
-            display_area_adjusted[0] = int(self.config.SCREEN_RESOLUTION['col'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['row'] * abs(math.sin(orientation_rad)))
+            display_area_adjusted[0] = self.config.SCREEN_RESOLUTION['col'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['row'] * abs(math.sin(orientation_rad))
             screen_width = self.config.SCREEN_RESOLUTION['col']
         if display_area_adjusted[1] == 0:            
-            display_area_adjusted[1] = int(self.config.SCREEN_RESOLUTION['row'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['col'] * abs(math.sin(orientation_rad)))    
+            display_area_adjusted[1] = self.config.SCREEN_RESOLUTION['row'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['col'] * abs(math.sin(orientation_rad))
+            
+        #calculate vertices of display area
+        #angles between diagonals            
+        alpha = numpy.arctan(display_area_adjusted[0]/display_area_adjusted[1])
+        angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
+        angles = angles - orientation_rad        
+        diagonal = numpy.sqrt((display_area_adjusted **2).sum())
+        vertices = 0.5 * diagonal * numpy.array([numpy.sin(angles), numpy.cos(angles)])        
+        vertices = vertices.transpose()
+        vertices = vertices + numpy.array(pos_adjusted)        
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        #== Generate grating profile
         
-        #generate texture        
-        period_scale = float(display_area_adjusted[0]) / float(spatial_frequency_to_set * self.config.SCREEN_PIXEL_TO_UM_SCALE)
-        period = float(self.config.GRATING_TEXTURE_RESOLUTION) / period_scale
-        period_original = period
-        
-        n_periods = float(self.config.GRATING_TEXTURE_RESOLUTION) / float(period)
-        n_periods = 2 ** math.ceil(math.log(n_periods,  2))
-        if n_periods < 1.0:
-            n_periods = 1.0
-        period = float(self.config.GRATING_TEXTURE_RESOLUTION) / n_periods
-        display_width_correction = period_original / period        
-        
-        #generate stimulus profile        
         if isinstance(profile, str):
             profile_adjusted = [profile,  profile,  profile]            
         else:
@@ -678,77 +672,64 @@ class Stimulations():
         else:
             color_offset_adjusted = []
             for color_offset_i in color_offset:
-                color_offset_adjusted.append(color_offset_i)            
+                color_offset_adjusted.append(color_offset_i)
+                
+        #calculate grating profile period from spatial frequency
+        period = bar_width * (1.0 + duty_cycle)
+        #modify profile length so that the profile will contain integer number of repetitions
+        repetitions = numpy.ceil(display_area_adjusted[0]/period)
+        profile_length = period * repetitions
+        cut_off_ratio = display_area_adjusted[0]/profile_length
+        profile_length = int(profile_length)
         
-        #modify contrast and offset so that the range of the stimulus profile would fit to the color range of Psychopy
-        for i in range(len(color_contrast_adjusted)):
-            color_contrast_adjusted[i] = color_contrast_adjusted[i] * 2.0
-            color_offset_adjusted[i] = 2.0 * color_offset_adjusted[i]  - 1.0 + 0.5 * color_contrast_adjusted[i]         
+        waveform_duty_cycle = 1.0 / (1.0 + duty_cycle)
+        stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle)
+        stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], profile_length, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, waveform_duty_cycle)
+        stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], profile_length, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, waveform_duty_cycle)
+        stimulus_profile = numpy.array([[stimulus_profile_r],  [stimulus_profile_g],  [stimulus_profile_b]])
+        stimulus_profile = stimulus_profile.transpose()        
+        
+        #== Generate texture
+        texture = numpy.array([
+                            [[0.0,0.0,1.0]],
+                            [[1.0,0.0,0.0]],
+                            [[0.0,0.0,1.0]],
+                            [[1.0,0.0,0.0]],                                                        
+                                ])        
 
-        #generate stimulus profiles
-        stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, duty_cycle)
-        stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, duty_cycle)
-        stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], self.config.GRATING_TEXTURE_RESOLUTION, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, duty_cycle)
-        stimulus_profile = numpy.array([stimulus_profile_r,  stimulus_profile_g,  stimulus_profile_b])
-        stimulus_profile = stimulus_profile.transpose()
-    
-        if float(noise_intensity) == 0.0 and self.config.OS_TYPE != 'win':
-            texture = numpy.array(stimulus_profile,  ndmin = 3)        
-        else:
-            texture = numpy.zeros((self.config.GRATING_TEXTURE_RESOLUTION,  self.config.GRATING_TEXTURE_RESOLUTION,  3))
-            for i in range(self.config.GRATING_TEXTURE_RESOLUTION):            
-                texture[i,  :] = stimulus_profile
-            #generate noise            
-            noise = numpy.random.rand((texture.shape)[0],  (texture.shape)[1],  (texture.shape)[2]) * noise_intensity
-            texture = texture + noise       
+        texture = stimulus_profile
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
         
-        #make sure that texture values are in the -1.0...1.0 range
-        texture = numpy.where(texture > 1.0,  1.0,  texture)
-        texture = numpy.where(texture < -1.0,  -1.0,  texture)       
-      
-        self.gratings.setTex(texture)
+        glEnable(GL_TEXTURE_2D)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
         
-        #Spatial frequency is distorted by rounding the number of profile repeats on screen. Consequently the display area has to be stretched to restore required spatial frequency
-        display_area_adjusted = (display_area_adjusted[0] * display_width_correction,  display_area_adjusted[1])
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        texture_coordinates = numpy.array(
+                             [
+                             [cut_off_ratio, 1.0],
+                             [cut_off_ratio, 0.0],
+                             [0.0, 0.0],
+                             [0.0, 1.0],
+                             ])
+                                     
+        glTexCoordPointerf(texture_coordinates)
         
-        self.gratings.setSize(display_area_adjusted) 
-        self.gratings.setPhase(0.0)
-        self.gratings.setOri(orientation)
-        
-        #For a phase correct graing stimulus, the stretched texture has to be offset along the x axis and from the right side some columns have to be masked out
-        
-        #the stretched display area has to be masked to show the stimulus with the right size
-        mask = numpy.ones((self.config.GRATING_TEXTURE_RESOLUTION,  self.config.GRATING_TEXTURE_RESOLUTION))
-        if display_width_correction < 1.0:
-            n_maskable_columns = 0
-        else:
-            n_maskable_columns = int(round((self.config.GRATING_TEXTURE_RESOLUTION * (1 - 1.0/ display_width_correction))))         
-        
-        mask[:,  self.config.GRATING_TEXTURE_RESOLUTION - n_maskable_columns : self.config.GRATING_TEXTURE_RESOLUTION] = -1 * mask[:,  self.config.GRATING_TEXTURE_RESOLUTION - n_maskable_columns  : self.config.GRATING_TEXTURE_RESOLUTION]         
-        self.gratings.setMask(mask)
-        
-        #corrigate effect of masking and rotation
-        offset = int(float(0.5 * n_maskable_columns) * float(display_area_adjusted[0]) / self.config.GRATING_TEXTURE_RESOLUTION)
-        pos_adjusted[0] = pos_adjusted[0] + offset * math.cos(orientation_rad)
-        pos_adjusted[1] = pos_adjusted[1] - offset * math.sin(orientation_rad)        
-        
-        self.gratings.setPos(pos_adjusted)       
-        
-        # calculate phase step considering stimulus size, frame rate and velocity
-        movement_per_frame = float(velocity * self.config.SCREEN_PIXEL_TO_UM_SCALE) / self.config.SCREEN_EXPECTED_FRAME_RATE
-        phase_step = movement_per_frame / screen_width / display_width_correction       
-        
-        if duration == 0.0:            
-            self.gratings.draw()
+        #== Send opengl commands ==
+        glColor3fv((1.0,1.0,1.0))
+        for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):
+            phase = pixel_velocity * i
+            glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glDrawArrays(GL_POLYGON,  0, 4)
             self._flip(trigger = True)
-        else:
-            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                                                 
-                self.gratings.setPhase(phase_step,  '+')
-                self.gratings.draw()
-                self._flip(trigger = True)
-                if self.stimulation_control.abort_stimulus():
-                    break
+            if self.stimulation_control.visual_stimulation_runner.abort:
+                break
                     
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
                     
     def show_dots(self,  dot_sizes, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0)):        
         '''
@@ -765,17 +746,18 @@ class Stimulations():
         that on each frame the number of dots are equal.
         
         '''
-        #self.screen.logOnFlip('show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')',  psychopy.log.DATA)
+        
+        self.log_on_flip_message = 'show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')'
+        self.stimulation_control.log.info(self.log_on_flip_message)
+        self.log_on_flip_message = 'show_dots'
         
         st = time.time()
         
         radius = 1.0
         vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
         n_frames = len(dot_positions) / ndots        
-        n_vertices = len(vertices)
-        #convert dot positions from user coordinate system                    
-#         transformed_dot_positions = utils.coordinate_transform(dot_positions, self.config.ORIGO, self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.config.VERTICAL_AXIS_POSITIVE_DIRECTION)
-        transformed_dot_positions = dot_positions
+        n_vertices = len(vertices)        
+        transformed_dot_positions = dot_positions #TODO: this shall be factored out
         frames_vertices = numpy.zeros((n_frames * ndots * n_vertices,  2)) 
         pixel_scale = numpy.array(self.config.SCREEN_UM_TO_NORM_SCALE)
         index = 0

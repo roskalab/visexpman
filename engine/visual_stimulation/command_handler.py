@@ -26,7 +26,7 @@ class CommandHandler():
             return  'filterwheel' + str(filterwheel) + str(filter_position)
             
     def start_stimulation(self, par):
-        return 'start stimulus ' + str(self.stimulation_control.runStimulation())
+        return 'start stimulus ' + str(self.stimulation_control.run_stimulation())
         
     def set_background_color(self, par):
         try:
@@ -34,13 +34,13 @@ class CommandHandler():
         except ValueError:
             background_color = 0
         self.stimulation_control.setStimulationScript('self.st.clear_screen(color = ' + str(background_color) +')')
-        self.stimulation_control.runStimulation()
+        self.stimulation_control.run_stimulation()
     
     def send_file(self, par):
         bytes_to_parse = self.command_buffer[1:]
         parsed_bytes = len(self.command_buffer[1:]) + 1 #THIS MAY BE TEMPORARY                    
         self.stimulation_control.setStimulationScript(bytes_to_parse)
-        self.stimulation_control.runStimulation()
+        self.stimulation_control.run_stimulation()
         return 'file transferred and loaded'
         
     def bullseye(self, par):
@@ -53,7 +53,7 @@ class CommandHandler():
         if self.user_interface.clear_stimulus and (bullseye_size > 0 or len(self.command_buffer) == 1):
             self.user_interface.clear_stimulus = False
             self.stimulation_control.setStimulationScript('self.st.show_image(self.machine_config.BULLSEYE_PATH,  duration = 0.0,  position = (0, 0), size = (' + str(bullseye_size) + ',' + str(bullseye_size) +'))')
-            self.stimulation_control.runStimulation()
+            self.stimulation_control.run_stimulation()
         elif not self.user_interface.clear_stimulus and (bullseye_size == 0 or len(self.command_buffer) == 1):
             self.user_interface.clear_stimulus = True                    
         return 'bullseye'
@@ -62,7 +62,7 @@ class CommandHandler():
         '''stimulation library test'''
         bullseye_size = 0
         self.stimulation_control.setStimulationScript('self.st.stimulation_library_test()')
-        self.stimulation_control.runStimulation()
+        self.stimulation_control.run_stimulation()
         return  'test stimulus library'   
         
     def get_log(self, par):

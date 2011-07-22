@@ -9,6 +9,7 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 import logging
 from visexpman.engine.generic import utils    
+import visexpman
 
 #import modules for stimulus files:
 #from random import *
@@ -64,9 +65,14 @@ class StimulationControl():
         self.logfile_path = self.config.LOG_PATH + os.sep + 'log' + str(time.time()).replace('.', '') + '.txt'       
         
         #self.logfile = psychopy.log.LogFile(self.logfile_path,  level = psychopy.log.DATA,  filemode = 'w')        
+        self.log = logging.getLogger('vision experiment log')
+        handler = logging.FileHandler(self.logfile_path)
+        formatter = logging.Formatter('%(message)s')
+        handler.setFormatter(formatter)
+        self.log.addHandler(handler)
+        self.log.setLevel(logging.INFO)
             
-        self.log_file_index = 0        
-        #psychopy.log.console.setLevel(psychopy.log.WARNING)
+        self.log_file_index = 0                
             
         #self._disable_frame_interval_watch()
         
@@ -89,27 +95,21 @@ class StimulationControl():
         '''
         Saves Presentinator source files, stimulation file(s) and log file into a zip file
         '''
-        files =  os.listdir(base_path)        
-        file = zip.ZipFile(zip_path, "w")
-        for filename in files:
-            full_path = base_path + os.sep + filename
-            if full_path.find('.py') != -1 and full_path.find('.pyc') == -1:
-                file.write(full_path, filename, zip.ZIP_DEFLATED)
-            elif os.path.isdir(full_path):
-                subfolder_files =  os.listdir(full_path)
-                for subfolder_file in subfolder_files:
-                    subfolder_full_path = full_path + os.sep + subfolder_file
-                    filepath_in_zip = full_path[full_path.rfind(os.sep):] + os.sep + subfolder_file
-                    if subfolder_full_path.find('.py') != -1 and subfolder_full_path.find('.pyc') == -1:
-                        file.write(subfolder_full_path, filepath_in_zip, zip.ZIP_DEFLATED)
+        zfile = zip.ZipFile(zip_path, "w")
+        for root, subFolders, files in os.walk(base_path):
+            for file in files:
+                filename = os.path.join(root,file)
+                if filename.find('.py') != -1 and filename.find('.pyc') == -1:
+                    filepath_in_zip = filename.replace(base_path,'')
+                    zfile.write(filename, filepath_in_zip, zip.ZIP_DEFLATED)
         
         #save log file to temporary file
         log_filename = 'log.txt'
         f = open(log_filename ,  'wt')
         f.write(log)
         f.close()
-        file.write(log_filename , 'log/' + log_filename, zip.ZIP_DEFLATED)
-        file.close()
+        zfile.write(log_filename , 'log/' + log_filename, zip.ZIP_DEFLATED)
+        zfile.close()
         os.remove(log_filename)
         
     def last_stimulus_log(self):
@@ -122,7 +122,7 @@ class StimulationControl():
         f.write(string_to_file)
         f.close()
     
-    def runStimulation(self):
+    def run_stimulation(self):
         '''
         Runs stimulation and takes care of triggering and frame interval watching
         '''
@@ -153,14 +153,14 @@ class StimulationControl():
                 self.user_interface.screen.saveMovieFrames(self.config.CAPTURE_PATH + '/captured' + str(time.time()).replace('.', '') + '.bmp')            
 #                e.cleanup()
             #save stimulus, source and log files into zip            
-            #log = self.last_stimulus_log()
+            log = self.last_stimulus_log()
             
             if len(self.config.ARCHIVE_PATH)  == 0:
                 zip_path = self.config.ARCHIVE_PATH + str(time.time()).replace('.', '') + '.zip'
             else:
                 zip_path = self.config.ARCHIVE_PATH + os.sep + str(time.time()).replace('.', '') + '.zip'
                 
-            #if user log file path defined save log data using that path
+            #if user log file path defined save log data using that path. This is for maintain compatibility with labview presentinator
             for local in locals():
                 if local == 'user_log_file_path':
                     if os.path.exists(os.path.dirname(user_log_file_path)):                
@@ -168,7 +168,8 @@ class StimulationControl():
                         f.write(log)
                         f.close()
 
-#             self.zip_py_files(zip_path,  self.config.BASE_PATH, log)
+            #save all the python source files in the visexpman module
+            self.zip_py_files(zip_path, os.path.dirname(visexpman.__file__), log)
             self.visual_stimulation_runner.state = 'idle'
         else:
             raise AttributeError('Stimulus config class does not have a run method?')
