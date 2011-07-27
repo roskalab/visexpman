@@ -56,10 +56,7 @@ class StimulationControl():
         self.measurement_id = 'not defined'
         
         #calculate wait time for frame rate control
-        if self.config.SCREEN_EXPECTED_FRAME_RATE == self.config.SCREEN_MAX_FRAME_RATE:
-            self.wait_time = 0.0
-        else:
-            self.wait_time = 1.0/self.config.SCREEN_EXPECTED_FRAME_RATE * self.config.FRAME_WAIT_FACTOR
+        self.wait_time = 1.0/self.config.SCREEN_EXPECTED_FRAME_RATE
             
         #initialize event logging
         self.logfile_path = self.config.LOG_PATH + os.sep + 'log' + str(time.time()).replace('.', '') + '.txt'       

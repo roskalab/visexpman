@@ -2,9 +2,7 @@ import time
 import os
 from visexpman.engine.generic import utils
 import visexpman.engine.generic.graphics as graphics
-# import psychopy.visual
-# import psychopy.event
-# import psychopy.monitors
+
 class UserInterface():
     '''
     UserInterface is responsible for handling keystrokes and displaying messages on screen. Display handling is taken over by StimulationControl when software leaves idle state       
@@ -23,7 +21,7 @@ class UserInterface():
         
         #Display menu
         position = (0, 0)   
-        if self.config.TEXT_ENABLE:
+        if 0 and self.config.TEXT_ENABLE:
             self.menu = psychopy.visual.TextStim(self.screen,  text = self.config.MENU_TEXT + experiment_choices(caller.experiment_config_list),  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE) 
             position = (0,  int(-0.4 * self.config.SCREEN_RESOLUTION['row']))
             self.message = psychopy.visual.TextStim(self.screen,  text = '',  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)
@@ -38,7 +36,7 @@ class UserInterface():
         '''
         Update Psychopy items that make the user interface
         '''
-        if self.config.TEXT_ENABLE:            
+        if 0 and self.config.TEXT_ENABLE:            
 #             self.screen.render_text(self, text, color = self.config.TEXT_COLOR)
             for user_interface_item in self.user_interface_items:
                 user_interface_item.draw()

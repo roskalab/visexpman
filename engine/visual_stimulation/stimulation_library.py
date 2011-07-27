@@ -93,7 +93,7 @@ class Stimulations():
         self.screen.flip()       
         self.flip_time = time.time()
         self.stimulation_control.log.info('%2.3f\t%2.2f\t%s'%(self.flip_time,self.screen.frame_rate,self.log_on_flip_message))
-        
+        print self.screen.frame_rate
         if trigger:
             self._frame_trigger_pulse()
             
@@ -573,7 +573,7 @@ class Stimulations():
                 
         self._show_stimulus(duration,  self.ring,  flip)  
                     
-    def show_gratings(self, duration = 0.0,  profile = 'sqr',  spatial_frequency =-1,  display_area = (0,  0),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = (0,  0),  duty_cycle = 1.0,  noise_intensity = 0):
+    def show_gratings(self, duration = 0.0,  profile = 'sqr',  spatial_frequency =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0):
         """
         This stimulation shows gratings with different color (intensity) profiles.
             - duration: duration of stimulus in seconds

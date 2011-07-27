@@ -10,7 +10,7 @@ import Image
 import numpy
 from visexpman.engine.visual_stimulation import experiment
 from visexpman.engine.generic import utils
-from visexpman.engine.visual_stimulation import stimulation_library as stl
+#from visexpman.engine.visual_stimulation import stimulation_library as stl
 #import visexpman.engine.generic.configuration
 #import visexpman.engine.generic.utils
 import time
@@ -49,7 +49,6 @@ class MovingDot(experiment.Experiment):
         self.prepare()
         
     def run(self, stl):
-    
         for dot_row_col in self.row_col:
             stl.show_dots(self.diameter_pix, dot_row_col, self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
         pass
@@ -195,7 +194,7 @@ def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
     # we reached the bottom line, now keep row fixed and col moves till w
     pos_diag[1] = numpy.arange(pos_diag[0][-1]+gridstep_pix, w/numpy.sqrt(2), gridstep_pix)
     #!!! small glitch in start coord's first value
-    diag_start_col[1] = numpy.sqrt(2)*pos_diag[1]-h
+    diag_start_col[1] = numpy.sqrt(2)*pos_diag[1]-w
     diag_start_row[1] = numpy.ones(diag_start_col[1].shape)*diag_start_row[0][-1]
     diag_end_col[1] = numpy.sqrt(2)*pos_diag[1]
     diag_end_row[1] = numpy.ones(diag_end_col[1].shape)
@@ -299,7 +298,7 @@ class MovingDotTestConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty
         self.DIAMETER_UM = [200]
-        self.ANGLES = [0]#,  90,  180,  270,  45,  135,  225,  315] # degrees
+        self.ANGLES = [0, 90, 45, 135]#,  90,  180,  270,  45,  135,  225,  315] # degrees
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1#2
