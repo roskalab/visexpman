@@ -14,7 +14,6 @@ import visexpman.users.zoltan.optics.surface_meshes as surface_meshes
 import visexpman.engine.generic.geometry as geometry
 import visexpman.users.zoltan.optics.toroid_screen as toroid_screen
 
-
 class VirtualRealityOpticalAlignment(generic.graphics.Screen):
     '''
     1 unit = 1mm
@@ -27,7 +26,9 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         self.alignment()
         #enable blending to display transparent objects
         glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)        
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA) 
+        self.scale = 0.8   
+        self.show_rays = True    
         
     def toroid(self,  center = None):
         viewing_angle = 180.0
@@ -57,7 +58,7 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         vertical_radius = toroid_screen_data.vertical_radius
         vertical_angle_range = toroid_screen_data.vertical_angle_range
         #medium resolution
-        mesh_size = [0.2 * toroid_screen_data.horizontal_perimeter_endcap , 0.1 * toroid_screen_data.vertical_perimeter]
+        mesh_size = [0.2 * toroid_screen_data.horizontal_perimeter_endcap*1, 0.1 * toroid_screen_data.vertical_perimeter]
         #high resolution
         #mesh_size = [0.1 * toroid_screen_data.horizontal_perimeter_endcap , 0.05 * toroid_screen_data.vertical_perimeter]
 
@@ -75,71 +76,92 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         self.number_of_shape_vertices = 3
         #== Enable optical objects ==
         self.enable_plane_mirror = True
-        self.enable_aam_mirror = False
+        self.enable_aam_mirror = True
         self.enable_toroid = True
         self.enable_projector = True
         #== Size / position of optical objects ==
         #== Angular amplification mirror ==
-        aam_position = numpy.array([0, 320, 0])
+        aam_position = numpy.array([0, 310, -240])
         amplification = 12.0
         focal_distance = 14500.0
-        mesh_size = 0.510141 * 100*0.7
+        mesh_size = 0.510141 * 100*0.4
+#         mesh_size = 0.5 * 100*1.4
         angle_range = [0.0, 0.3]
-        ang_res = 10
+        ang_res = 8
         mirror_profile, invalid_angles = angular_amplification_mirror.calculate_angular_amplification_mirror_profile(amplification, focal_distance, angle_range =angle_range, angular_resolution = ang_res)
-        self.aam, self.number_of_aam_shapes = surface_meshes.aam_mesh(focal_distance, amplification, mesh_size, mirror_profile)
+        self.aam, self.number_of_aam_shapes = surface_meshes.aam_mesh(focal_distance, amplification, mesh_size, mirror_profile, angle_range = [0*numpy.pi, 2*numpy.pi])
         self.aam = self.aam + aam_position
         
         #==Plane mirror ==
         relative_position_to_aam = numpy.array([0.0, -90.0, 0.0])
         mirror_position = aam_position + relative_position_to_aam
-        mirror_size = 150
-        mirror_tilt = 0*21.0
+        mirror_size = [80.0, 80.0]
+        mirror_tilt = 22.5
         mirror_tilt = (mirror_tilt + 0.0) * numpy.pi / 180.0
-        z_adjustment = round(0.5 * mirror_size * numpy.cos(mirror_tilt), visexpman.users.zoltan.configurations.GEOMETRY_PRECISION)
-        y_adjustment = round(0.5 * mirror_size * numpy.sin(mirror_tilt), visexpman.users.zoltan.configurations.GEOMETRY_PRECISION)
-        self.plane_mirror = numpy.array([[-0.5 * mirror_size, - y_adjustment, -z_adjustment],
-                                                            [0.5 * mirror_size,  - y_adjustment, -z_adjustment],
-                                                            [0.5 * mirror_size, y_adjustment, z_adjustment],
-                                                            [-0.5 * mirror_size, y_adjustment, z_adjustment]])
+        z_adjustment = round(0.5 * mirror_size[1] * numpy.cos(mirror_tilt), visexpman.users.zoltan.configurations.GEOMETRY_PRECISION)
+        y_adjustment = round(0.5 * mirror_size[1] * numpy.sin(mirror_tilt), visexpman.users.zoltan.configurations.GEOMETRY_PRECISION)
+        self.plane_mirror = numpy.array([[-0.5 * mirror_size[0], - y_adjustment, -z_adjustment],
+                                                            [0.5 * mirror_size[0],  - y_adjustment, -z_adjustment],
+                                                            [0.5 * mirror_size[0], y_adjustment, z_adjustment],
+                                                            [-0.5 * mirror_size[0], y_adjustment, z_adjustment]])
         self.plane_mirror = self.plane_mirror + mirror_position
 #        self.plane_mirror = self.plane_mirror[0:3]
 
         #== Projector configuration ==
-        relative_position_to_plane_mirror = numpy.array([0.0, 150.0, -150.0])
+        distance_from_plane_mirror = 110.0
+        #to ensure that the projected image on the aam is not changed, the projector angle shall be 90-2*mirror_tilt
+        projector_angle = 45.0
+        projector_angle = -projector_angle * numpy.pi / 180.0 + numpy.pi
+        projector_orientation = -numpy.array([0.0, numpy.sin(projector_angle), numpy.cos(projector_angle)])
+        relative_position_to_plane_mirror = -projector_orientation * distance_from_plane_mirror
         projector_position = relative_position_to_plane_mirror + mirror_position
-        projector_orientation = [0.0, -1.0 ,1.0 ]
-        self.projector_size = [30, 30,30] #The realistic sizes of Acer k11: [120.0, 40.0, 115.0]
+
+        self.projector_size = [30, 30, 30] #The realistic sizes of Acer k11: [120.0, 40.0, 115.0]
         self.projector = self.cuboid_vertices(self.projector_size)
         self.projector = self.projector + numpy.array(projector_position)
-        projection_distance = 600.0
-        projected_image_size  = 380.0
-        aspect_ratio = 1.3333
-        half_angle_rays = True
-        #The projected image with the beamer's lens form a pyramid. The vector pointing from the apex to the vertices of the base are calculated here:
-        corner_rays = ray_reflection.pyramid_projection(projector_position, projector_orientation, projection_distance, projected_image_size, aspect_ratio, half_angle_rays = half_angle_rays)
-
-        if half_angle_rays:
-            n_rays = 3
-            initial_ray_start_point = []
-            for i in range(n_rays+1):
-                initial_ray_start_point.append(projector_position)
-            initial_ray_direction = []
-            initial_ray_direction.append(projector_orientation)
-            for i in range(n_rays):
-                initial_ray_direction.append(corner_rays[i])
-            initial_ray_start_point = numpy.array(initial_ray_start_point)
-            initial_ray_direction = numpy.array(initial_ray_direction)
-        else:
-            initial_ray_start_point = numpy.array([projector_position, projector_position, projector_position, projector_position, projector_position])
-            initial_ray_direction = numpy.array([projector_orientation, corner_rays[0], corner_rays[1], corner_rays[2], corner_rays[3]])
-#        initial_ray_start_point = numpy.array([projector_position])
-#        initial_ray_direction = numpy.array([ray1])
-        ind = 0
-        initial_ray_start_point = initial_ray_start_point[ind:ind+1]
-        initial_ray_direction = initial_ray_direction[ind:ind+1]
-
+        projection_distance = 3400.0
+        projected_image_size  = 2000.0
         
+        aspect_ratio = 1.3333
+        half_angle_rays = False
+#         n_corners = 8
+#         n_rays_per_corner = 1
+        s = [0.5, 0.5]
+        offset = [0.0, 0.5]
+        s = [1.0, 0.5]
+        offset = [0.0, 0.5]
+        s = [1.0, 1.0]
+        offset = [0.0, 0.0]
+#         corners = [[0, s], [0, -s], [-s, 0], [s, 0]]
+#         corners = [[-1, 0], [1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]
+#         corners = [[0, s], [s, s], [-s, s], [s, -s], [-s, -s], [0, -s], [-s, 0], [s, 0]]
+#         corners = corners[0:n_corners]
+        n_rays = [2,2]
+        
+        corners = []
+        for row in range(n_rays[0]):
+            for col in range(n_rays[1]):
+                if n_rays[0] == 1:
+                    corner = [0 + offset[0], 2 * s[1] * col / (n_rays[1] - 1) - s[1] + offset[1]]
+                elif n_rays[1] == 1:
+                    corner = [2 * s[0] * row / (n_rays[0] - 1) - s[0] + offset[0], 0 + offset[1]]
+                else:
+                    corner = [2 * s[0] * row / (n_rays[0] - 1) - s[0] + offset[0], 2 * s[1] * col / (n_rays[1] - 1) - s[1] + offset[1]]
+                corners.append(corner)        
+        #The projected image with the beamer's lens form a pyramid. The vector pointing from the apex to the vertices of the base are calculated here:
+        corner_rays = ray_reflection.pyramid_projection(projector_position, projector_orientation, projection_distance, projected_image_size, aspect_ratio, half_angle_rays = half_angle_rays, corners = corners)        
+        initial_ray_start_point = []
+        for i in range(len(corner_rays) + 1):
+            initial_ray_start_point.append(projector_position)
+        initial_ray_direction = []
+        initial_ray_direction.append(projector_orientation)
+        for i in range(len(corner_rays)):
+            initial_ray_direction.append(corner_rays[i])
+        initial_ray_start_point = numpy.array(initial_ray_start_point)
+        initial_ray_direction = numpy.array(initial_ray_direction)        
+#         ind = 0
+#         initial_ray_start_point = initial_ray_start_point[ind:ind+1]
+#         initial_ray_direction = initial_ray_direction[ind:ind+1]
         
         #== Toroid screen ==
         screen_position = numpy.array([0, 0, 0])
@@ -170,12 +192,15 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
                 self.mirrors.append(self.aam[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])
             
         if self.enable_toroid:
+            toroid_mirrors = []
             for i in range(self.number_of_toroid_shapes):
                 self.mirrors.append(self.screen[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])
-            
+                toroid_mirrors.append(self.screen[i * self.number_of_shape_vertices: (i+1) * self.number_of_shape_vertices])           
+        
         #== Calculate reflections ==
+        print 'number of mirrors %i'%len(self.mirrors)
         self.rays = []
-        if reflect:
+        if reflect:            
             for i in range(initial_ray_start_point.shape[0]):
                 is_reflection, rays = ray_reflection.multiple_reflections(self.mirrors,  initial_ray_start_point[i], initial_ray_direction[i], number_of_reflections)
                 print is_reflection
@@ -189,11 +214,32 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
                 self.ray_chain_mask.append(True)
             self.ray_chain_mask[-1] = False
         self.rays = numpy.array(flatten_rays)
-        #== put together vertexes ==
-        self.vertices = numpy.concatenate((self.axis, self.rays, self.plane_mirror, self.aam, self.screen, self.projector, mouse_visual_range_boundaries))
         
-#        print self.rays
+        #== find reflection points on screen ==
+        points_on_screen = []        
+        if self.enable_toroid: 
+            for toroid_mirror in toroid_mirrors:
+                for point in self.rays:
+                    if geometry.is_point_in_polygon(point, toroid_mirror):
+                        points_on_screen.append(point)
+
+        self.points_on_screen = numpy.array(points_on_screen)
+#         print self.points_on_screen
+            
+        #== put together vertexes ==        
+        self.vertices = numpy.concatenate((self.axis, self.rays, self.plane_mirror, self.aam, self.screen, self.projector, mouse_visual_range_boundaries))
+        if self.points_on_screen.shape != (0,):
+            self.vertices = numpy.concatenate((self.vertices, self.points_on_screen))
+            
+        print 'number of rays %d, number of rays hit the screen %d'%(n_rays[0] * n_rays[1], 0.5*self.points_on_screen.shape[0])        
+        
+        #display runtime
         print time.time() - st
+        
+    def user_keyboard_handler(self, key_pressed):
+        if key_pressed == 'space':
+            self.show_rays = self.show_rays ^ True
+        
     
     def draw_scene(self):
         #draw x,y and z axis 
@@ -209,15 +255,16 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         vertex_array_offset = 6
         
         #== Draw light rays ==
-        glLineWidth(2)
-        for i in range(int(self.rays.shape[0]-1)):
-            intensity = 0.5 + float(i+1)/(2*self.rays.shape[0])
-            if i == 0:
-                glColor3fv((intensity, 0, 0))
-            else:
-                glColor3fv((intensity, intensity, intensity))
-            if self.ray_chain_mask[i]:
-                glDrawArrays(GL_LINES, vertex_array_offset + i, 2)
+        if self.show_rays:
+            glLineWidth(2)
+            for i in range(int(self.rays.shape[0]-1)):
+                intensity = 0.5 + float(i+1)/(2*self.rays.shape[0])
+                if i == 0 or i == 1:
+                    glColor3fv((intensity, 0, 0))
+                else:
+                    glColor3fv((intensity, intensity, intensity))
+                if self.ray_chain_mask[i]:
+                    glDrawArrays(GL_LINES, vertex_array_offset + i, 2)
         vertex_array_offset = vertex_array_offset + self.rays.shape[0]
         
         #== Draw optical objects ==
@@ -260,14 +307,24 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         glColor4fv((0.0, 1.0, 0.0, 0.5))
         glDrawArrays(GL_LINES, vertex_array_offset, 2)
         glDrawArrays(GL_LINES, vertex_array_offset + 2, 2)
+        vertex_array_offset = vertex_array_offset + 4
         
+        #draw projection boundaries on screen
+        if self.points_on_screen.shape[0] > 0:
+            glColor4fv((1.0, 1.0, 0.0, 0.5))
+            glPointSize(10.0)
+            glDrawArrays(GL_POINTS, vertex_array_offset, self.points_on_screen.shape[0])            
+#             glDrawArrays(GL_POLYGON, vertex_array_offset, self.points_on_screen.shape[0])        
+#             glLineWidth(2)
+#             for i in range(self.points_on_screen.shape[0]-1):
+#                 glDrawArrays(GL_LINES, vertex_array_offset + i, 2)        
+        vertex_array_offset = vertex_array_offset + self.points_on_screen.shape[0]
         #== End of drawing objects ==
         glDisableClientState(GL_VERTEX_ARRAY)
 
     def render_before_set_view(self):
         msg = str(self.position) + "%2.0f, %2.0f, %2.0f, %2.1f,%2.2f, %f"%(self.heading,  self.roll, self.pitch, self.scale, self.frame_rate, self.wait_time_left)
         self.render_text(msg, color = (0.8, 0.8, 0.8), position = (-400, -250))
-
 
 config = visexpman.users.zoltan.configurations.GraphicsTestConfig()
 g = VirtualRealityOpticalAlignment(config, graphics_mode = 'standalone')

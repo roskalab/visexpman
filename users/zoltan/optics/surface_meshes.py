@@ -51,7 +51,7 @@ def toroid_mesh(horizontal_radius, horizontal_angle_range, vertical_radius, vert
 #    print polygons.shape
     return polygons,  2 * number_of_shapes[0] * number_of_shapes[1]
 
-def aam_mesh(focal_distance, amplification, mesh_size, mirror_profile):
+def aam_mesh(focal_distance, amplification, mesh_size, mirror_profile, angle_range = [0, 2*numpy.pi]):
     '''
     
     '''
@@ -63,8 +63,8 @@ def aam_mesh(focal_distance, amplification, mesh_size, mirror_profile):
     
     #== Generate angle range for rotation using mesh_size ==
     maximal_radius = mirror_profile[:,1].max()
-    number_of_slices = round(2*numpy.pi * maximal_radius/mesh_size)
-    angles = numpy.linspace(0.0, 2 * numpy.pi - 0* numpy.pi/number_of_slices, number_of_slices)
+    number_of_slices = round(abs(angle_range[1]-angle_range[0]) * maximal_radius/mesh_size)
+    angles = numpy.linspace(angle_range[0], angle_range[1], number_of_slices)
     mesh_points = []
     
     #== Calculate coordinates of mesh points ==

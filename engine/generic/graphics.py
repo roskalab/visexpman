@@ -6,6 +6,8 @@ from OpenGL.GLUT import *
 import pygame
 import Image
 
+DISPLAY_FRAME_RATE = False
+
 class Screen(object):
     """
     Use cases:
@@ -148,6 +150,8 @@ class Screen(object):
             self.frame_rate = self.config.SCREEN_EXPECTED_FRAME_RATE
         self.after_flip()
         self.flip_time_previous = self.flip_time
+        if DISPLAY_FRAME_RATE:
+            print self.frame_rate
         
     def scale_screen(self):
         '''
@@ -260,8 +264,10 @@ class Screen(object):
         '''
         Saves actual frame in frame buffer to an image file
         '''
-        pixels = glReadPixels(0, 0, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)
-        Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels).save(path)        
+        pixels = glReadPixels(0, 0, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)        
+        frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+        frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
+        frame.save(path)        
         
     def cuboid_vertices(self, sizes):
         vertices = numpy.array([
@@ -336,7 +342,13 @@ class Screen(object):
                 self.scale = self.scale - self.scale_step            
         elif key_pressed == '2':
             self.scale = self.scale + self.scale_step
+        elif key_pressed == '3':
+            self.save_frame(self.config.CAPTURE_PATH + os.sep + 'capture.bmp')
+            print 'frame saved'
+        self.user_keyboard_handler(key_pressed)
         
+    def user_keyboard_handler(self, key_pressed):
+        pass
         
 if __name__ == "__main__": 
     pass

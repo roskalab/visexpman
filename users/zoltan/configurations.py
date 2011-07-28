@@ -20,6 +20,8 @@ class GraphicsTestConfig(visexpman.engine.generic.configuration.Config):
         FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]
         COORDINATE_SYSTEM = 'center' #ulcorner
 #        COORDINATE_SYSTEM = 'ulcorner'
+        CAPTURE_PATH = '/media/Common/visexpman_data'
+        self.N_CORES = 4
 
      
         

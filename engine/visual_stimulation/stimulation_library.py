@@ -85,15 +85,11 @@ class Stimulations():
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
         """
         
-        now = time.time()
-        wait = self.stimulation_control.wait_time - (now - self.flip_time)
-        if self.stimulation_control.wait_time > 0.0:
-            if wait > 0.0:
-                time.sleep(wait)           
+        now = time.time()        
         self.screen.flip()       
         self.flip_time = time.time()
         self.stimulation_control.log.info('%2.3f\t%2.2f\t%s'%(self.flip_time,self.screen.frame_rate,self.log_on_flip_message))
-        print self.screen.frame_rate
+        
         if trigger:
             self._frame_trigger_pulse()
             

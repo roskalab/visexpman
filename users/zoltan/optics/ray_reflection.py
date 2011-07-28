@@ -4,7 +4,7 @@ import numpy
 import visual as v
 import visexpman.engine.generic.geometry as geometry
 
-last_ray_length = 1.0
+last_ray_length = 0*30.0
 
 def reflection(ray_start_point,  ray_direction, polygon):
     '''
@@ -49,17 +49,10 @@ def multiple_reflections(mirrors,  initial_ray_start_point, initial_ray_directio
                 if mirrors_hit >= 2:
                     distance1 = geometry.vector_length(ray_start_point - reflected_ray_start_point)
                     distance2 = geometry.vector_length(ray_start_point - reflected_ray_start_points[-1])
-#                    print distance1, distance2
-                    #the closest is chosen
+                    #the closer is chosen
                     if distance1 < distance2:
                         reflected_ray_directions[-1] = reflected_ray_direction
                         reflected_ray_start_points[-1] = reflected_ray_start_point
-#                        mirrors_hit = mirrors_hit - 1
-
-                    #two mirrors are hit when the ray is incident to a corner. This time the incident ray is reflected back
-                    #if mirrors are not in the same plane, the relfection is calculated only one of the mirrors, the one that is earlier in the mirror list
-                    pass
-#                    reflected_ray_directions[-1] = -ray_direction
                 else:
                     is_reflection = True
                     reflected_ray_start_points.append(reflected_ray_start_point)
@@ -69,10 +62,10 @@ def multiple_reflections(mirrors,  initial_ray_start_point, initial_ray_directio
         reflected_ray_start_points.append(reflected_ray_start_points[-1] + last_ray_length * reflected_ray_directions[-1])
     else:
         reflected_ray_start_points.append(initial_ray_start_point + last_ray_length * initial_ray_direction)
-    rays = numpy.array(reflected_ray_start_points)
+    rays = numpy.array(reflected_ray_start_points)    
     return is_reflection, rays
     
-def pyramid_projection(apex, direction, height, base_hypotenuse, aspect_ratio, half_angle_rays = False):
+def pyramid_projection(apex, direction, height, base_hypotenuse, aspect_ratio, half_angle_rays = False, corners = [[0, 1], [0, -1], [-1, 0], [1, 0]]):
     '''
     calculates the direction vectors to the four corners of a projected image from the projector
     '''
@@ -89,17 +82,18 @@ def pyramid_projection(apex, direction, height, base_hypotenuse, aspect_ratio, h
     
     #angles of rotation
     angle2 = numpy.arctan(0.5 * side1 / height)
-    angle3 = numpy.arctan(0.5 * side2 / height)
+    angle3 = numpy.arctan(0.5 * side2 / height)    
     
-    corners = [[1, 1]]#, [1, -1]]#, [1, 1], [-1, 1]]
-#    corners=[[0, 1]]
     pyramid_base_vertices = []
     for corner in corners:
         pyramid_base_vertices.append(center_of_base + corner[0] * base_vector2 * 0.5 * side1 + corner[1] * base_vector3 * 0.5 * side2)
         
     if half_angle_rays:
         for corner in corners:
-            pyramid_base_vertices.append(center_of_base + corner[0] * base_vector2 * 0.25 * side1 + corner[1] * base_vector3 * 0.25 * side2)
+            pyramid_base_vertices.append(center_of_base + corner[0] * base_vector2 * 0.7 * side1 + corner[1] * base_vector3 * 0.7 * side2)
+            
+        for corner in corners:
+            pyramid_base_vertices.append(center_of_base + corner[0] * base_vector2 * 0.3 * side1 + corner[1] * base_vector3 * 0.3 * side2)
             
         for corner in corners:
             pyramid_base_vertices.append(center_of_base + corner[0] * base_vector2 * 0.1 * side1 + corner[1] * base_vector3 * 0.1 * side2)

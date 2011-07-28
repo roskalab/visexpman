@@ -35,7 +35,7 @@ class StimulationControl():
         
         self.visual_stimulation_runner = visual_stimulation_runner
         self.config = config
-        self.stimulation_file = ''            
+        self.stimulation_file = ''
         self.user_interface = user_interface
         #self.udp_interface = udp_interface
         if self.config.ENABLE_PARALLEL_PORT:
