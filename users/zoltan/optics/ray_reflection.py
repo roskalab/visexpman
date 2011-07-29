@@ -4,7 +4,7 @@ import numpy
 import visual as v
 import visexpman.engine.generic.geometry as geometry
 
-last_ray_length = 0*30.0
+last_ray_length = 0.0
 
 def reflection(ray_start_point,  ray_direction, polygon):
     '''

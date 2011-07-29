@@ -93,5 +93,5 @@ def find_out_config():
         raise UnsupportedCommandLineArguments
     return config_class,  user
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
     VisualStimulation(*find_out_config()).run()

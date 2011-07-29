@@ -15,7 +15,7 @@ import ImageDraw
 #        self.mirror_profile = []
 
 def calculate_angular_amplification_mirror_profile(angular_amplification, focal_distance, angle_range = [0.0, 23.0], angular_resolution = 1500):
-    angles = numpy.linspace(angle_range[0], angle_range[1], angular_resolution)
+    angles = numpy.linspace(angle_range[0], angle_range[1], angular_resolution)    
     angles = angles * numpy.pi / 180.0
     kappa = (1.0 + angular_amplification) * 0.5
     mirror_profile = []

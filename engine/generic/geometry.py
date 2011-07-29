@@ -12,6 +12,18 @@ else:
     except:
         preceision = 3
 
+def divide_vectors(v1, v2):
+    if v2[0] != 0.0 and v2[1] != 0.0 and v2[2] != 0.0:
+        return v1/v2
+    else:
+        v_div = numpy.zeros(3)
+        for i in range(3):
+            if v2[i] !=0.0:
+                v_div[i] = v1[i] / v2[i]
+            else:
+                v_div[i] = numpy.inf
+        return v_div
+
 def angle_between_vectors(v1, v2):
         '''
         '''
@@ -125,7 +137,7 @@ def plane_ray_intersection(line_start_point,  line_direction, polygon):
     intersection_exists, intersection = plane_line_intersection(line_start_point,  line_direction, polygon)
     if intersection_exists:
         #check if line start point - intersection direction is the same that is defined by line_direction
-        for item in ((intersection - line_start_point) / line_direction):
+        for item in (divide_vectors((intersection - line_start_point) ,  line_direction)):
             if item < 0.0:
                 intersection_exists = False
                 intersection = None
@@ -361,7 +373,7 @@ def line_intersection_old(line1_point, line1_direction, line2_point, line2_direc
     return intersection_exists, intersection
     
 def are_vectors_parallel(v1, v2):
-    vector_ratio = v1/v2
+    vector_ratio = divide_vectors(v1, v2)    
     
     vector_ratio_offset = numpy.inf
     for component in vector_ratio:

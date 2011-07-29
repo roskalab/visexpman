@@ -525,7 +525,25 @@ def arc_perimeter(radius,  angle):
     slice_ratio = angle / 360.0
     return numpy.pi  * 2 *radius * slice_ratio
     
-
+def listdir_fullpath(folder):
+    files = os.listdir(folder)
+    full_paths = []
+    for file in files:
+        full_paths.append(os.path.join(folder,  file))
+    return full_paths
+    
+def generate_filename(path):
+    '''
+    Inserts index into filename resulting unique name.
+    '''    
+    index = 0
+    while True:
+        testable_path = path.replace('.',  '%3i.'%index).replace(' ', '0')
+        if not os.path.isfile(testable_path):
+            break
+        index = index + 1        
+    return testable_path
+    
 class testCoordinateTransformation(unittest.TestCase):
     pass
 
@@ -564,16 +582,16 @@ if __name__ == "__main__":
 #    res = coordinate_transform(cr((100, 100)), cr((-100, 100)), 'right', 'down')
 #    print res['col'], res['row']
     
-    cols = [0,  100, -100]
-    rows = [0,  100, 100]
-    coords = cr(numpy.array([cols, rows]))    
-    print coords.shape
-    res = coordinate_transform(coords, cr((-100, 100)), 'right', 'down')    
-#    print res
-    print rc_multiply_with_constant(c, 10)
-    a = numpy.zeros((3, coords.shape[0]))
-    a[0][0] = coords[1]['row']
-    
-    print a
-    
+#    cols = [0,  100, -100]
+#    rows = [0,  100, 100]
+#    coords = cr(numpy.array([cols, rows]))    
+#    print coords.shape
+#    res = coordinate_transform(coords, cr((-100, 100)), 'right', 'down')    
+##    print res
+#    print rc_multiply_with_constant(c, 10)
+#    a = numpy.zeros((3, coords.shape[0]))
+#    a[0][0] = coords[1]['row']
+#    
+#    print a    
+    print generate_filename('/media/Common/visexpman_data/log.txt')
     
