@@ -184,8 +184,8 @@ class ToroidScreen(object):
         offset = [100, 100]
         gooseneck_diameter = 19.0
         size = (1024, 768)
-        rotation = 70
-        screen_offset = [-300, 120] #mm
+        rotation = 90 #70
+        screen_offset = [-440, 20] #mm [-300, 120]
         
         gooseneck_diameter = gooseneck_diameter * pixel_to_mm_scale
         screen_offset_pixel = [screen_offset[0] * pixel_to_mm_scale, screen_offset[1] * pixel_to_mm_scale]
@@ -246,8 +246,8 @@ if __name__ == "__main__":
     horizontal_radius = 440.0
     ts = ToroidScreen(viewing_angle,  height,  inner_radius,  horizontal_radius)
     #ts.gooseneck_bending(3.50874, path = '/home/zoltan/gb.bmp')
-    #ts.goosneck_mapping()
-    ts.screen_stencil(path = '/home/zoltan/screen_stencil.bmp')
+    ts.goosneck_mapping()
+#    ts.screen_stencil(path = '/home/zoltan/screen_stencil.bmp')
     #ts.printer_scaling_test(3.50874, path = '/home/zoltan/printer_test.bmp')
     print ts.depth
     print 2*ts.vertical_radius

@@ -538,12 +538,25 @@ def generate_filename(path):
     '''    
     index = 0
     while True:
-        testable_path = path.replace('.',  '%3i.'%index).replace(' ', '0')
+        testable_path = path.replace('.',  '_%3i.'%index).replace(' ', '0')
         if not os.path.isfile(testable_path):
             break
         index = index + 1        
     return testable_path
     
+def generate_foldername(path):
+    '''
+    Inserts index into filename resulting unique name.
+    '''    
+    index = 0
+    while True:
+        testable_path = (path + '_%3i'%index).replace(' ', '0')
+        if not os.path.isdir(testable_path):
+            break
+        index = index + 1        
+    return testable_path
+
+
 class testCoordinateTransformation(unittest.TestCase):
     pass
 
@@ -564,8 +577,15 @@ def in_range(number,  range1,  range2, preceision = None):
         if number_rounded >= range2_rounded and number_rounded <= range1_rounded:
             return True
     return False
+    
+def is_vector_in_array(array,  vector):
+    for item in array:        
+        if abs(item - vector).sum() < 1e-3:
+            return True
+    return False
 
 if __name__ == "__main__":
+    print is_vector_in_array(numpy.array([[1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]]),  numpy.array([1.0, 2.0, 3.0]))
 #    unittest.main()
     a = [1.0, 2.0, 3.0]
     b = [10.0, 20.0, 30.0]
@@ -593,5 +613,5 @@ if __name__ == "__main__":
 #    a[0][0] = coords[1]['row']
 #    
 #    print a    
-    print generate_filename('/media/Common/visexpman_data/log.txt')
+#    print generate_filename('/media/Common/visexpman_data/log.txt')
     

@@ -21,6 +21,7 @@ class GraphicsTestConfig(visexpman.engine.generic.configuration.Config):
         COORDINATE_SYSTEM = 'center' #ulcorner
 #        COORDINATE_SYSTEM = 'ulcorner'
         CAPTURE_PATH = '/media/Common/visexpman_data'
+        SIMULATION_DATA_PATH = '/media/Common/visexpman_data'
         self.N_CORES = 4
 
      

@@ -5,9 +5,14 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
 import numpy
+import sys
+import os
+import os.path
 import multiprocessing
+import pickle
 import visexpman
 import generic.graphics
+import generic.utils as utils
 import visexpman.users.zoltan.configurations
 import visexpman.users.zoltan.optics.ray_reflection as ray_reflection
 import visexpman.users.zoltan.optics.angular_amplification_mirror as angular_amplification_mirror
@@ -22,14 +27,23 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
     def initialization(self):
         #Define axis to display
         axis_length = 1000.0
-        self.axis = numpy.array([[0.0, 0.0, 0.0], [axis_length, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, axis_length, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, axis_length]])
+        self.axis = numpy.array([[0.0, 0.0, 0.0], [axis_length, 0.0, 0.0], [0.0, 0.0, 0.0], [0.0, axis_length, 0.0], [0.0, 0.0, 0.0], [0.0, 0.0, axis_length]])        
+        self.number_of_shape_vertices = 3
         #create objects for simulation and calculate light reflections
-        self.alignment()
+        if len(sys.argv) > 1:
+            self.load_simulation_data(sys.argv[1])
+            self.enable_plane_mirror = True
+            self.enable_aam_mirror = True
+            self.enable_toroid = True
+            self.enable_projector = True
+        else:
+            self.alignment()
+
         #enable blending to display transparent objects
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA) 
         self.scale = 0.8   
-        self.show_rays = True    
+        self.show_rays = True        
         
     def toroid(self,  center = None):
         viewing_angle = 180.0
@@ -59,7 +73,7 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         vertical_radius = toroid_screen_data.vertical_radius
         vertical_angle_range = toroid_screen_data.vertical_angle_range
         #medium resolution
-        mesh_size = [0.2 * toroid_screen_data.horizontal_perimeter_endcap*1, 0.1 * toroid_screen_data.vertical_perimeter]
+        mesh_size = [0.5*0.2 * toroid_screen_data.horizontal_perimeter_endcap*1, 0.5*0.1 * toroid_screen_data.vertical_perimeter]
         #high resolution
         #mesh_size = [0.1 * toroid_screen_data.horizontal_perimeter_endcap , 0.05 * toroid_screen_data.vertical_perimeter]
 
@@ -70,22 +84,26 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
                 
     def alignment(self):
         #main parameters:
-        config = {'n_rays': [10, 10],
-                        'mirror_tilt' : 22.5 - 7.0,
+        d_fi = 45.0
+        config = {'n_rays': [20, 20],
+                        'mirror_tilt' : 22.5 - 5.5 + 0.5 * d_fi,
                         'mirror_size' : [50, 50],
-                        'projected_image_size' : 850.0,
+                        'projector_angle' : 45.0 - d_fi, 
+                        'projected_image_size' : 2030.0 * 0.36,
+                        'projector_plane_mirror_distance' : 220, 
                         'only_image_boundary': False,
                         'image_boundary_size': 2,
-                        'aam_angle_resolution' : 30,
+                        'aam_angle_resolution' : 30, #30
+                        'mesh_size' : 0.510141 * 100*0.2,  #*0.2
                         'aspect_ratio' : 0.75,
                         }
+        self.simulation_config = config
         
         st = time.time()
         #== General settings for optical simulation ==
         reflect = True
         number_of_reflections = 3
-        self.line_color_step = 1.0 / 0.8
-        self.number_of_shape_vertices = 3
+        self.line_color_step = 1.0 / 0.8        
         #== Enable optical objects ==
         self.enable_plane_mirror = True
         self.enable_aam_mirror = True
@@ -93,14 +111,14 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         self.enable_projector = True
         #== Size / position of optical objects ==
         #== Angular amplification mirror ==
-        aam_position = numpy.array([0, 310, -240])
+        aam_position = numpy.array([0, 360, -40])
         amplification = 12.0
         focal_distance = 14500.0
-        mesh_size = 0.510141 * 100*0.3
+        mesh_size = config['mesh_size']
 #         mesh_size = 0.5 * 100*1.4
         angle_range = [0.0, 0.3]
         ang_res = 8
-        ang_res = config['aam_angle_resolution']        
+        ang_res = config['aam_angle_resolution']    
         mirror_profile, invalid_angles = angular_amplification_mirror.calculate_angular_amplification_mirror_profile(amplification, focal_distance, angle_range =angle_range, angular_resolution = ang_res)
         self.aam, self.number_of_aam_shapes = surface_meshes.aam_mesh(focal_distance, amplification, mesh_size, mirror_profile, angle_range = [0*numpy.pi, 2*numpy.pi])
         self.aam = self.aam + aam_position        
@@ -125,8 +143,10 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
 
         #== Projector configuration ==
         distance_from_plane_mirror = 110.0
+        distance_from_plane_mirror = config['projector_plane_mirror_distance']
         #to ensure that the projected image on the aam is not changed, the projector angle shall be 90-2*mirror_tilt
         projector_angle = 45.0
+        projector_angle = config['projector_angle']
         projector_angle = -projector_angle * numpy.pi / 180.0 + numpy.pi
         projector_orientation = -numpy.array([0.0, numpy.sin(projector_angle), numpy.cos(projector_angle)])
         relative_position_to_plane_mirror = -projector_orientation * distance_from_plane_mirror
@@ -224,13 +244,14 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
                               'number_of_reflections' : number_of_reflections
                               })
                               
-            exec(map_string)            
+            exec(map_string)
+            pool.close()
+            pool.join()
             for reflection_result in reflection_results:
                 print reflection_result[0]
                 self.rays.append(reflection_result[1])
                 
-            pool.close()
-            pool.join()
+            
 
         flatten_rays = []
         self.ray_chain_mask = []
@@ -255,23 +276,46 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
                               })
                               
             exec(map_string)
-            
+            pool.close()
+            pool.join()
             for point in points:
-                if len(point) > 0:
-                    points_on_screen.append(point[0])
+                if len(point) > 0 and not utils.is_vector_in_array(numpy.array(points_on_screen),  point[0]):                    
+                    points_on_screen.append(point[0])                    
 
         self.points_on_screen = numpy.array(points_on_screen)
-#         print self.points_on_screen
+#        print self.points_on_screen
             
         #== put together vertexes ==        
-        self.vertices = numpy.concatenate((self.axis, self.rays, self.plane_mirror, self.aam, self.screen, self.projector, mouse_visual_range_boundaries))
+        self.vertices = numpy.concatenate((self.axis, self.rays, self.plane_mirror, self.aam, self.screen, self.projector, mouse_visual_range_boundaries, self.points_on_screen))
+        self.vertex_pointers = numpy.array([6, self.rays.shape[0], self.plane_mirror.shape[0], self.number_of_aam_shapes * self.number_of_shape_vertices, self.number_of_toroid_shapes * self.number_of_shape_vertices, self.projector.shape[0], 
+                                     4, self.points_on_screen.shape[0]])
+        
         if self.points_on_screen.shape != (0,):
             self.vertices = numpy.concatenate((self.vertices, self.points_on_screen))
+            
+        #save: self.vertices, self.vertex_pointers, self.ray_chain_mask
+        folder_to_save = utils.generate_foldername(self.config.SIMULATION_DATA_PATH + os.sep + 'simulation')
+        self.save_simulation_data(folder_to_save)
+#        self.load_simulation_data(folder_to_save)
             
         print 'number of rays %d, number of rays hit the screen %d'%(len(corners), self.points_on_screen.shape[0])        
         
         #display runtime
         print time.time() - st
+        
+    def save_simulation_data(self, foldername):
+        if not os.path.isdir(foldername):
+            os.mkdir(foldername)
+        numpy.savetxt(foldername + os.sep + 'vertices.txt',  self.vertices)
+        numpy.savetxt(foldername + os.sep + 'vertex_pointers.txt',  self.vertex_pointers)
+        numpy.savetxt(foldername + os.sep + 'ray_chain_mask.txt',  self.ray_chain_mask)
+        #TODO: save self.simulation_config
+        
+    def load_simulation_data(self, foldername):
+        self.vertices = numpy.loadtxt(foldername + os.sep + 'vertices.txt')
+        self.vertex_pointers = numpy.loadtxt(foldername + os.sep + 'vertex_pointers.txt', dtype = int)
+        ray_chain_mask_f = numpy.loadtxt(foldername + os.sep + 'ray_chain_mask.txt')
+        self.ray_chain_mask = numpy.where(ray_chain_mask_f == 0.0,  False,  True)
         
     def user_keyboard_handler(self, key_pressed):
         if key_pressed == 'space':
@@ -289,47 +333,47 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         glDrawArrays(GL_LINES, 2, 2)
         glColor4fv((0.0, 0.0, 1.0, 1.0))
         glDrawArrays(GL_LINES, 4, 2)
-        vertex_array_offset = 6
+        vertex_array_offset = self.vertex_pointers[0]
         
         #== Draw light rays ==
         if self.show_rays:
-            glLineWidth(2)
-            for i in range(int(self.rays.shape[0]-1)):
-                intensity = 0.5 + float(i+1)/(2*self.rays.shape[0])
+            glLineWidth(1)
+            for i in range(int(self.vertex_pointers[1]-1)):
+                intensity = 0.5 + float(i+1)/(2*self.vertex_pointers[1])
 #                if i == 0 or i == 1:
 #                    glColor3fv((intensity, 0, 0))
 #                else:
                 glColor3fv((intensity, intensity, intensity))
                 if self.ray_chain_mask[i]:
                     glDrawArrays(GL_LINES, vertex_array_offset + i, 2)
-        vertex_array_offset = vertex_array_offset + self.rays.shape[0]
+        vertex_array_offset = vertex_array_offset + self.vertex_pointers[1]
         
         #== Draw optical objects ==
         #draw plane mirror
         if self.enable_plane_mirror:
             glColor4fv((0.5, 0.5, 0.5, 0.7))
-            glDrawArrays(GL_POLYGON, vertex_array_offset, self.plane_mirror.shape[0])
-        vertex_array_offset = vertex_array_offset + self.plane_mirror.shape[0]
+            glDrawArrays(GL_POLYGON, vertex_array_offset, self.vertex_pointers[2])
+        vertex_array_offset = vertex_array_offset + self.vertex_pointers[2]
         #draw aam mirror
         if self.enable_aam_mirror:
-            for i in range(self.number_of_aam_shapes):
-                r = float(i) / self.number_of_aam_shapes
+            for i in range(int(self.vertex_pointers[3] / self.number_of_shape_vertices)):
+                r = float(i) / (self.vertex_pointers[3] / self.number_of_shape_vertices)
                 g = 1.0 - r
                 b = 1.0
                 alpha = 0.5
                 glColor4fv((r, g, b,  alpha))
                 glDrawArrays(GL_POLYGON, vertex_array_offset + i*self.number_of_shape_vertices ,  self.number_of_shape_vertices)
-        vertex_array_offset = vertex_array_offset + self.number_of_aam_shapes * self.number_of_shape_vertices
+        vertex_array_offset = vertex_array_offset + self.vertex_pointers[3]
         #draw toroid screen
         if self.enable_toroid:
-            for i in range(self.number_of_toroid_shapes):
-                r = float(i) / self.number_of_toroid_shapes
+            for i in range(int(self.vertex_pointers[4] / self.number_of_shape_vertices)):
+                r = float(i) / (self.vertex_pointers[4] / self.number_of_shape_vertices)
                 g = 1.0 - r
                 b = 1.0 - r
                 alpha = 0.5
                 glColor4fv((r, g, b,  alpha))
                 glDrawArrays(GL_POLYGON, vertex_array_offset + i*self.number_of_shape_vertices ,  self.number_of_shape_vertices)
-        vertex_array_offset = vertex_array_offset + self.number_of_toroid_shapes * self.number_of_shape_vertices
+        vertex_array_offset = vertex_array_offset + self.vertex_pointers[4]
         
         #== Draw other objects == 
         #draw projector
@@ -337,25 +381,21 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
             glColor4fv((0.2, 0.5, 0.9, 0.5))
             for i in range(6):
                 glDrawArrays(GL_POLYGON, vertex_array_offset + i*4, 4)
-        vertex_array_offset = vertex_array_offset + self.projector.shape[0]
+        vertex_array_offset = vertex_array_offset +self.vertex_pointers[5]
                 
         #draw mouse vision boundaries
         glLineWidth(1)
         glColor4fv((0.0, 1.0, 0.0, 0.5))
         glDrawArrays(GL_LINES, vertex_array_offset, 2)
         glDrawArrays(GL_LINES, vertex_array_offset + 2, 2)
-        vertex_array_offset = vertex_array_offset + 4
+        vertex_array_offset = vertex_array_offset + self.vertex_pointers[6]
         
         #draw projection boundaries on screen
-        if self.points_on_screen.shape[0] > 0:
+        if self.vertex_pointers[7] > 0:
             glColor4fv((1.0, 1.0, 0.0, 0.5))
-            glPointSize(10.0)
-            glDrawArrays(GL_POINTS, vertex_array_offset, self.points_on_screen.shape[0])            
-#             glDrawArrays(GL_POLYGON, vertex_array_offset, self.points_on_screen.shape[0])        
-#             glLineWidth(2)
-#             for i in range(self.points_on_screen.shape[0]-1):
-#                 glDrawArrays(GL_LINES, vertex_array_offset + i, 2)        
-        vertex_array_offset = vertex_array_offset + self.points_on_screen.shape[0]
+            glPointSize(7.0)
+            glDrawArrays(GL_POINTS, vertex_array_offset, self.vertex_pointers[7])
+        vertex_array_offset = vertex_array_offset + self.vertex_pointers[7]
         #== End of drawing objects ==
         glDisableClientState(GL_VERTEX_ARRAY)
 
