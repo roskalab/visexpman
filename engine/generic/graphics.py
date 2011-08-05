@@ -1,4 +1,5 @@
 import time
+import os.path
 import numpy
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -63,7 +64,7 @@ class Screen(object):
         self.flip_time_previous = self.flip_time
         self.frame_rate = 0.0
         self.wait_time_left = 0.0
-        self.elapsed_time = 0.0        
+        self.elapsed_time = 0.0
         #frame wait time calculation
         self.frame_wait_time = self.config.FRAME_WAIT_FACTOR * 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE - self.config.FLIP_EXECUTION_TIME        
         glutInit()
@@ -152,7 +153,11 @@ class Screen(object):
         self.after_flip()
         self.flip_time_previous = self.flip_time
         if DISPLAY_FRAME_RATE:
-            print self.frame_rate
+            print self.frame_rate            
+        
+        if self.config.ENABLE_FRAME_CAPTURE:
+            self.save_frame(utils.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.bmp')))
+        
         
     def scale_screen(self):
         '''

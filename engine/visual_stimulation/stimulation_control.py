@@ -143,12 +143,8 @@ class StimulationControl():
                 self.parallel.setData(self.config.ACQUISITION_TRIGGER_OFF)
                        
             #self._disable_frame_interval_watch()
-            self.st.set_background(self.config.BACKGROUND_COLOR)            
+            self.st.set_background(self.config.BACKGROUND_COLOR)           
             
-            #psychopy.log.flush()
-            if self.config.ENABLE_FRAME_CAPTURE:
-                self.user_interface.screen.saveMovieFrames(self.config.CAPTURE_PATH + '/captured' + str(time.time()).replace('.', '') + '.bmp')            
-#                e.cleanup()
             #save stimulus, source and log files into zip            
             log = self.last_stimulus_log()
             

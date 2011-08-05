@@ -153,9 +153,9 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         '''
         #paths
         DEFAULT_IMAGE_FILE = os.path.join(self.BASE_PATH ,'images','default.bmp')
-        LOG_PATH = self.BASE_PATH
-        ARCHIVE_PATH = self.BASE_PATH
-        CAPTURE_PATH = self.BASE_PATH
+ #       LOG_PATH = self.BASE_PATH
+        #ARCHIVE_PATH = self.BASE_PATH
+#        CAPTURE_PATH = self.BASE_PATH RZ: I think this is not necessary here. User config is overwritten here. Same for ARCHIVE_PATH and LOG_PATH
         BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'
 #        TEMP_IMAGE_FILE = os.path.join(self.BASE_PATH, 'temp', 'tmp.bmp')
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX

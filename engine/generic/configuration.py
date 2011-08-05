@@ -17,11 +17,11 @@ class Config(object):
         self._create_parameter_aliases()     # ezt miert nem a create applic parameters hivja meg?   
 		#The _create_application_parameters and the _calculate_parameters methods will be overdefined in the child classes. 
         #The _create_parameter_aliases function shall be called at the end of _create_parameters_from_locals        
-        self._set_user_specific_parameters()      
+        self._set_user_specific_parameters()
         self._create_parameter_aliases()     # ezt miert nem a create applic parameters hivja meg?   
         self._calculate_parameters()        
         #check for new parameters created by calculate_parameters method, get their names and load them:        
-        self._create_parameter_aliases()
+        self._create_parameter_aliases()             
         
     def _create_generic_parameters(self):
         self.PACKAGE_PATH_p = parameter.Parameter(os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0], is_path=True)
