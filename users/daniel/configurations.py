@@ -111,7 +111,7 @@ class MBP(VisualStimulationConfig):
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
-        LOG_PATH = '/Users/hd'
+        LOG_PATH = '/Users/hd/Documents/DataBase'
         BASE_PATH='/Users/hd/Documents/DataBase'
         ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
         CAPTURE_PATH = os.path.join(BASE_PATH,'capture')#'../../../presentinator/data/capture'
@@ -120,7 +120,7 @@ class MBP(VisualStimulationConfig):
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.rc([768,   1024])
-        ENABLE_FRAME_CAPTURE = False
+        ENABLE_FRAME_CAPTURE = True
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
         IMAGE_PROJECTED_ON_RETINA = False
