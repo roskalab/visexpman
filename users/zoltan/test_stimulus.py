@@ -62,6 +62,7 @@ class MultipleDotsTesterLinux(VisualStimulationConfig):
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.rc([500, 500])
+        SCREEN_RESOLUTION = utils.cr([800, 600])
 #        SCREEN_RESOLUTION = utils.cr([1680, 1050])
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
@@ -72,7 +73,7 @@ class MultipleDotsTesterLinux(VisualStimulationConfig):
         FRAME_WAIT_FACTOR = 0
         GAMMA = 1.0
         FILTERWHEEL_ENABLE = False
-        TEXT_ENABLE = False
+        TEXT_ENABLE = True
         
         #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
@@ -136,6 +137,7 @@ class GratingExperimentConfig(experiment.ExperimentConfig):
 
 class GratingTest(experiment.Experiment):
     def run(self, stl):
+        time.sleep(2.0)
         stl.show_gratings(duration = 4.0, profile = 'sqr', orientation = 45, velocity = 50.0, spatial_frequency = 40, display_area =  utils.cr((250, 250)), pos = utils.cr((0, 0)))
 
             
@@ -226,7 +228,7 @@ if __name__ == '__main__':
     import visexpman
     import threading
     from visexpman.engine.run_visual_stimulation import VisualStimulation
-    vs_runner = VisualStimulation('MultipleDotsTesterMac', 'zoltan')
+    vs_runner = VisualStimulation('MultipleDotsTesterLinux', 'zoltan')
     messages = ['start_stimulation']
     parameters = ['']
     pause_before = [1, 2]

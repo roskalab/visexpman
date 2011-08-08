@@ -10,6 +10,7 @@ import visexpman.engine.generic.utils as utils
 
 DISPLAY_FRAME_RATE = False
 DISPLAY_FRAME_DELAY = False
+ALTERNATIVE_TIMING = True
 
 class Screen(object):
     """
@@ -32,7 +33,7 @@ class Screen(object):
         - Scales screen
         
         graphics_mode:
-        - standalone - interactive, standalone grpahics applications
+        - standalone - interactive, standalone graphics applications
         - external - control loop is implemented externally. flip has to be called separately
         - single_frame - shows a single frame while key is pressed or for a certain time
         
@@ -139,8 +140,7 @@ class Screen(object):
         be executed synchronized to flipping
         self.frame_rate is calculated here. Wait time before flip is calculated by considering elapsed time since last flip and frame_wait_time that describes the 
         required frame rate
-        '''
-        ALTERNATIVE_TIMING = False
+        '''        
         self.before_flip()
         if ALTERNATIVE_TIMING:
             next_flip_time = self.flip_time_previous + 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE            
@@ -225,14 +225,29 @@ class Screen(object):
     def initialization(self):
         pass
         
-    def render_text(self, text, color = (1.0,  1.0,  1.0), position = (0.0, 0.0)):
+    def render_text(self, text, color = (1.0,  1.0,  1.0), position = (0.0, 0.0),  text_style = GLUT_BITMAP_TIMES_ROMAN_24):
         '''
         Renders text on screen using times new roman characters. Spacing is a constant 12 pixels, so shorter characters like 'l' is diplayed with a little gap
         '''
         glColor3fv(color)
+        line_index = 0
+        row_index = 0
         for i in range(len(text)):
-            glRasterPos2f(position[0] + 12 * i, position[1])
-            glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, ord(text[i]))
+            if text_style == GLUT_BITMAP_TIMES_ROMAN_24:
+                spacing = 12
+            elif text_style == GLUT_BITMAP_TIMES_ROMAN_10:
+                spacing = 8
+            elif text_style == GLUT_BITMAP_9_BY_15:
+                spacing = 15
+            elif text_style == GLUT_BITMAP_8_BY_13:
+                spacing = 13
+            if text[i] == '\n':
+                line_index += 1
+                row_index = 0
+            else:                
+                glRasterPos2f(position[0] + spacing * row_index, position[1] - line_index * spacing)
+                glutBitmapCharacter(text_style, ord(text[i]))
+                row_index += 1
         
     def render_imagefile(self, path, position = (0, 0)):
         '''
