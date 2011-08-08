@@ -87,6 +87,45 @@ class MultipleDotsTesterLinux(VisualStimulationConfig):
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         self._create_parameters_from_locals(locals())        
+
+class MultipleDotsTesterMac(VisualStimulationConfig):
+    def _set_user_specific_parameters(self):
+        RUN_MODE = 'single experiment'
+        EXPERIMENT_CONFIG = 'GratingExperimentConfig'
+        LOG_PATH = '/Users/rz/visexpman/data'
+        BASE_PATH= '/Users/rz/visexpman/data'
+        ARCHIVE_PATH = '/Users/rz/visexpman/data'
+        CAPTURE_PATH = '/Users/rz/visexpman/data/Capture'
+        ENABLE_PARALLEL_PORT = False
+        UDP_ENABLE = False
+#        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.rc([500, 500])
+        ENABLE_FRAME_CAPTURE = True
+        SCREEN_EXPECTED_FRAME_RATE = 15.0
+        SCREEN_MAX_FRAME_RATE = 60.0
+        IMAGE_PROJECTED_ON_RETINA = False
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
+        SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
+        FRAME_WAIT_FACTOR = 0
+        GAMMA = 1.0
+        FILTERWHEEL_ENABLE = False
+        TEXT_ENABLE = False
+        
+        #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
+        # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
+        
+        SEGMENT_DURATION = 2
+        MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
+        ACTION_BETWEEN_STIMULUS = 'off'
+
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+        COORDINATE_SYSTEM='ulcorner'
+        COORDINATE_SYSTEM='center'
+            
+        ACQUISITION_TRIGGER_PIN = 2
+        FRAME_TRIGGER_PIN = 0
+        self._create_parameters_from_locals(locals())        
         
 class GratingExperimentConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
@@ -186,7 +225,7 @@ if __name__ == '__main__':
     import visexpman
     import threading
     from visexpman.engine.run_visual_stimulation import VisualStimulation
-    vs_runner = VisualStimulation('MultipleDotsTesterLinux', 'zoltan')
+    vs_runner = VisualStimulation('MultipleDotsTesterMac', 'zoltan')
     messages = ['start_stimulation']
     parameters = ['']
     pause_before = [1, 2]
