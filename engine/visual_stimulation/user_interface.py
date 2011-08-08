@@ -2,6 +2,11 @@ import time
 import os
 from visexpman.engine.generic import utils
 import visexpman.engine.generic.graphics as graphics
+from OpenGL.GLUT import *
+
+class VisexpmanScreen(graphics.Screen):
+    def initialization(self):
+        self.clear_screen(color = self.config.BACKGROUND_COLOR)
 
 class UserInterface():
     '''
@@ -11,35 +16,37 @@ class UserInterface():
         
         self.config = config
         #Initializing display, setting screen resolution, background color, hiding mouse cursor, quantities are interpreted in pixels
-        self.screen = graphics.Screen(self.config, graphics_mode = 'external') #create a window
+        self.screen = VisexpmanScreen(self.config, graphics_mode = 'external') #create a window
         #Set acceptable framerate and give warning when frame drop occurs
-        self.screen._refreshThreshold=1/float(self.config.SCREEN_EXPECTED_FRAME_RATE)+float(self.config.FRAME_DELAY_TOLERANCE) * 1e-3
+        #TODO: self.screen._refreshThreshold=1/float(self.config.SCREEN_EXPECTED_FRAME_RATE)+float(self.config.FRAME_DELAY_TOLERANCE) * 1e-3
         #TODO: self.screen.setGamma(self.config.GAMMA)
         
         #shortcuts to experiment classes, max 10
         self.accepted_keys = self.config.KEYS + ['{0}'.format(i) for i in range(len(caller.experiment_config_list))]#stimulus_file_shortcut 
         
-        #Display menu
-        position = (0, 0)   
-        if 0 and self.config.TEXT_ENABLE:
-            self.menu = psychopy.visual.TextStim(self.screen,  text = self.config.MENU_TEXT + experiment_choices(caller.experiment_config_list),  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE) 
-            position = (0,  int(-0.4 * self.config.SCREEN_RESOLUTION['row']))
-            self.message = psychopy.visual.TextStim(self.screen,  text = '',  pos = position,  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)
-            self.user_interface_items = [self.menu,  self.message]             
+        #Display menu        
+        if self.config.TEXT_ENABLE:
+            self.text_style = GLUT_BITMAP_8_BY_13
+            self.menu_position = ( int(-0.2 * self.config.SCREEN_RESOLUTION['col']), 0)
+            self.menu_text = self.config.MENU_TEXT + experiment_choices(caller.experiment_config_list)
+            self.screen.render_text(self.menu_text, color = self.config.TEXT_COLOR, position = self.menu_position, text_style = self.text_style)
+            self.message_position = (int(-0.2 * self.config.SCREEN_RESOLUTION['col']),  int(-0.3 * self.config.SCREEN_RESOLUTION['row']))
+            self.message_text = ''
+            self.screen.render_text(self.message_text, color = self.config.TEXT_COLOR, position = self.message_position, text_style = self.text_style)
+            
         
         self.update_user_interface_items()
         
         self.command = ''
-        self.message_text = ''
+        self.message_text = 'no message'
 
     def update_user_interface_items(self):
         '''
         Update Psychopy items that make the user interface
         '''
-        if 0 and self.config.TEXT_ENABLE:            
-#             self.screen.render_text(self, text, color = self.config.TEXT_COLOR)
-            for user_interface_item in self.user_interface_items:
-                user_interface_item.draw()
+        if self.config.TEXT_ENABLE:            
+            self.screen.render_text(self.menu_text, color = self.config.TEXT_COLOR, position = self.menu_position, text_style = self.text_style)
+            self.screen.render_text(self.message_text, color = self.config.TEXT_COLOR, position = self.message_position, text_style = self.text_style)
             self.screen.flip()
 
     def display_message(self,  txt):
@@ -50,9 +57,7 @@ class UserInterface():
         if len(self.message_text) > self.config.MAX_MESSAGE_LENGTH:
             self.message_text = self.message_text[len(self.message_text) - self.config.MAX_MESSAGE_LENGTH:len(self.message_text)]
         if self.config.TEXT_ENABLE and not self.config.ENABLE_PRE_EXPERIMENT:            
-            self.message.setText(self.message_text)
-            self.message.draw()        
-            self.screen.flip()
+            self.update_user_interface_items()
             
     def is_next_pressed(self):
         '''
