@@ -9,6 +9,7 @@ import Image
 import visexpman.engine.generic.utils as utils
 
 DISPLAY_FRAME_RATE = False
+DISPLAY_FRAME_DELAY = False
 
 class Screen(object):
     """
@@ -139,11 +140,18 @@ class Screen(object):
         self.frame_rate is calculated here. Wait time before flip is calculated by considering elapsed time since last flip and frame_wait_time that describes the 
         required frame rate
         '''
+        ALTERNATIVE_TIMING = False
         self.before_flip()
-        self.elapsed_time = time.time() - self.flip_time_previous
-        self.wait_time_left = self.frame_wait_time - self.elapsed_time
-        if self.wait_time_left > 0.0:
-            time.sleep(self.wait_time_left)
+        if ALTERNATIVE_TIMING:
+            next_flip_time = self.flip_time_previous + 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE            
+            while True:
+                if next_flip_time <= time.time():
+                    break
+        else:
+            self.elapsed_time = time.time() - self.flip_time_previous
+            self.wait_time_left = self.frame_wait_time - self.elapsed_time
+            if self.wait_time_left > 0.0:
+                time.sleep(self.wait_time_left)
         pygame.display.flip()
         self.flip_time = time.time()
         if self.flip_time - self.flip_time_previous != 0.0:
@@ -152,9 +160,12 @@ class Screen(object):
             self.frame_rate = self.config.SCREEN_EXPECTED_FRAME_RATE
         self.after_flip()
         self.flip_time_previous = self.flip_time
-        if DISPLAY_FRAME_RATE:
-            print self.frame_rate            
         
+        if DISPLAY_FRAME_RATE:
+            print self.frame_rate
+        if DISPLAY_FRAME_DELAY:            
+            if abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE) > 1.0:
+                print abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if self.config.ENABLE_FRAME_CAPTURE:
             self.save_frame(utils.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.bmp')))
         

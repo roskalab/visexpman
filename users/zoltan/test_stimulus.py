@@ -62,7 +62,8 @@ class MultipleDotsTesterLinux(VisualStimulationConfig):
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.rc([500, 500])
-        ENABLE_FRAME_CAPTURE = True
+#        SCREEN_RESOLUTION = utils.cr([1680, 1050])
+        ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
         IMAGE_PROJECTED_ON_RETINA = False
