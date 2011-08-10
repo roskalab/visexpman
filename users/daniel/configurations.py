@@ -111,7 +111,7 @@ class MBP(VisualStimulationConfig):
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
-        LOG_PATH = '/Users/hd'
+        LOG_PATH = '/Users/hd/Documents/DataBase'
         BASE_PATH='/Users/hd/Documents/DataBase'
         ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
         CAPTURE_PATH = os.path.join(BASE_PATH,'capture')#'../../../presentinator/data/capture'

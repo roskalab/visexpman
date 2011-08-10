@@ -64,10 +64,10 @@ class MovingDot(experiment.Experiment):
         movestep_pix = speed_pix/self.experiment_config.machine_config.SCREEN_EXPECTED_FRAME_RATE
         h=self.experiment_config.machine_config.SCREEN_RESOLUTION['row']#monitor.resolution.height
         w=self.experiment_config.machine_config.SCREEN_RESOLUTION['col']#monitor.resolution.width
-        hlines_r,hlines_c = numpy.meshgrid(numpy.arange(numpy.ceil(diameter_pix/2), w-numpy.ceil(diameter_pix/2),gridstep_pix),  
-            numpy.arange(-diameter_pix, h+diameter_pix+0.1, movestep_pix))
-        vlines_c,vlines_r = numpy.meshgrid(numpy.arange(numpy.ceil(diameter_pix/2), h-numpy.ceil(diameter_pix/2),gridstep_pix), 
-            numpy.arange(-diameter_pix, w+diameter_pix, movestep_pix))
+        hlines_c,hlines_r = numpy.meshgrid(numpy.arange(-diameter_pix, w+diameter_pix,movestep_pix),  
+            numpy.arange(numpy.ceil(diameter_pix/2), h-numpy.ceil(diameter_pix/2), gridstep_pix))
+        vlines_r,vlines_c = numpy.meshgrid(numpy.arange(-diameter_pix, h+diameter_pix,movestep_pix), 
+            numpy.arange(numpy.ceil(diameter_pix/2), w-numpy.ceil(diameter_pix/2), gridstep_pix))
         # we go along the diagonal from origin to bottom right and take perpicular diagonals' starting
         # and ing coords and lengths
 
@@ -75,8 +75,8 @@ class MovingDot(experiment.Experiment):
         dlines,dlines_len = diagonal_tr(45,diameter_pix,gridstep_pix,movestep_pix,w,h)
 
         diag_dur = 4*sum(dlines_len)/speed_pix/self.experiment_config.NDOTS
-        line_len={'ver0': (w+(diameter_pix*2))*numpy.ones((1,vlines_r.shape[1])), 
-                        'hor0' : (h+(diameter_pix*2))*numpy.ones((1,hlines_r.shape[1]))}
+        line_len={'ver0': (w+(diameter_pix*2))*numpy.ones((1,vlines_c.shape[0])), 
+                        'hor0' : (h+(diameter_pix*2))*numpy.ones((1,hlines_c.shape[0]))}
         ver_dur = 2*line_len['ver0'].sum()/speed_pix/self.experiment_config.NDOTS
         hor_dur = 2*line_len['hor0'].sum()/speed_pix/self.experiment_config.NDOTS
         total_dur = (self.experiment_config.PDURATION*8+diag_dur+ver_dur+hor_dur)*self.experiment_config.REPEATS
@@ -101,14 +101,14 @@ class MovingDot(experiment.Experiment):
                 # subsample the trajectories keeping only every nblocks'th line
                 if numpy.any(angleset[a]==[0,90,180,270]):
                     if numpy.any(angleset[a]==[90,270]):
-                        vr = vlines_r[:,b::nblocks] 
-                        vc=vlines_c[:,b::nblocks]
+                        vr = vlines_r[b::nblocks, :] 
+                        vc=vlines_c[b::nblocks, :]
                         if angleset[a]==270: # swap coordinates
                             vr = vr[-1::-1] 
                             vc = vc[-1::-1]
                     elif numpy.any(angleset[a]==[0,180]): # dots run horizontally
-                        vr = hlines_r[:,b::nblocks]
-                        vc= hlines_c[:,b::nblocks]
+                        vr = hlines_r[b::nblocks, :]
+                        vc= hlines_c[b::nblocks, :]
                         if angleset[a]==180:
                             vr = vr[-1::-1]
                             vc = vc[-1::-1]
@@ -130,17 +130,19 @@ class MovingDot(experiment.Experiment):
                         # the following line was not tested in python (works in matlab)
                             drc[s1] = numpy.c_[drc[s1],-diameter_pix*numpy.ones(2,len(drc[s1-1])-dl)] # complete with coordinate outside of the screen
                 else:
-                    row_col_f,linelengths_f = diagonal_tr(angleset[a],diameter_pix,gridstep_pix,movestep_pix,w,h)
+                    row_col_f,linelengths_f = diagonal_tr(angleset[a],diameter_pix,gridstep_pix,movestep_pix,w, h)
                     row_col =row_col_f[b::nblocks]
                     linelengths = linelengths_f[b:: nblocks]
                     segm_len = linelengths.sum()/self.experiment_config.NDOTS
                     cl =numpy.cumsum(linelengths)
                     partsep = numpy.c_[numpy.zeros((1,self.experiment_config.NDOTS)),len(linelengths)].T
+                    dots_line_i = [[] for i2 in range(self.experiment_config.NDOTS)]
                     for d1 in range(1, self.experiment_config.NDOTS+1):
                         partsep[d1] = numpy.argmin(numpy.abs(cl-(d1)*segm_len))
                         dots_line_i[d1-1] = range(partsep[d1-1],partsep[d1]+1)
                     while 1:
                         part_len = []
+                        drc = [[] for i2 in range(self.experiment_config.NDOTS)]
                         for d1 in range(1, self.experiment_config.NDOTS+1):
                             drc[d1-1]=numpy.vstack(row_col[dots_line_i[d1-1]]).T
                             part_len.append(sum(linelengths[dots_line_i[d1-1]]))
@@ -182,19 +184,21 @@ class MovingDot(experiment.Experiment):
     
 def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
     ''' Calculates positions of the dot(s) for each movie frame along the lines dissecting the screen at 45 degrees'''
-    cornerskip = numpy.ceil(diameter_pix/2)+diameter_pix
+    cornerskip = numpy.ceil(diameter_pix/2)+diameter_pix # do not show dot where it would not be a full dot, i.e. in the screen corners
     pos_diag = [0 for i in range(3)] #preallocate list. Using this prealloc we can assign elements explicitly (not with append) that makes the code clearer for this algorithm
     diag_start_row = [0 for i in range(3)] ; diag_end_col = [0 for i in range(3)] 
     diag_start_col = [0 for i in range(3)] ; diag_end_row = [0 for i in range(3)] 
-    pos_diag[0] = numpy.arange(cornerskip, h/numpy.sqrt(2), gridstep_pix) # spacing of diagonals running from bottomleft 
+    # pos_diag is a diagonal running at 45 degree from the vertical (?):
+    # we space perpendicularly running dots on this diagonal, trajectories are spaced at regular intervals
+    pos_diag[0] = numpy.arange(cornerskip, h/numpy.sqrt(2), gridstep_pix) 
     diag_start_row[0] = numpy.sqrt(2)*pos_diag[0]
     diag_start_col[0] = numpy.ones(diag_start_row[0].shape)
     diag_end_row[0] = numpy.ones(diag_start_row[0].shape)
     diag_end_col[0] = diag_start_row[0].copy()
-    # we reached the bottom line, now keep row fixed and col moves till w
+    # we reached the bottom of the screen along the 45 degree diagonal. To continue this diagonal,we now keep row fixed and col moves till w
     pos_diag[1] = numpy.arange(pos_diag[0][-1]+gridstep_pix, w/numpy.sqrt(2), gridstep_pix)
     #!!! small glitch in start coord's first value
-    diag_start_col[1] = numpy.sqrt(2)*pos_diag[1]-w
+    diag_start_col[1] = numpy.sqrt(2)*pos_diag[1]-h
     diag_start_row[1] = numpy.ones(diag_start_col[1].shape)*diag_start_row[0][-1]
     diag_end_col[1] = numpy.sqrt(2)*pos_diag[1]
     diag_end_row[1] = numpy.ones(diag_end_col[1].shape)
@@ -248,7 +252,7 @@ def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
                 full.p.addata(aline_row,aline_col)
                 #axis equal
                 #axis([1-diameter_pix,w+diameter_pix,1-diameter_pix,h+diameter_pix])axis ij #plot in PTB's coordinate system
-            dlines.append(numpy.c_[aline_col, aline_row])
+            dlines.append(numpy.c_[aline_row, aline_col])
     row_col = dlines
     return numpy.array(row_col),numpy.array(dlines_len) #using array instead of list enables fancy indexing of elements when splitting lines into blocks
         
@@ -298,12 +302,12 @@ class MovingDotTestConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty
         self.DIAMETER_UM = [200]
-        self.ANGLES = [0, 90, 45, 135]#,  90,  180,  270,  45,  135,  225,  315] # degrees
+        self.ANGLES = [45, 135]#, 45, 135]#,  90,  180,  270,  45,  135,  225,  315] # degrees
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1#2
         self.PDURATION = 0
-        self.GRIDSTEP = 1.0/3.0#3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+        self.GRIDSTEP = 1.0/1#3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'
