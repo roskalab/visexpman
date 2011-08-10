@@ -133,6 +133,8 @@ class StimulationControl():
             #self._enable_frame_interval_watch()
             if self.config.ENABLE_PARALLEL_PORT:
                 self.parallel.setData(self.config.ACQUISITION_TRIGGER_ON)
+                
+            self.st.delayed_frame_counter = 0
             self.stimulation_start_time = time.time()
             if hasattr(self.visual_stimulation_runner.selected_experiment_config, 'pre_runnable') and self.visual_stimulation_runner.selected_experiment_config.pre_runnable is not None:
                 self.visual_stimulation_runner.selected_experiment_config.pre_runnable.run()
@@ -143,7 +145,11 @@ class StimulationControl():
                 self.parallel.setData(self.config.ACQUISITION_TRIGGER_OFF)
                        
             #self._disable_frame_interval_watch()
-            self.st.set_background(self.config.BACKGROUND_COLOR)           
+            self.st.set_background(self.config.BACKGROUND_COLOR)
+            
+            #log number of delayed frames
+            self.log.info('Number of delayed frames: %d'%(self.st.delayed_frame_counter))            
+            print self.st.delayed_frame_counter #TODO: normalize to number of frames and duration
             
             #save stimulus, source and log files into zip            
             log = self.last_stimulus_log()

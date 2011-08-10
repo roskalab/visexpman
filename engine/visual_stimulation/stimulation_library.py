@@ -10,9 +10,6 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
-# import psychopy.visual
-# import psychopy.core
-# import psychopy.log
 import visexpman.engine.generic.parametric_control
 import visexpman.users.zoltan.test.stimulus_library_test_data
 from visexpman.engine.generic import utils
@@ -43,8 +40,10 @@ class Stimulations():
         
         self.flip_time = time.time()
         self.flip_times = []
+        self.delayed_frame_counter = 0
         self.log_on_flip_message = ''
         
+        self.text_on_stimulus = []
         #self.test_message = psychopy.visual.TextStim(self.screen,  text = '',  pos = (0, 0),  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)        
         
         if self.config.ENABLE_PARALLEL_PORT:
@@ -88,14 +87,17 @@ class Stimulations():
         now = time.time()        
         self.screen.flip()       
         self.flip_time = time.time()
-        self.stimulation_control.log.info('%2.3f\t%2.2f\t%s'%(self.flip_time,self.screen.frame_rate,self.log_on_flip_message))
+        frame_rate_deviation = abs(self.screen.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
+        if frame_rate_deviation > self.config.FRAME_DELAY_TOLERANCE:
+            self.delayed_frame_counter += 1
+            frame_rate_warning = ' %2.2f' %(frame_rate_deviation)
+            
+        else:
+            frame_rate_warning = ''        
+        self.stimulation_control.log.info('%2.3f\t%2.2f\t%s'%(self.flip_time,self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))
         
         if trigger:
             self._frame_trigger_pulse()
-            
-        if self.config.ENABLE_FRAME_CAPTURE:            
-            pass
-#             self.screen.getMovieFrame()
         
         #periodic pause
         if self.config.ACTION_BETWEEN_STIMULUS != 'no':
@@ -130,12 +132,12 @@ class Stimulations():
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
-            color_to_set = color
-            
-#         self.screen.logOnFlip('clear_screen(' + str(duration) + ', ' + str(color_to_set) + ')',  psychopy.log.DATA)
-        self.log_on_flip_message = 'show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')'        
+            color_to_set = color            
+        
+        self.log_on_flip_message = 'clear_screen(' + str(duration) + ', ' + str(color_to_set) + ')'
         self.screen.clear_screen(color = color_to_set)
         self.set_background(color_to_set)
+        self.show_text()
 #         self.screen.clearBuffer()
         if duration == 0.0:
             self._flip()
@@ -562,14 +564,14 @@ class Stimulations():
                 except IndexError:
                     color = (-1.0,  -1.0,  -1.0)
                 
-                self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = color,  fillColor = color,  vertices =  vertices,  pos = pos_p))                
+                self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = color,  fillColor = color,  vertices =  vertices,  pos = pos_p))
             if inner_circles:
                 vertices  = utils.calculate_circle_vertices(inner_r)
                 self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = (-1.0,  -1.0,  -1.0),  fillColor = (-1.0,  -1.0,  -1.0),  vertices =  vertices,  pos = pos_p))
                 
-        self._show_stimulus(duration,  self.ring,  flip)  
+        self._show_stimulus(duration,  self.ring,  flip)
                     
-    def show_gratings(self, duration = 0.0,  profile = 'sqr',  spatial_frequency =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0):
+    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0):
         """
         This stimulation shows gratings with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -580,7 +582,7 @@ class Stimulations():
                 - 'sin': sine
                 - 'cos': cosine
                 profile parameter can be a list of these keywords. Then different profiles are applied to each color channel
-            - spatial_frequency: length of one bar in um (pixel)
+            - white_bar_width: length of one bar in um (pixel)
             - display area
             - orientation: orientation of gratings in degrees
             - starting_phase: starting phase of stimulus in degrees
@@ -593,25 +595,30 @@ class Stimulations():
         
         Usage examples:
         1) Show a simple, fullscreen, gratings stimuli for 3 seconds with 45 degree orientation
-            show_gratings(duration = 3.0, orientation = 45, velocity = 100, spatial_frequency = 100)
+            show_gratings(duration = 3.0, orientation = 45, velocity = 100, white_bar_width = 100)
         2) Show gratings with sine profile on a 500x500 area with 10 degree starting phase
-            show_gratings(duration = 3.0, profile = 'sin', display_area = (500, 500), starting_phase = 10, velocity = 100, spatial_frequency = 200)
+            show_gratings(duration = 3.0, profile = 'sin', display_area = (500, 500), starting_phase = 10, velocity = 100, white_bar_width = 200)
         3) Show gratings with sawtooth profile on a 500x500 area where the color contrast is light red and the color offset is light blue
-            show_gratings(duration = 3.0, profile = 'saw', velocity = 100, spatial_frequency = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
+            show_gratings(duration = 3.0, profile = 'saw', velocity = 100, white_bar_width = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
         """        
-        if spatial_frequency == -1:
+        if white_bar_width == -1:
             bar_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
         else:
-            bar_width = spatial_frequency * self.config.SCREEN_PIXEL_TO_UM_SCALE
+            bar_width = white_bar_width * self.config.SCREEN_PIXEL_TO_UM_SCALE
         #== Logging ==
-        self.log_on_flip_message = 'show_gratings(' + str(duration)+ ', ' + str(profile) + ', ' + str(spatial_frequency) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
+        self.log_on_flip_message = 'show_gratings(' + str(duration)+ ', ' + str(profile) + ', ' + str(white_bar_width) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
         self.stimulation_control.log.info(self.log_on_flip_message)
         self.log_on_flip_message = 'show_gratings'
         
         #== Prepare ==
-        orientation_rad = orientation * math.pi / 180.0        
+        orientation_rad = orientation * math.pi / 180.0
+        if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
+            orientation_rad *= -1
+        if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'down':
+            pass
+            #TODO:
                 
-        pos_transformed = utils.rc_multiply_with_constant(pos, self.config.SCREEN_PIXEL_TO_UM_SCALE)
+        pos_transformed = utils.rc_multiply_with_constant(pos, self.config.SCREEN_PIXEL_TO_UM_SCALE)        
             
         pos_adjusted = []
         pos_adjusted.append(pos_transformed['col'])
@@ -646,8 +653,7 @@ class Stimulations():
         vertices = vertices + numpy.array(pos_adjusted)        
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
-        #== Generate grating profile
-        
+        #== Generate grating profile        
         if isinstance(profile, str):
             profile_adjusted = [profile,  profile,  profile]            
         else:
@@ -685,22 +691,13 @@ class Stimulations():
         stimulus_profile = numpy.array([[stimulus_profile_r],  [stimulus_profile_g],  [stimulus_profile_b]])
         stimulus_profile = stimulus_profile.transpose()        
         
-        #== Generate texture
-        texture = numpy.array([
-                            [[0.0,0.0,1.0]],
-                            [[1.0,0.0,0.0]],
-                            [[0.0,0.0,1.0]],
-                            [[1.0,0.0,0.0]],                                                        
-                                ])        
-
+        #== Generate texture  
         texture = stimulus_profile
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
-        
-        glEnable(GL_TEXTURE_2D)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
-        
+        glEnable(GL_TEXTURE_2D)
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
         texture_coordinates = numpy.array(
                              [
@@ -712,13 +709,17 @@ class Stimulations():
                                      
         glTexCoordPointerf(texture_coordinates)
         
-        #== Send opengl commands ==
-        glColor3fv((1.0,1.0,1.0))
-        for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):
+        #== Send opengl commands ==                
+        for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):            
             phase = pixel_velocity * i
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            glDrawArrays(GL_POLYGON,  0, 4)
+            if self.config.TEXT_ENABLE:
+                glDisable(GL_TEXTURE_2D)
+                self.show_text()
+                glEnable(GL_TEXTURE_2D)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)            
             self._flip(trigger = True)
             if self.stimulation_control.visual_stimulation_runner.abort:
                 break
@@ -779,6 +780,8 @@ class Stimulations():
             end_i = (dot_pointer + ndots) * n_vertices
             dot_pointer = dot_pointer + ndots
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            if self.config.TEXT_ENABLE:
+                    self.show_text()
             glVertexPointerf(frames_vertices[start_i:end_i])
             for i in range(n_frames_per_pattern):
                 for dot_i in range(ndots):
@@ -787,8 +790,8 @@ class Stimulations():
                     elif isinstance(color[0], numpy.ndarray):
                         glColor3fv(color[frame_i][dot_i].tolist())
                     else:
-                        glColor3fv(color)
-                    glDrawArrays(GL_POLYGON,  dot_i * n_vertices, n_vertices)
+                        glColor3fv(color)                    
+                    glDrawArrays(GL_POLYGON,  dot_i * n_vertices, n_vertices)                
                 if i == 0:
                     self._flip(trigger = True)
                 else:
@@ -798,52 +801,43 @@ class Stimulations():
                 
         glDisableClientState(GL_VERTEX_ARRAY)
         
-    def show_drum(self,  duration,  rpm,  n_stripes,  drum_base_size ,  drum_height, contraction,  pos = (0, 0),  color = 1.0,  background_color = 0.0,  duty_cycle = 0.5):
+    def add_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = GLUT_BITMAP_TIMES_ROMAN_24):
         '''
-        THIS IS OBSOLETE
-        Parameters:
-            duration: duration of stimulus in s
-            rpm: rotaional speed in rpm
-            n_stripes: number of stripes
-            drum_base_size: size of drum base in pixel
-            drum_height: height of drum in pixels
-            contraction: ratio of contraction in respect of stripe_width_at_base           
-            
+        Adds text to text list
         '''
-        #NOTE: antialiasing would be nice
-        n_vertices_per_stripe = 20 #number of vertices per arc
-        delta_angle = rpm / 60.0 * 360.0 / self.config.SCREEN_EXPECTED_FRAME_RATE        
+        text_config = {'enable' : True, 'text' : text, 'color' : utils.convert_color(color), 'position' : position, 'text_style' : text_style}
+        self.text_on_stimulus.append(text_config)
         
-        n_frames = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
-        outer_arc_diameter = drum_base_size + 2 * drum_height
-        angle_range_per_stripe = 360.0 / float(n_stripes)
-        angle_range_inner = angle_range_per_stripe * duty_cycle
-        angle_range_outer = angle_range_per_stripe * duty_cycle * contraction * (drum_base_size * 0.5) / (0.5 * drum_base_size + drum_height)       
-        vertices = numpy.zeros((n_frames * n_vertices_per_stripe * n_stripes * 2,  2))
-        for frame_i in range(n_frames):
-            for stripe in range(n_stripes):
-                angle = stripe * angle_range_per_stripe + delta_angle * frame_i
-                inner_arc_vertices = visexpman.engine.generic.utilities.arc_vertices(1.0, n_vertices_per_stripe,  angle, angle_range_inner)
-                inner_arc_vertices = (inner_arc_vertices * numpy.array(drum_base_size) + pos) * self.config.SCREEN_UM_TO_NORM_SCALE            
-                outer_arc_vertices = visexpman.engine.generic.utilities.arc_vertices(1.0, n_vertices_per_stripe,  angle, angle_range_outer)
-                outer_arc_vertices = (outer_arc_vertices * outer_arc_diameter + pos) * self.config.SCREEN_UM_TO_NORM_SCALE            
-                vertices[n_stripes * frame_i * 2 * n_vertices_per_stripe + stripe * 2 * n_vertices_per_stripe: n_stripes * frame_i * 2 * n_vertices_per_stripe + (stripe + 1) * 2 * n_vertices_per_stripe] = numpy.concatenate((outer_arc_vertices,  inner_arc_vertices[::-1]))
-            
-        background_color_converted = utils.convert_to_rgb(background_color)
-        glClearColor(background_color_converted[0],  background_color_converted[1],  background_color_converted[2],  0.0)
-        glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointerf(vertices)
-        for frame_i in range(n_frames):            
-            glClear(GL_COLOR_BUFFER_BIT)            
-            glColor3fv(utils.convert_to_rgb(color))
-            for stripe in range(n_stripes):
-                glDrawArrays(GL_POLYGON,  frame_i * n_stripes * 2 * n_vertices_per_stripe + stripe * 2 * n_vertices_per_stripe, 2 * n_vertices_per_stripe)
-            self._flip()
-            if self.stimulation_control.abort_stimulus():                    
-                break
-                
-        glDisableClientState(GL_VERTEX_ARRAY)
+    def change_text(self, id, enable = None, text = None, color = None, position = None,  text_style = None):
+        '''
+        Changes the configuration of the text pointed by id. id is the index of the text_configuration in the text_on_stimulus stimulus list
+        '''
+        text_config = self.text_on_stimulus[id]
+        if enable != None:
+            text_config['enable'] = enable
+        if text != None:
+            text_config['text'] = text
+        if color != None:
+            text_config['color'] = utils.convert_color(color)
+        if position != None:
+            text_config['position'] = position
+        if text_style != None:
+            text_config['text_style'] = text_style        
+        self.text_on_stimulus[id]
         
+    def disable_text(self, id):
+        '''
+        Disables the configuration of the text pointed by id. id is the index of the text_configuration in the text_on_stimulus stimulus list
+        '''
+        self.text_on_stimulus[id]['enable'] = False
+        
+    def show_text(self):
+        '''
+        Overlays on stimulus all the added text configurations
+        '''
+        for text_config in self.text_on_stimulus:
+            if text_config['enable']:
+                self.screen.render_text(text_config['text'], color = text_config['color'], position = text_config['position'],  text_style = text_config['text_style'])
         
     def show_shape_new(self):
         size = 40

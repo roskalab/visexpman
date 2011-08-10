@@ -5,53 +5,49 @@ import numpy
 import os.path
 import os
 import time
-#from OpenGL.GL import *
-#from OpenGL.GLUT import *
 import unittest
 import pkgutil
 import inspect
 
 # valid color configurations: 1.0; 255; (1.0, 0.4, 0), invalid color configuration: (255, 0, 128)
-
-def convert_to_rgb(color):
-    if isinstance(color, list) or isinstance(color, tuple):
-        return color
-    else:
-        return [color,  color,  color]
-        
-def convert_rgb(color):
-    '''
-    Converts rgb channels from 0...1 range to -1...1 range.
-    '''
-    converted_color = []
-    for color_channel in color:
-        converted_color.append(color_channel * 2.0 - 1.0)
-    return converted_color
+#=== TO BE REMOVED ===
+#def convert_to_rgb(color):
+#    if isinstance(color, list) or isinstance(color, tuple):
+#        return color
+#    else:
+#        return [color,  color,  color]
+#
+#def convert_rgb(color):
+#    '''
+#    Converts rgb channels from 0...1 range to -1...1 range.
+#    '''
+#    converted_color = []
+#    for color_channel in color:
+#        converted_color.append(color_channel)
+#    return converted_color
+#    
+#def convert_greyscale(intensity):
+#    '''
+#    Converts greyscale color to Psychopy RGB format which range is -1...1. Greyscale colors are interpreted in 0...1 range.
+#    '''
+#    return convert_rgb([intensity,  intensity,  intensity])
+#    
+#def convert_8_bit_greyscale(intensity):
+#    '''
+#    Converts greyscale color to Psychopy RGB format which range is -1...1. Greyscale colors are interpreted in 0...255 range.
+#    '''
+#    return convert_greyscale(float(intensity) / 255.0)
     
-    
-def convert_greyscale(intensity):
-    '''
-    Converts greyscale color to Psychopy RGB format which range is -1...1. Greyscale colors are interpreted in 0...1 range.
-    '''
-    return convert_rgb([intensity,  intensity,  intensity])
-    
-    
-def convert_8_bit_greyscale(intensity):
-    '''
-    Converts greyscale color to Psychopy RGB format which range is -1...1. Greyscale colors are interpreted in 0...255 range.
-    '''    
-    return convert_greyscale(float(intensity) / 255.0)
+#=== END OF TO BE REMOVED ===
 
 def convert_color(color):
     '''
-    Any color format (rgb, greyscale, 8 bit grayscale) is converted to Psychopy rgb format
-    '''
-    if isinstance(color,  list) or isinstance(color, tuple):
-        converted_color = convert_rgb(color)
-    elif isinstance(color, float):
-        converted_color = convert_greyscale(color)
+    Any color format (rgb, greyscale, 8 bit grayscale) is converted to visexpman rgb format
+    '''    
+    if isinstance(color, float):
+        converted_color = [color, color, color]
     elif isinstance(color, int):
-        converted_color = convert_8_bit_greyscale(color)
+        converted_color = [color/255.0, color/255.0, color/255.0]
     else:
         converted_color = color
     return converted_color    
@@ -80,7 +76,6 @@ def calculate_circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  en
     radius is a list of x and y
     '''
     output_list = False
-
     if output_list:
         vertices = []
     else:
@@ -112,7 +107,6 @@ def calculate_circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  en
         else:
             if arc_slice:                
                 vertices[-1] = numpy.array([0,  0])
-
     return vertices
 
 def coordinate_system(type, SCREEN_RESOLUTION=None):
@@ -344,17 +338,6 @@ def arc_vertices(diameter, n_vertices,  angle,  angle_range,  pos = [0, 0]):
     vertices[:, 0] = 0.5 * numpy.cos(angles)
     vertices[:, 1] = 0.5 * numpy.sin(angles)
     return vertices * numpy.array(diameter_list) + numpy.array(pos)
-    
-def flip_screen(delay):
-    import pygame
-    time.sleep(delay)
-    pygame.display.flip()
-    
-def text_to_screen(text,  position = (0, 0),  color = [1.0,  1.0,  1.0]):
-    glColor3fv(color)
-    for i in range(len(text)):
-        glRasterPos2f(position[0] + 0.01 * i, position[1])
-        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, ord(text[i]))
 
 def find_files_and_folders(start_path,  extension = None):
         '''

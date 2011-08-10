@@ -53,6 +53,7 @@ class MultipleDotsTesterLinux(VisualStimulationConfig):
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'GratingExperimentConfig'
+#        EXPERIMENT_CONFIG = 'DotsExperimentConfig'
         LOG_PATH = '/media/Common/visexpman_data'
         BASE_PATH= '/media/Common/visexpman_data'
         ARCHIVE_PATH = '/media/Common/visexpman_data'
@@ -64,6 +65,8 @@ class MultipleDotsTesterLinux(VisualStimulationConfig):
         SCREEN_RESOLUTION = utils.rc([500, 500])
         SCREEN_RESOLUTION = utils.cr([800, 600])
 #        SCREEN_RESOLUTION = utils.cr([1680, 1050])
+#        SCREEN_RESOLUTION = utils.cr([1024, 768])
+
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
@@ -84,7 +87,7 @@ class MultipleDotsTesterLinux(VisualStimulationConfig):
 
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         COORDINATE_SYSTEM='ulcorner'
-        COORDINATE_SYSTEM='center'
+#        COORDINATE_SYSTEM='center'
             
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
@@ -102,7 +105,7 @@ class MultipleDotsTesterMac(VisualStimulationConfig):
         UDP_ENABLE = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.rc([500, 500])
+        SCREEN_RESOLUTION = utils.rc([500, 500])        
         ENABLE_FRAME_CAPTURE = True
         SCREEN_EXPECTED_FRAME_RATE = 15.0
         SCREEN_MAX_FRAME_RATE = 60.0
@@ -132,23 +135,23 @@ class MultipleDotsTesterMac(VisualStimulationConfig):
 class GratingExperimentConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
         self.runnable = 'GratingTest'
-        self.pre_runnable = 'MultipleDotTestPre'
+        self.pre_runnable = 'MultipleDotTestPre'        
         self._create_parameters_from_locals(locals())
 
 class GratingTest(experiment.Experiment):
     def run(self, stl):
-        time.sleep(2.0)
-        stl.show_gratings(duration = 4.0, profile = 'sqr', orientation = 45, velocity = 50.0, spatial_frequency = 40, display_area =  utils.cr((250, 250)), pos = utils.cr((0, 0)))
-
-            
-#         stl.show_gratings(duration = 1.0, display_area = (100,100))
-        
+        time.sleep(0.3)        
+        stl.add_text('tex\nt', color = self.experiment_config.machine_config.TEXT_COLOR, position = utils.cr((100.0, 100.0)))
+        stl.change_text(0, text = 'aa')
+        stl.add_text('tex\nt', color = (1.0,  1.0,  0.0), position = utils.cr((200.0, 200.0)))
+        stl.clear_screen(duration = 0.5)
+        stl.show_grating(duration = 3.0, profile = 'sqr', orientation = 0, velocity = 50.0, white_bar_width = 25, display_area =  utils.cr((0, 0)), pos = utils.cr((400, 300)), color_contrast = 1.0)
         
 class DotsExperimentConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
-        self.NDOTS = 30
+        self.NDOTS = 50
         self.NFRAMES = 10
-        self.PATTERN_DURATION = 0.0
+        self.PATTERN_DURATION = 0.3
         self.RANDOM_DOTS = True
         self.runnable = 'MultipleDotTest'
         self.pre_runnable = 'MultipleDotTestPre'
@@ -161,6 +164,10 @@ class MultipleDotTestPre(experiment.PreExperiment):
 class MultipleDotTest(experiment.Experiment):
     def run(self, stl):
 #        self.st.show_gratings(duration = 2.0, orientation = 45, velocity = 300, spatial_frequency = 100, display_area =  generic.utils.cr((200,  200)), pos = generic.utils.cr((100, 100)))        
+        stl.add_text('tex\nt', color = (1.0,  0.0,  0.0), position = utils.cr((100.0, 100.0)))
+        stl.change_text(0, text = 'aa')
+        stl.add_text('tex\nt', color = (1.0,  0.0,  0.0), position = utils.cr((100.0, 200.0)))
+        stl.disable_text(1)
         import random
         self.config = self.experiment_config.machine_config
         random.seed(0)
@@ -180,15 +187,14 @@ class MultipleDotTest(experiment.Experiment):
                 dot_sizes.append(10 + 100 * random.random())                
         
         dot_positions = utils.cr(numpy.array(dot_positions).transpose())
-        dot_sizes = numpy.array(dot_sizes)        
-        
+        dot_sizes = numpy.array(dot_sizes)
         if isinstance(self.experiment_config.NDOTS, list):
             colors = utils.random_colors(max(self.experiment_config.NDOTS), self.experiment_config.NFRAMES,  greyscale = True,  inital_seed = 0)
         else:
             colors = utils.random_colors(self.experiment_config.NDOTS, self.experiment_config.NFRAMES,  greyscale = True,  inital_seed = 0)
         if self.experiment_config.NFRAMES == 1:
             colors = [colors]
-            
+        
         if self.experiment_config.RANDOM_DOTS:
             stl.show_dots(dot_sizes, dot_positions, self.experiment_config.NDOTS, duration = self.experiment_config.PATTERN_DURATION,  color = numpy.array(colors))
         else:
@@ -236,7 +242,4 @@ if __name__ == '__main__':
     sender.setDaemon(True)
     sender.start()
     vs_runner.run()
-#    runner = threading.Thread(target=run_stimulation, args=(vs_runner, ))
-#    runner.setDaemon(True)
-#    runner.start()
     pass

@@ -45,7 +45,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         FULLSCREEN = True
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
         SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]
-        FRAME_DELAY_TOLERANCE = [1.0,  [1e-2,  10.0]]
+        FRAME_DELAY_TOLERANCE = [2.0,  [1e-2,  10.0]] #in Hz
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
         GAMMA = [1.0,  [1e-2,  10]]
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]

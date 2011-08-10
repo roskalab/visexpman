@@ -2,12 +2,18 @@ import time
 import os
 from visexpman.engine.generic import utils
 import visexpman.engine.generic.graphics as graphics
+from OpenGL.GL import *
 from OpenGL.GLUT import *
 
 class VisexpmanScreen(graphics.Screen):
     def initialization(self):
         self.clear_screen(color = self.config.BACKGROUND_COLOR)
-
+        #enable blending for overlaying text
+#        glEnable(GL_BLEND)
+#        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+#        glBlendFunc(GL_ONE, GL_ONE)
+        
+    
 class UserInterface():
     '''
     UserInterface is responsible for handling keystrokes and displaying messages on screen. Display handling is taken over by StimulationControl when software leaves idle state       
@@ -27,13 +33,12 @@ class UserInterface():
         #Display menu        
         if self.config.TEXT_ENABLE:
             self.text_style = GLUT_BITMAP_8_BY_13
-            self.menu_position = ( int(-0.2 * self.config.SCREEN_RESOLUTION['col']), 0)
+            self.menu_position = utils.cr(( int(-0.2 * self.config.SCREEN_RESOLUTION['col']), 0))
             self.menu_text = self.config.MENU_TEXT + experiment_choices(caller.experiment_config_list)
             self.screen.render_text(self.menu_text, color = self.config.TEXT_COLOR, position = self.menu_position, text_style = self.text_style)
-            self.message_position = (int(-0.2 * self.config.SCREEN_RESOLUTION['col']),  int(-0.3 * self.config.SCREEN_RESOLUTION['row']))
+            self.message_position = utils.cr((int(-0.2 * self.config.SCREEN_RESOLUTION['col']),  int(-0.3 * self.config.SCREEN_RESOLUTION['row'])))
             self.message_text = ''
             self.screen.render_text(self.message_text, color = self.config.TEXT_COLOR, position = self.message_position, text_style = self.text_style)
-            
         
         self.update_user_interface_items()
         

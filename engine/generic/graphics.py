@@ -71,10 +71,12 @@ class Screen(object):
         self.frame_wait_time = self.config.FRAME_WAIT_FACTOR * 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE - self.config.FLIP_EXECUTION_TIME        
         glutInit()
         #create screen using parameters in config
-        self.create_screen()
+        self.create_screen()        
         #setting background color to clear color
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
         glEnable(GL_DEPTH_TEST)
+        #Hide mouse cursor
+        pygame.mouse.set_visible (False)
         
         self.image_texture_id = glGenTextures(1)
         
@@ -87,7 +89,7 @@ class Screen(object):
         Create pygame screen using SCREEN_RESOLUTION and FULLSCREEN parameters
         '''
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
-        if self.config.FULLSCREEN:
+        if self.config.FULLSCREEN:            
             flags = flags | pygame.FULLSCREEN
         self.screen = pygame.display.set_mode((self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), flags)
         
@@ -115,7 +117,6 @@ class Screen(object):
             run_loop = True
             while run_loop:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-
                 #default view is set
                 self.set_view((0, 0, 0),  0, 0, 0, 1.0)
                 #glDisable(GL_LIGHTING) if light is enabled               
@@ -131,7 +132,7 @@ class Screen(object):
                         if key_pressed == 'escape':
                             run_loop = False
                         self.keyboard_handler(key_pressed)
-        elif self.mode == 'external':            
+        elif self.mode == 'external':
             pass
     
     def flip(self):
@@ -225,11 +226,14 @@ class Screen(object):
     def initialization(self):
         pass
         
-    def render_text(self, text, color = (1.0,  1.0,  1.0), position = (0.0, 0.0),  text_style = GLUT_BITMAP_TIMES_ROMAN_24):
+    def render_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = GLUT_BITMAP_TIMES_ROMAN_24):
         '''
         Renders text on screen using times new roman characters. Spacing is a constant 12 pixels, so shorter characters like 'l' is diplayed with a little gap
         '''
-        glColor3fv(color)
+        if len(color) == 3:
+            glColor3fv(color)
+        elif len(color) == 4:
+            glColor4fv(color)
         line_index = 0
         row_index = 0
         for i in range(len(text)):
@@ -245,11 +249,11 @@ class Screen(object):
                 line_index += 1
                 row_index = 0
             else:                
-                glRasterPos2f(position[0] + spacing * row_index, position[1] - line_index * spacing)
+                glRasterPos2f(position['col'] + spacing * row_index, position['row'] - line_index * spacing)
                 glutBitmapCharacter(text_style, ord(text[i]))
                 row_index += 1
         
-    def render_imagefile(self, path, position = (0, 0)):
+    def render_imagefile(self, path, position = utils.rc((0, 0))):
         '''
         Renders an image file on screen with its original size.
         '''
@@ -275,10 +279,10 @@ class Screen(object):
                              [0.0, 1.0],
                              ])
         vertices = numpy.array([
-                                [position[0] + 0.5 * self.image_size[0], position[1] + 0.5 * self.image_size[1]], 
-                                [position[0] + 0.5 * self.image_size[0], position[1] - 0.5 * self.image_size[1]], 
-                                [position[0] - 0.5 * self.image_size[0], position[1] - 0.5 * self.image_size[1]], 
-                                [position[0] - 0.5 * self.image_size[0], position[1] + 0.5 * self.image_size[1]],                                 
+                                [position['col'] + 0.5 * self.image_size[0], position['row'] + 0.5 * self.image_size[1]], 
+                                [position['col'] + 0.5 * self.image_size[0], position['row'] - 0.5 * self.image_size[1]], 
+                                [position['col'] - 0.5 * self.image_size[0], position['row'] - 0.5 * self.image_size[1]], 
+                                [position['col'] - 0.5 * self.image_size[0], position['row'] + 0.5 * self.image_size[1]],                                 
                                 ])
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
         glTexCoordPointerf(texture_coordinates)
