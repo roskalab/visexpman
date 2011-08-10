@@ -120,7 +120,7 @@ class MBP(VisualStimulationConfig):
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.rc([768,   1024])
-        ENABLE_FRAME_CAPTURE = True
+        ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
         IMAGE_PROJECTED_ON_RETINA = False
