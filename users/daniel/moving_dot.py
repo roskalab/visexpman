@@ -348,7 +348,7 @@ if __name__ == '__main__':
     import threading
     import sys
     from visexpman.engine.run_visual_stimulation import VisualStimulation
-    vs_runner = VisualStimulation(sys.argv[1], 'daniel') #first argument should be a class name
+    vs_runner = VisualStimulation('daniel', sys.argv[1]) #first argument should be a class name
     messages = ['start_stimulation']
     parameters = ['']
     pause_before = [1, 2]

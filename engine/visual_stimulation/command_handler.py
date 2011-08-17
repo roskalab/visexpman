@@ -91,7 +91,15 @@ class CommandHandler():
         self.runner.abort = True
         return 'quit'
         
+    done = False
     
+    def capture_keypress(self):
+        '''Call this method when you want to process keys pressed on the keyboard'''
+        while not done:
+            for event in pygame.event.get():
+                if (event.type == KEYUP) or (event.type == KEYDOWN):
+                    return event
+
     def parse(self,  command_buffer,  state = 'unspecified'):
         '''
         Incoming string stream is parsed into commands depending on software state. When stimulation is running, incoming string is discarded

@@ -1,5 +1,5 @@
 import visexpman
-import os
+import os,  sys
 #While psychopy is not completely eliminated, this import is necessary under windows systems
 if os.name == 'nt':
     from OpenGL.GL import *
@@ -19,7 +19,7 @@ class UnsupportedCommandLineArguments(Exception):
     pass
 
 class VisualStimulation(object):
-    def __init__(self, config_class, user):
+    def __init__(self, user,  config_class):
         '''
         Find out configuration and load the appropriate config and experiment modules, classes
 
