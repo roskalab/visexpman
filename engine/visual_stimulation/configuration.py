@@ -77,20 +77,20 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         
         #commands (including commands which are accepted only from udp interface)
-        COMMANDS = {'s':'start_stimulation',    
+        COMMANDS_IDLE = {
+        'i':'show_status', 
+        's':'start_stimulation',    
         'b':'bullseye', 
         'q':'quit', 
         't':'send_file', 
         '<':'set_stimulus_file_start', 
         '>':'set_stimulus_file_end', 
         'g':'get_log', 
-        'l':'clear_log',  # This command shall not be used because log file gets corrupted
-        'm':'toggle_menu', 
-        'i':'set_measurement_id', 
+        #'i':'set_measurement_id', 
         'y':'start_test', 
         'c':'set_background_color', 
-        'n':'next_segment', 
-        'a':'abort_stimulus'}
+        'n':'next_segment'
+        }
         
         #debug
         ENABLE_FRAME_CAPTURE = False

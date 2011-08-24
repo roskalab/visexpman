@@ -88,6 +88,14 @@ class StimulationControl():
     def _disable_frame_interval_watch(self):        
         self.screen.setRecordFrameIntervals(False)             
 
+    def handle_pygame_events(self):
+        '''Programmer can call this method from his run method to check for user input'''
+        if pygame.event.peek() is False: return # no events do not waste more time
+        or event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    key_pressed = pygame.key.name(event.key)
+            if key_pressed == 'q':
+                break
     def zip_py_files(self, zip_path,  base_path, log):
         '''
         Saves Presentinator source files, stimulation file(s) and log file into a zip file
