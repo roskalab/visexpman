@@ -4,38 +4,67 @@ import os
 
 import parameter
 
+import unittest
+
 PRINT_PAR_NAMES = False
 
 class Config(object):
     def __init__(self, machine_config=None):
-#should avoid using print, use logger.info or something similar
-#print 'Loaded configuration class: ' + self.__class__.__name__    
-        self.machine_config = machine_config
-        self._create_generic_parameters()        
-        self._create_parameter_aliases()
-        self._create_application_parameters()
-        self._create_parameter_aliases()     # ezt miert nem a create applic parameters hivja meg?   
-		#The _create_application_parameters and the _calculate_parameters methods will be overdefined in the child classes. 
-        #The _create_parameter_aliases function shall be called at the end of _create_parameters_from_locals        
-        self._set_user_specific_parameters()
-        self._create_parameter_aliases()     # ezt miert nem a create applic parameters hivja meg?   
-        self._calculate_parameters()        
-        #check for new parameters created by calculate_parameters method, get their names and load them:        
-        self._create_parameter_aliases()             
+        '''
+        Machine config: main, setup/user etc specific config that may be used by experiment configs
         
-    def _create_generic_parameters(self):
-        self.PACKAGE_PATH_p = parameter.Parameter(os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0], is_path=True)
+        Usage:
+        
+        Application level configuration:
+        Creating parameters, overdefine this function:
+        
+        def _create_application_parameters(self):
+            PAR1 = 
+            PAR2 = 
+            ...
+            self._create_parameters_from_locals(locals())
+        
+        Here calculations can be defined using the parameters created in _create_application_parameters function
+        
+        def _calculate_parameters(self):
+            ...
+        
+        User/Setgup level configuration:
+        
+        Existing parameters can be changed
+        def _set_user_parameters(self):
+            PAR1 =
+            PAR2 = 
+            ...
+            self._set_parameters_from_locals(locals())
+        
+        Additional parameters can be created if needed
+        def _create_parameters(self):
+            PAR1 = 
+            PAR = 
+            self._create_parameters_from_locals(locals())            
+        
+        '''
+        #TODO: log 'Loaded configuration class: ' + self.__class__.__name__        
+        self.machine_config = machine_config
+        self._create_generic_parameters()
+        #The _create_application_parameters and the _calculate_parameters methods will be overdefined in the application child class.
+        self._create_application_parameters()
+        self._create_parameters()
+        #Override default values of parameters created by _create_application_parameters()
+        self._set_user_parameters()
+        #create/update parameters from existing parameter values
+        self._calculate_parameters()
+        #check for new parameters created by calculate_parameters method, get their names and load them:        
+        self._create_parameter_aliases()
+        
+    def _create_generic_parameters(self):        
+        self.PACKAGE_PATH_p = parameter.Parameter(os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0], is_path=True)                
+        self._create_parameter_aliases()
         return
-        # I am not sure these below make sense
-        if self.base_path != None:
-            self.BASE_PATH_p = parameter.Parameter(self.base_path, is_path = True)
-        elif os.name == 'nt' and os.path.exists(os.path.dirname(sys.argv[0])):
-            self.BASE_PATH_p = parameter.Parameter(os.path.dirname(sys.argv[0]), is_path = True)
-        else:
-            self.BASE_PATH_p = parameter.Parameter(os.getcwd(), is_path = True)
 
-    def _create_parameters_from_locals(self,  locals): 
-        for k,  v in locals.items():         
+    def _create_parameters_from_locals(self,  locals):
+        for k,  v in locals.items():
             if hasattr(self, k):  # parameter was already initialized, just update with new value
                 self.set(k, v)
             elif k.isupper() and k.find('_RANGE') == -1:
@@ -59,6 +88,7 @@ class Config(object):
                     setattr(self,  k + '_p',  parameter.Parameter(v,  is_file = True))
                 else:
                     setattr(self,  k + '_p', parameter.Parameter(v))
+        self._create_parameter_aliases()
 
     def _set_parameters_from_locals(self,  locals):
         for k,  v in locals.items():
@@ -72,7 +102,14 @@ class Config(object):
         '''
         pass
         
-    def _set_user_specific_parameters(self):
+    def _create_parameters(self):
+        '''
+        By overdefining this function, additional parameters can be created
+            self.PAR_p =              
+        '''
+        pass
+        
+    def _set_user_parameters(self):
         '''
         Function for overriding the application's 'default parameter values
         '''
@@ -85,10 +122,16 @@ class Config(object):
         pass
 
     def set(self,  parameter_name,  new_value):
+        '''
+        Change value of a parameter in config. Perhaps this function shall be disabled so that parameters could not be modified in runtime or outside the class definition.
+        '''
         getattr(getattr(self,  parameter_name + '_p'),  'set')(new_value)
         setattr(self,  parameter_name,  new_value)
 
     def _create_parameter_aliases(self):
+        '''
+        The value of self.PARNAME_p parameters are copied to a self.PARNAME variable
+        '''
         class_variables = dir(self)
         parameters = [class_variable for class_variable in class_variables if class_variable.find('_p') != -1 and class_variable.replace('_p',  '').isupper()] 
         parameter_values = []
@@ -99,34 +142,65 @@ class Config(object):
             parameter_name = parameter.replace('_p',  '')            
             if not hasattr(self,  parameter_name):
                 setattr(self,  parameter_name, parameter_value)
-                
-    def _update_parameter_aliases(self):
-        pass            
 
     def print_parameters(self):
         class_variables = dir(self)
         parameter_names = [class_variable for class_variable in class_variables if class_variable.isupper()] 
         for parameter_name in parameter_names:
             print parameter_name + ' = ' + str(getattr(self,  parameter_name))
+        
+class ApplicationTestClass(Config):
+    def _create_application_parameters(self):
+        PAR1 = [1, [-2, 2]]
+        PAR2 = [2, [-1, 2]] 
+        self._create_parameters_from_locals(locals())
+        
+    def _calculate_parameters(self):        
+        self.PAR3_p = parameter.Parameter(self.PAR1+self.PAR2, range_ = [-2,  2])        
+        
+class UserTestClass(ApplicationTestClass):
+    def _create_parameters(self):
+        PAR4 = [1, [-2, 2]]
+        self._create_parameters_from_locals(locals())        
+
+    def _set_user_parameters(self):
+        PAR1 = -2
+        self._set_parameters_from_locals(locals())
+        
+class WrongUserTestClass(UserTestClass):
+    def _set_user_parameters(self):
+        PAR1 = -2
+        PAR5 = 200
+        self._set_parameters_from_locals(locals())
     
-#class ConfigurationTestClass(Config):
-#    def _create_user_parameters(self):
-#        pass
-#        
-#    def _set_user_specific_parameters(self):
-#        pass
-#    
-#    def _calculate_parameters(self):
-#        pass
-#    
-#class testConfiguration(unittest.TestCase):
-#    def test_01_valid_path_parameter(self):
-#        pass
-    
-if __name__ == "__main__":
-#    unittest.main()
-    c = Config()
-#    c.print_parameters()
-#    c.set('BASE_PATH',  '/home')
-#    c.print_parameters() 
-    
+class testConfiguration(unittest.TestCase):    
+    def test_01_package_path_parameter(self):
+        '''
+        Test whether the default parameter has a correct value and the constructor of the class runs without error
+        '''
+        package_path = os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0]
+        config = Config()
+        self.assertEqual((config.PACKAGE_PATH_p.v, config.PACKAGE_PATH),  (package_path, package_path))
+        
+    def test_02_subclass_structure(self):
+        '''
+        Test if the overdefined functions in the test classes create and modify the parameters correctly
+        '''
+        a = UserTestClass()
+        self.assertEqual((a.PAR1, a.PAR2, a.PAR3, a.PAR4),  (-2, 2, 0, 1))
+        
+    def test_03_set_parameter_in_config(self):
+        a = UserTestClass()
+        a.set('PAR1', 0)
+        self.assertEqual((a.PAR1, a.PAR2, a.PAR3, a.PAR4),  (0, 2, 0, 1))
+        
+    def test_04_set_parameter_in_config_out_of_range(self):
+        a = UserTestClass()        
+        self.assertRaises(parameter.OutOfRangeParameterValue, a.set, 'PAR1', 10)
+        
+    def test_05_wrong_user_class_definition(self):        
+        self.assertRaises(AttributeError, WrongUserTestClass)
+
+if __name__ == "__main__":    
+    unittest.main()
+

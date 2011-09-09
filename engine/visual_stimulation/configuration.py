@@ -212,7 +212,7 @@ class SafestartConfig(VisualStimulationConfig):
         FILTERWHEEL_ENABLE = False
         RUN_MODE = 'user interface'
         ENABLE_PARALLEL_PORT = False
-        UDP_ENABLE = False        
+        UDP_ENABLE = False
         FULLSCR = False
         SCREEN_RESOLUTION = utils.rc([600, 800])        
         

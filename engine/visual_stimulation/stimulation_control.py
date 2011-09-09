@@ -91,8 +91,8 @@ class StimulationControl():
     def handle_pygame_events(self):
         '''Programmer can call this method from his run method to check for user input'''
         if pygame.event.peek() is False: return # no events do not waste more time
-        or event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
                     key_pressed = pygame.key.name(event.key)
             if key_pressed == 'q':
                 break

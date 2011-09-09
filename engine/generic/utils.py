@@ -9,37 +9,6 @@ import unittest
 import pkgutil
 import inspect
 
-# valid color configurations: 1.0; 255; (1.0, 0.4, 0), invalid color configuration: (255, 0, 128)
-#=== TO BE REMOVED ===
-#def convert_to_rgb(color):
-#    if isinstance(color, list) or isinstance(color, tuple):
-#        return color
-#    else:
-#        return [color,  color,  color]
-#
-#def convert_rgb(color):
-#    '''
-#    Converts rgb channels from 0...1 range to -1...1 range.
-#    '''
-#    converted_color = []
-#    for color_channel in color:
-#        converted_color.append(color_channel)
-#    return converted_color
-#    
-#def convert_greyscale(intensity):
-#    '''
-#    Converts greyscale color to Psychopy RGB format which range is -1...1. Greyscale colors are interpreted in 0...1 range.
-#    '''
-#    return convert_rgb([intensity,  intensity,  intensity])
-#    
-#def convert_8_bit_greyscale(intensity):
-#    '''
-#    Converts greyscale color to Psychopy RGB format which range is -1...1. Greyscale colors are interpreted in 0...255 range.
-#    '''
-#    return convert_greyscale(float(intensity) / 255.0)
-    
-#=== END OF TO BE REMOVED ===
-
 def convert_color(color):
     '''
     Any color format (rgb, greyscale, 8 bit grayscale) is converted to visexpman rgb format
@@ -291,7 +260,7 @@ def um2degrees(umonretina):
 # is 10 degrees
     return 10.0*numpy.array(umonretina, numpy.float)/300
 
-def filtered_file_list(folder_name,  filter):
+def filtered_file_list(folder_name,  filter, fullpath = False):
     files = os.listdir(folder_name)
     filtered_files = []
     for file in files:
@@ -301,9 +270,15 @@ def filtered_file_list(folder_name,  filter):
                 if file.find(filter_item) != -1:
                     found = True
             if found:
-                filtered_files.append(file)
+                if fullpath:
+                    filtered_files.append(os.path.join(folder_name, file))
+                else:
+                    filtered_files.append(file)
         elif isinstance(filter,  str):
             if file.find(filter) != -1:
+                if fullpath:
+                    filtered_files.append(os.path.join(folder_name, file))
+                else:
                     filtered_files.append(file)
     return filtered_files
 

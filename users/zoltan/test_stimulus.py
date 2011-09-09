@@ -11,7 +11,7 @@ from visexpman.engine.visual_stimulation.configuration import VisualStimulationC
 from OpenGL.GL import *
 
 class MultipleDotsTester(VisualStimulationConfig):
-    def _set_user_specific_parameters(self):        
+    def _set_user_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'GratingExperimentConfig'
         LOG_PATH = 'C:\\_development\\virtual_reality\\software\\data'
@@ -50,7 +50,7 @@ class MultipleDotsTester(VisualStimulationConfig):
         self._create_parameters_from_locals(locals())
         
 class MultipleDotsTesterLinux(VisualStimulationConfig):
-    def _set_user_specific_parameters(self):        
+    def _set_user_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'GratingExperimentConfig'
 #        EXPERIMENT_CONFIG = 'DotsExperimentConfig'
@@ -94,7 +94,7 @@ class MultipleDotsTesterLinux(VisualStimulationConfig):
         self._create_parameters_from_locals(locals())        
 
 class MultipleDotsTesterMac(VisualStimulationConfig):
-    def _set_user_specific_parameters(self):
+    def _set_user_parameters(self):
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'GratingExperimentConfig'
         LOG_PATH = '/Users/rz/visexpman/data'
@@ -133,7 +133,7 @@ class MultipleDotsTesterMac(VisualStimulationConfig):
         self._create_parameters_from_locals(locals())        
         
 class GratingExperimentConfig(experiment.ExperimentConfig):
-    def _create_application_parameters(self):
+    def _create_parameters(self):
         self.runnable = 'GratingTest'
         self.pre_runnable = 'MultipleDotTestPre'        
         self._create_parameters_from_locals(locals())
@@ -148,7 +148,7 @@ class GratingTest(experiment.Experiment):
         stl.show_grating(duration = 3.0, profile = 'sqr', orientation = 0, velocity = 50.0, white_bar_width = 25, display_area =  utils.cr((0, 0)), pos = utils.cr((400, 300)), color_contrast = 1.0)
         
 class DotsExperimentConfig(experiment.ExperimentConfig):
-    def _create_application_parameters(self):
+    def _create_parameters(self):
         self.NDOTS = 50
         self.NFRAMES = 10
         self.PATTERN_DURATION = 0.3
@@ -234,7 +234,7 @@ if __name__ == '__main__':
     import visexpman
     import threading
     from visexpman.engine.run_visual_stimulation import VisualStimulation
-    vs_runner = VisualStimulation('MultipleDotsTesterLinux', 'zoltan')
+    vs_runner = VisualStimulation('zoltan','MultipleDotsTesterLinux')
     messages = ['start_stimulation']
     parameters = ['']
     pause_before = [1, 2]

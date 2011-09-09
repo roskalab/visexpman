@@ -401,7 +401,7 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
 
     def render_before_set_view(self):
         msg = str(self.position) + "%2.0f, %2.0f, %2.0f, %2.1f,%2.2f, %f"%(self.heading,  self.roll, self.pitch, self.scale, self.frame_rate, self.wait_time_left)
-        self.render_text(msg, color = (0.8, 0.8, 0.8), position = (-400, -250))
+        self.render_text(msg, color = (0.8, 0.8, 0.8), position = utils.cr((-400, -250)))
 
 def multiple_reflections_wrapper(parameters):
 #        is_reflection, rays = ray_reflection.multiple_reflections(self.mirrors,  initial_ray_start_point[i], initial_ray_direction[i], number_of_reflections)
