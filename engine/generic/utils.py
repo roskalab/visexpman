@@ -155,7 +155,7 @@ def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0
         wave.append(value)    
     return wave            
     
-def fetch_classes(basemodule, classname=None,  classtype=None,  exclude_classtypes=[]):
+def fetch_classes(basemodule, classname=None,  classtype=None,  exclude_classtypes=[],  required_ancestors=[]):
     '''Looks for the specified class, imports it and returns as class instance.
     Use cases:
     1. just specify user, others left as default: returns all classes
@@ -171,6 +171,10 @@ def fetch_classes(basemodule, classname=None,  classtype=None,  exclude_classtyp
         for attr in inspect.getmembers(m, inspect.isclass):
             omro = inspect.getmro(attr[1])
             any_wrong_in_class_tree = [cl in omro for cl in exclude_classtypes]
+            omro_names = [o.__name__ for o in omro]
+            all_good_ancestors = [True for a in required_ancestors if a in omro_names]
+            if sum(all_good_ancestors) < len(required_ancestors):
+                continue
             if sum(any_wrong_in_class_tree) >0: continue # the class hyerarchy contains ancestors that should not be in this class' ancestor list
             if (attr[0] == classname or classname==None) and ((len(omro)>1 and classtype == omro[1]) or classtype==None):
                 class_list.append((m, attr[1]))
@@ -378,7 +382,38 @@ def find_class_in_module(modules,  class_name, module_name_with_hierarchy = Fals
                 else:
                     module_found = module.split(os.sep)[-1].split('.')[0]
     return module_found
-    
+
+def getziphandler(zipstream):
+    '''convenience wrapper that returns the zipreader object for both a byte array and a string containing 
+    the filename of the zip file'''
+    if hasattr(zipstream, 'data'):
+        sstream = StringIO.StringIO(zipstream.data) # zipfile as byte stream
+    else:
+        sstream = zipstream #filename
+    return zipfile.ZipFile(sstream)
+
+def parsefilename(filename, regexdict):
+    '''From a string filename extracts fields as defined in a dictionary regexdict. 
+    Data will be put into a directory with the same keys as found in regextdict.
+    The value of each regextdict key must be a list. The first element of the list
+    is a regular expression that tells what to extract from the string. The second element
+    is a python class that is used to convert the extracted string into a number (if applicable)
+    '''
+    import re
+    for k,v in regexdict.items():
+        for expr in v[:-1]: #iterate through possible patterns (compatibility patters for filename structured used earlier)
+            p = re.findall(expr,filename)
+        if p:
+            if isinstance(p[0], tuple): #stagepos extracts a tuple
+                p = p[0]
+            try:
+                regexdict[k] = [v[-1](elem) for elem in p] # replace the regex pattern with the value
+            except TypeError:
+                raise
+        else:
+            regexdict[k] = None # this pattern was not found
+    return regexdict
+ 
 def prepare_dynamic_class_instantiation(modules,  class_name):        
     """
     Imports the necessary module and returns a reference to the class that could be sued for instantiation
@@ -598,3 +633,32 @@ if __name__ == "__main__":
 #    print a    
 #    print generate_filename('/media/Common/visexpman_data/log.txt')
     
+def test_parsefilename():
+    filename = 'whatever/folder/Bl6(b 04.09.10 i 01.11.10)-(-372 -78 129)-r2-w1000-sp2400-3stat-3move-2.0x-20x(ND10 isoflCP 0.5 R).tif.frames'
+    commonpars = {'AnimalStrain':['^(\S+)\(', str], # Match M???(... at the beginning of the line
+                    'AnimalBirthDay_YMD':['\(b\S*\ (\d{2,2})\.(\d{2,2})\.(\d{2,2})\ ', int],
+                    'Injected_YMD':['i\S*\ (\d{2,2})\.(\d{2,2})\.(\d{2,2})\ *\)', int],
+                    'StagePos':['\((-*\d+\.*\d*)\ +(-*\d+\.*\d*)',float], # (x y # lookahead assertion needed?
+                    'Depth':['\ +(\d+\.*\d*)\)',float], # z)
+                    'Repetition':['-r(\d+)-',int], #-r??
+                    'StimulusName':['-r\d+-(\S+)-\d\.\d+mspl',str], #-r??-string
+                    'Objective':['-*(\d+)x\(',int],
+                    'Comments':['^M\d+(\S+)\(',str],
+                    'Anesthesia':['ND\d\d*\ (\S+\ *\S*)\ \S+\)$',str],
+                                  }
+    stimpar = parsefilename(filename, commonpars)
+    result = {'AnimalStrain':['Bl6'], # Match M???(... at the beginning of the line
+                    'AnimalBirthDay_YMD':[4, 9, 10],
+                    'Injected_YMD':[1, 11, 10],
+                    'StagePos':[-372, -78], # (x y # lookahead assertion needed?
+                    'Depth':[129.0], # z)
+                    'Repetition':[2], #-r??
+                    'StimulusName':['w1000-sp2400-3stat-3move'], #-r??-string
+                    'Objective':[20],
+                    'Comments':['isoflCP 0.5 R'],
+                    'Anesthesia':['isoflCP 0.5']
+                                  }
+    self.assertequal(stimpar, result)
+    
+def test_getziphandler():
+    pass
