@@ -361,6 +361,7 @@ def find_class_in_module(modules,  class_name, module_name_with_hierarchy = Fals
 def getziphandler(zipstream):
     '''convenience wrapper that returns the zipreader object for both a byte array and a string containing 
     the filename of the zip file'''
+    import StringIO,  zipfile
     if hasattr(zipstream, 'data'):
         sstream = StringIO.StringIO(zipstream.data) # zipfile as byte stream
     else:
