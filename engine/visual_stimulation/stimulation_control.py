@@ -1,3 +1,9 @@
+#TODO: Calibration/test experiments:
+#1. Default visual stimulations/examples for safestart config
+#2. Setup testing, check frame rate, visual pattern capabilities, etc
+#3. Projector calibration
+#4. Virtual reality screen morphing calibration
+
 import sys
 import zipfile as zip
 import os

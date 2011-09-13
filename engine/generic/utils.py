@@ -147,7 +147,7 @@ def fetch_classes(basemodule, classname=None,  classtype=None,  exclude_classtyp
             if sum(any_wrong_in_class_tree) >0: continue # the class hyerarchy contains ancestors that should not be in this class' ancestor list
             if (attr[0] == classname or classname==None) and ((len(omro)>1 and classtype == omro[1]) or classtype==None):
                 class_list.append((m, attr[1]))
-                # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run
+                # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run    
     return class_list
     
 def um_to_normalized_display(value, config):
@@ -572,13 +572,17 @@ def in_range(number,  range1,  range2, preceision = None):
     return False
     
 def is_vector_in_array(array,  vector):
-    for item in array:        
+    '''
+        Find a vector in a list of vectors
+    '''
+    for item in array:
         if abs(item - vector).sum() < 1e-3:
             return True
     return False
 
 if __name__ == "__main__":
-    print is_vector_in_array(numpy.array([[1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]]),  numpy.array([1.0, 2.0, 3.0]))
+
+#    print is_vector_in_array(numpy.array([[1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]]),  numpy.array([1.0, 2.0, 3.0]))
 #    unittest.main()
     a = [1.0, 2.0, 3.0]
     b = [10.0, 20.0, 30.0]

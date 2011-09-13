@@ -199,8 +199,7 @@ class testConfiguration(unittest.TestCase):
         self.assertRaises(parameter.OutOfRangeParameterValue, a.set, 'PAR1', 10)
         
     def test_05_wrong_user_class_definition(self):        
-        self.assertRaises(AttributeError, WrongUserTestClass)
-
-if __name__ == "__main__":    
+        self.assertRaises(AttributeError, WrongUserTestClass)    
+    
+if __name__ == "__main__":
     unittest.main()
-

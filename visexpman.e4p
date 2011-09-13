@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project visexpman -->
-<!-- Saved: 2011-07-28, 18:02:50 -->
+<!-- Saved: 2011-09-13, 17:33:41 -->
 <!-- Copyright (C) 2011 Zoltan Raics, zoltan.raics@fmi.ch -->
 <Project version="4.6">
   <Language>en</Language>
@@ -74,6 +74,9 @@
     <Source>users/zoltan/optics/finite_element_geometry.py</Source>
     <Source>users/zoltan/optics/toroid_screen.py</Source>
     <Source>users/zoltan/test_stimulus.py</Source>
+    <Source>users/zoltan/test/unit_test_runner.py</Source>
+    <Source>engine/visexp_runner.py</Source>
+    <Source>users/zoltan/test_data.py</Source>
   </Sources>
   <Forms>
   </Forms>

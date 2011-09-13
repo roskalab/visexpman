@@ -61,10 +61,10 @@ class MultipleDotsTesterLinux(VisualStimulationConfig):
         ENABLE_PARALLEL_PORT = False
         UDP_ENABLE = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
-        FULLSCREEN = False
+        FULLSCREEN = True
         SCREEN_RESOLUTION = utils.rc([500, 500])
         SCREEN_RESOLUTION = utils.cr([800, 600])
-#        SCREEN_RESOLUTION = utils.cr([1680, 1050])
+        SCREEN_RESOLUTION = utils.cr([1680, 1050])
 #        SCREEN_RESOLUTION = utils.cr([1024, 768])
 
         ENABLE_FRAME_CAPTURE = False
@@ -87,7 +87,7 @@ class MultipleDotsTesterLinux(VisualStimulationConfig):
 
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         COORDINATE_SYSTEM='ulcorner'
-#        COORDINATE_SYSTEM='center'
+        COORDINATE_SYSTEM='center'
             
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
@@ -145,7 +145,7 @@ class GratingTest(experiment.Experiment):
         stl.change_text(0, text = 'aa')
         stl.add_text('tex\nt', color = (1.0,  1.0,  0.0), position = utils.cr((200.0, 200.0)))
         stl.clear_screen(duration = 0.5)
-        stl.show_grating(duration = 3.0, profile = 'sqr', orientation = 0, velocity = 50.0, white_bar_width = 25, display_area =  utils.cr((0, 0)), pos = utils.cr((400, 300)), color_contrast = 1.0)
+        stl.show_grating(duration = 30.0, profile = 'sqr', orientation = 0, velocity = 50.0, white_bar_width = 50, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
         
 class DotsExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -203,8 +203,8 @@ class MultipleDotTest(experiment.Experiment):
             colors = numpy.array([[[1.0,0.0,0.0],[1.0,1.0,1.0],[0.0,1.0,0.0],[0.0,0.0,1.0],[0.0,1.0,1.0],[0.8,0.0,0.0]]])
             dot_positions = utils.cr(numpy.array([[0, side, side, -side, -side, 1.5 * side], [0, side, -side, -side, side, 1.5 * side]]))
             ndots = 6
-            stl.show_dots(dot_sizes, dot_positions, ndots, duration = 4.0,  color = colors)
-            
+            stl.show_dots(dot_sizes, dot_positions, ndots, duration = 4.0,  color = colors)            
+        
 def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):
     '''This method is intended to be run as a thread and sends multiple message-parameter pairs. 
     Between sending individual message-parameter pairs, we wait pause_before amount of time. This can be used to allow remote side do its processing.'''

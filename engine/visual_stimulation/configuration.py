@@ -3,6 +3,7 @@ import sys
 import numpy
 import visexpman
 import visexpman.engine.generic.utils as utils
+import visexpman.engine.generic.configuration
 try:
     import serial
 except:
@@ -152,12 +153,8 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
         '''
         #paths
-        DEFAULT_IMAGE_FILE = os.path.join(self.BASE_PATH ,'images','default.bmp')
- #       LOG_PATH = self.BASE_PATH
-        #ARCHIVE_PATH = self.BASE_PATH
-#        CAPTURE_PATH = self.BASE_PATH RZ: I think this is not necessary here. User config is overwritten here. Same for ARCHIVE_PATH and LOG_PATH
+        DEFAULT_IMAGE_FILE = os.path.join(self.PACKAGE_PATH ,'data','images','default.bmp')
         BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'
-#        TEMP_IMAGE_FILE = os.path.join(self.BASE_PATH, 'temp', 'tmp.bmp')
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX
         
         self.SCREEN_PIXEL_TO_UM_SCALE_p = visexpman.engine.generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
@@ -174,7 +171,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
             screen_resolution = 1.0 / numpy.array([self.SCREEN_RESOLUTION['col'], self.SCREEN_RESOLUTION['row']])
         SCREEN_UM_TO_NORM_SCALE = 2.0 * self.SCREEN_PIXEL_TO_UM_SCALE_p.v * screen_resolution        
         self.SCREEN_UM_TO_NORM_SCALE_p = visexpman.engine.generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
-
+        
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
         else:
@@ -186,11 +183,11 @@ class TestConfig(visexpman.engine.generic.configuration.Config):
         PAR2 = 'par2'
         self._create_parameters_from_locals(locals())
 
-    def _set_user_specific_parameters(self):
+    def _set_user_parameters(self):
         '''
         Function for overriding the application's default parameter values
         '''
-        PAR1 = 'par1'        
+        PAR1 = 'par1'
         self._set_parameters_from_locals(locals())
         pass
 
@@ -198,29 +195,25 @@ class TestConfig(visexpman.engine.generic.configuration.Config):
         '''
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
         '''        
-        self.PAR3_p = visexpman.engine.generic.Parameter.Parameter(self.PAR1+self.PAR2) 
+        self.PAR3_p = visexpman.engine.generic.parameter.Parameter(self.PAR1+self.PAR2) 
         self.PAR3 = self.PAR3_p.v
     
-class testParameter(unittest.TestCase):
+class testApplicationConfiguration(unittest.TestCase):
     def test_ConfigClass(self):
         t = TestConfig()
         self.assertEqual((t.PAR1,  t.PAR2,  t.PAR3),  ('par1', 'par2',  t.PAR1+t.PAR2))
         
-class SafestartConfig(VisualStimulationConfig):
-    
-    def _set_user_specific_parameters(self):
+class SafestartConfig(VisualStimulationConfig):    
+    def _set_user_parameters(self):
+        COORDINATE_SYSTEM = 'center'        
         FILTERWHEEL_ENABLE = False
         RUN_MODE = 'user interface'
         ENABLE_PARALLEL_PORT = False
         UDP_ENABLE = False
-        FULLSCR = False
+        FULLSCREEN = False
         SCREEN_RESOLUTION = utils.rc([600, 800])        
-        
         self._set_parameters_from_locals(locals())        
 
 if __name__ == "__main__":
-#    unittest.main()    
-    c = VisualStimulationConfig()
-    c.print_parameters()
-    
+    unittest.main()
     
