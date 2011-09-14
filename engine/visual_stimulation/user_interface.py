@@ -1,17 +1,140 @@
-import time
-import os
+#TODO: Rename this module
+
+import pygame
+import socket
+import threading
+import time#?
+import os#?
 from visexpman.engine.generic import utils
 import visexpman.engine.generic.graphics as graphics
-from OpenGL.GL import *
+from OpenGL.GL import *#?
 from OpenGL.GLUT import *
 
+def experiment_choices(experiment_list):
+    '''
+    Lists and displays stimulus files that can be found in the default stimulus file folder
+    '''
+    return '\n'.join([str(i)+' '+experiment_list[i][1].__name__ for i in range(len(experiment_list))])
+
 class VisexpmanScreen(graphics.Screen):
-    def initialization(self):
-        self.clear_screen(color = self.config.BACKGROUND_COLOR)
-        #enable blending for overlaying text
-#        glEnable(GL_BLEND)
-#        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-#        glBlendFunc(GL_ONE, GL_ONE)        
+    '''
+    graphics.Screen is amended with vision experiment specific features: menu&message displaying
+    '''    
+    def __init__(self, config, caller):
+        self.caller = caller
+        graphics.Screen.__init__(self, config, graphics_mode = 'external')
+        self.clear_screen()
+        #== Initialize displaying text ==
+        self.text_style = GLUT_BITMAP_8_BY_13
+        self.menu_position = utils.cr(( int(self.config.MENU_POSITION['col'] * self.config.SCREEN_RESOLUTION['col']), int(self.config.MENU_POSITION['row'] * self.config.SCREEN_RESOLUTION['row'])))
+        self.menu_text = self.config.MENU_TEXT + experiment_choices(self.caller.experiment_config_list)
+        self.message_position = utils.cr(( int(self.config.MESSAGE_POSITION['col'] * self.config.SCREEN_RESOLUTION['col']), int(self.config.MESSAGE_POSITION['row'] * self.config.SCREEN_RESOLUTION['row'])))
+        self.message = 'no message'
+        self.hide_menu = False
+        #== Update text to screen ==
+#        self.refresh_non_experiment_screen()
+        
+    def clear_screen(self):
+        graphics.Screen.clear_screen(self, color = self.config.BACKGROUND_COLOR)        
+        
+    def _show_menu(self, flip = False):
+        '''
+        Show menu text on screen:
+         - possible keyboard commands
+         - available experiment configurations
+        '''        
+        self.render_text(self.menu_text, color = self.config.TEXT_COLOR, position = self.menu_position, text_style = self.text_style)
+        if flip:
+            self.flip()
+
+    def _show_message(self, message, flip = False):
+        '''
+        Display messages coming from command handler
+        '''
+
+        #count number of message rows and limit their number
+        lines = message.split('\n')
+        lines = lines[-self.config.NUMBER_OF_MESSAGE_ROWS:]
+        limited_message = ''
+        for line in lines:
+            limited_message += line + '\n'
+        
+        self.render_text(limited_message, color = self.config.TEXT_COLOR, position = self.message_position, text_style = self.text_style)
+        if flip:
+            self.flip()
+
+    def refresh_non_experiment_screen(self, flip = True):
+        '''
+        Render menu and message texts to screen
+        '''
+        if self.config.TEXT_ENABLE:# and not self.hide_menu:#TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command
+            self._show_menu()
+            self._show_message(self.message, flip = flip)
+
+    def run_preexperiment(self):
+        pass
+            
+class ScreenAndKeyboardHandler(VisexpmanScreen):
+    '''
+    VisexpmanScreen is amended with keyboard handling
+    '''
+    def __init__(self, config, caller):        
+        VisexpmanScreen.__init__(self, config, caller)
+        self.experiment_config_shortcuts = ['{0}'.format(i) for i in range(len(caller.experiment_config_list))]#stimulus_file_shortcut         
+        self.keyboard_commands = self.config.KEYBOARD_COMMANDS
+        self.separator = '@'
+        for shortcut in self.experiment_config_shortcuts:
+            self.keyboard_commands['select_experiment' + self.separator + shortcut] = {'key': shortcut}
+
+    def _check_keyboard(self):
+        '''
+        Get pressed key
+        '''
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                key_pressed = pygame.key.name(event.key)
+                return key_pressed
+        return
+        
+    def _parse_keyboard_command(self, key_pressed):
+        '''
+        If pressed key valid, generate command string.
+        '''
+        command = None
+        parameter = None
+        if key_pressed == 'escape':
+            command = 'quit'
+        else:
+            for k, v in self.keyboard_commands.items():
+                if v['key'] == key_pressed:
+                    command_and_parameters = k.split(self.separator)
+                    command = command_and_parameters[0]
+                    if len(command_and_parameters) == 2:
+                        parameter = command_and_parameters[1]                    
+                    break
+        if command != None:
+            command = 'SOC' + command + 'EOC'
+            if parameter != None:
+                command += parameter + 'EOP'        
+        return command
+        
+    def keyboard_handler(self):
+        '''
+        Registers pressed key and generates command string for command handler.
+        '''        
+        return self._parse_keyboard_command(self._check_keyboard())
+
+    def user_interface_handler(self):
+        '''
+        Updates menu and message on screen, takes care of handling the keyboard
+        '''
+        self.clear_screen()
+        self.refresh_non_experiment_screen()
+        command = self.keyboard_handler()
+        #Send command to command handler via tcp ip        
+        if command != None:
+            sock = socket.create_connection(('localhost',  self.config.COMMAND_INTERFACE_PORT))
+            sock.sendall(command)                                
     
 class UserInterface():
     '''
@@ -107,22 +230,8 @@ class UserInterface():
         pass
         self.screen.close()        
         
-def experiment_choices(experiment_list):
-    '''
-    Lists and displays stimulus files that can be found in the default stimulus file folder
-    '''
-    return '\n'.join([str(i)+' '+experiment_list[i][1].__name__ for i in range(len(experiment_list))])
+
         
         
 if __name__ == "__main__":
-#    print '------------------------------start------------------------------'
-    ui = UserInterface()    
-    while 1:
-        cmd = ui.user_interface_handler()
-        if cmd != '':
-            ui.user_interface_handler(cmd)
-        if cmd == 'q':
-            break            
-        
-    time.sleep(1)
-#    print '------------------------------end------------------------------'
+    pass

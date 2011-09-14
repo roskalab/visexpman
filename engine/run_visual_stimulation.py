@@ -56,7 +56,7 @@ class VisualStimulation(object):
     def run(self):
         '''
         Run application. Check for commands coming from either keyboard or network. Command is parsed and handled by command handler
-        '''  
+        '''
         while self.abort==False:
             # run the Pre class of the currently selected experiment
             if self.state =='new_stimulus' and hasattr(self.selected_experiment_config, 'pre_runnable') and self.selected_experiment_config.pre_runnable is not None:

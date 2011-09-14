@@ -75,23 +75,33 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         UDP_ENABLE = True
         UDP_PORT = [446,  [300,  65000]]
         UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
-        
+        COMMAND_INTERFACE_PORT = [10000, [300,  65000]]
         
         #commands (including commands which are accepted only from udp interface)
-        COMMANDS_IDLE = {
-        'i':'show_status', 
-        's':'start_stimulation',    
-        'b':'bullseye', 
-        'q':'quit', 
-        't':'send_file', 
-        '<':'set_stimulus_file_start', 
-        '>':'set_stimulus_file_end', 
-        'g':'get_log', 
-        #'i':'set_measurement_id', 
-        'y':'start_test', 
-        'c':'set_background_color', 
-        'n':'next_segment'
-        }
+#        COMMANDS_IDLE = {
+#        'i':'show_status', 
+#        's':'start_stimulation',    
+#        'b':'bullseye', 
+#        'q':'quit', 
+#        't':'send_file', 
+#        '<':'set_stimulus_file_start', 
+#        '>':'set_stimulus_file_end', 
+#        'g':'get_log', 
+#        #'i':'set_measurement_id', 
+#        'y':'start_test', 
+#        'c':'set_background_color', 
+#        'n':'next_segment'
+#        }
+        
+        COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
+        COMMANDS = {
+                    'hide_menu': {'key': 'h', 'domain': ['keyboard']}, 
+                    #This command is dynamically added to the list. 'experiment_select' : {'key' : None, 'domain': ['keyboard']}, #I am not sure that this is good
+                    'start_experiment': {'key': 's', 'domain': ['keyboard', 'network interface', 'remote client']}, 
+                    'abort_experiment': {'key': 'a', 'domain': ['keyboard', 'network interface', 'remote client', 'running experiment']}, 
+                    'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
+                    'quit': {'key': 'q', 'domain': ['keyboard', 'network interface', 'remote client']},                    
+                    }
         
         #debug
         ENABLE_FRAME_CAPTURE = False
@@ -99,20 +109,20 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         #logging 
         MAX_LOG_COLORS = [3,  [0,  100000]]
         
-        #grating
-        MIN_PHASE_STEP = [0.001,  [1e-5,  1.0]]
-        GRATING_TEXTURE_RESOLUTION = [512,  [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]]
+#        #grating
+#        MIN_PHASE_STEP = [0.001,  [1e-5,  1.0]]
+#        GRATING_TEXTURE_RESOLUTION = [512,  [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]]
         
         #user interface
         TEXT_ENABLE = True
         TEXT_COLOR = [[1.0,  0.0,  0.0] ,  [[0.0, 0.0, 0.0],  [1.0,  1.0,  1.0]]]
-        TEXT_SIZE = [12,  [2,  20]]
+#        TEXT_SIZE = [12,  [2,  20]]
         
-        STATES = [['idle',  'stimulation'],  None]
-        
-        MENU_TEXT = \
-            's - start stimulus\nb - bullseye\n<filename> - load filename stimulus\nq - quit'
-        KEYS = [['s', 'b', '','q'],  None] #valid key commands
+        STATES = [['idle',  'stimulation'],  None]        
+
+        MENU_POSITION = utils.cr((-0.48, 0.45))
+        MESSAGE_POSITION = utils.cr((-0.48,0.0))
+        NUMBER_OF_MESSAGE_ROWS = [20, [1, 40]]
         MAX_MESSAGE_LENGTH = [200,  [10,  1000]] #length of message displayed on screen
 
         #example config
@@ -152,19 +162,31 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         '''
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
         '''
-        #paths
+        #== Paths ==
         DEFAULT_IMAGE_FILE = os.path.join(self.PACKAGE_PATH ,'data','images','default.bmp')
         BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'
+        
+        #== Accepted keyboard commands and menu text==
+        KEYS = []
+        KEYBOARD_COMMANDS = {}
+        MENU_TEXT = ''
+        for k, v in self.COMMANDS.items():            
+            if utils.is_in_list(v['domain'], 'keyboard'):
+                KEYS.append(v['key'])
+                KEYBOARD_COMMANDS[k] = v
+                MENU_TEXT += v['key'] + ' - ' + k + '\n'
+
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX
         
-        self.SCREEN_PIXEL_TO_UM_SCALE_p = visexpman.engine.generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
-        
+        #== Parallel port pins ==        
         ACQUISITION_TRIGGER_ON = 1<<self.ACQUISITION_TRIGGER_PIN
         self.ACQUISITION_TRIGGER_ON_p = visexpman.engine.generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
         self.ACQUISITION_TRIGGER_OFF_p = visexpman.engine.generic.parameter.Parameter(0,  range_ = [0,  255])
         self.FRAME_TRIGGER_ON_p = visexpman.engine.generic.parameter.Parameter(ACQUISITION_TRIGGER_ON | 1<<self.FRAME_TRIGGER_PIN,  range_ = [0,  255])
         self.FRAME_TRIGGER_OFF_p = visexpman.engine.generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
         
+        #== Screen scaling ==
+        self.SCREEN_PIXEL_TO_UM_SCALE_p = visexpman.engine.generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
         if isinstance(self.SCREEN_RESOLUTION, list):
             screen_resolution = 1.0 / numpy.array(self.SCREEN_RESOLUTION)
         elif isinstance(self.SCREEN_RESOLUTION, numpy.ndarray):
@@ -172,10 +194,16 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_UM_TO_NORM_SCALE = 2.0 * self.SCREEN_PIXEL_TO_UM_SCALE_p.v * screen_resolution        
         self.SCREEN_UM_TO_NORM_SCALE_p = visexpman.engine.generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
         
+        #== Coordinate system ==
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
         else:
             raise ValueError('No coordinate system selected in config,  nor explicit settings for origo and axes was given.')
+            
+        #== Cooridnate system type dependencies ==
+        if self.COORDINATE_SYSTEM == 'ulcorner':
+            self.MENU_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MENU_POSITION_p.v, utils.cr((1.0, 1.0)))
+            self.MESSAGE_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MESSAGE_POSITION_p.v, utils.cr((1.0, 1.0)))
             
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):

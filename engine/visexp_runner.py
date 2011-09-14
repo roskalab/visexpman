@@ -6,12 +6,16 @@ import unittest
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.visual_stimulation.configuration
 import visexpman.engine.visual_stimulation.experiment
+import visexpman.engine.visual_stimulation.user_interface as user_interface
+import visexpman.engine.hardware_interface.udp_interface as network_interface
+import visexpman.engine.visual_stimulation.command_handler as command_handler
 
 class VisExpRunner(object):
     '''
     This class is responsible for running vision experiment.
     '''
     def __init__(self, user, config_class):
+        self.state = 'init'
         #== Find and instantiate machine configuration ==
         if config_class == 'SafestartConfig':
             self.config = getattr(visexpman.engine.visual_stimulation.configuration, 'SafestartConfig')()
@@ -35,10 +39,37 @@ class VisExpRunner(object):
         # select and instantiate stimulus as specified in machine config
         if len(self.experiment_config_list) > 0:
             self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config)
-
         #Loading configurations is ready.
         #== Starting up application ==
-            
+        #Create screen and keyboard handler
+        self.screen_and_keyboard = user_interface.ScreenAndKeyboardHandler(self.config, self)
+        #Set up command handler
+        self.command_handler =  command_handler.CommandHandler(self.config, self)
+        self.command_handler.start()
+
+        self.command_buffer = []
+#        #Set up tcp ip listener for keyboard
+#        self.keyboard_listener = network_interface.TcpipListener(args=(self.config, self))
+#        self.keyboard_listener.start()
+
+        self.loop_state = 'running'
+
+        #TMP:
+        time.sleep(3.0)
+        #When initialization is done, visexpman state is 'ready'
+        self.state = 'ready'
+
+    def run_loop(self):
+        
+        while self.loop_state == 'running':
+            if hasattr(self.selected_experiment_config, 'pre_runnable') and self.selected_experiment_config.pre_runnable is not None:
+                self.selected_experiment_config.pre_runnable.run()
+            self.screen_and_keyboard.user_interface_handler()
+#            print self.command_buffer
+            #To avoid race condition
+            time.sleep(0.1)
+        
+        
 
 #class tryT(threading.Thread):
 #    def run(self):
@@ -138,6 +169,6 @@ class testVisexpRunner(unittest.TestCase):
         self.assertRaises(ImportError,  VisExpRunner, 'dummy', 'dummy')
 
 if __name__ == "__main__":
-    unittest.main()
-#    VisExpRunner(*find_out_config())
+#    unittest.main()
+    VisExpRunner(*find_out_config()).run_loop()
     

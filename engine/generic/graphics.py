@@ -246,7 +246,10 @@ class Screen(object):
             elif text_style == GLUT_BITMAP_8_BY_13:
                 spacing = 13
             if text[i] == '\n':
-                line_index += 1
+                if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
+                    line_index += 1
+                elif self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
+                    line_index -= 1
                 row_index = 0
             else:                
                 glRasterPos2f(position['col'] + spacing * row_index, position['row'] - line_index * spacing)

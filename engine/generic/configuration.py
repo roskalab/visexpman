@@ -55,7 +55,7 @@ class Config(object):
         self._set_user_parameters()
         #create/update parameters from existing parameter values
         self._calculate_parameters()
-        #check for new parameters created by calculate_parameters method, get their names and load them:        
+        #check for modified or new parameters created by calculate_parameters method, get their names and load them:
         self._create_parameter_aliases()
         
     def _create_generic_parameters(self):        

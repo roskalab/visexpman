@@ -145,7 +145,7 @@ class GratingTest(experiment.Experiment):
         stl.change_text(0, text = 'aa')
         stl.add_text('tex\nt', color = (1.0,  1.0,  0.0), position = utils.cr((200.0, 200.0)))
         stl.clear_screen(duration = 0.5)
-        stl.show_grating(duration = 30.0, profile = 'sqr', orientation = 0, velocity = 50.0, white_bar_width = 50, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
+        stl.show_grating(duration = 60.0, profile = 'sqr', orientation = 0, velocity = 0.0, white_bar_width = 50, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
         
 class DotsExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -210,10 +210,6 @@ def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):
     Between sending individual message-parameter pairs, we wait pause_before amount of time. This can be used to allow remote side do its processing.'''
     import socket
     import struct
-#    l_onoff = 1                                                                                                                                                           
-  #  l_linger = 0                                                                                                                                                          
-    #sock.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,                                                                                                                     
-      #           struct.pack('ii', l_onoff, l_linger))
     # Send data
     for i in range(len(messages)):
         while vs_runner.state !='idle':

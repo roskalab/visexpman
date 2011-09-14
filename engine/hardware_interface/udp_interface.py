@@ -1,3 +1,4 @@
+#TODO: rename to network_interface
 import socket
 import threading
 import sys
@@ -13,11 +14,13 @@ class TcpipListener(threading.Thread):
         self.setDaemon(True)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Bind the socket to the port
-        server_address = ('localhost', 10000)
+        server_address = ('localhost', self.config.COMMAND_INTERFACE_PORT)
         self.socket.bind(server_address)
+        
+        self.command_buffer = []
         return
         
-    def run(self):
+    def run(self):        
         self.socket.listen(1)
         while True:
             connection, client_address = self.socket.accept()
@@ -31,7 +34,8 @@ class TcpipListener(threading.Thread):
                         print >>sys.stderr, 'received "%s"' % data
                         #while self.runner.state !='idle':
                           #  time.sleep(0.3) # do not put data into buffer while processing buffer contents, even if it is 
-                        self.runner.command_buffer.append(data) # append to list is thread safe
+                        self.command_buffer.append(data) # append to list is thread safe
+                        self._process_command_buffer() #TODO: consider making command buffer processing independent of command reception
                         break
             except Exception as e:
                 print e
@@ -39,6 +43,10 @@ class TcpipListener(threading.Thread):
             finally:
                 # Clean up the connection
                 connection.close()
+                print 'socket closed'
+                
+    def _process_command_buffer(self):
+        pass
             
 class UdpInterface():
     """

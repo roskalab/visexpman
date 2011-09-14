@@ -36,6 +36,7 @@ class PreExperiment(Experiment):
     The run method of this experiment will be called prior the experiment to provide some initial stimulus while the experimental setup is being set up.
     '''
     pass
+    #TODO: Overlay menu on pre experiment visual stimulus so that the text is blended to the graphical pattern
     
 class MultipleStimulus(Experiment):
     

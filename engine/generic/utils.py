@@ -93,6 +93,18 @@ def coordinate_system(type, SCREEN_RESOLUTION=None):
         raise ValueError('Coordinate system type '+type+' not recognized')
     return ORIGO, HORIZONTAL_AXIS_POSITIVE_DIRECTION, VERTICAL_AXIS_POSITIVE_DIRECTION
     
+def centered_to_ulcorner_coordinate_system(coordinates, screen_size):
+    cooridnates_ulcorner = coordinates
+    cooridnates_ulcorner['row'] = - cooridnates_ulcorner['row'] + 0.5 * screen_size['row']
+    cooridnates_ulcorner['col'] = cooridnates_ulcorner['col'] + 0.5 * screen_size['col']
+    return cooridnates_ulcorner
+
+def ulcorner_to_centered_coordinate_system(coordinates, screen_size):
+    cooridnates_centered = coordinates
+    cooridnates_centered['row'] = - cooridnates_centered['row'] - 0.5 * screen_size['row']
+    cooridnates_centered['col'] = cooridnates_centered['col'] - 0.5 * screen_size['col']
+    return cooridnates_centered
+
 def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):
     wave = []
     period = int(period) 
@@ -581,13 +593,21 @@ def is_vector_in_array(array,  vector):
             return True
     return False
 
-if __name__ == "__main__":
+def is_in_list(list, item_to_find):
+    result = [item for item in list if item == item_to_find]
+    if len(result) > 0:
+        return True
+    else:
+        return False
 
+if __name__ == "__main__":
+    l = [1, 2, 3]
+    print is_in_list(l, 'a')
 #    print is_vector_in_array(numpy.array([[1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]]),  numpy.array([1.0, 2.0, 3.0]))
 #    unittest.main()
-    a = [1.0, 2.0, 3.0]
-    b = [10.0, 20.0, 30.0]
-    c = rc(numpy.array([a, b]))    
+#    a = [1.0, 2.0, 3.0]
+#    b = [10.0, 20.0, 30.0]
+#    c = rc(numpy.array([a, b]))    
 #    p = coordinate_transform_single_point(rc((0.0, 1.0)), rc((100.0, -100.0)), rc((-1, 1)) )
 #    print p['row']
 #    print p['col']

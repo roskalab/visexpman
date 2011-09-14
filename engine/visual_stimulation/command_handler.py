@@ -1,72 +1,111 @@
 import os
 import time
 import re
+import visexpman.engine.hardware_interface.udp_interface as network_interface
 command_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
-parameter_extract = re.compile('EOC(.+)EOP') # an optional parameter string follows EOD terminated by EOP. In case of binary data EOC and EOP should be escaped.
+parameter_extract = re.compile('EOC(.+)EOP') # an optional parameter string follows EOC terminated by EOP. In case of binary data EOC and EOP should be escaped.
 
-class CommandHandler():
+class CommandHandler(network_interface.TcpipListener):
     '''
     Responsible for interpreting incoming commands and calling the necessary functions
     '''
-    def __init__(self, config, stimulation_control,   user_interface,  runner):
+    def __init__(self, config, runner):
         '''
-        Initializes command buffer
+        TBD
         '''
+        network_interface.TcpipListener.__init__(self,  group=None, target=None, name=None,
+                 args=(config, runner), kwargs=None, verbose=None)
         self.machine_config = config
-        self.stimulation_control = stimulation_control
-        self.user_interface = user_interface
+#        self.stimulation_control = stimulation_control
+#        self.user_interface = user_interface
         self.runner = runner
+        
+    def _process_command_buffer(self):
+        '''
+        Overload command buffer processing method with parsing all the commands in the command buffer
+        '''
+        result = ''
+        for command in self.command_buffer:
+            result += '\n' + self.parse(command,  state = self.runner.state)
+        self.command_buffer = []
+        self.runner.screen_and_keyboard.message += result
      
-    def filterwheel(self, par):
-        filterwheel = int(self.command_buffer[0])
-        filter_position = int(self.command_buffer[1])
-        if self.machine_config.FILTERWHEEL_ENABLE:
-            self.stimulation_control.filterwheels[filterwheel - 1].set(filter_position)
-            #TODO: handle invalid filterwheel ID
-            return  'filterwheel' + str(filterwheel) + str(filter_position)
+    def select_experiment(self, par):        
+        return 'selected experiment: ' + str(par)
+        
+    def start_experiment(self, par):
+        return 'experiment started'
+#        return 'start stimulus ' + str(self.stimulation_control.run_stimulation())
+
+    def bullseye(self, par):
+        #TODO: stimulus fajlla (experiment class) kene alakitani
+#        try:
+#            bullseye_size = float(self.command_buffer[1:].replace(' ',  ''))
+#        except ValueError:
+#            bullseye_size = 0
+#        parsed_bytes = len(self.command_buffer)
+#        if self.user_interface.clear_stimulus and (bullseye_size > 0 or len(self.command_buffer) == 1):
+#            self.user_interface.clear_stimulus = False
+#            self.stimulation_control.setStimulationScript('self.st.show_image(self.machine_config.BULLSEYE_PATH,  duration = 0.0,  position = (0, 0), size = (' + str(bullseye_size) + ',' + str(bullseye_size) +'))')
+#            self.stimulation_control.run_stimulation()
+#        elif not self.user_interface.clear_stimulus and (bullseye_size == 0 or len(self.command_buffer) == 1):
+#            self.user_interface.clear_stimulus = True                    
+        return 'bullseye'
+        
+    def hide_menu(self, par):
+        self.runner.screen_and_keyboard.hide_menu = not self.runner.screen_and_keyboard.hide_menu
+        if self.runner.screen_and_keyboard.hide_menu:
+            return ''
+        else:
+            return 'menu is unhidden'
             
-    def start_stimulation(self, par):
-        return 'start stimulus ' + str(self.stimulation_control.run_stimulation())
+    def abort_experiment(self, par):
+        return ''
+        
+    def quit(self, par):
+        self.runner.loop_state = 'end loop'        
+        return 'quit'
+        
+    def filterwheel(self, par):
+        pass
+#        filterwheel = int(self.command_buffer[0])
+#        filter_position = int(self.command_buffer[1])
+#        if self.machine_config.FILTERWHEEL_ENABLE:
+#            self.stimulation_control.filterwheels[filterwheel - 1].set(filter_position)
+#            #TODO: handle invalid filterwheel ID
+#            return  'filterwheel' + str(filterwheel) + str(filter_position)
+            
+    
         
     def set_background_color(self, par):
         try:
             background_color = float(self.command_buffer[1:].replace(' ',  ''))
         except ValueError:
             background_color = 0
-        self.stimulation_control.setStimulationScript('self.st.clear_screen(color = ' + str(background_color) +')')
-        self.stimulation_control.run_stimulation()
+#        self.stimulation_control.setStimulationScript('self.st.clear_screen(color = ' + str(background_color) +')')
+#        self.stimulation_control.run_stimulation()
     
     def send_file(self, par):
         bytes_to_parse = self.command_buffer[1:]
         parsed_bytes = len(self.command_buffer[1:]) + 1 #THIS MAY BE TEMPORARY                    
-        self.stimulation_control.setStimulationScript(bytes_to_parse)
-        self.stimulation_control.run_stimulation()
+#        self.stimulation_control.setStimulationScript(bytes_to_parse)
+#        self.stimulation_control.run_stimulation()
         return 'file transferred and loaded'
         
-    def bullseye(self, par):
-        # stimulus fajlla kene alakitani
-        try:
-            bullseye_size = float(self.command_buffer[1:].replace(' ',  ''))
-        except ValueError:
-            bullseye_size = 0
-        parsed_bytes = len(self.command_buffer)
-        if self.user_interface.clear_stimulus and (bullseye_size > 0 or len(self.command_buffer) == 1):
-            self.user_interface.clear_stimulus = False
-            self.stimulation_control.setStimulationScript('self.st.show_image(self.machine_config.BULLSEYE_PATH,  duration = 0.0,  position = (0, 0), size = (' + str(bullseye_size) + ',' + str(bullseye_size) +'))')
-            self.stimulation_control.run_stimulation()
-        elif not self.user_interface.clear_stimulus and (bullseye_size == 0 or len(self.command_buffer) == 1):
-            self.user_interface.clear_stimulus = True                    
-        return 'bullseye'
+    
         
     def start_test(self, par):
-        '''stimulation library test'''
+        '''
+        stimulation library test
+        '''
         bullseye_size = 0
-        self.stimulation_control.setStimulationScript('self.st.stimulation_library_test()')
-        self.stimulation_control.run_stimulation()
-        return  'test stimulus library'   
+#        self.stimulation_control.setStimulationScript('self.st.stimulation_library_test()')
+#        self.stimulation_control.run_stimulation()
+        return  'test stimulus library'
         
     def get_log(self, par):
-        log_to_send = self.stimulation_control.last_stimulus_log()
+#        log_to_send = self.stimulation_control.last_stimulus_log()
+        log_to_send = ''
         self.udp_interface.send(str(len(log_to_send)))
         if log_to_send < self.machine_config.UDP_BUFFER_SIZE:
             self.udp_interface.send(log_to_send)
@@ -84,32 +123,32 @@ class CommandHandler():
     def set_measurement_id(self, par):
         bytes_to_parse = self.command_buffer[1:]
         parsed_bytes = len(self.command_buffer[1:]) + 1 #THIS MAY BE TEMPORARY
-        self.stimulation_control.setMesurementId(bytes_to_parse)
+#        self.stimulation_control.setMesurementId(bytes_to_parse)
         result = 'measurement ID set'
         
-    def quit(self, par):
-        self.runner.abort = True
-        return 'quit'
+    
         
     done = False
     
-    def capture_keypress(self):
-        '''Call this method when you want to process keys pressed on the keyboard'''
-        while not done:
-            for event in pygame.event.get():
-                if (event.type == KEYUP) or (event.type == KEYDOWN):
-                    return event
+#    def capture_keypress(self):
+#        '''Call this method when you want to process keys pressed on the keyboard'''
+#        while not done:
+#            for event in pygame.event.get():
+#                if (event.type == KEYUP) or (event.type == KEYDOWN):
+#                    return event
 
     def parse(self,  command_buffer,  state = 'unspecified'):
         '''
         Incoming string stream is parsed into commands depending on software state. When stimulation is running, incoming string is discarded
-        '''
-        if len(command_buffer) > 6: #SOC + EOC + 1 character is at least present in a command
+        '''        
+        result  = None
+        if len(command_buffer) > 6: #SOC + EOC + 1 character is at least present in a command            
             cmd = command_extract.findall(command_buffer)
-            par = parameter_extract.findall(command_buffer) #par is not at the beginning of the buffer
+            par = parameter_extract.findall(command_buffer) #par is not at the beginning of the buffer            
             if len(par)>0:
-                par = par[0]
-            result=getattr(self, cmd[0])(par) # call the selected function with the optional parameter                
+                par = par[0]            
+            if hasattr(self, cmd[0]):
+                result=getattr(self, cmd[0])(par) # call the selected function with the optional parameter                                
 #                elif cmd == self.machine_config.CMD_SET_STIMULUS_FILE_START and self.command_buffer.find(self.machine_config.CMD_SET_STIMULUS_FILE_END)  > 0:  # set stimulation file
 #                    stimulus_filename = self.command_buffer[self.command_buffer.find('<')+1 :self.command_buffer.find('>') ] 
 #                    file = self.machine_config.STIMULATION_FOLDER_PATH + os.sep + stimulus_filename
@@ -124,9 +163,9 @@ class CommandHandler():
 #                    self.stimulation_control.selected_experiment_config = file
 #                    parsed_bytes = 1
 #                    result =  'load stimulation '  + self.command_buffer[0] + ' ' + self.stimulation_control.stimulation_file                
-        print 'command executed' #this is only for development purposes, later this shall be removed
-        import sys
-        sys.exit()
+#        print 'command executed' #this is only for development purposes, later this shall be removed
+#        import sys
+#        sys.exit()
         return result
     
 def test():

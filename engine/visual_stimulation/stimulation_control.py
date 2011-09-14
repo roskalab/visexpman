@@ -4,6 +4,8 @@
 #3. Projector calibration
 #4. Virtual reality screen morphing calibration
 
+#TODO: frame rate error thresholding, logging etc
+
 import sys
 import zipfile as zip
 import os
