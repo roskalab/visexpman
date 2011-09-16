@@ -1,11 +1,10 @@
 from visexpman.engine.visual_stimulation.configuration import VisualStimulationConfig
 from visexpman.engine.generic import utils
 import visexpman.engine.visual_stimulation.experiment as experiment
-import visexpman.engine.visual_stimulation.stimulation_library as stl
 
 class VisexpRunnerTestConfig(VisualStimulationConfig):
     def _set_user_parameters(self):
-        dataset = 1
+        dataset = 0
         
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'TestExperimentConfig'
@@ -38,15 +37,33 @@ class VisexpRunnerTestConfig(VisualStimulationConfig):
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         self._create_parameters_from_locals(locals())
+        
+#    def _create_parameters(self):
+#        TEST_SERVER_ADDRESS = 'localhost'
+#        TEST_
+#        self._create_parameters_from_locals(locals())   
 
 class TestExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'GratingTest'
-        self.pre_runnable = 'MultipleDotTestPre'        
+#        self.runnable = 'TestExp1'
+        self.pre_runnable = 'TestPre'
         self._create_parameters_from_locals(locals())
         
-class MultipleDotTestPre(experiment.PreExperiment):
+class TestPre(experiment.PreExperiment):
     def run(self):
         pass
-#        print 'pre runnable'        
-#TODO:        stl.show_grating(duration = 0.1, profile = 'sqr', orientation = 0, velocity = 0.0, white_bar_width = 50, display_area =  utils.cr((100, 100)), pos = utils.cr((0, 0)), color_contrast = 1.0)
+#        print 'pre runnable'
+        self.show_fullscreen(color = (1.0, 1.0, 0.0), flip = False)
+        
+#        self.show_grating(duration = 1.1, profile = 'sqr', orientation = 0, velocity = 0.0, white_bar_width = 50, display_area =  utils.cr((100, 100)), pos = utils.cr((0, 0)), color_contrast = 1.0)
+
+
+class GratingTest(experiment.Experiment):
+    def run(self):
+#        print 'experiment'
+        self.show_grating(duration = 1.0, profile = 'sqr', orientation = 0, velocity = 10.0, white_bar_width = 50, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
+
+class TestExp1(experiment.Experiment):
+    def run(self):
+        print 'TestExp1'

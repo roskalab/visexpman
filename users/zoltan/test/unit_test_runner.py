@@ -17,6 +17,8 @@ class unitTestRunner():
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.visexp_runner.testVisexpRunner',
                'enable' : not True}, #Under development, test cases are being built
+               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.testNetworkInterface',
+               'enable' : True},
                ]
 
     def fetch_test_methods(self, test_class):

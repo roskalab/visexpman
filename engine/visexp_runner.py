@@ -7,10 +7,11 @@ import visexpman.engine.generic.utils as utils
 import visexpman.engine.visual_stimulation.configuration
 import visexpman.engine.visual_stimulation.experiment
 import visexpman.engine.visual_stimulation.user_interface as user_interface
-import visexpman.engine.hardware_interface.udp_interface as network_interface
+import visexpman.engine.hardware_interface.network_interface as network_interface
 import visexpman.engine.visual_stimulation.command_handler as command_handler
+import Queue
 
-class VisExpRunner(object):
+class VisExpRunner():
     '''
     This class is responsible for running vision experiment.
     '''
@@ -21,7 +22,7 @@ class VisExpRunner(object):
             self.config = getattr(visexpman.engine.visual_stimulation.configuration, 'SafestartConfig')()
         else:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, classtype = visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig)[0][1]()
-        #== Save user name ==
+        #Save user name
         if user == '':
             self.config.user = 'undefined'
         else:
@@ -36,48 +37,33 @@ class VisExpRunner(object):
         #Since 0-9 buttons can be used for experiment config (experiment) selection, maximum 10 experiment configs are allowed.
         if len(self.experiment_config_list) > 10: 
             raise RuntimeError('Maximum 10 different experiment types are allowed')
-        # select and instantiate stimulus as specified in machine config
-        if len(self.experiment_config_list) > 0:
-            self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config)
+        
         #Loading configurations is ready.
         #== Starting up application ==
         #Create screen and keyboard handler
-        self.screen_and_keyboard = user_interface.ScreenAndKeyboardHandler(self.config, self)
+        self.screen_and_keyboard = user_interface.ScreenAndKeyboardHandler(self.config, self)        
+        #Select and instantiate stimulus as specified in machine config
+        if len(self.experiment_config_list) > 0:
+            self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self)            
+        #start listening on tcp ip for receiving commands
+        self.command_queue = Queue.Queue()
+        self.tcpip_listener = network_interface.NetworkListener(self.config, self)
+        self.tcpip_listener.start()
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
-        self.command_handler.start()
-
-        self.command_buffer = []
-#        #Set up tcp ip listener for keyboard
-#        self.keyboard_listener = network_interface.TcpipListener(args=(self.config, self))
-#        self.keyboard_listener.start()
-
         self.loop_state = 'running'
-
-        #TMP:
-        time.sleep(3.0)
         #When initialization is done, visexpman state is 'ready'
         self.state = 'ready'
 
-    def run_loop(self):
-        
+    def run_loop(self):        
         while self.loop_state == 'running':
+            self.screen_and_keyboard.clear_screen_to_background()
             if hasattr(self.selected_experiment_config, 'pre_runnable') and self.selected_experiment_config.pre_runnable is not None:
                 self.selected_experiment_config.pre_runnable.run()
             self.screen_and_keyboard.user_interface_handler()
-#            print self.command_buffer
+            self.command_handler.process_command_buffer()
             #To avoid race condition
             time.sleep(0.1)
-        
-        
-
-#class tryT(threading.Thread):
-#    def run(self):
-#        print 'start'
-#        for i in range(10):
-#            print i
-#            time.sleep(0.5)
-#        print 'end'
 
 def find_out_config():
     '''

@@ -10,17 +10,15 @@ class TcpipListener(threading.Thread):
         threading.Thread.__init__(self, group=group, target=target, name=name,
                                   verbose=verbose)
         self.config = args[0]
-        self.runner = args[1]
+        self.caller = args[1]
         self.setDaemon(True)
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # Bind the socket to the port
         server_address = ('localhost', self.config.COMMAND_INTERFACE_PORT)
         self.socket.bind(server_address)
-        
-        self.command_buffer = []
         return
-        
-    def run(self):        
+
+    def run(self):
         self.socket.listen(1)
         while True:
             connection, client_address = self.socket.accept()
@@ -34,8 +32,8 @@ class TcpipListener(threading.Thread):
                         print >>sys.stderr, 'received "%s"' % data
                         #while self.runner.state !='idle':
                           #  time.sleep(0.3) # do not put data into buffer while processing buffer contents, even if it is 
-                        self.command_buffer.append(data) # append to list is thread safe
-                        self._process_command_buffer() #TODO: consider making command buffer processing independent of command reception
+                        self.caller.command_buffer.append(data) # append to list is thread safe
+#                        self._process_command_buffer() #TODO: consider making command buffer processing independent of command reception
                         break
             except Exception as e:
                 print e

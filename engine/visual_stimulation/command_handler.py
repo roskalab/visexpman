@@ -1,60 +1,53 @@
+import socket
 import os
 import time
 import re
-import visexpman.engine.hardware_interface.udp_interface as network_interface
+#import visexpman.engine.hardware_interface.udp_interface as network_interface
+import visexpman.engine.visual_stimulation.stimulation_control as experiment_control
 command_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
 parameter_extract = re.compile('EOC(.+)EOP') # an optional parameter string follows EOC terminated by EOP. In case of binary data EOC and EOP should be escaped.
 
-class CommandHandler(network_interface.TcpipListener):
+class CommandHandler():
     '''
     Responsible for interpreting incoming commands and calling the necessary functions
     '''
-    def __init__(self, config, runner):
+    def __init__(self, config, caller):
         '''
         TBD
-        '''
-        network_interface.TcpipListener.__init__(self,  group=None, target=None, name=None,
-                 args=(config, runner), kwargs=None, verbose=None)
+        '''        
         self.machine_config = config
-#        self.stimulation_control = stimulation_control
-#        self.user_interface = user_interface
-        self.runner = runner
+        self.caller = caller
+        self.config = config
         
-    def _process_command_buffer(self):
+    def process_command_buffer(self):
         '''
-        Overload command buffer processing method with parsing all the commands in the command buffer
+        Parsing all the commands in the command buffer
         '''
         result = ''
-        for command in self.command_buffer:
-            result += '\n' + self.parse(command,  state = self.runner.state)
-        self.command_buffer = []
-        self.runner.screen_and_keyboard.message += result
-     
+        #TODO: mutual exclusion of accessing command buffer is not yet solved.
+        while not self.caller.command_queue.empty():
+            result += '\n' + self.parse(self.caller.command_queue.get(),  state = self.caller.state)
+        self.caller.command_buffer = []
+        self.caller.screen_and_keyboard.message += result
+
     def select_experiment(self, par):        
-        return 'selected experiment: ' + str(par)
-        
-    def start_experiment(self, par):
-        return 'experiment started'
-#        return 'start stimulus ' + str(self.stimulation_control.run_stimulation())
+        '''
+        Selects experiment config based on keyboard command and instantiates the experiment config class
+        '''
+        self.caller.selected_experiment_config = self.caller.experiment_config_list[int(par)][1](self.config, self.caller)        
+        return 'selected experiment: ' + str(par) + ' '
+
+    def execute_experiment(self, par):
+        experiment_control.ExperimentControl(self.config, self.caller).run_experiment()
+        return 'experiment executed'        
 
     def bullseye(self, par):
-        #TODO: stimulus fajlla (experiment class) kene alakitani
-#        try:
-#            bullseye_size = float(self.command_buffer[1:].replace(' ',  ''))
-#        except ValueError:
-#            bullseye_size = 0
-#        parsed_bytes = len(self.command_buffer)
-#        if self.user_interface.clear_stimulus and (bullseye_size > 0 or len(self.command_buffer) == 1):
-#            self.user_interface.clear_stimulus = False
-#            self.stimulation_control.setStimulationScript('self.st.show_image(self.machine_config.BULLSEYE_PATH,  duration = 0.0,  position = (0, 0), size = (' + str(bullseye_size) + ',' + str(bullseye_size) +'))')
-#            self.stimulation_control.run_stimulation()
-#        elif not self.user_interface.clear_stimulus and (bullseye_size == 0 or len(self.command_buffer) == 1):
-#            self.user_interface.clear_stimulus = True                    
+        #TODO: stimulus fajlla (experiment class) kene alakitani         
         return 'bullseye'
         
     def hide_menu(self, par):
-        self.runner.screen_and_keyboard.hide_menu = not self.runner.screen_and_keyboard.hide_menu
-        if self.runner.screen_and_keyboard.hide_menu:
+        self.caller.screen_and_keyboard.hide_menu = not self.caller.screen_and_keyboard.hide_menu
+        if self.caller.screen_and_keyboard.hide_menu:
             return ''
         else:
             return 'menu is unhidden'
@@ -63,73 +56,73 @@ class CommandHandler(network_interface.TcpipListener):
         return ''
         
     def quit(self, par):
-        self.runner.loop_state = 'end loop'        
+        self.caller.loop_state = 'end loop'        
         return 'quit'
         
-    def filterwheel(self, par):
-        pass
-#        filterwheel = int(self.command_buffer[0])
-#        filter_position = int(self.command_buffer[1])
-#        if self.machine_config.FILTERWHEEL_ENABLE:
-#            self.stimulation_control.filterwheels[filterwheel - 1].set(filter_position)
-#            #TODO: handle invalid filterwheel ID
-#            return  'filterwheel' + str(filterwheel) + str(filter_position)
-            
-    
-        
-    def set_background_color(self, par):
-        try:
-            background_color = float(self.command_buffer[1:].replace(' ',  ''))
-        except ValueError:
-            background_color = 0
-#        self.stimulation_control.setStimulationScript('self.st.clear_screen(color = ' + str(background_color) +')')
-#        self.stimulation_control.run_stimulation()
-    
-    def send_file(self, par):
-        bytes_to_parse = self.command_buffer[1:]
-        parsed_bytes = len(self.command_buffer[1:]) + 1 #THIS MAY BE TEMPORARY                    
-#        self.stimulation_control.setStimulationScript(bytes_to_parse)
-#        self.stimulation_control.run_stimulation()
-        return 'file transferred and loaded'
-        
-    
-        
-    def start_test(self, par):
-        '''
-        stimulation library test
-        '''
-        bullseye_size = 0
-#        self.stimulation_control.setStimulationScript('self.st.stimulation_library_test()')
-#        self.stimulation_control.run_stimulation()
-        return  'test stimulus library'
-        
-    def get_log(self, par):
-#        log_to_send = self.stimulation_control.last_stimulus_log()
-        log_to_send = ''
-        self.udp_interface.send(str(len(log_to_send)))
-        if log_to_send < self.machine_config.UDP_BUFFER_SIZE:
-            self.udp_interface.send(log_to_send)
-        else:
-            log_to_send_size = len(log_to_send)
-            for i in range(int(log_to_send_size / (self.machine_config.UDP_BUFFER_SIZE * 0.5) + 1)):
-                start_index = int(0.5 * i * self.machine_config.UDP_BUFFER_SIZE)
-                end_index = int((i + 1) * self.machine_config.UDP_BUFFER_SIZE * 0.5 - 1)                    
-                if end_index > log_to_send_size:
-                    end_index = log_to_send_size - 1
-                self.udp_interface.send(log_to_send[start_index:end_index])
-                time.sleep(WAIT_BETWEEN_UDP_SENDS)                            
-        return  'send log ' + log_to_send
-        
-    def set_measurement_id(self, par):
-        bytes_to_parse = self.command_buffer[1:]
-        parsed_bytes = len(self.command_buffer[1:]) + 1 #THIS MAY BE TEMPORARY
-#        self.stimulation_control.setMesurementId(bytes_to_parse)
-        result = 'measurement ID set'
-        
-    
-        
-    done = False
-    
+#    def filterwheel(self, par):
+#        pass
+##        filterwheel = int(self.command_buffer[0])
+##        filter_position = int(self.command_buffer[1])
+##        if self.machine_config.FILTERWHEEL_ENABLE:
+##            self.stimulation_control.filterwheels[filterwheel - 1].set(filter_position)
+##            #TODO: handle invalid filterwheel ID
+##            return  'filterwheel' + str(filterwheel) + str(filter_position)
+#            
+#    
+#        
+#    def set_background_color(self, par):
+#        try:
+#            background_color = float(self.command_buffer[1:].replace(' ',  ''))
+#        except ValueError:
+#            background_color = 0
+##        self.stimulation_control.setStimulationScript('self.st.clear_screen(color = ' + str(background_color) +')')
+##        self.stimulation_control.run_stimulation()
+#    
+#    def send_file(self, par):
+#        bytes_to_parse = self.command_buffer[1:]
+#        parsed_bytes = len(self.command_buffer[1:]) + 1 #THIS MAY BE TEMPORARY                    
+##        self.stimulation_control.setStimulationScript(bytes_to_parse)
+##        self.stimulation_control.run_stimulation()
+#        return 'file transferred and loaded'
+#        
+#    
+#        
+#    def start_test(self, par):
+#        '''
+#        stimulation library test
+#        '''
+#        bullseye_size = 0
+##        self.stimulation_control.setStimulationScript('self.st.stimulation_library_test()')
+##        self.stimulation_control.run_stimulation()
+#        return  'test stimulus library'
+#        
+#    def get_log(self, par):
+##        log_to_send = self.stimulation_control.last_stimulus_log()
+#        log_to_send = ''
+#        self.udp_interface.send(str(len(log_to_send)))
+#        if log_to_send < self.machine_config.UDP_BUFFER_SIZE:
+#            self.udp_interface.send(log_to_send)
+#        else:
+#            log_to_send_size = len(log_to_send)
+#            for i in range(int(log_to_send_size / (self.machine_config.UDP_BUFFER_SIZE * 0.5) + 1)):
+#                start_index = int(0.5 * i * self.machine_config.UDP_BUFFER_SIZE)
+#                end_index = int((i + 1) * self.machine_config.UDP_BUFFER_SIZE * 0.5 - 1)                    
+#                if end_index > log_to_send_size:
+#                    end_index = log_to_send_size - 1
+#                self.udp_interface.send(log_to_send[start_index:end_index])
+#                time.sleep(WAIT_BETWEEN_UDP_SENDS)                            
+#        return  'send log ' + log_to_send
+#        
+#    def set_measurement_id(self, par):
+#        bytes_to_parse = self.command_buffer[1:]
+#        parsed_bytes = len(self.command_buffer[1:]) + 1 #THIS MAY BE TEMPORARY
+##        self.stimulation_control.setMesurementId(bytes_to_parse)
+#        result = 'measurement ID set'
+#        
+#    
+#        
+#    done = False
+#    
 #    def capture_keypress(self):
 #        '''Call this method when you want to process keys pressed on the keyboard'''
 #        while not done:
@@ -168,56 +161,57 @@ class CommandHandler(network_interface.TcpipListener):
 #        sys.exit()
         return result
     
-def test():
-    '''
-    Test cases:
-    - invalid state
-    - invalid command
-    - valid commands following each other
-    - valid commands and dummy characters are mixed
-    '''
-    test_configurations = [
-                                    {
-                                    'name' : 'invalid state', 
-                                    'expected results': ['no command executed'], 
-                                    'iterations' : 1,
-                                    'states': ['dummy'], 
-                                    'commands' : ['s']
-                                    }, 
-                                    {
-                                    'name' : 'invalid command', 
-                                    'expected results': ['no command executed'], 
-                                    'iterations' : 1,
-                                    'states': ['idle'], 
-                                    'commands' : [' ']
-                                    }, 
-                                    {
-                                    'name' : 'multiple valid commands', 
-                                    'expected results': ['start stimulus', 'load file stimulus.py', 'bullseye', 'no command executed'], 
-                                    'iterations' : 4,
-                                    'states': ['idle',  'idle',  'idle',  'stimulation'], 
-                                    'commands' : ['s<stimulus.py>', 'bbs',  '',  '' ]
-                                    }, 
-                                    {
-                                    'name' : 'multiple valid commands mixed with valid ones', 
-                                    'expected results': ['start stimulus', 'no command executed', 'no command executed', 'load file stimulus.py', 'bullseye', 'no command executed',  'no command executed',  'start stimulus',  'quit', 'no command executed'], 
-                                    'iterations' : 10,
-                                    'states': ['idle',  'idle',  'idle',  'idle',  'idle',  'idle', 'idle',  'idle',  'idle',  'idle'], 
-                                    'commands' : ['sd <stimulus.py>', 'b',  '86',  'sq',  '', '', 'g', '', '', '' ]
-                                    },                                    
-                                    ]
-    for test_configuration in test_configurations:
-        test_case(test_configuration)
-    
-def test_case(configuration):    
-    ch =  CommandHandler()
-    result = True
-    for i in range(configuration['iterations']):         
-        res = ch.parse(configuration['states'][i],  configuration['commands'][i])         
-        if res != configuration['expected results'][i]:
-            result = False
-    print 'test case: ' + configuration['name'] + ': ' + str(result)
-    return result
+#def test():
+#    '''
+#    Test cases:
+#    - invalid state
+#    - invalid command
+#    - valid commands following each other
+#    - valid commands and dummy characters are mixed
+#    '''
+#    test_configurations = [
+#                                    {
+#                                    'name' : 'invalid state', 
+#                                    'expected results': ['no command executed'], 
+#                                    'iterations' : 1,
+#                                    'states': ['dummy'], 
+#                                    'commands' : ['s']
+#                                    }, 
+#                                    {
+#                                    'name' : 'invalid command', 
+#                                    'expected results': ['no command executed'], 
+#                                    'iterations' : 1,
+#                                    'states': ['idle'], 
+#                                    'commands' : [' ']
+#                                    }, 
+#                                    {
+#                                    'name' : 'multiple valid commands', 
+#                                    'expected results': ['start stimulus', 'load file stimulus.py', 'bullseye', 'no command executed'], 
+#                                    'iterations' : 4,
+#                                    'states': ['idle',  'idle',  'idle',  'stimulation'], 
+#                                    'commands' : ['s<stimulus.py>', 'bbs',  '',  '' ]
+#                                    }, 
+#                                    {
+#                                    'name' : 'multiple valid commands mixed with valid ones', 
+#                                    'expected results': ['start stimulus', 'no command executed', 'no command executed', 'load file stimulus.py', 'bullseye', 'no command executed',  'no command executed',  'start stimulus',  'quit', 'no command executed'], 
+#                                    'iterations' : 10,
+#                                    'states': ['idle',  'idle',  'idle',  'idle',  'idle',  'idle', 'idle',  'idle',  'idle',  'idle'], 
+#                                    'commands' : ['sd <stimulus.py>', 'b',  '86',  'sq',  '', '', 'g', '', '', '' ]
+#                                    },                                    
+#                                    ]
+#    for test_configuration in test_configurations:
+#        test_case(test_configuration)
+#    
+#def test_case(configuration):    
+#    ch =  CommandHandler()
+#    result = True
+#    for i in range(configuration['iterations']):         
+#        res = ch.parse(configuration['states'][i],  configuration['commands'][i])         
+#        if res != configuration['expected results'][i]:
+#            result = False
+#    print 'test case: ' + configuration['name'] + ': ' + str(result)
+#    return result
     
 if __name__ == "__main__":
-    test()
+#    test()
+    pass

@@ -34,7 +34,7 @@ class VisexpmanScreen(graphics.Screen):
         #== Update text to screen ==
 #        self.refresh_non_experiment_screen()
         
-    def clear_screen(self):
+    def clear_screen_to_background(self):
         graphics.Screen.clear_screen(self, color = self.config.BACKGROUND_COLOR)        
         
     def _show_menu(self, flip = False):
@@ -78,7 +78,7 @@ class ScreenAndKeyboardHandler(VisexpmanScreen):
     '''
     VisexpmanScreen is amended with keyboard handling
     '''
-    def __init__(self, config, caller):        
+    def __init__(self, config, caller):
         VisexpmanScreen.__init__(self, config, caller)
         self.experiment_config_shortcuts = ['{0}'.format(i) for i in range(len(caller.experiment_config_list))]#stimulus_file_shortcut         
         self.keyboard_commands = self.config.KEYBOARD_COMMANDS
@@ -128,7 +128,6 @@ class ScreenAndKeyboardHandler(VisexpmanScreen):
         '''
         Updates menu and message on screen, takes care of handling the keyboard
         '''
-        self.clear_screen()
         self.refresh_non_experiment_screen()
         command = self.keyboard_handler()
         #Send command to command handler via tcp ip        

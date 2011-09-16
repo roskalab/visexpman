@@ -70,6 +70,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #Network/UDP settings
         SERVER_UDP_IP = '172.27.29.6'
+        SERVER_IP = 'localhost'
         WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
         CLIENT_UDP_IP = ''
         UDP_ENABLE = True
@@ -97,7 +98,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         COMMANDS = {
                     'hide_menu': {'key': 'h', 'domain': ['keyboard']}, 
                     #This command is dynamically added to the list. 'experiment_select' : {'key' : None, 'domain': ['keyboard']}, #I am not sure that this is good
-                    'start_experiment': {'key': 's', 'domain': ['keyboard', 'network interface', 'remote client']}, 
+                    'execute_experiment': {'key': 'e', 'domain': ['keyboard', 'network interface', 'remote client']}, 
                     'abort_experiment': {'key': 'a', 'domain': ['keyboard', 'network interface', 'remote client', 'running experiment']}, 
                     'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
                     'quit': {'key': 'q', 'domain': ['keyboard', 'network interface', 'remote client']},                    

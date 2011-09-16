@@ -54,101 +54,101 @@ import visexpman.engine.generic.utils
 #             ndots = 4
 #             self.st.show_dots(dot_sizes, dot_positions, ndots, duration = 2.0,  color = (1.0, 1.0, 1.0))
         
-class MyExperimentConfig(experiment.ExperimentConfig):
-    def _create_application_parameters(self):
-        PAR = 'dummy'
-        self._create_parameters_from_locals(locals())
+#class MyExperimentConfig(experiment.ExperimentConfig):
+#    def _create_application_parameters(self):
+#        PAR = 'dummy'
+#        self._create_parameters_from_locals(locals())
 
-class MyStimulus1(experiment.Experiment):
-    
-    def run(self):
-        off_time1 = 1.0
-        off_time2 = 1.0
-        on_time = 1.0
-        color = 128
-        self.st.clear_screen(duration = off_time1,  color = self.config.BACKGROUND_COLOR)
-        self.st.clear_screen(duration = on_time,  color = color)
-        self.st.clear_screen(duration = off_time2,  color = self.config.BACKGROUND_COLOR)
-
-
-class MyStimulus2(experiment.Experiment):
-    
-    def run(self):
-        off_time1 = 1.0
-        off_time2 = 1.0
-        on_time = 1.0
-        color = [1.0,  0.0,  0.0]
-        self.st.clear_screen(duration = off_time1,  color = self.config.BACKGROUND_COLOR)
-        self.st.clear_screen(duration = on_time,  color = color)
-        self.st.clear_screen(duration = off_time2,  color = self.config.BACKGROUND_COLOR)
-
-class OpenGLTest(experiment.Experiment):
-    def run(self):
-        size = 100.0
-        vertices = numpy.array([[0.5 * size,  0.5 * size, 0],
-                                [0.5 * size,  -0.5 * size, 0.0], 
-                                [-0.5 * size,  -0.5 * size, 0.0],
-                                [-0.5 * size,  0.5 * size, 0.0],
-                                ])
-        glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointerf(vertices)       
-        glClear (GL_COLOR_BUFFER_BIT)
-        
-        spd = 0.001
-        i = 0
-        glTranslatef(100.0,10.0, 0.0)
-        self.st.set_background((1.0, 1.0, 0.0))
-        while True:            
-            glClear (GL_COLOR_BUFFER_BIT)
-            glColor3f (1.0, 0.3, 1.0)            
-            glRotate(i*spd, 0.0, 0.0, 1.0)            
-            glDrawArrays(GL_POLYGON,  0, 4)
-            self.st._flip()
-            key_pressed = ''
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
-                    key_pressed = key_pressed + pygame.key.name(event.key)
-            if key_pressed == 'a':
-                break
-            i += 1
-            
-            
-            
-        glDisableClientState(GL_VERTEX_ARRAY)
-        self.st.clear_screen(duration = 0.1,  color = (1.0, 0.0, 0.0))
-        
-
-class ShapeTest(experiment.Experiment):
-    def run(self):        
-
-        self.st.show_shape_new()
-#        for i in range(100):
-#            pos = (-500+130*i,  0)
-#            self.st.show_image(self.config.DEFAULT_IMAGE_PATH,  position = pos)
-
-class GratingMaskTest(experiment.Experiment):
-    def run(self):
-        self.st.show_gratings(duration = 10.0, orientation = 45, velocity = 600, spatial_frequency = 300)
-
-#        test_time = 1.0
-#        preset_time  =1.0
-#        posttest_delay = 1.0
+#class MyStimulus1(experiment.Experiment):
+#    
+#    def run(self):
+#        off_time1 = 1.0
+#        off_time2 = 1.0
+#        on_time = 1.0
+#        color = 128
+#        self.st.clear_screen(duration = off_time1,  color = self.config.BACKGROUND_COLOR)
+#        self.st.clear_screen(duration = on_time,  color = color)
+#        self.st.clear_screen(duration = off_time2,  color = self.config.BACKGROUND_COLOR)
 #
-#        self.st.clear_screen(duration = preset_time,  color = 0.0)
+#
+#class MyStimulus2(experiment.Experiment):
+#    
+#    def run(self):
+#        off_time1 = 1.0
+#        off_time2 = 1.0
+#        on_time = 1.0
+#        color = [1.0,  0.0,  0.0]
+#        self.st.clear_screen(duration = off_time1,  color = self.config.BACKGROUND_COLOR)
+#        self.st.clear_screen(duration = on_time,  color = color)
+#        self.st.clear_screen(duration = off_time2,  color = self.config.BACKGROUND_COLOR)
+#
+#class OpenGLTest(experiment.Experiment):
+#    def run(self):
+#        size = 100.0
+#        vertices = numpy.array([[0.5 * size,  0.5 * size, 0],
+#                                [0.5 * size,  -0.5 * size, 0.0], 
+#                                [-0.5 * size,  -0.5 * size, 0.0],
+#                                [-0.5 * size,  0.5 * size, 0.0],
+#                                ])
+#        glEnableClientState(GL_VERTEX_ARRAY)
+#        glVertexPointerf(vertices)       
+#        glClear (GL_COLOR_BUFFER_BIT)
 #        
-#        for i in range(int(self.config.SCREEN_EXPECTED_FRAME_RATE * test_time * 0.5)):
-#            self.st.clear_screen(duration = 0.0,  color = 1.0)
-#            self.st.clear_screen(duration = 0.0,  color = 0.0)
-#        
+#        spd = 0.001
+#        i = 0
+#        glTranslatef(100.0,10.0, 0.0)
+#        self.st.set_background((1.0, 1.0, 0.0))
+#        while True:            
+#            glClear (GL_COLOR_BUFFER_BIT)
+#            glColor3f (1.0, 0.3, 1.0)            
+#            glRotate(i*spd, 0.0, 0.0, 1.0)            
+#            glDrawArrays(GL_POLYGON,  0, 4)
+#            self.st._flip()
+#            key_pressed = ''
+#            for event in pygame.event.get():
+#                if event.type == pygame.KEYDOWN:
+#                    key_pressed = key_pressed + pygame.key.name(event.key)
+#            if key_pressed == 'a':
+#                break
+#            i += 1
 #            
-#        self.st.clear_screen(duration = posttest_delay,  color = 0.0)
-        
-class DrumStimTest(experiment.Experiment):
-    def run(self):
-        duration  = 10.0
-        rpm = 10
-        n_stripes =8
-        drum_base_size = 50
-        drum_height = 500
-        contraction = 10
-        self.st.show_drum(duration,  rpm,  n_stripes,  drum_base_size ,  drum_height, contraction,  color = [0.5,  0.5,  0.5],  pos = (100,  100))
+#            
+#            
+#        glDisableClientState(GL_VERTEX_ARRAY)
+#        self.st.clear_screen(duration = 0.1,  color = (1.0, 0.0, 0.0))
+#        
+#
+#class ShapeTest(experiment.Experiment):
+#    def run(self):        
+#
+#        self.st.show_shape_new()
+##        for i in range(100):
+##            pos = (-500+130*i,  0)
+##            self.st.show_image(self.config.DEFAULT_IMAGE_PATH,  position = pos)
+#
+#class GratingMaskTest(experiment.Experiment):
+#    def run(self):
+#        self.st.show_gratings(duration = 10.0, orientation = 45, velocity = 600, spatial_frequency = 300)
+#
+##        test_time = 1.0
+##        preset_time  =1.0
+##        posttest_delay = 1.0
+##
+##        self.st.clear_screen(duration = preset_time,  color = 0.0)
+##        
+##        for i in range(int(self.config.SCREEN_EXPECTED_FRAME_RATE * test_time * 0.5)):
+##            self.st.clear_screen(duration = 0.0,  color = 1.0)
+##            self.st.clear_screen(duration = 0.0,  color = 0.0)
+##        
+##            
+##        self.st.clear_screen(duration = posttest_delay,  color = 0.0)
+#        
+#class DrumStimTest(experiment.Experiment):
+#    def run(self):
+#        duration  = 10.0
+#        rpm = 10
+#        n_stripes =8
+#        drum_base_size = 50
+#        drum_height = 500
+#        contraction = 10
+#        self.st.show_drum(duration,  rpm,  n_stripes,  drum_base_size ,  drum_height, contraction,  color = [0.5,  0.5,  0.5],  pos = (100,  100))

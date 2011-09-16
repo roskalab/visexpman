@@ -5,6 +5,7 @@
 #4. Virtual reality screen morphing calibration
 
 #TODO: frame rate error thresholding, logging etc
+#TODO: rename to experiment_control
 
 import sys
 import zipfile as zip
@@ -28,12 +29,26 @@ import visexpman.engine.hardware_interface.instrument
 
 import threading
 
-#if self.config.ENABLE_PARALLEL_PORT:
-#    import parallel
-    
 import stimulation_library
 
 import visexpman.users as users
+
+class ExperimentControl():
+    '''
+    Starts experiment, takes care of all the logging, data file handling, saving, aggregating, handles external devices
+    '''
+    def __init__(self, config, caller):
+        self.config = config
+        self.caller = caller
+
+    def run_experiment(self):
+        self.caller.screen_and_keyboard.message += '\nexperiment started'
+        self.caller.state = 'experiment running'
+        self.caller.selected_experiment_config.run()
+        self.caller.state = 'ready'
+        self.caller.screen_and_keyboard.message += '\nexperiment ended'
+        
+    
 
 class StimulationControl():
     '''
