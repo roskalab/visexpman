@@ -11,7 +11,7 @@ except:
 
 import unittest
 
-
+#TODO: make  naming of *ENABLE* like parameters consistent: ENABLE*
 class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         '''
@@ -60,13 +60,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #pixel scaling
         IMAGE_PROJECTED_ON_RETINA = True
-        SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel        
-        
-        #parallel port
-        ENABLE_PARALLEL_PORT = True
-        ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
-        FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
-        FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
+        SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel
         
         #Network/UDP settings
         SERVER_UDP_IP = '172.27.29.6'
@@ -133,15 +127,22 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         SEGMENT_DURATION = [100,  [1,  100000]]
         ACTION_BETWEEN_STIMULUS = 'no' #keystroke, wait_xx in sec. no =  off
         
+        #== External hardware ==        
+        #parallel port
+        ENABLE_PARALLEL_PORT = True
+        ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
+        FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
+        FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
+        
         #filterwheel settings
         FILTERWHEEL_ENABLE = True
-        FILTERWHEEL_SERIAL_PORT = [{
+        FILTERWHEEL_SERIAL_PORT = [[{
                                     'port' :  '/dev/ttyUSB0',
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
-                                    }] 
+                                    }] ]
                                     
         FILTERWHEEL_SETTLING_TIME = [2.0,  [0,  20]]
 
@@ -155,6 +156,8 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
                                                 'ND40': 5, 
                                                 'ND50': 6, 
                                                 }]]
+                                                
+        ENABLE_SHUTTER = False
         
         #this function call is compulsory
         self._create_parameters_from_locals(locals())

@@ -38,7 +38,12 @@ class CommandHandler():
         return 'selected experiment: ' + str(par) + ' '
 
     def execute_experiment(self, par):
-        experiment_control.ExperimentControl(self.config, self.caller).run_experiment()
+        #Experiment control class is always (re)created so that the necessary hardware initializations could take place
+        self.caller.experiment_control = experiment_control.ExperimentControl(self.config, self.caller)
+        #Run experiment
+        self.caller.experiment_control.run_experiment()
+        #Clean up experiment
+        self.caller.experiment_control.finish_experiment()
         return 'experiment executed'        
 
     def bullseye(self, par):

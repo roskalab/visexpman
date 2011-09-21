@@ -16,7 +16,7 @@ class VisExpRunner():
     This class is responsible for running vision experiment.
     '''
     def __init__(self, user, config_class):
-        self.state = 'init'
+        self.state = 'init'        
         #== Find and instantiate machine configuration ==
         if config_class == 'SafestartConfig':
             self.config = getattr(visexpman.engine.visual_stimulation.configuration, 'SafestartConfig')()
@@ -40,6 +40,8 @@ class VisExpRunner():
         
         #Loading configurations is ready.
         #== Starting up application ==
+        #Reference to experiment control class which is instantiated when the start of the experiment is evoked
+        self.experiment_control = None
         #Create screen and keyboard handler
         self.screen_and_keyboard = user_interface.ScreenAndKeyboardHandler(self.config, self)        
         #Select and instantiate stimulus as specified in machine config

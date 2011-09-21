@@ -20,20 +20,34 @@ class ExperimentConfig(Config):
         if self.runnable == None:
             raise ValueError('Specified stimulus class is not instantiated.')
         else:
-            self.runnable.run()
+            self.runnable.run()        
+        self.runnable.cleanup()
+
+    def set_experiment_control_context(self):        
+        self.runnable.set_experiment_control_context()    
 
 class Experiment(stimulation_library.Stimulations):
-#class Experiment():
     def __init__(self, machine_config, caller, experiment_config):
         self.experiment_config = experiment_config
         self.machine_config = machine_config
         self.caller = caller
         stimulation_library.Stimulations.__init__(self, self.machine_config, self.caller)
+            
+    def set_experiment_control_context(self):
+        '''
+        This function ensures that the hardware related calls are available from the experiment/run method
+        '''
+        self.devices = self.caller.experiment_control.devices        
+        self.parallel_port = self.devices.parallel_port        
+        self.filterwheels = self.devices.filterwheels
 
     def run(self):
         pass
 
     def cleanup(self):
+        '''
+        Operations to execute right after running the experiment. Saving user specific files, closing instruments  that are not handled within Device class, user specific file operations
+        '''
         pass
 
 class PreExperiment(Experiment):

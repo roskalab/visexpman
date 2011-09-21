@@ -185,7 +185,6 @@ class testParameter(unittest.TestCase):
     numeric - range check OK
     array - numpy array, no range check OK
     '''    
-    
         
     #Tests for constructor
     
