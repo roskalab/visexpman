@@ -27,23 +27,25 @@ class NetworkListener(threading.Thread):
         self.socket.bind(server_address)
 
     def run(self):
-        self.socket.listen(1)
+        self.socket.listen(1)        
         while True:
-            connection, client_address = self.socket.accept()
-            try:
-                data = ''
-                while True:
-                    newdata = connection.recv(16)
-                    data = data+newdata
-                    if len(newdata)==0:
-#                        print >>sys.stderr, 'received "%s"' % data
-                        self.caller.command_queue.put(data)
-                        break
-            except Exception as e:
-                print e
-            finally:
-                # Clean up the connection
-                connection.close()
+            #Connections are not accepted during experiment
+            if self.caller.state == 'ready':
+                connection, client_address = self.socket.accept()
+                try:
+                    data = ''
+                    while True:
+                        newdata = connection.recv(16)
+                        data = data+newdata
+                        if len(newdata)==0:
+    #                        print >>sys.stderr, 'received "%s"' % data
+                            self.caller.command_queue.put(data)
+                            break
+                except Exception as e:
+                    print e
+                finally:
+                    # Clean up the connection
+                    connection.close()
 
 class NetworkSender(threading.Thread):
     '''
@@ -64,7 +66,7 @@ class NetworkSender(threading.Thread):
 class NetworkInterfaceTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         SERVER_IP = 'localhost'
-        COMMAND_INTERFACE_PORT = [10000, [300,  65000]]
+        COMMAND_INTERFACE_PORT = [10001, [300,  65000]]
         self._create_parameters_from_locals(locals())
 
 class testRunner():
@@ -74,7 +76,7 @@ class testRunner():
         
 
     def run(self):
-        print 'test runner started'
+        print 'test runner started'        
         config = NetworkInterfaceTestConfig()
         listener = NetworkListener(config, self)
         sender1 = NetworkSender(config, self)
@@ -90,7 +92,10 @@ class testRunner():
         print self.response
 
         
-class testNetworkInterface(unittest.TestCase):    
+class testNetworkInterface(unittest.TestCase):
+    def setUp(self):
+        self.state = 'ready'
+        
     def test_01_multiple_senders(self):
         self.command_queue = Queue.Queue()
         config = NetworkInterfaceTestConfig()

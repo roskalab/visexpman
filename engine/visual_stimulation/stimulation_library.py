@@ -13,15 +13,16 @@ from OpenGL.GLUT import *
 import visexpman.engine.generic.parametric_control
 import visexpman.users.zoltan.test.stimulus_library_test_data
 from visexpman.engine.generic import utils
+import command_handler
 
-class Stimulations():
+class Stimulations(command_handler.CommandHandler):
     """
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
     """
     def __init__(self,  config,  caller):
         self.config = config
-        self.caller = caller        
+        self.caller = caller
         self.screen = caller.screen_and_keyboard
 #        self.stimulation_control = stimulation_control
 #        self.parallel = parallel
@@ -43,6 +44,12 @@ class Stimulations():
         self.log_on_flip_message = ''
         
         self.text_on_stimulus = []
+        
+        #Command buffer for keyboard commands during experiment
+        self.command_buffer = ''
+        #Abort command received signalling
+        self.abort = False
+        
         #self.test_message = psychopy.visual.TextStim(self.screen,  text = '',  pos = (0, 0),  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)        
         
 #        if self.config.ENABLE_PARALLEL_PORT:
@@ -85,18 +92,26 @@ class Stimulations():
         
 #        now = time.time()        
         self.screen.flip()       
-#        self.flip_time = time.time()
+        self.flip_time = time.time()
         frame_rate_deviation = abs(self.screen.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if frame_rate_deviation > self.config.FRAME_DELAY_TOLERANCE:
             self.delayed_frame_counter += 1
             frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
         else:
             frame_rate_warning = ''        
-#        self.stimulation_control.log.info('%2.3f\t%2.2f\t%s'%(self.flip_time,self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))
+        self.caller.experiment_control.log.info('%2.3f\t%2.2f\t%s'%(self.flip_time,self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))
         
         if trigger:
             self._frame_trigger_pulse()
-        
+            
+        #Keyboard commands
+        command = self.screen.experiment_user_interface_handler()
+        if command != None:
+            self.command_buffer += self.parse(command)            
+            if self.command_buffer.find('abort_experiment') != -1:
+                self.command_buffer = self.command_buffer.replace('abort_experiment', '')
+                self.abort = True
+    
 #        #periodic pause
 #        if self.config.ACTION_BETWEEN_STIMULUS != 'no':
 #            elapsed_time = int(now - self.stimulation_control.stimulation_start_time)
@@ -114,12 +129,10 @@ class Stimulations():
     def _frame_trigger_pulse(self):
         '''
         Generates frame trigger pulses
-        '''
-        pass
-#        if self.config.ENABLE_PARALLEL_PORT:
-#            self.parallel.setData(self.config.FRAME_TRIGGER_ON | self.bitmask)
-#            time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
-#            self.parallel.setData(self.config.FRAME_TRIGGER_OFF | self.bitmask)
+        '''        
+        self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
+        time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
+        self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
         
     #Externally callable functions showing different visual patterns
 #    def set_background(self,  color):        
@@ -131,7 +144,7 @@ class Stimulations():
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
-            color_to_set = color
+            color_to_set = utils.convert_color(color)
         self.log_on_flip_message = 'clear_screen(' + str(duration) + ', ' + str(color_to_set) + ')'
         self.screen.clear_screen(color = color_to_set)
 #        self.set_background(color_to_set)
@@ -139,11 +152,11 @@ class Stimulations():
 #         self.screen.clearBuffer()
         if duration == 0.0:
             if flip:
-                self._flip()
+                self._flip(trigger = True)
         else:
             for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
                 if flip:
-                    self._flip()
+                    self._flip(trigger = True)
                 
 #    def show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [],  size = None):
 #        '''
@@ -722,9 +735,8 @@ class Stimulations():
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)            
             self._flip(trigger = True)
-            #TODO:
-#            if self.stimulation_control.visual_stimulation_runner.abort:
-#                break
+            if self.abort:
+                break            
                     
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)

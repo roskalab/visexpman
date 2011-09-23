@@ -36,10 +36,18 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         PIN_RANGE = [0,  7]
         
         #run options: single experiment, user interface
-        RUN_MODE = ['single experiment',  ['single experiment',  'user interface',  'unknown']]
-            
-        #this a valid stimulation file path or an experiment object name
-        EXPERIMENT_CONFIG = 'undefined'
+        RUN_MODE = ['single experiment',  ['single experiment',  'user interface',  'unknown']]#TODO: Obsolete???
+        
+        #parameters that the user need to define: (This is a way to force users to create their configs carefully
+#        EXPERIMENT_CONFIG = 'TestExperimentConfig'
+#        LOG_PATH = '/media/Common/visexpman_data'
+#        EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
+#        BASE_PATH= '/media/Common/visexpman_data'
+#        ARCHIVE_PATH = '/media/Common/visexpman_data'
+#        CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
+#        TMP_PATH = '/media/Common/visexpman_data/tmp'
+
+        ARCHIVE_FORMAT = ['undefined', ['hdf5', 'zip', 'undefined']]
         
         #display parameters:
         SCREEN_RESOLUTION = utils.rc([600, 800])        
@@ -72,31 +80,18 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
         COMMAND_INTERFACE_PORT = [10000, [300,  65000]]
         
-        #commands (including commands which are accepted only from udp interface)
-#        COMMANDS_IDLE = {
-#        'i':'show_status', 
-#        's':'start_stimulation',    
-#        'b':'bullseye', 
-#        'q':'quit', 
-#        't':'send_file', 
-#        '<':'set_stimulus_file_start', 
-#        '>':'set_stimulus_file_end', 
-#        'g':'get_log', 
-#        #'i':'set_measurement_id', 
-#        'y':'start_test', 
-#        'c':'set_background_color', 
-#        'n':'next_segment'
-#        }
-        
         COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
         COMMANDS = {
                     'hide_menu': {'key': 'h', 'domain': ['keyboard']}, 
-                    #This command is dynamically added to the list. 'experiment_select' : {'key' : None, 'domain': ['keyboard']}, #I am not sure that this is good
+                    #Dynamically added to the list: 'experiment_select' : {'key' : None, 'domain': ['keyboard']},
                     'execute_experiment': {'key': 'e', 'domain': ['keyboard', 'network interface', 'remote client']}, 
-                    'abort_experiment': {'key': 'a', 'domain': ['keyboard', 'network interface', 'remote client', 'running experiment']}, 
+                    'abort_experiment': {'key': 'a', 'domain': ['running experiment']}, 
                     'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
-                    'quit': {'key': 'q', 'domain': ['keyboard', 'network interface', 'remote client']},                    
+                    'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},                    
                     }
+                    
+        #By overriding this parameter, the user can define additional keyboard commands that are handled during experiment
+        USER_EXPERIMENT_COMMANDS = {}
         
         #debug
         ENABLE_FRAME_CAPTURE = False
@@ -144,7 +139,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
                                     'bytesize' : serial.EIGHTBITS,                                    
                                     }] ]
                                     
-        FILTERWHEEL_SETTLING_TIME = [2.0,  [0,  20]]
+        FILTERWHEEL_SETTLING_TIME = [0.4,  [0,  20]]
 
         FILTERWHEEL_VALID_POSITIONS = [[1, 6],  [[0, 0],  [100, 100]]]
         
@@ -170,15 +165,14 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         DEFAULT_IMAGE_FILE = os.path.join(self.PACKAGE_PATH ,'data','images','default.bmp')
         BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'
         
-        #== Accepted keyboard commands and menu text==
-        KEYS = []
-        KEYBOARD_COMMANDS = {}
+    
+        #== Command list and menu text ==
+        self.COMMANDS = dict(self.COMMANDS.items() + self.USER_EXPERIMENT_COMMANDS.items())        
         MENU_TEXT = ''
         for k, v in self.COMMANDS.items():            
-            if utils.is_in_list(v['domain'], 'keyboard'):
-                KEYS.append(v['key'])
-                KEYBOARD_COMMANDS[k] = v
+            if utils.is_in_list(v['domain'], 'keyboard'):                
                 MENU_TEXT += v['key'] + ' - ' + k + '\n'
+
 
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX
         
@@ -209,6 +203,16 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
             self.MENU_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MENU_POSITION_p.v, utils.cr((1.0, 1.0)))
             self.MESSAGE_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MESSAGE_POSITION_p.v, utils.cr((1.0, 1.0)))
             
+class SafestartConfig(VisualStimulationConfig):    
+    def _set_user_parameters(self):
+        COORDINATE_SYSTEM = 'center'        
+        FILTERWHEEL_ENABLE = False        
+        ENABLE_PARALLEL_PORT = False
+        UDP_ENABLE = False
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.rc([600, 800])        
+        self._set_parameters_from_locals(locals())
+            
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         PAR1 = 'par'
@@ -234,17 +238,6 @@ class testApplicationConfiguration(unittest.TestCase):
     def test_ConfigClass(self):
         t = TestConfig()
         self.assertEqual((t.PAR1,  t.PAR2,  t.PAR3),  ('par1', 'par2',  t.PAR1+t.PAR2))
-        
-class SafestartConfig(VisualStimulationConfig):    
-    def _set_user_parameters(self):
-        COORDINATE_SYSTEM = 'center'        
-        FILTERWHEEL_ENABLE = False
-        RUN_MODE = 'user interface'
-        ENABLE_PARALLEL_PORT = False
-        UDP_ENABLE = False
-        FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.rc([600, 800])        
-        self._set_parameters_from_locals(locals())        
 
 if __name__ == "__main__":
     unittest.main()

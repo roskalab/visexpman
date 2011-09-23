@@ -5,7 +5,7 @@ import socket
 import threading
 import time#?
 import os#?
-from visexpman.engine.generic import utils
+import visexpman.engine.generic.utils as utils
 import visexpman.engine.generic.graphics as graphics
 from OpenGL.GL import *#?
 from OpenGL.GLUT import *
@@ -73,18 +73,19 @@ class VisexpmanScreen(graphics.Screen):
 
     def run_preexperiment(self):
         pass
-            
+
 class ScreenAndKeyboardHandler(VisexpmanScreen):
     '''
     VisexpmanScreen is amended with keyboard handling
     '''
     def __init__(self, config, caller):
         VisexpmanScreen.__init__(self, config, caller)
-        self.experiment_config_shortcuts = ['{0}'.format(i) for i in range(len(caller.experiment_config_list))]#stimulus_file_shortcut         
-        self.keyboard_commands = self.config.KEYBOARD_COMMANDS
+        self.experiment_config_shortcuts = ['{0}'.format(i) for i in range(len(caller.experiment_config_list))]#stimulus_file_shortcut
+        self.command_domain = 'keyboard'
+        self.keyboard_commands = self.config.COMMANDS
         self.separator = '@'
         for shortcut in self.experiment_config_shortcuts:
-            self.keyboard_commands['select_experiment' + self.separator + shortcut] = {'key': shortcut}
+            self.keyboard_commands['select_experiment' + self.separator + shortcut] = {'key': shortcut, 'domain' : [self.command_domain]}
 
     def _check_keyboard(self):
         '''
@@ -95,45 +96,49 @@ class ScreenAndKeyboardHandler(VisexpmanScreen):
                 key_pressed = pygame.key.name(event.key)
                 return key_pressed
         return
-        
-    def _parse_keyboard_command(self, key_pressed):
+
+    def _parse_keyboard_command(self, key_pressed, domain):
         '''
         If pressed key valid, generate command string.
         '''
         command = None
         parameter = None
-        if key_pressed == 'escape':
-            command = 'quit'
-        else:
-            for k, v in self.keyboard_commands.items():
-                if v['key'] == key_pressed:
-                    command_and_parameters = k.split(self.separator)
-                    command = command_and_parameters[0]
-                    if len(command_and_parameters) == 2:
-                        parameter = command_and_parameters[1]                    
-                    break
+        for k, v in self.keyboard_commands.items():
+            if v['key'] == key_pressed and utils.is_in_list(v['domain'], domain) :
+                command_and_parameters = k.split(self.separator)
+                command = command_and_parameters[0]
+                if len(command_and_parameters) == 2:
+                    parameter = command_and_parameters[1]
+                break
         if command != None:
             command = 'SOC' + command + 'EOC'
             if parameter != None:
-                command += parameter + 'EOP'        
+                command += parameter + 'EOP'
         return command
         
-    def keyboard_handler(self):
+    def keyboard_handler(self, domain):
         '''
         Registers pressed key and generates command string for command handler.
-        '''        
-        return self._parse_keyboard_command(self._check_keyboard())
+        '''
+        return self._parse_keyboard_command(self._check_keyboard(),  domain)
+        
+    def experiment_user_interface_handler(self):
+        '''
+        Keyboard commands accepted during running experiment are handled here
+        '''
+        return self.keyboard_handler('running experiment')
+        #TODO: create example for using user keyboard commands during experiment but outside visual stimulation
 
     def user_interface_handler(self):
         '''
         Updates menu and message on screen, takes care of handling the keyboard
         '''
         self.refresh_non_experiment_screen()
-        command = self.keyboard_handler()
-        #Send command to command handler via tcp ip        
+        command = self.keyboard_handler(self.command_domain)
+        #Send command to command handler via tcp ip
         if command != None:
             sock = socket.create_connection(('localhost',  self.config.COMMAND_INTERFACE_PORT))
-            sock.sendall(command)                                
+            sock.sendall(command)
     
 class UserInterface():
     '''

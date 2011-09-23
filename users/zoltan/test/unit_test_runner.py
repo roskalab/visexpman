@@ -23,6 +23,8 @@ class unitTestRunner():
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testExternalHardware',
                'enable' : True},
+               {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testDataHandler',
+               'enable' : True},
                ]
 
     def fetch_test_methods(self, test_class):
@@ -40,7 +42,7 @@ class unitTestRunner():
         Returns a reference to the test class given in string format
         '''
         test_class_name = test_class_path.split('.')[-1]
-        module_path = test_class_path.replace('.' + test_class_name, '')
+        module_path = test_class_path.replace('.' + test_class_name, '')        
         __import__(module_path)
         return getattr(sys.modules[module_path], test_class_name)
     

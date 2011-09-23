@@ -10,13 +10,16 @@ import visexpman.engine.visual_stimulation.user_interface as user_interface
 import visexpman.engine.hardware_interface.network_interface as network_interface
 import visexpman.engine.visual_stimulation.command_handler as command_handler
 import Queue
+import logging
+import os
+import shutil
 
 class VisExpRunner():
     '''
     This class is responsible for running vision experiment.
     '''
     def __init__(self, user, config_class):
-        self.state = 'init'        
+        self.state = 'init'
         #== Find and instantiate machine configuration ==
         if config_class == 'SafestartConfig':
             self.config = getattr(visexpman.engine.visual_stimulation.configuration, 'SafestartConfig')()
@@ -36,17 +39,18 @@ class VisExpRunner():
             self.experiment_config_list = []
         #Since 0-9 buttons can be used for experiment config (experiment) selection, maximum 10 experiment configs are allowed.
         if len(self.experiment_config_list) > 10: 
-            raise RuntimeError('Maximum 10 different experiment types are allowed')
-        
+            raise RuntimeError('Maximum 10 different experiment types are allowed')        
         #Loading configurations is ready.
         #== Starting up application ==
+        self._init_logging()
+        self.log.info('Visexpman started')
         #Reference to experiment control class which is instantiated when the start of the experiment is evoked
         self.experiment_control = None
         #Create screen and keyboard handler
-        self.screen_and_keyboard = user_interface.ScreenAndKeyboardHandler(self.config, self)        
-        #Select and instantiate stimulus as specified in machine config
+        self.screen_and_keyboard = user_interface.ScreenAndKeyboardHandler(self.config, self)
+        #Select and instantiate stimulus as specified in machine config, This is necessary to ensure that pre-experiment will run immediately after startup        
         if len(self.experiment_config_list) > 0:
-            self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self)            
+            self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self)        
         #start listening on tcp ip for receiving commands
         self.command_queue = Queue.Queue()
         self.tcpip_listener = network_interface.NetworkListener(self.config, self)
@@ -54,8 +58,13 @@ class VisExpRunner():
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
         self.loop_state = 'running'
+        #create list of imported python modules
+        module_info = utils.imported_modules()
+        self.visexpman_module_paths  = module_info[1]
+        self.module_versions = utils.module_versions(module_info[0])
         #When initialization is done, visexpman state is 'ready'
         self.state = 'ready'
+        self.log.info('Visexpman initialized')
 
     def run_loop(self):        
         while self.loop_state == 'running':
@@ -66,6 +75,24 @@ class VisExpRunner():
             self.command_handler.process_command_buffer()
             #To avoid race condition
             time.sleep(0.1)
+        self.close()
+            
+    def close(self):
+        #All files in TMP_PATH are deleted
+        shutil.rmtree(self.config.TMP_PATH)
+        os.mkdir(self.config.TMP_PATH)
+        self.log.info('Visexpman quit')
+            
+    def _init_logging(self):
+        #TODO: make folder to store all the files created by this run
+        #set up logging
+        self.logfile_path = utils.generate_filename(self.config.LOG_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')
+        self.log = logging.getLogger('visexpman log')
+        handler = logging.FileHandler(self.logfile_path)
+        formatter = logging.Formatter('%(asctime)s %(message)s')
+        handler.setFormatter(formatter)
+        self.log.addHandler(handler)
+        self.log.setLevel(logging.INFO)
 
 def find_out_config():
     '''

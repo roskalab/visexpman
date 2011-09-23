@@ -26,15 +26,19 @@ import unittest
 #from numpy import *
 
 import experiment
-import visexpman.engine.hardware_interface.instrument
 
 import threading
 
 import stimulation_library
-
 import visexpman.users as users
 
 import visexpman.engine.hardware_interface. instrument as instrument
+
+import os
+import logging
+import zipfile
+import os.path
+import shutil
 
 #For unittest:
 import visexpman.engine.generic.configuration as configuration
@@ -42,18 +46,38 @@ import serial
 
 class ExperimentControl():
     '''
-    Starts experiment, takes care of all the logging, data file handling, saving, aggregating, handles external devices
+    Starts experiment, takes care of all the logging, data file handling, saving, aggregating, handles external devices.
     '''
     def __init__(self, config, caller):
         self.config = config
         self.caller = caller
-        self.devices = Devices(config, caller)        
+        self.devices = Devices(config, caller)
+        self.data_handler = DataHandler(config, caller)
+
+    def init_experiment_logging(self):
+        experiment_class_name_name = str(self.caller.selected_experiment_config.runnable.__class__).split('.users.')[-1].split('.')[-1]
+        self.logfile_path = utils.generate_filename(self.config.EXPERIMENT_LOG_PATH + os.sep + 'experiment_' + experiment_class_name_name +  '_' + utils.date_string() + '.txt')
+        self.log = logging.getLogger('experiment log')
+        handler = logging.FileHandler(self.logfile_path)
+        formatter = logging.Formatter('%(message)s')
+        handler.setFormatter(formatter)
+        self.log.addHandler(handler)
+        self.log.setLevel(logging.INFO)
+        
+    def prepare_experiment_run(self):
+        #(Re)instantiate selected experiment config
+        self.caller.selected_experiment_config = self.caller.experiment_config_list[int(self.caller.command_handler.selected_experiment_config_index)][1](self.config, self.caller)
+        #init experiment logging
+        self.init_experiment_logging()
+        #Set experiment control context in selected experiment configuration
+        self.caller.selected_experiment_config.set_experiment_control_context()        
 
     def run_experiment(self):
-        #Set experiment control context in selected experiment configuration
-        self.caller.selected_experiment_config.set_experiment_control_context()
-        #Message to screen
+        self.prepare_experiment_run()
+        #Message to screen, log experiment start
         self.caller.screen_and_keyboard.message += '\nexperiment started'
+        self.caller.log.info('Started experiment: ' + str(self.caller.selected_experiment_config.runnable.__class__))
+        self.log.info('%2.3f\tExperiment started at %s' %(time.time(), utils.datetime_string()))
         #Change visexprunner state
         self.caller.state = 'experiment running'
         #Set acquisition trigger pin to high
@@ -64,11 +88,14 @@ class ExperimentControl():
         self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
         #Change visexprunner state to ready
         self.caller.state = 'ready'
-        #Send message to screen
+        #Send message to screen, log experiment completition
+        self.log.info('Experiment finished at ' + utils.datetime_string())
         self.caller.screen_and_keyboard.message += '\nexperiment ended'
+        self.caller.log.info('Experiment complete')
         
-    def finish_experiment(self):        
+    def finish_experiment(self):
         self.devices.close()
+        self.data_handler.archive_software_environment()
         
 class Devices():
     '''
@@ -87,8 +114,51 @@ class Devices():
         self.filterwheels = []
         for filterwheel in self.filterwheels:
             filterwheel.release_instrument()
+            
+class DataHandler():
+    '''
+    Responsible for the following:
+    1. Collect into zip file all the experiment related files: source code, experiment log, list of version of python modules
+    2. Convert this zip file to hdf5 (check VisexpA)
+    3. zipping is optional
+    '''
+    def __init__(self, config, caller):
+        self.caller = caller
+        self.config = config
+        self.visexpman_module_paths  = self.caller.visexpman_module_paths
+        self.module_versions = self.caller.module_versions        
+        
+    def archive_software_environment(self):
+        '''
+        Archives the called python modules within visexpman package and the versions of all the called packages
+        '''
+        #save module version data to file
+        module_versions_file_path = utils.generate_filename(os.path.join(self.config.TMP_PATH,'module_versions.txt'))
+        f = open(module_versions_file_path, 'wt')
+        f.write(self.module_versions)
+        f.close()
+        #If the archive format is hdf5, zip file is saved to a temporary folder
+        if self.config.ARCHIVE_FORMAT == 'zip':
+            zip_folder = self.config.ARCHIVE_PATH
+        elif self.config.ARCHIVE_FORMAT == 'hdf5':            
+            zip_folder = self.config.TMP_PATH
+        else:
+            raise RuntimeError('Archive format is not defined. Please check the configuration!')
+        #Create zip file
+        zip_file_path = utils.generate_filename(os.path.join(zip_folder, 'archive.zip'))
+        archive = zipfile.ZipFile(zip_file_path, "w")
+        archive.write(module_versions_file_path, module_versions_file_path.replace(os.path.dirname(module_versions_file_path), ''))
+        for python_module in self.visexpman_module_paths:
+            zip_path = python_module.split('visexpman')[-1]
+            archive.write(python_module, zip_path)
+        #include experiment log        
+        archive.write(self.caller.experiment_control.logfile_path, self.caller.experiment_control.logfile_path.replace(os.path.dirname(self.caller.experiment_control.logfile_path), ''))
+        archive.close()
+        f = open(zip_file_path, 'rb')
+        archive_binary = f.read(os.path.getsize(zip_file_path))
+        f.close()
 
-class testConfig(configuration.Config):
+class TestConfig(configuration.Config):
     def _create_application_parameters(self):
         PIN_RANGE = [0, 7]
         #parallel port
@@ -96,7 +166,7 @@ class testConfig(configuration.Config):
         ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
-        
+
         #filterwheel settings
         FILTERWHEEL_ENABLE = True
         FILTERWHEEL_SERIAL_PORT = [[{
@@ -106,33 +176,61 @@ class testConfig(configuration.Config):
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,
                                     }]]
-                                    
+
+        ARCHIVE_PATH = '/media/Common/visexpman_data/test'
+        TMP_PATH = '/media/Common/visexpman_data/tmp'
+        ARCHIVE_FORMAT = 'zip'
+        
         self._create_parameters_from_locals(locals())
+
+class testDataHandler(unittest.TestCase):
+    def setUp(self):
+        module_info = utils.imported_modules()
+        self.visexpman_module_paths  = module_info[1]
+        self.module_versions = utils.module_versions(module_info[0])
+        self.config = TestConfig()
+        self.dh = DataHandler(self.config, self)
+        
+    def test_01_DataHandler_contructor(self):                
+        self.assertEqual((hasattr(self.dh, 'visexpman_module_paths'), hasattr(self.dh, 'module_versions')), (True, True))
+        
+    def test_02_archive_software_environment(self):
+        self.dh.archive_software_environment()
+        module_versions_path = os.path.join(self.config.TMP_PATH,'module_versions_000.txt')
+        zip_path = os.path.join(self.config.TMP_PATH,'archive_000.zip')
+        self.assertEqual((os.path.exists(module_versions_path), os.path.exists(zip_path)), (True, True))
+        
+    def tearDown(self):
+        shutil.rmtree(self.config.TMP_PATH)
+        os.mkdir(self.config.TMP_PATH)
+        shutil.rmtree(self.config.ARCHIVE_PATH)
+        os.mkdir(self.config.ARCHIVE_PATH)
 
 class testExternalHardware(unittest.TestCase):
     '''
     '''
+    def setUp(self):
+        self.state = 'ready'
+        self.config = TestConfig()
+        
     #Testing constructor
-    def test_01_creating_instruments(self):
-        config = testConfig()
-        e = Devices(config, self)
+    def test_01_creating_instruments(self):        
+        e = Devices(self.config, self)
         self.assertEqual((hasattr(e, 'parallel_port'), hasattr(e, 'filterwheels')),  (True, True))
         e.close()
 
-    def test_02_disabled_instruments(self):
-        config = testConfig()
-        config.ENABLE_PARALLEL_PORT = False
-        config.FILTERWHEEL_ENABLE = False
-        e = Devices(config, self)
+    def test_02_disabled_instruments(self):        
+        self.config.ENABLE_PARALLEL_PORT = False
+        self.config.FILTERWHEEL_ENABLE = False
+        e = Devices(self.config, self)
         self.assertEqual((hasattr(e, 'parallel_port'), hasattr(e, 'filterwheels')),  (True, True))
         e.close()
 
-    def test_03_toggle_parallel_port_pin(self):
-        config = testConfig()
-        self.d = Devices(config, self)
-        self.d.parallel_port.set_data_bit(config.ACQUISITION_TRIGGER_PIN, 1)
+    def test_03_toggle_parallel_port_pin(self):        
+        self.d = Devices(self.config, self)
+        self.d.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
         time.sleep(0.1)
-        self.d.parallel_port.set_data_bit(config.ACQUISITION_TRIGGER_PIN, 0)
+        self.d.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
         self.assertEqual((hasattr(self.d, 'parallel_port'), hasattr(self.d, 'filterwheels'), self.d.parallel_port.iostate['data']),  (True, True, 0))
         self.d.close()
 
@@ -166,11 +264,11 @@ class StimulationControl():
         
         #calculate wait time for frame rate control
         self.wait_time = 1.0/self.config.SCREEN_EXPECTED_FRAME_RATE
-            
+
         #initialize event logging
-        self.logfile_path = self.config.LOG_PATH + os.sep + 'log' + str(time.time()).replace('.', '') + '.txt'       
-        
-        #self.logfile = psychopy.log.LogFile(self.logfile_path,  level = psychopy.log.DATA,  filemode = 'w')        
+        self.logfile_path = self.config.LOG_PATH + os.sep + 'log' + str(time.time()).replace('.', '') + '.txt'
+
+        #self.logfile = psychopy.log.LogFile(self.logfile_path,  level = psychopy.log.DATA,  filemode = 'w')
         self.log = logging.getLogger('vision experiment log')
         handler = logging.FileHandler(self.logfile_path)
         formatter = logging.Formatter('%(message)s')

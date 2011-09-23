@@ -4,11 +4,13 @@ try:
 except:
     pass
 import os
-import visexpman.engine.generic.configuration
 import unittest
 import time
 import threading
 import parallel
+import visexpman.engine.generic.configuration
+import visexpman.engine.generic.utils as utils
+import logging
 
 class Instrument(threading.Thread):
     '''
@@ -105,7 +107,7 @@ class ParallelPort(Instrument, parallel.Parallel):
         self.setAutoFeed(self.iostate['auto_feed'])
 
 
-    def set_data_bit(self, bit, value):
+    def set_data_bit(self, bit, value,  log = True):
         '''
         This function is to be called to change the value of one data bit
         '''
@@ -124,6 +126,12 @@ class ParallelPort(Instrument, parallel.Parallel):
             elif pin_value == 0:
                 self.iostate['data'] &= ~(1 << bit)
             self._update_io()
+            
+            #logging
+            if log:
+                log_message = 'Parallel port data bits set to %i' % self.iostate['data']
+                if self.caller.state == 'experiment running':
+                    self.caller.experiment_control.log.info('%2.3f\t%s' %(time.time(), log_message))
         
     def close_instrument(self):
         if self.config.ENABLE_PARALLEL_PORT:
@@ -196,7 +204,7 @@ class Filterwheel(Instrument):
         except AttributeError:
             pass
 
-    def set(self,  position = -1):
+    def set(self,  position = -1, log = True):
         if self.config.FILTERWHEEL_ENABLE:
             if self.config.FILTERWHEEL_VALID_POSITIONS[0] <= position and self.config.FILTERWHEEL_VALID_POSITIONS[1] >= position:
                 self.serial_port.write('pos='+str(position) +'\r')
@@ -204,8 +212,14 @@ class Filterwheel(Instrument):
                 self.position = position
             else:
                 raise RuntimeError('Invalid filter position')
+                
+            #logging
+            if log:
+                log_message = 'Filterwheel set to %i' % position
+                if self.caller.state == 'experiment running':
+                    self.caller.experiment_control.log.info('%2.3f\t%s' %(time.time(), log_message))
         
-    def set_filter(self,  filter = ''):
+    def set_filter(self,  filter = '', log = True):
         if self.config.FILTERWHEEL_ENABLE:
             position_to_set = -1
             for k,  v in self.config.FILTERWHEEL_FILTERS[self.id].items():
@@ -213,9 +227,15 @@ class Filterwheel(Instrument):
                     position_to_set = self.config.FILTERWHEEL_FILTERS[self.id][k]
                     
             if position_to_set != -1:
-                self.set(position_to_set)
+                self.set(position_to_set, log = False)
             else:
                 raise RuntimeError('Invalid filter name')
+                
+            #logging
+            if log:
+                log_message = 'Filterwheel set to %s' % filter
+                if self.caller.state == 'experiment running':
+                    self.caller.experiment_control.log.info('%2.3f\t%s' %(time.time(), log_message))
 
     def close_communication_interface(self):
         if self.config.FILTERWHEEL_ENABLE:
@@ -230,6 +250,7 @@ class testConfig(visexpman.engine.generic.configuration.Config):
             port = 'COM6'
         else:
             port = '/dev/ttyUSB0'
+            EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
             
         FILTERWHEEL_ENABLE = True
         ENABLE_PARALLEL_PORT = True
@@ -267,117 +288,119 @@ class testConfig(visexpman.engine.generic.configuration.Config):
         
         SHUTTER_PIN = [2, [0, 7]]
         
+        TEST_DATA_PATH = '/media/Common/visexpman_data/test'
+        
         self._create_parameters_from_locals(locals())
+        
+class testLogClass():
+    def __init__(self, config, caller):
+        self.logfile_path = utils.generate_filename(config.TEST_DATA_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')
+        self.log = logging.getLogger('test log')
+        handler = logging.FileHandler(self.logfile_path)
+        formatter = logging.Formatter('%(message)s')
+        handler.setFormatter(formatter)
+        self.log.addHandler(handler)
+        self.log.setLevel(logging.INFO)        
    
 class testInstruments(unittest.TestCase):       
-#== Parallel port ==    
-    def test_01_set_bit_on_parallel_port(self):
-        config = testConfig()
-        p = ParallelPort(config, self)
+    def setUp(self):
+        self.state = 'experiment running'
+        self.config = testConfig()
+        self.experiment_control = testLogClass(self.config, self)        
+        
+#== Parallel port ==
+    def test_01_set_bit_on_parallel_port(self):        
+        p = ParallelPort(self.config, self)
         p.set_data_bit(0, 1)
         self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
         p.release_instrument()
         
-    def test_02_set_bit_on_parallel_port(self):
-        config = testConfig()
-        p = ParallelPort(config, self)
+    def test_02_set_bit_on_parallel_port(self):        
+        p = ParallelPort(self.config, self)
         p.set_data_bit(0, True)
         self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
         p.release_instrument()
         
-    def test_03_set_invalid_bit_on_parallel_port(self):
-        config = testConfig()
-        p = ParallelPort(config, self)
+    def test_03_set_invalid_bit_on_parallel_port(self):        
+        p = ParallelPort(self.config, self)
         self.assertRaises(RuntimeError,  p.set_data_bit,  -1, 1)
         p.release_instrument()
         
-    def test_04_set_invalid_value_on_parallel_port(self):
-        config = testConfig()
-        p = ParallelPort(config, self)
+    def test_04_set_invalid_value_on_parallel_port(self):        
+        p = ParallelPort(self.config, self)
         self.assertRaises(RuntimeError,  p.set_data_bit, 0, 1.0)
         p.release_instrument()
     
-    def test_05_toggle_bit_on_parallel_port(self):
-        config = testConfig()
-        p = ParallelPort(config, self)
+    def test_05_toggle_bit_on_parallel_port(self):        
+        p = ParallelPort(self.config, self)
         p.set_data_bit(0, True)
         time.sleep(0.1)
         p.set_data_bit(0, False)
         self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
         p.release_instrument()
         
-    def test_06_parallel_port_call_when_disabled(self):
-        config = testConfig()
-        config.ENABLE_PARALLEL_PORT = False
-        p = ParallelPort(config, self)
+    def test_06_parallel_port_call_when_disabled(self):        
+        self.config.ENABLE_PARALLEL_PORT = False
+        p = ParallelPort(self.config, self)
         p.set_data_bit(0, True)        
         self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
-        p.release_instrument()
+        p.release_instrument()        
 
 #== Filterwheel ==    
 #test constructor
-    def test_05_filterwheel_communication_port_open(self):
-        conf = testConfig()
-        fw = Filterwheel(conf, self)        
+    def test_05_filterwheel_communication_port_open(self):        
+        fw = Filterwheel(self.config, self)        
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (True, -1, 'ready'))
         fw.release_instrument()
 
-    def test_06_filterwheel_communication_port_open_with_invalid_configuration_1(self):
-        conf = testConfig()
-        conf.FILTERWHEEL_SERIAL_PORT[0]['port'] = '/dev/mismatch/ttyUSB0'        
-        self.assertRaises(serial.SerialException,  Filterwheel,  conf, self)         
+    def test_06_filterwheel_communication_port_open_with_invalid_configuration_1(self):        
+        self.config.FILTERWHEEL_SERIAL_PORT[0]['port'] = '/dev/mismatch/ttyUSB0'        
+        self.assertRaises(serial.SerialException,  Filterwheel,  self.config, self)        
 
-    def test_07_filterwheel_communication_port_open_with_invalid_configuration_2(self):
-        conf = testConfig()
-        conf.FILTERWHEEL_SERIAL_PORT[0]['parity'] = 1        
-        self.assertRaises(ValueError,  Filterwheel,  conf, self) 
+    def test_07_filterwheel_communication_port_open_with_invalid_configuration_2(self):        
+        self.config.FILTERWHEEL_SERIAL_PORT[0]['parity'] = 1
+        self.assertRaises(ValueError,  Filterwheel,  self.config, self)         
         
 #test set position
-    def test_08_set_filterwheel_position(self):
-        conf = testConfig()
-        fw = Filterwheel(conf, self)
+    def test_08_set_filterwheel_position(self):        
+        fw = Filterwheel(self.config, self)
         fw.set(1)
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (True, 1, 'ready'))
         fw.release_instrument()
         
     def test_09_set_filterwheel_invalid_position(self):
-        conf = testConfig()
-        fw = Filterwheel(conf, self)        
+        self.config = testConfig()
+        fw = Filterwheel(self.config, self)        
         self.assertRaises(RuntimeError,  fw.set,  100)
         fw.release_instrument()
         
 #test set filterwheel
-    def test_10_set_filter(self):
-        conf = testConfig()
-        fw = Filterwheel(conf, self)
+    def test_10_set_filter(self):        
+        fw = Filterwheel(self.config, self)
         fw.set_filter('ND50')
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (True, 6, 'ready'))
         fw.release_instrument()
         
-    def test_11_set_invalid_filter_name(self):
-        conf = testConfig()
-        fw = Filterwheel(conf, self)
+    def test_11_set_invalid_filter_name(self):        
+        fw = Filterwheel(self.config, self)
         self.assertRaises(RuntimeError,  fw.set_filter,  10)
         fw.release_instrument()
         
-    def test_12_set_filterwheel_position_when_disabled(self):
-        conf = testConfig()
-        conf.FILTERWHEEL_ENABLE = False
-        fw = Filterwheel(conf, self)
+    def test_12_set_filterwheel_position_when_disabled(self):        
+        self.config.FILTERWHEEL_ENABLE = False
+        fw = Filterwheel(self.config, self)
         fw.set(1)
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (False, -1, 'ready'))
-        fw.release_instrument()
+        fw.release_instrument()        
         
 #== Shutter ==
-    def test_12_shutter_communication_port_open(self):
-        conf = testConfig()
-        sh = Shutter(conf, self)        
+    def test_12_shutter_communication_port_open(self):        
+        sh = Shutter(self.config, self)        
         self.assertEqual(hasattr(sh, 'serial_port'),  True)
         sh.release_instrument()
         
-    def test_13_shutter_toggle(self):
-        conf = testConfig()
-        sh = Shutter(conf, self)
+    def test_13_shutter_toggle(self):        
+        sh = Shutter(self.config, self)
         print 'The shutter should open and close'
         sh.toggle()
         time.sleep(1.0)
