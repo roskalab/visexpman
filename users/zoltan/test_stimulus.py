@@ -222,8 +222,7 @@ def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):
         except Exception as e:
             print e
         finally:  
-            sock.close()
-        
+            sock.close()        
     return
 
 if __name__ == '__main__':

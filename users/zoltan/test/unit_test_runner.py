@@ -13,10 +13,16 @@ class unitTestRunner():
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
                'enable' : not True}, #Not part of visexpman application
-              {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
+               {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.visexp_runner.testVisexpRunner',
                'enable' : not True}, #Under development, test cases are being built
+               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.testInstruments',
+               'enable' : True}, #Shutter tests are not complete
+               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.testNetworkInterface',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testExternalHardware',
+               'enable' : True},
                ]
 
     def fetch_test_methods(self, test_class):

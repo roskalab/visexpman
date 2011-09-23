@@ -5,6 +5,7 @@
 #4. Virtual reality screen morphing calibration
 
 #TODO: frame rate error thresholding, logging etc
+#TODO: rename to experiment_control
 
 import sys
 import zipfile as zip
@@ -18,6 +19,7 @@ from OpenGL.GLU import *
 import logging
 from visexpman.engine.generic import utils    
 import visexpman
+import unittest
 
 #import modules for stimulus files:
 #from random import *
@@ -28,12 +30,111 @@ import visexpman.engine.hardware_interface.instrument
 
 import threading
 
-#if self.config.ENABLE_PARALLEL_PORT:
-#    import parallel
-    
 import stimulation_library
 
 import visexpman.users as users
+
+import visexpman.engine.hardware_interface. instrument as instrument
+
+#For unittest:
+import visexpman.engine.generic.configuration as configuration
+import serial
+
+class ExperimentControl():
+    '''
+    Starts experiment, takes care of all the logging, data file handling, saving, aggregating, handles external devices
+    '''
+    def __init__(self, config, caller):
+        self.config = config
+        self.caller = caller
+        self.devices = Devices(config, caller)        
+
+    def run_experiment(self):
+        #Set experiment control context in selected experiment configuration
+        self.caller.selected_experiment_config.set_experiment_control_context()
+        #Message to screen
+        self.caller.screen_and_keyboard.message += '\nexperiment started'
+        #Change visexprunner state
+        self.caller.state = 'experiment running'
+        #Set acquisition trigger pin to high
+        self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
+        #Run experiment
+        self.caller.selected_experiment_config.run()
+        #Clear acquisition trigger pin
+        self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
+        #Change visexprunner state to ready
+        self.caller.state = 'ready'
+        #Send message to screen
+        self.caller.screen_and_keyboard.message += '\nexperiment ended'
+        
+    def finish_experiment(self):        
+        self.devices.close()
+        
+class Devices():
+    '''
+    This class encapsulates all the operations need to access (external) hardware: parallel port, shutter, filterwheel...
+    '''
+    def __init__(self, config, caller):
+        self.config = config
+        self.caller = caller
+        self.parallel_port = instrument.ParallelPort(config, caller)
+        self.filterwheels = []
+        for id in range(len(config.FILTERWHEEL_SERIAL_PORT)):
+            self.filterwheels.append(instrument.Filterwheel(config, caller, id =id))
+
+    def close(self):        
+        self.parallel_port.release_instrument()        
+        self.filterwheels = []
+        for filterwheel in self.filterwheels:
+            filterwheel.release_instrument()
+
+class testConfig(configuration.Config):
+    def _create_application_parameters(self):
+        PIN_RANGE = [0, 7]
+        #parallel port
+        ENABLE_PARALLEL_PORT = True
+        ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
+        FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
+        FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
+        
+        #filterwheel settings
+        FILTERWHEEL_ENABLE = True
+        FILTERWHEEL_SERIAL_PORT = [[{
+                                    'port' :  '/dev/ttyUSB0',
+                                    'baudrate' : 115200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,
+                                    }]]
+                                    
+        self._create_parameters_from_locals(locals())
+
+class testExternalHardware(unittest.TestCase):
+    '''
+    '''
+    #Testing constructor
+    def test_01_creating_instruments(self):
+        config = testConfig()
+        e = Devices(config, self)
+        self.assertEqual((hasattr(e, 'parallel_port'), hasattr(e, 'filterwheels')),  (True, True))
+        e.close()
+
+    def test_02_disabled_instruments(self):
+        config = testConfig()
+        config.ENABLE_PARALLEL_PORT = False
+        config.FILTERWHEEL_ENABLE = False
+        e = Devices(config, self)
+        self.assertEqual((hasattr(e, 'parallel_port'), hasattr(e, 'filterwheels')),  (True, True))
+        e.close()
+
+    def test_03_toggle_parallel_port_pin(self):
+        config = testConfig()
+        self.d = Devices(config, self)
+        self.d.parallel_port.set_data_bit(config.ACQUISITION_TRIGGER_PIN, 1)
+        time.sleep(0.1)
+        self.d.parallel_port.set_data_bit(config.ACQUISITION_TRIGGER_PIN, 0)
+        self.assertEqual((hasattr(self.d, 'parallel_port'), hasattr(self.d, 'filterwheels'), self.d.parallel_port.iostate['data']),  (True, True, 0))
+        self.d.close()
 
 class StimulationControl():
     '''
@@ -190,4 +291,5 @@ class StimulationControl():
             raise AttributeError('Stimulus config class does not have a run method?')
 
 if __name__ == "__main__":
-    pass
+    unittest.main()
+    

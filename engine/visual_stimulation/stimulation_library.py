@@ -19,11 +19,12 @@ class Stimulations():
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
     """
-    def __init__(self,  config,  user_interface,  stimulation_control,  parallel):
+    def __init__(self,  config,  caller):
         self.config = config
-        self.screen = user_interface.screen
-        self.stimulation_control = stimulation_control
-        self.parallel = parallel
+        self.caller = caller        
+        self.screen = caller.screen_and_keyboard
+#        self.stimulation_control = stimulation_control
+#        self.parallel = parallel
         start_time = time.time()         
         
         #self.image = psychopy.visual.SimpleImageStim(self.screen,  image = self.config.DEFAULT_IMAGE_PATH)         
@@ -36,80 +37,77 @@ class Stimulations():
         glBindTexture(GL_TEXTURE_2D, self.gratings_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         #self.image_list = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
-        self.backgroundColor = utils.convert_color(self.config.BACKGROUND_COLOR)        
+#        self.backgroundColor = utils.convert_color(self.config.BACKGROUND_COLOR)        
         
-        self.flip_time = time.time()
-        self.flip_times = []
-        self.delayed_frame_counter = 0
+        self.delayed_frame_counter = 0 #counts how many frames were delayed
         self.log_on_flip_message = ''
         
         self.text_on_stimulus = []
         #self.test_message = psychopy.visual.TextStim(self.screen,  text = '',  pos = (0, 0),  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)        
         
-        if self.config.ENABLE_PARALLEL_PORT:
-            import parallel
-            self.bitmask = 0
+#        if self.config.ENABLE_PARALLEL_PORT:
+#            import parallel
+#            self.bitmask = 0
         
     #Helper functions for showing stimulus
-    def _show_stimulus(self,  duration, stimulus, flip = True):
-        """
-        This function shows the stimulus on the display for the required time. 
-        TBD        
-        
-        """        
-        if duration == 0.0:            
-            if isinstance(stimulus, list):
-                for stimulus_item in stimulus:                    
-                    stimulus_item.draw()
-            else:
-                stimulus.draw()
-            if flip == True:
-                self._flip(trigger = True)
-        else:
-            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):
-                if isinstance(stimulus, list):
-                    for stimulus_item in stimulus:
-                        stimulus_item.draw()
-                else:
-                    stimulus.draw()
-                if i == 0:
-                    self._flip(trigger = True)
-                else:
-                    self._flip(trigger = False)
-                if self.stimulation_control.abort_stimulus():                    
-                    break        
+#    def _show_stimulus(self,  duration, stimulus, flip = True):
+#        """
+#        This function shows the stimulus on the display for the required time. 
+#        TBD        
+#        
+#        """        
+#        if duration == 0.0:            
+#            if isinstance(stimulus, list):
+#                for stimulus_item in stimulus:                    
+#                    stimulus_item.draw()
+#            else:
+#                stimulus.draw()
+#            if flip == True:
+#                self._flip(trigger = True)
+#        else:
+#            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):
+#                if isinstance(stimulus, list):
+#                    for stimulus_item in stimulus:
+#                        stimulus_item.draw()
+#                else:
+#                    stimulus.draw()
+#                if i == 0:
+#                    self._flip(trigger = True)
+#                else:
+#                    self._flip(trigger = False)
+##                if self.stimulation_control.abort_stimulus():                    
+##                    break        
     
     def _flip(self,  trigger = False,  saveFrame = False):
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
         """
         
-        now = time.time()        
+#        now = time.time()        
         self.screen.flip()       
-        self.flip_time = time.time()
+#        self.flip_time = time.time()
         frame_rate_deviation = abs(self.screen.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if frame_rate_deviation > self.config.FRAME_DELAY_TOLERANCE:
             self.delayed_frame_counter += 1
-            frame_rate_warning = ' %2.2f' %(frame_rate_deviation)
-            
+            frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
         else:
             frame_rate_warning = ''        
-        self.stimulation_control.log.info('%2.3f\t%2.2f\t%s'%(self.flip_time,self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))
+#        self.stimulation_control.log.info('%2.3f\t%2.2f\t%s'%(self.flip_time,self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))
         
         if trigger:
             self._frame_trigger_pulse()
         
-        #periodic pause
-        if self.config.ACTION_BETWEEN_STIMULUS != 'no':
-            elapsed_time = int(now - self.stimulation_control.stimulation_start_time)
-            if elapsed_time % self.config.SEGMENT_DURATION == 0 and elapsed_time >= self.config.SEGMENT_DURATION :                
-#                 psychopy.log.data('Pause')
-                if self.config.ACTION_BETWEEN_STIMULUS == 'keystroke':
-                    while True:
-                        if self.stimulation_control.is_next_pressed():
-                            break
-                elif self.config.ACTION_BETWEEN_STIMULUS.find('wait')  != -1:
-                    time.sleep(float(self.config.ACTION_BETWEEN_STIMULUS.replace('wait_',  '')))
+#        #periodic pause
+#        if self.config.ACTION_BETWEEN_STIMULUS != 'no':
+#            elapsed_time = int(now - self.stimulation_control.stimulation_start_time)
+#            if elapsed_time % self.config.SEGMENT_DURATION == 0 and elapsed_time >= self.config.SEGMENT_DURATION :                
+##                 psychopy.log.data('Pause')
+#                if self.config.ACTION_BETWEEN_STIMULUS == 'keystroke':
+#                    while True:
+#                        if self.stimulation_control.is_next_pressed():
+#                            break
+#                elif self.config.ACTION_BETWEEN_STIMULUS.find('wait')  != -1:
+#                    time.sleep(float(self.config.ACTION_BETWEEN_STIMULUS.replace('wait_',  '')))
                     
                 
         
@@ -117,459 +115,461 @@ class Stimulations():
         '''
         Generates frame trigger pulses
         '''
-        if self.config.ENABLE_PARALLEL_PORT:
-            self.parallel.setData(self.config.FRAME_TRIGGER_ON | self.bitmask)
-            time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
-            self.parallel.setData(self.config.FRAME_TRIGGER_OFF | self.bitmask)
+        pass
+#        if self.config.ENABLE_PARALLEL_PORT:
+#            self.parallel.setData(self.config.FRAME_TRIGGER_ON | self.bitmask)
+#            time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
+#            self.parallel.setData(self.config.FRAME_TRIGGER_OFF | self.bitmask)
         
     #Externally callable functions showing different visual patterns
-    def set_background(self,  color):        
-#        self.screen.setColor(utils.convert_color(color))
-        self.backgroundColor = utils.convert_color(color)        
+#    def set_background(self,  color):        
+##        self.screen.setColor(utils.convert_color(color))
+#        self.backgroundColor = utils.convert_color(color)        
         
-    def clear_screen(self, duration = 0.0,  color = None):
+    def show_fullscreen(self, duration = 0.0,  color = None, flip = True):
         
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
-            color_to_set = color            
-        
+            color_to_set = color
         self.log_on_flip_message = 'clear_screen(' + str(duration) + ', ' + str(color_to_set) + ')'
         self.screen.clear_screen(color = color_to_set)
-        self.set_background(color_to_set)
+#        self.set_background(color_to_set)
         self.show_text()
 #         self.screen.clearBuffer()
         if duration == 0.0:
-            self._flip()
+            if flip:
+                self._flip()
         else:
             for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
-                self._flip()
+                if flip:
+                    self._flip()
                 
-    def show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [],  size = None):
-        '''
-        Two use cases are handled here:
-            - showing individual image files
-                duration: duration of showing individual image file
-                path: path of image file
-            - showing the content of a folder
-                duration: duration of showing each image file in folder
-                path: path of folder containing images
-        position: position of image on screen in pixels. This can be controlled by parameters and a formula when images in a folder are shown
-        
-        If duration is 0, then each image will be shown for one display update time. 
-        Otherwise duration shall be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE to avoid dropped frames            
-        
-        Usage:
-            Show a single image which path is image_path for 1 second in a centered position:
-                show_image(image_path,  duration = 1.0,  position = (0, 0))
-            Play the content of a directory (directory_path) which contains image files. Each imag is shown for one frame time :
-                show_image(directory_path,  duration = 0,  position = (0, 0))
-            Play the content of a directory (directory_path) which contains image files and the position of the image is  the function of time and some parameters:
-                parameters = [100.0,  100.0]
-                formula_pos_x = ['p[0] * cos(10.0 * t)',  parameters]
-                formula_pos_y = ['p[1] * sin(10.0 * t)',  parameters]                
-                formula = [formula_pos_x,  formula_pos_y]
-                start_position = (10,10)
-                show_image('directory_path',  0.0,  start_position,  formula)             
-        '''
-        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
-        if os.path.isdir(path) == True:
-            #when content of directory is to be shown
-            image_file_paths = os.listdir(path)
-            image_file_paths.sort()
-            #initialize parametric control
-            start_time = time.time()            
-            posx_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
-            posy_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time) 
-            
-            for image_file_path in image_file_paths:
-                if len(formula) > 0:
-                    #parametric control
-                    parametric_data_x = formula[0]
-                    parametric_data_y = formula[1]
-                    actual_time_tick = time.time()
-                    posx_parametric_control.update(value = None,  parameters = parametric_data_x[1],  formula = parametric_data_x[0],  time_tick = actual_time_tick)
-                    posy_parametric_control.update(value = None,  parameters = parametric_data_y[1],  formula = parametric_data_y[0],  time_tick = actual_time_tick)
-                    parametric_position =  (posx_parametric_control.value,  posy_parametric_control.value)
-                    self._show_image_file(path + os.sep + image_file_path,  duration,  parametric_position)
-                else:
-                    self._show_image_file(path + os.sep + image_file_path,  duration,  position)                    
-                    
-                if self.stimulation_control.abort_stimulus():
-                    break
-            
-        elif os.path.isfile(path) == True:
-            path_adjusted = path
-            #resize file
-            if size != None and size != (0,  0):                
-                stimulus_image = Image.open(path)
-                stimulus_image = stimulus_image.resize((int(size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE), int(size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)))
-                stimulus_image.save(self.config.TEMP_IMAGE_PTH)
-                path_adjusted = self.config.TEMP_IMAGE_PTH
-            
-            #initialize parametric control
-            start_time = time.time()            
-            posx_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
-            posy_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time)             
-            if len(formula) > 0:
-                #parametric control
-                for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):
-                    parametric_data_x = formula[0]
-                    parametric_data_y = formula[1] 
-                    actual_time_tick = time.time()
-                    posx_parametric_control.update(value = None,  parameters = parametric_data_x[1],  formula = parametric_data_x[0],  time_tick = actual_time_tick)
-                    posy_parametric_control.update(value = None,  parameters = parametric_data_y[1],  formula = parametric_data_y[0],  time_tick = actual_time_tick)
-                    parametric_position =  (posx_parametric_control.value,  posy_parametric_control.value)                
-                    self._show_image_file(path_adjusted, 0,  parametric_position)
-            else:            
-                #when a single image file is to be shown
-                self._show_image_file(path_adjusted, duration,  position)
-        else:
-            pass
-            #invalid path
-        
-
-    def _show_image_file(self,  path,  duration,  position, flip = True):
-        self.image.setPos((self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1]))        
-        self.screen.logOnFlip('_show_image_file(' + path + ', ' + str(duration) + ', ' + str(position) + ')',  psychopy.log.DATA)
-        if duration == 0:                                        
-                    self.image.setImage(path)
-                    self.image.draw()
-                    if flip:
-                    	self._flip(trigger = True)
-        else:
-            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                    
-                    self.image.setImage(path)            
-                    self.image.draw()
-                    if i == 0:
-                        if flip:
-                            self._flip(trigger = True)
-                    else:
-                        if flip:
-                        	self._flip(trigger = False)
-                        
-                    
-    def show_movie(self,  video_file_path,  position = (0, 0)):
-        '''
-        Plays a movie file. Pressing 'a' aborts the playback. The video is positioned according to the value of position parameter
-        Parametric control of position is no possible. Some frames are always dropped.
-        '''        
-        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
-        self.movie = psychopy.visual.MovieStim(self.screen,  filename = video_file_path,  pos = position_p) 
-        msg = 'video size: ' + str(self.movie.format.height) + ', ' + str(self.movie.format.width)
-        psychopy.log.data(msg)
-        globalClock = psychopy.core.Clock()
-        frame_counter = 0
-        while globalClock.getTime() < self.movie.duration: 
-            self._flip() 
-            self._frame_trigger_pulse()
-            self.movie.draw()
-            frame_counter = frame_counter + 1
-            self.screen.logOnFlip(str(frame_counter) + ' show_movie(' + video_file_path +  ', ' + str(position) + ')', psychopy.log.DATA)            
-            if self.stimulation_control.abort_stimulus():
-                break
-            
-    def show_shape(self,  shape = '',  duration = 0.0,  pos = (0,  0),  color = [1.0,  1.0,  1.0],  orientation = 0.0,  size = [0,  0],  formula = [],  ring_size = 1.0, flip = True):
-        '''
-        This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. Otherwise parametric control is available while the time defined by duration.
-        
-        The following parameters can be controlled: position, color, orientation
-        
-        Usage:
-        1.  Show a single rectangle for one frame time, the default color is white, and the default position is in the center of the screen:
-            show_shape(shape = 'rect',  duration = 0.0,  size = [10,  100])
-        2. Show an annuli stimulus for 1 second
-            show_shape(shape = 'annuli',  duration = 1.0,  color = [1.0, 0.0, 0.0], size = [210,  100],  ring_size = [50,  10])
-        3. Show a rectangle with where position, orientation and color are parametrically controlled:
-            #first set formula and parameters for parametric control
-            parameters = []
-            posx = ['100*sin(t)',  parameters]
-            posy = ['100*cos(t)',  parameters]
-            ori = ['',  []]  #unconfigured parametric control
-            color_r = ['sin(t)',  parameters]
-            color_g = ['cos(t)',  parameters]
-            color_b = ['cos(t+pi*0.25)',  parameters]
-            #the order of parametric control configurations matter
-            formula = [posx,  posy,  ori, color_r,  color_g,  color_b]
-            show_shape(shape = 'rect',  duration = 5.0,  size = [100,  200],  formula = formula)        
-        '''
-        
-        position = pos
-        converted_color = utils.convert_color(color)
-        if  formula != []:
-            parametric_control_enable = True
-        else:
-            parametric_control_enable = False
-        
-        if isinstance(size, int) or isinstance(size, float):
-            size_adjusted = [size * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size * self.config.SCREEN_PIXEL_TO_UM_SCALE]
-        else:
-            size_adjusted = []
-            for item in size:
-                size_adjusted.append(item * self.config.SCREEN_PIXEL_TO_UM_SCALE)        
-        
-        #calculate the coordinates of the shape's vertices
-        if shape == 'rect' or shape == 'rectangle':
-            vertices = [[-0.5 * size_adjusted[0], -0.5 * size_adjusted[1]],  [-0.5 * size_adjusted[0], 0.5 * size_adjusted[1]],  [0.5 * size_adjusted[0], 0.5 * size_adjusted[1]],  [0.5 * size_adjusted[0], -0.5 * size_adjusted[1]]]
-        elif shape == 'circle' or shape == 'annulus' or shape == 'annuli':
-            vertices = utils.calculate_circle_vertices(size_adjusted,  1.0)
-        
-        if shape == 'annulus' or shape == 'annuli':
-            if isinstance(ring_size, list):
-                _ring_size = [size_adjusted[0] - ring_size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE]
-            else:
-                _ring_size = [size_adjusted[0] - ring_size * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size * self.config.SCREEN_PIXEL_TO_UM_SCALE]
-            inner_circle_vertices = utils.calculate_circle_vertices(_ring_size,  1.0) 
-        
-        if duration == 0.0:            
-            #show shape for a single frame
-            self.screen.logOnFlip('show_shape(' + shape+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(converted_color)  + ', ' + str(orientation)  + ', ' + str(size) + ')',  psychopy.log.DATA)            
-            self.shape.setVertices(vertices)
-            self.shape.setFillColor(converted_color)            
-            self.shape.setLineColor(converted_color)
-            self.shape.setPos((position[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
-            self.shape.setOri(orientation)            
-            
-            if shape == 'annulus' or shape == 'annuli':
-                    self.inner_circle.setVertices(inner_circle_vertices) 
-                    self.inner_circle.setFillColor(self.backgroundColor)                
-                    self.inner_circle.setLineColor(self.backgroundColor)
-                    self.inner_circle.setPos((position[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
-                    self.inner_circle.setOri(orientation)
-                    
-            self.shape.draw()
-            if flip:
-            	self._flip(trigger = True)
-        else:            
-            #initialize parametric control
-            if parametric_control_enable:
-                #convert color to Presentinator color format so that parametric control could handle this format
-                color_presentinator_format = utils.convert_color_from_pp(converted_color)                
-                start_time = time.time()
-                posx_pc = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
-                posy_pc = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time) 
-                ori_pc = visexpman.engine.generic.parametric_control.ParametricControl(orientation,  start_time)                 
-                color_r_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[0],  start_time) 
-                color_g_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[1],  start_time) 
-                color_b_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[2],  start_time)          
-                
-                posx_pars = formula[0]
-                posy_pars = formula[1]
-                ori_pars = formula[2]
-                color_r_pars = formula[3]
-                color_g_pars = formula[4]
-                color_b_pars = formula[5]
-            
-            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                                               
-                #parametric control                
-                if parametric_control_enable: 
-                    actual_time_tick = time.time()                    
-                    posx_pc.update(value = None,  parameters = posx_pars[1],  formula = posx_pars[0],  time_tick = actual_time_tick)                    
-                    posy_pc.update(value = None,  parameters = posy_pars[1],  formula = posy_pars[0],  time_tick = actual_time_tick)                    
-                    ori_pc.update(value = None,  parameters = ori_pars[1],  formula = ori_pars[0],  time_tick = actual_time_tick)                    
-                    color_r_pc.update(value = None,  parameters = color_r_pars[1],  formula = color_r_pars[0],  time_tick = actual_time_tick)                    
-                    color_g_pc.update(value = None,  parameters = color_g_pars[1],  formula = color_g_pars[0],  time_tick = actual_time_tick)                    
-                    color_b_pc.update(value = None,  parameters = color_b_pars[1],  formula = color_b_pars[0],  time_tick = actual_time_tick)
-                    position_to_set = (posx_pc.value,  posy_pc.value)
-                    orientation_to_set = ori_pc.value
-                    color_to_set = utils.convert_color((color_r_pc.value,  color_g_pc.value,  color_b_pc.value))
-                else:
-                    position_to_set = position                    
-                    orientation_to_set = orientation                    
-                    color_to_set = converted_color
-
-                self.screen.logOnFlip('show_shape(' + shape+ ', ' + str(duration) + ', ' + str(position_to_set) + ', ' + str(color_to_set)  + ', ' + str(orientation_to_set)  + ', ' + str(size) + ')',  psychopy.log.DATA)
-                self.shape.setVertices(vertices)                 
-                self.shape.setFillColor(color_to_set)                
-                self.shape.setLineColor(color_to_set)  
-                self.shape.setPos((position_to_set[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position_to_set[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
-                self.shape.setOri(orientation_to_set)                
-                
-                if shape == 'annulus' or shape == 'annuli':
-                    self.inner_circle.setVertices(inner_circle_vertices) 
-                    self.inner_circle.setFillColor(self.backgroundColor)                
-                    self.inner_circle.setLineColor(self.backgroundColor)
-                    self.inner_circle.setPos((position_to_set[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position_to_set[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
-                    self.inner_circle.setOri(orientation_to_set)
-                
-                self.shape.draw() 
-                if shape == 'annulus' or shape == 'annuli':
-                    self.inner_circle.draw() 
-                    
-                if formula == []:
-                    if i == 0:
-                        self._flip(trigger = True)
-                    else:
-                        self._flip(trigger = False)
-                else:
-                    self._flip(trigger = True)
-                    
-                if self.stimulation_control.abort_stimulus():
-                    break
-                    
-    def show_checkerboard(self,   n_checkers,  duration = 0.0,  pos = (0,  0),  color = [],  box_size = (0, 0), flip = True):
-        '''
-        Shows checkerboard:
-            n_checkers = (x dir (column), y dir (rows)), above 32x32 config, frame drop may occur
-            pos - position of display area
-            color - array of color values. Each item corresponds to one box
-            box_size - size of a box in pixel   
-            duration - duration of stimulus in seconds            
-            color - array of color values. Each item corresponds to one box. 0 position is the top left box, the last one is the bottom right
-        Usage example:
-            n_checkers = (21, 21)
-            box_size = [80, 50]    
-            n_frames = 100    
-            cols = random_colors(n_checkers[0] * n_checkers[1],  frames = n_frames) 
-            for i in range(n_frames):
-                self.st.show_checkerboard(n_checkers, duration = 0, pos = (0, 0), color = cols[i], box_size = box_size)
-        '''
-        
-        box_size_p = (box_size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  box_size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
-        pos_p = (pos[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  pos[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
-        
-        #check if number of boxes are the power of two
-        max_checker_number = max(n_checkers)
-        checker_number_two_log = math.log(max_checker_number,  2)
-        if checker_number_two_log != math.floor(checker_number_two_log) or  n_checkers[0] != n_checkers[1]:
-            new_size = int(2 ** math.ceil(checker_number_two_log))
-            n_checkers_fixed = (new_size,  new_size)
-        else:
-            n_checkers_fixed = n_checkers            
-        
-        #centerpoint is shifted, so an offset shall be calculated to move it back
-        x_offset = int((n_checkers_fixed[0] - n_checkers[0]) * box_size_p[0] * 0.5)
-        y_offset = int((n_checkers_fixed[1] - n_checkers[1]) * box_size_p[1] * 0.5)
-        pos_offset = (pos_p[0]  + x_offset,  pos_p[1]  - y_offset)
-            
-        self.screen.logOnFlip('show_checkerboard(' + str(n_checkers)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color[:self.config.MAX_LOG_COLORS])  + ', ' + str(box_size)  + ')',  psychopy.log.DATA) 
-        texture = Image.new('RGBA',  n_checkers_fixed) 
-        for row in range(n_checkers[1]):
-            for column in range(n_checkers[0]):            
-                texture.putpixel((column, row),  utils.convert_int_color(utils.convert_color_from_pp(utils.convert_color(color[row * n_checkers[0] + column]))))
-        
-        self.checkerboard.setPos(pos_offset)
-        self.checkerboard.setTex(texture) 
-        self.checkerboard.setSize((box_size_p[0] * n_checkers_fixed[0],  box_size_p[1] * n_checkers_fixed[1]))        
-        
-        self._show_stimulus(duration,  self.checkerboard, flip)
-
-    def show_ring(self,  n_rings, diameter,  inner_diameter = [],  duration = 0.0,  n_slices = 1,  colors = [],  pos = (0,  0), flip = True):
-        """
-        This stimulation shows concentric rings or circles. The rings/circles can be divided into pie slices.
-        n_rings: number of rings to be drawn
-        diameter: diameter' of outer rings. The followings are accepted:
-                    - list of integers: outer diameter of each rings
-                    - list of list of two integers: the two values determine the diameter in the x and y direction
-                    - single integer: diameter of first (innermost) ring. The diameter of additional rings will be the multiple of this value
-        inner_diameter: The following data types are accepted:
-                    - list of integers: inner diameter of each rings, assuming that diameter is a list
-                    - list of list of two integers: the two values determine the inner diameter in the x and y direction, assuming that diameter is a list
-                    - integer: width of rings regardless of the type of diameter
-        duration; duration of stimulus in second. If zero, stimulus is shown for one frame time
-        n_slices: number of slices displayed for each ring
-        colors: list of colors. The 0 place is the slice in the innermost circle, which angle range is between 0 and a positive number, for example in case of n_slices = 4, the angle range is 0, 90 for the 0. slice.
-        pos: center position of stimulus
-        
-        Use cases:
-        1) Show three concentrical circles for 1 second:
-            n_rings = 3
-            outer_diameter = [100, 120, 140]
-            show_ring(n_rings, outer_diameter,  duration = 1.0,  colors = colors)
-        2) Show rings 5 rings:
-            n_rings = 5
-            outer_diameter = 100
-            inner_diameter = 5 #width of ring
-            show_ring(n_rings, outer_diameter,  inner_diameter, duration = 1.0,  colors = colors)
-        3) Show sliced rings with arbitrary thickness and diameter
-            n_rings = 4
-            n_slices = 2
-            outer_diameter = [100, 200, 300]
-            inner_diameter = [90, 180, 250]
-            show_ring(n_rings, outer_diameter,  inner_diameter, duration = 1.0,  n_slices = 2, colors = colors)
-        4) Show oval rings
-            n_rings = 2
-            outer_diameter = [[100, 200], [200, 300]]
-            inner_diameter = [[90, 190], [190, 290]]
-            show_ring(n_rings, outer_diameter,  inner_diameter, duration = 1.0,  colors = colors)        
-        """        
-        self.screen.logOnFlip('show_rings(' + str(n_rings)+ ', ' + str(diameter) + ', ' + str(inner_diameter) + ', ' + str(duration)  + ', ' + str(n_slices)  + ', ' + str(colors[:self.config.MAX_LOG_COLORS])  + ', ' + str(pos)  + ')',  psychopy.log.DATA)
-        
-        pos_p = (pos[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  pos[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)        
-        outer_diameter = diameter       
-        
-        #sort diameter lists to avoid putting a bigger circle on a smaller one
-        if isinstance(outer_diameter, list):
-            outer_diameter.sort()
-            outer_diameter.reverse()
-        
-        if isinstance(inner_diameter, list):
-            inner_diameter.sort()
-            inner_diameter.reverse()        
-        
-        #if number of rings is not consistent with the number of provided list of diameter values
-        if isinstance(outer_diameter, list):
-            if n_rings != len(outer_diameter):
-                n_rings = len(outer_diameter)                    
-        
-        if isinstance(outer_diameter, list) and isinstance(inner_diameter, list):            
-            if len(inner_diameter) == 0 or (len(inner_diameter) != len(outer_diameter)):
-                inner_circles = False
-            else:
-                inner_circles = True
-                
-        elif isinstance(outer_diameter, list) and not isinstance(inner_diameter, list):            
-            new_inner_diameter = []
-            for diameter in outer_diameter:
-                if isinstance(diameter,  list):
-                    new_inner_diameter.append([diameter[0] - inner_diameter,  diameter[1] - inner_diameter])
-                else:
-                    new_inner_diameter.append(diameter - inner_diameter)
-            inner_diameter = new_inner_diameter
-            inner_circles = True
-        elif not isinstance(outer_diameter, list):
-            outer_diameter = numpy.linspace(outer_diameter,  n_rings * outer_diameter,  n_rings).tolist()
-            outer_diameter.reverse()
-            if isinstance(inner_diameter, list):
-                inner_circles = False
-            elif not isinstance(inner_diameter, list):
-                new_inner_diameter = []
-                for diameter in outer_diameter:
-                    new_inner_diameter.append(diameter - inner_diameter)
-                inner_diameter = new_inner_diameter                
-                inner_circles = True            
-        
-        slice_angle = 360.0 / n_slices        
-        self.ring = []
-        for ring in range(n_rings):
-            #diameter can be a list (ellipse) or a single integer (circle)            
-            if isinstance(outer_diameter[ring],  list):                
-                outer_r = [outer_diameter[ring][0]  * self.config.SCREEN_PIXEL_TO_UM_SCALE, outer_diameter[ring][1]  * self.config.SCREEN_PIXEL_TO_UM_SCALE]
-            else:
-                outer_r = (outer_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  outer_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE)                
-            
-            if inner_circles:
-                if isinstance(inner_diameter[ring],  list):
-                    inner_r = (inner_diameter[ring][0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  inner_diameter[ring][1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
-                else:                    
-                    inner_r = (inner_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  inner_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE)            
-            
-            for slice in range(n_slices):
-                start_angle = slice_angle * slice
-                end_angle = slice_angle * (slice + 1)
-                vertices = utils.calculate_circle_vertices(outer_r,  start_angle = start_angle,  end_angle = end_angle+1)               
-                
-                try:
-                    color = utils.convert_color(colors[(n_rings -1 - ring) * n_slices + slice])
-                except IndexError:
-                    color = (-1.0,  -1.0,  -1.0)
-                
-                self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = color,  fillColor = color,  vertices =  vertices,  pos = pos_p))
-            if inner_circles:
-                vertices  = utils.calculate_circle_vertices(inner_r)
-                self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = (-1.0,  -1.0,  -1.0),  fillColor = (-1.0,  -1.0,  -1.0),  vertices =  vertices,  pos = pos_p))
-                
-        self._show_stimulus(duration,  self.ring,  flip)
+#    def show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [],  size = None):
+#        '''
+#        Two use cases are handled here:
+#            - showing individual image files
+#                duration: duration of showing individual image file
+#                path: path of image file
+#            - showing the content of a folder
+#                duration: duration of showing each image file in folder
+#                path: path of folder containing images
+#        position: position of image on screen in pixels. This can be controlled by parameters and a formula when images in a folder are shown
+#        
+#        If duration is 0, then each image will be shown for one display update time. 
+#        Otherwise duration shall be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE to avoid dropped frames            
+#        
+#        Usage:
+#            Show a single image which path is image_path for 1 second in a centered position:
+#                show_image(image_path,  duration = 1.0,  position = (0, 0))
+#            Play the content of a directory (directory_path) which contains image files. Each imag is shown for one frame time :
+#                show_image(directory_path,  duration = 0,  position = (0, 0))
+#            Play the content of a directory (directory_path) which contains image files and the position of the image is  the function of time and some parameters:
+#                parameters = [100.0,  100.0]
+#                formula_pos_x = ['p[0] * cos(10.0 * t)',  parameters]
+#                formula_pos_y = ['p[1] * sin(10.0 * t)',  parameters]                
+#                formula = [formula_pos_x,  formula_pos_y]
+#                start_position = (10,10)
+#                show_image('directory_path',  0.0,  start_position,  formula)             
+#        '''
+#        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
+#        if os.path.isdir(path) == True:
+#            #when content of directory is to be shown
+#            image_file_paths = os.listdir(path)
+#            image_file_paths.sort()
+#            #initialize parametric control
+#            start_time = time.time()            
+#            posx_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
+#            posy_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time) 
+#            
+#            for image_file_path in image_file_paths:
+#                if len(formula) > 0:
+#                    #parametric control
+#                    parametric_data_x = formula[0]
+#                    parametric_data_y = formula[1]
+#                    actual_time_tick = time.time()
+#                    posx_parametric_control.update(value = None,  parameters = parametric_data_x[1],  formula = parametric_data_x[0],  time_tick = actual_time_tick)
+#                    posy_parametric_control.update(value = None,  parameters = parametric_data_y[1],  formula = parametric_data_y[0],  time_tick = actual_time_tick)
+#                    parametric_position =  (posx_parametric_control.value,  posy_parametric_control.value)
+#                    self._show_image_file(path + os.sep + image_file_path,  duration,  parametric_position)
+#                else:
+#                    self._show_image_file(path + os.sep + image_file_path,  duration,  position)                    
+#                    
+#                if self.stimulation_control.abort_stimulus():
+#                    break
+#            
+#        elif os.path.isfile(path) == True:
+#            path_adjusted = path
+#            #resize file
+#            if size != None and size != (0,  0):                
+#                stimulus_image = Image.open(path)
+#                stimulus_image = stimulus_image.resize((int(size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE), int(size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)))
+#                stimulus_image.save(self.config.TEMP_IMAGE_PTH)
+#                path_adjusted = self.config.TEMP_IMAGE_PTH
+#            
+#            #initialize parametric control
+#            start_time = time.time()            
+#            posx_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
+#            posy_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time)             
+#            if len(formula) > 0:
+#                #parametric control
+#                for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):
+#                    parametric_data_x = formula[0]
+#                    parametric_data_y = formula[1] 
+#                    actual_time_tick = time.time()
+#                    posx_parametric_control.update(value = None,  parameters = parametric_data_x[1],  formula = parametric_data_x[0],  time_tick = actual_time_tick)
+#                    posy_parametric_control.update(value = None,  parameters = parametric_data_y[1],  formula = parametric_data_y[0],  time_tick = actual_time_tick)
+#                    parametric_position =  (posx_parametric_control.value,  posy_parametric_control.value)                
+#                    self._show_image_file(path_adjusted, 0,  parametric_position)
+#            else:            
+#                #when a single image file is to be shown
+#                self._show_image_file(path_adjusted, duration,  position)
+#        else:
+#            pass
+#            #invalid path
+#        
+#
+#    def _show_image_file(self,  path,  duration,  position, flip = True):
+#        self.image.setPos((self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1]))        
+#        self.screen.logOnFlip('_show_image_file(' + path + ', ' + str(duration) + ', ' + str(position) + ')',  psychopy.log.DATA)
+#        if duration == 0:                                        
+#                    self.image.setImage(path)
+#                    self.image.draw()
+#                    if flip:
+#                    	self._flip(trigger = True)
+#        else:
+#            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                    
+#                    self.image.setImage(path)            
+#                    self.image.draw()
+#                    if i == 0:
+#                        if flip:
+#                            self._flip(trigger = True)
+#                    else:
+#                        if flip:
+#                        	self._flip(trigger = False)
+#                        
+#                    
+#    def show_movie(self,  video_file_path,  position = (0, 0)):
+#        '''
+#        Plays a movie file. Pressing 'a' aborts the playback. The video is positioned according to the value of position parameter
+#        Parametric control of position is no possible. Some frames are always dropped.
+#        '''        
+#        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
+#        self.movie = psychopy.visual.MovieStim(self.screen,  filename = video_file_path,  pos = position_p) 
+#        msg = 'video size: ' + str(self.movie.format.height) + ', ' + str(self.movie.format.width)
+#        psychopy.log.data(msg)
+#        globalClock = psychopy.core.Clock()
+#        frame_counter = 0
+#        while globalClock.getTime() < self.movie.duration: 
+#            self._flip() 
+#            self._frame_trigger_pulse()
+#            self.movie.draw()
+#            frame_counter = frame_counter + 1
+#            self.screen.logOnFlip(str(frame_counter) + ' show_movie(' + video_file_path +  ', ' + str(position) + ')', psychopy.log.DATA)            
+#            if self.stimulation_control.abort_stimulus():
+#                break
+#            
+#    def show_shape(self,  shape = '',  duration = 0.0,  pos = (0,  0),  color = [1.0,  1.0,  1.0],  orientation = 0.0,  size = [0,  0],  formula = [],  ring_size = 1.0, flip = True):
+#        '''
+#        This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. Otherwise parametric control is available while the time defined by duration.
+#        
+#        The following parameters can be controlled: position, color, orientation
+#        
+#        Usage:
+#        1.  Show a single rectangle for one frame time, the default color is white, and the default position is in the center of the screen:
+#            show_shape(shape = 'rect',  duration = 0.0,  size = [10,  100])
+#        2. Show an annuli stimulus for 1 second
+#            show_shape(shape = 'annuli',  duration = 1.0,  color = [1.0, 0.0, 0.0], size = [210,  100],  ring_size = [50,  10])
+#        3. Show a rectangle with where position, orientation and color are parametrically controlled:
+#            #first set formula and parameters for parametric control
+#            parameters = []
+#            posx = ['100*sin(t)',  parameters]
+#            posy = ['100*cos(t)',  parameters]
+#            ori = ['',  []]  #unconfigured parametric control
+#            color_r = ['sin(t)',  parameters]
+#            color_g = ['cos(t)',  parameters]
+#            color_b = ['cos(t+pi*0.25)',  parameters]
+#            #the order of parametric control configurations matter
+#            formula = [posx,  posy,  ori, color_r,  color_g,  color_b]
+#            show_shape(shape = 'rect',  duration = 5.0,  size = [100,  200],  formula = formula)        
+#        '''
+#        
+#        position = pos
+#        converted_color = utils.convert_color(color)
+#        if  formula != []:
+#            parametric_control_enable = True
+#        else:
+#            parametric_control_enable = False
+#        
+#        if isinstance(size, int) or isinstance(size, float):
+#            size_adjusted = [size * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size * self.config.SCREEN_PIXEL_TO_UM_SCALE]
+#        else:
+#            size_adjusted = []
+#            for item in size:
+#                size_adjusted.append(item * self.config.SCREEN_PIXEL_TO_UM_SCALE)        
+#        
+#        #calculate the coordinates of the shape's vertices
+#        if shape == 'rect' or shape == 'rectangle':
+#            vertices = [[-0.5 * size_adjusted[0], -0.5 * size_adjusted[1]],  [-0.5 * size_adjusted[0], 0.5 * size_adjusted[1]],  [0.5 * size_adjusted[0], 0.5 * size_adjusted[1]],  [0.5 * size_adjusted[0], -0.5 * size_adjusted[1]]]
+#        elif shape == 'circle' or shape == 'annulus' or shape == 'annuli':
+#            vertices = utils.calculate_circle_vertices(size_adjusted,  1.0)
+#        
+#        if shape == 'annulus' or shape == 'annuli':
+#            if isinstance(ring_size, list):
+#                _ring_size = [size_adjusted[0] - ring_size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE]
+#            else:
+#                _ring_size = [size_adjusted[0] - ring_size * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size * self.config.SCREEN_PIXEL_TO_UM_SCALE]
+#            inner_circle_vertices = utils.calculate_circle_vertices(_ring_size,  1.0) 
+#        
+#        if duration == 0.0:            
+#            #show shape for a single frame
+#            self.screen.logOnFlip('show_shape(' + shape+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(converted_color)  + ', ' + str(orientation)  + ', ' + str(size) + ')',  psychopy.log.DATA)            
+#            self.shape.setVertices(vertices)
+#            self.shape.setFillColor(converted_color)            
+#            self.shape.setLineColor(converted_color)
+#            self.shape.setPos((position[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
+#            self.shape.setOri(orientation)            
+#            
+#            if shape == 'annulus' or shape == 'annuli':
+#                    self.inner_circle.setVertices(inner_circle_vertices) 
+#                    self.inner_circle.setFillColor(self.backgroundColor)                
+#                    self.inner_circle.setLineColor(self.backgroundColor)
+#                    self.inner_circle.setPos((position[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
+#                    self.inner_circle.setOri(orientation)
+#                    
+#            self.shape.draw()
+#            if flip:
+#            	self._flip(trigger = True)
+#        else:            
+#            #initialize parametric control
+#            if parametric_control_enable:
+#                #convert color to Presentinator color format so that parametric control could handle this format
+#                color_presentinator_format = utils.convert_color_from_pp(converted_color)                
+#                start_time = time.time()
+#                posx_pc = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
+#                posy_pc = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time) 
+#                ori_pc = visexpman.engine.generic.parametric_control.ParametricControl(orientation,  start_time)                 
+#                color_r_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[0],  start_time) 
+#                color_g_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[1],  start_time) 
+#                color_b_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[2],  start_time)          
+#                
+#                posx_pars = formula[0]
+#                posy_pars = formula[1]
+#                ori_pars = formula[2]
+#                color_r_pars = formula[3]
+#                color_g_pars = formula[4]
+#                color_b_pars = formula[5]
+#            
+#            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                                               
+#                #parametric control                
+#                if parametric_control_enable: 
+#                    actual_time_tick = time.time()                    
+#                    posx_pc.update(value = None,  parameters = posx_pars[1],  formula = posx_pars[0],  time_tick = actual_time_tick)                    
+#                    posy_pc.update(value = None,  parameters = posy_pars[1],  formula = posy_pars[0],  time_tick = actual_time_tick)                    
+#                    ori_pc.update(value = None,  parameters = ori_pars[1],  formula = ori_pars[0],  time_tick = actual_time_tick)                    
+#                    color_r_pc.update(value = None,  parameters = color_r_pars[1],  formula = color_r_pars[0],  time_tick = actual_time_tick)                    
+#                    color_g_pc.update(value = None,  parameters = color_g_pars[1],  formula = color_g_pars[0],  time_tick = actual_time_tick)                    
+#                    color_b_pc.update(value = None,  parameters = color_b_pars[1],  formula = color_b_pars[0],  time_tick = actual_time_tick)
+#                    position_to_set = (posx_pc.value,  posy_pc.value)
+#                    orientation_to_set = ori_pc.value
+#                    color_to_set = utils.convert_color((color_r_pc.value,  color_g_pc.value,  color_b_pc.value))
+#                else:
+#                    position_to_set = position                    
+#                    orientation_to_set = orientation                    
+#                    color_to_set = converted_color
+#
+#                self.screen.logOnFlip('show_shape(' + shape+ ', ' + str(duration) + ', ' + str(position_to_set) + ', ' + str(color_to_set)  + ', ' + str(orientation_to_set)  + ', ' + str(size) + ')',  psychopy.log.DATA)
+#                self.shape.setVertices(vertices)                 
+#                self.shape.setFillColor(color_to_set)                
+#                self.shape.setLineColor(color_to_set)  
+#                self.shape.setPos((position_to_set[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position_to_set[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
+#                self.shape.setOri(orientation_to_set)                
+#                
+#                if shape == 'annulus' or shape == 'annuli':
+#                    self.inner_circle.setVertices(inner_circle_vertices) 
+#                    self.inner_circle.setFillColor(self.backgroundColor)                
+#                    self.inner_circle.setLineColor(self.backgroundColor)
+#                    self.inner_circle.setPos((position_to_set[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position_to_set[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
+#                    self.inner_circle.setOri(orientation_to_set)
+#                
+#                self.shape.draw() 
+#                if shape == 'annulus' or shape == 'annuli':
+#                    self.inner_circle.draw() 
+#                    
+#                if formula == []:
+#                    if i == 0:
+#                        self._flip(trigger = True)
+#                    else:
+#                        self._flip(trigger = False)
+#                else:
+#                    self._flip(trigger = True)
+#                    
+#                if self.stimulation_control.abort_stimulus():
+#                    break
+#                    
+#    def show_checkerboard(self,   n_checkers,  duration = 0.0,  pos = (0,  0),  color = [],  box_size = (0, 0), flip = True):
+#        '''
+#        Shows checkerboard:
+#            n_checkers = (x dir (column), y dir (rows)), above 32x32 config, frame drop may occur
+#            pos - position of display area
+#            color - array of color values. Each item corresponds to one box
+#            box_size - size of a box in pixel   
+#            duration - duration of stimulus in seconds            
+#            color - array of color values. Each item corresponds to one box. 0 position is the top left box, the last one is the bottom right
+#        Usage example:
+#            n_checkers = (21, 21)
+#            box_size = [80, 50]    
+#            n_frames = 100    
+#            cols = random_colors(n_checkers[0] * n_checkers[1],  frames = n_frames) 
+#            for i in range(n_frames):
+#                self.st.show_checkerboard(n_checkers, duration = 0, pos = (0, 0), color = cols[i], box_size = box_size)
+#        '''
+#        
+#        box_size_p = (box_size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  box_size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
+#        pos_p = (pos[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  pos[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
+#        
+#        #check if number of boxes are the power of two
+#        max_checker_number = max(n_checkers)
+#        checker_number_two_log = math.log(max_checker_number,  2)
+#        if checker_number_two_log != math.floor(checker_number_two_log) or  n_checkers[0] != n_checkers[1]:
+#            new_size = int(2 ** math.ceil(checker_number_two_log))
+#            n_checkers_fixed = (new_size,  new_size)
+#        else:
+#            n_checkers_fixed = n_checkers            
+#        
+#        #centerpoint is shifted, so an offset shall be calculated to move it back
+#        x_offset = int((n_checkers_fixed[0] - n_checkers[0]) * box_size_p[0] * 0.5)
+#        y_offset = int((n_checkers_fixed[1] - n_checkers[1]) * box_size_p[1] * 0.5)
+#        pos_offset = (pos_p[0]  + x_offset,  pos_p[1]  - y_offset)
+#            
+#        self.screen.logOnFlip('show_checkerboard(' + str(n_checkers)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color[:self.config.MAX_LOG_COLORS])  + ', ' + str(box_size)  + ')',  psychopy.log.DATA) 
+#        texture = Image.new('RGBA',  n_checkers_fixed) 
+#        for row in range(n_checkers[1]):
+#            for column in range(n_checkers[0]):            
+#                texture.putpixel((column, row),  utils.convert_int_color(utils.convert_color_from_pp(utils.convert_color(color[row * n_checkers[0] + column]))))
+#        
+#        self.checkerboard.setPos(pos_offset)
+#        self.checkerboard.setTex(texture) 
+#        self.checkerboard.setSize((box_size_p[0] * n_checkers_fixed[0],  box_size_p[1] * n_checkers_fixed[1]))        
+#        
+#        self._show_stimulus(duration,  self.checkerboard, flip)
+#
+#    def show_ring(self,  n_rings, diameter,  inner_diameter = [],  duration = 0.0,  n_slices = 1,  colors = [],  pos = (0,  0), flip = True):
+#        """
+#        This stimulation shows concentric rings or circles. The rings/circles can be divided into pie slices.
+#        n_rings: number of rings to be drawn
+#        diameter: diameter' of outer rings. The followings are accepted:
+#                    - list of integers: outer diameter of each rings
+#                    - list of list of two integers: the two values determine the diameter in the x and y direction
+#                    - single integer: diameter of first (innermost) ring. The diameter of additional rings will be the multiple of this value
+#        inner_diameter: The following data types are accepted:
+#                    - list of integers: inner diameter of each rings, assuming that diameter is a list
+#                    - list of list of two integers: the two values determine the inner diameter in the x and y direction, assuming that diameter is a list
+#                    - integer: width of rings regardless of the type of diameter
+#        duration; duration of stimulus in second. If zero, stimulus is shown for one frame time
+#        n_slices: number of slices displayed for each ring
+#        colors: list of colors. The 0 place is the slice in the innermost circle, which angle range is between 0 and a positive number, for example in case of n_slices = 4, the angle range is 0, 90 for the 0. slice.
+#        pos: center position of stimulus
+#        
+#        Use cases:
+#        1) Show three concentrical circles for 1 second:
+#            n_rings = 3
+#            outer_diameter = [100, 120, 140]
+#            show_ring(n_rings, outer_diameter,  duration = 1.0,  colors = colors)
+#        2) Show rings 5 rings:
+#            n_rings = 5
+#            outer_diameter = 100
+#            inner_diameter = 5 #width of ring
+#            show_ring(n_rings, outer_diameter,  inner_diameter, duration = 1.0,  colors = colors)
+#        3) Show sliced rings with arbitrary thickness and diameter
+#            n_rings = 4
+#            n_slices = 2
+#            outer_diameter = [100, 200, 300]
+#            inner_diameter = [90, 180, 250]
+#            show_ring(n_rings, outer_diameter,  inner_diameter, duration = 1.0,  n_slices = 2, colors = colors)
+#        4) Show oval rings
+#            n_rings = 2
+#            outer_diameter = [[100, 200], [200, 300]]
+#            inner_diameter = [[90, 190], [190, 290]]
+#            show_ring(n_rings, outer_diameter,  inner_diameter, duration = 1.0,  colors = colors)        
+#        """        
+#        self.screen.logOnFlip('show_rings(' + str(n_rings)+ ', ' + str(diameter) + ', ' + str(inner_diameter) + ', ' + str(duration)  + ', ' + str(n_slices)  + ', ' + str(colors[:self.config.MAX_LOG_COLORS])  + ', ' + str(pos)  + ')',  psychopy.log.DATA)
+#        
+#        pos_p = (pos[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  pos[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)        
+#        outer_diameter = diameter       
+#        
+#        #sort diameter lists to avoid putting a bigger circle on a smaller one
+#        if isinstance(outer_diameter, list):
+#            outer_diameter.sort()
+#            outer_diameter.reverse()
+#        
+#        if isinstance(inner_diameter, list):
+#            inner_diameter.sort()
+#            inner_diameter.reverse()        
+#        
+#        #if number of rings is not consistent with the number of provided list of diameter values
+#        if isinstance(outer_diameter, list):
+#            if n_rings != len(outer_diameter):
+#                n_rings = len(outer_diameter)                    
+#        
+#        if isinstance(outer_diameter, list) and isinstance(inner_diameter, list):            
+#            if len(inner_diameter) == 0 or (len(inner_diameter) != len(outer_diameter)):
+#                inner_circles = False
+#            else:
+#                inner_circles = True
+#                
+#        elif isinstance(outer_diameter, list) and not isinstance(inner_diameter, list):            
+#            new_inner_diameter = []
+#            for diameter in outer_diameter:
+#                if isinstance(diameter,  list):
+#                    new_inner_diameter.append([diameter[0] - inner_diameter,  diameter[1] - inner_diameter])
+#                else:
+#                    new_inner_diameter.append(diameter - inner_diameter)
+#            inner_diameter = new_inner_diameter
+#            inner_circles = True
+#        elif not isinstance(outer_diameter, list):
+#            outer_diameter = numpy.linspace(outer_diameter,  n_rings * outer_diameter,  n_rings).tolist()
+#            outer_diameter.reverse()
+#            if isinstance(inner_diameter, list):
+#                inner_circles = False
+#            elif not isinstance(inner_diameter, list):
+#                new_inner_diameter = []
+#                for diameter in outer_diameter:
+#                    new_inner_diameter.append(diameter - inner_diameter)
+#                inner_diameter = new_inner_diameter                
+#                inner_circles = True            
+#        
+#        slice_angle = 360.0 / n_slices        
+#        self.ring = []
+#        for ring in range(n_rings):
+#            #diameter can be a list (ellipse) or a single integer (circle)            
+#            if isinstance(outer_diameter[ring],  list):                
+#                outer_r = [outer_diameter[ring][0]  * self.config.SCREEN_PIXEL_TO_UM_SCALE, outer_diameter[ring][1]  * self.config.SCREEN_PIXEL_TO_UM_SCALE]
+#            else:
+#                outer_r = (outer_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  outer_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE)                
+#            
+#            if inner_circles:
+#                if isinstance(inner_diameter[ring],  list):
+#                    inner_r = (inner_diameter[ring][0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  inner_diameter[ring][1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
+#                else:                    
+#                    inner_r = (inner_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  inner_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE)            
+#            
+#            for slice in range(n_slices):
+#                start_angle = slice_angle * slice
+#                end_angle = slice_angle * (slice + 1)
+#                vertices = utils.calculate_circle_vertices(outer_r,  start_angle = start_angle,  end_angle = end_angle+1)               
+#                
+#                try:
+#                    color = utils.convert_color(colors[(n_rings -1 - ring) * n_slices + slice])
+#                except IndexError:
+#                    color = (-1.0,  -1.0,  -1.0)
+#                
+#                self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = color,  fillColor = color,  vertices =  vertices,  pos = pos_p))
+#            if inner_circles:
+#                vertices  = utils.calculate_circle_vertices(inner_r)
+#                self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = (-1.0,  -1.0,  -1.0),  fillColor = (-1.0,  -1.0,  -1.0),  vertices =  vertices,  pos = pos_p))
+#                
+#        self._show_stimulus(duration,  self.ring,  flip)
                     
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0):
         """
@@ -601,13 +601,14 @@ class Stimulations():
         3) Show gratings with sawtooth profile on a 500x500 area where the color contrast is light red and the color offset is light blue
             show_gratings(duration = 3.0, profile = 'saw', velocity = 100, white_bar_width = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
         """        
+        
         if white_bar_width == -1:
             bar_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
         else:
             bar_width = white_bar_width * self.config.SCREEN_PIXEL_TO_UM_SCALE
         #== Logging ==
         self.log_on_flip_message = 'show_gratings(' + str(duration)+ ', ' + str(profile) + ', ' + str(white_bar_width) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
-        self.stimulation_control.log.info(self.log_on_flip_message)
+        #TODO:self.stimulation_control.log.info(self.log_on_flip_message)
         self.log_on_flip_message = 'show_gratings'
         
         #== Prepare ==
@@ -650,9 +651,9 @@ class Stimulations():
         diagonal = numpy.sqrt((display_area_adjusted **2).sum())
         vertices = 0.5 * diagonal * numpy.array([numpy.sin(angles), numpy.cos(angles)])        
         vertices = vertices.transpose()
-        vertices = vertices + numpy.array(pos_adjusted)        
-        glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointerf(vertices)
+        vertices = vertices + numpy.array(pos_adjusted)            
+        glEnableClientState(GL_VERTEX_ARRAY)        
+        glVertexPointerf(vertices) #!!!!! THIS IS SAID TO BE: Attempt to retrieve context when no valid context
         #== Generate grating profile        
         if isinstance(profile, str):
             profile_adjusted = [profile,  profile,  profile]            
@@ -721,8 +722,9 @@ class Stimulations():
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)            
             self._flip(trigger = True)
-            if self.stimulation_control.visual_stimulation_runner.abort:
-                break
+            #TODO:
+#            if self.stimulation_control.visual_stimulation_runner.abort:
+#                break
                     
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
@@ -745,7 +747,7 @@ class Stimulations():
         '''
         
         self.log_on_flip_message = 'show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')'
-        self.stimulation_control.log.info(self.log_on_flip_message)
+        #TODO:self.stimulation_control.log.info(self.log_on_flip_message)
         self.log_on_flip_message = 'show_dots'
         
         st = time.time()
@@ -796,8 +798,9 @@ class Stimulations():
                     self._flip(trigger = True)
                 else:
                     self._flip(trigger = False)
-                if self.stimulation_control.visual_stimulation_runner.abort:
-                    break
+                    #TODO:
+#                if self.stimulation_control.visual_stimulation_runner.abort:
+#                    break
                 
         glDisableClientState(GL_VERTEX_ARRAY)
         
@@ -900,10 +903,10 @@ class Stimulations():
                     if self.stimulation_control.abort_stimulus():
                         break
 
-    def set_parallel(self,  bitmask):
-        if self.config.ENABLE_PARALLEL_PORT:
-            self.bitmask = bitmask
-            self.parallel.setData(self.config.ACQUISITION_TRIGGER_ON | bitmask)
+#    def set_parallel(self,  bitmask):
+#        if self.config.ENABLE_PARALLEL_PORT:
+#            self.bitmask = bitmask
+#            self.parallel.setData(self.config.ACQUISITION_TRIGGER_ON | bitmask)
                         
     def _display_test_message(self,  message,  duration = 1.5):
     	if self.config.TEXT_ENABLE:

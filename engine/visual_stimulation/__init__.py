@@ -1,3 +1,4 @@
+#RZ: instead of visual_stimulation the package should be called as vision_experiment
 import visexpman
 from visexpman.engine.generic import utils 
 
