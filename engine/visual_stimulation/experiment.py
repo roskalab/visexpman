@@ -16,8 +16,8 @@ class ExperimentConfig(Config):
         if self.runnable == None:
             raise ValueError('You must specify the class which will run the experiment')
         else:
-            self.runnable= utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = self.runnable,  classtype = visexpman.engine.visual_stimulation.experiment.Experiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the actual stimulation
-            self.pre_runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classtype = visexpman.engine.visual_stimulation.experiment.PreExperiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the actual stimulation
+            self.runnable= utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = self.runnable,  required_ancestors = visexpman.engine.visual_stimulation.experiment.Experiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the actual stimulation
+            self.pre_runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.visual_stimulation.experiment.PreExperiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the actual stimulation
 
     def run(self):  #RZ: Why is the experiment started by the experiment config class?
         if self.runnable == None:
