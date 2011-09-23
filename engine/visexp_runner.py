@@ -24,7 +24,7 @@ class VisExpRunner():
         if config_class == 'SafestartConfig':
             self.config = getattr(visexpman.engine.visual_stimulation.configuration, 'SafestartConfig')()
         else:
-            self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, classtype = visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig)[0][1]()
+            self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig)[0][1]()
         #Save user name
         if user == '':
             self.config.user = 'undefined'
@@ -32,7 +32,7 @@ class VisExpRunner():
             self.config.user = user
         #== Fetch experiment classes ==
         if self.config.user != 'undefined':
-            self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  classtype = visexpman.engine.visual_stimulation.experiment.ExperimentConfig)
+            self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.visual_stimulation.experiment.ExperimentConfig)            
         else:
             #In case of SafestartConfig, no experiment configs are loaded
             #TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig
