@@ -1,21 +1,24 @@
+import logging
+import os
 import visexpman
 from visexpman.engine.generic.configuration import Config
 from visexpman.engine.generic import utils
-import visexpman.engine.visual_stimulation.stimulation_library as stimulation_library
+import stimulation_library
 
 class ExperimentConfig(Config):
     def __init__(self, machine_config, caller):
         self.caller = caller
         self.machine_config = machine_config
-        Config.__init__(self, machine_config)
-        self.create_runnable() # needs to be called so that runnable is instantiated and other checks are done
+        Config.__init__(self, machine_config)        
+        self.create_runnable() # needs to be called so that runnable is instantiated and other checks are done        
 
     def create_runnable(self):
         if self.runnable == None:
             raise ValueError('You must specify the class which will run the experiment')
-        else: 
-            self.runnable= utils.fetch_classes('visexpman.users.'+self.machine_config.user, classname = self.runnable,  classtype = visexpman.engine.visual_stimulation.experiment.Experiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the actual stimulation
-            self.pre_runnable = utils.fetch_classes('visexpman.users.'+self.machine_config.user, classtype = visexpman.engine.visual_stimulation.experiment.PreExperiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the actual stimulation
+        else:
+            self.runnable= utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = self.runnable,  required_ancestors = visexpman.engine.visual_stimulation.experiment.Experiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the actual stimulation
+            self.pre_runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.visual_stimulation.experiment.PreExperiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the actual stimulation
+
     def run(self):  #RZ: Why is the experiment started by the experiment config class?
         if self.runnable == None:
             raise ValueError('Specified stimulus class is not instantiated.')
@@ -32,6 +35,7 @@ class Experiment(stimulation_library.Stimulations):
         self.machine_config = machine_config
         self.caller = caller
         stimulation_library.Stimulations.__init__(self, self.machine_config, self.caller)
+        self.caller.log.info('init experiment %s'%(str(self.__class__)))
             
     def set_experiment_control_context(self):
         '''
@@ -40,6 +44,9 @@ class Experiment(stimulation_library.Stimulations):
         self.devices = self.caller.experiment_control.devices        
         self.parallel_port = self.devices.parallel_port        
         self.filterwheels = self.devices.filterwheels
+        self.log = self.caller.experiment_control.log
+        self.command_buffer = ''
+        self.abort = False
 
     def run(self):
         pass

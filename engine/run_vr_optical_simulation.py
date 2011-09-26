@@ -284,8 +284,8 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
 
         self.points_on_screen = numpy.array(points_on_screen)
 #        print self.points_on_screen
-            
-        #== put together vertexes ==        
+
+        #== put together vertexes ==
         self.vertices = numpy.concatenate((self.axis, self.rays, self.plane_mirror, self.aam, self.screen, self.projector, mouse_visual_range_boundaries, self.points_on_screen))
         self.vertex_pointers = numpy.array([6, self.rays.shape[0], self.plane_mirror.shape[0], self.number_of_aam_shapes * self.number_of_shape_vertices, self.number_of_toroid_shapes * self.number_of_shape_vertices, self.projector.shape[0], 
                                      4, self.points_on_screen.shape[0]])
@@ -298,7 +298,7 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
         self.save_simulation_data(folder_to_save)
 #        self.load_simulation_data(folder_to_save)
             
-        print 'number of rays %d, number of rays hit the screen %d'%(len(corners), self.points_on_screen.shape[0])        
+        print 'number of rays %d, number of rays hit the screen %d'%(len(corners), self.points_on_screen.shape[0])
         
         #display runtime
         print time.time() - st
@@ -320,7 +320,6 @@ class VirtualRealityOpticalAlignment(generic.graphics.Screen):
     def user_keyboard_handler(self, key_pressed):
         if key_pressed == 'space':
             self.show_rays = self.show_rays ^ True
-        
     
     def draw_scene(self):
         #draw x,y and z axis 

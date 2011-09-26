@@ -7,7 +7,6 @@ import time
 class VirtualRealityTestConfig(VisualStimulationConfig):
     def _set_user_parameters(self):
         dataset = 0
-        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'VirtualRealityTestExperimentConfig'
         LOG_PATH = '/media/Common/visexpman_data'
@@ -60,10 +59,13 @@ class VisexpRunnerTestConfig(VisualStimulationConfig):
         
         #paths
         EXPERIMENT_CONFIG = 'TestExperimentConfig'
-        LOG_PATH = '/media/Common/visexpman_data'
+        LOG_PATH = '/media/Common/visexpman_data'        
+        EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
         BASE_PATH= '/media/Common/visexpman_data'
         ARCHIVE_PATH = '/media/Common/visexpman_data'
         CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
+        TEST_DATA_PATH = '/media/Common/visexpman_data/test'
+        TMP_PATH = '/media/Common/visexpman_data/tmp'
         
         #hardware
         ENABLE_PARALLEL_PORT = True        
@@ -95,14 +97,16 @@ class VisexpRunnerTestConfig(VisualStimulationConfig):
         MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
         ACTION_BETWEEN_STIMULUS = 'off'
         
+        ARCHIVE_FORMAT = 'zip'
         
+        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
         self._create_parameters_from_locals(locals())
 
 class TestExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'TestExp1'
         self.pre_runnable = 'TestPre'
-        self._create_parameters_from_locals(locals())        
+        self._create_parameters_from_locals(locals())
         
 class TestPre(experiment.PreExperiment):
     def run(self):
@@ -110,9 +114,16 @@ class TestPre(experiment.PreExperiment):
 
 class TestExp1(experiment.Experiment):
     def run(self):
+        self.log.info('%2.3f\tMy log'%time.time())
+        self.show_fullscreen(duration = 1.0,  color = 0.5)
+        import random
+        filter = int(5 * random.Random().random()) + 1
         time.sleep(0.2)
-        self.filterwheels[0].set(1)
-        self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
+        self.filterwheels[0].set(filter)
+        self.filterwheels[0].set_filter('ND0')
+        self.parallel_port.set_data_bit(0, 0)
         time.sleep(0.1)
-        self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
+        self.parallel_port.set_data_bit(0, 1)
         self.show_grating(duration =1.0, profile = 'sqr', orientation = 0, velocity =50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
+        if self.command_buffer.find('dummy') != -1:
+            self.show_grating(duration =10.0, profile = 'sqr', orientation = 0, velocity =50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)

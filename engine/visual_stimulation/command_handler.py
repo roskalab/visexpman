@@ -3,7 +3,7 @@ import os
 import time
 import re
 #import visexpman.engine.hardware_interface.udp_interface as network_interface
-import visexpman.engine.visual_stimulation.stimulation_control as experiment_control
+import stimulation_control as experiment_control
 command_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
 parameter_extract = re.compile('EOC(.+)EOP') # an optional parameter string follows EOC terminated by EOP. In case of binary data EOC and EOP should be escaped.
 
@@ -18,33 +18,36 @@ class CommandHandler():
         self.machine_config = config
         self.caller = caller
         self.config = config
+        #Initialize slected experiment config index
+        for i in range(len(self.caller.experiment_config_list)):
+            if self.caller.experiment_config_list[i][1].__name__ == self.config.EXPERIMENT_CONFIG:
+                self.selected_experiment_config_index = i
         
     def process_command_buffer(self):
         '''
         Parsing all the commands in the command buffer
         '''
-        result = ''
-        #TODO: mutual exclusion of accessing command buffer is not yet solved.
+        result = ''        
         while not self.caller.command_queue.empty():
             result += '\n' + self.parse(self.caller.command_queue.get(),  state = self.caller.state)
         self.caller.command_buffer = []
         self.caller.screen_and_keyboard.message += result
 
-    def select_experiment(self, par):        
+    def select_experiment(self, par):
         '''
         Selects experiment config based on keyboard command and instantiates the experiment config class
         '''
-        self.caller.selected_experiment_config = self.caller.experiment_config_list[int(par)][1](self.config, self.caller)        
+        self.selected_experiment_config_index = int(par)        
         return 'selected experiment: ' + str(par) + ' '
 
-    def execute_experiment(self, par):
+    def execute_experiment(self, par):        
         #Experiment control class is always (re)created so that the necessary hardware initializations could take place
         self.caller.experiment_control = experiment_control.ExperimentControl(self.config, self.caller)
         #Run experiment
         self.caller.experiment_control.run_experiment()
         #Clean up experiment
         self.caller.experiment_control.finish_experiment()
-        return 'experiment executed'        
+        return 'experiment executed'
 
     def bullseye(self, par):
         #TODO: stimulus fajlla (experiment class) kene alakitani         
@@ -58,7 +61,7 @@ class CommandHandler():
             return 'menu is unhidden'
             
     def abort_experiment(self, par):
-        return ''
+        return 'abort_experiment'
         
     def quit(self, par):
         self.caller.loop_state = 'end loop'        
@@ -146,7 +149,10 @@ class CommandHandler():
             if len(par)>0:
                 par = par[0]            
             if hasattr(self, cmd[0]):
-                result=getattr(self, cmd[0])(par) # call the selected function with the optional parameter                                
+                result=getattr(self, cmd[0])(par) # call the selected function with the optional parameter
+            else:
+                result = cmd[0]
+            self.caller.log.info('Command handler: ' + result)
 #                elif cmd == self.machine_config.CMD_SET_STIMULUS_FILE_START and self.command_buffer.find(self.machine_config.CMD_SET_STIMULUS_FILE_END)  > 0:  # set stimulation file
 #                    stimulus_filename = self.command_buffer[self.command_buffer.find('<')+1 :self.command_buffer.find('>') ] 
 #                    file = self.machine_config.STIMULATION_FOLDER_PATH + os.sep + stimulus_filename

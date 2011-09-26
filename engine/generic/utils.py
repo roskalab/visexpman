@@ -8,6 +8,7 @@ import time
 import unittest
 import pkgutil
 import inspect
+import time
 
 def convert_color(color):
     '''
@@ -19,7 +20,7 @@ def convert_color(color):
         converted_color = [color/255.0, color/255.0, color/255.0]
     else:
         converted_color = color
-    return converted_color    
+    return converted_color
 
 def convert_color_from_pp(color_pp):
     '''
@@ -556,25 +557,38 @@ def generate_filename(path):
     Inserts index into filename resulting unique name.
     '''    
     index = 0
+    number_of_digits = 3
     while True:
         testable_path = path.replace('.',  '_%3i.'%index).replace(' ', '0')
         if not os.path.isfile(testable_path):
             break
-        index = index + 1        
+        index = index + 1
+        if index >= 10 ** number_of_digits:
+            raise RuntimeError('Foldername cannot be generated')
     return testable_path
     
 def generate_foldername(path):
     '''
     Inserts index into filename resulting unique name.
-    '''    
+    '''
+    number_of_digits = 3
     index = 0
     while True:
         testable_path = (path + '_%3i'%index).replace(' ', '0')
         if not os.path.isdir(testable_path):
             break
-        index = index + 1        
+        index = index + 1
+        if index >= 10 ** number_of_digits:
+            raise RuntimeError('Foldername cannot be generated')
     return testable_path
 
+def datetime_string():
+    now = time.localtime()
+    return ('%4i-%2i-%2i_%2i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec)).replace(' ', '0')
+
+def date_string():
+    now = time.localtime()
+    return ('%4i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday)).replace(' ', '0')
 
 class testCoordinateTransformation(unittest.TestCase):
     pass
@@ -613,9 +627,77 @@ def is_in_list(list, item_to_find):
     else:
         return False
 
+def imported_modules():
+    '''
+    - List of imported visexpman module paths
+    - List of imported module names
+    '''        
+    import visexpman.engine.generic.parameter
+    visexpman_modules = []
+    module_names = []
+    for k, v in sys.modules.items():
+        if k.find('visexpman') != -1:
+            if v == None:
+                new_module_name = k.split('.')[-1]
+                if not is_in_list(module_names, new_module_name):
+                    module_names.append(new_module_name)
+            else:
+                new_module_path = v.__file__.replace('.pyc', '.py')
+                if not is_in_list(module_names, new_module_path):
+                    visexpman_modules.append(new_module_path)
+    module_names.sort()
+    visexpman_modules.sort()
+    return [module_names, visexpman_modules]
+    
+def module_versions(modules):
+    version_paths = {
+    'Queue' : 'standard', 
+    'socket': 'standard', 
+    'visexpman': 'version', 
+    'math': 'standard', 
+    'time': 'standard', 
+    'sys': 'version',     
+    'ImageDraw': 'Image.VERSION', 
+    'threading':  'standard', 
+    'numpy': 'version.version', 
+    'Image': 'VERSION', 
+    'pkgutil': 'standard', 
+    'zipfile': 'standard', 
+    'unittest': 'standard', 
+    'os': 'standard', 
+    'pygame': 'version.ver', 
+    'logging': 'standard', 
+    're': 'standard', 
+    'OpenGL': 'version.__version__', 
+    'parallel': 'VERSION', 
+    'random': 'standard', 
+    'inspect': 'standard', 
+    'serial': 'VERSION', 
+    'PyQt4':'', 
+    'scipy': 'scipy.version.version', 
+    'shutil': 'standard'
+    }
+    module_version = ''
+    for module in modules:
+        __import__(module)
+        try:
+            if version_paths[module] != 'standard':
+                try:
+                    version = getattr(sys.modules[module], version_paths[module]).replace('\n', '')
+                except AttributeError:
+                    version = ''
+                module_version += '%s %s\n'%(module, version)
+            else:
+                module_version += '%s\n'%(module)
+        except KeyError:
+            raise RuntimeError('This module is not in the version list: %s' % module)
+    return module_version       
+        
+
 if __name__ == "__main__":
     l = [1, 2, 3]
-    print is_in_list(l, 'a')
+#    print is_in_list(l, 'a')
+    imported_modules()
 #    print is_vector_in_array(numpy.array([[1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]]),  numpy.array([1.0, 2.0, 3.0]))
 #    unittest.main()
 #    a = [1.0, 2.0, 3.0]
