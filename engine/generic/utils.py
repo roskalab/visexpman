@@ -143,30 +143,36 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
     2. specify user and classname: returns specific class without checking its type
     3. specify user, classname,and list of classes that should not be in the ancestor tree of the class
       In this case you can specify if required ancestors and excluded classtypes applies to the whole 
-      method resolution order tree (whole ancestor tree) or just the direct ancestors.
+      method resolution order tree (whole ancestor tree) or just the direct ancestors. You can specify 
+      'direct' for all required ancestors as a single True value as argument or as a list of booleans. In
+      the latter case, the booleans in the list apply to the class in the same position in the 
+      required_ancestors list.
     '''
     import visexpman
     bm=__import__(basemodule, fromlist='dummy')
     class_list=[]
     if not isinstance(required_ancestors, (list, tuple)): required_ancestors=[required_ancestors]
     if not isinstance(exclude_classtypes, (list, tuple)): exclude_classtypes=[exclude_classtypes]
+    if not isinstance(direct, (list, tuple)): direct=[direct]*len(required_ancestors)
     
     for importer, modname, ispkg in pkgutil.iter_modules(bm.__path__,  bm.__name__+'.'):
         m= __import__(modname, fromlist='dummy')
         for attr in inspect.getmembers(m, inspect.isclass):
-            if direct:
-                omro = attr[1].__bases__
-            else:
-                omro = inspect.getmro(attr[1])
-            any_wrong_in_class_tree = [cl in omro for cl in exclude_classtypes]
-            all_good_ancestors = [True for a in required_ancestors if a in omro]
-            if sum(all_good_ancestors) < len(required_ancestors):
-                continue
-            if sum(any_wrong_in_class_tree) >0: continue # the class hyerarchy contains ancestors that should not be in this class' ancestor list
-            # required_ancestors or exlude_classtypes conditions handled, we need to check if name is correct:
-            if (attr[0] == classname or classname==None):
-                class_list.append((m, attr[1]))
-                # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run    
+            for ai1 in range(len(required_ancestors)):
+                if direct[ai1]==True:
+                    ancestors = attr[1].__bases__
+                else:
+                    ancestors = inspect.getmro(attr[1])
+                any_wrong_in_class_tree = [cl in ancestors for cl in exclude_classtypes]
+                if sum(any_wrong_in_class_tree) >0: 
+                    # the class hyerarchy contains ancestors that should not be in this class' ancestor list
+                    break
+                if not required_ancestors[ai1] in ancestors:
+                    break
+                # required_ancestors or exlude_classtypes conditions handled, we need to check if name is correct:
+                if (attr[0] == classname or classname==None):
+                    class_list.append((m, attr[1]))
+                    # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run    
     return class_list
     
 def um_to_normalized_display(value, config):
@@ -639,7 +645,7 @@ if __name__ == "__main__":
 #    
 #    print a    
 #    print generate_filename('/media/Common/visexpman_data/log.txt')
-    
+
 def test_parsefilename():
     filename = 'whatever/folder/Bl6(b 04.09.10 i 01.11.10)-(-372 -78 129)-r2-w1000-sp2400-3stat-3move-2.0x-20x(ND10 isoflCP 0.5 R).tif.frames'
     commonpars = {'AnimalStrain':['^(\S+)\(', str], # Match M???(... at the beginning of the line
@@ -669,3 +675,14 @@ def test_parsefilename():
     
 def test_getziphandler():
     pass
+
+def test_fetch_classes():
+    class GrandMother(object):
+        pass
+    class GrandFather(object):
+        pass
+    class Father(GrandMother, GrandFather):
+        pass
+    class Mother(GrandMother, Father):
+        pass
+    self.assertequal(fetch_classes(visexpman.engine.generic.utils, required_ancestors=[GrandMother, GrandFather], direct=False),1 )
