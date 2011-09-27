@@ -10,6 +10,7 @@ import pkgutil
 import inspect
 import time
 
+#== Computer graphics colors ==
 def convert_color(color):
     '''
     Any color format (rgb, greyscale, 8 bit grayscale) is converted to visexpman rgb format
@@ -39,6 +40,96 @@ def convert_int_color(color):
         return (int(color[0] * 255.0),  int(color[1] * 255.0),  int(color[2] * 255.0))
     else:
         return (int(color * 255.0),  int(color * 255.0),  int(color * 255.0))
+        
+def random_colors(n,  frames = 1,  greyscale = False,  inital_seed = 0):
+    '''
+    Renerates random colors
+    '''    
+    random.seed(inital_seed)
+    col = []
+    if frames == 1:
+        for i in range(n):
+            r = random.random()
+            g = random.random()
+            b = random.random()
+            if greyscale:
+                g = r
+                b = r
+            col.append([r,g,b])
+    else:
+        
+        for f in range(frames):
+            c = []
+            for i in range(n):
+                r = random.random()
+                g = random.random()
+                b = random.random()
+                if greyscale:
+                    g = r
+                    b = r
+                c.append([r,g,b])
+            col.append(c)
+    return col
+
+#== Coordinate geometry ==
+#TODO: check for redundant functions in this section
+
+def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100)):
+    radius_sq = (diameter * 0.5) ** 2
+    circle = numpy.ones(array_size)
+    coords = numpy.nonzero(circle)
+    distance_x = coords[0] - (center[0] + int(0.5 * array_size[0]))
+    distance_y = coords[1] - (center[1] + int(0.5 * array_size[1]))
+    
+    distance_x = distance_x ** 2
+    distance_y = distance_y ** 2
+    distance = distance_x + distance_y
+    active_pixel_mask = numpy.where(distance <= radius_sq, 1, 0)
+    circle = circle * 0
+    for i in range(len(active_pixel_mask)):
+        if active_pixel_mask[i] == 1:
+            circle[coords[0][i], coords[1][i]] = color
+    return circle 
+ 
+def arc_vertices(diameter, n_vertices,  angle,  angle_range,  pos = [0, 0]):
+    if not isinstance(diameter,  list):
+        diameter_list = [diameter, diameter]
+    else:
+        diameter_list = diameter   
+    
+    start_angle = (angle - 0.5 * angle_range)  * numpy.pi / 180.0
+    end_angle = (angle + 0.5 * angle_range) * numpy.pi / 180.0
+    angles = numpy.linspace(start_angle, end_angle,  n_vertices)
+#    angles = angles[1:]
+    vertices = numpy.zeros((angles.shape[0],  2))    
+    vertices[:, 0] = 0.5 * numpy.cos(angles)
+    vertices[:, 1] = 0.5 * numpy.sin(angles)
+    return vertices * numpy.array(diameter_list) + numpy.array(pos)
+
+def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  color = 1.0,  pos = (0, 0)):
+    '''
+    diameter: diameter of circle in pixels
+    resolution: angle resolution of drawing circle
+    image_size: x, y size of image/numpy array in pixels
+    color: color of circle, greyscale, range 0...1
+    pos : x, y position in pixels, center is 0, 0
+    '''
+    vertices = calculate_circle_vertices([diameter,  diameter],  resolution)
+    import Image,  ImageDraw,  numpy
+    image = Image.new('L',  image_size,  0)
+    draw = ImageDraw.Draw(image)
+    
+    vertices_int = []
+    for i in vertices:
+        vertices_int.append(int(i[0] + image_size[0] * 0.5) + pos[0])
+        vertices_int.append(int(i[1] + image_size[1] * 0.5) - pos[1])
+    
+    
+    draw.polygon(vertices_int,  fill = int(color * 255.0))    
+    #just for debug
+    image.show()
+    print numpy.asarray(image)
+    return numpy.asarray(image)
 
 def calculate_circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  end_angle = 360, pos = (0,0),  arc_slice = False):
     '''
@@ -105,350 +196,6 @@ def ulcorner_to_centered_coordinate_system(coordinates, screen_size):
     cooridnates_centered['row'] = - cooridnates_centered['row'] - 0.5 * screen_size['row']
     cooridnates_centered['col'] = cooridnates_centered['col'] - 0.5 * screen_size['col']
     return cooridnates_centered
-
-def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):
-    wave = []
-    period = int(period) 
-    for i in range(n_sample):
-        if period == 0:
-            value = 0
-        elif waveform_type == 'sin':
-            value = 0.5 * amplitude * math.sin(2 * math.pi * float(i) / period + phase * (math.pi/180.0)) + offset
-        elif waveform_type == 'cos':
-            value = 0.5 * amplitude * math.cos(2 * math.pi * float(i) / period + phase * (math.pi/180.0)) + offset            
-        elif waveform_type == 'sqr':
-            actual_phase = (i + int(period * (phase / 360.0))) % period
-            if actual_phase < duty_cycle * period:
-                value = 0.5 * amplitude
-            else:
-                value = -0.5 * amplitude
-            value = value + offset
-        elif waveform_type == 'saw':
-            actual_phase = (i + int(period * (phase / 360.0))) % period
-            value = amplitude * (float(actual_phase) / float(period-1.0)) - 0.5 * amplitude + offset
-        elif waveform_type == 'tri':
-            actual_phase = (i + int(period * (phase / 360.0))) % period
-            if actual_phase < 0.5 * period:
-                value = amplitude * (float(actual_phase) / float(0.5*period)) - 0.5 * amplitude + offset
-            else:
-                value = -amplitude * (float(actual_phase) / float(0.5 * period)) + 1.5 * amplitude + offset
-        else:
-            value = 0
-        wave.append(value)    
-    return wave            
-    
-def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_ancestors=[], direct=True):
-    '''Looks for the specified class, imports it and returns as class instance.
-    Use cases:
-    1. just specify user, others left as default: returns all classes
-    2. specify user and classname: returns specific class without checking its type
-    3. specify user, classname and list of classes that should not be in the ancestor tree of the class
-      In this case you can specify if required ancestors and excluded classtypes applies to the whole 
-      method resolution order tree (whole ancestor tree) or just the direct ancestors.
-    '''
-    import visexpman
-    bm=__import__(basemodule, fromlist='dummy')
-    class_list=[]
-    if not isinstance(required_ancestors, (list, tuple)): required_ancestors=[required_ancestors]
-    if not isinstance(exclude_classtypes, (list, tuple)): exclude_classtypes=[exclude_classtypes]
-    
-    for importer, modname, ispkg in pkgutil.iter_modules(bm.__path__,  bm.__name__+'.'):
-        m= __import__(modname, fromlist='dummy')
-        for attr in inspect.getmembers(m, inspect.isclass):
-            if direct:
-                omro = attr[1].__bases__
-            else:
-                omro = inspect.getmro(attr[1])
-            any_wrong_in_class_tree = [cl in omro for cl in exclude_classtypes]
-            all_good_ancestors = [True for a in required_ancestors if a in omro]
-            if sum(all_good_ancestors) < len(required_ancestors):
-                continue
-            if sum(any_wrong_in_class_tree) >0: continue # the class hierarchy contains ancestors that should not be in this class' ancestor list
-            # required_ancestors or exlude_classtypes conditions handled, we need to check if name is correct:
-            if (attr[0] == classname or classname==None):
-                class_list.append((m, attr[1]))
-                # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run    
-    return class_list    
-
-def keep_closest_ancestors(class_list,  required_ancestors):
-    '''From the result of fetch_classes method, if class_list contains multiple items, this routine
-    keeps the class with closest ancestors. The result might not be a single class, in such a case 
-    an exception is raised.'''
-    if len(class_list)==1:
-        return class_list[0] #nothing to do
-    elif len(class_list)==0:
-        raise ValueError('Empty list of classes')
-    levels = [] #level value in the class tree, i.e. how many steps from the child class
-    for a in required_ancestors:
-        levels.append([])
-        for c in class_list:
-            for b in c[1].__bases__:
-                mro = b.mro()
-                if a in mro:
-                    levels[-1].append(mro.index(a))
-                    break #a class can appear only once in the MRO, no need to look further
-                else:
-                    pass #this was an ancestor of the class that needs not to be inspected since it was not listed in required_ancestors    
-    # if for a class in class_list the required_ancestor is closest to the child class, then a 1 is put in this table: 
-    eligible = numpy.zeros(numpy.array(levels).shape, numpy.bool) 
-    for l1 in range(len(levels)): # go through required_ancestors' positions
-        d_i = min(levels[l1])# minimum distance from the child class
-        m_i = [i for i in range(len(class_list)) if levels[l1][i]==d_i] # for which classes is the required_ancestor closest to the child class?
-        eligible[[l1]*len(m_i), m_i] = 1
-    all_ancestors_closest = numpy.where(eligible.sum(axis=0) == len(required_ancestors))[0]
-    if len(all_ancestors_closest)!=1:
-        raise ValueError('There is no class in the list for which all of the required ancestors are closest to the child')
-    return class_list[all_ancestors_closest]
-    
-def um_to_normalized_display(value, config):
-    '''
-    Converts um dimension data to normalized screen size where the screen range is between -1...1 for both axes and the origo is the center of the screen
-    '''
-    if not isinstance(value,  list):
-        value = [value,  value]
-    normalized_x = 2.0 * config.SCREEN_PIXEL_TO_UM_SCALE * float(value[0]) / config.SCREEN_RESOLUTION['col']
-    normalized_y = 2.0 * config.SCREEN_PIXEL_TO_UM_SCALE * float(value[1]) / config.SCREEN_RESOLUTION['row']
-    return [normalized_x,  normalized_y]
-
-def random_colors(n,  frames = 1,  greyscale = False,  inital_seed = 0):
-    '''
-    Renerates random colors
-    '''    
-    random.seed(inital_seed)
-    col = []
-    if frames == 1:
-        for i in range(n):
-            r = random.random()
-            g = random.random()
-            b = random.random()
-            if greyscale:
-                g = r
-                b = r
-            col.append([r,g,b])
-    else:
-        
-        for f in range(frames):
-            c = []
-            for i in range(n):
-                r = random.random()
-                g = random.random()
-                b = random.random()
-                if greyscale:
-                    g = r
-                    b = r
-                c.append([r,g,b])
-            col.append(c)
-    return col
-    
-def read_text_file(path):
-    f = open(path,  'rt')
-    txt =  f.read(os.path.getsize(path))
-    f.close()            
-    return txt
-    
-def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  color = 1.0,  pos = (0, 0)):
-    '''
-    diameter: diameter of circle in pixels
-    resolution: angle resolution of drawing circle
-    image_size: x, y size of image/numpy array in pixels
-    color: color of circle, greyscale, range 0...1
-    pos : x, y position in pixels, center is 0, 0
-    '''
-    vertices = calculate_circle_vertices([diameter,  diameter],  resolution)
-    import Image,  ImageDraw,  numpy
-    image = Image.new('L',  image_size,  0)
-    draw = ImageDraw.Draw(image)
-    
-    vertices_int = []
-    for i in vertices:
-        vertices_int.append(int(i[0] + image_size[0] * 0.5) + pos[0])
-        vertices_int.append(int(i[1] + image_size[1] * 0.5) - pos[1])
-    
-    
-    draw.polygon(vertices_int,  fill = int(color * 255.0))    
-    #just for debug
-    image.show()
-    print numpy.asarray(image)
-    return numpy.asarray(image)
-
-def retina2screen(widths, speed=None, machine_config=None, option=None):
-    '''converts microns on retina to cycles per pixel on screen
-    '''
-    if machine_config.IMAGE_PROJECTED_ON_RETINA == 0:
-        visualangles = um2degrees(widths) # 300um is 10 degrees
-        #widthsonmonitor = tan(2*pi/360*visualangles)*monitor.distancefrom_mouseeye/monitor.pixelwidth #in pixels
-        widthsonmonitor = numpy.pi/180*visualangles*machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE/machine_config.SCREEN_PIXEL_WIDTH #in pixels
-        if not option is None and option=='pixels':
-            return widthsonmonitor
-
-        no_periods_onscreen = machine_config.SCREEN_RESOLUTION['col']/(widthsonmonitor*2)
-        cyclesperpixel = no_periods_onscreen/machine_config.SCREEN_RESOLUTION['col']
-        if speed is None:
-            return cyclesperpixel
-        else: # calculates cycles per second from width on retina and um per second on the retina
-            onecycle_pix = 1/cyclesperpixel
-            for i in range(len(widths)):
-            # from micrometers/s on the retina to cycles per pixel on screen
-                speedonmonitor[i] = numpy.pi/180*um2degrees(speed)*machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE/machine_config.SCREEN_PIXEL_WIDTH
-                cyclespersecond[i] = speedonmonitor[i]/(widthsonmonitor[i]*2) # divide by period, i.e. width*2
-                time4onecycle_onscreen[i] = (machine_config.SCREEN_RESOLUTION['col']/onecycle_pix[i])/cyclespersecond[i]
-            return cyclesperpixel, time4onecycle_onscreen
-    elif machine_config.IMAGE_PROJECTED_ON_RETINA==1:
-        widthsonmonitor = widths/machine_config.SCREEN_UM_TO_PIXEL_SCALE
-        no_periods_onscreen = machine_config.SCREEN_RESOLUTION['col']/(widthsonmonitor*2)
-        if speed is None:
-            cyclesperpixel = no_periods_onscreen/machine_config.SCREEN_RESOLUTION['col']
-            return cyclesperpixel
-        else: # calculates cycles per second from width on retina and um per second on the retina
-            cyclesperpixel = no_periods_onscreen/machine_config.SCREEN_RESOLUTION['col']
-            onecycle_pix = 1/cyclesperpixel
-            for i in range(len(widths)):
-            # from micrometers/s on the retina to cycles per pixel on screen
-                speedonmonitor[i]= speed/monitor.um2pixels
-                cyclespersecond[i] = speedonmonitor[i]/(widthsonmonitor[i]*2) # divide by period, i.e. width*2
-                time4onecycle_onscreen[i,:] = (widthsonmonitor[i]*2)/speedonmonitor[i]#cyclespersecond(i,:)
-            return cyclespersecond, time4onecycle_onscreen
-
-def um2degrees(umonretina):
-# given umonretina estimates the visual angle, based on 300um on the retina
-# is 10 degrees
-    return 10.0*numpy.array(umonretina, numpy.float)/300
-
-def filtered_file_list(folder_name,  filter, fullpath = False):
-    files = os.listdir(folder_name)
-    filtered_files = []
-    for file in files:
-        if isinstance(filter,  list) or isinstance(filter,  tuple):
-            found  = False
-            for filter_item in filter:                
-                if file.find(filter_item) != -1:
-                    found = True
-            if found:
-                if fullpath:
-                    filtered_files.append(os.path.join(folder_name, file))
-                else:
-                    filtered_files.append(file)
-        elif isinstance(filter,  str):
-            if file.find(filter) != -1:
-                if fullpath:
-                    filtered_files.append(os.path.join(folder_name, file))
-                else:
-                    filtered_files.append(file)
-    return filtered_files
-
-def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100)):
-    radius_sq = (diameter * 0.5) ** 2
-    circle = numpy.ones(array_size)
-    coords = numpy.nonzero(circle)
-    distance_x = coords[0] - (center[0] + int(0.5 * array_size[0]))
-    distance_y = coords[1] - (center[1] + int(0.5 * array_size[1]))
-    
-    distance_x = distance_x ** 2
-    distance_y = distance_y ** 2
-    distance = distance_x + distance_y
-    active_pixel_mask = numpy.where(distance <= radius_sq, 1, 0)
-    circle = circle * 0
-    for i in range(len(active_pixel_mask)):
-        if active_pixel_mask[i] == 1:
-            circle[coords[0][i], coords[1][i]] = color
-    return circle 
- 
-def arc_vertices(diameter, n_vertices,  angle,  angle_range,  pos = [0, 0]):
-    if not isinstance(diameter,  list):
-        diameter_list = [diameter, diameter]
-    else:
-        diameter_list = diameter   
-    
-    start_angle = (angle - 0.5 * angle_range)  * numpy.pi / 180.0
-    end_angle = (angle + 0.5 * angle_range) * numpy.pi / 180.0
-    angles = numpy.linspace(start_angle, end_angle,  n_vertices)
-#    angles = angles[1:]
-    vertices = numpy.zeros((angles.shape[0],  2))    
-    vertices[:, 0] = 0.5 * numpy.cos(angles)
-    vertices[:, 1] = 0.5 * numpy.sin(angles)
-    return vertices * numpy.array(diameter_list) + numpy.array(pos)
-
-def find_files_and_folders(start_path,  extension = None):
-        '''
-        Finds all folders and files. With extension the files can be filtered
-        '''
-        directories = []
-        all_files  = []
-        directories = []
-        for root, dirs, files in os.walk(start_path):            
-            for dir in dirs:
-                directories.append(root + os.sep + dir)
-            for file in files:
-                if extension != None:
-                    if file.split('.')[1] == extension:
-                        all_files.append(root + os.sep + file)
-                else:
-                    all_files.append(root + os.sep + file)    
-        return directories, all_files
-        
-def find_class_in_module(modules,  class_name, module_name_with_hierarchy = False):
-    '''
-    Finds the module where a certain class declaration resides
-    '''
-    module_found = None
-    class_declaration_strings = ['class ' + class_name,  'class  ' + class_name]
-    for module in modules:
-         module_content = read_text_file(module)
-         for class_declaration_string in class_declaration_strings:
-            if module_content.find(class_declaration_string) != -1:
-                if module_name_with_hierarchy:
-                    items = module.split(os.sep)                    
-                    module_found = ''
-                    for item in items:
-                        stripped_from_extension = item.replace('.py', '')                        
-                        if stripped_from_extension.replace('_', '').isalnum():
-                            module_found = module_found + '.' + stripped_from_extension
-                    module_found = module_found[1:]
-                else:
-                    module_found = module.split(os.sep)[-1].split('.')[0]
-    return module_found
-
-def getziphandler(zipstream):
-    '''convenience wrapper that returns the zipreader object for both a byte array and a string containing 
-    the filename of the zip file'''
-    import StringIO,  zipfile
-    if hasattr(zipstream, 'data'):
-        sstream = StringIO.StringIO(zipstream.data) # zipfile as byte stream
-    else:
-        sstream = zipstream #filename
-    return zipfile.ZipFile(sstream)
-
-def parsefilename(filename, regexdict):
-    '''From a string filename extracts fields as defined in a dictionary regexdict. 
-    Data will be put into a directory with the same keys as found in regextdict.
-    The value of each regextdict key must be a list. The first element of the list
-    is a regular expression that tells what to extract from the string. The second element
-    is a python class that is used to convert the extracted string into a number (if applicable)
-    '''
-    import re
-    for k,v in regexdict.items():
-        for expr in v[:-1]: #iterate through possible patterns (compatibility patters for filename structured used earlier)
-            p = re.findall(expr,filename)
-        if p:
-            if isinstance(p[0], tuple): #stagepos extracts a tuple
-                p = p[0]
-            try:
-                regexdict[k] = [v[-1](elem) for elem in p] # replace the regex pattern with the value
-            except TypeError:
-                raise
-        else:
-            regexdict[k] = None # this pattern was not found
-    return regexdict
- 
-def prepare_dynamic_class_instantiation(modules,  class_name):        
-    """
-    Imports the necessary module and returns a reference to the class that could be sued for instantiation
-    """
-    #import experiment class
-    module_name = find_class_in_module(modules, class_name,  module_name_with_hierarchy = True)
-    __import__(module_name)
-    #get referece to class and return with it
-    return getattr(sys.modules[module_name], class_name)
 
 def rc(raw):
     return rc_pack(raw, order = 'rc')
@@ -569,6 +316,303 @@ def arc_perimeter(radius,  angle):
     slice_ratio = angle / 360.0
     return numpy.pi  * 2 *radius * slice_ratio
     
+#== Application management ==    
+def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_ancestors=[], direct=True):
+    '''Looks for the specified class, imports it and returns as class instance.
+    Use cases:
+    1. just specify user, others left as default: returns all classes
+    2. specify user and classname: returns specific class without checking its type
+    3. specify user, classname and list of classes that should not be in the ancestor tree of the class
+      In this case you can specify if required ancestors and excluded classtypes applies to the whole 
+      method resolution order tree (whole ancestor tree) or just the direct ancestors.
+    '''
+    import visexpman
+    bm=__import__(basemodule, fromlist='dummy')
+    class_list=[]
+    if not isinstance(required_ancestors, (list, tuple)): required_ancestors=[required_ancestors]
+    if not isinstance(exclude_classtypes, (list, tuple)): exclude_classtypes=[exclude_classtypes]
+    
+    for importer, modname, ispkg in pkgutil.iter_modules(bm.__path__,  bm.__name__+'.'):
+        m= __import__(modname, fromlist='dummy')
+        for attr in inspect.getmembers(m, inspect.isclass):
+            if direct:
+                omro = attr[1].__bases__
+            else:
+                omro = inspect.getmro(attr[1])
+            any_wrong_in_class_tree = [cl in omro for cl in exclude_classtypes]
+            all_good_ancestors = [True for a in required_ancestors if a in omro]
+            if sum(all_good_ancestors) < len(required_ancestors):
+                continue
+            if sum(any_wrong_in_class_tree) >0: continue # the class hierarchy contains ancestors that should not be in this class' ancestor list
+            # required_ancestors or exlude_classtypes conditions handled, we need to check if name is correct:
+            if (attr[0] == classname or classname==None):
+                class_list.append((m, attr[1]))
+                # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run    
+    return class_list    
+
+def keep_closest_ancestors(class_list,  required_ancestors):
+    '''From the result of fetch_classes method, if class_list contains multiple items, this routine
+    keeps the class with closest ancestors. The result might not be a single class, in such a case 
+    an exception is raised.'''
+    if len(class_list)==1:
+        return class_list[0] #nothing to do
+    elif len(class_list)==0:
+        raise ValueError('Empty list of classes')
+    levels = [] #level value in the class tree, i.e. how many steps from the child class
+    for a in required_ancestors:
+        levels.append([])
+        for c in class_list:
+            for b in c[1].__bases__:
+                mro = b.mro()
+                if a in mro:
+                    levels[-1].append(mro.index(a))
+                    break #a class can appear only once in the MRO, no need to look further
+                else:
+                    pass #this was an ancestor of the class that needs not to be inspected since it was not listed in required_ancestors    
+    # if for a class in class_list the required_ancestor is closest to the child class, then a 1 is put in this table: 
+    eligible = numpy.zeros(numpy.array(levels).shape, numpy.bool) 
+    for l1 in range(len(levels)): # go through required_ancestors' positions
+        d_i = min(levels[l1])# minimum distance from the child class
+        m_i = [i for i in range(len(class_list)) if levels[l1][i]==d_i] # for which classes is the required_ancestor closest to the child class?
+        eligible[[l1]*len(m_i), m_i] = 1
+    all_ancestors_closest = numpy.where(eligible.sum(axis=0) == len(required_ancestors))[0]
+    if len(all_ancestors_closest)!=1:
+        raise ValueError('There is no class in the list for which all of the required ancestors are closest to the child')
+    return class_list[all_ancestors_closest]
+    
+def prepare_dynamic_class_instantiation(modules,  class_name):        
+    """
+    Imports the necessary module and returns a reference to the class that could be sued for instantiation
+    """
+    #import experiment class
+    module_name = find_class_in_module(modules, class_name,  module_name_with_hierarchy = True)
+    __import__(module_name)
+    #get referece to class and return with it
+    return getattr(sys.modules[module_name], class_name)
+    
+def find_class_in_module(modules,  class_name, module_name_with_hierarchy = False):
+    '''
+    Finds the module where a certain class declaration resides
+    '''
+    module_found = None
+    class_declaration_strings = ['class ' + class_name,  'class  ' + class_name]
+    for module in modules:
+         module_content = read_text_file(module)
+         for class_declaration_string in class_declaration_strings:
+            if module_content.find(class_declaration_string) != -1:
+                if module_name_with_hierarchy:
+                    items = module.split(os.sep)                    
+                    module_found = ''
+                    for item in items:
+                        stripped_from_extension = item.replace('.py', '')                        
+                        if stripped_from_extension.replace('_', '').isalnum():
+                            module_found = module_found + '.' + stripped_from_extension
+                    module_found = module_found[1:]
+                else:
+                    module_found = module.split(os.sep)[-1].split('.')[0]
+    return module_found
+    
+def imported_modules():
+    '''
+    - List of imported visexpman module paths
+    - List of imported module names
+    '''        
+    import visexpman.engine.generic.parameter
+    visexpman_modules = []
+    module_names = []
+    for k, v in sys.modules.items():
+        if k.find('visexpman') != -1:
+            if v == None:
+                new_module_name = k.split('.')[-1]
+                if not is_in_list(module_names, new_module_name):
+                    module_names.append(new_module_name)
+            else:
+                new_module_path = v.__file__.replace('.pyc', '.py')
+                if not is_in_list(module_names, new_module_path):
+                    visexpman_modules.append(new_module_path)
+    module_names.sort()
+    visexpman_modules.sort()
+    return [module_names, visexpman_modules]
+    
+def module_versions(modules):
+    version_paths = {
+    'Queue' : 'standard', 
+    'socket': 'standard', 
+    'visexpman': 'version', 
+    'visexpA': '', 
+    'math': 'standard', 
+    'time': 'standard', 
+    'sys': 'version',     
+    'ImageDraw': 'Image.VERSION', 
+    'threading':  'standard', 
+    'numpy': 'version.version', 
+    'Image': 'VERSION', 
+    'pkgutil': 'standard', 
+    'zipfile': 'standard', 
+    'unittest': 'standard', 
+    'os': 'standard', 
+    'pygame': 'version.ver', 
+    'logging': 'standard', 
+    're': 'standard', 
+    'OpenGL': 'version.__version__', 
+    'parallel': 'VERSION', 
+    'random': 'standard', 
+    'inspect': 'standard', 
+    'serial': 'VERSION', 
+    'PyQt4':'', 
+    'scipy': 'scipy.version.version', 
+    'shutil': 'standard'
+    }    
+    module_version = ''
+    for module in modules:
+        __import__(module)
+        try:
+            if version_paths[module] != 'standard':
+                try:
+                    version = getattr(sys.modules[module], version_paths[module]).replace('\n', '')
+                except AttributeError:
+                    version = ''
+                module_version += '%s %s\n'%(module, version)
+            else:
+                module_version += '%s\n'%(module)
+        except KeyError:
+            raise RuntimeError('This module is not in the version list: %s' % module)
+    return module_version
+    
+#== Experiment specific ==
+def um_to_normalized_display(value, config):
+    '''
+    Converts um dimension data to normalized screen size where the screen range is between -1...1 for both axes and the origo is the center of the screen
+    '''
+    if not isinstance(value,  list):
+        value = [value,  value]
+    normalized_x = 2.0 * config.SCREEN_PIXEL_TO_UM_SCALE * float(value[0]) / config.SCREEN_RESOLUTION['col']
+    normalized_y = 2.0 * config.SCREEN_PIXEL_TO_UM_SCALE * float(value[1]) / config.SCREEN_RESOLUTION['row']
+    return [normalized_x,  normalized_y]
+
+def retina2screen(widths, speed=None, machine_config=None, option=None):
+    '''converts microns on retina to cycles per pixel on screen
+    '''
+    if machine_config.IMAGE_PROJECTED_ON_RETINA == 0:
+        visualangles = um2degrees(widths) # 300um is 10 degrees
+        #widthsonmonitor = tan(2*pi/360*visualangles)*monitor.distancefrom_mouseeye/monitor.pixelwidth #in pixels
+        widthsonmonitor = numpy.pi/180*visualangles*machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE/machine_config.SCREEN_PIXEL_WIDTH #in pixels
+        if not option is None and option=='pixels':
+            return widthsonmonitor
+
+        no_periods_onscreen = machine_config.SCREEN_RESOLUTION['col']/(widthsonmonitor*2)
+        cyclesperpixel = no_periods_onscreen/machine_config.SCREEN_RESOLUTION['col']
+        if speed is None:
+            return cyclesperpixel
+        else: # calculates cycles per second from width on retina and um per second on the retina
+            onecycle_pix = 1/cyclesperpixel
+            for i in range(len(widths)):
+            # from micrometers/s on the retina to cycles per pixel on screen
+                speedonmonitor[i] = numpy.pi/180*um2degrees(speed)*machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE/machine_config.SCREEN_PIXEL_WIDTH
+                cyclespersecond[i] = speedonmonitor[i]/(widthsonmonitor[i]*2) # divide by period, i.e. width*2
+                time4onecycle_onscreen[i] = (machine_config.SCREEN_RESOLUTION['col']/onecycle_pix[i])/cyclespersecond[i]
+            return cyclesperpixel, time4onecycle_onscreen
+    elif machine_config.IMAGE_PROJECTED_ON_RETINA==1:
+        widthsonmonitor = widths/machine_config.SCREEN_UM_TO_PIXEL_SCALE
+        no_periods_onscreen = machine_config.SCREEN_RESOLUTION['col']/(widthsonmonitor*2)
+        if speed is None:
+            cyclesperpixel = no_periods_onscreen/machine_config.SCREEN_RESOLUTION['col']
+            return cyclesperpixel
+        else: # calculates cycles per second from width on retina and um per second on the retina
+            cyclesperpixel = no_periods_onscreen/machine_config.SCREEN_RESOLUTION['col']
+            onecycle_pix = 1/cyclesperpixel
+            for i in range(len(widths)):
+            # from micrometers/s on the retina to cycles per pixel on screen
+                speedonmonitor[i]= speed/monitor.um2pixels
+                cyclespersecond[i] = speedonmonitor[i]/(widthsonmonitor[i]*2) # divide by period, i.e. width*2
+                time4onecycle_onscreen[i,:] = (widthsonmonitor[i]*2)/speedonmonitor[i]#cyclespersecond(i,:)
+            return cyclespersecond, time4onecycle_onscreen
+
+def um2degrees(umonretina):
+# given umonretina estimates the visual angle, based on 300um on the retina
+# is 10 degrees
+    return 10.0*numpy.array(umonretina, numpy.float)/300
+    
+#== File(name) operations ==
+
+def find_files_and_folders(start_path,  extension = None):
+        '''
+        Finds all folders and files. With extension the files can be filtered
+        '''
+        directories = []
+        all_files  = []
+        directories = []
+        for root, dirs, files in os.walk(start_path):            
+            for dir in dirs:
+                directories.append(root + os.sep + dir)
+            for file in files:
+                if extension != None:
+                    if file.split('.')[1] == extension:
+                        all_files.append(root + os.sep + file)
+                else:
+                    all_files.append(root + os.sep + file)    
+        return directories, all_files
+
+def getziphandler(zipstream):
+    '''convenience wrapper that returns the zipreader object for both a byte array and a string containing 
+    the filename of the zip file'''
+    import StringIO,  zipfile
+    if hasattr(zipstream, 'data'):
+        sstream = StringIO.StringIO(zipstream.data) # zipfile as byte stream
+    else:
+        sstream = zipstream #filename
+    return zipfile.ZipFile(sstream)
+
+def parsefilename(filename, regexdict):
+    '''From a string filename extracts fields as defined in a dictionary regexdict. 
+    Data will be put into a directory with the same keys as found in regextdict.
+    The value of each regextdict key must be a list. The first element of the list
+    is a regular expression that tells what to extract from the string. The second element
+    is a python class that is used to convert the extracted string into a number (if applicable)
+    '''
+    import re
+    for k,v in regexdict.items():
+        for expr in v[:-1]: #iterate through possible patterns (compatibility patters for filename structured used earlier)
+            p = re.findall(expr,filename)
+        if p:
+            if isinstance(p[0], tuple): #stagepos extracts a tuple
+                p = p[0]
+            try:
+                regexdict[k] = [v[-1](elem) for elem in p] # replace the regex pattern with the value
+            except TypeError:
+                raise
+        else:
+            regexdict[k] = None # this pattern was not found
+    return regexdict
+
+def filtered_file_list(folder_name,  filter, fullpath = False):
+    files = os.listdir(folder_name)
+    filtered_files = []
+    for file in files:
+        if isinstance(filter,  list) or isinstance(filter,  tuple):
+            found  = False
+            for filter_item in filter:                
+                if file.find(filter_item) != -1:
+                    found = True
+            if found:
+                if fullpath:
+                    filtered_files.append(os.path.join(folder_name, file))
+                else:
+                    filtered_files.append(file)
+        elif isinstance(filter,  str):
+            if file.find(filter) != -1:
+                if fullpath:
+                    filtered_files.append(os.path.join(folder_name, file))
+                else:
+                    filtered_files.append(file)
+    return filtered_files
+
+def read_text_file(path):
+    f = open(path,  'rt')
+    txt =  f.read(os.path.getsize(path))
+    f.close()            
+    return txt
+
 def listdir_fullpath(folder):
     files = os.listdir(folder)
     full_paths = []
@@ -606,6 +650,7 @@ def generate_foldername(path):
             raise RuntimeError('Foldername cannot be generated')
     return testable_path
 
+#== Time /Date ==
 def datetime_string():
     now = time.localtime()
     return ('%4i-%2i-%2i_%2i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec)).replace(' ', '0')
@@ -613,9 +658,6 @@ def datetime_string():
 def date_string():
     now = time.localtime()
     return ('%4i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday)).replace(' ', '0')
-
-class testCoordinateTransformation(unittest.TestCase):
-    pass
 
 def in_range(number,  range1,  range2, preceision = None):
     if preceision != None:
@@ -651,72 +693,38 @@ def is_in_list(list, item_to_find):
     else:
         return False
 
-def imported_modules():
-    '''
-    - List of imported visexpman module paths
-    - List of imported module names
-    '''        
-    import visexpman.engine.generic.parameter
-    visexpman_modules = []
-    module_names = []
-    for k, v in sys.modules.items():
-        if k.find('visexpman') != -1:
-            if v == None:
-                new_module_name = k.split('.')[-1]
-                if not is_in_list(module_names, new_module_name):
-                    module_names.append(new_module_name)
+#== Others ==
+def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):
+    wave = []
+    period = int(period) 
+    for i in range(n_sample):
+        if period == 0:
+            value = 0
+        elif waveform_type == 'sin':
+            value = 0.5 * amplitude * math.sin(2 * math.pi * float(i) / period + phase * (math.pi/180.0)) + offset
+        elif waveform_type == 'cos':
+            value = 0.5 * amplitude * math.cos(2 * math.pi * float(i) / period + phase * (math.pi/180.0)) + offset            
+        elif waveform_type == 'sqr':
+            actual_phase = (i + int(period * (phase / 360.0))) % period
+            if actual_phase < duty_cycle * period:
+                value = 0.5 * amplitude
             else:
-                new_module_path = v.__file__.replace('.pyc', '.py')
-                if not is_in_list(module_names, new_module_path):
-                    visexpman_modules.append(new_module_path)
-    module_names.sort()
-    visexpman_modules.sort()
-    return [module_names, visexpman_modules]
-    
-def module_versions(modules):
-    version_paths = {
-    'Queue' : 'standard', 
-    'socket': 'standard', 
-    'visexpman': 'version', 
-    'math': 'standard', 
-    'time': 'standard', 
-    'sys': 'version',     
-    'ImageDraw': 'Image.VERSION', 
-    'threading':  'standard', 
-    'numpy': 'version.version', 
-    'Image': 'VERSION', 
-    'pkgutil': 'standard', 
-    'zipfile': 'standard', 
-    'unittest': 'standard', 
-    'os': 'standard', 
-    'pygame': 'version.ver', 
-    'logging': 'standard', 
-    're': 'standard', 
-    'OpenGL': 'version.__version__', 
-    'parallel': 'VERSION', 
-    'random': 'standard', 
-    'inspect': 'standard', 
-    'serial': 'VERSION', 
-    'PyQt4':'', 
-    'scipy': 'scipy.version.version', 
-    'shutil': 'standard'
-    }
-    module_version = ''
-    for module in modules:
-        __import__(module)
-        try:
-            if version_paths[module] != 'standard':
-                try:
-                    version = getattr(sys.modules[module], version_paths[module]).replace('\n', '')
-                except AttributeError:
-                    version = ''
-                module_version += '%s %s\n'%(module, version)
+                value = -0.5 * amplitude
+            value = value + offset
+        elif waveform_type == 'saw':
+            actual_phase = (i + int(period * (phase / 360.0))) % period
+            value = amplitude * (float(actual_phase) / float(period-1.0)) - 0.5 * amplitude + offset
+        elif waveform_type == 'tri':
+            actual_phase = (i + int(period * (phase / 360.0))) % period
+            if actual_phase < 0.5 * period:
+                value = amplitude * (float(actual_phase) / float(0.5*period)) - 0.5 * amplitude + offset
             else:
-                module_version += '%s\n'%(module)
-        except KeyError:
-            raise RuntimeError('This module is not in the version list: %s' % module)
-    return module_version       
-        
+                value = -amplitude * (float(actual_phase) / float(0.5 * period)) + 1.5 * amplitude + offset
+        else:
+            value = 0
+        wave.append(value)    
+    return wave            
+
 
 if __name__ == "__main__":
     l = [1, 2, 3]

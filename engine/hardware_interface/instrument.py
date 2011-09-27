@@ -6,13 +6,12 @@ except:
 import os
 import unittest
 import time
-import threading
 import parallel
 import visexpman.engine.generic.configuration
 import visexpman.engine.generic.utils as utils
 import logging
 
-class Instrument(threading.Thread):
+class Instrument():
     '''
     The basic concept of enabling/disabling instruments: classes can be instantiated when the corresponding instrument is disabled. All the instrument classes shall be implemented in a way,
     that hardware calls are executed only in enabled state. The rationale behind this, is to ensure that the user do not have to take care of ENABLE* parameters at experiment level.
@@ -26,7 +25,6 @@ class Instrument(threading.Thread):
         self.settings = settings
         self.config = config
         self.caller = caller
-        threading.Thread.__init__( self )
         self.init_communication_interface()
         self.init_instrument()
         self.started = False        

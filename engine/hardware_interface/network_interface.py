@@ -1,116 +1,179 @@
 import socket
-import threading
+#import threading
 import Queue
 import sys
 import time
 import unittest
 import visexpman.engine.generic.configuration
+import PyQt4.QtCore as QtCore
 
 #Try: multiple clients, client thread starts in a thread, command buffer mutual exclusion. check out thread/target parameter
 #Network listener -> CommandServer
 
-class NetworkListener(threading.Thread):
+class NetworkListener(QtCore.QThread):
     '''
     '''
-    def __init__(self, config, caller):
+    def __init__(self, config, caller, socket_type, port):
         target = None
         name = None
-        threading.Thread.__init__(self, target=target, name=name)
+        QtCore.QThread.__init__(self)
         self.config = config
         self.caller = caller
-        self.setDaemon(True)
-
+        self.socket_type = socket_type
         #set up socket
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket = socket.socket(socket.AF_INET, self.socket_type)
         # Bind the socket to the port
-        server_address = (self.config.SERVER_IP, self.config.COMMAND_INTERFACE_PORT)
+        server_address = (self.config.SERVER_IP, port)
         self.socket.bind(server_address)
+        if self.socket_type ==  socket.SOCK_DGRAM:
+            self.socket.settimeout(0.001)
 
     def run(self):
-        self.socket.listen(1)        
-        while True:
-            #Connections are not accepted during experiment
-            if self.caller.state == 'ready':
-                connection, client_address = self.socket.accept()
+        if self.socket_type ==  socket.SOCK_STREAM:
+            self.socket.listen(1)
+            while True:
+                #Connections are not accepted during experiment
+                if self.caller.state == 'ready':
+                    connection, client_address = self.socket.accept()
+                    try:
+                        data = ''
+                        while True:
+                            newdata = connection.recv(16)
+                            data = data+newdata
+                            if len(newdata)==0:
+        #                        print >>sys.stderr, 'received "%s"' % data
+                                self.caller.command_queue.put(data)
+                                break
+                    except Exception as e:
+                        print e
+                    finally:
+                        # Clean up the connection
+                        connection.close()
+        elif self.socket_type ==  socket.SOCK_DGRAM:
+            while True:
                 try:
-                    data = ''
-                    while True:
-                        newdata = connection.recv(16)
-                        data = data+newdata
-                        if len(newdata)==0:
-    #                        print >>sys.stderr, 'received "%s"' % data
-                            self.caller.command_queue.put(data)
-                            break
-                except Exception as e:
-                    print e
-                finally:
-                    # Clean up the connection
-                    connection.close()
+                    udp_buffer, addr = self.socket.recvfrom(self.config.UDP_BUFFER_SIZE)                    
+                    self.client_address = addr
+                    print udp_buffer
+                    #TODO: here comes the presentinator command translator
+                    self.caller.command_queue.put(udp_buffer)
+                except socket.timeout:
+                    pass            
 
-class NetworkSender(threading.Thread):
+class NetworkSender(QtCore.QThread):    
     '''
     '''
-    def __init__(self, config, caller):
+    def __init__(self, config, caller, socket_type, port):
         target = None
         name = None
-        threading.Thread.__init__(self, target=target, name=name)
+        QtCore.QThread.__init__(self)
         self.config = config
         self.caller = caller
+        self.port = port
+        self.socket_type = socket_type
 
-    def run(self):        
-        for i in range(3):
-            sock = socket.create_connection((self.config.SERVER_IP,  self.config.COMMAND_INTERFACE_PORT))
-            sock.sendall(str(i))
+    def run(self):
+        for i in range(self.config.MSG_LENGTH):
+            if self.socket_type ==  socket.SOCK_STREAM:
+                sock = socket.create_connection((self.config.SERVER_IP, self.port))
+                sock.sendall(str(i))
+            elif self.socket_type ==  socket.SOCK_DGRAM:
+                sock = socket.socket( socket.AF_INET, socket.SOCK_DGRAM )
+                sock.sendto( str(i), (self.config.SERVER_IP, self.config.UDP_PORT) )            
             time.sleep(0.1)
 
 class NetworkInterfaceTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         SERVER_IP = 'localhost'
-        COMMAND_INTERFACE_PORT = [10001, [300,  65000]]
+        import random
+        COMMAND_INTERFACE_PORT = [10000 + int(10000 * random.random()), [300,  65000]]
+        
+        ENABLE_UDP = True
+        UDP_PORT = [10000 + int(10000 * random.random()),  [300,  65000]]
+        UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
+        
+        MSG_LENGTH = [14, [1, 100]]
         self._create_parameters_from_locals(locals())
 
 class testRunner():
     def __init__(self):
         threading.Thread.__init__(self)
         self.setDaemon(False)
-        
 
     def run(self):
         print 'test runner started'        
         config = NetworkInterfaceTestConfig()
-        listener = NetworkListener(config, self)
-        sender1 = NetworkSender(config, self)
-        sender2 = NetworkSender(config, self)
+        listener = NetworkListener(config, self, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
+        sender1 = NetworkSender(config, self, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
+        sender2 = NetworkSender(config, self, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
         listener.start()
         sender1.start()
         time.sleep(0.5)
         sender2.start()
-        time.sleep(0.5)
+        time.sleep(0.5)        
         self.response = ''
         while not self.command_queue.empty():
             self.response += self.command_queue.get()
         print self.response
 
-        
 class testNetworkInterface(unittest.TestCase):
     def setUp(self):
         self.state = 'ready'
-        
-    def test_01_multiple_senders(self):
-        self.command_queue = Queue.Queue()
-        config = NetworkInterfaceTestConfig()
-        listener = NetworkListener(config, self)
-        sender1 = NetworkSender(config, self)
-        sender2 = NetworkSender(config, self)
-        listener.start()
-        sender1.start()
-        time.sleep(0.5)
-        sender2.start()
-        time.sleep(0.5)
+        self.config = NetworkInterfaceTestConfig()    
+
+    def test_01_single_sender(self):
+        self.command_queue = Queue.Queue()        
+        self.listener = NetworkListener(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
+        sender = NetworkSender(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
+        self.listener.start()
+        sender.start()
+        time.sleep(1.5)
         response = ''
         while not self.command_queue.empty():
             response += self.command_queue.get()        
-        self.assertEqual((response),  ('012012'))
+        expected_string = ''
+        for i in range(self.config.MSG_LENGTH):
+            expected_string += str(i)        
+        self.assertEqual((response),  (expected_string))        
+        
+    def test_02_multiple_tcpip_senders(self):
+        self.command_queue = Queue.Queue()        
+        self.listener = NetworkListener(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 1)
+        sender1 = NetworkSender(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 1)
+        sender2 = NetworkSender(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 1)
+        self.listener.start()
+        sender1.start()
+        time.sleep(1.5)
+        sender2.start()
+        time.sleep(1.5)
+        response = ''
+        while not self.command_queue.empty():
+            response += self.command_queue.get()        
+        expected_string = ''
+        for i in range(self.config.MSG_LENGTH):
+            expected_string += str(i)
+        expected_string = expected_string + expected_string
+        self.assertEqual((response),  (expected_string))
+        
+    def test_02_multiple_udp_senders(self):
+        self.command_queue = Queue.Queue()
+        config = NetworkInterfaceTestConfig()
+        listener = NetworkListener(config, self, socket.SOCK_DGRAM, config.UDP_PORT)
+        sender1 = NetworkSender(config, self, socket.SOCK_DGRAM, config.UDP_PORT)
+        sender2 = NetworkSender(config, self, socket.SOCK_DGRAM, config.UDP_PORT)
+        listener.start()
+        sender1.start()
+        time.sleep(1.5)
+        sender2.start()
+        time.sleep(1.5)
+        response = ''
+        while not self.command_queue.empty():
+            response += self.command_queue.get()
+        expected_string = ''
+        for i in range(self.config.MSG_LENGTH):
+            expected_string += str(i)
+        expected_string = expected_string + expected_string
+        self.assertEqual((response),  (expected_string))
         
 if __name__ == "__main__":
     unittest.main()

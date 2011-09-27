@@ -15,6 +15,8 @@ class unitTestRunner():
                'enable' : not True}, #Not part of visexpman application
                {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
                'enable' : True},
+               {'test_class_path' : 'visexpman.engine.visexp_runner.testFindoutConfig',
+               'enable' : True}, 
                {'test_class_path' : 'visexpman.engine.visexp_runner.testVisexpRunner',
                'enable' : not True}, #Under development, test cases are being built
                {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.testInstruments',

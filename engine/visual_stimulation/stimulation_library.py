@@ -110,22 +110,9 @@ class Stimulations(command_handler.CommandHandler):
             self.command_buffer += self.parse(command)            
             if self.command_buffer.find('abort_experiment') != -1:
                 self.command_buffer = self.command_buffer.replace('abort_experiment', '')
+                self.caller.experiment_control.log.info('%2.3f\tAbort pressed'%(self.flip_time))
                 self.abort = True
-    
-#        #periodic pause
-#        if self.config.ACTION_BETWEEN_STIMULUS != 'no':
-#            elapsed_time = int(now - self.stimulation_control.stimulation_start_time)
-#            if elapsed_time % self.config.SEGMENT_DURATION == 0 and elapsed_time >= self.config.SEGMENT_DURATION :                
-##                 psychopy.log.data('Pause')
-#                if self.config.ACTION_BETWEEN_STIMULUS == 'keystroke':
-#                    while True:
-#                        if self.stimulation_control.is_next_pressed():
-#                            break
-#                elif self.config.ACTION_BETWEEN_STIMULUS.find('wait')  != -1:
-#                    time.sleep(float(self.config.ACTION_BETWEEN_STIMULUS.replace('wait_',  '')))
-                    
-                
-        
+
     def _frame_trigger_pulse(self):
         '''
         Generates frame trigger pulses
@@ -147,9 +134,7 @@ class Stimulations(command_handler.CommandHandler):
             color_to_set = utils.convert_color(color)
         self.log_on_flip_message = 'clear_screen(' + str(duration) + ', ' + str(color_to_set) + ')'
         self.screen.clear_screen(color = color_to_set)
-#        self.set_background(color_to_set)
         self.show_text()
-#         self.screen.clearBuffer()
         if duration == 0.0:
             if flip:
                 self._flip(trigger = True)
@@ -157,6 +142,9 @@ class Stimulations(command_handler.CommandHandler):
             for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
                 if flip:
                     self._flip(trigger = True)
+                if self.abort:
+                    self.abort = False
+                    break
                 
 #    def show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [],  size = None):
 #        '''
@@ -620,9 +608,9 @@ class Stimulations(command_handler.CommandHandler):
         else:
             bar_width = white_bar_width * self.config.SCREEN_PIXEL_TO_UM_SCALE
         #== Logging ==
-        self.log_on_flip_message = 'show_gratings(' + str(duration)+ ', ' + str(profile) + ', ' + str(white_bar_width) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
-        #TODO:self.stimulation_control.log.info(self.log_on_flip_message)
-        self.log_on_flip_message = 'show_gratings'
+        self.log_on_flip_message_initial = 'show_gratings(' + str(duration)+ ', ' + str(profile) + ', ' + str(white_bar_width) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
+        self.log_on_flip_message_continous = 'show_gratings'
+        first_flip = False        
         
         #== Prepare ==
         orientation_rad = orientation * math.pi / 180.0
@@ -689,7 +677,7 @@ class Stimulations(command_handler.CommandHandler):
             color_offset_adjusted = []
             for color_offset_i in color_offset:
                 color_offset_adjusted.append(color_offset_i)
-                
+
         #calculate grating profile period from spatial frequency
         period = bar_width * (1.0 + duty_cycle)
         #modify profile length so that the profile will contain integer number of repetitions
@@ -697,7 +685,7 @@ class Stimulations(command_handler.CommandHandler):
         profile_length = period * repetitions
         cut_off_ratio = display_area_adjusted[0]/profile_length
         profile_length = int(profile_length)
-        
+
         waveform_duty_cycle = 1.0 / (1.0 + duty_cycle)
         stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle)
         stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], profile_length, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, waveform_duty_cycle)
@@ -733,10 +721,17 @@ class Stimulations(command_handler.CommandHandler):
                 self.show_text()
                 glEnable(GL_TEXTURE_2D)
             glColor3fv((1.0,1.0,1.0))
-            glDrawArrays(GL_POLYGON,  0, 4)            
+            glDrawArrays(GL_POLYGON,  0, 4)
+            #Make sure that at the first flip the parameters of the function call are logged
+            if not first_flip:
+                self.log_on_flip_message = self.log_on_flip_message_initial
+                first_flip = True
+            else:
+                self.log_on_flip_message = self.log_on_flip_message_continous
             self._flip(trigger = True)
             if self.abort:
-                break            
+                self.abort = False
+                break
                     
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
@@ -757,13 +752,9 @@ class Stimulations(command_handler.CommandHandler):
         that on each frame the number of dots are equal.
         
         '''
-        
-        self.log_on_flip_message = 'show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')'
-        #TODO:self.stimulation_control.log.info(self.log_on_flip_message)
-        self.log_on_flip_message = 'show_dots'
-        
-        st = time.time()
-        
+        self.log_on_flip_message_initial = 'show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')'
+        self.log_on_flip_message_continous = 'show_dots'
+        first_flip = False
         radius = 1.0
         vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
         n_frames = len(dot_positions) / ndots        
@@ -785,11 +776,10 @@ class Stimulations(command_handler.CommandHandler):
             n_frames_per_pattern = 1
         else:
             n_frames_per_pattern = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
-        
-#        print time.time() - st        
+
         glEnableClientState(GL_VERTEX_ARRAY)
         dot_pointer = 0
-        for frame_i in range(n_frames):            
+        for frame_i in range(n_frames):
             start_i = dot_pointer * n_vertices
             end_i = (dot_pointer + ndots) * n_vertices
             dot_pointer = dot_pointer + ndots
@@ -804,15 +794,25 @@ class Stimulations(command_handler.CommandHandler):
                     elif isinstance(color[0], numpy.ndarray):
                         glColor3fv(color[frame_i][dot_i].tolist())
                     else:
-                        glColor3fv(color)                    
-                    glDrawArrays(GL_POLYGON,  dot_i * n_vertices, n_vertices)                
+                        glColor3fv(color)
+                    glDrawArrays(GL_POLYGON,  dot_i * n_vertices, n_vertices)
+                    
+                #Make sure that at the first flip the parameters of the function call are logged
+                if not first_flip:
+                    self.log_on_flip_message = self.log_on_flip_message_initial
+                    first_flip = True
+                else:
+                    self.log_on_flip_message = self.log_on_flip_message_continous
                 if i == 0:
                     self._flip(trigger = True)
                 else:
                     self._flip(trigger = False)
-                    #TODO:
-#                if self.stimulation_control.visual_stimulation_runner.abort:
-#                    break
+                if self.abort:
+                    self.abort = False
+                    break
+            if self.abort:
+                self.abort = False
+                break
                 
         glDisableClientState(GL_VERTEX_ARRAY)
         
@@ -879,16 +879,16 @@ class Stimulations(command_handler.CommandHandler):
 #        glMatrixMode(GL_MODELVIEW)
 #        glLoadIdentity()
 
-        for i in range(n_frames):          
-            
-            glVertexPointerf(vertices)
-            glColor3fv(numpy.array([1.0,  1.0,  1.0]))
-            glTranslatef(-0.5+i*spd, 0.0, 0.0)
-            glDrawArrays(GL_POLYGON,  0, 4)
-            
-            self._flip()
-            if self.stimulation_control.abort_stimulus():                    
-                break
+#        for i in range(n_frames):          
+#            
+#            glVertexPointerf(vertices)
+#            glColor3fv(numpy.array([1.0,  1.0,  1.0]))
+#            glTranslatef(-0.5+i*spd, 0.0, 0.0)
+#            glDrawArrays(GL_POLYGON,  0, 4)
+#            
+#            self._flip()
+#            if self.stimulation_control.abort_stimulus():                    
+#                break
         
         glDisableClientState(GL_VERTEX_ARRAY)
         

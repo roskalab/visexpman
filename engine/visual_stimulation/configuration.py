@@ -75,7 +75,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         SERVER_IP = 'localhost'
         WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
         CLIENT_UDP_IP = ''
-        UDP_ENABLE = True
+        ENABLE_UDP = True
         UDP_PORT = [446,  [300,  65000]]
         UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
         COMMAND_INTERFACE_PORT = [10000, [300,  65000]]

@@ -2,9 +2,9 @@
 
 import pygame
 import socket
-import threading
-import time#?
-import os#?
+#import threading
+#import time#?
+#import os#?
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.generic.graphics as graphics
 from OpenGL.GL import *#?

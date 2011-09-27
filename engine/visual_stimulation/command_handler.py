@@ -22,6 +22,9 @@ class CommandHandler():
         for i in range(len(self.caller.experiment_config_list)):
             if self.caller.experiment_config_list[i][1].__name__ == self.config.EXPERIMENT_CONFIG:
                 self.selected_experiment_config_index = i
+                
+        #Experiment counter will be used to identify each experiment (logging,....)
+        self.experiment_counter = 0
         
     def process_command_buffer(self):
         '''
@@ -29,7 +32,7 @@ class CommandHandler():
         '''
         result = ''        
         while not self.caller.command_queue.empty():
-            result += '\n' + self.parse(self.caller.command_queue.get(),  state = self.caller.state)
+            result += '\n' + str(self.parse(self.caller.command_queue.get(),  state = self.caller.state))
         self.caller.command_buffer = []
         self.caller.screen_and_keyboard.message += result
 
@@ -46,7 +49,8 @@ class CommandHandler():
         #Run experiment
         self.caller.experiment_control.run_experiment()
         #Clean up experiment
-        self.caller.experiment_control.finish_experiment()
+        self.caller.experiment_control.finish_experiment()        
+        self.experiment_counter += 1
         return 'experiment executed'
 
     def bullseye(self, par):

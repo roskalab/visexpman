@@ -10,6 +10,7 @@ import visexpman.engine.visual_stimulation.user_interface as user_interface
 import visexpman.engine.hardware_interface.network_interface as network_interface
 import visexpman.engine.visual_stimulation.command_handler as command_handler
 import Queue
+import socket
 import logging
 import os
 import shutil
@@ -53,14 +54,19 @@ class VisExpRunner():
             self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self)        
         #start listening on tcp ip for receiving commands
         self.command_queue = Queue.Queue()
-        self.tcpip_listener = network_interface.NetworkListener(self.config, self)
+        self.tcpip_listener = network_interface.NetworkListener(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
         self.tcpip_listener.start()
+        #Start udp listener
+        if self.config.ENABLE_UDP:
+            self.udp_listener = network_interface.NetworkListener(self.config, self, socket.SOCK_DGRAM, self.config.UDP_PORT)
+            self.udp_listener.start()            
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
         self.loop_state = 'running'
         #create list of imported python modules
         module_info = utils.imported_modules()
         self.visexpman_module_paths  = module_info[1]
+        self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', sys.argv[0]))        
         self.module_versions = utils.module_versions(module_info[0])
         #When initialization is done, visexpman state is 'ready'
         self.state = 'ready'
@@ -126,7 +132,7 @@ def find_out_config():
         raise RuntimeError('Invalid command line argument')
     return user, config_class
 
-class testVisexpRunner(unittest.TestCase):
+class testFindoutConfig(unittest.TestCase):
     #== Test cases of find_out_config() function ==
     def test_01_find_out_config_no_arguments(self):
         sys.argv = ['module.py']
@@ -164,6 +170,7 @@ class testVisexpRunner(unittest.TestCase):
         sys.argv = [] 
         self.assertRaises(RuntimeError,  find_out_config)
         
+class testVisexpRunner(unittest.TestCase):        
     #== Test cases for VisexpRunner's constructor ==    
     def test_09_VisexpRunner_SafestartConfig(self):
         v = VisExpRunner('', 'SafestartConfig')
