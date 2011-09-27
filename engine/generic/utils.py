@@ -142,39 +142,63 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
     Use cases:
     1. just specify user, others left as default: returns all classes
     2. specify user and classname: returns specific class without checking its type
-    3. specify user, classname,and list of classes that should not be in the ancestor tree of the class
+    3. specify user, classname and list of classes that should not be in the ancestor tree of the class
       In this case you can specify if required ancestors and excluded classtypes applies to the whole 
-      method resolution order tree (whole ancestor tree) or just the direct ancestors. You can specify 
-      'direct' for all required ancestors as a single True value as argument or as a list of booleans. In
-      the latter case, the booleans in the list apply to the class in the same position in the 
-      required_ancestors list.
+      method resolution order tree (whole ancestor tree) or just the direct ancestors.
     '''
     import visexpman
     bm=__import__(basemodule, fromlist='dummy')
     class_list=[]
     if not isinstance(required_ancestors, (list, tuple)): required_ancestors=[required_ancestors]
     if not isinstance(exclude_classtypes, (list, tuple)): exclude_classtypes=[exclude_classtypes]
-    if not isinstance(direct, (list, tuple)): direct=[direct]*len(required_ancestors)
     
     for importer, modname, ispkg in pkgutil.iter_modules(bm.__path__,  bm.__name__+'.'):
         m= __import__(modname, fromlist='dummy')
         for attr in inspect.getmembers(m, inspect.isclass):
-            for ai1 in range(len(required_ancestors)):
-                if direct[ai1]==True:
-                    ancestors = attr[1].__bases__
+            if direct:
+                omro = attr[1].__bases__
+            else:
+                omro = inspect.getmro(attr[1])
+            any_wrong_in_class_tree = [cl in omro for cl in exclude_classtypes]
+            all_good_ancestors = [True for a in required_ancestors if a in omro]
+            if sum(all_good_ancestors) < len(required_ancestors):
+                continue
+            if sum(any_wrong_in_class_tree) >0: continue # the class hierarchy contains ancestors that should not be in this class' ancestor list
+            # required_ancestors or exlude_classtypes conditions handled, we need to check if name is correct:
+            if (attr[0] == classname or classname==None):
+                class_list.append((m, attr[1]))
+                # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run    
+    return class_list    
+
+def keep_closest_ancestors(class_list,  required_ancestors):
+    '''From the result of fetch_classes method, if class_list contains multiple items, this routine
+    keeps the class with closest ancestors. The result might not be a single class, in such a case 
+    an exception is raised.'''
+    if len(class_list)==1:
+        return class_list[0] #nothing to do
+    elif len(class_list)==0:
+        raise ValueError('Empty list of classes')
+    levels = [] #level value in the class tree, i.e. how many steps from the child class
+    for a in required_ancestors:
+        levels.append([])
+        for c in class_list:
+            for b in c[1].__bases__:
+                mro = b.mro()
+                if a in mro:
+                    levels[-1].append(mro.index(a))
+                    break #a class can appear only once in the MRO, no need to look further
                 else:
-                    ancestors = inspect.getmro(attr[1])
-                any_wrong_in_class_tree = [cl in ancestors for cl in exclude_classtypes]
-                if sum(any_wrong_in_class_tree) >0: 
-                    # the class hyerarchy contains ancestors that should not be in this class' ancestor list
-                    break
-                if not required_ancestors[ai1] in ancestors:
-                    break
-                # required_ancestors or exlude_classtypes conditions handled, we need to check if name is correct:
-                if (attr[0] == classname or classname==None):
-                    class_list.append((m, attr[1]))
-                    # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run    
-    return class_list
+                    pass #this was an ancestor of the class that needs not to be inspected since it was not listed in required_ancestors    
+    # if for a class in class_list the required_ancestor is closest to the child class, then a 1 is put in this table: 
+    eligible = numpy.zeros(numpy.array(levels).shape, numpy.bool) 
+    for l1 in range(len(levels)): # go through required_ancestors' positions
+        d_i = min(levels[l1])# minimum distance from the child class
+        m_i = [i for i in range(len(class_list)) if levels[l1][i]==d_i] # for which classes is the required_ancestor closest to the child class?
+        eligible[[l1]*len(m_i), m_i] = 1
+    all_ancestors_closest = numpy.where(eligible.sum(axis=0) == len(required_ancestors))[0]
+    if len(all_ancestors_closest)!=1:
+        raise ValueError('There is no class in the list for which all of the required ancestors are closest to the child')
+    return class_list[all_ancestors_closest]
     
 def um_to_normalized_display(value, config):
     '''
@@ -696,75 +720,62 @@ def module_versions(modules):
 
 if __name__ == "__main__":
     l = [1, 2, 3]
-#    print is_in_list(l, 'a')
     imported_modules()
-#    print is_vector_in_array(numpy.array([[1.0, 2.0, 3.0], [2.0, 3.0, 4.0], [3.0, 4.0, 5.0]]),  numpy.array([1.0, 2.0, 3.0]))
-#    unittest.main()
-#    a = [1.0, 2.0, 3.0]
-#    b = [10.0, 20.0, 30.0]
-#    c = rc(numpy.array([a, b]))    
-#    p = coordinate_transform_single_point(rc((0.0, 1.0)), rc((100.0, -100.0)), rc((-1, 1)) )
-#    print p['row']
-#    print p['col']
+# temp solution by Daniel:
+    import unittest
+    class Test(unittest.TestCase):
+        def setUp(self):
+            pass
+            
+        def tearDown(self):
+            pass
 
-#    print rc_multiply(rc((2, 0)), rc((1, 1)))
-#    print rc_multiply(rc(numpy.array([a, b])), rc((0, -10)))
-#    print rc_multiply(rc(numpy.array([a, b])), rc(numpy.array([a, b])))
-#    print a[:]['row']
+        def test_parsefilename(self):
+            filename = 'whatever/folder/Bl6(b 04.09.10 i 01.11.10)-(-372 -78 129)-r2-w1000-sp2400-3stat-3move-2.0x-20x(ND10 isoflCP 0.5 R).tif.frames'
+            commonpars = {'AnimalStrain':['^(\S+)\(', str], # Match M???(... at the beginning of the line
+                            'AnimalBirthDay_YMD':['\(b\S*\ (\d{2,2})\.(\d{2,2})\.(\d{2,2})\ ', int],
+                            'Injected_YMD':['i\S*\ (\d{2,2})\.(\d{2,2})\.(\d{2,2})\ *\)', int],
+                            'StagePos':['\((-*\d+\.*\d*)\ +(-*\d+\.*\d*)',float], # (x y # lookahead assertion needed?
+                            'Depth':['\ +(\d+\.*\d*)\)',float], # z)
+                            'Repetition':['-r(\d+)-',int], #-r??
+                            'StimulusName':['-r\d+-(\S+)-\d\.\d+mspl',str], #-r??-string
+                            'Objective':['-*(\d+)x\(',int],
+                            'Comments':['^M\d+(\S+)\(',str],
+                            'Anesthesia':['ND\d\d*\ (\S+\ *\S*)\ \S+\)$',str],
+                                          }
+            stimpar = parsefilename(filename, commonpars)
+            result = {'AnimalStrain':['Bl6'], # Match M???(... at the beginning of the line
+                            'AnimalBirthDay_YMD':[4, 9, 10],
+                            'Injected_YMD':[1, 11, 10],
+                            'StagePos':[-372, -78], # (x y # lookahead assertion needed?
+                            'Depth':[129.0], # z)
+                            'Repetition':[2], #-r??
+                            'StimulusName':['w1000-sp2400-3stat-3move'], #-r??-string
+                            'Objective':[20],
+                            'Comments':['isoflCP 0.5 R'],
+                            'Anesthesia':['isoflCP 0.5']
+                                          }
+            self.assertequal(stimpar, result)
+            
+        def test_getziphandler(self):
+            pass
 
-#    res = coordinate_transform(cr((100, 100)), cr((-100, 100)), 'right', 'down')
-#    print res['col'], res['row']
-    
-#    cols = [0,  100, -100]
-#    rows = [0,  100, 100]
-#    coords = cr(numpy.array([cols, rows]))    
-#    print coords.shape
-#    res = coordinate_transform(coords, cr((-100, 100)), 'right', 'down')    
-##    print res
-#    print rc_multiply_with_constant(c, 10)
-#    a = numpy.zeros((3, coords.shape[0]))
-#    a[0][0] = coords[1]['row']
-#    
-#    print a    
-#    print generate_filename('/media/Common/visexpman_data/log.txt')
+        def test_fetch_classes(self):
+            class GrandMother(object):
+                pass
+            class GrandFather(object):
+                pass
+            class Father(GrandMother, GrandFather):
+                pass
+            class Mother(GrandMother):
+                pass
+            class Boy(Mother):
+                pass
+            self.assertEqual(fetch_classes('visexpman.engine.generic', required_ancestors=[GrandMother, GrandFather], direct=False),1 )
 
-def test_parsefilename():
-    filename = 'whatever/folder/Bl6(b 04.09.10 i 01.11.10)-(-372 -78 129)-r2-w1000-sp2400-3stat-3move-2.0x-20x(ND10 isoflCP 0.5 R).tif.frames'
-    commonpars = {'AnimalStrain':['^(\S+)\(', str], # Match M???(... at the beginning of the line
-                    'AnimalBirthDay_YMD':['\(b\S*\ (\d{2,2})\.(\d{2,2})\.(\d{2,2})\ ', int],
-                    'Injected_YMD':['i\S*\ (\d{2,2})\.(\d{2,2})\.(\d{2,2})\ *\)', int],
-                    'StagePos':['\((-*\d+\.*\d*)\ +(-*\d+\.*\d*)',float], # (x y # lookahead assertion needed?
-                    'Depth':['\ +(\d+\.*\d*)\)',float], # z)
-                    'Repetition':['-r(\d+)-',int], #-r??
-                    'StimulusName':['-r\d+-(\S+)-\d\.\d+mspl',str], #-r??-string
-                    'Objective':['-*(\d+)x\(',int],
-                    'Comments':['^M\d+(\S+)\(',str],
-                    'Anesthesia':['ND\d\d*\ (\S+\ *\S*)\ \S+\)$',str],
-                                  }
-    stimpar = parsefilename(filename, commonpars)
-    result = {'AnimalStrain':['Bl6'], # Match M???(... at the beginning of the line
-                    'AnimalBirthDay_YMD':[4, 9, 10],
-                    'Injected_YMD':[1, 11, 10],
-                    'StagePos':[-372, -78], # (x y # lookahead assertion needed?
-                    'Depth':[129.0], # z)
-                    'Repetition':[2], #-r??
-                    'StimulusName':['w1000-sp2400-3stat-3move'], #-r??-string
-                    'Objective':[20],
-                    'Comments':['isoflCP 0.5 R'],
-                    'Anesthesia':['isoflCP 0.5']
-                                  }
-    self.assertequal(stimpar, result)
-    
-def test_getziphandler():
-    pass
-
-def test_fetch_classes():
-    class GrandMother(object):
-        pass
-    class GrandFather(object):
-        pass
-    class Father(GrandMother, GrandFather):
-        pass
-    class Mother(GrandMother, Father):
-        pass
-    self.assertequal(fetch_classes(visexpman.engine.generic.utils, required_ancestors=[GrandMother, GrandFather], direct=False),1 )
+            
+    mytest = unittest.TestSuite()
+    mytest.addTest(Test('test_fetch_classes'))
+    alltests = unittest.TestSuite([mytest])
+    #suite = unittest.TestLoader().loadTestsFromTestCase(Test)
+    unittest.TextTestRunner(verbosity=2).run(alltests)
