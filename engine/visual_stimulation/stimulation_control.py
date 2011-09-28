@@ -36,10 +36,12 @@ import logging
 import zipfile
 import os.path
 import shutil
+import tempfile
 
 #For unittest:
 import visexpman.engine.generic.configuration as configuration
 import serial
+
  
 def experiment_file_name(experiment_config, folder, extension, name = ''):
     experiment_class_name = str(experiment_config.runnable.__class__).split('.users.')[-1].split('.')[-1]
@@ -139,21 +141,21 @@ class DataHandler():
         Archives the called python modules within visexpman package and the versions of all the called packages
         '''
         #save module version data to file
-        module_versions_file_path = os.path.join(self.config.TMP_PATH,'module_versions.txt')
+        module_versions_file_path = os.path.join(os.path.dirname(tempfile.mktemp()),'module_versions.txt')
         f = open(module_versions_file_path, 'wt')
         f.write(self.module_versions)
         f.close()
         #If the archive format is hdf5, zip file is saved to a temporary folder
         if self.config.ARCHIVE_FORMAT == 'zip':
             zip_folder = self.config.ARCHIVE_PATH
-        elif self.config.ARCHIVE_FORMAT == 'hdf5':            
-            zip_folder = self.config.TMP_PATH
+            self.zip_file_path = experiment_file_name(self.caller.selected_experiment_config, zip_folder, 'zip')
+        elif self.config.ARCHIVE_FORMAT == 'hdf5':
+            self.zip_file_path = tempfile.mktemp()
 #            self.hdf5_handler = hdf5io.Hdf5io(experiment_file_name(self.caller.selected_experiment_config, self.config.ARCHIVE_PATH, 'hdf5') , self.config, self.caller)
         else:
             raise RuntimeError('Archive format is not defined. Please check the configuration!')
-        #Create zip file
-        zip_file_path = experiment_file_name(self.caller.selected_experiment_config, zip_folder, 'zip')        
-        archive = zipfile.ZipFile(zip_file_path, "w")
+        #Create zip file        
+        archive = zipfile.ZipFile(self.zip_file_path, "w")
         archive.write(module_versions_file_path, module_versions_file_path.replace(os.path.dirname(module_versions_file_path), ''))
         for python_module in self.visexpman_module_paths:
             zip_path = python_module.split('visexpman')[-1]
@@ -161,8 +163,8 @@ class DataHandler():
         #include experiment log
         archive.write(self.caller.experiment_control.logfile_path, self.caller.experiment_control.logfile_path.replace(os.path.dirname(self.caller.experiment_control.logfile_path), ''))
         archive.close()
-        f = open(zip_file_path, 'rb')
-        archive_binary = f.read(os.path.getsize(zip_file_path))
+        f = open(self.zip_file_path, 'rb')
+        archive_binary = f.read(os.path.getsize(self.zip_file_path))
         f.close()
         archive_binary_in_bytes = []
         for byte in list(archive_binary):
@@ -214,8 +216,6 @@ class testDataHandler(unittest.TestCase):
 #        self.assertEqual((os.path.exists(module_versions_path), os.path.exists(zip_path)), (True, True))
 
     def tearDown(self):
-        shutil.rmtree(self.config.TMP_PATH)
-        os.mkdir(self.config.TMP_PATH)
         shutil.rmtree(self.config.ARCHIVE_PATH)
         os.mkdir(self.config.ARCHIVE_PATH)
 

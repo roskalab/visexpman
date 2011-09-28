@@ -9,6 +9,7 @@ try:
 except:
     pass
 
+import tempfile
 import unittest
 
 #TODO: make  naming of *ENABLE* like parameters consistent: ENABLE*
@@ -42,10 +43,9 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
 #        EXPERIMENT_CONFIG = 'TestExperimentConfig'
 #        LOG_PATH = '/media/Common/visexpman_data'
 #        EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
-#        BASE_PATH= '/media/Common/visexpman_data'
+#        BASE_PATH= '/media/Common/visexpman_data' THIS MIGHT BE ELIMINATED
 #        ARCHIVE_PATH = '/media/Common/visexpman_data'
 #        CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
-#        TMP_PATH = '/media/Common/visexpman_data/tmp'
 
         ARCHIVE_FORMAT = ['undefined', ['hdf5', 'zip', 'undefined']]
         
@@ -202,17 +202,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         if self.COORDINATE_SYSTEM == 'ulcorner':
             self.MENU_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MENU_POSITION_p.v, utils.cr((1.0, 1.0)))
             self.MESSAGE_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MESSAGE_POSITION_p.v, utils.cr((1.0, 1.0)))
-            
-class SafestartConfig(VisualStimulationConfig):    
-    def _set_user_parameters(self):
-        COORDINATE_SYSTEM = 'center'        
-        FILTERWHEEL_ENABLE = False        
-        ENABLE_PARALLEL_PORT = False
-        UDP_ENABLE = False
-        FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.rc([600, 800])        
-        self._set_parameters_from_locals(locals())
-            
+
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         PAR1 = 'par'

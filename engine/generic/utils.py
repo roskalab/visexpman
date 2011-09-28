@@ -431,7 +431,7 @@ def imported_modules():
                 if not is_in_list(module_names, new_module_path):
                     visexpman_modules.append(new_module_path)
     module_names.sort()
-    visexpman_modules.sort()
+    visexpman_modules.sort()    
     return [module_names, visexpman_modules]
     
 def module_versions(modules):
@@ -439,7 +439,7 @@ def module_versions(modules):
     'Queue' : 'standard', 
     'socket': 'standard', 
     'visexpman': 'version', 
-    'visexpA': '', 
+    'visexpA': 'version', 
     'math': 'standard', 
     'time': 'standard', 
     'sys': 'version',     
@@ -460,23 +460,29 @@ def module_versions(modules):
     'inspect': 'standard', 
     'serial': 'VERSION', 
     'PyQt4':'', 
-    'scipy': 'scipy.version.version', 
-    'shutil': 'standard'
+    'scipy': 'version.version', 
+    'shutil': 'standard', 
+    'tempfile':'standard', 
+    'multiprocessing':'standard', 
+    'gc': 'standard'
     }    
     module_version = ''
     for module in modules:
-        __import__(module)
+        __import__(module)        
         try:
             if version_paths[module] != 'standard':
                 try:
-                    version = getattr(sys.modules[module], version_paths[module]).replace('\n', '')
+                    version_path = version_paths[module].split('.')
+                    version = getattr(sys.modules[module], version_path[0])
+                    if not isinstance(version, str):                        
+                        version = getattr(version, version_path[1])                        
                 except AttributeError:
-                    version = ''
-                module_version += '%s %s\n'%(module, version)
+                    version = ''                
+                module_version += '%s %s\n'%(module, version.replace('\n', ' '))
             else:
                 module_version += '%s\n'%(module)
         except KeyError:
-            raise RuntimeError('This module is not in the version list: %s' % module)
+            raise RuntimeError('This module is not in the version list: %s. Update list in utils.module_versions() function' % module)    
     return module_version
     
 #== Experiment specific ==

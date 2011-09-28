@@ -127,17 +127,24 @@ class Stimulations(command_handler.CommandHandler):
 #        self.backgroundColor = utils.convert_color(color)        
         
     def show_fullscreen(self, duration = 0.0,  color = None, flip = True):
+        '''
+        duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds
+        '''
         
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
             color_to_set = utils.convert_color(color)
-        self.log_on_flip_message = 'clear_screen(' + str(duration) + ', ' + str(color_to_set) + ')'
+        self.log_on_flip_message = 'show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')'
         self.screen.clear_screen(color = color_to_set)
         self.show_text()
         if duration == 0.0:
             if flip:
                 self._flip(trigger = True)
+        elif duration == -1.0:
+            while not self.abort:
+                if flip:
+                    self._flip(trigger = True)
         else:
             for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
                 if flip:
