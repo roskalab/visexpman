@@ -94,7 +94,7 @@ class CommandSender(QtCore.QThread):
     def __init__(self, config, caller, commands):
         self.config = config
         self.caller = caller
-        self.commands = commands        
+        self.commands = commands
         QtCore.QThread.__init__(self)
         
     def send_command(self, command):
@@ -103,8 +103,8 @@ class CommandSender(QtCore.QThread):
     def run(self):
         for command in self.commands:
             time.sleep(command[0])
-            self.send_command(command[1])
-        
+            self.send_command(command[1])            
+
     def close(self):
         self.terminate()
         self.wait()

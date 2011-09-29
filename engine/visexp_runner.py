@@ -17,6 +17,7 @@ import random
 import zipfile
 
 test_mode = True #In test_mode the network operations are disabled
+reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
 
 class VisExpRunner(object):
     '''
@@ -92,16 +93,17 @@ class VisExpRunner(object):
 #            self.tcpip_listener.socket.shutdown(socket.SHUT_RDWR)
             self.tcpip_listener.close()
         self.log.info('Visexpman quit')
+        self.handler.flush()
             
     def _init_logging(self):
         #TODO: make folder to store all the files created by this run
         #set up logging
         self.logfile_path = utils.generate_filename(self.config.LOG_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')
-        self.log = logging.getLogger('visexpman log')
-        handler = logging.FileHandler(self.logfile_path)
+        self.log = logging.getLogger('visexpman log ' +  str(time.time()))
+        self.handler = logging.FileHandler(self.logfile_path)
         formatter = logging.Formatter('%(asctime)s %(message)s')
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
+        self.handler.setFormatter(formatter)
+        self.log.addHandler(self.handler)
         self.log.setLevel(logging.INFO)
 
 def find_out_config():
@@ -232,7 +234,7 @@ class testVisexpRunner(unittest.TestCase):
         -experiment_control class
         '''
         commands = [
-                    [0.01,'SOCexecute_experimentEOC0EOP'], 
+                    [0.01,'SOCexecute_experimentEOC'], 
                     [0.01,'SOCquitEOC'], 
                     ]
         config_name = 'VerySimpleExperimentTestConfig'
@@ -252,7 +254,7 @@ class testVisexpRunner(unittest.TestCase):
                 
     def test_09_abort_experiment(self):
         commands = [
-                    [0.01,'SOCexecute_experimentEOC0EOP'],                     
+                    [0.01,'SOCexecute_experimentEOC'],                     
                     [0.01,'SOCquitEOC'], 
                     ]
         config_name = 'AbortableExperimentTestConfig'
@@ -275,7 +277,7 @@ class testVisexpRunner(unittest.TestCase):
         Tests whether a user defined keyboard command is sensed. Additionally adding user info to experiment log is tested
         '''
         commands = [
-                    [0.01,'SOCexecute_experimentEOC0EOP'],                     
+                    [0.01,'SOCexecute_experimentEOC'],                     
                     [0.01,'SOCquitEOC'], 
                     ]
         config_name = 'UserCommandExperimentTestConfig'
@@ -293,10 +295,133 @@ class testVisexpRunner(unittest.TestCase):
                 log.find('Command handler: experiment executed') != -1, log.find('user_command') != -1, zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), \
                 experiment_log.find('User note') != -1, self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', ''))), (True, True, True, True, True, True, True, True, True, True, True))
 
-    #TODO: play two experiments, various experiments, experiments with disabled hardware, test user logging during experiment, pre experiment
+    def test_11_two_experiments_with_hardware(self):
+        '''
+        Tests:
+       -how two different experiments can be played right after each other
+       -Call to external hardware
+        '''
+        config_name = 'TestExternalHardwareExperimentTestConfig'
+        second_experiment = 'TestExternalHardwareExperimentConfig'
+        v = VisExpRunner('zoltan', config_name)
+        #Find the index of the second experiment so that the command could be generated
+        for i in range(len(v.experiment_config_list)):
+            if v.experiment_config_list[i][1].__name__ == second_experiment:
+                experiment_config_index = i
+        commands = [
+                    [0.01,'SOCexecute_experimentEOC'],
+                    [0.4,'SOCselect_experimentEOC%dEOP'%experiment_config_index],
+                    [0.01,'SOCexecute_experimentEOC'],
+                    [0.01,'SOCquitEOC'],
+                    ]
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+        #Read logs
+        log = utils.read_text_file(v.logfile_path)
+        experiment_log = utils.read_text_file(v.experiment_control.logfile_path)
+        #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
+        self.assertEqual((self.check_application_log(log), self.check_experiment_log(experiment_log), experiment_log.find('show_fullscreen(0.0, [0.5, 0.5, 0.5])') != -1, 
+                experiment_log.find('Filterwheel set to ') != -1, experiment_log.find('Parallel port data bits set to 3') != -1, 
+                log.find('init experiment visexpman.users.') != -1, log.find('Started experiment: visexpman.users.') != -1, log.find('Experiment complete') != -1, 
+                log.find('visexpman.users.zoltan.automated_test_data.VerySimpleExperiment') != -1, log.find('visexpman.users.zoltan.automated_test_data.TestExternalHardwareExperiment') != -1, 
+                log.find('Command handler: experiment executed') != -1, zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
+                self.check_zip_file(v.experiment_control.data_handler.zip_file_path, second_experiment.replace('Config', ''))), (True, True, True, True, True, True, True, True, True, True, True, True, True))
 
+    def test_12_experiment_with_disabled_hardware(self):
+        config_name = 'DisabledlHardwareExperimentTestConfig'
+        v = VisExpRunner('zoltan', config_name)        
+        commands = [
+                    [0.01,'SOCexecute_experimentEOC'],                    
+                    [0.01,'SOCquitEOC'],
+                    ]
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+        #Read logs
+        log = utils.read_text_file(v.logfile_path)
+        experiment_log = utils.read_text_file(v.experiment_control.logfile_path)
+        #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
+        self.assertEqual((self.check_application_log(log), experiment_log.find('show_fullscreen(0.0, [0.5, 0.5, 0.5])') != -1, 
+                experiment_log.find('Filterwheel set to ') == -1, experiment_log.find('Parallel port data bits set to 3') == -1, 
+                log.find('init experiment visexpman.users.') != -1, log.find('Started experiment: visexpman.users.') != -1, log.find('Experiment complete') != -1, 
+                log.find('visexpman.users.zoltan.automated_test_data.TestExternalHardwareExperiment') != -1, 
+                log.find('Command handler: experiment executed') != -1, zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path),                 
+                self.check_zip_file(v.experiment_control.data_handler.zip_file_path, 'TestExternalHardwareExperiment')), 
+                (True, True, True, True, True, True, True, True, True, True, True))
+                
+    def test_13_experiment_with_pre_experiment(self):
+        config_name = 'PreExperimentTestConfig'
+        v = VisExpRunner('zoltan', config_name)        
+        commands = [
+                    [1.00,'SOCexecute_experimentEOC'],                    
+                    [0.01,'SOCquitEOC'],
+                    ]
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+        #Read logs
+        log = utils.read_text_file(v.logfile_path)
+        experiment_log = utils.read_text_file(v.experiment_control.logfile_path)
+        #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
+        self.assertEqual((self.check_application_log(log), self.check_experiment_log(experiment_log), experiment_log.find('show_fullscreen(0.0, [0.5, 0.5, 0.5])') != -1,
+                log.find('init experiment visexpman.users.') != -1, log.find('Started experiment: visexpman.users.') != -1, log.find('Experiment complete') != -1,
+                log.find('visexpman.users.zoltan.automated_test_data.' + config_name.replace('TestConfig', '')) != -1, log.find('init experiment visexpman.users.zoltan.automated_test_data.PrePreExperiment') != -1, 
+                log.find('Command handler: experiment executed') != -1, zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), log.find('Pre experiment log') != -1, 
+                self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', ''))),
+                (True, True, True, True, True, True, True, True, True, True, True, True))
+                
+    def test_14_visual_stimulations(self):
+        config_name = 'VisualStimulationsTestConfig'
+        v = VisExpRunner('zoltan', config_name)        
+        commands = [
+                    [0.0,'SOCexecute_experimentEOC'],                    
+                    [0.0,'SOCquitEOC'],
+                    ]
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+        #Read logs
+        log = utils.read_text_file(v.logfile_path)
+        experiment_log = utils.read_text_file(v.experiment_control.logfile_path)        
+        #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
+        self.assertEqual((self.check_application_log(log), self.check_experiment_log(experiment_log), log.find('init experiment visexpman.users.') != -1, log.find('Started experiment: visexpman.users.') != -1, log.find('Experiment complete') != -1,
+                log.find('visexpman.users.zoltan.automated_test_data.' + config_name.replace('TestConfig', 'Experiment')) != -1,
+                log.find('Command handler: experiment executed') != -1, zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
+                self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', 'Experiment')), 
+                self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(reference_frames_folder, 'test_14')), self.check_experiment_log_for_visual_stimuli(experiment_log)
+                ),
+                (True, True, True, True, True, True, True, True, True, True, True))
+                
+    def test_15_visual_stimulations_ulcorner(self):
+        config_name = 'VisualStimulationsUlCornerTestConfig'
+        v = VisExpRunner('zoltan', config_name)        
+        commands = [
+                    [0.0,'SOCexecute_experimentEOC'],                    
+                    [0.0,'SOCquitEOC'],
+                    ]
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+        #Read logs
+        log = utils.read_text_file(v.logfile_path)
+        experiment_log = utils.read_text_file(v.experiment_control.logfile_path)        
+        #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
+        self.assertEqual((self.check_application_log(log), self.check_experiment_log(experiment_log), log.find('init experiment visexpman.users.') != -1, log.find('Started experiment: visexpman.users.') != -1, log.find('Experiment complete') != -1,
+                log.find('visexpman.users.zoltan.automated_test_data.' + config_name.replace('UlCornerTestConfig', 'Experiment')) != -1,
+                log.find('Command handler: experiment executed') != -1, zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
+                self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('UlCornerTestConfig', 'Experiment')), 
+                self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(reference_frames_folder, 'test_15')), self.check_experiment_log_for_visual_stimuli(experiment_log)
+                ),
+                (True, True, True, True, True, True, True, True, True, True, True))
+    
 
-#== Test utilities ==
+#== Test helpers ==
     def check_application_log(self, log):
         if log.find('Visexpman started') != -1 and\
         log.find('Visexpman initialized') != -1 and\
@@ -327,6 +452,50 @@ class testVisexpRunner(unittest.TestCase):
             return True
         else:
             return False
+            
+    def check_captured_frames(self, capture_folder, reference_folder):
+        for reference_file_path in utils.listdir_fullpath(reference_folder):
+            reference_file = open(reference_file_path, 'rb')
+            reference_data = reference_file.read(os.path.getsize(reference_file_path))
+            reference_file.close()
+            captured_frame_path = reference_file_path.replace(reference_folder, capture_folder)
+            captured_file = open(captured_frame_path, 'rb')
+            captured_data = captured_file.read(os.path.getsize(captured_frame_path))
+            captured_file.close()
+            if reference_data != captured_data:
+                return False
+        return True
+        
+    def check_experiment_log_for_visual_stimuli(self, experiment_log):
+        reference_strings = [
+            'show_fullscreen(0.0, [1.0, 1.0, 1.0])', 
+            'show_fullscreen(0.0, [0.0, 0.0, 0.0])', 
+            'show_gratings(0.0, sqr, -1, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
+            'show_gratings(0.0, sqr, 200, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
+            'show_gratings(0.0, sqr, 100, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
+            'show_gratings(0.0, sqr, 100, (0, 0), 45, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
+            'show_gratings(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
+            'show_gratings(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 0.5, 0.25, (0, 0))', 
+            'show_gratings(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, (1.0, 0.3, 0.0), (0.5, 0.85, 0.0), (0, 0))', 
+            'show_gratings(0.0, sqr, 10, (100, 100), 90, 0.0, 0.0, [1.0, 1.0, 1.0], 0.5, (0, 0))', 
+            'show_gratings(0.0, sin, 20, (600, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
+            'show_gratings(0.0, sin, 20, (0, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
+            'show_gratings(0.0, sin, 20, (600, 0), -10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
+            'show_gratings(0.0, tri, 20, (100, 100), 350, 0.0, 0.0, 0.5, 0.25, (100, 0))', 
+            'show_gratings(0.0, tri, 20, (100, 100), 350, 90.0, 0.0, 0.5, 0.25, (100, 0))', 
+            'show_gratings(0.0, saw, 50, (200, 100), 0, 0.0, 0.0, 1.0, 0.5, (300, 250))', 
+            'show_gratings(0.1, sqr, 40, (0, 0), 0, 0.0, 800.0, 1.0, 0.5, (0, 0))', 
+            'show_dots(0.0, [100, 100], [array((0, 0),',  
+            'show_dots(0.0, [100, 100, 10], [array((0, 0),', 
+            'show_dots(0.0, [100, 100, 10], [array((0, 0), ', 
+            'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])'
+                             ]
+        for reference_string in reference_strings:
+            if experiment_log.find(reference_string) == -1:               
+                return False
+        return True
+        
+            
 
 if __name__ == "__main__":
     if test_mode:

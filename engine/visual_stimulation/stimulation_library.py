@@ -121,14 +121,62 @@ class Stimulations(command_handler.CommandHandler):
         time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
         self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
         
-    #Externally callable functions showing different visual patterns
-#    def set_background(self,  color):        
-##        self.screen.setColor(utils.convert_color(color))
-#        self.backgroundColor = utils.convert_color(color)        
+    def _show_text(self):
+        '''
+        Overlays on stimulus all the added text configurations
+        '''
+        for text_config in self.text_on_stimulus:
+            if text_config['enable']:
+                self.screen.render_text(text_config['text'], color = text_config['color'], position = text_config['position'],  text_style = text_config['text_style'])
+    
+    #== Public, helper functions ==
+    def set_background(self,  color):
+        '''
+        Set background color. Call this when a visual pattern should have a different background color than config.BACKGROUND_COLOR
+        '''
+        color_to_set = utils.convert_color(color)
+        glClearColor(color_to_set[0], color_to_set[1], color_to_set[2], 0.0)
         
+    def add_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = GLUT_BITMAP_TIMES_ROMAN_24):
+        '''
+        Adds text to text list
+        '''
+        text_config = {'enable' : True, 'text' : text, 'color' : utils.convert_color(color), 'position' : position, 'text_style' : text_style}
+        self.text_on_stimulus.append(text_config)
+        
+    def change_text(self, id, enable = None, text = None, color = None, position = None,  text_style = None):
+        '''
+        Changes the configuration of the text pointed by id. id is the index of the text_configuration in the text_on_stimulus stimulus list
+        '''
+        text_config = self.text_on_stimulus[id]
+        if enable != None:
+            text_config['enable'] = enable
+        if text != None:
+            text_config['text'] = text
+        if color != None:
+            text_config['color'] = utils.convert_color(color)
+        if position != None:
+            text_config['position'] = position
+        if text_style != None:
+            text_config['text_style'] = text_style        
+        self.text_on_stimulus[id]
+        
+    def disable_text(self, id = None):
+        '''
+        Disables the configuration of the text pointed by id. id is the index of the text_configuration in the text_on_stimulus stimulus list
+        '''
+        if id == None:
+            index = -1
+        else:
+            index = id
+        self.text_on_stimulus[index]['enable'] = False
+
+
+    #== Various visual patterns ==
+    
     def show_fullscreen(self, duration = 0.0,  color = None, flip = True):
         '''
-        duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds
+        duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
         
         if color == None:
@@ -136,8 +184,8 @@ class Stimulations(command_handler.CommandHandler):
         else:
             color_to_set = utils.convert_color(color)
         self.log_on_flip_message = 'show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')'
-        self.screen.clear_screen(color = color_to_set)
-        self.show_text()
+        self.screen.clear_screen(color = color_to_set)        
+        self._show_text()
         if duration == 0.0:
             if flip:
                 self._flip(trigger = True)
@@ -152,6 +200,9 @@ class Stimulations(command_handler.CommandHandler):
                 if self.abort:
                     self.abort = False
                     break
+                    
+        #set background color to the original value
+        glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
                 
 #    def show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [],  size = None):
 #        '''
@@ -598,7 +649,7 @@ class Stimulations(command_handler.CommandHandler):
             - color_contrast: color contrast of grating stimuli. Can be a single intensity value of an rgb value. Accepted range: 0...1
             - color_offset: color (intensity) offset of stimulus. Can be a single intensity value of an rgb value. Accepted range: 0...1
             - pos: position of stimuli
-            - duty_cycle: duty cycle of grating stimulus with sqr profile. Its interpretation is different from the usual one: duty cycle tells how many times the spatial frequency is the width of the black stripe
+            - duty_cycle: duty cycle of grating stimulus with sqr profile. Its interpretation is different from the usual: duty cycle tells how many times the spatial frequency is the width of the black stripe
             - noise_intensity: Maximum contrast of random noise mixed to the stimulus.
         
         Usage examples:
@@ -609,7 +660,6 @@ class Stimulations(command_handler.CommandHandler):
         3) Show gratings with sawtooth profile on a 500x500 area where the color contrast is light red and the color offset is light blue
             show_gratings(duration = 3.0, profile = 'saw', velocity = 100, white_bar_width = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
         """        
-        
         if white_bar_width == -1:
             bar_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
         else:
@@ -668,17 +718,17 @@ class Stimulations(command_handler.CommandHandler):
         else:
             profile_adjusted = []
             for profile_i in profile:
-                profile_adjusted.append(profile_i)        
+                profile_adjusted.append(profile_i)
         
         #contrast and offset can be provided in rgb or intensity. For both the accepted range is 0...1.0
-        if not isinstance(color_contrast, list):
+        if not isinstance(color_contrast, list) and not isinstance(color_contrast, tuple):
             color_contrast_adjusted = [color_contrast,  color_contrast,  color_contrast]
         else:
             color_contrast_adjusted = []
             for color_contrast_i in color_contrast:
                 color_contrast_adjusted.append(color_contrast_i)
             
-        if not isinstance(color_offset, list):
+        if not isinstance(color_offset, list) and not isinstance(color_offset, tuple):
             color_offset_adjusted = [color_offset,  color_offset,  color_offset]
         else:
             color_offset_adjusted = []
@@ -693,7 +743,7 @@ class Stimulations(command_handler.CommandHandler):
         cut_off_ratio = display_area_adjusted[0]/profile_length
         profile_length = int(profile_length)
 
-        waveform_duty_cycle = 1.0 / (1.0 + duty_cycle)
+        waveform_duty_cycle = 1.0 - 1.0 / (1.0 + duty_cycle)
         stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle)
         stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], profile_length, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, waveform_duty_cycle)
         stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], profile_length, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, waveform_duty_cycle)
@@ -718,14 +768,18 @@ class Stimulations(command_handler.CommandHandler):
                                      
         glTexCoordPointerf(texture_coordinates)
         
-        #== Send opengl commands ==                
-        for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):            
+        #== Send opengl commands ==
+        if duration == 0.0:
+            number_of_frames = 1
+        else:
+            number_of_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
+        for i in range(number_of_frames):
             phase = pixel_velocity * i
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if self.config.TEXT_ENABLE:
                 glDisable(GL_TEXTURE_2D)
-                self.show_text()
+                self._show_text()
                 glEnable(GL_TEXTURE_2D)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
@@ -744,7 +798,7 @@ class Stimulations(command_handler.CommandHandler):
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
                     
-    def show_dots(self,  dot_sizes, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0)):        
+    def show_dots(self,  dot_sizes, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0)):
         '''
         Shows a huge number (up to several hunders) of dots.
         Parameters:
@@ -792,7 +846,7 @@ class Stimulations(command_handler.CommandHandler):
             dot_pointer = dot_pointer + ndots
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if self.config.TEXT_ENABLE:
-                    self.show_text()
+                    self._show_text()
             glVertexPointerf(frames_vertices[start_i:end_i])
             for i in range(n_frames_per_pattern):
                 for dot_i in range(ndots):
@@ -823,43 +877,7 @@ class Stimulations(command_handler.CommandHandler):
                 
         glDisableClientState(GL_VERTEX_ARRAY)
         
-    def add_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = GLUT_BITMAP_TIMES_ROMAN_24):
-        '''
-        Adds text to text list
-        '''
-        text_config = {'enable' : True, 'text' : text, 'color' : utils.convert_color(color), 'position' : position, 'text_style' : text_style}
-        self.text_on_stimulus.append(text_config)
-        
-    def change_text(self, id, enable = None, text = None, color = None, position = None,  text_style = None):
-        '''
-        Changes the configuration of the text pointed by id. id is the index of the text_configuration in the text_on_stimulus stimulus list
-        '''
-        text_config = self.text_on_stimulus[id]
-        if enable != None:
-            text_config['enable'] = enable
-        if text != None:
-            text_config['text'] = text
-        if color != None:
-            text_config['color'] = utils.convert_color(color)
-        if position != None:
-            text_config['position'] = position
-        if text_style != None:
-            text_config['text_style'] = text_style        
-        self.text_on_stimulus[id]
-        
-    def disable_text(self, id):
-        '''
-        Disables the configuration of the text pointed by id. id is the index of the text_configuration in the text_on_stimulus stimulus list
-        '''
-        self.text_on_stimulus[id]['enable'] = False
-        
-    def show_text(self):
-        '''
-        Overlays on stimulus all the added text configurations
-        '''
-        for text_config in self.text_on_stimulus:
-            if text_config['enable']:
-                self.screen.render_text(text_config['text'], color = text_config['color'], position = text_config['position'],  text_style = text_config['text_style'])
+    
         
     def show_shape_new(self):
         size = 40
@@ -979,49 +997,4 @@ class Stimulations(command_handler.CommandHandler):
                 self.clear_screen(duration = 0.5)
 
 if __name__ == "__main__":
-    print '------------------------------start------------------------------'
-    ui = UserInterface() 
-    st = Stimulations(ui)
-    while 1:
-        cmd = ui.user_interface_handler()
-        if cmd != '':
-            ui.user_interface_handler(cmd)
-        if cmd == 'q':
-            break            
-        if cmd == 'i':
-            parameters = [100.0,  100.0]
-            formula_pos_x = ['p[0] * cos(10.0 * t)',  parameters]
-            formula_pos_y = ['p[1] * sin(10.0 * t)',  parameters]            
-            formula = [formula_pos_x,  formula_pos_y]
-            ui.enable_frame_interval_watch()
-            st.show_image('../Imaging/pictures',  1.0/7.5,  (0, 0),  formula)             
-            st.show_image('../Imaging/pictures',  0,  (0, 0))             
-            st.show_image(DEFAULT_IMAGE_PATH,  1.0,  (0, 0),  formula) 
-            st.show_image(DEFAULT_IMAGE_PATH,  1.0,  (0, 100) )                        
-        if cmd == 'm':
-            ui.enable_frame_interval_watch()
-            st.show_movie('../data/movie/test.avi',  (19, 100))
-            ui.disable_frame_interval_watch()
-            cmd = ui.user_interface_handler()
-        if cmd == 's':
-            parameters = []
-            posx = ['100*sin(t)',  parameters]
-            posy = ['100*cos(t)',  parameters]
-            ori = ['',  []] 
-            color_r = ['sin(t)',  parameters]
-            color_g = ['cos(t)',  parameters]
-            color_b = ['cos(t+pi*0.25)',  parameters]
-            formula = [posx,  posy,  ori, color_r,  color_g,  color_b ]
-            ui.enable_frame_interval_watch()            
-            st.set_background(0.3)        
-            
-            for i in range(10):
-                st.show_shape(shape = 'rect',  size = [100,  70],  orientation = i)
-            st.show_shape(shape = 'rect',  duration = 0.5,  size = [10,  10],  orientation = 0)
-            st.show_shape(shape = 'rect',  duration = 0.0,  size = [10,  100],  orientation = 0)
-            st.show_shape(shape = 'annulus',  duration = 5.0,  size = [100,  200],  formula = formula,  ring_size = [50,  100])
-            
-            ui.disable_frame_interval_watch()
-            cmd = ui.user_interface_handler()            
-        
-    print '------------------------------end------------------------------'
+    pass

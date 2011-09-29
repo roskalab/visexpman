@@ -209,7 +209,7 @@ class Screen(object):
     def clear_screen(self, color = (0.0, 0.0, 0.0, 0.0)):
         #clears screen to color
         glClearColor(color[0], color[1], color[2], 0.0)
-        glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)        
+        glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         
     def set_view(self, position,  heading,  roll, pitch, scale):
         '''

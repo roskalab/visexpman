@@ -119,7 +119,7 @@ class MultipleDotTest(experiment.Experiment):
                 coords = (random.random(),  random.random())
                 coords = utils.rc(coords)
                 dot_positions.append([coords['col'] * self.config.SCREEN_RESOLUTION['col'] - self.config.SCREEN_RESOLUTION['col'] * 0.5, coords['row'] * self.config.SCREEN_RESOLUTION['row'] - 0.5 * self.config.SCREEN_RESOLUTION['row']])
-                dot_sizes.append(10 + 100 * random.random())                
+                dot_sizes.append(10 + 100 * random.random())
         
         dot_positions = utils.cr(numpy.array(dot_positions).transpose())
         dot_sizes = numpy.array(dot_sizes)

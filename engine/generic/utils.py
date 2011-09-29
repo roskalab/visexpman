@@ -631,9 +631,9 @@ def generate_filename(path):
     Inserts index into filename resulting unique name.
     '''    
     index = 0
-    number_of_digits = 3
+    number_of_digits = 5
     while True:
-        testable_path = path.replace('.',  '_%3i.'%index).replace(' ', '0')
+        testable_path = path.replace('.',  '_%5i.'%index).replace(' ', '0')
         if not os.path.isfile(testable_path):
             break
         index = index + 1
@@ -645,10 +645,10 @@ def generate_foldername(path):
     '''
     Inserts index into filename resulting unique name.
     '''
-    number_of_digits = 3
+    number_of_digits = 5
     index = 0
     while True:
-        testable_path = (path + '_%3i'%index).replace(' ', '0')
+        testable_path = (path + '_%5i'%index).replace(' ', '0')
         if not os.path.isdir(testable_path):
             break
         index = index + 1
@@ -665,6 +665,7 @@ def date_string():
     now = time.localtime()
     return ('%4i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday)).replace(' ', '0')
 
+#== Others ==
 def in_range(number,  range1,  range2, preceision = None):
     if preceision != None:
         number_rounded = round(number, preceision)
@@ -699,7 +700,6 @@ def is_in_list(list, item_to_find):
     else:
         return False
 
-#== Others ==
 def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):
     wave = []
     period = int(period) 
