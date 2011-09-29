@@ -3,8 +3,67 @@ from visexpman.engine.generic import utils
 import visexpman.engine.visual_stimulation.experiment as experiment
 import time
 import numpy
+import serial
 
 #== For software development test ==
+
+class VisexpRunnerWinTestConfig(VisualStimulationConfig):
+    def _set_user_parameters(self):
+        dataset = 0
+        
+        RUN_MODE = 'single experiment'
+        
+        #paths
+        EXPERIMENT_CONFIG = 'TestExperimentConfig'
+        LOG_PATH = 'c:\\_del'        
+        EXPERIMENT_LOG_PATH = 'c:\\_del'        
+        ARCHIVE_PATH = 'c:\\_del'
+        CAPTURE_PATH = 'c:\\_del'
+        TEST_DATA_PATH = 'c:\\_del'
+        
+        #hardware
+        ENABLE_PARALLEL_PORT = False
+        ENABLE_UDP = True
+        ACQUISITION_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PIN = 2
+        FILTERWHEEL_ENABLE = True
+        
+        FILTERWHEEL_SERIAL_PORT = [[{
+                                    'port' :  'COM7',
+                                    'baudrate' : 115200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }] ]
+        
+        #screen
+        FULLSCREEN = False        
+        SCREEN_RESOLUTION = utils.cr([800, 600])        
+        ENABLE_FRAME_CAPTURE = False
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0
+        GAMMA = 1.0        
+        TEXT_ENABLE = True
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+        if dataset == 0:
+            COORDINATE_SYSTEM='center'
+        elif dataset == 1:
+            COORDINATE_SYSTEM='ulcorner'
+        
+        IMAGE_PROJECTED_ON_RETINA = False
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
+        SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
+        FRAME_WAIT_FACTOR = 0
+
+        SEGMENT_DURATION = 2
+        MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
+        ACTION_BETWEEN_STIMULUS = 'off'
+        
+        ARCHIVE_FORMAT = 'zip'
+#        ARCHIVE_FORMAT = 'hdf5'
+        
+        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
+        self._create_parameters_from_locals(locals())
 
 class VisexpRunnerTestConfig(VisualStimulationConfig):
     def _set_user_parameters(self):

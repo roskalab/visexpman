@@ -146,13 +146,20 @@ class MBP(VisualStimulationConfig):
         #VisualStimulationConfig._set_parameters_from_locals(self, locals())
 
 class ZoliTester(VisualStimulationConfig):
-    def _set_user_specific_parameters(self):        
+    def _set_user_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
-        LOG_PATH = 'C:\\_development\\virtual_reality\\software\\data'
-        BASE_PATH= 'C:\\_development\\virtual_reality\\software\\data'
-        ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
-        CAPTURE_PATH = os.path.join(BASE_PATH,'capture')#'../../../presentinator/data/capture'
+        if os.name == 'nt':
+            LOG_PATH = 'C:\\_del'
+            EXPERIMENT_LOG_PATH = 'C:\\_del'
+            BASE_PATH= 'C:\\_del'
+        elif os.name == 'posix':
+            LOG_PATH = '/media/Common/visexpman_data/test'
+            EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data/test'
+            BASE_PATH= '/media/Common/visexpman_data/test'            
+        
+        ARCHIVE_PATH = BASE_PATH
+        CAPTURE_PATH = BASE_PATH
         ENABLE_PARALLEL_PORT = False
         UDP_ENABLE = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        

@@ -16,9 +16,6 @@ import os
 import random
 import zipfile
 
-test_mode = True #In test_mode the network operations are disabled
-reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
-
 class VisExpRunner(object):
     '''
     This class is responsible for running vision experiment.
@@ -57,12 +54,13 @@ class VisExpRunner(object):
         if len(self.experiment_config_list) > 0:
             self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self)            
         #start listening on tcp ip for receiving commands
-        self.command_queue = Queue.Queue()        
-        if not test_mode:            
+        self.command_queue = Queue.Queue()
+        #In test_mode the network operations are disabled
+        if not visexpman.test_mode:            
             self.tcpip_listener = network_interface.NetworkListener(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
             self.tcpip_listener.start()            
-        #Start udp listener
-        if self.config.ENABLE_UDP and not test_mode:            
+        #Start udp listener if not in test mode
+        if self.config.ENABLE_UDP and not visexpman.test_mode:            
             self.udp_listener = network_interface.NetworkListener(self.config, self, socket.SOCK_DGRAM, self.config.UDP_PORT)
             self.udp_listener.start()            
         #Set up command handler
@@ -89,7 +87,7 @@ class VisExpRunner(object):
         self.close()
             
     def close(self):
-        if not test_mode:
+        if not visexpman.test_mode:
 #            self.tcpip_listener.socket.shutdown(socket.SHUT_RDWR)
             self.tcpip_listener.close()
         self.log.info('Visexpman quit')
@@ -498,7 +496,7 @@ class testVisexpRunner(unittest.TestCase):
             
 
 if __name__ == "__main__":
-    if test_mode:
+    if visexpman.test_mode:
         unittest.main()
     else:        
         v = VisExpRunner(*find_out_config())

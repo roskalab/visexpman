@@ -179,23 +179,29 @@ class TestConfig(configuration.Config):
     def _create_application_parameters(self):
         PIN_RANGE = [0, 7]
         #parallel port
-        ENABLE_PARALLEL_PORT = True
+        ENABLE_PARALLEL_PORT = visexpman.test_parallel_port
         ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
 
         #filterwheel settings
         FILTERWHEEL_ENABLE = True
+        if os.name == 'nt':
+            port = 'COM7'
+        elif os.name == 'posix':
+            port = '/dev/ttyUSB0'
         FILTERWHEEL_SERIAL_PORT = [[{
-                                    'port' :  '/dev/ttyUSB0',
+                                    'port' :  port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,
                                     }]]
-
-        ARCHIVE_PATH = '/media/Common/visexpman_data/test'
-        TMP_PATH = '/media/Common/visexpman_data/tmp'
+        if os.name == 'nt':
+            ARCHIVE_PATH = 'c:\\_del'
+        elif os.name == 'posix':
+            ARCHIVE_PATH = '/media/Common/visexpman_data/test'
+        
         ARCHIVE_FORMAT = 'zip'
 
         self._create_parameters_from_locals(locals())
@@ -225,7 +231,7 @@ class testExternalHardware(unittest.TestCase):
     #Testing constructor
     def test_01_creating_instruments(self):        
         e = Devices(self.config, self)
-        self.assertEqual((hasattr(e, 'parallel_port'), hasattr(e, 'filterwheels')),  (True, True))
+        self.assertEqual((hasattr(e, 'parallel_port'), hasattr(e, 'filterwheels')),  (visexpman.test_parallel_port, True))
         e.close()
 
     def test_02_disabled_instruments(self):        
@@ -240,7 +246,7 @@ class testExternalHardware(unittest.TestCase):
         self.d.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
         time.sleep(0.1)
         self.d.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
-        self.assertEqual((hasattr(self.d, 'parallel_port'), hasattr(self.d, 'filterwheels'), self.d.parallel_port.iostate['data']),  (True, True, 0))
+        self.assertEqual((hasattr(self.d, 'parallel_port'), hasattr(self.d, 'filterwheels'), self.d.parallel_port.iostate['data']),  (visexpman.test_parallel_port, True, 0))
         self.d.close()
 
 if __name__ == "__main__":

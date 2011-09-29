@@ -1,11 +1,13 @@
 import unittest
 import sys
+import visexpman
 
 class unitTestRunner():
     '''
     This class is responsible for maintaining a list of implemented and ready to run unit tests. Test methods are aggregated and executed with unittest's TextTestRunner class.
     '''
     def __init__(self):
+        hw_tests = visexpman.test_parallel_port
         self.test_configs = [
                {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
                'enable' : True},
@@ -18,9 +20,9 @@ class unitTestRunner():
                {'test_class_path' : 'visexpman.engine.visexp_runner.testFindoutConfig',
                'enable' : True}, 
                {'test_class_path' : 'visexpman.engine.visexp_runner.testVisexpRunner',
-               'enable' : True}, #Under development, test cases are being built
+               'enable' : not True}, #Under development, test cases are being built
                {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.testInstruments',
-               'enable' : True}, #Shutter tests are not complete
+               'enable' : hw_tests}, #Shutter tests are not complete
                {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.testNetworkInterface',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testExternalHardware',
@@ -61,7 +63,7 @@ class unitTestRunner():
                 for test_method in test_methods:
                     test_suite.addTest(test_class(test_method))
         #Run tests
-        unittest.TextTestRunner(verbosity=2).run(test_suite)
+        unittest.TextTestRunner(verbosity=2).run(test_suite)        
 
 if __name__ == "__main__":
     utr = unitTestRunner()

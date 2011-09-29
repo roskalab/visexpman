@@ -12,7 +12,8 @@ from visexpman.engine.visual_stimulation import experiment
 from visexpman.engine.generic import utils
 #from visexpman.engine.visual_stimulation import stimulation_library as stl
 #import visexpman.engine.generic.configuration
-#import visexpman.engine.generic.utils
+# import visexpman.engine.generic.utils
+import visexpman.engine.visual_stimulation.command_handler as command_handler
 import time
 
 class MovingDotConfig(experiment.ExperimentConfig):
@@ -44,13 +45,13 @@ class MovingDotPre(experiment.PreExperiment):
         pass
 
 class MovingDot(experiment.Experiment):
-    def __init__(self, experiment_config):
-        experiment.Experiment.__init__(self, experiment_config)
+    def __init__(self, machine_config, caller, experiment_config):
+        experiment.Experiment.__init__(self, machine_config, caller, experiment_config)
         self.prepare()
         
-    def run(self, stl):
+    def run(self):
         for dot_row_col in self.row_col:
-            stl.show_dots(self.diameter_pix, dot_row_col, self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+            self.show_dots(self.diameter_pix, dot_row_col, self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
         pass
 
     def prepare(self):
@@ -347,16 +348,13 @@ if __name__ == '__main__':
     import visexpman
     import threading
     import sys
-    from visexpman.engine.run_visual_stimulation import VisualStimulation
-    vs_runner = VisualStimulation('daniel', sys.argv[1]) #first argument should be a class name
-    messages = ['start_stimulation']
-    parameters = ['']
-    pause_before = [1, 2]
-    sender = threading.Thread(target=send_tcpip_sequence, args=(vs_runner, messages, parameters, pause_before))
-    sender.setDaemon(True)
-    sender.start()
-    vs_runner.run()
-#    runner = threading.Thread(target=run_stimulation, args=(vs_runner, ))
-#    runner.setDaemon(True)
-#    runner.start()
-    pass
+    from visexpman.engine.visexp_runner import VisExpRunner
+    vs_runner = VisExpRunner('daniel', sys.argv[1]) #first argument should be a class name
+    commands = [
+                    [0.0,'SOCexecute_experimentEOC'],                    
+                    [0.0,'SOCquitEOC'],
+                    ]
+    cs = command_handler.CommandSender(vs_runner.config, vs_runner, commands)
+    cs.start()
+    vs_runner.run_loop()    
+    cs.close()
