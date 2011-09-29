@@ -10,6 +10,7 @@ import parallel
 import visexpman.engine.generic.configuration
 import visexpman.engine.generic.utils as utils
 import logging
+import visexpman
 
 class Instrument():
     '''
@@ -90,7 +91,7 @@ class ParallelPort(Instrument, parallel.Parallel):
     This class stores the values of the data lines of parallel port to ensure bit level control of these pins.
     '''
     
-    def init_instrument(self):        
+    def init_instrument(self):
         if self.config.ENABLE_PARALLEL_PORT:
             parallel.Parallel.__init__(self)
         #Here create the variables that store the status of the IO lines
@@ -286,7 +287,10 @@ class testConfig(visexpman.engine.generic.configuration.Config):
         
         SHUTTER_PIN = [2, [0, 7]]
         
-        TEST_DATA_PATH = '/media/Common/visexpman_data/test'
+        if os.name == 'nt':
+            TEST_DATA_PATH = 'c:\\_del'
+        elif os.name == 'posix':
+            TEST_DATA_PATH = '/media/Common/visexpman_data/test'
         
         self._create_parameters_from_locals(locals())
         
@@ -379,7 +383,7 @@ class testInstruments(unittest.TestCase):
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (True, 6, 'ready'))
         fw.release_instrument()
         
-    def test_11_set_invalid_filter_name(self):        
+    def test_11_set_invalid_filter_name(self):
         fw = Filterwheel(self.config, self)
         self.assertRaises(RuntimeError,  fw.set_filter,  10)
         fw.release_instrument()

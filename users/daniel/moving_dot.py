@@ -48,7 +48,7 @@ class MovingDot(experiment.Experiment):
         experiment.Experiment.__init__(self, machine_config, caller, experiment_config)
         self.prepare()
         
-    def run(self, stl):
+    def run(self):
         for dot_row_col in self.row_col:
             self.show_dots(self.diameter_pix, dot_row_col, self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
         pass

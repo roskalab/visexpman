@@ -34,8 +34,8 @@ class Stimulations(command_handler.CommandHandler):
         
         default_texture = Image.new('RGBA',  (16, 16))
         #self.checkerboard = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
-        self.gratings_texture = glGenTextures(1)
-        glBindTexture(GL_TEXTURE_2D, self.gratings_texture)
+        self.grating_texture = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, self.grating_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         #self.image_list = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
 #        self.backgroundColor = utils.convert_color(self.config.BACKGROUND_COLOR)        
@@ -632,9 +632,9 @@ class Stimulations(command_handler.CommandHandler):
                     
     def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0):
         """
-        This stimulation shows gratings with different color (intensity) profiles.
+        This stimulation shows grating with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
-            - profile: shape of gratings color (intensity) profile, the followings are possible:
+            - profile: shape of grating color (intensity) profile, the followings are possible:
                 - 'sqr': square shape, most common grating profile
                 - 'tri': triangle profile
                 - 'saw': sawtooth profile
@@ -643,9 +643,9 @@ class Stimulations(command_handler.CommandHandler):
                 profile parameter can be a list of these keywords. Then different profiles are applied to each color channel
             - white_bar_width: length of one bar in um (pixel)
             - display area
-            - orientation: orientation of gratings in degrees
+            - orientation: orientation of grating in degrees
             - starting_phase: starting phase of stimulus in degrees
-            - velocity: velocity of the movement of gratings in um/s
+            - velocity: velocity of the movement of grating in um/s
             - color_contrast: color contrast of grating stimuli. Can be a single intensity value of an rgb value. Accepted range: 0...1
             - color_offset: color (intensity) offset of stimulus. Can be a single intensity value of an rgb value. Accepted range: 0...1
             - pos: position of stimuli
@@ -653,20 +653,20 @@ class Stimulations(command_handler.CommandHandler):
             - noise_intensity: Maximum contrast of random noise mixed to the stimulus.
         
         Usage examples:
-        1) Show a simple, fullscreen, gratings stimuli for 3 seconds with 45 degree orientation
-            show_gratings(duration = 3.0, orientation = 45, velocity = 100, white_bar_width = 100)
-        2) Show gratings with sine profile on a 500x500 area with 10 degree starting phase
-            show_gratings(duration = 3.0, profile = 'sin', display_area = (500, 500), starting_phase = 10, velocity = 100, white_bar_width = 200)
-        3) Show gratings with sawtooth profile on a 500x500 area where the color contrast is light red and the color offset is light blue
-            show_gratings(duration = 3.0, profile = 'saw', velocity = 100, white_bar_width = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
+        1) Show a simple, fullscreen, grating stimuli for 3 seconds with 45 degree orientation
+            show_grating(duration = 3.0, orientation = 45, velocity = 100, white_bar_width = 100)
+        2) Show grating with sine profile on a 500x500 area with 10 degree starting phase
+            show_grating(duration = 3.0, profile = 'sin', display_area = (500, 500), starting_phase = 10, velocity = 100, white_bar_width = 200)
+        3) Show grating with sawtooth profile on a 500x500 area where the color contrast is light red and the color offset is light blue
+            show_grating(duration = 3.0, profile = 'saw', velocity = 100, white_bar_width = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
         """        
         if white_bar_width == -1:
             bar_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
         else:
             bar_width = white_bar_width * self.config.SCREEN_PIXEL_TO_UM_SCALE
         #== Logging ==
-        self.log_on_flip_message_initial = 'show_gratings(' + str(duration)+ ', ' + str(profile) + ', ' + str(white_bar_width) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
-        self.log_on_flip_message_continous = 'show_gratings'
+        self.log_on_flip_message_initial = 'show_grating(' + str(duration)+ ', ' + str(profile) + ', ' + str(white_bar_width) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
+        self.log_on_flip_message_continous = 'show_grating'
         first_flip = False        
         
         #== Prepare ==
@@ -694,7 +694,7 @@ class Stimulations(command_handler.CommandHandler):
         
         pixel_velocity = -velocity * self.config.SCREEN_PIXEL_TO_UM_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / screen_width        
         
-        #If gratings are to be shown on fullscreen, modify display area so that no ungrated parts are on the screen considering rotation
+        #If grating are to be shown on fullscreen, modify display area so that no ungrated parts are on the screen considering rotation
         if display_area_adjusted[0] == 0:            
             display_area_adjusted[0] = self.config.SCREEN_RESOLUTION['col'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['row'] * abs(math.sin(orientation_rad))
             screen_width = self.config.SCREEN_RESOLUTION['col']
@@ -989,11 +989,11 @@ class Stimulations(command_handler.CommandHandler):
                 self.show_ring( test_data['n_rings'],  test_data['diameter'],  inner_diameter = test_data['inner_diameter'],  duration =  test_data['duration'],  n_slices = test_data['n_slices'],  colors = test_data['color'], pos = test_data['pos'])
                 self.clear_screen(duration = 0.5)
         
-        if stimulus_library_test_data.run_test['show_gratings() test']:
+        if stimulus_library_test_data.run_test['show_grating() test']:
             test_datas =  stimulus_library_test_data.test_data_set[5]
             for test_data in test_datas:
                 self._display_test_message('Test name: ' + test_data['test name'] + '\r\n\r\n' + 'Expected result: ' + test_data['expected result'])    
-                self.show_gratings(duration =  test_data['duration'],   profile =  test_data['profile'],  spatial_frequency = test_data['spatial_frequency'],  display_area = test_data['display_area'], orientation = test_data['orientation'],  starting_phase = test_data['starting_phase'],  velocity = test_data['velocity'],  color_contrast = test_data['color_contrast'],  color_offset = test_data['color_offset'],  pos = test_data['pos'],  duty_cycle = test_data['duty_cycle'],  noise_intensity = test_data['noise_intensity'])
+                self.show_grating(duration =  test_data['duration'],   profile =  test_data['profile'],  spatial_frequency = test_data['spatial_frequency'],  display_area = test_data['display_area'], orientation = test_data['orientation'],  starting_phase = test_data['starting_phase'],  velocity = test_data['velocity'],  color_contrast = test_data['color_contrast'],  color_offset = test_data['color_offset'],  pos = test_data['pos'],  duty_cycle = test_data['duty_cycle'],  noise_intensity = test_data['noise_intensity'])
                 self.clear_screen(duration = 0.5)
 
 if __name__ == "__main__":

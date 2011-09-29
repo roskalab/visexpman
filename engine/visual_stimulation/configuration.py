@@ -124,7 +124,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #== External hardware ==        
         #parallel port
-        ENABLE_PARALLEL_PORT = True
+        ENABLE_PARALLEL_PORT = visexpman.test_parallel_port
         ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
