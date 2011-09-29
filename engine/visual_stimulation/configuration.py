@@ -160,11 +160,10 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
     def _calculate_parameters(self):
         '''
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
-        '''
+        '''        
         #== Paths ==
         DEFAULT_IMAGE_FILE = os.path.join(self.PACKAGE_PATH ,'data','images','default.bmp')
-        BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'
-        
+        BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'        
     
         #== Command list and menu text ==
         self.COMMANDS = dict(self.COMMANDS.items() + self.USER_EXPERIMENT_COMMANDS.items())        
@@ -192,7 +191,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_UM_TO_NORM_SCALE = 2.0 * self.SCREEN_PIXEL_TO_UM_SCALE_p.v * screen_resolution        
         self.SCREEN_UM_TO_NORM_SCALE_p = visexpman.engine.generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
         
-        #== Coordinate system ==
+        #== Coordinate system ==        
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
         else:

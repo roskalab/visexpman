@@ -443,7 +443,7 @@ class testVisexpRunner(unittest.TestCase):
     def check_zip_file(self, zip_path, experiment_name):
         '''
         Check if some of the necessary files are included into the zipfile
-        '''        
+        '''
         archive = zipfile.ZipFile(zip_path, "r")
         namelist = archive.namelist()
         archive.close()
