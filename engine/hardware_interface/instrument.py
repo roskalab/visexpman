@@ -296,19 +296,23 @@ class testConfig(visexpman.engine.generic.configuration.Config):
         
 class testLogClass():
     def __init__(self, config, caller):
-        self.logfile_path = utils.generate_filename(config.TEST_DATA_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')
-        self.log = logging.getLogger('test log')
-        handler = logging.FileHandler(self.logfile_path)
+        self.logfile_path = utils.generate_filename(config.TEST_DATA_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')        
+        self.log = logging.getLogger(self.logfile_path)
+        self.handler = logging.FileHandler(self.logfile_path)
         formatter = logging.Formatter('%(message)s')
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
-        self.log.setLevel(logging.INFO)        
+        self.handler.setFormatter(formatter)
+        self.log.addHandler(self.handler)
+        self.log.setLevel(logging.INFO)
+        self.log.info('instrument test')
    
-class testInstruments(unittest.TestCase):       
+class testInstruments(unittest.TestCase):
     def setUp(self):
         self.state = 'experiment running'
         self.config = testConfig()
-        self.experiment_control = testLogClass(self.config, self)        
+        self.experiment_control = testLogClass(self.config, self)
+        
+    def tearDown(self):
+        self.experiment_control.handler.flush()
         
 #== Parallel port ==
     def test_01_set_bit_on_parallel_port(self):        

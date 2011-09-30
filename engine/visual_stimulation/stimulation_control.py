@@ -8,22 +8,13 @@
 #TODO: rename to experiment_control
 
 import sys
-import zipfile as zip
-import os
-import os.path
 import time
 import numpy
 
-from OpenGL.GL import *
-from OpenGL.GLU import *
 import logging
 from visexpman.engine.generic import utils    
 import visexpman
 import unittest
-
-#import modules for stimulus files:
-#from random import *
-#from numpy import *
 
 import experiment
 import stimulation_library
@@ -64,7 +55,8 @@ class ExperimentControl():
 
     def init_experiment_logging(self):        
         self.logfile_path = experiment_file_name(self.caller.selected_experiment_config, self.config.EXPERIMENT_LOG_PATH, 'txt', 'log')
-        self.log = logging.getLogger('experiment log' + str(self.caller.command_handler.experiment_counter))
+        #Ensure that the name of the log object is unique
+        self.log = logging.getLogger('experiment log' + str(self.caller.command_handler.experiment_counter) + str(time.time()))
         self.handler = logging.FileHandler(self.logfile_path)
         formatter = logging.Formatter('%(message)s')
         self.handler.setFormatter(formatter)
@@ -77,7 +69,7 @@ class ExperimentControl():
         #init experiment logging
         self.init_experiment_logging()
         #Set experiment control context in selected experiment configuration
-        self.caller.selected_experiment_config.set_experiment_control_context()        
+        self.caller.selected_experiment_config.set_experiment_control_context()
 
     def run_experiment(self):
         if hasattr(self.caller, 'selected_experiment_config') and hasattr(self.caller.selected_experiment_config, 'run'):
@@ -85,7 +77,7 @@ class ExperimentControl():
             #Message to screen, log experiment start
             self.caller.screen_and_keyboard.message += '\nexperiment started'
             self.caller.log.info('Started experiment: ' + str(self.caller.selected_experiment_config.runnable.__class__))
-            self.log.info('%2.3f\tExperiment started at %s' %(time.time(), utils.datetime_string()))
+            self.log.info('{0:2.3f}\tExperiment started at {1}'.format(time.time(), utils.datetime_string()))
             #Change visexprunner state
             self.caller.state = 'experiment running'
             #Set acquisition trigger pin to high
@@ -97,7 +89,7 @@ class ExperimentControl():
             #Change visexprunner state to ready
             self.caller.state = 'ready'
             #Send message to screen, log experiment completition
-            self.log.info('Experiment finished at ' + utils.datetime_string())
+            self.log.info('{0:2.3f}\tExperiment finished at {1}' .format(time.time(), utils.datetime_string()))
             self.caller.screen_and_keyboard.message += '\nexperiment ended'
             self.caller.log.info('Experiment complete')
         else:
@@ -179,7 +171,7 @@ class TestConfig(configuration.Config):
     def _create_application_parameters(self):
         PIN_RANGE = [0, 7]
         #parallel port
-        ENABLE_PARALLEL_PORT = visexpman.test_parallel_port
+        ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
@@ -222,7 +214,6 @@ class testDataHandler(unittest.TestCase):
 
     def tearDown(self):
         shutil.rmtree(self.config.ARCHIVE_PATH)
-        os.mkdir(self.config.ARCHIVE_PATH)
 
 class testExternalHardware(unittest.TestCase):
     '''
@@ -234,7 +225,7 @@ class testExternalHardware(unittest.TestCase):
     #Testing constructor
     def test_01_creating_instruments(self):        
         e = Devices(self.config, self)
-        self.assertEqual((hasattr(e, 'parallel_port'), hasattr(e, 'filterwheels')),  (visexpman.test_parallel_port, True))
+        self.assertEqual((hasattr(e, 'parallel_port'), hasattr(e, 'filterwheels')),  (True, True))
         e.close()
 
     def test_02_disabled_instruments(self):        
@@ -249,8 +240,9 @@ class testExternalHardware(unittest.TestCase):
         self.d.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
         time.sleep(0.1)
         self.d.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
-        self.assertEqual((hasattr(self.d, 'parallel_port'), hasattr(self.d, 'filterwheels'), self.d.parallel_port.iostate['data']),  (visexpman.test_parallel_port, True, 0))
+        self.assertEqual((hasattr(self.d, 'parallel_port'), hasattr(self.d, 'filterwheels'), self.d.parallel_port.iostate['data']),  (True, True, 0))
         self.d.close()
+        
 
 if __name__ == "__main__":
     unittest.main()

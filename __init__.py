@@ -4,8 +4,24 @@ import numpy
 from visexpman.engine.generic import utils
 
 version = '0.1'
-
+#run modes:
+# - application
+# - full test
+# - test without hardware
+run_mode = 'application'
+run_mode = 'full test'
+#run_mode = 'test without hardware'
 #== Test parameters ==
-test_mode = True
-reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
-test_parallel_port = True
+test = (run_mode != 'application')
+
+#For running automated tests, network operations have to be disabled for visexp_runner
+enable_network = (run_mode == 'application')
+
+#Set this to False if any of the controleld hardware (parallel port, filterwheel, etc) is not available
+hardware_test = (run_mode == 'full test')
+
+if os.name == 'nt':
+    reference_frames_folder = 'c:\\visexpman_data\\reference_frames'
+elif os.name == 'posix':
+    reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
+

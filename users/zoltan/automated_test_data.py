@@ -125,7 +125,7 @@ class TestExternalHardwareExperimentTestConfig(VisualStimulationConfig):
         SCREEN_RESOLUTION = utils.cr([800, 600])
         
         #Hardware configuration
-        ENABLE_PARALLEL_PORT = visexpman.test_parallel_port
+        ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
         FILTERWHEEL_ENABLE = True
@@ -140,14 +140,14 @@ class TestExternalHardwareExperimentConfig(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
 
 class TestExternalHardwareExperiment(experiment.Experiment):
-    def run(self):        
+    def run(self):
         self.show_fullscreen(duration = 0.0, color = 0.5)
         self.parallel_port.set_data_bit(1, 1)
         self.parallel_port.set_data_bit(1, 0)        
         filter = int(5 * random.Random().random()) + 1
         time.sleep(0.2)
         self.filterwheels[0].set(filter)
-        
+
 #== Disabled hardware ==
 class DisabledlHardwareExperimentTestConfig(VisualStimulationConfig):
     def _set_user_parameters(self):        

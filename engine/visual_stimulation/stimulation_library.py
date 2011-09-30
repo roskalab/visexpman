@@ -107,7 +107,7 @@ class Stimulations(command_handler.CommandHandler):
         #Keyboard commands
         command = self.screen.experiment_user_interface_handler()
         if command != None:
-            self.command_buffer += self.parse(command)            
+            self.command_buffer += self.parse(command)
             if self.command_buffer.find('abort_experiment') != -1:
                 self.command_buffer = self.command_buffer.replace('abort_experiment', '')
                 self.caller.experiment_control.log.info('%2.3f\tAbort pressed'%(self.flip_time))

@@ -124,13 +124,13 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #== External hardware ==        
         #parallel port
-        ENABLE_PARALLEL_PORT = visexpman.test_parallel_port
+        ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         
         #filterwheel settings
-        FILTERWHEEL_ENABLE = True
+        FILTERWHEEL_ENABLE = False
         FILTERWHEEL_SERIAL_PORT = [[{
                                     'port' :  '/dev/ttyUSB0',
                                     'baudrate' : 115200,

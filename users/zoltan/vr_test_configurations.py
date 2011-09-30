@@ -11,6 +11,7 @@ class VirtualRealityTestConfig(VisualStimulationConfig):
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'VirtualRealityTestExperimentConfig'
         LOG_PATH = '/media/Common/visexpman_data'
+        EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
         BASE_PATH= '/media/Common/visexpman_data'
         ARCHIVE_PATH = '/media/Common/visexpman_data'
         CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
@@ -38,14 +39,16 @@ class VirtualRealityTestConfig(VisualStimulationConfig):
             COORDINATE_SYSTEM='ulcorner'
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
+        ARCHIVE_FORMAT = 'zip'
         self._create_parameters_from_locals(locals())
 
 class VirtualRealityTestExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
+        STIM_SPEED = [0, [0, 1000]]
         self.runnable = 'GratingTest'
         self.pre_runnable = 'TestPre'
         self._create_parameters_from_locals(locals())
         
 class GratingTest(experiment.Experiment):
     def run(self):
-        self.show_grating(duration =300.0, profile = 'sqr', orientation = 0, velocity =50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
+        self.show_grating(duration =300.0, profile = 'sqr', orientation = 0, velocity =self.experiment_config.STIM_SPEED, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)

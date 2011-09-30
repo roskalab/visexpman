@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project visexpman -->
-<!-- Saved: 2011-09-28, 15:17:10 -->
+<!-- Saved: 2011-09-30, 15:21:47 -->
 <!-- Copyright (C) 2011 Zoltan Raics, zoltan.raics@fmi.ch -->
 <Project version="4.6">
   <Language>en</Language>
@@ -80,6 +80,7 @@
     <Source>engine/hardware_interface/network_interface.py</Source>
     <Source>users/default/default_configs.py</Source>
     <Source>users/zoltan/automated_test_data.py</Source>
+    <Source>users/zoltan/vr_test_configurations.py</Source>
   </Sources>
   <Forms>
   </Forms>

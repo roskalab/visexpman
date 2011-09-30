@@ -97,7 +97,7 @@ class Config(object):
                 
     def _create_application_parameters(self):
         '''
-        By overdefining this function, the application/user etc specific parameters can be definced here:
+        By overdefining this function, the application/user etc specific parameters can be defined here:
             self.PAR_p =              
         '''
         pass

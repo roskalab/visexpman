@@ -459,7 +459,7 @@ def module_versions(modules):
     'random': 'standard', 
     'inspect': 'standard', 
     'serial': 'VERSION', 
-    'PyQt4':'', 
+    'PyQt4':' QtCore.QT_VERSION_STR', 
     'scipy': 'version.version', 
     'shutil': 'standard', 
     'tempfile':'standard', 

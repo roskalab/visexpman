@@ -50,7 +50,7 @@ class CommandHandler():
         #Run experiment
         self.caller.experiment_control.run_experiment()
         #Clean up experiment
-        self.caller.experiment_control.finish_experiment()        
+        self.caller.experiment_control.finish_experiment()
         self.experiment_counter += 1
         return 'experiment executed'
 

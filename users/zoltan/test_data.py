@@ -78,10 +78,12 @@ class VisexpRunnerTestConfig(VisualStimulationConfig):
         BASE_PATH= '/media/Common/visexpman_data'
         ARCHIVE_PATH = '/media/Common/visexpman_data'
         CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
-        TEST_DATA_PATH = '/media/Common/visexpman_data/test'        
+        TEST_DATA_PATH = '/media/Common/visexpman_data/test'
+        
+#        COMMAND_INTERFACE_PORT = 20000
         
         #hardware
-        ENABLE_PARALLEL_PORT = True
+        ENABLE_PARALLEL_PORT = False
         ENABLE_UDP = True
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
