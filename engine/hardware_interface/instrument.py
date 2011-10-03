@@ -82,6 +82,14 @@ class Instrument():
 
     def close_communication_interface(self):
         pass
+        
+    def get_elapsed_time(self):
+        elapsed_time = time.time()
+        #This checking is necessary to ensure running test that does not have the full variable environment build up
+        if hasattr(self.caller.experiment_control, 'start_time'):
+            if isinstance(self.caller.experiment_control.start_time, float):
+                elapsed_time = time.time() - self.caller.experiment_control.start_time
+        return elapsed_time
 
 #    def __del__(self):        
 #        self.release_instrument()
@@ -129,12 +137,17 @@ class ParallelPort(Instrument, parallel.Parallel):
             #logging
             if log:
                 log_message = 'Parallel port data bits set to %i' % self.iostate['data']
-                if self.caller.state == 'experiment running':
-                    self.caller.experiment_control.log.info('%2.3f\t%s' %(time.time(), log_message))
-        
+                if self.caller.state == 'experiment running':                    
+                    self.caller.experiment_control.log.info('%2.3f\t%s' %(self.get_elapsed_time(), log_message))
+                    
     def close_instrument(self):
         if self.config.ENABLE_PARALLEL_PORT:
-            parallel.Parallel.__del__(self)
+           if os.name == 'nt':
+                if hasattr(parallel.Parallel, '__del__'):
+                    parallel.Parallel.__del__(self)
+           elif os.name == 'posix':
+               parallel.Parallel.__del__(self)
+               
         #here a small delay may be inserted        
 
     def __del__(self):
@@ -199,7 +212,8 @@ class Filterwheel(Instrument):
                                                     stopbits = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['stopbits'],
                                                     bytesize = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['bytesize'])
         try:
-            self.serial_port.open()
+            if os.name != 'nt':
+                self.serial_port.open()
         except AttributeError:
             pass
 
@@ -216,7 +230,7 @@ class Filterwheel(Instrument):
             if log:
                 log_message = 'Filterwheel set to %i' % position
                 if self.caller.state == 'experiment running':
-                    self.caller.experiment_control.log.info('%2.3f\t%s' %(time.time(), log_message))
+                    self.caller.experiment_control.log.info('%2.3f\t%s' %(self.get_elapsed_time(), log_message))
         
     def set_filter(self,  filter = '', log = True):
         if self.config.FILTERWHEEL_ENABLE:
@@ -234,7 +248,7 @@ class Filterwheel(Instrument):
             if log:
                 log_message = 'Filterwheel set to %s' % filter
                 if self.caller.state == 'experiment running':
-                    self.caller.experiment_control.log.info('%2.3f\t%s' %(time.time(), log_message))
+                    self.caller.experiment_control.log.info('%2.3f\t%s' %(self.get_elapsed_time(), log_message))
 
     def close_communication_interface(self):
         if self.config.FILTERWHEEL_ENABLE:
@@ -246,7 +260,7 @@ class Filterwheel(Instrument):
 class testConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         if os.name == 'nt':
-            port = 'COM6'
+            port = 'COM4'
         else:
             port = '/dev/ttyUSB0'
             EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'

@@ -8,6 +8,10 @@ class unitTestRunner():
     '''
     def __init__(self):        
         self.test_configs = [
+               {'test_class_path' : 'visexpman.engine.visexp_runner.testVisexpRunner',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.visexp_runner.testFindoutConfig',
+               'enable' : True}, 
                {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
@@ -15,10 +19,6 @@ class unitTestRunner():
                {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
                'enable' : not True}, #Not part of visexpman application
                {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.visexp_runner.testFindoutConfig',
-               'enable' : True}, 
-               {'test_class_path' : 'visexpman.engine.visexp_runner.testVisexpRunner',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.testInstruments',
                'enable' : visexpman.hardware_test}, #Shutter tests are not complete

@@ -60,7 +60,9 @@ class NetworkListener(QtCore.QThread):
 #                    print udp_buffer
                     #TODO: here comes the presentinator command translator
                     self.caller.command_queue.put(udp_buffer)
-                except socket.timeout:
+#                 except socket.timeout:
+#                     pass
+                except:
                     pass
                     
     def close(self):
@@ -139,7 +141,10 @@ class testNetworkInterface(unittest.TestCase):
         sender = NetworkSender(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
         self.listener1.start()
         sender.start()
-        time.sleep(1.5)
+        if os.name == 'nt':
+            time.sleep(2.5)
+        elif os.name == 'posix':
+            time.sleep(1.5)
         response = ''
         while not self.command_queue.empty():
             response += self.command_queue.get()        
@@ -156,9 +161,15 @@ class testNetworkInterface(unittest.TestCase):
         sender2 = NetworkSender(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
         self.listener2.start()
         sender1.start()
-        time.sleep(1.5)
+        if os.name == 'nt':
+            time.sleep(2.5)
+        elif os.name == 'posix':
+            time.sleep(1.5)
         sender2.start()
-        time.sleep(1.5)
+        if os.name == 'nt':
+            time.sleep(2.5)
+        elif os.name == 'posix':
+            time.sleep(1.5)
         response = ''
         while not self.command_queue.empty():
             response += self.command_queue.get()        
@@ -199,7 +210,10 @@ class testNetworkInterface(unittest.TestCase):
         sender1 = NetworkSender(config, self, socket.SOCK_DGRAM, config.UDP_PORT)        
         self.listener3.start()
         sender1.start()
-        time.sleep(1.5)        
+        if os.name == 'nt':
+            time.sleep(2.5)
+        elif os.name == 'posix':
+            time.sleep(1.5)        
         response = ''
         while not self.command_queue.empty():
             response += self.command_queue.get()
@@ -216,9 +230,15 @@ class testNetworkInterface(unittest.TestCase):
         sender2 = NetworkSender(config, self, socket.SOCK_DGRAM, config.UDP_PORT)
         self.listener4.start()
         sender1.start()
-        time.sleep(1.5)
+        if os.name == 'nt':
+            time.sleep(2.5)
+        elif os.name == 'posix':
+            time.sleep(1.5)
         sender2.start()
-        time.sleep(1.5)
+        if os.name == 'nt':
+            time.sleep(2.5)
+        elif os.name == 'posix':
+            time.sleep(1.5)
         response = ''
         while not self.command_queue.empty():
             response += self.command_queue.get()

@@ -27,7 +27,6 @@ class VisexpmanScreen(graphics.Screen):
         #== Initialize displaying text ==
         self.text_style = GLUT_BITMAP_8_BY_13
         self.menu_position = utils.cr(( int(self.config.MENU_POSITION['col'] * self.config.SCREEN_RESOLUTION['col']), int(self.config.MENU_POSITION['row'] * self.config.SCREEN_RESOLUTION['row'])))
-        self.menu_text = self.config.MENU_TEXT + experiment_choices(self.caller.experiment_config_list)
         self.message_position = utils.cr(( int(self.config.MESSAGE_POSITION['col'] * self.config.SCREEN_RESOLUTION['col']), int(self.config.MESSAGE_POSITION['row'] * self.config.SCREEN_RESOLUTION['row'])))
         self.message = 'no message'
         self.hide_menu = False
@@ -43,6 +42,7 @@ class VisexpmanScreen(graphics.Screen):
          - possible keyboard commands
          - available experiment configurations
         '''
+        self.menu_text = self.config.MENU_TEXT + experiment_choices(self.caller.experiment_config_list) + '\nSelected experiment config: ' + self.caller.experiment_config_list[int(self.caller.command_handler.selected_experiment_config_index)][1].__name__
         self.render_text(self.menu_text, color = self.config.TEXT_COLOR, position = self.menu_position, text_style = self.text_style)
         if flip:
             self.flip()

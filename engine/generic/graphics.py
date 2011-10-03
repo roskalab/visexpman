@@ -76,7 +76,7 @@ class Screen(object):
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
         glEnable(GL_DEPTH_TEST)
         #Hide mouse cursor
-        pygame.mouse.set_visible (False)
+        pygame.mouse.set_visible(False)
         
         self.image_texture_id = glGenTextures(1)
         
@@ -230,6 +230,7 @@ class Screen(object):
         '''
         Renders text on screen using times new roman characters. Spacing is a constant 12 pixels, so shorter characters like 'l' is diplayed with a little gap
         '''
+        current_color = glGetFloatv(GL_CURRENT_COLOR)
         if len(color) == 3:
             glColor3fv(color)
         elif len(color) == 4:
@@ -255,6 +256,9 @@ class Screen(object):
                 glRasterPos2f(position['col'] + spacing * row_index, position['row'] - line_index * spacing)
                 glutBitmapCharacter(text_style, ord(text[i]))
                 row_index += 1
+                
+        #Restore original color
+        glColor4fv(current_color)
         
     def render_imagefile(self, path, position = utils.rc((0, 0))):
         '''

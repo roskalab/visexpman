@@ -105,7 +105,7 @@ class UserCommandExperiment(experiment.Experiment):
         self.show_fullscreen(duration = -1.0, color = 1.0)
         if self.command_buffer.find('user_command') != -1:
             self.command_buffer.replace('user_command', '')
-            self.log.info('%2.3f\tUser note'%time.time())
+            self.log.info('%2.3f\tUser note'%self.elapsed_time)
             
 #== External Hardware controlling experiment ==
 class TestExternalHardwareExperimentTestConfig(VisualStimulationConfig):
@@ -129,6 +129,8 @@ class TestExternalHardwareExperimentTestConfig(VisualStimulationConfig):
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
         FILTERWHEEL_ENABLE = True
+        if os.name == 'nt':
+            self.FILTERWHEEL_SERIAL_PORT[0]['port'] = 'COM4'
 
         COORDINATE_SYSTEM='center'
         ARCHIVE_FORMAT = 'zip'

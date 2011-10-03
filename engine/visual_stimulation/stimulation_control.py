@@ -77,7 +77,8 @@ class ExperimentControl():
             #Message to screen, log experiment start
             self.caller.screen_and_keyboard.message += '\nexperiment started'
             self.caller.log.info('Started experiment: ' + str(self.caller.selected_experiment_config.runnable.__class__))
-            self.log.info('{0:2.3f}\tExperiment started at {1}'.format(time.time(), utils.datetime_string()))
+            self.start_time = time.time()
+            self.log.info('{0:2.3f}\tExperiment started at {1}'.format(time.time()-self.start_time, utils.datetime_string()))
             #Change visexprunner state
             self.caller.state = 'experiment running'
             #Set acquisition trigger pin to high
@@ -89,7 +90,7 @@ class ExperimentControl():
             #Change visexprunner state to ready
             self.caller.state = 'ready'
             #Send message to screen, log experiment completition
-            self.log.info('{0:2.3f}\tExperiment finished at {1}' .format(time.time(), utils.datetime_string()))
+            self.log.info('{0:2.3f}\tExperiment finished at {1}' .format(time.time()-self.start_time, utils.datetime_string()))
             self.caller.screen_and_keyboard.message += '\nexperiment ended'
             self.caller.log.info('Experiment complete')
         else:
@@ -113,10 +114,10 @@ class Devices():
             self.filterwheels.append(instrument.Filterwheel(config, caller, id =id))
 
     def close(self):        
-        self.parallel_port.release_instrument()        
-        self.filterwheels = []
-        for filterwheel in self.filterwheels:
-            filterwheel.release_instrument()
+        self.parallel_port.release_instrument()
+        if os.name == 'nt':
+            for filterwheel in self.filterwheels:
+                filterwheel.release_instrument()
             
 class DataHandler():
     '''
@@ -179,7 +180,7 @@ class TestConfig(configuration.Config):
         #filterwheel settings
         FILTERWHEEL_ENABLE = True
         if os.name == 'nt':
-            port = 'COM7'
+            port = 'COM4'
         elif os.name == 'posix':
             port = '/dev/ttyUSB0'
         FILTERWHEEL_SERIAL_PORT = [[{
@@ -190,7 +191,7 @@ class TestConfig(configuration.Config):
                                     'bytesize' : serial.EIGHTBITS,
                                     }]]
         if os.name == 'nt':
-            ARCHIVE_PATH = 'c:\\_del'
+            ARCHIVE_PATH = 'c:\\_del\\test'
         elif os.name == 'posix':
             ARCHIVE_PATH = '/media/Common/visexpman_data/test'
         ARCHIVE_PATH = os.path.join(ARCHIVE_PATH, 'test')
@@ -221,6 +222,7 @@ class testExternalHardware(unittest.TestCase):
     def setUp(self):
         self.state = 'ready'
         self.config = TestConfig()
+        self.start_time = time.time()        
         
     #Testing constructor
     def test_01_creating_instruments(self):        

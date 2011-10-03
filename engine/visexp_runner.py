@@ -516,33 +516,68 @@ class testVisexpRunner(unittest.TestCase):
             captured_file = open(captured_frame_path, 'rb')
             captured_data = captured_file.read(os.path.getsize(captured_frame_path))
             captured_file.close()
-            if reference_data != captured_data:
-                return False
+            if os.name == 'posix':
+                if reference_data != captured_data:
+                    print reference_file_path
+                    return False
+            elif os.name == 'nt':
+                if reference_data != captured_data:                    
+                    number_of_differing_pixels = (utils.string_to_array(reference_data) != utils.string_to_array(captured_data)).sum()/3.0
+                    print 'number of differing pixels %f'%number_of_differing_pixels
+                    if number_of_differing_pixels >= visexpman.pixel_difference_threshold:
+                        print reference_file_path
+                        return False
+
         return True
         
     def check_experiment_log_for_visual_stimuli(self, experiment_log):
-        reference_strings = [
-            'show_fullscreen(0.0, [1.0, 1.0, 1.0])', 
-            'show_fullscreen(0.0, [0.0, 0.0, 0.0])', 
-            'show_grating(0.0, sqr, -1, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
-            'show_grating(0.0, sqr, 200, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
-            'show_grating(0.0, sqr, 100, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
-            'show_grating(0.0, sqr, 100, (0, 0), 45, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
-            'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
-            'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 0.5, 0.25, (0, 0))', 
-            'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, (1.0, 0.3, 0.0), (0.5, 0.85, 0.0), (0, 0))', 
-            'show_grating(0.0, sqr, 10, (100, 100), 90, 0.0, 0.0, [1.0, 1.0, 1.0], 0.5, (0, 0))', 
-            'show_grating(0.0, sin, 20, (600, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
-            'show_grating(0.0, sin, 20, (0, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
-            'show_grating(0.0, sin, 20, (600, 0), -10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
-            'show_grating(0.0, tri, 20, (100, 100), 350, 0.0, 0.0, 0.5, 0.25, (100, 0))', 
-            'show_grating(0.0, tri, 20, (100, 100), 350, 90.0, 0.0, 0.5, 0.25, (100, 0))', 
-            'show_grating(0.0, saw, 50, (200, 100), 0, 0.0, 0.0, 1.0, 0.5, (300, 250))', 
-            'show_grating(0.1, sqr, 40, (0, 0), 0, 0.0, 800.0, 1.0, 0.5, (0, 0))', 
-            'show_dots(0.0, [100, 100], [array((0, 0),',  
-            'show_dots(0.0, [100, 100, 10], [array((0, 0),', 
-            'show_dots(0.0, [100, 100, 10], [array((0, 0), ', 
-            'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])'
+        if os.name == 'posix':
+            reference_strings = [
+                'show_fullscreen(0.0, [1.0, 1.0, 1.0])', 
+                'show_fullscreen(0.0, [0.0, 0.0, 0.0])', 
+                'show_grating(0.0, sqr, -1, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0, sqr, 200, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 45, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 0.5, 0.25, (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, (1.0, 0.3, 0.0), (0.5, 0.85, 0.0), (0, 0))', 
+                'show_grating(0.0, sqr, 10, (100, 100), 90, 0.0, 0.0, [1.0, 1.0, 1.0], 0.5, (0, 0))', 
+                'show_grating(0.0, sin, 20, (600, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
+                'show_grating(0.0, sin, 20, (0, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
+                'show_grating(0.0, sin, 20, (600, 0), -10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
+                'show_grating(0.0, tri, 20, (100, 100), 350, 0.0, 0.0, 0.5, 0.25, (100, 0))', 
+                'show_grating(0.0, tri, 20, (100, 100), 350, 90.0, 0.0, 0.5, 0.25, (100, 0))', 
+                'show_grating(0.0, saw, 50, (200, 100), 0, 0.0, 0.0, 1.0, 0.5, (300, 250))', 
+                'show_grating(0.1, sqr, 40, (0, 0), 0, 0.0, 800.0, 1.0, 0.5, (0, 0))', 
+                'show_dots(0.0, [100, 100], [array((0, 0),',  
+                'show_dots(0.0, [100, 100, 10], [array((0, 0),', 
+                'show_dots(0.0, [100, 100, 10], [array((0, 0), ', 
+                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])'
+                             ]
+        elif os.name == 'nt':
+            reference_strings = [
+                'show_fullscreen(0.0, [1.0, 1.0, 1.0])', 
+                'show_fullscreen(0.0, [0.0, 0.0, 0.0])', 
+                'show_grating(0.0, sqr, -1, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0, sqr, 200, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 0, 0.0, 0.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 45, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 0.5, 0.25, (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, (1.0, 0.3, 0.0), (0.5, 0.85, 0.0), (0, 0))', 
+                'show_grating(0.0, sqr, 10, (100, 100), 90, 0.0, 0.0, [1.0, 1.0, 1.0], 0.5, (0, 0))', 
+                'show_grating(0.0, sin, 20, (600, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
+                'show_grating(0.0, sin, 20, (0, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
+                'show_grating(0.0, sin, 20, (600, 0), -10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
+                'show_grating(0.0, tri, 20, (100, 100), 350, 0.0, 0.0, 0.5, 0.25, (100, 0))', 
+                'show_grating(0.0, tri, 20, (100, 100), 350, 90.0, 0.0, 0.5, 0.25, (100, 0))', 
+                'show_grating(0.0, saw, 50, (200, 100), 0, 0.0, 0.0, 1.0, 0.5, (300, 250))', 
+                'show_grating(0.1, sqr, 40, (0, 0), 0, 0.0, 800.0, 1.0, 0.5, (0, 0))', 
+                'show_dots(0.0, [100, 100], [array((0, 0),',  
+                'show_dots(0.0, [100, 100, 10], [array((0, 0),', 
+                'show_dots(0.0, [100, 100, 10], [array((0, 0), ', 
+                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])'
                              ]
         for reference_string in reference_strings:
             if experiment_log.find(reference_string) == -1:               
@@ -552,7 +587,7 @@ class testVisexpRunner(unittest.TestCase):
 if __name__ == "__main__":
     if visexpman.test:
         unittest.main()
-    else:        
+    else:
         v = VisExpRunner(*find_out_config())
 #        cs = command_handler.CommandSender(v.config, v, [1.0,'SOCquitEOC'])
 #        cs.start()

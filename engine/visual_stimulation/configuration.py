@@ -131,8 +131,14 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #filterwheel settings
         FILTERWHEEL_ENABLE = False
+        
+        if os.name == 'nt':
+            port = 'COM1'
+        elif os.name == 'posix':
+            port = '/dev/ttyUSB0'
+            
         FILTERWHEEL_SERIAL_PORT = [[{
-                                    'port' :  '/dev/ttyUSB0',
+                                    'port' :  port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
@@ -166,12 +172,12 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'        
     
         #== Command list and menu text ==
-        self.COMMANDS = dict(self.COMMANDS.items() + self.USER_EXPERIMENT_COMMANDS.items())        
+        #Check if there is no redundancy in command configuration
+        self.COMMANDS = self._merge_commands(self.COMMANDS, self.USER_EXPERIMENT_COMMANDS)        
         MENU_TEXT = ''
         for k, v in self.COMMANDS.items():            
             if utils.is_in_list(v['domain'], 'keyboard'):                
                 MENU_TEXT += v['key'] + ' - ' + k + '\n'
-
 
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX
         
@@ -201,6 +207,21 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         if self.COORDINATE_SYSTEM == 'ulcorner':
             self.MENU_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MENU_POSITION_p.v, utils.cr((1.0, 1.0)))
             self.MESSAGE_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MESSAGE_POSITION_p.v, utils.cr((1.0, 1.0)))
+            
+    def _merge_commands(self, command_list, user_command_list):        
+        commands = dict(command_list.items() + user_command_list.items())
+        for user_command_name in user_command_list.keys():
+            if command_list.has_key(user_command_name):
+                raise RuntimeError('Redundant command name: {0} is reserved'.format(user_command_name))
+        
+        all_keys = []
+        for k, v in commands.items():            
+            if utils.is_in_list(all_keys, v['key']):
+                raise RuntimeError('Redundant keyboard command: {0} is reserved'.format(v['key']))
+            else:
+                all_keys.append(v['key'])
+        return commands
+
 
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
@@ -223,10 +244,97 @@ class TestConfig(visexpman.engine.generic.configuration.Config):
         self.PAR3_p = visexpman.engine.generic.parameter.Parameter(self.PAR1+self.PAR2) 
         self.PAR3 = self.PAR3_p.v
     
+class RedundantCommandConfig1(VisualStimulationConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
+        #paths
+        if os.name == 'nt':
+            path = 'c:\\_del'
+        elif os.name == 'posix':
+            path = '/media/Common/visexpman_data'
+        LOG_PATH = os.path.join(path,'test')
+        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
+        ARCHIVE_PATH = os.path.join(path,'test')
+        ARCHIVE_FORMAT = 'zip'
+        COORDINATE_SYSTEM='center'
+        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'dummy1': {'key': 'e', 'domain': ['running experiment']}, 'dummy': {'key': 'w', 'domain': ['running experiment']},}
+        self._create_parameters_from_locals(locals())
+        
+class RedundantCommandConfig2(VisualStimulationConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
+        #paths
+        if os.name == 'nt':
+            path = 'c:\\_del'
+        elif os.name == 'posix':
+            path = '/media/Common/visexpman_data'
+        LOG_PATH = os.path.join(path,'test')
+        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
+        ARCHIVE_PATH = os.path.join(path,'test')
+        ARCHIVE_FORMAT = 'zip'
+        COORDINATE_SYSTEM='center'
+        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'dummy1': {'key': 'e', 'domain': ['running experiment']}, }
+        self._create_parameters_from_locals(locals())        
+
+class RedundantCommandConfig3(VisualStimulationConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
+        #paths
+        if os.name == 'nt':
+            path = 'c:\\_del'
+        elif os.name == 'posix':
+            path = '/media/Common/visexpman_data'
+        LOG_PATH = os.path.join(path,'test')
+        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
+        ARCHIVE_PATH = os.path.join(path,'test')
+        ARCHIVE_FORMAT = 'zip'
+        COORDINATE_SYSTEM='center'
+        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'bullseye': {'key': 'x', 'domain': ['running experiment']},}
+        self._create_parameters_from_locals(locals())
+    
+class NonRedundantCommandConfig(VisualStimulationConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
+        #paths
+        if os.name == 'nt':
+            path = 'c:\\_del'
+        elif os.name == 'posix':
+            path = '/media/Common/visexpman_data'
+        LOG_PATH = os.path.join(path,'test')
+        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
+        ARCHIVE_PATH = os.path.join(path,'test')
+        ARCHIVE_FORMAT = 'zip'
+        COORDINATE_SYSTEM='center'
+        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
+        self._create_parameters_from_locals(locals())
+
+
 class testApplicationConfiguration(unittest.TestCase):
-    def test_ConfigClass(self):
+    def test_01_ConfigClass(self):
         t = TestConfig()
         self.assertEqual((t.PAR1,  t.PAR2,  t.PAR3),  ('par1', 'par2',  t.PAR1+t.PAR2))
+        
+    def test_02_non_redundant_user_command_config(self):
+        commands = {
+                    'hide_menu': {'key': 'h', 'domain': ['keyboard']}, 
+                    #Dynamically added to the list: 'experiment_select' : {'key' : None, 'domain': ['keyboard']},
+                    'execute_experiment': {'key': 'e', 'domain': ['keyboard', 'network interface', 'remote client']}, 
+                    'abort_experiment': {'key': 'a', 'domain': ['running experiment']}, 
+                    'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
+                    'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},
+                    'dummy': {'key': 'd', 'domain': ['running experiment']},
+                    }
+        t = NonRedundantCommandConfig()
+        self.assertEqual((t.COMMANDS),  (commands))
+        
+    def test_03_redundant_user_command_config(self):        
+        self.assertRaises(RuntimeError,  RedundantCommandConfig1)
+        
+    def test_04_redundant_user_command_config(self):        
+        self.assertRaises(RuntimeError,  RedundantCommandConfig2)
+        
+    def test_05_redundant_user_command_config(self):        
+        self.assertRaises(RuntimeError,  RedundantCommandConfig3)
 
 if __name__ == "__main__":
     unittest.main()

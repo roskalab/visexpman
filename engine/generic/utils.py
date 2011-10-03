@@ -699,6 +699,12 @@ def is_in_list(list, item_to_find):
         return True
     else:
         return False
+        
+def string_to_array(string):
+    array = []
+    for byte in list(string):
+        array.append(ord(byte))
+    return numpy.array(array)
 
 def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):
     wave = []

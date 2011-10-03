@@ -7,7 +7,10 @@ import serial
 
 #== For software development test ==
 
-class VisexpRunnerWinTestConfig(VisualStimulationConfig):
+class VRWT(VisualStimulationConfig):
+    '''
+    Visexp runner windows test config
+    '''
     def _set_user_parameters(self):
         dataset = 0
         
@@ -22,19 +25,19 @@ class VisexpRunnerWinTestConfig(VisualStimulationConfig):
         TEST_DATA_PATH = 'c:\\_del'
         
         #hardware
-        ENABLE_PARALLEL_PORT = False
+        ENABLE_PARALLEL_PORT = True
         ENABLE_UDP = True
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
         FILTERWHEEL_ENABLE = True
         
-        FILTERWHEEL_SERIAL_PORT = [[{
-                                    'port' :  'COM7',
+        FILTERWHEEL_SERIAL_PORT = [{
+                                    'port' :  'COM4',
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
-                                    }] ]
+                                    }]
         
         #screen
         FULLSCREEN = False        
@@ -83,7 +86,7 @@ class VisexpRunnerTestConfig(VisualStimulationConfig):
 #        COMMAND_INTERFACE_PORT = 20000
         
         #hardware
-        ENABLE_PARALLEL_PORT = False
+        ENABLE_PARALLEL_PORT = True
         ENABLE_UDP = True
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
@@ -135,7 +138,7 @@ class TestExp1(experiment.Experiment):
         import random
         filter = int(5 * random.Random().random()) + 1
         time.sleep(0.2)
-        self.filterwheels[0].set(filter)
+        self.filterwheels[0].set(filter)        
         self.filterwheels[0].set_filter('ND0')
         self.parallel_port.set_data_bit(0, 0)
         time.sleep(0.1)

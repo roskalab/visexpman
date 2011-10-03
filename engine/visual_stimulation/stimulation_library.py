@@ -88,10 +88,15 @@ class Stimulations(command_handler.CommandHandler):
     def _flip(self,  trigger = False,  saveFrame = False):
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
-        """
-        
-#        now = time.time()        
-        self.screen.flip()       
+        """        
+        current_texture_state =glGetBooleanv(GL_TEXTURE_2D)
+        if current_texture_state:
+            glDisable(GL_TEXTURE_2D)
+        self._show_text()
+        if current_texture_state:
+            glEnable(GL_TEXTURE_2D)
+            
+        self.screen.flip()
         self.flip_time = time.time()
         frame_rate_deviation = abs(self.screen.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if frame_rate_deviation > self.config.FRAME_DELAY_TOLERANCE:
@@ -99,7 +104,8 @@ class Stimulations(command_handler.CommandHandler):
             frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
         else:
             frame_rate_warning = ''        
-        self.caller.experiment_control.log.info('%2.3f\t%2.2f\t%s'%(self.flip_time,self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))
+        self.elapsed_time = self.flip_time -  self.caller.experiment_control.start_time
+        self.caller.experiment_control.log.info('%2.3f\t%2.2f\t%s'%(self.elapsed_time,self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))
         
         if trigger:
             self._frame_trigger_pulse()
@@ -110,7 +116,7 @@ class Stimulations(command_handler.CommandHandler):
             self.command_buffer += self.parse(command)
             if self.command_buffer.find('abort_experiment') != -1:
                 self.command_buffer = self.command_buffer.replace('abort_experiment', '')
-                self.caller.experiment_control.log.info('%2.3f\tAbort pressed'%(self.flip_time))
+                self.caller.experiment_control.log.info('%2.3f\tAbort pressed'%(self.elapsed_time))
                 self.abort = True
 
     def _frame_trigger_pulse(self):
@@ -125,9 +131,10 @@ class Stimulations(command_handler.CommandHandler):
         '''
         Overlays on stimulus all the added text configurations
         '''
-        for text_config in self.text_on_stimulus:
-            if text_config['enable']:
-                self.screen.render_text(text_config['text'], color = text_config['color'], position = text_config['position'],  text_style = text_config['text_style'])
+        if self.config.TEXT_ENABLE:
+            for text_config in self.text_on_stimulus:
+                if text_config['enable']:
+                    self.screen.render_text(text_config['text'], color = text_config['color'], position = text_config['position'],  text_style = text_config['text_style'])
     
     #== Public, helper functions ==
     def set_background(self,  color):
@@ -185,7 +192,7 @@ class Stimulations(command_handler.CommandHandler):
             color_to_set = utils.convert_color(color)
         self.log_on_flip_message = 'show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')'
         self.screen.clear_screen(color = color_to_set)        
-        self._show_text()
+#        self._show_text()
         if duration == 0.0:
             if flip:
                 self._flip(trigger = True)
@@ -776,11 +783,10 @@ class Stimulations(command_handler.CommandHandler):
         for i in range(number_of_frames):
             phase = pixel_velocity * i
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            if self.config.TEXT_ENABLE:
-                glDisable(GL_TEXTURE_2D)
-                self._show_text()
-                glEnable(GL_TEXTURE_2D)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
+#            glDisable(GL_TEXTURE_2D)
+#            self._show_text()
+#            glEnable(GL_TEXTURE_2D)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
             #Make sure that at the first flip the parameters of the function call are logged
@@ -844,9 +850,8 @@ class Stimulations(command_handler.CommandHandler):
             start_i = dot_pointer * n_vertices
             end_i = (dot_pointer + ndots) * n_vertices
             dot_pointer = dot_pointer + ndots
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            if self.config.TEXT_ENABLE:
-                    self._show_text()
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
+#            self._show_text()
             glVertexPointerf(frames_vertices[start_i:end_i])
             for i in range(n_frames_per_pattern):
                 for dot_i in range(ndots):
