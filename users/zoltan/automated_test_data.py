@@ -1,6 +1,6 @@
 #== For automated tests ==
 import visexpman
-from visexpman.engine.visual_stimulation.configuration import VisualStimulationConfig
+from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
 import visexpman.engine.visual_stimulation.experiment as experiment
 import time
@@ -8,19 +8,17 @@ import numpy
 import random
 import os
 import os.path
+import serial
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 #== Very simple experiment ==
-class VerySimpleExperimentTestConfig(VisualStimulationConfig):
+class VerySimpleExperimentTestConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
         #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = os.path.join(path,'test')
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -40,17 +38,13 @@ class VerySimpleExperiment(experiment.Experiment):
         self.show_fullscreen(duration = 0.0, color = 1.0)
 
 #== Abortable experiment ==
-class AbortableExperimentTestConfig(VisualStimulationConfig):
+class AbortableExperimentTestConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'AbortableExperimentConfig'
         #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = path
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -71,17 +65,13 @@ class AbortableExperiment(experiment.Experiment):
         self.show_fullscreen(duration = -1.0, color = 1.0)
 
 #== User command experiment ==
-class UserCommandExperimentTestConfig(VisualStimulationConfig):
+class UserCommandExperimentTestConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'UserCommandExperimentConfig'
         #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = os.path.join(path,'test')
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -108,17 +98,13 @@ class UserCommandExperiment(experiment.Experiment):
             self.log.info('%2.3f\tUser note'%self.elapsed_time)
             
 #== External Hardware controlling experiment ==
-class TestExternalHardwareExperimentTestConfig(VisualStimulationConfig):
+class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'
         #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = os.path.join(path,'test')
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')        
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder       
         
         #screen
         FULLSCREEN = False
@@ -128,9 +114,14 @@ class TestExternalHardwareExperimentTestConfig(VisualStimulationConfig):
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
-        FILTERWHEEL_ENABLE = True
-        if os.name == 'nt':
-            self.FILTERWHEEL_SERIAL_PORT[0]['port'] = 'COM4'
+        ENABLE_FILTERWHEEL = True
+        FILTERWHEEL_SERIAL_PORT = [[{
+                                    'port' :  unit_test_runner.TEST_com_port,
+                                    'baudrate' : 115200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }]]
 
         COORDINATE_SYSTEM='center'
         ARCHIVE_FORMAT = 'zip'
@@ -151,17 +142,13 @@ class TestExternalHardwareExperiment(experiment.Experiment):
         self.filterwheels[0].set(filter)
 
 #== Disabled hardware ==
-class DisabledlHardwareExperimentTestConfig(VisualStimulationConfig):
+class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'TestExternalHardwareExperimentConfig'
         #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = os.path.join(path,'test')
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')        
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -171,24 +158,20 @@ class DisabledlHardwareExperimentTestConfig(VisualStimulationConfig):
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
 
         COORDINATE_SYSTEM='center'
         ARCHIVE_FORMAT = 'zip'
         self._create_parameters_from_locals(locals())
         
 #== Test pre experiment ==
-class PreExperimentTestConfig(VisualStimulationConfig):
+class PreExperimentTestConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'PreExperimentConfig'
         #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = os.path.join(path,'test')
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')        
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder     
         
         #screen
         FULLSCREEN = False
@@ -215,18 +198,14 @@ class PreExperiment(experiment.Experiment):
 
 #== Test visual stimulations ==
 
-class VisualStimulationsTestConfig(VisualStimulationConfig):
+class VisualStimulationsTestConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
         #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = os.path.join(path,'test')
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')
-        CAPTURE_PATH = os.path.join(path,'test', 'capture_' + str(int(time.time())))
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        CAPTURE_PATH = os.path.join(unit_test_runner.TEST_working_folder, 'capture_' + str(int(time.time())))
         os.mkdir(CAPTURE_PATH)
         
         #screen
@@ -239,18 +218,14 @@ class VisualStimulationsTestConfig(VisualStimulationConfig):
         ARCHIVE_FORMAT = 'zip'
         self._create_parameters_from_locals(locals())
         
-class VisualStimulationsUlCornerTestConfig(VisualStimulationConfig):
+class VisualStimulationsUlCornerTestConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
         #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = os.path.join(path,'test')
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')        
-        CAPTURE_PATH = os.path.join(path, 'test', 'capture_' + str(int(time.time())))
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder       
+        CAPTURE_PATH = os.path.join(unit_test_runner.TEST_working_folder, 'capture_' + str(int(time.time())))
         os.mkdir(CAPTURE_PATH)
         
         #screen

@@ -20,7 +20,7 @@ class PetersConfig(Configuration.PresentinatorConfig):
         FRAME_WAIT_FACTOR = 0.7
 
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = True
+        ENABLE_FILTERWHEEL = True
 
         FILTERWHEEL_SERIAL_PORT = [{
                                     'port' :  '/dev/ttyUSB0',

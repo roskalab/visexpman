@@ -1,11 +1,11 @@
-from visexpman.engine.visual_stimulation.configuration import VisualStimulationConfig
+from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
 import visexpman.engine.visual_stimulation.experiment as experiment
 import time
 import numpy
 
 #== Virtual reality optical setup testing ==
-class VirtualRealityTestConfig(VisualStimulationConfig):
+class VirtualRealityTestConfig(VisionExperimentConfig):
     def _set_user_parameters(self):
         dataset = 0
         RUN_MODE = 'single experiment'
@@ -27,7 +27,7 @@ class VirtualRealityTestConfig(VisualStimulationConfig):
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
         FRAME_WAIT_FACTOR = 0
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         TEXT_ENABLE = True
         SEGMENT_DURATION = 2
         MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds

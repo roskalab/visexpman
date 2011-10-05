@@ -1,8 +1,8 @@
 from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.visual_stimulation.configuration import VisualStimulationConfig
+from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
 import visexpman.engine.generic.utils as utils
 import os
-class PPRLConfig(VisualStimulationConfig):
+class PPRLConfig(VisionExperimentConfig):
     
     def _set_user_parameters(self):
         RUN_MODE = 'single experiment'
@@ -32,7 +32,7 @@ class PPRLConfig(VisualStimulationConfig):
         FRAME_WAIT_FACTOR = 0
 
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         
         #multiple stimulus control
         STIMULUS_LIST = ['MyStimulus1',  'MyStimulus2']
@@ -50,7 +50,7 @@ class PPRLConfig(VisualStimulationConfig):
         
         self._set_parameters_from_locals(locals())
         
-class K247AWindowsConfig(VisualStimulationConfig):
+class K247AWindowsConfig(VisionExperimentConfig):
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
@@ -71,7 +71,7 @@ class K247AWindowsConfig(VisualStimulationConfig):
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
         FRAME_WAIT_FACTOR = 0 
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         
         #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
@@ -85,10 +85,10 @@ class K247AWindowsConfig(VisualStimulationConfig):
             
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
-        VisualStimulationConfig._create_parameters_from_locals(self, locals())
-        #VisualStimulationConfig._set_parameters_from_locals(self, locals())
+        VisionExperimentConfig._create_parameters_from_locals(self, locals())
+        #VisionExperimentConfig._set_parameters_from_locals(self, locals())
 
-class RC3DWindowsConfig(VisualStimulationConfig):
+class RC3DWindowsConfig(VisionExperimentConfig):
     #NOT TESTED
     def _set_user_parameters(self):        
         ENABLE_PARALLEL_PORT = True        
@@ -107,7 +107,7 @@ class RC3DWindowsConfig(VisualStimulationConfig):
         
         self._set_parameters_from_locals(locals())
 
-class MBP(VisualStimulationConfig):
+class MBP(VisionExperimentConfig):
     def _set_user_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
@@ -128,7 +128,7 @@ class MBP(VisualStimulationConfig):
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
         FRAME_WAIT_FACTOR = 0 
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         
         #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
@@ -142,10 +142,10 @@ class MBP(VisualStimulationConfig):
             
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
-        VisualStimulationConfig._create_parameters_from_locals(self, locals())
-        #VisualStimulationConfig._set_parameters_from_locals(self, locals())
+        VisionExperimentConfig._create_parameters_from_locals(self, locals())
+        #VisionExperimentConfig._set_parameters_from_locals(self, locals())
 
-class ZoliTester(VisualStimulationConfig):
+class ZoliTester(VisionExperimentConfig):
     def _set_user_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
@@ -172,7 +172,7 @@ class ZoliTester(VisualStimulationConfig):
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
         FRAME_WAIT_FACTOR = 0 
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         TEXT_ENABLE = False
         
         #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!

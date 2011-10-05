@@ -110,12 +110,17 @@ class Devices():
         self.caller = caller
         self.parallel_port = instrument.ParallelPort(config, caller)
         self.filterwheels = []
-        for id in range(len(config.FILTERWHEEL_SERIAL_PORT)):
+        if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):
+            self.number_of_filterwheels = len(config.FILTERWHEEL_SERIAL_PORT)
+        else:
+            #If filterwheels neither configured, nor enabled, two virtual ones are created, so that experiments calling filterwheel functions could be called
+            self.number_of_filterwheels = 2
+        for id in range(self.number_of_filterwheels):
             self.filterwheels.append(instrument.Filterwheel(config, caller, id =id))
 
     def close(self):        
         self.parallel_port.release_instrument()
-        if os.name == 'nt':
+        if os.name == 'nt':            
             for filterwheel in self.filterwheels:
                 filterwheel.release_instrument()
             
@@ -178,7 +183,7 @@ class TestConfig(configuration.Config):
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
 
         #filterwheel settings
-        FILTERWHEEL_ENABLE = True
+        ENABLE_FILTERWHEEL = True
         if os.name == 'nt':
             port = 'COM4'
         elif os.name == 'posix':
@@ -232,7 +237,7 @@ class testExternalHardware(unittest.TestCase):
 
     def test_02_disabled_instruments(self):        
         self.config.ENABLE_PARALLEL_PORT = False
-        self.config.FILTERWHEEL_ENABLE = False
+        self.config.ENABLE_FILTERWHEEL = False
         e = Devices(self.config, self)
         self.assertEqual((hasattr(e, 'parallel_port'), hasattr(e, 'filterwheels')),  (True, True))
         e.close()

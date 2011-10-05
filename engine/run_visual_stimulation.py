@@ -33,7 +33,7 @@ class VisualStimulation(object):
         '''
         self.state = 'init'
         #== Fetch reference to config class and experiment config class ==
-        self.config=generic.utils.fetch_classes('visexpman.users.'+user, classname=config_class, required_ancestors=visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig)[0][1]()
+        self.config=generic.utils.fetch_classes('visexpman.users.'+user, classname=config_class, required_ancestors=visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()
         self.config.user=user
         #Lists all folders and python modules residing in the user's folder
         # this way of discovering classes has the drawback that modules searched must not have syntax errors

@@ -3,7 +3,7 @@
 class KarlWindowsConfig(Configuration.PresentinatorConfig):   
     def _set_user_specific_parameters(self):
         RUN_MODE = 'user interface' 
-        FILTERWHEEL_ENABLE = True       
+        ENABLE_FILTERWHEEL = True       
         ENABLE_PARALLEL_PORT = True        
         FULLSCR = True
         SCREEN_RESOLUTION = [1024,  768]

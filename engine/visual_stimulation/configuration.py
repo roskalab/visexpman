@@ -11,9 +11,10 @@ except:
 
 import tempfile
 import unittest
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 #TODO: make  naming of *ENABLE* like parameters consistent: ENABLE*
-class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
+class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         '''
         By overdefining this function, the application/user etc specific parameters can be definced here:
@@ -51,7 +52,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #display parameters:
         SCREEN_RESOLUTION = utils.rc([600, 800])        
-        FULLSCREEN = True
+        FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
         SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]
         FRAME_DELAY_TOLERANCE = [2.0,  [1e-2,  10.0]] #in Hz
@@ -71,7 +72,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel
         
         #Network/UDP settings
-        SERVER_UDP_IP = '172.27.29.6'
+        SERVER_UDP_IP = 'localhost'
         SERVER_IP = 'localhost'
         WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
         CLIENT_UDP_IP = ''
@@ -108,7 +109,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         TEXT_COLOR = [[1.0,  0.0,  0.0] ,  [[0.0, 0.0, 0.0],  [1.0,  1.0,  1.0]]]
 #        TEXT_SIZE = [12,  [2,  20]]
         
-        STATES = [['idle',  'stimulation'],  None]        
+        STATES = [['idle',  'stimulation'],  None]        #This might be obsolete
 
         MENU_POSITION = utils.cr((-0.48, 0.45))
         MESSAGE_POSITION = utils.cr((-0.48,0.0))
@@ -116,7 +117,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         MAX_MESSAGE_LENGTH = [200,  [10,  1000]] #length of message displayed on screen
 
         #example config
-        SHOW_ALL_EXAMPLES = True
+        SHOW_ALL_EXAMPLES = True    #This might be obsolete
         
         #stimulus control
         SEGMENT_DURATION = [100,  [1,  100000]]
@@ -130,33 +131,25 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         
         #filterwheel settings
-        FILTERWHEEL_ENABLE = False
-        
-        if os.name == 'nt':
-            port = 'COM1'
-        elif os.name == 'posix':
-            port = '/dev/ttyUSB0'
-            
-        FILTERWHEEL_SERIAL_PORT = [[{
-                                    'port' :  port,
-                                    'baudrate' : 115200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    }] ]
-                                    
+        ENABLE_FILTERWHEEL = False
         FILTERWHEEL_SETTLING_TIME = [0.4,  [0,  20]]
-
         FILTERWHEEL_VALID_POSITIONS = [[1, 6],  [[0, 0],  [100, 100]]]
         
-        FILTERWHEEL_FILTERS = [[{
-                                                'ND0': 1, 
-                                                'ND10': 2, 
-                                                'ND20': 3, 
-                                                'ND30': 4, 
-                                                'ND40': 5, 
-                                                'ND50': 6, 
-                                                }]]
+#        FILTERWHEEL_SERIAL_PORT = [[{
+#                                    'port' :  port,
+#                                    'baudrate' : 115200,
+#                                    'parity' : serial.PARITY_NONE,
+#                                    'stopbits' : serial.STOPBITS_ONE,
+#                                    'bytesize' : serial.EIGHTBITS,                                    
+#                                    }]]        
+#        FILTERWHEEL_FILTERS = [[{
+#                                                'ND0': 1, 
+#                                                'ND10': 2, 
+#                                                'ND20': 3, 
+#                                                'ND30': 4, 
+#                                                'ND40': 5, 
+#                                                'ND50': 6, 
+#                                                }]]
                                                 
         ENABLE_SHUTTER = False
         
@@ -200,6 +193,9 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         #== Coordinate system ==        
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
+        elif unit_test_runner.TEST_test:
+            #In test mode we do not check for raised exception but test for the existence of certain variables
+            pass
         else:
             raise ValueError('No coordinate system selected in config,  nor explicit settings for origo and axes was given.')
             
@@ -244,7 +240,7 @@ class TestConfig(visexpman.engine.generic.configuration.Config):
         self.PAR3_p = visexpman.engine.generic.parameter.Parameter(self.PAR1+self.PAR2) 
         self.PAR3 = self.PAR3_p.v
     
-class RedundantCommandConfig1(VisualStimulationConfig):
+class RedundantCommandConfig1(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
         #paths
@@ -260,7 +256,7 @@ class RedundantCommandConfig1(VisualStimulationConfig):
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'dummy1': {'key': 'e', 'domain': ['running experiment']}, 'dummy': {'key': 'w', 'domain': ['running experiment']},}
         self._create_parameters_from_locals(locals())
         
-class RedundantCommandConfig2(VisualStimulationConfig):
+class RedundantCommandConfig2(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
         #paths
@@ -276,7 +272,7 @@ class RedundantCommandConfig2(VisualStimulationConfig):
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'dummy1': {'key': 'e', 'domain': ['running experiment']}, }
         self._create_parameters_from_locals(locals())        
 
-class RedundantCommandConfig3(VisualStimulationConfig):
+class RedundantCommandConfig3(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
         #paths
@@ -292,7 +288,7 @@ class RedundantCommandConfig3(VisualStimulationConfig):
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'bullseye': {'key': 'x', 'domain': ['running experiment']},}
         self._create_parameters_from_locals(locals())
     
-class NonRedundantCommandConfig(VisualStimulationConfig):
+class NonRedundantCommandConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
         #paths
@@ -335,6 +331,29 @@ class testApplicationConfiguration(unittest.TestCase):
         
     def test_05_redundant_user_command_config(self):        
         self.assertRaises(RuntimeError,  RedundantCommandConfig3)
+        
+    def test_06_check_default_visexp_config(self):
+        t = VisionExperimentConfig()
+        self.assertEqual((hasattr(t, 'EXPERIMENT_CONFIG'),
+                          hasattr(t, 'LOG_PATH'),
+                          hasattr(t, 'EXPERIMENT_LOG_PATH'),
+                          hasattr(t, 'ARCHIVE_PATH'),
+                          hasattr(t, 'CAPTURE_PATH'),
+                          hasattr(t, 'FILTERWHEEL_FILTERS'), 
+                          hasattr(t, 'FILTERWHEEL_SERIAL_PORT'), 
+                          t.ORIGO, 
+                          t.HORIZONTAL_AXIS_POSITIVE_DIRECTION, 
+                          t.VERTICAL_AXIS_POSITIVE_DIRECTION, 
+                          t.COORDINATE_SYSTEM,
+                          t.FULLSCREEN, 
+                          t.ENABLE_FRAME_CAPTURE, 
+                          t.ENABLE_PARALLEL_PORT, 
+                          t.ENABLE_FILTERWHEEL, 
+                          t.ENABLE_SHUTTER, 
+                          ),
+                         (False, False, False, False, False, False, False, utils.rc((numpy.inf, numpy.inf)), 'undefined', 'undefined', 'undefined', False, False, False, False, False))
+        
+
 
 if __name__ == "__main__":
     unittest.main()

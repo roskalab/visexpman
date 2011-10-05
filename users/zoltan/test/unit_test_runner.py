@@ -1,6 +1,45 @@
 import unittest
 import sys
-import visexpman
+import os
+
+#run modes:
+# - application
+# - full test
+# - test without hardware
+
+#== Test control ==
+#Parse command line arguments
+run_mode = 'application'
+if len(sys.argv) > 2:
+    if sys.argv[1] == 'test':
+        if sys.argv[2] == '-f':
+            run_mode = 'full test'
+        elif sys.argv[2] == '-h':
+            run_mode = 'test without hardware'
+#== Test parameters ==
+TEST_test = (run_mode != 'application')
+
+#For running automated tests, network operations have to be disabled for visexp_runner
+TEST_enable_network = (run_mode == 'application')
+
+#Set this to False if any of the controleld hardware (parallel port, filterwheel, etc) is not available
+TEST_hardware_test = (run_mode == 'full test')
+
+#The maximal number of pixels that can differ from the reference frame at the testing the rendering of visual stimulation patterns
+TEST_pixel_difference_threshold = 10.0
+
+if os.name == 'nt':
+    TEST_reference_frames_folder = 'm:\\Raicszol\\visexpman\\test_data\\reference_frames_win'
+elif os.name == 'posix':
+    TEST_reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
+
+#== Hardware config during test ==
+if os.name == 'nt':
+    TEST_com_port = 'COM4'
+    TEST_working_folder = 'c:\\_del\\test'
+elif os.name == 'posix':
+    TEST_com_port = '/dev/ttyUSB0'
+    TEST_working_folder = '/media/Common/visexpman_data/test'
 
 class unitTestRunner():
     '''
@@ -21,11 +60,11 @@ class unitTestRunner():
                {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.testInstruments',
-               'enable' : visexpman.hardware_test}, #Shutter tests are not complete
+               'enable' : TEST_hardware_test}, #Shutter tests are not complete
                {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.testNetworkInterface',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testExternalHardware',
-               'enable' : visexpman.hardware_test},
+               'enable' : TEST_hardware_test},
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testDataHandler',
                'enable' : True},
                ]

@@ -205,7 +205,7 @@ class Shutter(Instrument):
 class Filterwheel(Instrument):
     def init_communication_interface(self):
         self.position = -1        
-        if self.config.FILTERWHEEL_ENABLE:
+        if self.config.ENABLE_FILTERWHEEL:
             self.serial_port = serial.Serial(port =self.config.FILTERWHEEL_SERIAL_PORT[self.id]['port'], 
                                                     baudrate = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['baudrate'],
                                                     parity = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['parity'],
@@ -218,7 +218,7 @@ class Filterwheel(Instrument):
             pass
 
     def set(self,  position = -1, log = True):
-        if self.config.FILTERWHEEL_ENABLE:
+        if self.config.ENABLE_FILTERWHEEL:
             if self.config.FILTERWHEEL_VALID_POSITIONS[0] <= position and self.config.FILTERWHEEL_VALID_POSITIONS[1] >= position:
                 self.serial_port.write('pos='+str(position) +'\r')
                 time.sleep(self.config.FILTERWHEEL_SETTLING_TIME)
@@ -233,7 +233,7 @@ class Filterwheel(Instrument):
                     self.caller.experiment_control.log.info('%2.3f\t%s' %(self.get_elapsed_time(), log_message))
         
     def set_filter(self,  filter = '', log = True):
-        if self.config.FILTERWHEEL_ENABLE:
+        if self.config.ENABLE_FILTERWHEEL:
             position_to_set = -1
             for k,  v in self.config.FILTERWHEEL_FILTERS[self.id].items():
                 if k == filter:
@@ -251,7 +251,7 @@ class Filterwheel(Instrument):
                     self.caller.experiment_control.log.info('%2.3f\t%s' %(self.get_elapsed_time(), log_message))
 
     def close_communication_interface(self):
-        if self.config.FILTERWHEEL_ENABLE:
+        if self.config.ENABLE_FILTERWHEEL:
             try:
                 self.serial_port.close()
             except AttributeError:
@@ -265,7 +265,7 @@ class testConfig(visexpman.engine.generic.configuration.Config):
             port = '/dev/ttyUSB0'
             EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
             
-        FILTERWHEEL_ENABLE = True
+        ENABLE_FILTERWHEEL = True
         ENABLE_PARALLEL_PORT = True
         ENABLE_SHUTTER = True
         FILTERWHEEL_SERIAL_PORT = [[{
@@ -407,7 +407,7 @@ class testInstruments(unittest.TestCase):
         fw.release_instrument()
         
     def test_12_set_filterwheel_position_when_disabled(self):        
-        self.config.FILTERWHEEL_ENABLE = False
+        self.config.ENABLE_FILTERWHEEL = False
         fw = Filterwheel(self.config, self)
         fw.set(1)
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (False, -1, 'ready'))

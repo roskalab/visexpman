@@ -1,4 +1,4 @@
-from visexpman.engine.visual_stimulation.configuration import VisualStimulationConfig
+from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
 import visexpman.engine.visual_stimulation.experiment as experiment
 import os
@@ -19,11 +19,11 @@ class DefaultExperiment(experiment.Experiment):
     def run(self):
         pass
         
-class SafestartConfig(VisualStimulationConfig):    
+class SafestartConfig(VisionExperimentConfig):    
     def _set_user_parameters(self):
         EXPERIMENT_CONFIG = 'DefaultExperimentConfig'
         COORDINATE_SYSTEM = 'center'        
-        FILTERWHEEL_ENABLE = False        
+        ENABLE_FILTERWHEEL = False        
         ENABLE_PARALLEL_PORT = False
         ENABLE_UDP = False
         FULLSCREEN = False

@@ -16,6 +16,7 @@ import os
 import random
 import zipfile
 import re
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 class VisExpRunner(object):
     '''
@@ -25,7 +26,7 @@ class VisExpRunner(object):
         self.state = 'init'
         #== Find and instantiate machine configuration ==
         try:
-            self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig)[0][1]()
+            self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()
         except IndexError:
             raise RuntimeError('Configuration class does not exist.')
         #Save user name
@@ -57,11 +58,11 @@ class VisExpRunner(object):
         #start listening on tcp ip for receiving commands
         self.command_queue = Queue.Queue()
         #In test_mode the network operations are disabled
-        if visexpman.enable_network:
+        if unit_test_runner.TEST_enable_network:
             self.tcpip_listener = network_interface.NetworkListener(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
             self.tcpip_listener.start()
         #Start udp listener if not in test mode
-        if self.config.ENABLE_UDP and visexpman.enable_network:            
+        if self.config.ENABLE_UDP and unit_test_runner.TEST_enable_network:            
             self.udp_listener = network_interface.NetworkListener(self.config, self, socket.SOCK_DGRAM, self.config.UDP_PORT)
             self.udp_listener.start()
         #Set up command handler
@@ -88,7 +89,7 @@ class VisExpRunner(object):
         self.close()
             
     def close(self):
-        if visexpman.enable_network:
+        if unit_test_runner.TEST_enable_network:
             self.tcpip_listener.close()
         self.log.info('Visexpman quit')
         self.handler.flush()
@@ -321,7 +322,7 @@ class testVisexpRunner(unittest.TestCase):
        -how two different experiments can be played right after each other
        -Call to external hardware
         '''
-        if visexpman.hardware_test:
+        if unit_test_runner.TEST_hardware_test:
             config_name = 'TestExternalHardwareExperimentTestConfig'
             second_experiment = 'TestExternalHardwareExperimentConfig'
             v = VisExpRunner('zoltan', config_name)
@@ -388,7 +389,7 @@ class testVisexpRunner(unittest.TestCase):
                 (True, True, True, True, True, True, True, True, True, True, True))
                 
     def test_13_experiment_with_pre_experiment(self):
-        if visexpman.hardware_test:
+        if unit_test_runner.TEST_hardware_test:
             config_name = 'PreExperimentTestConfig'
             v = VisExpRunner('zoltan', config_name)        
             commands = [
@@ -442,7 +443,7 @@ class testVisexpRunner(unittest.TestCase):
                 log.find('Command handler: experiment executed') != -1, 
                 zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
                 self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', 'Experiment')), 
-                self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(visexpman.reference_frames_folder, 'test_14')), 
+                self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_14')), 
                 self.check_experiment_log_for_visual_stimuli(experiment_log)
                 ),
                 (True, True, True, True, True, True, True, True, True, True, True))
@@ -471,7 +472,7 @@ class testVisexpRunner(unittest.TestCase):
                 log.find('Command handler: experiment executed') != -1, 
                 zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
                 self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('UlCornerTestConfig', 'Experiment')), 
-                self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(visexpman.reference_frames_folder, 'test_15')), 
+                self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_15')), 
                 self.check_experiment_log_for_visual_stimuli(experiment_log)
                 ),
                 (True, True, True, True, True, True, True, True, True, True, True))
@@ -524,7 +525,7 @@ class testVisexpRunner(unittest.TestCase):
                 if reference_data != captured_data:                    
                     number_of_differing_pixels = (utils.string_to_array(reference_data) != utils.string_to_array(captured_data)).sum()/3.0
                     print 'number of differing pixels %f'%number_of_differing_pixels
-                    if number_of_differing_pixels >= visexpman.pixel_difference_threshold:
+                    if number_of_differing_pixels >= unit_test_runner.TEST_pixel_difference_threshold:
                         print reference_file_path
                         return False
 
@@ -585,7 +586,7 @@ class testVisexpRunner(unittest.TestCase):
         return True
         
 if __name__ == "__main__":
-    if visexpman.test:
+    if unit_test_runner.TEST_test:
         unittest.main()
     else:
         v = VisExpRunner(*find_out_config())

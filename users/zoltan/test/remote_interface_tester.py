@@ -18,7 +18,7 @@ class RemoteTesterConfig(visexpman.engine.generic.configuration.Config):
         MSG_LENGTH = [14, [1, 100]]
         self._create_parameters_from_locals(locals())
 
-#class RemoteTesterConfig(visual_stimulation.configuration.VisualStimulationConfig):
+#class RemoteTesterConfig(visual_stimulation.configuration.VisionExperimentConfig):
 #    
 #    def _set_user_specific_parameters(self):                
 #        ENABLE_PARALLEL_PORT =False

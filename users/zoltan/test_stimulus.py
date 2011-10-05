@@ -5,12 +5,12 @@
 #import visexpman.engine.visual_stimulation.experiment as experiment
 #from visexpman.engine.generic import utils
 #from visexpman.engine.visual_stimulation import stimulation_library as stl
-#from visexpman.engine.visual_stimulation.configuration import VisualStimulationConfig
+#from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
 #
 ##TMP
 #from OpenGL.GL import *
 #
-#class MultipleDotsTester(VisualStimulationConfig):
+#class MultipleDotsTester(VisionExperimentConfig):
 #    def _set_user_parameters(self):        
 #        RUN_MODE = 'single experiment'
 #        EXPERIMENT_CONFIG = 'GratingExperimentConfig'
@@ -31,7 +31,7 @@
 #        SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
 #        FRAME_WAIT_FACTOR = 0 
 #        GAMMA = 1.0
-#        FILTERWHEEL_ENABLE = False
+#        ENABLE_FILTERWHEEL = False
 #        TEXT_ENABLE = False
 #        
 #        #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
@@ -49,7 +49,7 @@
 #        FRAME_TRIGGER_PIN = 0
 #        self._create_parameters_from_locals(locals())
 #        
-#class MultipleDotsTesterLinux(VisualStimulationConfig):
+#class MultipleDotsTesterLinux(VisionExperimentConfig):
 #    def _set_user_parameters(self):        
 #        RUN_MODE = 'single experiment'
 #        EXPERIMENT_CONFIG = 'GratingExperimentConfig'
@@ -75,7 +75,7 @@
 #        SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
 #        FRAME_WAIT_FACTOR = 0
 #        GAMMA = 1.0
-#        FILTERWHEEL_ENABLE = False
+#        ENABLE_FILTERWHEEL = False
 #        TEXT_ENABLE = True
 #        
 #        #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
@@ -93,7 +93,7 @@
 #        FRAME_TRIGGER_PIN = 0
 #        self._create_parameters_from_locals(locals())        
 #
-#class MultipleDotsTesterMac(VisualStimulationConfig):
+#class MultipleDotsTesterMac(VisionExperimentConfig):
 #    def _set_user_parameters(self):
 #        RUN_MODE = 'single experiment'
 #        EXPERIMENT_CONFIG = 'GratingExperimentConfig'
@@ -114,7 +114,7 @@
 #        SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
 #        FRAME_WAIT_FACTOR = 0
 #        GAMMA = 1.0
-#        FILTERWHEEL_ENABLE = False
+#        ENABLE_FILTERWHEEL = False
 #        TEXT_ENABLE = False
 #        
 #        #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!

@@ -1,13 +1,17 @@
-from visexpman.engine.visual_stimulation.configuration import VisualStimulationConfig
+from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
 import visexpman.engine.visual_stimulation.experiment as experiment
 import time
 import numpy
 import serial
+import visexpman
+import os.path
+import os
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 #== For software development test ==
 
-class VRWT(VisualStimulationConfig):
+class VRWT(VisionExperimentConfig):
     '''
     Visexp runner windows test config
     '''
@@ -18,26 +22,35 @@ class VRWT(VisualStimulationConfig):
         
         #paths
         EXPERIMENT_CONFIG = 'TestExperimentConfig'
-        LOG_PATH = 'c:\\_del'        
-        EXPERIMENT_LOG_PATH = 'c:\\_del'        
-        ARCHIVE_PATH = 'c:\\_del'
-        CAPTURE_PATH = 'c:\\_del'
-        TEST_DATA_PATH = 'c:\\_del'
+        LOG_PATH = unit_test_runner.TEST_working_folder      
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        CAPTURE_PATH = unit_test_runner.TEST_working_folder
+        TEST_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #hardware
         ENABLE_PARALLEL_PORT = True
         ENABLE_UDP = True
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
-        FILTERWHEEL_ENABLE = True
+        ENABLE_FILTERWHEEL = True
         
-        FILTERWHEEL_SERIAL_PORT = [{
-                                    'port' :  'COM4',
+        FILTERWHEEL_SERIAL_PORT = [[{
+                                    'port' :  unit_test_runner.TEST_com_port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
-                                    }]
+                                    }]]        
+                                    
+        FILTERWHEEL_FILTERS = [[{
+                                                'ND0': 1, 
+                                                'ND10': 2, 
+                                                'ND20': 3, 
+                                                'ND30': 4, 
+                                                'ND40': 5, 
+                                                'ND50': 6, 
+                                                }]]
         
         #screen
         FULLSCREEN = False        
@@ -68,7 +81,7 @@ class VRWT(VisualStimulationConfig):
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
         self._create_parameters_from_locals(locals())
 
-class VisexpRunnerTestConfig(VisualStimulationConfig):
+class VisexpRunnerTestConfig(VisionExperimentConfig):
     def _set_user_parameters(self):
         dataset = 0
         
@@ -76,21 +89,37 @@ class VisexpRunnerTestConfig(VisualStimulationConfig):
         
         #paths
         EXPERIMENT_CONFIG = 'TestExperimentConfig'
-        LOG_PATH = '/media/Common/visexpman_data'        
-        EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
-        BASE_PATH= '/media/Common/visexpman_data'
-        ARCHIVE_PATH = '/media/Common/visexpman_data'
-        CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
-        TEST_DATA_PATH = '/media/Common/visexpman_data/test'
-        
-#        COMMAND_INTERFACE_PORT = 20000
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        BASE_PATH= unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        CAPTURE_PATH = os.path.join(unit_test_runner.TEST_working_folder,'Capture')
+        if not os.path.exists(CAPTURE_PATH):
+            os.mkdir(CAPTURE_PATH)
         
         #hardware
         ENABLE_PARALLEL_PORT = True
         ENABLE_UDP = True
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
-        FILTERWHEEL_ENABLE = True
+        ENABLE_FILTERWHEEL = True
+        FILTERWHEEL_SERIAL_PORT = [[{
+                                    'port' :  unit_test_runner.TEST_com_port,
+                                    'baudrate' : 115200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }]]
+                                    
+        FILTERWHEEL_FILTERS = [[{
+                                                'ND0': 1, 
+                                                'ND10': 2, 
+                                                'ND20': 3, 
+                                                'ND30': 4, 
+                                                'ND40': 5, 
+                                                'ND50': 6, 
+                                                }]]
+
         
         #screen
         FULLSCREEN = False        
