@@ -191,7 +191,7 @@ class testVisexpRunner(unittest.TestCase):
         self.assertRaises(RuntimeError,  VisExpRunner, 'zoltan', 'dummy')
         
     def test_04_VisexpRunner_invalid_config_invalid_user(self):        
-        self.assertRaises(ImportError,  VisExpRunner, 'dummy', 'dummy')        
+        self.assertRaises(ImportError,  VisExpRunner, 'dummy', 'dummy')
         
     def test_05_VisexpRunner_valid_user_config(self):
         self.v1 = VisExpRunner('zoltan', 'VerySimpleExperimentTestConfig')
@@ -476,7 +476,7 @@ class testVisexpRunner(unittest.TestCase):
                 self.check_experiment_log_for_visual_stimuli(experiment_log)
                 ),
                 (True, True, True, True, True, True, True, True, True, True, True))
-    
+    #TODO: test case for um_to_pixel_scale parameter
 
 #== Test helpers ==
     def check_application_log(self, log):

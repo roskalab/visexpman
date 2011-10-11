@@ -60,9 +60,10 @@ class Instrument():
         '''
         Stops instrument operation
         '''
-        
+#TODO: this shall be removed        
         self.stop_instrument()
 
+#TODO: this shall be removed        
     def stop_instrument(self):
         pass
         
@@ -90,6 +91,10 @@ class Instrument():
             if isinstance(self.caller.experiment_control.start_time, float):
                 elapsed_time = time.time() - self.caller.experiment_control.start_time
         return elapsed_time
+        
+    def log_during_experiment(self, log_message):
+        if self.caller.state == 'experiment running':
+            self.caller.experiment_control.log.info('%2.3f\t%s' %(self.get_elapsed_time(), log_message))
 
 #    def __del__(self):        
 #        self.release_instrument()
@@ -135,10 +140,8 @@ class ParallelPort(Instrument, parallel.Parallel):
             self._update_io()
             
             #logging
-            if log:
-                log_message = 'Parallel port data bits set to %i' % self.iostate['data']
-                if self.caller.state == 'experiment running':                    
-                    self.caller.experiment_control.log.info('%2.3f\t%s' %(self.get_elapsed_time(), log_message))
+            if log:                
+                self.log_during_experiment('Parallel port data bits set to %i' % self.iostate['data'])                
                     
     def close_instrument(self):
         if self.config.ENABLE_PARALLEL_PORT:
@@ -228,9 +231,7 @@ class Filterwheel(Instrument):
                 
             #logging
             if log:
-                log_message = 'Filterwheel set to %i' % position
-                if self.caller.state == 'experiment running':
-                    self.caller.experiment_control.log.info('%2.3f\t%s' %(self.get_elapsed_time(), log_message))
+                self.log_during_experiment('Filterwheel set to %i' % position)                
         
     def set_filter(self,  filter = '', log = True):
         if self.config.ENABLE_FILTERWHEEL:
@@ -246,9 +247,7 @@ class Filterwheel(Instrument):
                 
             #logging
             if log:
-                log_message = 'Filterwheel set to %s' % filter
-                if self.caller.state == 'experiment running':
-                    self.caller.experiment_control.log.info('%2.3f\t%s' %(self.get_elapsed_time(), log_message))
+                self.log_during_experiment('Filterwheel set to %s' % filter)                
 
     def close_communication_interface(self):
         if self.config.ENABLE_FILTERWHEEL:

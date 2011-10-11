@@ -44,7 +44,7 @@ class VirtualRealityTestConfig(VisionExperimentConfig):
 
 class VirtualRealityTestExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        STIM_SPEED = [0, [0, 1000]]
+        STIM_SPEED = [100, [0, 1000]]
         self.runnable = 'GratingTest'
         self.pre_runnable = 'TestPre'
         self._create_parameters_from_locals(locals())

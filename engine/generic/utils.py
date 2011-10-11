@@ -9,6 +9,7 @@ import unittest
 import pkgutil
 import inspect
 import time
+import unittest
 
 #== Computer graphics colors ==
 def convert_color(color):
@@ -464,7 +465,9 @@ def module_versions(modules):
     'shutil': 'standard', 
     'tempfile':'standard', 
     'multiprocessing':'standard', 
-    'gc': 'standard'
+    'gc': 'standard',
+    'PyDAQmx' : '__version__',
+    
     }    
     module_version = ''
     for module in modules:
@@ -664,51 +667,72 @@ def datetime_string():
 def date_string():
     now = time.localtime()
     return ('%4i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday)).replace(' ', '0')
-
-#== Others ==
-def in_range(number,  range1,  range2, preceision = None):
-    if preceision != None:
-        number_rounded = round(number, preceision)
-        range1_rounded = round(range1, preceision)
-        range2_rounded = round(range2, preceision)
-    else:
-        number_rounded = number
-        range1_rounded = range1
-        range2_rounded = range2
-        
-    if range1_rounded < range2_rounded:
-        if number_rounded >= range1_rounded and number_rounded <= range2_rounded:
-            return True        
-    else:
-        if number_rounded >= range2_rounded and number_rounded <= range1_rounded:
-            return True
-    return False
     
-def is_vector_in_array(array,  vector):
-    '''
-        Find a vector in a list of vectors
-    '''
-    for item in array:
-        if abs(item - vector).sum() < 1e-3:
-            return True
-    return False
-
-def is_in_list(list, item_to_find):
-    result = [item for item in list if item == item_to_find]
-    if len(result) > 0:
-        return True
+#== Signals ==
+def interpolate_waveform(waveform, ratio):    
+    waveform_interpolated = []    
+    for sample in waveform:
+        if len(waveform.shape) != 1:
+            shape = (ratio, waveform.shape[1])
+        else:
+            shape = ratio
+        waveform_interpolated.append(sample * numpy.ones(shape))
+    waveform_interpolated = numpy.array(waveform_interpolated)
+    if len(waveform.shape) != 1:
+        shape = (ratio * waveform.shape[0], waveform.shape[1])
     else:
-        return False
+        shape = ratio * waveform.shape[0]
+    waveform_interpolated = waveform_interpolated.reshape(shape)
         
-def string_to_array(string):
-    array = []
-    for byte in list(string):
-        array.append(ord(byte))
-    return numpy.array(array)
+    return waveform_interpolated
+    
+def resample_waveform(waveform, ratio):
+    resampled_waveform = []
+    if len(waveform.shape) == 1:
+        resampled_waveform = waveform[::ratio]
+    else:
+        for channel in range(waveform.shape[1]):
+            resampled_waveform.append(waveform[:,channel][::ratio])
+        resampled_waveform = numpy.array(resampled_waveform).transpose()
+            
+    return resampled_waveform
+    
+def generate_pulse_train(offsets, pulse_widths, amplitudes, duration):
+    '''
+    offsets: pulse offsets in samples, always must be a list of a numpy array
+    pulse_widths: width of pulses in samples, if single number is provided, all the pulses will have the same size
+    amplitudes: amplitude of each pulse. If a float or and int is provied, it is aasumed that all the pulses must have the same amplitude
+    duration: duration of the whole pulse train in samples
+    '''    
+    if isinstance(offsets, list):
+        number_of_pulses = len(offsets)        
+    elif isinstance(offsets, numpy.ndarray):
+        number_of_pulses = offsets.shape[0]
+    else:
+        raise RuntimeError('Invalid data provided as offset parameters')
+    _duration = int(duration)        
+    _pulse_widths = pulse_widths
+    if isinstance(pulse_widths, float) or isinstance(pulse_widths, int):
+        _pulse_widths = numpy.ones(number_of_pulses) * pulse_widths
+    else:
+        _pulse_widths = pulse_widths
+    if isinstance(amplitudes, float) or isinstance(amplitudes, int):
+        _amplitudes = numpy.ones(number_of_pulses) * amplitudes
+    else:
+        _amplitudes = amplitudes
+    waveform = numpy.zeros(_duration, dtype = numpy.float)
+    for pulse_index in range(number_of_pulses):
+        pulse = numpy.ones(_pulse_widths[pulse_index]) * _amplitudes[pulse_index]
+        if offsets[pulse_index] + _pulse_widths[pulse_index] > _duration or offsets[pulse_index] + 1 > _duration:
+            raise RuntimeError('Last pulse falls outside the waveform')
+        waveform[offsets[pulse_index]: offsets[pulse_index] + _pulse_widths[pulse_index]] = pulse
+    return waveform
+    
+
 
 def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):
     wave = []
-    period = int(period) 
+    period = int(period)
     for i in range(n_sample):
         if period == 0:
             value = 0
@@ -738,11 +762,88 @@ def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0
     return wave            
 
 
+#== Others ==
+def in_range(number,  range1,  range2, preceision = None):
+    if preceision != None:
+        number_rounded = round(number, preceision)
+        range1_rounded = round(range1, preceision)
+        range2_rounded = round(range2, preceision)
+    else:
+        number_rounded = number
+        range1_rounded = range1
+        range2_rounded = range2
+        
+    if range1_rounded < range2_rounded:
+        if number_rounded >= range1_rounded and number_rounded <= range2_rounded:
+            return True        
+    else:
+        if number_rounded >= range2_rounded and number_rounded <= range1_rounded:
+            return True
+    return False
+
+def is_vector_in_array(array,  vector):
+    '''
+        Find a vector in a list of vectors
+    '''
+    for item in array:
+        if abs(item - vector).sum() < 1e-3:
+            return True
+    return False
+
+def is_in_list(list, item_to_find):
+    result = [item for item in list if item == item_to_find]
+    if len(result) > 0:
+        return True
+    else:
+        return False
+
+def string_to_array(string):
+    array = []
+    for byte in list(string):
+        array.append(ord(byte))
+    return numpy.array(array)
+
+class TestUtils(unittest.TestCase):
+    def setUp(self):
+        pass
+            
+    def tearDown(self):
+        pass
+
+    def test_01_pulse_train(self):
+        waveform_reference = numpy.array([10.0, 0.0, 10.0, 10.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        waveform = generate_pulse_train([0,2,4], [1,2,1], [10, 10, 10], 10)
+        self.assertEqual(waveform_reference.tolist(), waveform.tolist())
+        
+    def test_02_pulse_train(self):
+        waveform_reference = numpy.array([10.0, 0.0, 10.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0])
+        waveform = generate_pulse_train([0,2,5], 1, 10, 9)
+        self.assertEqual(waveform_reference.tolist(), waveform.tolist())
+        
+    def test_03_pulse_train(self):
+        waveform_reference = numpy.array([10.0, 0.0, 10.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        waveform = generate_pulse_train(numpy.array([0,2,4]), numpy.array([1,1,1]), numpy.array([10.0, 10.0, 10.0]), 10)
+        self.assertEqual(waveform_reference.tolist(), waveform.tolist())
+
+    def test_04_pulse_train(self):
+        waveform_reference = numpy.array([10.0, 0.0, 20.0, 0.0, 10.0, 10.0, 0.0, 0.0, 0.0, 0.0])
+        waveform = generate_pulse_train(numpy.array([0,2,4]), [1,1,2], numpy.array([10.0, 20.0, 10.0]), 10)
+        self.assertEqual(waveform_reference.tolist(), waveform.tolist())
+
+    def test_05_pulse_train(self):
+        self.assertRaises(RuntimeError, generate_pulse_train, 1, 1, 1, 1)
+
+    def test_06_pulse_train(self):
+        self.assertRaises(RuntimeError, generate_pulse_train, numpy.array([0,2,4]), [1,1,1], numpy.array([10.0, 20.0, 10.0]), 4)
+        
+    def test_07_pulse_train(self):
+        self.assertRaises(RuntimeError, generate_pulse_train, numpy.array([0,2,4]), [1,1,2], numpy.array([10.0, 20.0, 10.0]), 5)
+
 if __name__ == "__main__":
     l = [1, 2, 3]
     imported_modules()
 # temp solution by Daniel:
-    import unittest
+    
     class Test(unittest.TestCase):
         def setUp(self):
             pass
@@ -796,6 +897,13 @@ if __name__ == "__main__":
             
     mytest = unittest.TestSuite()
     mytest.addTest(Test('test_fetch_classes'))
+    mytest.addTest(TestUtils('test_01_pulse_train'))
+    mytest.addTest(TestUtils('test_02_pulse_train'))
+    mytest.addTest(TestUtils('test_03_pulse_train'))
+    mytest.addTest(TestUtils('test_04_pulse_train'))
+    mytest.addTest(TestUtils('test_05_pulse_train'))
+    mytest.addTest(TestUtils('test_06_pulse_train'))
+    mytest.addTest(TestUtils('test_07_pulse_train'))
     alltests = unittest.TestSuite([mytest])
     #suite = unittest.TestLoader().loadTestsFromTestCase(Test)
     unittest.TextTestRunner(verbosity=2).run(alltests)

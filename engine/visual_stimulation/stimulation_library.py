@@ -828,7 +828,7 @@ class Stimulations(command_handler.CommandHandler):
         n_vertices = len(vertices)        
         transformed_dot_positions = dot_positions #TODO: this shall be factored out
         frames_vertices = numpy.zeros((n_frames * ndots * n_vertices,  2)) 
-        pixel_scale = numpy.array(self.config.SCREEN_UM_TO_NORM_SCALE)
+        pixel_scale = numpy.array(self.config.SCREEN_UM_TO_NORM_SCALE) #TODO: this shall be factored out
         index = 0
         for frame_i in range(n_frames):
             for dot_i in range(ndots):

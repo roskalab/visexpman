@@ -40,6 +40,9 @@ if os.name == 'nt':
 elif os.name == 'posix':
     TEST_com_port = '/dev/ttyUSB0'
     TEST_working_folder = '/media/Common/visexpman_data/test'
+    
+TEST_daq = (os.name == 'nt') and TEST_hardware_test
+TEST_daq_device = 'Dev1'
 
 class unitTestRunner():
     '''
@@ -55,12 +58,16 @@ class unitTestRunner():
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
                'enable' : True},
+               {'test_class_path' : 'visexpman.engine.generic.utils.TestUtils',
+               'enable' : True},
                {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
                'enable' : not True}, #Not part of visexpman application
                {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.testInstruments',
                'enable' : TEST_hardware_test}, #Shutter tests are not complete
+               {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
+               'enable' : TEST_daq},
                {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.testNetworkInterface',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testExternalHardware',
