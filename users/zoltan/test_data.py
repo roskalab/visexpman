@@ -7,6 +7,7 @@ import serial
 import visexpman
 import os.path
 import os
+import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 #== For software development test ==
@@ -29,7 +30,7 @@ class VRWT(VisionExperimentConfig):
         TEST_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #hardware
-        ENABLE_PARALLEL_PORT = True
+        ENABLE_PARALLEL_PORT = False
         ENABLE_UDP = True
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
@@ -79,6 +80,22 @@ class VRWT(VisionExperimentConfig):
 #        ARCHIVE_FORMAT = 'hdf5'
         
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
+        
+        #LED controller        
+        DAQ_CONFIG = [[
+                    {
+                    'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 1.0,
+                    'AO_SAMPLE_RATE' : 100,
+                    'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
+                    'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',
+                    'MAX_VOLTAGE' : 5.0,
+                    'MIN_VOLTAGE' : 0.0,
+                    'DURATION_OF_AI_READ' : 1.0,
+                    'ENABLE' : True
+                    }
+                    ]]
+
         self._create_parameters_from_locals(locals())
 
 class VisexpRunnerTestConfig(VisionExperimentConfig):
@@ -164,6 +181,16 @@ class TestExp1(experiment.Experiment):
     def run(self):
         self.log.info('%2.3f\tMy log'%time.time())
         self.show_fullscreen(duration = 3.0,  color = 0.5)
+        
+        #generate pulses        
+        offsets = [0, 0.2, 0.5]
+        pulse_widths = 0.1
+        amplitudes = 2.0
+        duration = 1.0
+        self.led_controller.set([[offsets, pulse_widths, amplitudes], [offsets, pulse_widths, amplitudes]], duration)
+        self.led_controller.start()
+        self.led_controller.release_instrument()
+        
         import random
         filter = int(5 * random.Random().random()) + 1
         time.sleep(0.2)
@@ -174,11 +201,11 @@ class TestExp1(experiment.Experiment):
         self.parallel_port.set_data_bit(0, 1)
         self.show_grating(duration =1.0, profile = 'sqr', orientation = 0, velocity =50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
         if self.command_buffer.find('dummy') != -1:
-            self.show_grating(duration =10.0, profile = 'sqr', orientation = 0, velocity =50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
+            self.show_grating(duration =10.0, profile = 'sqr', orientation = 0, velocity = 50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
 
 class TestExpShort(experiment.Experiment):
     def run(self):
-        self.show_grating(duration =1.0, profile = 'sqr', orientation = 0, velocity =50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
+        self.show_grating(duration =1.0, profile = 'sqr', orientation = 0, velocity = 50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
         
 class DotsExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):

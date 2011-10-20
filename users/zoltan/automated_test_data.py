@@ -114,7 +114,7 @@ class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
-        ENABLE_FILTERWHEEL = True
+        ENABLE_FILTERWHEEL = unit_test_runner.TEST_filterwheel_enable
         FILTERWHEEL_SERIAL_PORT = [[{
                                     'port' :  unit_test_runner.TEST_com_port,
                                     'baudrate' : 115200,
@@ -122,6 +122,20 @@ class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
                                     }]]
+                                    
+        DAQ_CONFIG = [[
+                    {
+                    'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 1.0,
+                    'AO_SAMPLE_RATE' : 100,
+                    'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
+                    'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',
+                    'MAX_VOLTAGE' : 5.0,
+                    'MIN_VOLTAGE' : 0.0,
+                    'DURATION_OF_AI_READ' : 1.0,
+                    'ENABLE' : True
+                    }
+                    ]]
 
         COORDINATE_SYSTEM='center'
         ARCHIVE_FORMAT = 'zip'
@@ -140,6 +154,15 @@ class TestExternalHardwareExperiment(experiment.Experiment):
         filter = int(5 * random.Random().random()) + 1
         time.sleep(0.2)
         self.filterwheels[0].set(filter)
+        
+        #generate pulses        
+        offsets = [0, 0.2, 0.5]
+        pulse_widths = 0.1
+        amplitudes = 2.0
+        duration = 1.0
+        self.led_controller.set([[offsets, pulse_widths, amplitudes], [offsets, pulse_widths, amplitudes]], duration)
+        self.led_controller.start()
+        self.led_controller.release_instrument()        
 
 #== Disabled hardware ==
 class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
@@ -159,6 +182,20 @@ class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
         ENABLE_FILTERWHEEL = False
+        
+        DAQ_CONFIG = [[
+                    {
+#                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
+#                     'DAQ_TIMEOUT' : 1.0,
+#                     'AO_SAMPLE_RATE' : 100,
+#                     'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
+#                     'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',
+#                     'MAX_VOLTAGE' : 5.0,
+#                     'MIN_VOLTAGE' : 0.0,
+#                     'DURATION_OF_AI_READ' : 1.0,
+                    'ENABLE' : False
+                    }
+                    ]]
 
         COORDINATE_SYSTEM='center'
         ARCHIVE_FORMAT = 'zip'
@@ -205,7 +242,7 @@ class VisualStimulationsTestConfig(VisionExperimentConfig):
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
         ARCHIVE_PATH = unit_test_runner.TEST_working_folder
-        CAPTURE_PATH = os.path.join(unit_test_runner.TEST_working_folder, 'capture_' + str(int(time.time())))
+        CAPTURE_PATH = utils.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
         os.mkdir(CAPTURE_PATH)
         
         #screen
@@ -225,7 +262,7 @@ class VisualStimulationsUlCornerTestConfig(VisionExperimentConfig):
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
         ARCHIVE_PATH = unit_test_runner.TEST_working_folder       
-        CAPTURE_PATH = os.path.join(unit_test_runner.TEST_working_folder, 'capture_' + str(int(time.time())))
+        CAPTURE_PATH = utils.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
         os.mkdir(CAPTURE_PATH)
         
         #screen

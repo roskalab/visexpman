@@ -5,6 +5,7 @@ import os
 #run modes:
 # - application
 # - full test
+# - full test, filterhweel disabled
 # - test without hardware
 
 #== Test control ==
@@ -16,6 +17,8 @@ if len(sys.argv) > 2:
             run_mode = 'full test'
         elif sys.argv[2] == '-h':
             run_mode = 'test without hardware'
+        elif sys.argv[2] == '-l':
+            run_mode = 'full test without filterwheel'            
 #== Test parameters ==
 TEST_test = (run_mode != 'application')
 
@@ -34,6 +37,8 @@ elif os.name == 'posix':
     TEST_reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
 
 #== Hardware config during test ==
+TEST_filterwheel_enable  = (run_mode != 'full test without filterwheel')
+
 if os.name == 'nt':
     TEST_com_port = 'COM4'
     TEST_working_folder = 'c:\\_del\\test'

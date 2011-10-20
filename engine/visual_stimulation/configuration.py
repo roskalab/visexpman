@@ -153,6 +153,35 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
                                                 
         ENABLE_SHUTTER = False
         
+        LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
+        
+#                 DAQ_CONFIG = [[
+#         {
+#         'ANALOG_CONFIG' : 'aio', #'ai', 'ao', 'aio', 'undefined'
+#         'DAQ_TIMEOUT' : 1.0, 
+#         'AO_SAMPLE_RATE' : 100,
+#         'AI_SAMPLE_RATE' : 1000,
+#         'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
+#         'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',        
+#         'MAX_VOLTAGE' : 5.0,
+#         'MIN_VOLTAGE' : 0.0,
+#         'DURATION_OF_AI_READ' : 1.0,
+#         'ENABLE' : True
+#         },
+#         {
+#         'ANALOG_CONFIG' : 'undefined',
+#         'DAQ_TIMEOUT' : 0.0, 
+#         'AO_SAMPLE_RATE' : 100,
+#         'AI_SAMPLE_RATE' : 1000,
+#         'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
+#         'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',
+#         'MAX_VOLTAGE' : 5.0,
+#         'MIN_VOLTAGE' : 0.0,
+#         'DURATION_OF_AI_READ' : 1.0,
+#         'ENABLE' : True
+#         }
+#         ]]
+        
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 

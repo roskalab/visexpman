@@ -42,9 +42,11 @@ class Experiment(stimulation_library.Stimulations):
         '''
         This function ensures that the hardware related calls are available from the experiment/run method
         '''
-        self.devices = self.caller.experiment_control.devices        
+        self.devices = self.caller.experiment_control.devices
         self.parallel_port = self.devices.parallel_port        
         self.filterwheels = self.devices.filterwheels
+        if hasattr(self.devices, 'led_controller'): #This hasattr checking is unnecessary
+            self.led_controller = self.devices.led_controller
         self.log = self.caller.experiment_control.log
         self.command_buffer = ''
         self.abort = False

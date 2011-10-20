@@ -15,12 +15,13 @@ import logging
 from visexpman.engine.generic import utils    
 import visexpman
 import unittest
-
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import experiment
 import stimulation_library
 import visexpman.users as users
 
-import visexpman.engine.hardware_interface. instrument as instrument
+import visexpman.engine.hardware_interface.instrument as instrument
+import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 #import visexpA.engine.datahandlers.hdf5io as hdf5io
 import os
 import logging
@@ -118,11 +119,17 @@ class Devices():
         for id in range(self.number_of_filterwheels):
             self.filterwheels.append(instrument.Filterwheel(config, caller, id =id))
 
+        if hasattr(self.config, 'LED_CONTROLLER_INSTRUMENT_INDEX') and hasattr(self.config, 'DAQ_CONFIG'):
+#             if self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ENABLE'] and self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ANALOG_CONFIG'] == 'ao':
+                self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)
+
     def close(self):        
         self.parallel_port.release_instrument()
-        if os.name == 'nt':            
+        if os.name == 'nt':
             for filterwheel in self.filterwheels:
                 filterwheel.release_instrument()
+        if hasattr(self, 'led_controller'):
+            self.led_controller.release_instrument()
             
 class DataHandler():
     '''
@@ -183,7 +190,7 @@ class TestConfig(configuration.Config):
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
 
         #filterwheel settings
-        ENABLE_FILTERWHEEL = True
+        ENABLE_FILTERWHEEL = unit_test_runner.TEST_filterwheel_enable
         if os.name == 'nt':
             port = 'COM4'
         elif os.name == 'posix':

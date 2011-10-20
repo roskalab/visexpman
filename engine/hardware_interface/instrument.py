@@ -11,6 +11,7 @@ import visexpman.engine.generic.configuration
 import visexpman.engine.generic.utils as utils
 import logging
 import visexpman
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 class Instrument():
     '''
@@ -264,7 +265,7 @@ class testConfig(visexpman.engine.generic.configuration.Config):
             port = '/dev/ttyUSB0'
             EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
             
-        ENABLE_FILTERWHEEL = True
+        ENABLE_FILTERWHEEL = unit_test_runner.TEST_filterwheel_enable
         ENABLE_PARALLEL_PORT = True
         ENABLE_SHUTTER = True
         FILTERWHEEL_SERIAL_PORT = [[{
@@ -413,43 +414,43 @@ class testInstruments(unittest.TestCase):
         fw.release_instrument()        
         
 #== Shutter ==
-    def test_12_shutter_communication_port_open(self):        
-        sh = Shutter(self.config, self)        
-        self.assertEqual(hasattr(sh, 'serial_port'),  True)
-        sh.release_instrument()
-        
-    def test_13_shutter_toggle(self):        
-        sh = Shutter(self.config, self)
-        print 'The shutter should open and close'
-        sh.toggle()
-        time.sleep(1.0)
-        sh.toggle()
-        self.assertEqual(hasattr(sh, 'serial_port'),  True)
-        sh.release_instrument()
-        
-    def test_14_open_shutter(self):
-        pass
-        
-    def test_15_close_shutter(self):
-        pass
-        
-    def test_XX_open_shutter_when_disabled(self):
-        pass
-        
-    def test_16_shutter_parallelport_init(self):
-        pass
-        
-    def test_17_shutter_parallelport_toggle(self):
-        pass
-        
-    def test_18_open_parallelport_shutter(self):
-        pass
-        
-    def test_15_close_parallelport_shutter(self):
-        pass
-        
-    def test_XX_open_parallel_port_shutter_when_disabled(self):
-        pass
+#    def test_12_shutter_communication_port_open(self):        
+#        sh = Shutter(self.config, self)        
+#        self.assertEqual(hasattr(sh, 'serial_port'),  True)
+#        sh.release_instrument()
+#        
+#    def test_13_shutter_toggle(self):        
+#        sh = Shutter(self.config, self)
+#        print 'The shutter should open and close'
+#        sh.toggle()
+#        time.sleep(1.0)
+#        sh.toggle()
+#        self.assertEqual(hasattr(sh, 'serial_port'),  True)
+#        sh.release_instrument()
+#        
+#    def test_14_open_shutter(self):
+#        pass
+#        
+#    def test_15_close_shutter(self):
+#        pass
+#        
+#    def test_XX_open_shutter_when_disabled(self):
+#        pass
+#        
+#    def test_16_shutter_parallelport_init(self):
+#        pass
+#        
+#    def test_17_shutter_parallelport_toggle(self):
+#        pass
+#        
+#    def test_18_open_parallelport_shutter(self):
+#        pass
+#        
+#    def test_15_close_parallelport_shutter(self):
+#        pass
+#        
+#    def test_XX_open_parallel_port_shutter_when_disabled(self):
+#        pass
         
     
         

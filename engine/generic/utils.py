@@ -641,12 +641,12 @@ def generate_filename(path):
             break
         index = index + 1
         if index >= 10 ** number_of_digits:
-            raise RuntimeError('Foldername cannot be generated')
+            raise RuntimeError('Filename cannot be generated')
     return testable_path
     
 def generate_foldername(path):
     '''
-    Inserts index into filename resulting unique name.
+    Inserts index into foldername resulting unique name.
     '''
     number_of_digits = 5
     index = 0
@@ -697,25 +697,36 @@ def resample_waveform(waveform, ratio):
             
     return resampled_waveform
     
-def generate_pulse_train(offsets, pulse_widths, amplitudes, duration):
+def generate_pulse_train(offsets, pulse_widths, amplitudes, duration, sample_rate = None):
     '''
     offsets: pulse offsets in samples, always must be a list of a numpy array
     pulse_widths: width of pulses in samples, if single number is provided, all the pulses will have the same size
     amplitudes: amplitude of each pulse. If a float or and int is provied, it is aasumed that all the pulses must have the same amplitude
     duration: duration of the whole pulse train in samples
+    
+    If sample_rate is not none, the offsets, the pulse_widths and the duration parameters are handled in time units
     '''    
     if isinstance(offsets, list):
-        number_of_pulses = len(offsets)        
+        number_of_pulses = len(offsets)
     elif isinstance(offsets, numpy.ndarray):
         number_of_pulses = offsets.shape[0]
     else:
         raise RuntimeError('Invalid data provided as offset parameters')
-    _duration = int(duration)        
-    _pulse_widths = pulse_widths
+    if sample_rate == None:
+        _duration = int(duration)
+    else:
+        _duration = int(duration * sample_rate)        
+        
     if isinstance(pulse_widths, float) or isinstance(pulse_widths, int):
         _pulse_widths = numpy.ones(number_of_pulses) * pulse_widths
+    elif isinstance(pulse_widths, list):
+        _pulse_widths = numpy.array(pulse_widths)
     else:
         _pulse_widths = pulse_widths
+        
+    if sample_rate != None:
+        _pulse_widths = _pulse_widths * sample_rate       
+
     if isinstance(amplitudes, float) or isinstance(amplitudes, int):
         _amplitudes = numpy.ones(number_of_pulses) * amplitudes
     else:
@@ -723,9 +734,14 @@ def generate_pulse_train(offsets, pulse_widths, amplitudes, duration):
     waveform = numpy.zeros(_duration, dtype = numpy.float)
     for pulse_index in range(number_of_pulses):
         pulse = numpy.ones(_pulse_widths[pulse_index]) * _amplitudes[pulse_index]
-        if offsets[pulse_index] + _pulse_widths[pulse_index] > _duration or offsets[pulse_index] + 1 > _duration:
-            raise RuntimeError('Last pulse falls outside the waveform')
-        waveform[offsets[pulse_index]: offsets[pulse_index] + _pulse_widths[pulse_index]] = pulse
+        if sample_rate != None:
+            offset = int(offsets[pulse_index] * sample_rate)
+        else:
+            offset = int(offsets[pulse_index])
+        if offset + _pulse_widths[pulse_index] > _duration or offset + 1 > _duration:
+            raise RuntimeError('Last pulse falls outside the waveform')        
+        waveform[offset: offset + _pulse_widths[pulse_index]] = pulse
+        
     return waveform
     
 
@@ -829,14 +845,38 @@ class TestUtils(unittest.TestCase):
         waveform_reference = numpy.array([10.0, 0.0, 20.0, 0.0, 10.0, 10.0, 0.0, 0.0, 0.0, 0.0])
         waveform = generate_pulse_train(numpy.array([0,2,4]), [1,1,2], numpy.array([10.0, 20.0, 10.0]), 10)
         self.assertEqual(waveform_reference.tolist(), waveform.tolist())
-
+        
     def test_05_pulse_train(self):
-        self.assertRaises(RuntimeError, generate_pulse_train, 1, 1, 1, 1)
-
+        sample_rate = 1000.0
+        waveform_reference = numpy.array([10.0, 0.0, 10.0, 10.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        waveform = generate_pulse_train([0,2/sample_rate,4/sample_rate], [1/sample_rate,2/sample_rate,1/sample_rate], [10, 10, 10], 10/sample_rate, sample_rate = sample_rate)
+        self.assertEqual(waveform_reference.tolist(), waveform.tolist())
+        
     def test_06_pulse_train(self):
-        self.assertRaises(RuntimeError, generate_pulse_train, numpy.array([0,2,4]), [1,1,1], numpy.array([10.0, 20.0, 10.0]), 4)
+        sample_rate = 1000.0    
+        waveform_reference = numpy.array([10.0, 0.0, 10.0, 0.0, 0.0, 10.0, 0.0, 0.0, 0.0])
+        waveform = generate_pulse_train([0,2/sample_rate,5/sample_rate], 1/sample_rate, 10, 9/sample_rate, sample_rate = sample_rate)
+        self.assertEqual(waveform_reference.tolist(), waveform.tolist())
         
     def test_07_pulse_train(self):
+        sample_rate = 1000.0    
+        waveform_reference = numpy.array([10.0, 0.0, 10.0, 0.0, 10.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+        waveform = generate_pulse_train(numpy.array([0,2/sample_rate,4/sample_rate]), numpy.array([1/sample_rate,1/sample_rate,1/sample_rate]), numpy.array([10.0, 10.0, 10.0]), 10/sample_rate, sample_rate = sample_rate)
+        self.assertEqual(waveform_reference.tolist(), waveform.tolist())
+
+    def test_08_pulse_train(self):
+        sample_rate = 1000.0    
+        waveform_reference = numpy.array([10.0, 0.0, 20.0, 0.0, 10.0, 10.0, 0.0, 0.0, 0.0, 0.0])
+        waveform = generate_pulse_train(numpy.array([0,2/sample_rate,4/sample_rate]), [1/sample_rate,1/sample_rate,2/sample_rate], numpy.array([10.0, 20.0, 10.0]), 10/sample_rate, sample_rate = sample_rate)
+        self.assertEqual(waveform_reference.tolist(), waveform.tolist())
+
+    def test_09_pulse_train(self):
+        self.assertRaises(RuntimeError, generate_pulse_train, 1, 1, 1, 1)
+
+    def test_10_pulse_train(self):
+        self.assertRaises(RuntimeError, generate_pulse_train, numpy.array([0,2,4]), [1,1,1], numpy.array([10.0, 20.0, 10.0]), 4)
+        
+    def test_11_pulse_train(self):
         self.assertRaises(RuntimeError, generate_pulse_train, numpy.array([0,2,4]), [1,1,2], numpy.array([10.0, 20.0, 10.0]), 5)
 
 if __name__ == "__main__":
