@@ -250,7 +250,7 @@ class AnalogPulse(AnalogIO):
         self.state_machine('release_instrument')        
             
     def state_machine(self, command, parameters = None):
-        if self.daq_config['ENABLE']:
+        if self.daq_config['ENABLE'] and os.name == 'nt':
 #         print '\nin:  {0}, {1}, {2}' .format(round(time.time() - 1319024000,3), self.state, command)
             if self.state == 'running':   
     #             print self.end_time   - 1319024000     
@@ -263,7 +263,7 @@ class AnalogPulse(AnalogIO):
                 if self.state == 'ready' or self.state == 'set':
                     pulse_configs = numpy.array(parameters[0])
                     duration = parameters[1]
-                    waveform = []
+                    waveform = []                    
                     if pulse_configs.shape[0] != self.number_of_ao_channels:
                         raise RuntimeError('Analog output channel number mismatch.')
                     for pulse_config in pulse_configs:

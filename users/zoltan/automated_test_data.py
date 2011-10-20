@@ -157,8 +157,8 @@ class TestExternalHardwareExperiment(experiment.Experiment):
         
         #generate pulses        
         offsets = [0, 0.2, 0.5]
-        pulse_widths = 0.1
-        amplitudes = 2.0
+        pulse_widths = [0.1,  0.1,  0.1]
+        amplitudes = [2.0, 2.0, 2.0]
         duration = 1.0
         self.led_controller.set([[offsets, pulse_widths, amplitudes], [offsets, pulse_widths, amplitudes]], duration)
         self.led_controller.start()
