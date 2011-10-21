@@ -36,6 +36,24 @@ class VerySimpleExperimentConfig(experiment.ExperimentConfig):
 class VerySimpleExperiment(experiment.Experiment):
     def run(self):
         self.show_fullscreen(duration = 0.0, color = 1.0)
+        
+#== Hdf5 archiving ==
+
+class Hdf5TestConfig(VisionExperimentConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
+        #paths
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        
+        #screen
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+
+        COORDINATE_SYSTEM='center'
+        ARCHIVE_FORMAT = 'hdf5'
+        self._create_parameters_from_locals(locals())
 
 #== Abortable experiment ==
 class AbortableExperimentTestConfig(VisionExperimentConfig):

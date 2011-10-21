@@ -22,7 +22,8 @@ import visexpman.users as users
 
 import visexpman.engine.hardware_interface.instrument as instrument
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
-#import visexpA.engine.datahandlers.hdf5io as hdf5io
+import visexpA.engine.datahandlers.hdf5io as hdf5io
+
 import os
 import logging
 import zipfile
@@ -119,9 +120,9 @@ class Devices():
         for id in range(self.number_of_filterwheels):
             self.filterwheels.append(instrument.Filterwheel(config, caller, id =id))
 
-        if hasattr(self.config, 'LED_CONTROLLER_INSTRUMENT_INDEX') and hasattr(self.config, 'DAQ_CONFIG'):
+#        if hasattr(self.config, 'LED_CONTROLLER_INSTRUMENT_INDEX') and hasattr(self.config, 'DAQ_CONFIG'):
 #             if self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ENABLE'] and self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ANALOG_CONFIG'] == 'ao':
-                self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)
+        self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)
 
     def close(self):        
         self.parallel_port.release_instrument()
@@ -159,7 +160,8 @@ class DataHandler():
             self.zip_file_path = experiment_file_name(self.caller.selected_experiment_config, zip_folder, 'zip')
         elif self.config.ARCHIVE_FORMAT == 'hdf5':
             self.zip_file_path = tempfile.mktemp()
-#            self.hdf5_handler = hdf5io.Hdf5io(experiment_file_name(self.caller.selected_experiment_config, self.config.ARCHIVE_PATH, 'hdf5') , self.config, self.caller)
+            self.hdf5_path = experiment_file_name(self.caller.selected_experiment_config, self.config.ARCHIVE_PATH, 'hdf5')
+            self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self.caller)
         else:
             raise RuntimeError('Archive format is not defined. Please check the configuration!')
         #Create zip file        
@@ -174,11 +176,16 @@ class DataHandler():
         f = open(self.zip_file_path, 'rb')
         archive_binary = f.read(os.path.getsize(self.zip_file_path))
         f.close()
-        archive_binary_in_bytes = []
+        self.archive_binary_in_bytes = []
         for byte in list(archive_binary):
-            archive_binary_in_bytes.append(ord(byte))
-        archive_binary_in_bytes = numpy.array(archive_binary_in_bytes, dtype = numpy.uint8)
+            self.archive_binary_in_bytes.append(ord(byte))
+        self.archive_binary_in_bytes = numpy.array(self.archive_binary_in_bytes, dtype = numpy.uint8)
+        if self.config.ARCHIVE_FORMAT == 'hdf5':
+            self.hdf5_handler.visexprunner_archive = self.archive_binary_in_bytes
+            self.hdf5_handler.save('visexprunner_archive')
+            self.hdf5_handler.close()
         #Restoring it to zip file: utils.numpy_array_to_file(archive_binary_in_bytes, '/media/Common/test.zip')
+        
 
 class TestConfig(configuration.Config):
     def _create_application_parameters(self):

@@ -467,6 +467,9 @@ def module_versions(modules):
     'multiprocessing':'standard', 
     'gc': 'standard',
     'PyDAQmx' : '__version__',
+    'contextlib' : 'standard', 
+    'weakref' : 'standard', 
+    'sip': 'SIP_VERSION_STR', 
     
     }    
     module_version = ''
@@ -485,7 +488,7 @@ def module_versions(modules):
             else:
                 module_version += '%s\n'%(module)
         except KeyError:
-            raise RuntimeError('This module is not in the version list: %s. Update list in utils.module_versions() function' % module)    
+            raise RuntimeError('This module is not in the version list: %s. Update list in utils.module_versions() function' % str(module))
     return module_version
     
 #== Experiment specific ==

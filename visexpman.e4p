@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project visexpman -->
-<!-- Saved: 2011-09-30, 15:21:47 -->
+<!-- Saved: 2011-10-21, 13:22:41 -->
 <!-- Copyright (C) 2011 Zoltan Raics, zoltan.raics@fmi.ch -->
 <Project version="4.6">
   <Language>en</Language>
@@ -81,6 +81,7 @@
     <Source>users/default/default_configs.py</Source>
     <Source>users/zoltan/automated_test_data.py</Source>
     <Source>users/zoltan/vr_test_configurations.py</Source>
+    <Source>engine/generic/introspect.py</Source>
   </Sources>
   <Forms>
   </Forms>

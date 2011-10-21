@@ -255,7 +255,7 @@ class testVisexpRunner(unittest.TestCase):
                         zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
                         self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', ''))), 
                         (True, True, True, True, True, True, True, True, True))
-                
+                        
     def test_09_abort_experiment(self):
         commands = [
                     [0.01,'SOCexecute_experimentEOC'],                     
@@ -477,6 +477,41 @@ class testVisexpRunner(unittest.TestCase):
                 ),
                 (True, True, True, True, True, True, True, True, True, True, True))
     #TODO: test case for um_to_pixel_scale parameter
+    
+    def test_16_hdf5io_archiving(self):
+        '''
+        The followings are tested:
+        -application log
+        -experiment log
+        -content of hdf5io archive
+        -experiment_control class
+        '''
+        commands = [
+                    [0.01,'SOCexecute_experimentEOC'], 
+                    [0.01,'SOCquitEOC'], 
+                    ]
+        config_name = 'Hdf5TestConfig'
+        
+        v = VisExpRunner('zoltan', config_name)
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+        #Read logs
+        log = utils.read_text_file(v.logfile_path)
+        experiment_log = utils.read_text_file(v.experiment_control.logfile_path)
+        #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
+        self.assertEqual(
+                         (self.check_application_log(log), 
+                         self.check_experiment_log(experiment_log), 
+                         experiment_log.find('show_fullscreen(0.0, [1.0, 1.0, 1.0])') != -1, 
+                        log.find('init experiment visexpman.users.') != -1, 
+                        log.find('Started experiment: visexpman.users.') != -1, 
+                        log.find('Experiment complete') != -1, 
+                        log.find('Command handler: experiment executed') != -1,                         
+                        self.check_hdf5_file(v)), 
+                        (True, True, True, True, True, True, True, True))
+    
 
 #== Test helpers ==
     def check_application_log(self, log):
@@ -507,6 +542,17 @@ class testVisexpRunner(unittest.TestCase):
             return True
         else:
             return False
+            
+    def check_hdf5_file(self, visexp_runner):
+        
+        reference_data = visexp_runner.experiment_control.data_handler.archive_binary_in_bytes
+        hdf5_path = visexp_runner.experiment_control.data_handler.hdf5_path
+        import visexpA.engine.datahandlers.hdf5io as hdf5io
+        hdf5_handler = hdf5io.Hdf5io(hdf5_path)
+        hdf5_handler.load('visexprunner_archive')        
+        result =  ((hdf5_handler.visexprunner_archive == reference_data).sum() == reference_data.shape[0])
+        hdf5_handler.close()        
+        return result
             
     def check_captured_frames(self, capture_folder, reference_folder):
         for reference_file_path in utils.listdir_fullpath(reference_folder):

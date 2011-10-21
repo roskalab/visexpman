@@ -36,7 +36,12 @@ class AnalogIO(instrument.Instrument):
     '''
     
     def init_instrument(self):
-        self.daq_config = self.config.DAQ_CONFIG[self.id]
+        if hasattr(self.config,  'DAQ_CONFIG'):            
+            self.daq_config = self.config.DAQ_CONFIG[self.id]
+        else:
+            #Ensure that experiments referencing AnalogIO class will run without errors on machines where DAQ_CONFIG is not defined or daqmx driver is not available
+            daq_config = {'ENABLE': False}
+            self.daq_config = daq_config
         if os.name == 'nt' and self.daq_config['ENABLE']:            
             if not self.daq_config.has_key('SAMPLE_RATE') and (\
                 (not self.daq_config.has_key('AO_SAMPLE_RATE') and not self.daq_config.has_key('AI_SAMPLE_RATE'))\

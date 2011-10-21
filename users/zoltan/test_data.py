@@ -98,12 +98,10 @@ class VRWT(VisionExperimentConfig):
 
         self._create_parameters_from_locals(locals())
 
-class VisexpRunnerTestConfig(VisionExperimentConfig):
+class VRTC(VisionExperimentConfig):
     def _set_user_parameters(self):
-        dataset = 0
-        
-        RUN_MODE = 'single experiment'
-        
+        dataset = 0        
+        RUN_MODE = 'single experiment'        
         #paths
         EXPERIMENT_CONFIG = 'TestExperimentConfig'
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -162,7 +160,7 @@ class VisexpRunnerTestConfig(VisionExperimentConfig):
         ACTION_BETWEEN_STIMULUS = 'off'
         
         ARCHIVE_FORMAT = 'zip'
-#        ARCHIVE_FORMAT = 'hdf5'
+        ARCHIVE_FORMAT = 'hdf5'
         
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
         self._create_parameters_from_locals(locals())
