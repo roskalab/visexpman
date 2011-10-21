@@ -2,7 +2,9 @@ import logging
 import logging.handlers
 log = logging.getLogger('introspect')
 import PyQt4.QtCore as QtCore
+from contextlib import contextmanager
 import inspect
+import re
 
 ## {{{ http://code.activestate.com/recipes/519621/ (r4)
 import weakref
