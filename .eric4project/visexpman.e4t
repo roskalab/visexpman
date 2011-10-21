@@ -1,71 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project visexpman -->
-<!-- Saved: 2011-09-13, 09:26:18 -->
+<!-- Saved: 2011-10-20, 18:12:59 -->
 <Tasks version="4.2">
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: handle invalid filterwheel ID</Summary>
-    <Description></Description>
-    <Created>2011-06-20, 14:16:43</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/command_handler.py</Filename>
-      <Linenumber>43</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO:precision from parameter</Summary>
-    <Description></Description>
-    <Created>2011-07-29, 15:00:46</Created>
-    <Resource>
-      <Filename>engine/generic/geometry.py</Filename>
-      <Linenumber>123</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: self.screen._refreshThreshold=1/float(self.config.SCREEN_EXPECTED_FRAME_RATE)+float(self.config.FRAME_DELAY_TOLERANCE) * 1e-3</Summary>
-    <Description></Description>
-    <Created>2011-08-10, 15:24:23</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/user_interface.py</Filename>
-      <Linenumber>27</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: self.screen.setGamma(self.config.GAMMA)</Summary>
-    <Description></Description>
-    <Created>2011-08-10, 15:24:23</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/user_interface.py</Filename>
-      <Linenumber>28</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO:</Summary>
-    <Description></Description>
-    <Created>2011-08-10, 15:39:47</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/stimulation_library.py</Filename>
-      <Linenumber>619</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: this shall be factored out</Summary>
-    <Description></Description>
-    <Created>2011-08-10, 15:39:47</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/stimulation_library.py</Filename>
-      <Linenumber>757</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: normalize to number of frames and duration</Summary>
-    <Description></Description>
-    <Created>2011-09-09, 16:26:49</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/stimulation_control.py</Filename>
-      <Linenumber>160</Linenumber>
-    </Resource>
-  </Task>
   <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: save self.simulation_config</Summary>
     <Description></Description>
@@ -76,12 +13,210 @@
     </Resource>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: Rename this module</Summary>
+    <Description></Description>
+    <Created>2011-09-28, 17:42:48</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/user_interface.py</Filename>
+      <Linenumber>1</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: when TEXT_ENABLE = False, screen has to be cleared to background color, self.clear_screen_to_background()</Summary>
+    <Description></Description>
+    <Created>2011-09-28, 17:42:48</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/user_interface.py</Filename>
+      <Linenumber>71</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command</Summary>
+    <Description></Description>
+    <Created>2011-09-28, 17:42:48</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/user_interface.py</Filename>
+      <Linenumber>72</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: create example for using user keyboard commands during experiment but outside visual stimulation</Summary>
+    <Description></Description>
+    <Created>2011-09-28, 17:42:48</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/user_interface.py</Filename>
+      <Linenumber>132</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: Overlay menu on pre experiment visual stimulus so that the text is blended to the graphical pattern</Summary>
+    <Description></Description>
+    <Created>2011-09-29, 16:48:04</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/experiment.py</Filename>
+      <Linenumber>66</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: here comes the presentinator command translator</Summary>
+    <Description></Description>
+    <Created>2011-09-30, 09:47:11</Created>
+    <Resource>
+      <Filename>engine/hardware_interface/network_interface.py</Filename>
+      <Linenumber>61</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO:precision from parameter</Summary>
+    <Description></Description>
+    <Created>2011-09-30, 10:14:58</Created>
+    <Resource>
+      <Filename>engine/generic/geometry.py</Filename>
+      <Linenumber>123</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: log 'Loaded configuration class: ' + self.__class__.__name__</Summary>
     <Description></Description>
-    <Created>2011-09-13, 09:25:38</Created>
+    <Created>2011-09-30, 10:15:19</Created>
     <Resource>
       <Filename>engine/generic/configuration.py</Filename>
       <Linenumber>48</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: check for redundant functions in this section</Summary>
+    <Description></Description>
+    <Created>2011-09-30, 12:17:26</Created>
+    <Resource>
+      <Filename>engine/generic/utils.py</Filename>
+      <Linenumber>75</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: stimulus fajlla (experiment class) kene alakitani</Summary>
+    <Description></Description>
+    <Created>2011-09-30, 12:21:09</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/command_handler.py</Filename>
+      <Linenumber>58</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO:</Summary>
+    <Description></Description>
+    <Created>2011-09-30, 12:36:08</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/stimulation_library.py</Filename>
+      <Linenumber>678</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: this shall be factored out</Summary>
+    <Description></Description>
+    <Created>2011-09-30, 12:36:08</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/stimulation_library.py</Filename>
+      <Linenumber>823</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: rename to network_interface</Summary>
+    <Description></Description>
+    <Created>2011-09-30, 12:45:48</Created>
+    <Resource>
+      <Filename>engine/hardware_interface/udp_interface.py</Filename>
+      <Linenumber>1</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: consider making command buffer processing independent of command reception</Summary>
+    <Description></Description>
+    <Created>2011-09-30, 12:45:48</Created>
+    <Resource>
+      <Filename>engine/hardware_interface/udp_interface.py</Filename>
+      <Linenumber>36</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig</Summary>
+    <Description></Description>
+    <Created>2011-10-05, 12:44:23</Created>
+    <Resource>
+      <Filename>engine/visexp_runner.py</Filename>
+      <Linenumber>42</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: make folder to store all the files created by this run</Summary>
+    <Description></Description>
+    <Created>2011-10-05, 12:44:23</Created>
+    <Resource>
+      <Filename>engine/visexp_runner.py</Filename>
+      <Linenumber>98</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: make  naming of *ENABLE* like parameters consistent: ENABLE*</Summary>
+    <Description></Description>
+    <Created>2011-10-05, 12:44:46</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/configuration.py</Filename>
+      <Linenumber>16</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: Obsolete???</Summary>
+    <Description></Description>
+    <Created>2011-10-05, 12:44:46</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/configuration.py</Filename>
+      <Linenumber>41</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: this shall be removed</Summary>
+    <Description></Description>
+    <Created>2011-10-20, 17:14:22</Created>
+    <Resource>
+      <Filename>engine/hardware_interface/instrument.py</Filename>
+      <Linenumber>64</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: this shall be removed</Summary>
+    <Description></Description>
+    <Created>2011-10-20, 17:14:22</Created>
+    <Resource>
+      <Filename>engine/hardware_interface/instrument.py</Filename>
+      <Linenumber>67</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: Calibration/test experiments:</Summary>
+    <Description></Description>
+    <Created>2011-10-20, 17:14:55</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/stimulation_control.py</Filename>
+      <Linenumber>1</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: frame rate error thresholding, logging etc</Summary>
+    <Description></Description>
+    <Created>2011-10-20, 17:14:55</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/stimulation_control.py</Filename>
+      <Linenumber>7</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: rename to experiment_control</Summary>
+    <Description></Description>
+    <Created>2011-10-20, 17:14:55</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/stimulation_control.py</Filename>
+      <Linenumber>8</Linenumber>
     </Resource>
   </Task>
 </Tasks>

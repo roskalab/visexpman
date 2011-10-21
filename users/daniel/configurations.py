@@ -1,10 +1,10 @@
 from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.visual_stimulation.configuration import VisualStimulationConfig
+from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
 import visexpman.engine.generic.utils as utils
 import os
-class PPRLConfig(VisualStimulationConfig):
+class PPRLConfig(VisionExperimentConfig):
     
-    def _set_user_specific_parameters(self):
+    def _set_user_parameters(self):
         RUN_MODE = 'single experiment'
 #        RUN_MODE = 'user interface'
         EXPERIMENT = self.STIMULATION_FOLDER_PATH + os.sep + 'gratings_stimulus.py'
@@ -32,7 +32,7 @@ class PPRLConfig(VisualStimulationConfig):
         FRAME_WAIT_FACTOR = 0
 
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         
         #multiple stimulus control
         STIMULUS_LIST = ['MyStimulus1',  'MyStimulus2']
@@ -50,7 +50,7 @@ class PPRLConfig(VisualStimulationConfig):
         
         self._set_parameters_from_locals(locals())
         
-class K247AWindowsConfig(VisualStimulationConfig):
+class K247AWindowsConfig(VisionExperimentConfig):
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
@@ -71,7 +71,7 @@ class K247AWindowsConfig(VisualStimulationConfig):
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
         FRAME_WAIT_FACTOR = 0 
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         
         #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
@@ -85,12 +85,12 @@ class K247AWindowsConfig(VisualStimulationConfig):
             
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
-        VisualStimulationConfig._create_parameters_from_locals(self, locals())
-        #VisualStimulationConfig._set_parameters_from_locals(self, locals())
+        VisionExperimentConfig._create_parameters_from_locals(self, locals())
+        #VisionExperimentConfig._set_parameters_from_locals(self, locals())
 
-class RC3DWindowsConfig(VisualStimulationConfig):
+class RC3DWindowsConfig(VisionExperimentConfig):
     #NOT TESTED
-    def _set_user_specific_parameters(self):        
+    def _set_user_parameters(self):        
         ENABLE_PARALLEL_PORT = True        
         FULLSCREEN = True
         SCREEN_RESOLUTION = [1600,  1200]
@@ -107,8 +107,8 @@ class RC3DWindowsConfig(VisualStimulationConfig):
         
         self._set_parameters_from_locals(locals())
 
-class MBP(VisualStimulationConfig):
-    def _set_user_specific_parameters(self):        
+class MBP(VisionExperimentConfig):
+    def _set_user_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
         LOG_PATH = '/Users/hd/Documents/DataBase'
@@ -128,7 +128,7 @@ class MBP(VisualStimulationConfig):
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
         FRAME_WAIT_FACTOR = 0 
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         
         #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
@@ -142,20 +142,26 @@ class MBP(VisualStimulationConfig):
             
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
-        VisualStimulationConfig._create_parameters_from_locals(self, locals())
-        #VisualStimulationConfig._set_parameters_from_locals(self, locals())
+        VisionExperimentConfig._create_parameters_from_locals(self, locals())
+        #VisionExperimentConfig._set_parameters_from_locals(self, locals())
 
-class ZoliTester(VisualStimulationConfig):
-    def _set_user_specific_parameters(self):        
+class ZoliTester(VisionExperimentConfig):
+    def _set_user_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
-        LOG_PATH = 'C:\\_development\\virtual_reality\\software\\data'
-        BASE_PATH= 'C:\\_development\\virtual_reality\\software\\data'
-        ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
-        CAPTURE_PATH = os.path.join(BASE_PATH,'capture')#'../../../presentinator/data/capture'
+        if os.name == 'nt':
+            LOG_PATH = 'C:\\_del'
+            EXPERIMENT_LOG_PATH = 'C:\\_del'
+            BASE_PATH= 'C:\\_del'
+        elif os.name == 'posix':
+            LOG_PATH = '/media/Common/visexpman_data/test'
+            EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data/test'
+            BASE_PATH= '/media/Common/visexpman_data/test'            
+        
+        ARCHIVE_PATH = BASE_PATH
+        CAPTURE_PATH = BASE_PATH
         ENABLE_PARALLEL_PORT = False
-        UDP_ENABLE = False
-#        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
+        UDP_ENABLE = False        
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.rc([768, 1024])
         ENABLE_FRAME_CAPTURE = False
@@ -166,7 +172,7 @@ class ZoliTester(VisualStimulationConfig):
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
         FRAME_WAIT_FACTOR = 0 
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         TEXT_ENABLE = False
         
         #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
@@ -180,9 +186,8 @@ class ZoliTester(VisualStimulationConfig):
         COORDINATE_SYSTEM='ulcorner'
             
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        VisualStimulationConfig._create_parameters_from_locals(self, locals())
-
+        FRAME_TRIGGER_PIN = 0        
+        self._create_parameters_from_locals(locals())
 
 if __name__ == "__main__":
     

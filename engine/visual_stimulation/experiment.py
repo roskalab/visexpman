@@ -17,7 +17,8 @@ class ExperimentConfig(Config):
             raise ValueError('You must specify the class which will run the experiment')
         else:
             self.runnable= utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = self.runnable,  required_ancestors = visexpman.engine.visual_stimulation.experiment.Experiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the actual stimulation
-            self.pre_runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.visual_stimulation.experiment.PreExperiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the actual stimulation
+            if hasattr(self, 'pre_runnable'):
+                self.pre_runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.visual_stimulation.experiment.PreExperiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the pre experiment code
 
     def run(self):  #RZ: Why is the experiment started by the experiment config class?
         if self.runnable == None:
@@ -41,9 +42,11 @@ class Experiment(stimulation_library.Stimulations):
         '''
         This function ensures that the hardware related calls are available from the experiment/run method
         '''
-        self.devices = self.caller.experiment_control.devices        
+        self.devices = self.caller.experiment_control.devices
         self.parallel_port = self.devices.parallel_port        
         self.filterwheels = self.devices.filterwheels
+        if hasattr(self.devices, 'led_controller'): #This hasattr checking is unnecessary
+            self.led_controller = self.devices.led_controller
         self.log = self.caller.experiment_control.log
         self.command_buffer = ''
         self.abort = False
@@ -65,20 +68,3 @@ class PreExperiment(Experiment):
     #TODO: Overlay menu on pre experiment visual stimulus so that the text is blended to the graphical pattern
     #Preexperiment can be a static image, that is always drawn when the non-experiment screen is redrawn.
     #Alternatively while preexperiment runs, keyboard handler&command handler shall be called.
-
-#class MultipleStimulus(Experiment):
-#    
-#    def run(self):
-#        self.stimulus_set = []
-#        i = 0
-#        for stim in self.config.STIMULUS_LIST:
-#            self.st._display_test_message(stim)            
-#            self.stimulus_set.append(getattr(sys.modules[__name__],  stim)(self.st))
-#            self.stimulus_set[i].run()            
-#            
-#            i = i + 1
-#            
-#    def cleanup(self):
-#        for single_stimulus in self.stimulus_set:
-#            single_stimulus.cleanup()
-#        print 'DONE'

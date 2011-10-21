@@ -9,7 +9,7 @@ import unittest
 PRINT_PAR_NAMES = False
 
 class Config(object):
-    def __init__(self, machine_config=None):
+    def __init__(self, machine_config=None, generic_parameters = True):
         '''
         Machine config: main, setup/user etc specific config that may be used by experiment configs
         
@@ -47,7 +47,8 @@ class Config(object):
         '''
         #TODO: log 'Loaded configuration class: ' + self.__class__.__name__        
         self.machine_config = machine_config
-        self._create_generic_parameters()
+        if generic_parameters:
+            self._create_generic_parameters()
         #The _create_application_parameters and the _calculate_parameters methods will be overdefined in the application child class.
         self._create_application_parameters()
         self._create_parameters()
@@ -58,7 +59,7 @@ class Config(object):
         #check for modified or new parameters created by calculate_parameters method, get their names and load them:
         self._create_parameter_aliases()
         
-    def _create_generic_parameters(self):        
+    def _create_generic_parameters(self):
         self.PACKAGE_PATH_p = parameter.Parameter(os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0], is_path=True)                
         self._create_parameter_aliases()
         return
@@ -97,7 +98,7 @@ class Config(object):
                 
     def _create_application_parameters(self):
         '''
-        By overdefining this function, the application/user etc specific parameters can be definced here:
+        By overdefining this function, the application/user etc specific parameters can be defined here:
             self.PAR_p =              
         '''
         pass

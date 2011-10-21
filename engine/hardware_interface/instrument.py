@@ -6,13 +6,14 @@ except:
 import os
 import unittest
 import time
-import threading
 import parallel
 import visexpman.engine.generic.configuration
 import visexpman.engine.generic.utils as utils
 import logging
+import visexpman
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
-class Instrument(threading.Thread):
+class Instrument():
     '''
     The basic concept of enabling/disabling instruments: classes can be instantiated when the corresponding instrument is disabled. All the instrument classes shall be implemented in a way,
     that hardware calls are executed only in enabled state. The rationale behind this, is to ensure that the user do not have to take care of ENABLE* parameters at experiment level.
@@ -26,7 +27,6 @@ class Instrument(threading.Thread):
         self.settings = settings
         self.config = config
         self.caller = caller
-        threading.Thread.__init__( self )
         self.init_communication_interface()
         self.init_instrument()
         self.started = False        
@@ -61,9 +61,10 @@ class Instrument(threading.Thread):
         '''
         Stops instrument operation
         '''
-        
+#TODO: this shall be removed        
         self.stop_instrument()
 
+#TODO: this shall be removed        
     def stop_instrument(self):
         pass
         
@@ -83,6 +84,18 @@ class Instrument(threading.Thread):
 
     def close_communication_interface(self):
         pass
+        
+    def get_elapsed_time(self):
+        elapsed_time = time.time()
+        #This checking is necessary to ensure running test that does not have the full variable environment build up
+        if hasattr(self.caller.experiment_control, 'start_time'):
+            if isinstance(self.caller.experiment_control.start_time, float):
+                elapsed_time = time.time() - self.caller.experiment_control.start_time
+        return elapsed_time
+        
+    def log_during_experiment(self, log_message):
+        if self.caller.state == 'experiment running':
+            self.caller.experiment_control.log.info('%2.3f\t%s' %(self.get_elapsed_time(), log_message))
 
 #    def __del__(self):        
 #        self.release_instrument()
@@ -92,7 +105,7 @@ class ParallelPort(Instrument, parallel.Parallel):
     This class stores the values of the data lines of parallel port to ensure bit level control of these pins.
     '''
     
-    def init_instrument(self):        
+    def init_instrument(self):
         if self.config.ENABLE_PARALLEL_PORT:
             parallel.Parallel.__init__(self)
         #Here create the variables that store the status of the IO lines
@@ -128,14 +141,17 @@ class ParallelPort(Instrument, parallel.Parallel):
             self._update_io()
             
             #logging
-            if log:
-                log_message = 'Parallel port data bits set to %i' % self.iostate['data']
-                if self.caller.state == 'experiment running':
-                    self.caller.experiment_control.log.info('%2.3f\t%s' %(time.time(), log_message))
-        
+            if log:                
+                self.log_during_experiment('Parallel port data bits set to %i' % self.iostate['data'])                
+                    
     def close_instrument(self):
         if self.config.ENABLE_PARALLEL_PORT:
-            parallel.Parallel.__del__(self)
+           if os.name == 'nt':
+                if hasattr(parallel.Parallel, '__del__'):
+                    parallel.Parallel.__del__(self)
+           elif os.name == 'posix':
+               parallel.Parallel.__del__(self)
+               
         #here a small delay may be inserted        
 
     def __del__(self):
@@ -193,19 +209,20 @@ class Shutter(Instrument):
 class Filterwheel(Instrument):
     def init_communication_interface(self):
         self.position = -1        
-        if self.config.FILTERWHEEL_ENABLE:
+        if self.config.ENABLE_FILTERWHEEL:
             self.serial_port = serial.Serial(port =self.config.FILTERWHEEL_SERIAL_PORT[self.id]['port'], 
                                                     baudrate = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['baudrate'],
                                                     parity = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['parity'],
                                                     stopbits = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['stopbits'],
                                                     bytesize = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['bytesize'])
         try:
-            self.serial_port.open()
+            if os.name != 'nt':
+                self.serial_port.open()
         except AttributeError:
             pass
 
     def set(self,  position = -1, log = True):
-        if self.config.FILTERWHEEL_ENABLE:
+        if self.config.ENABLE_FILTERWHEEL:
             if self.config.FILTERWHEEL_VALID_POSITIONS[0] <= position and self.config.FILTERWHEEL_VALID_POSITIONS[1] >= position:
                 self.serial_port.write('pos='+str(position) +'\r')
                 time.sleep(self.config.FILTERWHEEL_SETTLING_TIME)
@@ -215,12 +232,10 @@ class Filterwheel(Instrument):
                 
             #logging
             if log:
-                log_message = 'Filterwheel set to %i' % position
-                if self.caller.state == 'experiment running':
-                    self.caller.experiment_control.log.info('%2.3f\t%s' %(time.time(), log_message))
+                self.log_during_experiment('Filterwheel set to %i' % position)                
         
     def set_filter(self,  filter = '', log = True):
-        if self.config.FILTERWHEEL_ENABLE:
+        if self.config.ENABLE_FILTERWHEEL:
             position_to_set = -1
             for k,  v in self.config.FILTERWHEEL_FILTERS[self.id].items():
                 if k == filter:
@@ -233,12 +248,10 @@ class Filterwheel(Instrument):
                 
             #logging
             if log:
-                log_message = 'Filterwheel set to %s' % filter
-                if self.caller.state == 'experiment running':
-                    self.caller.experiment_control.log.info('%2.3f\t%s' %(time.time(), log_message))
+                self.log_during_experiment('Filterwheel set to %s' % filter)                
 
     def close_communication_interface(self):
-        if self.config.FILTERWHEEL_ENABLE:
+        if self.config.ENABLE_FILTERWHEEL:
             try:
                 self.serial_port.close()
             except AttributeError:
@@ -247,12 +260,12 @@ class Filterwheel(Instrument):
 class testConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         if os.name == 'nt':
-            port = 'COM6'
+            port = 'COM4'
         else:
             port = '/dev/ttyUSB0'
             EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
             
-        FILTERWHEEL_ENABLE = True
+        ENABLE_FILTERWHEEL = unit_test_runner.TEST_filterwheel_enable
         ENABLE_PARALLEL_PORT = True
         ENABLE_SHUTTER = True
         FILTERWHEEL_SERIAL_PORT = [[{
@@ -288,25 +301,32 @@ class testConfig(visexpman.engine.generic.configuration.Config):
         
         SHUTTER_PIN = [2, [0, 7]]
         
-        TEST_DATA_PATH = '/media/Common/visexpman_data/test'
+        if os.name == 'nt':
+            TEST_DATA_PATH = 'c:\\_del'
+        elif os.name == 'posix':
+            TEST_DATA_PATH = '/media/Common/visexpman_data/test'
         
         self._create_parameters_from_locals(locals())
         
 class testLogClass():
     def __init__(self, config, caller):
-        self.logfile_path = utils.generate_filename(config.TEST_DATA_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')
-        self.log = logging.getLogger('test log')
-        handler = logging.FileHandler(self.logfile_path)
+        self.logfile_path = utils.generate_filename(config.TEST_DATA_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')        
+        self.log = logging.getLogger(self.logfile_path)
+        self.handler = logging.FileHandler(self.logfile_path)
         formatter = logging.Formatter('%(message)s')
-        handler.setFormatter(formatter)
-        self.log.addHandler(handler)
-        self.log.setLevel(logging.INFO)        
+        self.handler.setFormatter(formatter)
+        self.log.addHandler(self.handler)
+        self.log.setLevel(logging.INFO)
+        self.log.info('instrument test')
    
-class testInstruments(unittest.TestCase):       
+class testInstruments(unittest.TestCase):
     def setUp(self):
         self.state = 'experiment running'
         self.config = testConfig()
-        self.experiment_control = testLogClass(self.config, self)        
+        self.experiment_control = testLogClass(self.config, self)
+        
+    def tearDown(self):
+        self.experiment_control.handler.flush()
         
 #== Parallel port ==
     def test_01_set_bit_on_parallel_port(self):        
@@ -381,56 +401,56 @@ class testInstruments(unittest.TestCase):
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (True, 6, 'ready'))
         fw.release_instrument()
         
-    def test_11_set_invalid_filter_name(self):        
+    def test_11_set_invalid_filter_name(self):
         fw = Filterwheel(self.config, self)
         self.assertRaises(RuntimeError,  fw.set_filter,  10)
         fw.release_instrument()
         
     def test_12_set_filterwheel_position_when_disabled(self):        
-        self.config.FILTERWHEEL_ENABLE = False
+        self.config.ENABLE_FILTERWHEEL = False
         fw = Filterwheel(self.config, self)
         fw.set(1)
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (False, -1, 'ready'))
         fw.release_instrument()        
         
 #== Shutter ==
-    def test_12_shutter_communication_port_open(self):        
-        sh = Shutter(self.config, self)        
-        self.assertEqual(hasattr(sh, 'serial_port'),  True)
-        sh.release_instrument()
-        
-    def test_13_shutter_toggle(self):        
-        sh = Shutter(self.config, self)
-        print 'The shutter should open and close'
-        sh.toggle()
-        time.sleep(1.0)
-        sh.toggle()
-        self.assertEqual(hasattr(sh, 'serial_port'),  True)
-        sh.release_instrument()
-        
-    def test_14_open_shutter(self):
-        pass
-        
-    def test_15_close_shutter(self):
-        pass
-        
-    def test_XX_open_shutter_when_disabled(self):
-        pass
-        
-    def test_16_shutter_parallelport_init(self):
-        pass
-        
-    def test_17_shutter_parallelport_toggle(self):
-        pass
-        
-    def test_18_open_parallelport_shutter(self):
-        pass
-        
-    def test_15_close_parallelport_shutter(self):
-        pass
-        
-    def test_XX_open_parallel_port_shutter_when_disabled(self):
-        pass
+#    def test_12_shutter_communication_port_open(self):        
+#        sh = Shutter(self.config, self)        
+#        self.assertEqual(hasattr(sh, 'serial_port'),  True)
+#        sh.release_instrument()
+#        
+#    def test_13_shutter_toggle(self):        
+#        sh = Shutter(self.config, self)
+#        print 'The shutter should open and close'
+#        sh.toggle()
+#        time.sleep(1.0)
+#        sh.toggle()
+#        self.assertEqual(hasattr(sh, 'serial_port'),  True)
+#        sh.release_instrument()
+#        
+#    def test_14_open_shutter(self):
+#        pass
+#        
+#    def test_15_close_shutter(self):
+#        pass
+#        
+#    def test_XX_open_shutter_when_disabled(self):
+#        pass
+#        
+#    def test_16_shutter_parallelport_init(self):
+#        pass
+#        
+#    def test_17_shutter_parallelport_toggle(self):
+#        pass
+#        
+#    def test_18_open_parallelport_shutter(self):
+#        pass
+#        
+#    def test_15_close_parallelport_shutter(self):
+#        pass
+#        
+#    def test_XX_open_parallel_port_shutter_when_disabled(self):
+#        pass
         
     
         

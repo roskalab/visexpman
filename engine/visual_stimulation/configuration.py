@@ -9,10 +9,12 @@ try:
 except:
     pass
 
+import tempfile
 import unittest
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 #TODO: make  naming of *ENABLE* like parameters consistent: ENABLE*
-class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
+class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         '''
         By overdefining this function, the application/user etc specific parameters can be definced here:
@@ -42,16 +44,15 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
 #        EXPERIMENT_CONFIG = 'TestExperimentConfig'
 #        LOG_PATH = '/media/Common/visexpman_data'
 #        EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
-#        BASE_PATH= '/media/Common/visexpman_data'
+#        BASE_PATH= '/media/Common/visexpman_data' THIS MIGHT BE ELIMINATED
 #        ARCHIVE_PATH = '/media/Common/visexpman_data'
 #        CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
-#        TMP_PATH = '/media/Common/visexpman_data/tmp'
 
         ARCHIVE_FORMAT = ['undefined', ['hdf5', 'zip', 'undefined']]
         
         #display parameters:
         SCREEN_RESOLUTION = utils.rc([600, 800])        
-        FULLSCREEN = True
+        FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
         SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]
         FRAME_DELAY_TOLERANCE = [2.0,  [1e-2,  10.0]] #in Hz
@@ -71,11 +72,11 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel
         
         #Network/UDP settings
-        SERVER_UDP_IP = '172.27.29.6'
+        SERVER_UDP_IP = 'localhost'
         SERVER_IP = 'localhost'
         WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
         CLIENT_UDP_IP = ''
-        UDP_ENABLE = True
+        ENABLE_UDP = True
         UDP_PORT = [446,  [300,  65000]]
         UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
         COMMAND_INTERFACE_PORT = [10000, [300,  65000]]
@@ -108,7 +109,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         TEXT_COLOR = [[1.0,  0.0,  0.0] ,  [[0.0, 0.0, 0.0],  [1.0,  1.0,  1.0]]]
 #        TEXT_SIZE = [12,  [2,  20]]
         
-        STATES = [['idle',  'stimulation'],  None]        
+        STATES = [['idle',  'stimulation'],  None]        #This might be obsolete
 
         MENU_POSITION = utils.cr((-0.48, 0.45))
         MESSAGE_POSITION = utils.cr((-0.48,0.0))
@@ -116,7 +117,7 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         MAX_MESSAGE_LENGTH = [200,  [10,  1000]] #length of message displayed on screen
 
         #example config
-        SHOW_ALL_EXAMPLES = True
+        SHOW_ALL_EXAMPLES = True    #This might be obsolete
         
         #stimulus control
         SEGMENT_DURATION = [100,  [1,  100000]]
@@ -124,35 +125,62 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         
         #== External hardware ==        
         #parallel port
-        ENABLE_PARALLEL_PORT = True
+        ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         
         #filterwheel settings
-        FILTERWHEEL_ENABLE = True
-        FILTERWHEEL_SERIAL_PORT = [[{
-                                    'port' :  '/dev/ttyUSB0',
-                                    'baudrate' : 115200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    }] ]
-                                    
+        ENABLE_FILTERWHEEL = False
         FILTERWHEEL_SETTLING_TIME = [0.4,  [0,  20]]
-
         FILTERWHEEL_VALID_POSITIONS = [[1, 6],  [[0, 0],  [100, 100]]]
         
-        FILTERWHEEL_FILTERS = [[{
-                                                'ND0': 1, 
-                                                'ND10': 2, 
-                                                'ND20': 3, 
-                                                'ND30': 4, 
-                                                'ND40': 5, 
-                                                'ND50': 6, 
-                                                }]]
+#        FILTERWHEEL_SERIAL_PORT = [[{
+#                                    'port' :  port,
+#                                    'baudrate' : 115200,
+#                                    'parity' : serial.PARITY_NONE,
+#                                    'stopbits' : serial.STOPBITS_ONE,
+#                                    'bytesize' : serial.EIGHTBITS,                                    
+#                                    }]]        
+#        FILTERWHEEL_FILTERS = [[{
+#                                                'ND0': 1, 
+#                                                'ND10': 2, 
+#                                                'ND20': 3, 
+#                                                'ND30': 4, 
+#                                                'ND40': 5, 
+#                                                'ND50': 6, 
+#                                                }]]
                                                 
         ENABLE_SHUTTER = False
+        
+        LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
+        
+#                 DAQ_CONFIG = [[
+#         {
+#         'ANALOG_CONFIG' : 'aio', #'ai', 'ao', 'aio', 'undefined'
+#         'DAQ_TIMEOUT' : 1.0, 
+#         'AO_SAMPLE_RATE' : 100,
+#         'AI_SAMPLE_RATE' : 1000,
+#         'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
+#         'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',        
+#         'MAX_VOLTAGE' : 5.0,
+#         'MIN_VOLTAGE' : 0.0,
+#         'DURATION_OF_AI_READ' : 1.0,
+#         'ENABLE' : True
+#         },
+#         {
+#         'ANALOG_CONFIG' : 'undefined',
+#         'DAQ_TIMEOUT' : 0.0, 
+#         'AO_SAMPLE_RATE' : 100,
+#         'AI_SAMPLE_RATE' : 1000,
+#         'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
+#         'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',
+#         'MAX_VOLTAGE' : 5.0,
+#         'MIN_VOLTAGE' : 0.0,
+#         'DURATION_OF_AI_READ' : 1.0,
+#         'ENABLE' : True
+#         }
+#         ]]
         
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
@@ -160,19 +188,18 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
     def _calculate_parameters(self):
         '''
         Function for modifying parameters with calculations and creating new parameters calculated from existing values
-        '''
+        '''        
         #== Paths ==
         DEFAULT_IMAGE_FILE = os.path.join(self.PACKAGE_PATH ,'data','images','default.bmp')
-        BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'
-        
+        BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'        
     
         #== Command list and menu text ==
-        self.COMMANDS = dict(self.COMMANDS.items() + self.USER_EXPERIMENT_COMMANDS.items())        
+        #Check if there is no redundancy in command configuration
+        self.COMMANDS = self._merge_commands(self.COMMANDS, self.USER_EXPERIMENT_COMMANDS)        
         MENU_TEXT = ''
         for k, v in self.COMMANDS.items():            
             if utils.is_in_list(v['domain'], 'keyboard'):                
                 MENU_TEXT += v['key'] + ' - ' + k + '\n'
-
 
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX
         
@@ -192,9 +219,12 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_UM_TO_NORM_SCALE = 2.0 * self.SCREEN_PIXEL_TO_UM_SCALE_p.v * screen_resolution        
         self.SCREEN_UM_TO_NORM_SCALE_p = visexpman.engine.generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
         
-        #== Coordinate system ==
+        #== Coordinate system ==        
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
+        elif unit_test_runner.TEST_test:
+            #In test mode we do not check for raised exception but test for the existence of certain variables
+            pass
         else:
             raise ValueError('No coordinate system selected in config,  nor explicit settings for origo and axes was given.')
             
@@ -203,16 +233,21 @@ class VisualStimulationConfig(visexpman.engine.generic.configuration.Config):
             self.MENU_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MENU_POSITION_p.v, utils.cr((1.0, 1.0)))
             self.MESSAGE_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MESSAGE_POSITION_p.v, utils.cr((1.0, 1.0)))
             
-class SafestartConfig(VisualStimulationConfig):    
-    def _set_user_parameters(self):
-        COORDINATE_SYSTEM = 'center'        
-        FILTERWHEEL_ENABLE = False        
-        ENABLE_PARALLEL_PORT = False
-        UDP_ENABLE = False
-        FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.rc([600, 800])        
-        self._set_parameters_from_locals(locals())
-            
+    def _merge_commands(self, command_list, user_command_list):        
+        commands = dict(command_list.items() + user_command_list.items())
+        for user_command_name in user_command_list.keys():
+            if command_list.has_key(user_command_name):
+                raise RuntimeError('Redundant command name: {0} is reserved'.format(user_command_name))
+        
+        all_keys = []
+        for k, v in commands.items():            
+            if utils.is_in_list(all_keys, v['key']):
+                raise RuntimeError('Redundant keyboard command: {0} is reserved'.format(v['key']))
+            else:
+                all_keys.append(v['key'])
+        return commands
+
+
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         PAR1 = 'par'
@@ -234,10 +269,120 @@ class TestConfig(visexpman.engine.generic.configuration.Config):
         self.PAR3_p = visexpman.engine.generic.parameter.Parameter(self.PAR1+self.PAR2) 
         self.PAR3 = self.PAR3_p.v
     
+class RedundantCommandConfig1(VisionExperimentConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
+        #paths
+        if os.name == 'nt':
+            path = 'c:\\_del'
+        elif os.name == 'posix':
+            path = '/media/Common/visexpman_data'
+        LOG_PATH = os.path.join(path,'test')
+        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
+        ARCHIVE_PATH = os.path.join(path,'test')
+        ARCHIVE_FORMAT = 'zip'
+        COORDINATE_SYSTEM='center'
+        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'dummy1': {'key': 'e', 'domain': ['running experiment']}, 'dummy': {'key': 'w', 'domain': ['running experiment']},}
+        self._create_parameters_from_locals(locals())
+        
+class RedundantCommandConfig2(VisionExperimentConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
+        #paths
+        if os.name == 'nt':
+            path = 'c:\\_del'
+        elif os.name == 'posix':
+            path = '/media/Common/visexpman_data'
+        LOG_PATH = os.path.join(path,'test')
+        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
+        ARCHIVE_PATH = os.path.join(path,'test')
+        ARCHIVE_FORMAT = 'zip'
+        COORDINATE_SYSTEM='center'
+        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'dummy1': {'key': 'e', 'domain': ['running experiment']}, }
+        self._create_parameters_from_locals(locals())        
+
+class RedundantCommandConfig3(VisionExperimentConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
+        #paths
+        if os.name == 'nt':
+            path = 'c:\\_del'
+        elif os.name == 'posix':
+            path = '/media/Common/visexpman_data'
+        LOG_PATH = os.path.join(path,'test')
+        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
+        ARCHIVE_PATH = os.path.join(path,'test')
+        ARCHIVE_FORMAT = 'zip'
+        COORDINATE_SYSTEM='center'
+        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'bullseye': {'key': 'x', 'domain': ['running experiment']},}
+        self._create_parameters_from_locals(locals())
+    
+class NonRedundantCommandConfig(VisionExperimentConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
+        #paths
+        if os.name == 'nt':
+            path = 'c:\\_del'
+        elif os.name == 'posix':
+            path = '/media/Common/visexpman_data'
+        LOG_PATH = os.path.join(path,'test')
+        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
+        ARCHIVE_PATH = os.path.join(path,'test')
+        ARCHIVE_FORMAT = 'zip'
+        COORDINATE_SYSTEM='center'
+        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
+        self._create_parameters_from_locals(locals())
+
+
 class testApplicationConfiguration(unittest.TestCase):
-    def test_ConfigClass(self):
+    def test_01_ConfigClass(self):
         t = TestConfig()
         self.assertEqual((t.PAR1,  t.PAR2,  t.PAR3),  ('par1', 'par2',  t.PAR1+t.PAR2))
+        
+    def test_02_non_redundant_user_command_config(self):
+        commands = {
+                    'hide_menu': {'key': 'h', 'domain': ['keyboard']}, 
+                    #Dynamically added to the list: 'experiment_select' : {'key' : None, 'domain': ['keyboard']},
+                    'execute_experiment': {'key': 'e', 'domain': ['keyboard', 'network interface', 'remote client']}, 
+                    'abort_experiment': {'key': 'a', 'domain': ['running experiment']}, 
+                    'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
+                    'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},
+                    'dummy': {'key': 'd', 'domain': ['running experiment']},
+                    }
+        t = NonRedundantCommandConfig()
+        self.assertEqual((t.COMMANDS),  (commands))
+        
+    def test_03_redundant_user_command_config(self):        
+        self.assertRaises(RuntimeError,  RedundantCommandConfig1)
+        
+    def test_04_redundant_user_command_config(self):        
+        self.assertRaises(RuntimeError,  RedundantCommandConfig2)
+        
+    def test_05_redundant_user_command_config(self):        
+        self.assertRaises(RuntimeError,  RedundantCommandConfig3)
+        
+    def test_06_check_default_visexp_config(self):
+        t = VisionExperimentConfig()
+        self.assertEqual((hasattr(t, 'EXPERIMENT_CONFIG'),
+                          hasattr(t, 'LOG_PATH'),
+                          hasattr(t, 'EXPERIMENT_LOG_PATH'),
+                          hasattr(t, 'ARCHIVE_PATH'),
+                          hasattr(t, 'CAPTURE_PATH'),
+                          hasattr(t, 'FILTERWHEEL_FILTERS'), 
+                          hasattr(t, 'FILTERWHEEL_SERIAL_PORT'), 
+                          t.ORIGO, 
+                          t.HORIZONTAL_AXIS_POSITIVE_DIRECTION, 
+                          t.VERTICAL_AXIS_POSITIVE_DIRECTION, 
+                          t.COORDINATE_SYSTEM,
+                          t.FULLSCREEN, 
+                          t.ENABLE_FRAME_CAPTURE, 
+                          t.ENABLE_PARALLEL_PORT, 
+                          t.ENABLE_FILTERWHEEL, 
+                          t.ENABLE_SHUTTER, 
+                          ),
+                         (False, False, False, False, False, False, False, utils.rc((numpy.inf, numpy.inf)), 'undefined', 'undefined', 'undefined', False, False, False, False, False))
+        
+
 
 if __name__ == "__main__":
     unittest.main()

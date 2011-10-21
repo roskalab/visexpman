@@ -32,7 +32,7 @@ class GraphicsTestConfig(visexpman.engine.generic.configuration.Config):
     def _calculate_parameters(self):
         self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
         
-class VRConfig(visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig):
+class VRConfig(visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig):
     def _set_user_specific_parameters(self):
         FULLSCREEN = True
         BACKGROUND_COLOR = [0.0,  0.0, 0.0]
@@ -42,7 +42,7 @@ class VRConfig(visexpman.engine.visual_stimulation.configuration.VisualStimulati
 #        SCREEN_RESOLUTION = utils.cr([3280, 1050])
         self._set_parameters_from_locals(locals())
         
-class UbuntuDeveloperConfig(visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig):
+class UbuntuDeveloperConfig(visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig):
     
     def _set_user_specific_parameters(self):
         RUN_MODE = 'single experiment'
@@ -73,7 +73,7 @@ class UbuntuDeveloperConfig(visexpman.engine.visual_stimulation.configuration.Vi
         FRAME_WAIT_FACTOR = 0.7
 
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         
         #multiple stimulus control
         STIMULUS_LIST = ['MyStimulus1',  'MyStimulus2']
@@ -98,7 +98,7 @@ class UbuntuDeveloperConfig(visexpman.engine.visual_stimulation.configuration.Vi
         
         self._set_parameters_from_locals(locals())
         
-class WindowsDeveloperConfig(visexpman.engine.visual_stimulation.configuration.VisualStimulationConfig):
+class WindowsDeveloperConfig(visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig):
     
     def _set_user_specific_parameters(self):        
         RUN_MODE = 'single experiment'
@@ -110,7 +110,7 @@ class WindowsDeveloperConfig(visexpman.engine.visual_stimulation.configuration.V
 #         RUN_MODE = 'user interface'        
 #         EXPERIMENT = 'MultipleStimulus'
 #        EXPERIMENT = 'OpenGLTest'
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         LOG_PATH = '..' + os.sep + 'data'
 #         TEXT_ENABLE = True
         ARCHIVE_PATH = '..' + os.sep + 'data'
@@ -151,7 +151,7 @@ class ScreenTestConfig(visexpman.engine.generic.configuration.Config):
         FRAME_WAIT_FACTOR = 0.7
 
         GAMMA = 1.0
-        FILTERWHEEL_ENABLE = False
+        ENABLE_FILTERWHEEL = False
         
         #multiple stimulus control
         STIMULUS_LIST = ['MyStimulus1',  'MyStimulus2']
