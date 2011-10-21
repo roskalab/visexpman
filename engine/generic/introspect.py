@@ -1,9 +1,8 @@
 import logging
 import logging.handlers
-log = logging.getLogger('Helpers')
-try: import wx
-except: log.debug('wx import failed')
-
+log = logging.getLogger('introspect')
+import PyQt4.QtCore as QtCore
+import inspect
 
 ## {{{ http://code.activestate.com/recipes/519621/ (r4)
 import weakref
