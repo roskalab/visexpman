@@ -51,7 +51,7 @@ class PPRLConfig(VisionExperimentConfig):
         self._set_parameters_from_locals(locals())
         
 class K247AWindowsConfig(VisionExperimentConfig):
-    def _set_user_specific_parameters(self):        
+    def _set_user_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
         LOG_PATH = 'c:\\temp\\'
@@ -149,17 +149,12 @@ class ZoliTester(VisionExperimentConfig):
     def _set_user_parameters(self):        
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
-        if os.name == 'nt':
-            LOG_PATH = 'C:\\_del'
-            EXPERIMENT_LOG_PATH = 'C:\\_del'
-            BASE_PATH= 'C:\\_del'
-        elif os.name == 'posix':
-            LOG_PATH = '/media/Common/visexpman_data/test'
-            EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data/test'
-            BASE_PATH= '/media/Common/visexpman_data/test'            
-        
-        ARCHIVE_PATH = BASE_PATH
-        CAPTURE_PATH = BASE_PATH
+        path = '/Users/rz/visexpman/data'
+        path = 'c:\\_del\\test'
+        LOG_PATH = path        
+        EXPERIMENT_LOG_PATH = path
+        ARCHIVE_PATH = path
+        CAPTURE_PATH = path
         ENABLE_PARALLEL_PORT = False
         UDP_ENABLE = False        
         FULLSCREEN = False
@@ -175,18 +170,13 @@ class ZoliTester(VisionExperimentConfig):
         ENABLE_FILTERWHEEL = False
         TEXT_ENABLE = False
         
-        #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
-        # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
-        
-        SEGMENT_DURATION = 2
         MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
-        ACTION_BETWEEN_STIMULUS = 'off'
 
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         COORDINATE_SYSTEM='ulcorner'
-            
+        ARCHIVE_FORMAT = 'hdf5'
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0        
+        FRAME_TRIGGER_PIN = 0
         self._create_parameters_from_locals(locals())
 
 if __name__ == "__main__":

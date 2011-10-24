@@ -563,22 +563,22 @@ class testVisexpRunner(unittest.TestCase):
             captured_file = open(captured_frame_path, 'rb')
             captured_data = captured_file.read(os.path.getsize(captured_frame_path))
             captured_file.close()
-            if os.name == 'posix':
+            if unit_test_runner.TEST_os == 'posix':
                 if reference_data != captured_data:
                     print reference_file_path
                     return False
-            elif os.name == 'nt':
+            else:
                 if reference_data != captured_data:                    
                     number_of_differing_pixels = (utils.string_to_array(reference_data) != utils.string_to_array(captured_data)).sum()/3.0
                     print 'number of differing pixels %f'%number_of_differing_pixels
                     if number_of_differing_pixels >= unit_test_runner.TEST_pixel_difference_threshold:
-                        print reference_file_path
+                        print reference_file_path, number_of_differing_pixels
                         return False
 
         return True
         
-    def check_experiment_log_for_visual_stimuli(self, experiment_log):
-        if os.name == 'posix':
+    def check_experiment_log_for_visual_stimuli(self, experiment_log):        
+        if sys.version.find('2.7.') != -1:        
             reference_strings = [
                 'show_fullscreen(0.0, [1.0, 1.0, 1.0])', 
                 'show_fullscreen(0.0, [0.0, 0.0, 0.0])', 
@@ -600,9 +600,15 @@ class testVisexpRunner(unittest.TestCase):
                 'show_dots(0.0, [100, 100], [array((0, 0),',  
                 'show_dots(0.0, [100, 100, 10], [array((0, 0),', 
                 'show_dots(0.0, [100, 100, 10], [array((0, 0), ', 
-                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])'
-                             ]
-        elif os.name == 'nt':
+                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])', 
+                'show_shape(, 0.0, (-50, 100), [1.0, 1.0, 1.0], None, 0.0, 200.0, 1.0)', 
+                'show_shape(circle, 0.1, (0, 0), 200, None, 0.0, (100.0, 200.0), 1.0)', 
+                'show_shape(r, 0.0, (0, 0), [1.0, 1.0, 1.0], (1.0, 0.0, 0.0), 0.0, 100.0, 1.0)', 
+                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], 120, 0.0, 100.0, 10.0)', 
+                'show_shape(r, 0.0, (0, 0), [1.0, 0.0, 0.0], None, 10, (200.0, 100.0), 1.0)', 
+                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], None, 0.0, (200.0, 100.0), 10.0)'                
+                             ]        
+        elif sys.version.find('2.6.') != -1: 
             reference_strings = [
                 'show_fullscreen(0.0, [1.0, 1.0, 1.0])', 
                 'show_fullscreen(0.0, [0.0, 0.0, 0.0])', 
@@ -612,7 +618,7 @@ class testVisexpRunner(unittest.TestCase):
                 'show_grating(0.0, sqr, 100, (0, 0), 45, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
                 'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
                 'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 0.5, 0.25, (0, 0))', 
-                'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, (1.0, 0.3, 0.0), (0.5, 0.85, 0.0), (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, (1.0, 0.29999999999999999, 0.0), (0.5, 0.84999999999999998, 0.0), (0, 0))', 
                 'show_grating(0.0, sqr, 10, (100, 100), 90, 0.0, 0.0, [1.0, 1.0, 1.0], 0.5, (0, 0))', 
                 'show_grating(0.0, sin, 20, (600, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
                 'show_grating(0.0, sin, 20, (0, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
@@ -624,7 +630,13 @@ class testVisexpRunner(unittest.TestCase):
                 'show_dots(0.0, [100, 100], [array((0, 0),',  
                 'show_dots(0.0, [100, 100, 10], [array((0, 0),', 
                 'show_dots(0.0, [100, 100, 10], [array((0, 0), ', 
-                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])'
+                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])', 
+                'show_shape(, 0.0, (-50, 100), [1.0, 1.0, 1.0], None, 0.0, 200.0, 1.0)', 
+                'show_shape(circle, 0.1, (0, 0), 200, None, 0.0, (100.0, 200.0), 1.0)', 
+                'show_shape(r, 0.0, (0, 0), [1.0, 1.0, 1.0], (1.0, 0.0, 0.0), 0.0, 100.0, 1.0)', 
+                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], 120, 0.0, 100.0, 10.0)', 
+                'show_shape(r, 0.0, (0, 0), [1.0, 0.0, 0.0], None, 10, (200.0, 100.0), 1.0)', 
+                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], None, 0.0, (200.0, 100.0), 10.0)'
                              ]
         for reference_string in reference_strings:
             if experiment_log.find(reference_string) == -1:               

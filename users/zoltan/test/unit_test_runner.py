@@ -17,7 +17,12 @@ if len(sys.argv) > 2:
             run_mode = 'full test'
         elif sys.argv[2] == '-h':
             run_mode = 'test without hardware'
-            
+
+TEST_os = os.name
+if hasattr(os,  'uname'):
+    if os.uname()[0] != 'Linux':
+        TEST_os = 'osx'
+
 #== Test parameters ==
 TEST_test = (run_mode != 'application')
 
@@ -28,22 +33,33 @@ TEST_enable_network = (run_mode == 'application')
 TEST_hardware_test = (run_mode == 'full test')
 
 #The maximal number of pixels that can differ from the reference frame at the testing the rendering of visual stimulation patterns
-TEST_pixel_difference_threshold = 10.0
+TEST_pixel_difference_threshold = 50.0
 
-if os.name == 'nt':
+if TEST_os == 'nt':
     TEST_reference_frames_folder = 'm:\\Raicszol\\visexpman\\test_data\\reference_frames_win'
-elif os.name == 'posix':
+elif TEST_os == 'posix':
     TEST_reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
+elif TEST_os == 'osx':
+    TEST_reference_frames_folder = '/Users/rz/visexpman/data/test_data/reference_frames_osx'
 
 #== Hardware config during test ==
 TEST_filterwheel_enable  = True #If set to False, many tests fail.
 
-if os.name == 'nt':
+if TEST_os == 'nt':
     TEST_com_port = 'COM4'
     TEST_working_folder = 'c:\\_del\\test'
-elif os.name == 'posix':
+    TEST_valid_file = 'c:\\windows\\win.ini'
+    TEST_invalid_file = 'c:\\windows'
+elif TEST_os == 'posix':
     TEST_com_port = '/dev/ttyUSB0'
     TEST_working_folder = '/media/Common/visexpman_data/test'
+    TEST_valid_file = '/home/zoltan/Downloads/qtgl.py'
+    TEST_invalid_file = '/home'
+elif TEST_os == 'osx':
+    TEST_com_port = ''
+    TEST_working_folder = '/Users/rz/visexpman/data/test'
+    TEST_valid_file = '/Users/rz/test_stimulus.py'
+    TEST_invalid_file = '/Users'
     
 TEST_daq = (os.name == 'nt') and TEST_hardware_test
 TEST_daq_device = 'Dev1'

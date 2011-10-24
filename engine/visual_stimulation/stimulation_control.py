@@ -37,7 +37,7 @@ import serial
 
  
 def experiment_file_name(experiment_config, folder, extension, name = ''):
-    experiment_class_name = str(experiment_config.runnable.__class__).split('.users.')[-1].split('.')[-1]
+    experiment_class_name = str(experiment_config.runnable.__class__).split('.users.')[-1].split('.')[-1].replace('\'', '').replace('>','')
     if name == '':
         name_ = ''
     else:
@@ -78,7 +78,7 @@ class ExperimentControl():
             self.prepare_experiment_run()
             #Message to screen, log experiment start
             self.caller.screen_and_keyboard.message += '\nexperiment started'
-            self.caller.log.info('Started experiment: ' + str(self.caller.selected_experiment_config.runnable.__class__))
+            self.caller.log.info('Started experiment: ' + utils.class_name(self.caller.selected_experiment_config.runnable))
             self.start_time = time.time()
             self.log.info('{0:2.3f}\tExperiment started at {1}'.format(time.time()-self.start_time, utils.datetime_string()))
             #Change visexprunner state
@@ -109,8 +109,10 @@ class Devices():
     '''
     def __init__(self, config, caller):
         self.config = config
-        self.caller = caller
+        self.caller = caller        
         self.parallel_port = instrument.ParallelPort(config, caller)
+        
+        
         self.filterwheels = []
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):
             self.number_of_filterwheels = len(config.FILTERWHEEL_SERIAL_PORT)
@@ -164,7 +166,7 @@ class DataHandler():
             self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self.caller)
         else:
             raise RuntimeError('Archive format is not defined. Please check the configuration!')
-        #Create zip file        
+        #Create zip file
         archive = zipfile.ZipFile(self.zip_file_path, "w")
         archive.write(module_versions_file_path, module_versions_file_path.replace(os.path.dirname(module_versions_file_path), ''))
         for python_module in self.visexpman_module_paths:
@@ -198,10 +200,7 @@ class TestConfig(configuration.Config):
 
         #filterwheel settings
         ENABLE_FILTERWHEEL = unit_test_runner.TEST_filterwheel_enable
-        if os.name == 'nt':
-            port = 'COM4'
-        elif os.name == 'posix':
-            port = '/dev/ttyUSB0'
+        port = unit_test_runner.TEST_com_port
         FILTERWHEEL_SERIAL_PORT = [[{
                                     'port' :  port,
                                     'baudrate' : 115200,
@@ -209,10 +208,8 @@ class TestConfig(configuration.Config):
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,
                                     }]]
-        if os.name == 'nt':
-            ARCHIVE_PATH = 'c:\\_del\\test'
-        elif os.name == 'posix':
-            ARCHIVE_PATH = '/media/Common/visexpman_data/test'
+        
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
         ARCHIVE_PATH = os.path.join(ARCHIVE_PATH, 'test')
         if not os.path.exists(ARCHIVE_PATH):
             os.mkdir(ARCHIVE_PATH)

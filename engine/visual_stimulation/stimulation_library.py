@@ -192,7 +192,6 @@ class Stimulations(command_handler.CommandHandler):
             color_to_set = utils.convert_color(color)
         self.log_on_flip_message = 'show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')'
         self.screen.clear_screen(color = color_to_set)        
-#        self._show_text()
         if duration == 0.0:
             if flip:
                 self._flip(trigger = True)
@@ -334,144 +333,90 @@ class Stimulations(command_handler.CommandHandler):
 #            self.screen.logOnFlip(str(frame_counter) + ' show_movie(' + video_file_path +  ', ' + str(position) + ')', psychopy.log.DATA)            
 #            if self.stimulation_control.abort_stimulus():
 #                break
-#            
-#    def show_shape(self,  shape = '',  duration = 0.0,  pos = (0,  0),  color = [1.0,  1.0,  1.0],  orientation = 0.0,  size = [0,  0],  formula = [],  ring_size = 1.0, flip = True):
-#        '''
-#        This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. Otherwise parametric control is available while the time defined by duration.
-#        
-#        The following parameters can be controlled: position, color, orientation
-#        
-#        Usage:
-#        1.  Show a single rectangle for one frame time, the default color is white, and the default position is in the center of the screen:
-#            show_shape(shape = 'rect',  duration = 0.0,  size = [10,  100])
-#        2. Show an annuli stimulus for 1 second
-#            show_shape(shape = 'annuli',  duration = 1.0,  color = [1.0, 0.0, 0.0], size = [210,  100],  ring_size = [50,  10])
-#        3. Show a rectangle with where position, orientation and color are parametrically controlled:
-#            #first set formula and parameters for parametric control
-#            parameters = []
-#            posx = ['100*sin(t)',  parameters]
-#            posy = ['100*cos(t)',  parameters]
-#            ori = ['',  []]  #unconfigured parametric control
-#            color_r = ['sin(t)',  parameters]
-#            color_g = ['cos(t)',  parameters]
-#            color_b = ['cos(t+pi*0.25)',  parameters]
-#            #the order of parametric control configurations matter
-#            formula = [posx,  posy,  ori, color_r,  color_g,  color_b]
-#            show_shape(shape = 'rect',  duration = 5.0,  size = [100,  200],  formula = formula)        
-#        '''
-#        
-#        position = pos
-#        converted_color = utils.convert_color(color)
-#        if  formula != []:
-#            parametric_control_enable = True
-#        else:
-#            parametric_control_enable = False
-#        
-#        if isinstance(size, int) or isinstance(size, float):
-#            size_adjusted = [size * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size * self.config.SCREEN_PIXEL_TO_UM_SCALE]
-#        else:
-#            size_adjusted = []
-#            for item in size:
-#                size_adjusted.append(item * self.config.SCREEN_PIXEL_TO_UM_SCALE)        
-#        
-#        #calculate the coordinates of the shape's vertices
-#        if shape == 'rect' or shape == 'rectangle':
-#            vertices = [[-0.5 * size_adjusted[0], -0.5 * size_adjusted[1]],  [-0.5 * size_adjusted[0], 0.5 * size_adjusted[1]],  [0.5 * size_adjusted[0], 0.5 * size_adjusted[1]],  [0.5 * size_adjusted[0], -0.5 * size_adjusted[1]]]
-#        elif shape == 'circle' or shape == 'annulus' or shape == 'annuli':
-#            vertices = utils.calculate_circle_vertices(size_adjusted,  1.0)
-#        
-#        if shape == 'annulus' or shape == 'annuli':
-#            if isinstance(ring_size, list):
-#                _ring_size = [size_adjusted[0] - ring_size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE]
-#            else:
-#                _ring_size = [size_adjusted[0] - ring_size * self.config.SCREEN_PIXEL_TO_UM_SCALE,  size_adjusted[1] - ring_size * self.config.SCREEN_PIXEL_TO_UM_SCALE]
-#            inner_circle_vertices = utils.calculate_circle_vertices(_ring_size,  1.0) 
-#        
-#        if duration == 0.0:            
-#            #show shape for a single frame
-#            self.screen.logOnFlip('show_shape(' + shape+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(converted_color)  + ', ' + str(orientation)  + ', ' + str(size) + ')',  psychopy.log.DATA)            
-#            self.shape.setVertices(vertices)
-#            self.shape.setFillColor(converted_color)            
-#            self.shape.setLineColor(converted_color)
-#            self.shape.setPos((position[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
-#            self.shape.setOri(orientation)            
-#            
-#            if shape == 'annulus' or shape == 'annuli':
-#                    self.inner_circle.setVertices(inner_circle_vertices) 
-#                    self.inner_circle.setFillColor(self.backgroundColor)                
-#                    self.inner_circle.setLineColor(self.backgroundColor)
-#                    self.inner_circle.setPos((position[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
-#                    self.inner_circle.setOri(orientation)
-#                    
-#            self.shape.draw()
-#            if flip:
-#            	self._flip(trigger = True)
-#        else:            
-#            #initialize parametric control
-#            if parametric_control_enable:
-#                #convert color to Presentinator color format so that parametric control could handle this format
-#                color_presentinator_format = utils.convert_color_from_pp(converted_color)                
-#                start_time = time.time()
-#                posx_pc = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
-#                posy_pc = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time) 
-#                ori_pc = visexpman.engine.generic.parametric_control.ParametricControl(orientation,  start_time)                 
-#                color_r_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[0],  start_time) 
-#                color_g_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[1],  start_time) 
-#                color_b_pc = visexpman.engine.generic.parametric_control.ParametricControl(color_presentinator_format[2],  start_time)          
-#                
-#                posx_pars = formula[0]
-#                posy_pars = formula[1]
-#                ori_pars = formula[2]
-#                color_r_pars = formula[3]
-#                color_g_pars = formula[4]
-#                color_b_pars = formula[5]
-#            
-#            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                                               
-#                #parametric control                
-#                if parametric_control_enable: 
-#                    actual_time_tick = time.time()                    
-#                    posx_pc.update(value = None,  parameters = posx_pars[1],  formula = posx_pars[0],  time_tick = actual_time_tick)                    
-#                    posy_pc.update(value = None,  parameters = posy_pars[1],  formula = posy_pars[0],  time_tick = actual_time_tick)                    
-#                    ori_pc.update(value = None,  parameters = ori_pars[1],  formula = ori_pars[0],  time_tick = actual_time_tick)                    
-#                    color_r_pc.update(value = None,  parameters = color_r_pars[1],  formula = color_r_pars[0],  time_tick = actual_time_tick)                    
-#                    color_g_pc.update(value = None,  parameters = color_g_pars[1],  formula = color_g_pars[0],  time_tick = actual_time_tick)                    
-#                    color_b_pc.update(value = None,  parameters = color_b_pars[1],  formula = color_b_pars[0],  time_tick = actual_time_tick)
-#                    position_to_set = (posx_pc.value,  posy_pc.value)
-#                    orientation_to_set = ori_pc.value
-#                    color_to_set = utils.convert_color((color_r_pc.value,  color_g_pc.value,  color_b_pc.value))
-#                else:
-#                    position_to_set = position                    
-#                    orientation_to_set = orientation                    
-#                    color_to_set = converted_color
-#
-#                self.screen.logOnFlip('show_shape(' + shape+ ', ' + str(duration) + ', ' + str(position_to_set) + ', ' + str(color_to_set)  + ', ' + str(orientation_to_set)  + ', ' + str(size) + ')',  psychopy.log.DATA)
-#                self.shape.setVertices(vertices)                 
-#                self.shape.setFillColor(color_to_set)                
-#                self.shape.setLineColor(color_to_set)  
-#                self.shape.setPos((position_to_set[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position_to_set[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
-#                self.shape.setOri(orientation_to_set)                
-#                
-#                if shape == 'annulus' or shape == 'annuli':
-#                    self.inner_circle.setVertices(inner_circle_vertices) 
-#                    self.inner_circle.setFillColor(self.backgroundColor)                
-#                    self.inner_circle.setLineColor(self.backgroundColor)
-#                    self.inner_circle.setPos((position_to_set[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  position_to_set[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE))
-#                    self.inner_circle.setOri(orientation_to_set)
-#                
-#                self.shape.draw() 
-#                if shape == 'annulus' or shape == 'annuli':
-#                    self.inner_circle.draw() 
-#                    
-#                if formula == []:
-#                    if i == 0:
-#                        self._flip(trigger = True)
-#                    else:
-#                        self._flip(trigger = False)
-#                else:
-#                    self._flip(trigger = True)
-#                    
-#                if self.stimulation_control.abort_stimulus():
-#                    break
+
+    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0):
+        '''
+        This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
+    
+        '''        
+        #Generate log messages
+        self.log_on_flip_message_initial = 'show_shape(' + str(shape)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color)  + ', ' + str(background_color)  + ', ' + str(orientation)  + ', ' + str(size)  + ', ' + str(ring_size) + ')'
+        self.log_on_flip_message_continous = 'show_shape'        
+        #Calculate number of frames
+        n_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
+        if n_frames == 0:
+            n_frames = 1
+        #convert um dimension parameters to pixel
+        if isinstance(size, float) or isinstance(size, int):        
+            size_pixel = utils.rc((size, size))        
+        elif isinstance(size, numpy.ndarray):   
+            size_pixel = size                
+        else:
+            raise RuntimeError('Parameter size is provided in an unsupported format')
+        size_pixel = utils.rc_multiply_with_constant(size_pixel, self.config.SCREEN_PIXEL_TO_UM_SCALE)        
+        pos_pixel = utils.rc_multiply_with_constant(pos, self.config.SCREEN_PIXEL_TO_UM_SCALE)        
+        #Calculate vertices
+        points_per_round = 360
+        if shape == 'circle' or shape == '' or shape == 'o' or shape == 'c':
+            shape_type = 'circle'
+            vertices = utils.calculate_circle_vertices([size_pixel['col'],  size_pixel['row']],  resolution = points_per_round / 360.0)#resolution is vertex per degree
+        elif shape == 'rect' or shape == 'rectangle' or shape == 'r' or shape == '||':
+            vertices = utils.rectangle_vertices(size_pixel, orientation = orientation)
+            shape_type = 'rectangle'
+        elif shape == 'annuli' or shape == 'annulus' or shape == 'a':
+            vertices_outer_ring = utils.calculate_circle_vertices([size_pixel['col'],  size_pixel['row']],  resolution = points_per_round / 360.0)#resolution is vertex per degree
+            vertices_inner_ring = utils.calculate_circle_vertices([size_pixel['col'] - ring_size,  size_pixel['row'] - ring_size],  resolution = points_per_round / 360.0)#resolution is vertex per degree
+            vertices = numpy.zeros(shape = (vertices_outer_ring.shape[0] * 2, 2))
+            vertices[:vertices_outer_ring.shape[0]] = vertices_outer_ring
+            vertices[vertices_outer_ring.shape[0]:] = vertices_inner_ring
+            shape_type = 'annulus'            
+        vertices = vertices + numpy.array([pos_pixel['col'], pos_pixel['row']])
+        n_vertices = vertices.shape[0]
+
+        #Set color
+        glColor3fv(utils.convert_color(color))
+        if background_color != None:
+            background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
+            converted_background_color = utils.convert_color(background_color)
+            glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
+        else:
+            converted_background_color = utils.convert_color(self.config.BACKGROUND_COLOR)        
+        
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        first_flip = False
+        for frame_i in range(n_frames):
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            if shape_type != 'annulus':
+                glDrawArrays(GL_POLYGON,  0, n_vertices)
+            else:
+                n = int(n_vertices/2)                
+                glColor3fv(utils.convert_color(converted_background_color))
+                glDrawArrays(GL_POLYGON,  n, n)
+                glColor3fv(utils.convert_color(color))
+                glDrawArrays(GL_POLYGON,  0, n)
+            #Make sure that at the first flip the parameters of the function call are logged
+            if not first_flip:
+                self.log_on_flip_message = self.log_on_flip_message_initial
+                first_flip = True
+            else:
+                self.log_on_flip_message = self.log_on_flip_message_continous
+            if frame_i == 0:
+                self._flip(trigger = True)
+            else:
+                self._flip(trigger = False)
+            if self.abort:
+                self.abort = False
+                break
+            if self.abort:
+                self.abort = False
+                break
+                
+        glDisableClientState(GL_VERTEX_ARRAY)        
+        #Restore original background color
+        if background_color != None:            
+            glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
+        
 #                    
 #    def show_checkerboard(self,   n_checkers,  duration = 0.0,  pos = (0,  0),  color = [],  box_size = (0, 0), flip = True):
 #        '''
@@ -819,6 +764,7 @@ class Stimulations(command_handler.CommandHandler):
         that on each frame the number of dots are equal.
         
         '''
+        #TODO: add support for showing rectangles and annuli
         self.log_on_flip_message_initial = 'show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')'
         self.log_on_flip_message_continous = 'show_dots'
         first_flip = False

@@ -2,6 +2,7 @@ import os.path
 import numpy
 import unittest
 import os
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 class InvalidParameterValue(Exception):
     pass
@@ -200,20 +201,12 @@ class testParameter(unittest.TestCase):
         value = '/home/unknown_user'
         self.assertRaises(IOError,  Parameter,  value,  is_path = True)
         
-    def test_03_valid_file_parameter(self):        
-        if os.name == 'nt':
-            value = 'c:\windows\win.ini'
-        elif os.name == 'posix':        
-            value = '/home/zoltan/Downloads/qtgl.py'
-        p = Parameter(value,  is_file = True)
-        self.assertEqual((p._type,  p.v),  ('file', value))
+    def test_03_valid_file_parameter(self):     
+        p = Parameter(unit_test_runner.TEST_valid_file,  is_file = True)
+        self.assertEqual((p._type,  p.v),  ('file', unit_test_runner.TEST_valid_file))
         
     def test_04_invalid_file_parameter(self):
-        if os.name == 'nt':
-            value = 'c:\windows'
-        elif os.name == 'posix':
-            value = '/home/'
-        self.assertRaises(IOError,  Parameter,  value,  is_file = True)
+        self.assertRaises(IOError,  Parameter, unit_test_runner.TEST_invalid_file,  is_file = True)
         
     def test_05_invalid_file_parameter(self):
         value = '/home/test.txt'
@@ -413,5 +406,3 @@ class testParameter(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-    

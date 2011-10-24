@@ -197,6 +197,21 @@ class TestExp1(experiment.Experiment):
         self.parallel_port.set_data_bit(0, 0)
         time.sleep(0.1)
         self.parallel_port.set_data_bit(0, 1)
+        
+        wait = 0.8
+        self.show_shape(size = 200.0, pos = utils.cr((-50, 100)))
+        time.sleep(wait)
+        self.show_shape(shape = 'circle', color = 200, duration = 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, size = utils.cr((100.0, 200.0)))
+        time.sleep(wait)
+        self.show_shape(shape = 'r', size = 100.0, background_color = 100)
+        time.sleep(wait)
+        self.show_shape(shape = 'a', size = 100.0, background_color = 120, ring_size = 10.0)
+        time.sleep(wait)
+        self.show_shape(shape = 'a', size = utils.rc((100.0, 110)), ring_size = 10.0)
+        time.sleep(wait)
+        self.show_shape(shape = 'r', size = utils.rc((100.0, 110)), color = [1.0, 0.0,0.0], orientation = 45)
+        time.sleep(wait)
+        
         self.show_grating(duration =1.0, profile = 'sqr', orientation = 0, velocity =50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
         if self.command_buffer.find('dummy') != -1:
             self.show_grating(duration =10.0, profile = 'sqr', orientation = 0, velocity = 50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)

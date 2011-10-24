@@ -2,11 +2,12 @@
 try:
     import serial
 except:
-    pass
+        pass
+        
 import os
 import unittest
 import time
-import parallel
+
 import visexpman.engine.generic.configuration
 import visexpman.engine.generic.utils as utils
 import logging
@@ -100,7 +101,15 @@ class Instrument():
 #    def __del__(self):        
 #        self.release_instrument()
 
-class ParallelPort(Instrument, parallel.Parallel):
+try:
+    import parallel
+    class InstrumentWithParallel(Instrument, parallel.Parallel):
+        pass
+    parallel_port_ancestors = InstrumentWithParallel
+except ImportError:
+    parallel_port_ancestors = Instrument
+
+class ParallelPort(parallel_port_ancestors):
     '''
     This class stores the values of the data lines of parallel port to ensure bit level control of these pins.
     '''
@@ -118,8 +127,7 @@ class ParallelPort(Instrument, parallel.Parallel):
         self.setData(self.iostate['data'])
         self.setDataStrobe(self.iostate['data_strobe'])
         self.setAutoFeed(self.iostate['auto_feed'])
-
-
+        
     def set_data_bit(self, bit, value,  log = True):
         '''
         This function is to be called to change the value of one data bit
@@ -145,18 +153,25 @@ class ParallelPort(Instrument, parallel.Parallel):
                 self.log_during_experiment('Parallel port data bits set to %i' % self.iostate['data'])                
                     
     def close_instrument(self):
-        if self.config.ENABLE_PARALLEL_PORT:
-           if os.name == 'nt':
+        if self.config.ENABLE_PARALLEL_PORT:            
+            if os.name == 'nt':
                 if hasattr(parallel.Parallel, '__del__'):
                     parallel.Parallel.__del__(self)
-           elif os.name == 'posix':
+            elif os.name == 'posix':
                parallel.Parallel.__del__(self)
+
+#            if os.name == 'nt':
+#                if hasattr(parallel.Parallel, '__del__'):
+#                    self.parallel.__del__()
+#            elif os.name == 'posix':
+#               self.parallel.__del__()
                
         #here a small delay may be inserted        
 
     def __del__(self):
         #Here we need to override the destructor of parallel.Parallel so that the ParallelPort class could be recalled
-        pass
+        pass        
+
 
 class Shutter(Instrument):
     def init_communication_interface(self):
