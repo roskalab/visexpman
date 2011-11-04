@@ -59,14 +59,12 @@ class VisExpRunner(object):
         self.command_queue = Queue.Queue()
         #In test_mode the network operations are disabled
         if unit_test_runner.TEST_enable_network:
-            self.tcpip_listener = network_interface.NetworkListener(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
+            self.tcpip_listener = network_interface.NetworkListener(self.config, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
             self.tcpip_listener.start()
         #Start udp listener if not in test mode
         if self.config.ENABLE_UDP and unit_test_runner.TEST_enable_network:            
-            self.udp_listener = network_interface.NetworkListener(self.config, self, socket.SOCK_DGRAM, self.config.UDP_PORT)
+            self.udp_listener = network_interface.NetworkListener(self.config, self.command_queue, socket.SOCK_DGRAM, self.config.UDP_PORT)
             self.udp_listener.start()
-            self.udp_listener.wait(10000)
-            print('wait')
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
         self.loop_state = 'running'

@@ -23,24 +23,27 @@ class NetworkListener(QtCore.QThread):
         self.socket_type = socket_type
         #set up socket
         self.socket = socket.socket(socket.AF_INET, self.socket_type)
+        #self.socket.setblocking(0)
         # Bind the socket to the port
         server_address = (self.config.SERVER_IP, port)
         self.socket.bind(server_address)
-        if self.socket_type ==  socket.SOCK_DGRAM:
+        if 1 and self.socket_type ==  socket.SOCK_DGRAM:
             self.socket.settimeout(0.001)
-        
+        self.sleep_sec=0
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
     def run(self):
         if self.socket_type ==  socket.SOCK_STREAM:
             self.socket.listen(1)
-            while True:
-                #Connections are not accepted during experiment
-                if 1:#self.caller.state == 'ready':
+            #print('listening')
+            while True: #this while loop is intended to revive listening after an error?
+                if self.sleep_sec==0:
                     connection, client_address = self.socket.accept()
+                    #print(str(self.sleep_sec))
                     try:
                         data = ''
-                        while True:
+                        while True and sleep_sec==0:
+                            #print(self.sleep_sec)
                             newdata = connection.recv(16)
                             data = data+newdata
                             if len(newdata)==0:
@@ -52,37 +55,43 @@ class NetworkListener(QtCore.QThread):
                     finally:
                         # Clean up the connection
                         connection.close()
+                else:
+                    self.sleep(self.sleep_sec)
+                    self.sleep_sec=0
+                    #print('slept enough')
         elif self.socket_type ==  socket.SOCK_DGRAM:
             while True:
-                try:
-                    udp_buffer, addr = self.socket.recvfrom(self.config.UDP_BUFFER_SIZE)
-                    self.client_address = addr
-#                    print udp_buffer
-                    #TODO: here comes the presentinator command translator
-                    self.caller.command_queue.put(udp_buffer)
-#                 except socket.timeout:
-#                     pass
-                except:
-                    pass
+                if self.sleep_sec==0:
+                    try:
+                        udp_buffer, addr = self.socket.recvfrom(self.config.UDP_BUFFER_SIZE)
+                        self.client_address = addr
+    #                    print udp_buffer
+                        #TODO: here comes the presentinator command translator
+                        self.caller.command_queue.put(udp_buffer)
+    #                 except socket.timeout:
+    #                     pass
+                    except:
+                        pass
+                else:
+                    self.sleep(self.sleep_sec)
+                    self.sleep_sec=0
+                    print('slept')
                     
     def close(self):
 #        if self.socket_type ==  socket.SOCK_STREAM:
 #            self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
-        #Terminate thread
-        self.terminate()
-        self.wait()
     
+
 
 class NetworkSender(QtCore.QThread):    
     '''
     '''
-    def __init__(self, config, caller, socket_type, port):
+    def __init__(self, config, socket_type, port):
         target = None
         name = None
         QtCore.QThread.__init__(self)
         self.config = config
-        self.caller = caller
         self.port = port
         self.socket_type = socket_type
 
@@ -117,7 +126,7 @@ class testRunner():
     def run(self):
         print 'test runner started'        
         config = NetworkInterfaceTestConfig()
-        listener = NetworkListener(config, self, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
+        listener = NetworkListener(config, self.command_queue, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
         sender1 = NetworkSender(config, self, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
         sender2 = NetworkSender(config, self, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
         listener.start()
@@ -137,8 +146,8 @@ class testNetworkInterface(unittest.TestCase):
 
     def test_01_single_sender(self):
         self.command_queue = Queue.Queue()        
-        self.listener1 = NetworkListener(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
-        sender = NetworkSender(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
+        self.listener1 = NetworkListener(self.config, self.command_queue.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
+        sender = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
         self.listener1.start()
         sender.start()
         if os.name == 'nt':
@@ -156,9 +165,9 @@ class testNetworkInterface(unittest.TestCase):
         
     def test_02_multiple_tcpip_senders(self):
         self.command_queue = Queue.Queue()        
-        self.listener2 = NetworkListener(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
-        sender1 = NetworkSender(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
-        sender2 = NetworkSender(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
+        self.listener2 = NetworkListener(self.config, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
+        sender1 = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
+        sender2 = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
         self.listener2.start()
         sender1.start()
         if os.name == 'nt':
@@ -184,14 +193,14 @@ class testNetworkInterface(unittest.TestCase):
 #        #This test case does not work because a previously used socket cannot be reused
 #        response = ''
 #        self.command_queue = Queue.Queue()        
-#        self.listener3 = NetworkListener(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 1)
-#        sender1 = NetworkSender(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 1)
+#        self.listener3 = NetworkListener(self.config, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 1)
+#        sender1 = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 1)
 #        self.listener3.start()
 #        sender1.start()
 #        time.sleep(2.5)
 #        self.listener3.close()        
-#        self.listener4 = NetworkListener(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 1)
-#        sender2 = NetworkSender(self.config, self, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 1)
+#        self.listener4 = NetworkListener(self.config, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 1)
+#        sender2 = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 1)
 #        sender2.start()         
 #        time.sleep(2.5)
 #        while not self.command_queue.empty():
