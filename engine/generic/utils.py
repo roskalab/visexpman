@@ -131,6 +131,19 @@ def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  col
     image.show()
     print numpy.asarray(image)
     return numpy.asarray(image)
+    
+def rectangle_vertices(size, orientation = 0):
+    alpha = numpy.arctan(float(size['row'])/float(size['col']))
+    angles = numpy.array([alpha, numpy.pi - alpha, numpy.pi + alpha, - alpha])
+    angles += orientation * numpy.pi / 180.0
+    half_diagonal = 0.5 * numpy.sqrt(size['row'] ** 2 + size['col'] ** 2)
+    vertices = []
+    for angle in angles:
+        vertice = [numpy.cos(angle), numpy.sin(angle)]
+        vertices.append(vertice)
+    vertices = numpy.array(vertices)
+    vertices *= half_diagonal
+    return vertices    
 
 def calculate_circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  end_angle = 360, pos = (0,0),  arc_slice = False):
     '''
@@ -158,7 +171,7 @@ def calculate_circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  en
         end_angle_rad = end_angle * math.pi / 180.0
         angle = numpy.linspace(start_angle_rad,  end_angle_rad, n_vertices_arc)        
         x = 0.5 * diameter[0] * numpy.cos(angle) + pos[0]
-        y = 0.5 * diameter[0] * numpy.sin(angle) + pos[1]
+        y = 0.5 * diameter[1] * numpy.sin(angle) + pos[1]
         vertices[0:n_vertices_arc, 0] = x
         vertices[0:n_vertices_arc, 1] = y      
     
@@ -322,6 +335,10 @@ def arc_perimeter(radius,  angle):
     return numpy.pi  * 2 *radius * slice_ratio
     
 #== Application management ==    
+def class_name(object):
+    name = str(object.__class__)
+    return name.split('\'')[1]
+    
 def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_ancestors=[], direct=True):
     '''Looks for the specified class, imports it and returns as class instance.
     Use cases:
@@ -471,6 +488,10 @@ def module_versions(modules):
     'multiprocessing':'standard', 
     'gc': 'standard',
     'PyDAQmx' : '__version__',
+    'contextlib' : 'standard', 
+    'weakref' : 'standard', 
+    'sip': 'SIP_VERSION_STR', 
+    'Helpers.py' : 'version', 
     
     }    
     module_version = ''
@@ -489,7 +510,7 @@ def module_versions(modules):
             else:
                 module_version += '%s\n'%(module)
         except KeyError:
-            raise RuntimeError('This module is not in the version list: %s. Update list in utils.module_versions() function' % module)    
+            raise RuntimeError('This module is not in the version list: %s. Update list in utils.module_versions() function' % str(module))
     return module_version
     
 #== Experiment specific ==

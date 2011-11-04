@@ -22,7 +22,8 @@ import visexpman.users as users
 
 import visexpman.engine.hardware_interface.instrument as instrument
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
-#import visexpA.engine.datahandlers.hdf5io as hdf5io
+import visexpA.engine.datahandlers.hdf5io as hdf5io
+
 import os
 import logging
 import zipfile
@@ -36,7 +37,7 @@ import serial
 
  
 def experiment_file_name(experiment_config, folder, extension, name = ''):
-    experiment_class_name = str(experiment_config.runnable.__class__).split('.users.')[-1].split('.')[-1]
+    experiment_class_name = str(experiment_config.runnable.__class__).split('.users.')[-1].split('.')[-1].replace('\'', '').replace('>','')
     if name == '':
         name_ = ''
     else:
@@ -77,7 +78,7 @@ class ExperimentControl():
             self.prepare_experiment_run()
             #Message to screen, log experiment start
             self.caller.screen_and_keyboard.message += '\nexperiment started'
-            self.caller.log.info('Started experiment: ' + str(self.caller.selected_experiment_config.runnable.__class__))
+            self.caller.log.info('Started experiment: ' + utils.class_name(self.caller.selected_experiment_config.runnable))
             self.start_time = time.time()
             self.log.info('{0:2.3f}\tExperiment started at {1}'.format(time.time()-self.start_time, utils.datetime_string()))
             #Change visexprunner state
@@ -108,8 +109,10 @@ class Devices():
     '''
     def __init__(self, config, caller):
         self.config = config
-        self.caller = caller
+        self.caller = caller        
         self.parallel_port = instrument.ParallelPort(config, caller)
+        
+        
         self.filterwheels = []
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):
             self.number_of_filterwheels = len(config.FILTERWHEEL_SERIAL_PORT)
@@ -119,9 +122,9 @@ class Devices():
         for id in range(self.number_of_filterwheels):
             self.filterwheels.append(instrument.Filterwheel(config, caller, id =id))
 
-        if hasattr(self.config, 'LED_CONTROLLER_INSTRUMENT_INDEX') and hasattr(self.config, 'DAQ_CONFIG'):
+#        if hasattr(self.config, 'LED_CONTROLLER_INSTRUMENT_INDEX') and hasattr(self.config, 'DAQ_CONFIG'):
 #             if self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ENABLE'] and self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ANALOG_CONFIG'] == 'ao':
-                self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)
+        self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)
 
     def close(self):        
         self.parallel_port.release_instrument()
@@ -159,10 +162,11 @@ class DataHandler():
             self.zip_file_path = experiment_file_name(self.caller.selected_experiment_config, zip_folder, 'zip')
         elif self.config.ARCHIVE_FORMAT == 'hdf5':
             self.zip_file_path = tempfile.mktemp()
-#            self.hdf5_handler = hdf5io.Hdf5io(experiment_file_name(self.caller.selected_experiment_config, self.config.ARCHIVE_PATH, 'hdf5') , self.config, self.caller)
+            self.hdf5_path = experiment_file_name(self.caller.selected_experiment_config, self.config.ARCHIVE_PATH, 'hdf5')
+            self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self.caller)
         else:
             raise RuntimeError('Archive format is not defined. Please check the configuration!')
-        #Create zip file        
+        #Create zip file
         archive = zipfile.ZipFile(self.zip_file_path, "w")
         archive.write(module_versions_file_path, module_versions_file_path.replace(os.path.dirname(module_versions_file_path), ''))
         for python_module in self.visexpman_module_paths:
@@ -174,11 +178,16 @@ class DataHandler():
         f = open(self.zip_file_path, 'rb')
         archive_binary = f.read(os.path.getsize(self.zip_file_path))
         f.close()
-        archive_binary_in_bytes = []
+        self.archive_binary_in_bytes = []
         for byte in list(archive_binary):
-            archive_binary_in_bytes.append(ord(byte))
-        archive_binary_in_bytes = numpy.array(archive_binary_in_bytes, dtype = numpy.uint8)
+            self.archive_binary_in_bytes.append(ord(byte))
+        self.archive_binary_in_bytes = numpy.array(self.archive_binary_in_bytes, dtype = numpy.uint8)
+        if self.config.ARCHIVE_FORMAT == 'hdf5':
+            self.hdf5_handler.visexprunner_archive = self.archive_binary_in_bytes
+            self.hdf5_handler.save('visexprunner_archive')
+            self.hdf5_handler.close()
         #Restoring it to zip file: utils.numpy_array_to_file(archive_binary_in_bytes, '/media/Common/test.zip')
+        
 
 class TestConfig(configuration.Config):
     def _create_application_parameters(self):
@@ -191,10 +200,7 @@ class TestConfig(configuration.Config):
 
         #filterwheel settings
         ENABLE_FILTERWHEEL = unit_test_runner.TEST_filterwheel_enable
-        if os.name == 'nt':
-            port = 'COM4'
-        elif os.name == 'posix':
-            port = '/dev/ttyUSB0'
+        port = unit_test_runner.TEST_com_port
         FILTERWHEEL_SERIAL_PORT = [[{
                                     'port' :  port,
                                     'baudrate' : 115200,
@@ -202,10 +208,8 @@ class TestConfig(configuration.Config):
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,
                                     }]]
-        if os.name == 'nt':
-            ARCHIVE_PATH = 'c:\\_del\\test'
-        elif os.name == 'posix':
-            ARCHIVE_PATH = '/media/Common/visexpman_data/test'
+        
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
         ARCHIVE_PATH = os.path.join(ARCHIVE_PATH, 'test')
         if not os.path.exists(ARCHIVE_PATH):
             os.mkdir(ARCHIVE_PATH)

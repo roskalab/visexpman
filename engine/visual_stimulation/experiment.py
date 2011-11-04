@@ -36,7 +36,7 @@ class Experiment(stimulation_library.Stimulations):
         self.machine_config = machine_config
         self.caller = caller
         stimulation_library.Stimulations.__init__(self, self.machine_config, self.caller)
-        self.caller.log.info('init experiment %s'%(str(self.__class__)))
+        self.caller.log.info('init experiment %s'%(utils.class_name(self)))
             
     def set_experiment_control_context(self):
         '''

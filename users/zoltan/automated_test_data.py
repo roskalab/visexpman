@@ -36,6 +36,24 @@ class VerySimpleExperimentConfig(experiment.ExperimentConfig):
 class VerySimpleExperiment(experiment.Experiment):
     def run(self):
         self.show_fullscreen(duration = 0.0, color = 1.0)
+        
+#== Hdf5 archiving ==
+
+class Hdf5TestConfig(VisionExperimentConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
+        #paths
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        
+        #screen
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+
+        COORDINATE_SYSTEM='center'
+        ARCHIVE_FORMAT = 'hdf5'
+        self._create_parameters_from_locals(locals())
 
 #== Abortable experiment ==
 class AbortableExperimentTestConfig(VisionExperimentConfig):
@@ -109,7 +127,7 @@ class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
         #screen
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.cr([800, 600])
-        
+
         #Hardware configuration
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 0
@@ -120,9 +138,9 @@ class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    'bytesize' : serial.EIGHTBITS,
                                     }]]
-                                    
+
         DAQ_CONFIG = [[
                     {
                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
@@ -334,3 +352,12 @@ class VisualStimulationsExperiment(experiment.Experiment):
         dot_positions = numpy.array([utils.cr((0, 0)), utils.cr((200, 0)), utils.cr((200, 200)), utils.cr((0, 0)), utils.cr((200, 0)), utils.cr((100, 100))])
         color = numpy.array([[[1.0,  1.0,  0.0], [1.0,  0.0,  0.0], [0.0,  0.0,  1.0]], [[1.0,  1.0,  0.0], [1.0,  0.0,  0.0], [0.0,  0.0,  1.0]]])
         self.show_dots(dot_sizes, dot_positions, ndots, duration = 2.0/self.config.SCREEN_EXPECTED_FRAME_RATE, color = color)
+        #Test show_shape
+        self.show_shape(size = 200.0, pos = utils.cr((-50, 100)))        
+        self.show_shape(shape = 'circle', color = 200, duration = 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, size = utils.cr((100.0, 200.0)))
+        self.show_shape(shape = 'r', size = 100.0, background_color = (1.0, 0.0, 0.0))        
+        self.show_shape(shape = 'a', size = 100.0, background_color = 120, ring_size = 10.0) 
+        self.add_text('TEST', color = (0.0,  0.0,  1.0), position = utils.cr((200.0, 100.0)))
+        self.show_shape(shape = 'r', size = utils.rc((100.0, 200)), color = [1.0, 0.0,0.0], orientation = 10)
+        self.disable_text()
+        self.show_shape(shape = 'a', size = utils.rc((100.0, 200)), ring_size = 10.0) 

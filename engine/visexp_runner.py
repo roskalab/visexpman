@@ -257,7 +257,7 @@ class testVisexpRunner(unittest.TestCase):
                         zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
                         self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', ''))), 
                         (True, True, True, True, True, True, True, True, True))
-                
+                        
     def test_09_abort_experiment(self):
         commands = [
                     [0.01,'SOCexecute_experimentEOC'],                     
@@ -479,6 +479,41 @@ class testVisexpRunner(unittest.TestCase):
                 ),
                 (True, True, True, True, True, True, True, True, True, True, True))
     #TODO: test case for um_to_pixel_scale parameter
+    
+    def test_16_hdf5io_archiving(self):
+        '''
+        The followings are tested:
+        -application log
+        -experiment log
+        -content of hdf5io archive
+        -experiment_control class
+        '''
+        commands = [
+                    [0.01,'SOCexecute_experimentEOC'], 
+                    [0.01,'SOCquitEOC'], 
+                    ]
+        config_name = 'Hdf5TestConfig'
+        
+        v = VisExpRunner('zoltan', config_name)
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+        #Read logs
+        log = utils.read_text_file(v.logfile_path)
+        experiment_log = utils.read_text_file(v.experiment_control.logfile_path)
+        #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
+        self.assertEqual(
+                         (self.check_application_log(log), 
+                         self.check_experiment_log(experiment_log), 
+                         experiment_log.find('show_fullscreen(0.0, [1.0, 1.0, 1.0])') != -1, 
+                        log.find('init experiment visexpman.users.') != -1, 
+                        log.find('Started experiment: visexpman.users.') != -1, 
+                        log.find('Experiment complete') != -1, 
+                        log.find('Command handler: experiment executed') != -1,                         
+                        self.check_hdf5_file(v)), 
+                        (True, True, True, True, True, True, True, True))
+    
 
 #== Test helpers ==
     def check_application_log(self, log):
@@ -510,6 +545,17 @@ class testVisexpRunner(unittest.TestCase):
         else:
             return False
             
+    def check_hdf5_file(self, visexp_runner):
+        
+        reference_data = visexp_runner.experiment_control.data_handler.archive_binary_in_bytes
+        hdf5_path = visexp_runner.experiment_control.data_handler.hdf5_path
+        import visexpA.engine.datahandlers.hdf5io as hdf5io
+        hdf5_handler = hdf5io.Hdf5io(hdf5_path)
+        hdf5_handler.load('visexprunner_archive')        
+        result =  ((hdf5_handler.visexprunner_archive == reference_data).sum() == reference_data.shape[0])
+        hdf5_handler.close()        
+        return result
+            
     def check_captured_frames(self, capture_folder, reference_folder):
         for reference_file_path in utils.listdir_fullpath(reference_folder):
             reference_file = open(reference_file_path, 'rb')
@@ -519,22 +565,22 @@ class testVisexpRunner(unittest.TestCase):
             captured_file = open(captured_frame_path, 'rb')
             captured_data = captured_file.read(os.path.getsize(captured_frame_path))
             captured_file.close()
-            if os.name == 'posix':
+            if unit_test_runner.TEST_os == 'posix':
                 if reference_data != captured_data:
                     print reference_file_path
                     return False
-            elif os.name == 'nt':
+            else:
                 if reference_data != captured_data:                    
                     number_of_differing_pixels = (utils.string_to_array(reference_data) != utils.string_to_array(captured_data)).sum()/3.0
                     print 'number of differing pixels %f'%number_of_differing_pixels
                     if number_of_differing_pixels >= unit_test_runner.TEST_pixel_difference_threshold:
-                        print reference_file_path
+                        print reference_file_path, number_of_differing_pixels
                         return False
 
         return True
         
-    def check_experiment_log_for_visual_stimuli(self, experiment_log):
-        if os.name == 'posix':
+    def check_experiment_log_for_visual_stimuli(self, experiment_log):        
+        if sys.version.find('2.7.') != -1:        
             reference_strings = [
                 'show_fullscreen(0.0, [1.0, 1.0, 1.0])', 
                 'show_fullscreen(0.0, [0.0, 0.0, 0.0])', 
@@ -556,9 +602,15 @@ class testVisexpRunner(unittest.TestCase):
                 'show_dots(0.0, [100, 100], [array((0, 0),',  
                 'show_dots(0.0, [100, 100, 10], [array((0, 0),', 
                 'show_dots(0.0, [100, 100, 10], [array((0, 0), ', 
-                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])'
-                             ]
-        elif os.name == 'nt':
+                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])', 
+                'show_shape(, 0.0, (-50, 100), [1.0, 1.0, 1.0], None, 0.0, 200.0, 1.0)', 
+                'show_shape(circle, 0.1, (0, 0), 200, None, 0.0, (100.0, 200.0), 1.0)', 
+                'show_shape(r, 0.0, (0, 0), [1.0, 1.0, 1.0], (1.0, 0.0, 0.0), 0.0, 100.0, 1.0)', 
+                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], 120, 0.0, 100.0, 10.0)', 
+                'show_shape(r, 0.0, (0, 0), [1.0, 0.0, 0.0], None, 10, (200.0, 100.0), 1.0)', 
+                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], None, 0.0, (200.0, 100.0), 10.0)'                
+                             ]        
+        elif sys.version.find('2.6.') != -1: 
             reference_strings = [
                 'show_fullscreen(0.0, [1.0, 1.0, 1.0])', 
                 'show_fullscreen(0.0, [0.0, 0.0, 0.0])', 
@@ -568,7 +620,7 @@ class testVisexpRunner(unittest.TestCase):
                 'show_grating(0.0, sqr, 100, (0, 0), 45, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
                 'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 1.0, 0.5, (0, 0))', 
                 'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, 0.5, 0.25, (0, 0))', 
-                'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, (1.0, 0.3, 0.0), (0.5, 0.85, 0.0), (0, 0))', 
+                'show_grating(0.0, sqr, 100, (0, 0), 90, 0.0, 50.0, (1.0, 0.29999999999999999, 0.0), (0.5, 0.84999999999999998, 0.0), (0, 0))', 
                 'show_grating(0.0, sqr, 10, (100, 100), 90, 0.0, 0.0, [1.0, 1.0, 1.0], 0.5, (0, 0))', 
                 'show_grating(0.0, sin, 20, (600, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
                 'show_grating(0.0, sin, 20, (0, 600), 10, 0.0, 0.0, 0.5, 0.25, (0, 0))', 
@@ -580,7 +632,13 @@ class testVisexpRunner(unittest.TestCase):
                 'show_dots(0.0, [100, 100], [array((0, 0),',  
                 'show_dots(0.0, [100, 100, 10], [array((0, 0),', 
                 'show_dots(0.0, [100, 100, 10], [array((0, 0), ', 
-                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])'
+                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])', 
+                'show_shape(, 0.0, (-50, 100), [1.0, 1.0, 1.0], None, 0.0, 200.0, 1.0)', 
+                'show_shape(circle, 0.1, (0, 0), 200, None, 0.0, (100.0, 200.0), 1.0)', 
+                'show_shape(r, 0.0, (0, 0), [1.0, 1.0, 1.0], (1.0, 0.0, 0.0), 0.0, 100.0, 1.0)', 
+                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], 120, 0.0, 100.0, 10.0)', 
+                'show_shape(r, 0.0, (0, 0), [1.0, 0.0, 0.0], None, 10, (200.0, 100.0), 1.0)', 
+                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], None, 0.0, (200.0, 100.0), 10.0)'
                              ]
         for reference_string in reference_strings:
             if experiment_log.find(reference_string) == -1:               

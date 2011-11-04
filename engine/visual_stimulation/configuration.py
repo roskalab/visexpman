@@ -271,15 +271,11 @@ class TestConfig(visexpman.engine.generic.configuration.Config):
     
 class RedundantCommandConfig1(VisionExperimentConfig):
     def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
-        #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = os.path.join(path,'test')
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'
+        path = unit_test_runner.TEST_working_folder
+        LOG_PATH = path
+        EXPERIMENT_LOG_PATH = path
+        ARCHIVE_PATH = path
         ARCHIVE_FORMAT = 'zip'
         COORDINATE_SYSTEM='center'
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'dummy1': {'key': 'e', 'domain': ['running experiment']}, 'dummy': {'key': 'w', 'domain': ['running experiment']},}
@@ -287,15 +283,11 @@ class RedundantCommandConfig1(VisionExperimentConfig):
         
 class RedundantCommandConfig2(VisionExperimentConfig):
     def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
-        #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = os.path.join(path,'test')
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'
+        path = unit_test_runner.TEST_working_folder
+        LOG_PATH = path
+        EXPERIMENT_LOG_PATH = path
+        ARCHIVE_PATH = path
         ARCHIVE_FORMAT = 'zip'
         COORDINATE_SYSTEM='center'
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'dummy1': {'key': 'e', 'domain': ['running experiment']}, }
@@ -303,15 +295,11 @@ class RedundantCommandConfig2(VisionExperimentConfig):
 
 class RedundantCommandConfig3(VisionExperimentConfig):
     def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
-        #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = os.path.join(path,'test')
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')
+        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'
+        path = unit_test_runner.TEST_working_folder
+        LOG_PATH = path
+        EXPERIMENT_LOG_PATH = path
+        ARCHIVE_PATH = path
         ARCHIVE_FORMAT = 'zip'
         COORDINATE_SYSTEM='center'
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'bullseye': {'key': 'x', 'domain': ['running experiment']},}
@@ -320,14 +308,10 @@ class RedundantCommandConfig3(VisionExperimentConfig):
 class NonRedundantCommandConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
-        #paths
-        if os.name == 'nt':
-            path = 'c:\\_del'
-        elif os.name == 'posix':
-            path = '/media/Common/visexpman_data'
-        LOG_PATH = os.path.join(path,'test')
-        EXPERIMENT_LOG_PATH = os.path.join(path,'test')
-        ARCHIVE_PATH = os.path.join(path,'test')
+        path = unit_test_runner.TEST_working_folder
+        LOG_PATH = path
+        EXPERIMENT_LOG_PATH = path
+        ARCHIVE_PATH = path
         ARCHIVE_FORMAT = 'zip'
         COORDINATE_SYSTEM='center'
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }

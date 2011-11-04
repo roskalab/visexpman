@@ -96,7 +96,7 @@ class MovingDot(experiment.Experiment):
         arow_col = []
         for a in range(len(angleset)):
             arow_col.append([])
-            for b in range(nblocks):
+            for b in range(int(nblocks)):
                 arow_col[a].append([])
                 # subsample the trajectories keeping only every nblocks'th line
                 if numpy.any(angleset[a]==[0,90,180,270]):
@@ -171,7 +171,7 @@ class MovingDot(experiment.Experiment):
         self.angle_end = []
         self.block_end = []
         # create a list of coordinates where dots have to be shown, note when a direction subblock ends, and when a block ends (in case the stimulus has to be split into blocks due to recording duration limit)
-        for b in range(nblocks):
+        for b in range(int(nblocks)):
             for a1 in range(len(allangles)):
                 cai = numpy.where(angleset==allangles[a1])[0]
                 for f in range(arow_col[cai][b][0].shape[1]):
