@@ -65,6 +65,8 @@ class VisExpRunner(object):
         if self.config.ENABLE_UDP and unit_test_runner.TEST_enable_network:            
             self.udp_listener = network_interface.NetworkListener(self.config, self, socket.SOCK_DGRAM, self.config.UDP_PORT)
             self.udp_listener.start()
+            self.udp_listener.wait(10000)
+            print('wait')
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
         self.loop_state = 'running'

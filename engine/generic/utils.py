@@ -198,6 +198,10 @@ def ulcorner_to_centered_coordinate_system(coordinates, screen_size):
     cooridnates_centered['col'] = cooridnates_centered['col'] - 0.5 * screen_size['col']
     return cooridnates_centered
 
+def nd(rcarray):
+    '''Convenience function to convert a recarray to nd array'''
+    return rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
+
 def rc(raw):
     return rc_pack(raw, order = 'rc')
 
