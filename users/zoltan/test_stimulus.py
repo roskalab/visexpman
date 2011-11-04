@@ -32,7 +32,6 @@
 #        FRAME_WAIT_FACTOR = 0 
 #        GAMMA = 1.0
 #        ENABLE_FILTERWHEEL = False
-#        TEXT_ENABLE = False
 #        
 #        #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
 #        # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
@@ -76,7 +75,7 @@
 #        FRAME_WAIT_FACTOR = 0
 #        GAMMA = 1.0
 #        ENABLE_FILTERWHEEL = False
-#        TEXT_ENABLE = True
+
 #        
 #        #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
 #        # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
@@ -115,7 +114,7 @@
 #        FRAME_WAIT_FACTOR = 0
 #        GAMMA = 1.0
 #        ENABLE_FILTERWHEEL = False
-#        TEXT_ENABLE = False
+
 #        
 #        #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
 #        # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]

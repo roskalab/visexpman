@@ -60,7 +60,7 @@ class VRWT(VisionExperimentConfig):
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
         GAMMA = 1.0        
-        TEXT_ENABLE = True
+        ENABLE_TEXT = True
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         if dataset == 0:
             COORDINATE_SYSTEM='center'
@@ -142,7 +142,7 @@ class VRTC(VisionExperimentConfig):
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
         GAMMA = 1.0        
-        TEXT_ENABLE = True
+        ENABLE_TEXT = True
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         if dataset == 0:
             COORDINATE_SYSTEM='center'

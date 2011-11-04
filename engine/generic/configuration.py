@@ -45,7 +45,6 @@ class Config(object):
             self._create_parameters_from_locals(locals())            
         
         '''
-        #TODO: log 'Loaded configuration class: ' + self.__class__.__name__        
         self.machine_config = machine_config
         if generic_parameters:
             self._create_generic_parameters()

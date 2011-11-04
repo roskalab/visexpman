@@ -28,7 +28,7 @@ class VirtualRealityTestConfig(VisionExperimentConfig):
         FRAME_WAIT_FACTOR = 0
         GAMMA = 1.0
         ENABLE_FILTERWHEEL = False
-        TEXT_ENABLE = True
+        ENABLE_TEXT = True
         SEGMENT_DURATION = 2
         MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
         ACTION_BETWEEN_STIMULUS = 'off'

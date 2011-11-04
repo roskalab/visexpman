@@ -135,7 +135,7 @@ class Stimulations(command_handler.CommandHandler):
         '''
         Overlays on stimulus all the added text configurations
         '''
-        if self.config.TEXT_ENABLE:
+        if self.config.ENABLE_TEXT:
             for text_config in self.text_on_stimulus:
                 if text_config['enable']:
                     self.screen.render_text(text_config['text'], color = text_config['color'], position = text_config['position'],  text_style = text_config['text_style'])
@@ -194,17 +194,29 @@ class Stimulations(command_handler.CommandHandler):
             color_to_set = self.config.BACKGROUND_COLOR
         else:
             color_to_set = utils.convert_color(color)
-        self.log_on_flip_message = 'show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')'
+        self.log_on_flip_message_initial = 'show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')'
+        self.log_on_flip_message_continous = 'show_fullscreen'
         self.screen.clear_screen(color = color_to_set)        
         if duration == 0.0:
+            self.log_on_flip_message = self.log_on_flip_message_initial
             if flip:
                 self._flip(trigger = True)
         elif duration == -1.0:
+            i = 0
             while not self.abort:
+                if i == 0:
+                    self.log_on_flip_message = self.log_on_flip_message_initial
+                else:
+                    self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
                     self._flip(trigger = True)
+                i += 1
         else:
             for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
+                if i == 0:
+                    self.log_on_flip_message = self.log_on_flip_message_initial
+                else:
+                    self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
                     self._flip(trigger = True)
                 if self.abort:

@@ -206,10 +206,10 @@ class Screen(object):
 #         glViewport(lower_left_corner_x, lower_left_corner_y, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'])
   
         
-    def clear_screen(self, color = (0.0, 0.0, 0.0, 0.0)):
+    def clear_screen(self, color = None):
         #clears screen to color
-        #TODO: glClearColor(color[0], color[1], color[2], 0.0) command shall not be executed when color is not provided
-        glClearColor(color[0], color[1], color[2], 0.0)
+        if color != None:
+            glClearColor(color[0], color[1], color[2], 0.0)
         glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         
     def set_view(self, position,  heading,  roll, pitch, scale):

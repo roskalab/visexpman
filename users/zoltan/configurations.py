@@ -112,7 +112,6 @@ class WindowsDeveloperConfig(visexpman.engine.visual_stimulation.configuration.V
 #        EXPERIMENT = 'OpenGLTest'
         ENABLE_FILTERWHEEL = False
         LOG_PATH = '..' + os.sep + 'data'
-#         TEXT_ENABLE = True
         ARCHIVE_PATH = '..' + os.sep + 'data'
         CAPTURE_PATH = '..' + os.sep + 'data'
         ENABLE_PARALLEL_PORT = False

@@ -62,13 +62,7 @@ class Instrument():
         '''
         Stops instrument operation
         '''
-#TODO: this shall be removed        
-        self.stop_instrument()
 
-#TODO: this shall be removed        
-    def stop_instrument(self):
-        pass
-        
     def release_instrument(self):
         '''
         Call this function to finish the operation of the instrument.

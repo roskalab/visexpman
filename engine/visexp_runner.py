@@ -96,7 +96,6 @@ class VisExpRunner(object):
         self.handler.flush()
 
     def _init_logging(self):
-        #TODO: make folder to store all the files created by this run
         #set up logging
         self.logfile_path = utils.generate_filename(self.config.LOG_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')
         self.log = logging.getLogger('visexpman log ' +  str(time.time()))
@@ -517,7 +516,10 @@ class testVisexpRunner(unittest.TestCase):
         mylog_path = os.path.join(unit_test_runner.TEST_working_folder, 'mylog.txt')
         experiment_source = utils.read_text_file(os.path.join(os.path.dirname(visexpman.__file__), 'users', 'templateuser', 'presentinator_experiment.py'))
         experiment_source = experiment_source.replace('self.duration = 1.0',  'self.duration = 0.0')
-        experiment1_source = experiment_source.replace('self.experiment_log_copy_path = \'' +  mylog_path + '\'',  'self.experiment_log_copy_path = \'' + os.path.join(unit_test_runner.TEST_working_folder, 'mylog.txt') + '\'')
+        if os.name == 'nt':
+            experiment1_source = experiment_source
+        else:
+            experiment1_source = experiment_source.replace('self.experiment_log_copy_path = \'\'',  'self.experiment_log_copy_path = \'' + mylog_path + '\'')
         experiment2_source = experiment1_source.replace('self.color = 1.0',  'self.color = 0.5')
         commands = [
                     [0.01,'SOCexecute_experimentEOC' + experiment1_source + 'EOP'], 

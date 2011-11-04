@@ -37,9 +37,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         PIN_RANGE = [0,  7]
         
-        #run options: single experiment, user interface
-        RUN_MODE = ['single experiment',  ['single experiment',  'user interface',  'unknown']]#TODO: Obsolete???
-        
         #parameters that the user need to define: (This is a way to force users to create their configs carefully
 #        EXPERIMENT_CONFIG = 'TestExperimentConfig'
 #        LOG_PATH = '/media/Common/visexpman_data'
@@ -110,7 +107,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #        GRATING_TEXTURE_RESOLUTION = [512,  [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]]
         
         #user interface
-        TEXT_ENABLE = True
+        ENABLE_TEXT = True
         TEXT_COLOR = [[1.0,  0.0,  0.0] ,  [[0.0, 0.0, 0.0],  [1.0,  1.0,  1.0]]]
 #        TEXT_SIZE = [12,  [2,  20]]
         

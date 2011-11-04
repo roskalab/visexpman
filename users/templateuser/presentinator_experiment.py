@@ -3,11 +3,14 @@ import visexpman.engine.generic.utils as utils
 import visexpman.engine.visual_stimulation.experiment as experiment
 import time
 import shutil
-
+import os
 
 class PresentinatorExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.experiment_log_copy_path = '/media/Common/mylog.txt'
+        if os.name == 'nt':
+            self.experiment_log_copy_path = 'c:\\_del\\test\\mylog.txt'
+        else:
+            self.experiment_log_copy_path = ''
         self.color = 1.0
         self.duration = 1.0
         self.runnable = 'PresentinatorExperiment'

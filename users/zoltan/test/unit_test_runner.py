@@ -14,7 +14,7 @@ import os
 #   -h - skip hardware related tests
 #    -f run all tests
 #TODO# 3.optional: -d - delete all files generated during test
-
+#TODO: delete users.zoltan.presentinator*.*files
 
 #== Test control ==
 #Parse command line arguments
