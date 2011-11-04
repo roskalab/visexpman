@@ -42,12 +42,12 @@ class NetworkListener(QtCore.QThread):
                     #print(str(self.sleep_sec))
                     try:
                         data = ''
-                        while True and sleep_sec==0:
+                        while True and self.sleep_sec==0:
                             #print(self.sleep_sec)
                             newdata = connection.recv(16)
                             data = data+newdata
                             if len(newdata)==0:
-        #                        print >>sys.stderr, 'received "%s"' % data
+                                #print >>sys.stderr, 'received "%s"' % data
                                 self.command_queue.put(data)
                                 break
                     except Exception as e:
@@ -67,7 +67,7 @@ class NetworkListener(QtCore.QThread):
                         self.client_address = addr
     #                    print udp_buffer
                         #TODO: here comes the presentinator command translator
-                        self.caller.command_queue.put(udp_buffer)
+                        self.command_queue.put(udp_buffer)
     #                 except socket.timeout:
     #                     pass
                     except:
@@ -127,8 +127,8 @@ class testRunner():
         print 'test runner started'        
         config = NetworkInterfaceTestConfig()
         listener = NetworkListener(config, self.command_queue, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
-        sender1 = NetworkSender(config, self, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
-        sender2 = NetworkSender(config, self, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
+        sender1 = NetworkSender(config, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
+        sender2 = NetworkSender(config, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
         listener.start()
         sender1.start()
         time.sleep(0.5)
@@ -138,6 +138,7 @@ class testRunner():
         while not self.command_queue.empty():
             self.response += self.command_queue.get()
         print self.response
+        listener.close()
 
 class testNetworkInterface(unittest.TestCase):
     def setUp(self):
@@ -146,7 +147,7 @@ class testNetworkInterface(unittest.TestCase):
 
     def test_01_single_sender(self):
         self.command_queue = Queue.Queue()        
-        self.listener1 = NetworkListener(self.config, self.command_queue.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
+        self.listener1 = NetworkListener(self.config, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
         sender = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
         self.listener1.start()
         sender.start()
@@ -215,10 +216,10 @@ class testNetworkInterface(unittest.TestCase):
     def test_03_single_udp_senders(self):
         self.command_queue = Queue.Queue()
         config = NetworkInterfaceTestConfig()
-        self.listener3 = NetworkListener(config, self, socket.SOCK_DGRAM, config.UDP_PORT)
-        sender1 = NetworkSender(config, self, socket.SOCK_DGRAM, config.UDP_PORT)        
+        self.listener3 = NetworkListener(config, self.command_queue, socket.SOCK_DGRAM, config.UDP_PORT)
+        sender1 = NetworkSender(config, socket.SOCK_DGRAM, config.UDP_PORT)        
         self.listener3.start()
-        sender1.start()
+        sender1.run()#start()
         if os.name == 'nt':
             time.sleep(2.5)
         elif os.name == 'posix':
@@ -229,25 +230,26 @@ class testNetworkInterface(unittest.TestCase):
         expected_string = ''
         for i in range(self.config.MSG_LENGTH):
             expected_string += str(i)        
+        self.listener3.close()
         self.assertEqual((response),  (expected_string))        
     
     def test_04_multiple_udp_senders(self):
         self.command_queue = Queue.Queue()
         config = NetworkInterfaceTestConfig()
-        self.listener4 = NetworkListener(config, self, socket.SOCK_DGRAM, config.UDP_PORT)
-        sender1 = NetworkSender(config, self, socket.SOCK_DGRAM, config.UDP_PORT)
-        sender2 = NetworkSender(config, self, socket.SOCK_DGRAM, config.UDP_PORT)
+        self.listener4 = NetworkListener(config, self.command_queue, socket.SOCK_DGRAM, config.UDP_PORT)
+        sender1 = NetworkSender(config, socket.SOCK_DGRAM, config.UDP_PORT)
+        sender2 = NetworkSender(config, socket.SOCK_DGRAM, config.UDP_PORT)
         self.listener4.start()
         sender1.start()
         if os.name == 'nt':
             time.sleep(2.5)
         elif os.name == 'posix':
-            time.sleep(1.5)
+            time.sleep(2.5)
         sender2.start()
         if os.name == 'nt':
             time.sleep(2.5)
         elif os.name == 'posix':
-            time.sleep(1.5)
+            time.sleep(3.5)
         response = ''
         while not self.command_queue.empty():
             response += self.command_queue.get()
@@ -255,6 +257,7 @@ class testNetworkInterface(unittest.TestCase):
         for i in range(self.config.MSG_LENGTH):
             expected_string += str(i)
         expected_string = expected_string + expected_string
+        self.listener4.close()
         self.assertEqual((response),  (expected_string))
         
 if __name__ == "__main__":
