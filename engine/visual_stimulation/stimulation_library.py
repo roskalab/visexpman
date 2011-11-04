@@ -20,9 +20,10 @@ class Stimulations(command_handler.CommandHandler):
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
     """
-    def __init__(self,  config,  caller):
+    def __init__(self,  config,  caller,  experiment_control_dependent = True):
         self.config = config
         self.caller = caller
+        self.experiment_control_dependent = experiment_control_dependent
         self.screen = caller.screen_and_keyboard
 #        self.stimulation_control = stimulation_control
 #        self.parallel = parallel
@@ -103,15 +104,17 @@ class Stimulations(command_handler.CommandHandler):
             self.delayed_frame_counter += 1
             frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
         else:
-            frame_rate_warning = ''        
-        self.elapsed_time = self.flip_time -  self.caller.experiment_control.start_time
-        self.caller.experiment_control.log.info('%2.3f\t%2.2f\t%s'%(self.elapsed_time,self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))
+            frame_rate_warning = ''
+        if self.experiment_control_dependent:
+            # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place            
+            self.elapsed_time = self.flip_time -  self.caller.experiment_control.start_time
+            self.caller.experiment_control.log.info('%2.3f\t%2.2f\t%s'%(self.elapsed_time,self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))
         
         if trigger:
             self._frame_trigger_pulse()
             
         #Keyboard commands
-        command = self.screen.experiment_user_interface_handler()
+        command = self.screen.experiment_user_interface_handler() #Here only commands with running experiment domain are considered
         if command != None:
             self.command_buffer += self.parse(command)
             if self.command_buffer.find('abort_experiment') != -1:
@@ -122,10 +125,11 @@ class Stimulations(command_handler.CommandHandler):
     def _frame_trigger_pulse(self):
         '''
         Generates frame trigger pulses
-        '''        
-        self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
-        time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
-        self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
+        '''
+        if self.experiment_control_dependent:
+            self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
+            time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
+            self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
         
     def _show_text(self):
         '''
@@ -210,33 +214,45 @@ class Stimulations(command_handler.CommandHandler):
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
                 
-#    def show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [],  size = None):
-#        '''
-#        Two use cases are handled here:
-#            - showing individual image files
-#                duration: duration of showing individual image file
-#                path: path of image file
-#            - showing the content of a folder
-#                duration: duration of showing each image file in folder
-#                path: path of folder containing images
-#        position: position of image on screen in pixels. This can be controlled by parameters and a formula when images in a folder are shown
-#        
-#        If duration is 0, then each image will be shown for one display update time. 
-#        Otherwise duration shall be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE to avoid dropped frames            
-#        
-#        Usage:
-#            Show a single image which path is image_path for 1 second in a centered position:
-#                show_image(image_path,  duration = 1.0,  position = (0, 0))
-#            Play the content of a directory (directory_path) which contains image files. Each imag is shown for one frame time :
-#                show_image(directory_path,  duration = 0,  position = (0, 0))
-#            Play the content of a directory (directory_path) which contains image files and the position of the image is  the function of time and some parameters:
-#                parameters = [100.0,  100.0]
-#                formula_pos_x = ['p[0] * cos(10.0 * t)',  parameters]
-#                formula_pos_y = ['p[1] * sin(10.0 * t)',  parameters]                
-#                formula = [formula_pos_x,  formula_pos_y]
-#                start_position = (10,10)
-#                show_image('directory_path',  0.0,  start_position,  formula)             
-#        '''
+    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, flip = True):
+        '''
+        Two use cases are handled here:
+            - showing individual image files
+                duration: duration of showing individual image file
+                path: path of image file
+            - showing the content of a folder
+                duration: duration of showing each image file in folder
+                path: path of folder containing images
+        position: position of image on screen in pixels. This can be controlled by parameters and a formula when images in a folder are shown
+        
+        If duration is 0, then each image will be shown for one display update time. 
+        Otherwise duration shall be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE to avoid dropped frames            
+        
+        Usage:
+            Show a single image which path is image_path for 1 second in a centered position:
+                show_image(image_path,  duration = 1.0,  position = (0, 0))
+            Play the content of a directory (directory_path) which contains image files. Each imag is shown for one frame time :
+                show_image(directory_path,  duration = 0,  position = (0, 0))
+            Play the content of a directory (directory_path) which contains image files and the position of the image is  the function of time and some parameters:
+                parameters = [100.0,  100.0]
+                formula_pos_x = ['p[0] * cos(10.0 * t)',  parameters]
+                formula_pos_y = ['p[1] * sin(10.0 * t)',  parameters]                
+                formula = [formula_pos_x,  formula_pos_y]
+                start_position = (10,10)
+                show_image('directory_path',  0.0,  start_position,  formula)             
+        '''
+        self.screen.render_imagefile(path, position = position)
+        if duration == 0.0:
+            if flip:
+                self._flip(trigger = True)        
+        else:
+            for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
+                if flip:
+                    self._flip(trigger = True)
+                if self.abort:
+                    self.abort = False
+                    break
+        
 #        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
 #        if os.path.isdir(path) == True:
 #            #when content of directory is to be shown
@@ -759,28 +775,25 @@ class Stimulations(command_handler.CommandHandler):
             color: can be a single tuple of the rgb values that apply to each dots over the whole stimulation. Both list and numpy formats are supported
                     Optionally a two dimensional list can be provided where the dimensions are organized as above controlling the color of each dot individually
             duration: duration of each frame in s. When 0, frame is shown for one frame time.
-            
-        The dot_sizes and dot_positions are expected to be in a linear list. Based on the ndots, these will be segmented to frames assuming 
+
+        The dot_sizes and dot_positions are expected to be in a linear list. Based on the ndots, these will be segmented to frames assuming
         that on each frame the number of dots are equal.
-        
         '''
-        #TODO: add support for showing rectangles and annuli
+        #TODO/idea: add support for showing rectangles and annuli
         self.log_on_flip_message_initial = 'show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')'
         self.log_on_flip_message_continous = 'show_dots'
         first_flip = False
         radius = 1.0
         vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
-        n_frames = len(dot_positions) / ndots        
+        n_frames = len(dot_positions) / ndots
         n_vertices = len(vertices)        
-        transformed_dot_positions = dot_positions #TODO: this shall be factored out
-        frames_vertices = numpy.zeros((n_frames * ndots * n_vertices,  2)) 
-        pixel_scale = numpy.array(self.config.SCREEN_UM_TO_NORM_SCALE) #TODO: this shall be factored out
+        frames_vertices = numpy.zeros((n_frames * ndots * n_vertices,  2))         
         index = 0
         for frame_i in range(n_frames):
             for dot_i in range(ndots):
                 dot_index = frame_i * ndots + dot_i
                 dot_size = dot_sizes[dot_index]
-                dot_position = numpy.array((transformed_dot_positions[dot_index]['col'], transformed_dot_positions[dot_index]['row']))
+                dot_position = numpy.array((dot_positions[dot_index]['col'], dot_positions[dot_index]['row']))
                 dot_to_screen =  self.config.SCREEN_UM_TO_PIXEL_SCALE * (vertices * dot_size + dot_position)
                 frames_vertices[index: index + n_vertices] = dot_to_screen
                 index = index + n_vertices
@@ -819,9 +832,6 @@ class Stimulations(command_handler.CommandHandler):
                     self._flip(trigger = True)
                 else:
                     self._flip(trigger = False)
-                if self.abort:
-                    self.abort = False
-                    break
             if self.abort:
                 self.abort = False
                 break
@@ -830,25 +840,25 @@ class Stimulations(command_handler.CommandHandler):
         
     
         
-    def show_shape_new(self):
-        size = 40
-        n_frames = 100
-        spd = 0.003
-        vertices = numpy.array([[0.5 * size,  0.5 * size], 
-                                [0.5 * size,  -0.5 * size], 
-                                [-0.5 * size,  -0.5 * size], 
-                                [-0.5 * size,  0.5 * size], 
-                                ])
-
-        vertices = vertices  * self.config.SCREEN_UM_TO_NORM_SCALE
-        
-        vert = numpy.zeros((n_frames,  4,  2))
-        for i in range(n_frames):
-            vert[i] = vertices + 0*numpy.array([-5 + i*6, 0])
-        
-        glEnableClientState(GL_VERTEX_ARRAY)
-        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-        
+#    def show_shape_new(self):
+#        size = 40
+#        n_frames = 100
+#        spd = 0.003
+#        vertices = numpy.array([[0.5 * size,  0.5 * size], 
+#                                [0.5 * size,  -0.5 * size], 
+#                                [-0.5 * size,  -0.5 * size], 
+#                                [-0.5 * size,  0.5 * size], 
+#                                ])
+#
+#        vertices = vertices  * self.config.SCREEN_UM_TO_NORM_SCALE
+#        
+#        vert = numpy.zeros((n_frames,  4,  2))
+#        for i in range(n_frames):
+#            vert[i] = vertices + 0*numpy.array([-5 + i*6, 0])
+#        
+#        glEnableClientState(GL_VERTEX_ARRAY)
+#        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
+#        
 #        glMatrixMode(GL_PROJECTION)
 #        glLoadIdentity()
 #        gluOrtho2D(-0.5 * self.config.SCREEN_RESOLUTION[0], 0.5 * self.config.SCREEN_RESOLUTION[0],  -0.5 * self.config.SCREEN_RESOLUTION[1], 0.5 * self.config.SCREEN_RESOLUTION[1])
@@ -866,86 +876,86 @@ class Stimulations(command_handler.CommandHandler):
 #            if self.stimulation_control.abort_stimulus():                    
 #                break
         
-        glDisableClientState(GL_VERTEX_ARRAY)
+#        glDisableClientState(GL_VERTEX_ARRAY)
         
         
                     
-    def show_image_list(self,  image_list,  duration = 0.0, pos = (0,  0),  display_size = (0,  0),  orientation = 0):
-        '''
-        TBD        
-        '''
-       
-        for imi in image_list:
-            self.image_list.setTex(imi)
-            if duration == 0.0:
-                self._flip(trigger = True)                                     
-                self.image_list.draw()
-            else:
-                for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                 
-                    if i == 0:
-                        self._flip(trigger = True)
-                    else:
-                        self._flip(trigger = False)                
-#                     self.image_list.setPhase(phase_step,  '+')
-                    self.image_list.draw()
-                    if self.stimulation_control.abort_stimulus():
-                        break
+#    def show_image_list(self,  image_list,  duration = 0.0, pos = (0,  0),  display_size = (0,  0),  orientation = 0):
+#        '''
+#        TBD        
+#        '''
+#       
+#        for imi in image_list:
+#            self.image_list.setTex(imi)
+#            if duration == 0.0:
+#                self._flip(trigger = True)                                     
+#                self.image_list.draw()
+#            else:
+#                for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                 
+#                    if i == 0:
+#                        self._flip(trigger = True)
+#                    else:
+#                        self._flip(trigger = False)                
+##                     self.image_list.setPhase(phase_step,  '+')
+#                    self.image_list.draw()
+#                    if self.stimulation_control.abort_stimulus():
+#                        break
 
 #    def set_parallel(self,  bitmask):
 #        if self.config.ENABLE_PARALLEL_PORT:
 #            self.bitmask = bitmask
 #            self.parallel.setData(self.config.ACQUISITION_TRIGGER_ON | bitmask)
                         
-    def _display_test_message(self,  message,  duration = 1.5):
-    	if self.config.TEXT_ENABLE:
-            self.test_message.setText(message)
-            for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
-                self.test_message.draw()
-                self._flip()
-        
-    def stimulation_library_test(self):   
-        stimulus_library_test_data = visexpman.users.zoltan.test.stimulus_library_test_data.StimulusLibraryTestData(self.config)
-        if stimulus_library_test_data.run_test['show_image() tests']:           
-            test_datas =  stimulus_library_test_data.test_data_set[0]
-            for test_data in test_datas:
-                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])
-                self.show_image(test_data['path'],  duration = test_data['duration'],  position = test_data['position'],  formula = test_data['formula'],  size = test_data['size'])            
-                self.clear_screen(duration = 0.5)
-                
-        if stimulus_library_test_data.run_test['show_movie() tests']:
-            test_datas =  stimulus_library_test_data.test_data_set[1]
-            for test_data in test_datas:
-                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])    
-                self.show_movie(test_data['video_file_path'],  position = test_data['position'])
-                self.clear_screen(duration = 0.5)
-                
-        if stimulus_library_test_data.run_test['show_shape() test']:
-            test_datas =  stimulus_library_test_data.test_data_set[2]
-            for test_data in test_datas:
-                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])    
-                self.show_shape(test_data['shape'],  duration = test_data['duration'],  pos =  test_data['position'],  color =  test_data['color'],  orientation =  test_data['orientation'],  size =  test_data['size'],  formula =  test_data['formula'],  ring_size =  test_data['ring_size'])
-                self.clear_screen(duration = 0.5)
-        
-        if stimulus_library_test_data.run_test['show_checkerboard() test']:
-            test_datas =  stimulus_library_test_data.test_data_set[3]
-            for test_data in test_datas:
-                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])    
-                self.show_checkerboard( test_data['n_checkers'],  duration =  test_data['duration'],  pos = test_data['position'],  color = test_data['color'],  box_size = test_data['box_size'])
-                self.clear_screen(duration = 0.5)
-                
-        if stimulus_library_test_data.run_test['show_ring() test']:
-            test_datas =  stimulus_library_test_data.test_data_set[4]
-            for test_data in test_datas:
-                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n\r\n' + 'Expected result: ' + test_data['expected result'])    
-                self.show_ring( test_data['n_rings'],  test_data['diameter'],  inner_diameter = test_data['inner_diameter'],  duration =  test_data['duration'],  n_slices = test_data['n_slices'],  colors = test_data['color'], pos = test_data['pos'])
-                self.clear_screen(duration = 0.5)
-        
-        if stimulus_library_test_data.run_test['show_grating() test']:
-            test_datas =  stimulus_library_test_data.test_data_set[5]
-            for test_data in test_datas:
-                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n\r\n' + 'Expected result: ' + test_data['expected result'])    
-                self.show_grating(duration =  test_data['duration'],   profile =  test_data['profile'],  spatial_frequency = test_data['spatial_frequency'],  display_area = test_data['display_area'], orientation = test_data['orientation'],  starting_phase = test_data['starting_phase'],  velocity = test_data['velocity'],  color_contrast = test_data['color_contrast'],  color_offset = test_data['color_offset'],  pos = test_data['pos'],  duty_cycle = test_data['duty_cycle'],  noise_intensity = test_data['noise_intensity'])
-                self.clear_screen(duration = 0.5)
+#    def _display_test_message(self,  message,  duration = 1.5):
+#    	if self.config.TEXT_ENABLE:
+#            self.test_message.setText(message)
+#            for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
+#                self.test_message.draw()
+#                self._flip()
+#        
+#    def stimulation_library_test(self):   
+#        stimulus_library_test_data = visexpman.users.zoltan.test.stimulus_library_test_data.StimulusLibraryTestData(self.config)
+#        if stimulus_library_test_data.run_test['show_image() tests']:           
+#            test_datas =  stimulus_library_test_data.test_data_set[0]
+#            for test_data in test_datas:
+#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])
+#                self.show_image(test_data['path'],  duration = test_data['duration'],  position = test_data['position'],  formula = test_data['formula'],  size = test_data['size'])            
+#                self.clear_screen(duration = 0.5)
+#                
+#        if stimulus_library_test_data.run_test['show_movie() tests']:
+#            test_datas =  stimulus_library_test_data.test_data_set[1]
+#            for test_data in test_datas:
+#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])    
+#                self.show_movie(test_data['video_file_path'],  position = test_data['position'])
+#                self.clear_screen(duration = 0.5)
+#                
+#        if stimulus_library_test_data.run_test['show_shape() test']:
+#            test_datas =  stimulus_library_test_data.test_data_set[2]
+#            for test_data in test_datas:
+#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])    
+#                self.show_shape(test_data['shape'],  duration = test_data['duration'],  pos =  test_data['position'],  color =  test_data['color'],  orientation =  test_data['orientation'],  size =  test_data['size'],  formula =  test_data['formula'],  ring_size =  test_data['ring_size'])
+#                self.clear_screen(duration = 0.5)
+#        
+#        if stimulus_library_test_data.run_test['show_checkerboard() test']:
+#            test_datas =  stimulus_library_test_data.test_data_set[3]
+#            for test_data in test_datas:
+#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])    
+#                self.show_checkerboard( test_data['n_checkers'],  duration =  test_data['duration'],  pos = test_data['position'],  color = test_data['color'],  box_size = test_data['box_size'])
+#                self.clear_screen(duration = 0.5)
+#                
+#        if stimulus_library_test_data.run_test['show_ring() test']:
+#            test_datas =  stimulus_library_test_data.test_data_set[4]
+#            for test_data in test_datas:
+#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n\r\n' + 'Expected result: ' + test_data['expected result'])    
+#                self.show_ring( test_data['n_rings'],  test_data['diameter'],  inner_diameter = test_data['inner_diameter'],  duration =  test_data['duration'],  n_slices = test_data['n_slices'],  colors = test_data['color'], pos = test_data['pos'])
+#                self.clear_screen(duration = 0.5)
+#        
+#        if stimulus_library_test_data.run_test['show_grating() test']:
+#            test_datas =  stimulus_library_test_data.test_data_set[5]
+#            for test_data in test_datas:
+#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n\r\n' + 'Expected result: ' + test_data['expected result'])    
+#                self.show_grating(duration =  test_data['duration'],   profile =  test_data['profile'],  spatial_frequency = test_data['spatial_frequency'],  display_area = test_data['display_area'], orientation = test_data['orientation'],  starting_phase = test_data['starting_phase'],  velocity = test_data['velocity'],  color_contrast = test_data['color_contrast'],  color_offset = test_data['color_offset'],  pos = test_data['pos'],  duty_cycle = test_data['duty_cycle'],  noise_intensity = test_data['noise_intensity'])
+#                self.clear_screen(duration = 0.5)
 
 if __name__ == "__main__":
     pass

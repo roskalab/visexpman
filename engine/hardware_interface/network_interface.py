@@ -58,7 +58,7 @@ class NetworkListener(QtCore.QThread):
                     udp_buffer, addr = self.socket.recvfrom(self.config.UDP_BUFFER_SIZE)
                     self.client_address = addr
 #                    print udp_buffer
-                    #TODO: here comes the presentinator command translator
+                    #TODO: here comes the presentinator command translator                   
                     self.caller.command_queue.put(udp_buffer)
 #                 except socket.timeout:
 #                     pass

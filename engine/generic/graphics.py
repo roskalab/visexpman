@@ -265,6 +265,7 @@ class Screen(object):
         '''
         Renders an image file on screen with its original size.
         '''
+        #TODO: image resizing
         im = Image.open(path)
         im = im.convert('RGBX')
         self.image_size = im.size

@@ -168,7 +168,7 @@ class TestExternalHardwareExperiment(experiment.Experiment):
     def run(self):
         self.show_fullscreen(duration = 0.0, color = 0.5)
         self.parallel_port.set_data_bit(1, 1)
-        self.parallel_port.set_data_bit(1, 0)        
+        self.parallel_port.set_data_bit(1, 0)
         filter = int(5 * random.Random().random()) + 1
         time.sleep(0.2)
         self.filterwheels[0].set(filter)
@@ -361,3 +361,5 @@ class VisualStimulationsExperiment(experiment.Experiment):
         self.show_shape(shape = 'r', size = utils.rc((100.0, 200)), color = [1.0, 0.0,0.0], orientation = 10)
         self.disable_text()
         self.show_shape(shape = 'a', size = utils.rc((100.0, 200)), ring_size = 10.0) 
+
+#TODO: test for usage of experiment config

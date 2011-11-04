@@ -8,6 +8,14 @@ import os
 # - full test, filterhweel disabled
 # - test without hardware
 
+#command line parameters:
+#1. test - mandatory
+#2. mandatory
+#   -h - skip hardware related tests
+#    -f run all tests
+#TODO# 3.optional: -d - delete all files generated during test
+
+
 #== Test control ==
 #Parse command line arguments
 run_mode = 'application'
@@ -36,7 +44,7 @@ TEST_hardware_test = (run_mode == 'full test')
 TEST_pixel_difference_threshold = 50.0
 
 if TEST_os == 'nt':
-    TEST_reference_frames_folder = 'm:\\Raicszol\\visexpman\\test_data\\reference_frames_win'
+    TEST_reference_frames_folder = 'm:\\Zoltan\\visexpman\\test_data\\reference_frames_win'
 elif TEST_os == 'posix':
     TEST_reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
 elif TEST_os == 'osx':

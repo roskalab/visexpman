@@ -30,6 +30,7 @@ import zipfile
 import os.path
 import shutil
 import tempfile
+import gc
 
 #For unittest:
 import visexpman.engine.generic.configuration as configuration
@@ -44,18 +45,33 @@ def experiment_file_name(experiment_config, folder, extension, name = ''):
         name_ = name + '_'
     experiment_file_path = utils.generate_filename(os.path.join(folder, name_ + experiment_class_name + '_' + utils.date_string() + '.' + extension))
     return experiment_file_path
- 
+
 class ExperimentControl():
     '''
     Starts experiment, takes care of all the logging, data file handling, saving, aggregating, handles external devices.
     '''
-    def __init__(self, config, caller):
+    def __init__(self, config, caller, experiment_source = ''):
         self.config = config
         self.caller = caller
         self.devices = Devices(config, caller)
-        self.data_handler = DataHandler(config, caller)        
+        self.data_handler = DataHandler(config, caller)
+        #saving experiment source to a temporary file in the user's folder
+        self.experiment_source = experiment_source
+        self.experiment_source_path = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user, 'presentinator_experiment' + str(self.caller.command_handler.experiment_counter) + '.py')
+        self.experiment_source_module = os.path.split(self.experiment_source_path)[-1].replace('.py', '')
+        if len(self.experiment_source)>0 and self.config.ENABLE_UDP:
+            f = open(self.experiment_source_path, 'wt')
+            f.write(self.experiment_source)
+            f.close()
+            #Instantiate this experiment
+            self.caller.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.visual_stimulation.experiment.ExperimentConfig)
+            for i in range(len(self.caller.experiment_config_list)):
+                if self.caller.experiment_config_list[i][1].__name__ == 'PresentinatorExperimentConfig':
+                    self.caller.command_handler.selected_experiment_config_index = i
+                    break
+            reload(sys.modules['visexpman.users.' + self.config.user + '.' + self.experiment_source_module])
 
-    def init_experiment_logging(self):        
+    def init_experiment_logging(self):
         self.logfile_path = experiment_file_name(self.caller.selected_experiment_config, self.config.EXPERIMENT_LOG_PATH, 'txt', 'log')
         #Ensure that the name of the log object is unique
         self.log = logging.getLogger('experiment log' + str(self.caller.command_handler.experiment_counter) + str(time.time()))
@@ -64,16 +80,16 @@ class ExperimentControl():
         self.handler.setFormatter(formatter)
         self.log.addHandler(self.handler)
         self.log.setLevel(logging.INFO)
-        
+
     def prepare_experiment_run(self):
-        #(Re)instantiate selected experiment config
-        self.caller.selected_experiment_config = self.caller.experiment_config_list[int(self.caller.command_handler.selected_experiment_config_index)][1](self.config, self.caller)
+        #(Re)instantiate selected experiment config        
+        self.caller.selected_experiment_config = self.caller.experiment_config_list[int(self.caller.command_handler.selected_experiment_config_index)][1](self.config, self.caller)        
         #init experiment logging
         self.init_experiment_logging()
         #Set experiment control context in selected experiment configuration
         self.caller.selected_experiment_config.set_experiment_control_context()
 
-    def run_experiment(self):
+    def run_experiment(self):        
         if hasattr(self.caller, 'selected_experiment_config') and hasattr(self.caller.selected_experiment_config, 'run'):
             self.prepare_experiment_run()
             #Message to screen, log experiment start
@@ -86,7 +102,7 @@ class ExperimentControl():
             #Set acquisition trigger pin to high
             self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             #Run experiment
-            self.caller.selected_experiment_config.run()
+            self.caller.selected_experiment_config.run()            
             #Clear acquisition trigger pin
             self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             #Change visexprunner state to ready
@@ -102,6 +118,10 @@ class ExperimentControl():
         self.handler.flush()
         self.devices.close()
         self.data_handler.archive_software_environment()
+        #remove temporary experiment file
+        if len(self.experiment_source)>0 and self.config.ENABLE_UDP:
+            os.remove(self.experiment_source_path)
+            os.remove(self.experiment_source_path+'c')            
         
 class Devices():
     '''
@@ -111,8 +131,6 @@ class Devices():
         self.config = config
         self.caller = caller        
         self.parallel_port = instrument.ParallelPort(config, caller)
-        
-        
         self.filterwheels = []
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):
             self.number_of_filterwheels = len(config.FILTERWHEEL_SERIAL_PORT)
@@ -169,9 +187,12 @@ class DataHandler():
         #Create zip file
         archive = zipfile.ZipFile(self.zip_file_path, "w")
         archive.write(module_versions_file_path, module_versions_file_path.replace(os.path.dirname(module_versions_file_path), ''))
+        if len(self.caller.experiment_control.experiment_source)>0 and self.config.ENABLE_UDP and not utils.is_in_list(self.visexpman_module_paths, self.caller.experiment_control.experiment_source_path):
+            self.visexpman_module_paths.append(self.caller.experiment_control.experiment_source_path)
         for python_module in self.visexpman_module_paths:
             zip_path = python_module.split('visexpman')[-1]
-            archive.write(python_module, zip_path)
+            if os.path.exists(python_module):
+                archive.write(python_module, zip_path)
         #include experiment log
         archive.write(self.caller.experiment_control.logfile_path, self.caller.experiment_control.logfile_path.replace(os.path.dirname(self.caller.experiment_control.logfile_path), ''))
         archive.close()
