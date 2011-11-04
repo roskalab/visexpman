@@ -487,7 +487,7 @@ def module_versions(modules):
     'contextlib' : 'standard', 
     'weakref' : 'standard', 
     'sip': 'SIP_VERSION_STR', 
-    'Helpers.py' : 'version', 
+    'Helpers' : 'version', 
     
     }    
     module_version = ''

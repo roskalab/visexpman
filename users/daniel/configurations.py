@@ -112,6 +112,7 @@ class MBP(VisionExperimentConfig):
         RUN_MODE = 'single experiment'
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
         LOG_PATH = '/Users/hd/Documents/DataBase'
+        EXPERIMENT_LOG_PATH = LOG_PATH
         BASE_PATH='/Users/hd/Documents/DataBase'
         ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
         CAPTURE_PATH = os.path.join(BASE_PATH,'capture')#'../../../presentinator/data/capture'
@@ -136,7 +137,7 @@ class MBP(VisionExperimentConfig):
         SEGMENT_DURATION = 2
         MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
         ACTION_BETWEEN_STIMULUS = 'off'
-
+        ARCHIVE_FORMAT = 'hdf5'
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         COORDINATE_SYSTEM='ulcorner'
             
