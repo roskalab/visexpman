@@ -14,12 +14,12 @@ import os
 class NetworkListener(QtCore.QThread):
     '''
     '''
-    def __init__(self, config, caller, socket_type, port):        
+    def __init__(self, config, command_queue, socket_type, port):        
         target = None
         name = None
         QtCore.QThread.__init__(self)
         self.config = config
-        self.caller = caller
+        self.command_queue = command_queue
         self.socket_type = socket_type
         #set up socket
         self.socket = socket.socket(socket.AF_INET, self.socket_type)
@@ -36,7 +36,7 @@ class NetworkListener(QtCore.QThread):
             self.socket.listen(1)
             while True:
                 #Connections are not accepted during experiment
-                if self.caller.state == 'ready':
+                if 1:#self.caller.state == 'ready':
                     connection, client_address = self.socket.accept()
                     try:
                         data = ''
@@ -45,7 +45,7 @@ class NetworkListener(QtCore.QThread):
                             data = data+newdata
                             if len(newdata)==0:
         #                        print >>sys.stderr, 'received "%s"' % data
-                                self.caller.command_queue.put(data)
+                                self.command_queue.put(data)
                                 break
                     except Exception as e:
                         print e

@@ -423,7 +423,48 @@ def rotate_vector(vector, angle):
     vector_matrix = numpy.matrix(vector)
     vector_matrix = vector_matrix.transpose()
     return numpy.squeeze(numpy.asarray((rotation_matrix_x * rotation_matrix_y * rotation_matrix_z * vector_matrix).transpose()))
-    
+
+### Daniel's methods, no tests yet
+def polygon2filled(polygon, color=None):
+    '''Converts a polygon object into a list of coordinates of the entire polyon
+    '''
+    import Polygon,  Polygon.Utils
+    import Image, ImageDraw
+    pts2=numpy.round(numpy.array(Polygon.Utils.pointList(polygon)))
+    li = Image.fromarray(numpy.zeros(numpy.max(pts2, axis=0)+2), mode='I')
+    draw= ImageDraw.Draw(li)
+    pts3 = [(item[1],  item[0], ) for item in pts2.tolist()]
+    draw.polygon(pts3,outline=color, fill=color) 
+    allpts= numpy.array(numpy.nonzero(numpy.array(li))).T
+    return allpts
+
+def overlap(p1, p2,  thr=0.25):
+    #polygon based overlap causes spurious segfaults
+    if hasattr(p1, 'nPoints'):
+        if p1.nPoints()==45 and p2.nPoints()==66:
+            pass
+        int_sec = p1&p2
+        if int_sec.area()==0:
+            return 0
+        diffs = [p1-p2, p2-p1]
+        #decide whether the two components are spatially distinct
+        proportions = numpy.array([int_sec.area()/d.area() for d in diffs if d.area()>0])
+    else:
+        p1s=set([tuple([int(i1) for i1 in i]) for i in p1])
+        p2s=set([tuple([int(i1) for i1 in i]) for i in p2])
+        int_sec= p1s& p2s
+        if len(int_sec)==0:
+            return 0
+        diffs=[p1s-p2s, p2s-p1s]
+        if len(diffs[0])==0 or len(diffs[1])==0:
+            return 1
+        proportions = numpy.array([float(len(int_sec))/len(d) for d in diffs])
+    if numpy.any(proportions>thr):
+        return max(proportions)
+    else:
+        return 0
+
+
 class testGeometry(unittest.TestCase):
     
     test_data = [
