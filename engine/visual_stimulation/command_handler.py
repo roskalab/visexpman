@@ -58,10 +58,10 @@ class CommandHandler(object):
         self.caller.experiment_control.run_experiment()
         #Clean up experiment
         self.caller.experiment_control.finish_experiment()
-        self.experiment_counter += 1        
+        self.experiment_counter += 1
         return 'experiment executed'
 
-    def bullseye(self, par):        
+    def bullseye(self, par):
         self.caller.screen_and_keyboard.show_bullseye = not self.caller.screen_and_keyboard.show_bullseye
         return 'bullseye'
 
@@ -101,8 +101,8 @@ class CommandHandler(object):
         '''
         Incoming string stream is parsed into commands depending on software state. When stimulation is running, incoming string is discarded
         '''        
-        result  = None        
-        if len(command_buffer) > 6: #SOC + EOC + 1 character is at least present in a command
+        result  = None
+        if len(command_buffer) > 6: #SOC + EOC + 1 character is at least present in a command            
             cmd = command_extract.findall(command_buffer)
             command_buffer_newline_replaced = command_buffer.replace('\n',  '<newline>')
             par = parameter_extract.findall(command_buffer_newline_replaced) #par is not at the beginning of the buffer 
@@ -136,7 +136,6 @@ class CommandSender(QtCore.QThread):
     def close(self):
         self.terminate()
         self.wait()
-        
 
 if __name__ == "__main__":
     pass

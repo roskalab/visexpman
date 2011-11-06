@@ -8,7 +8,7 @@ import os
 class PresentinatorExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         if os.name == 'nt':
-            self.experiment_log_copy_path = 'c:\\_del\\test\\mylog.txt'
+            self.experiment_log_copy_path = 'c:\\temp\\test\\mylog.txt'
         else:
             self.experiment_log_copy_path = ''
         self.color = 1.0

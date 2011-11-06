@@ -45,6 +45,7 @@ class Experiment(stimulation_library.Stimulations):
         self.devices = self.caller.experiment_control.devices
         self.parallel_port = self.devices.parallel_port        
         self.filterwheels = self.devices.filterwheels
+        self.stage = self.devices.stage
         if hasattr(self.devices, 'led_controller'): #This hasattr checking is unnecessary
             self.led_controller = self.devices.led_controller
         self.log = self.caller.experiment_control.log

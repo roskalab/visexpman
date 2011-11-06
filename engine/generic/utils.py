@@ -238,7 +238,7 @@ def rc_pack(raw, order = 'rc'):
             return numpy.array(zip(raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
     elif isinstance(raw, numpy.ndarray) and raw.ndim > 2:
         raise TypeError('Input data dimension must be 2. Call rc_flatten if you want data to be flattened before conversion')
-    else:        
+    else:
         #input is a tuple or 1D numpy array: this case has to be handled separately so that indexing mydata['row'] returns a value and not an array.        
         if isinstance(raw[0], float) or isinstance(raw[1], float) or isinstance(raw[0], numpy.float32) or isinstance(raw[1], numpy.float32) or\
         isinstance(raw[0], numpy.float64) or isinstance(raw[1], numpy.float64) or isinstance(raw[0], numpy.float) or isinstance(raw[1], numpy.float):

@@ -22,6 +22,7 @@ import visexpman.users as users
 
 import visexpman.engine.hardware_interface.instrument as instrument
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
+import visexpman.engine.hardware_interface.motor_control as motor_control
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 
 import os
@@ -30,7 +31,6 @@ import zipfile
 import os.path
 import shutil
 import tempfile
-import gc
 
 #For unittest:
 import visexpman.engine.generic.configuration as configuration
@@ -89,7 +89,7 @@ class ExperimentControl():
         #Set experiment control context in selected experiment configuration
         self.caller.selected_experiment_config.set_experiment_control_context()
 
-    def run_experiment(self):        
+    def run_experiment(self):
         if hasattr(self.caller, 'selected_experiment_config') and hasattr(self.caller.selected_experiment_config, 'run'):
             self.prepare_experiment_run()
             #Message to screen, log experiment start
@@ -143,6 +143,7 @@ class Devices():
 #        if hasattr(self.config, 'LED_CONTROLLER_INSTRUMENT_INDEX') and hasattr(self.config, 'DAQ_CONFIG'):
 #             if self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ENABLE'] and self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ANALOG_CONFIG'] == 'ao':
         self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)
+        self.stage = motor_control.AllegraStage(self.config, self.caller)
 
     def close(self):        
         self.parallel_port.release_instrument()
@@ -151,6 +152,8 @@ class Devices():
                 filterwheel.release_instrument()
         if hasattr(self, 'led_controller'):
             self.led_controller.release_instrument()
+        if hasattr(self, 'stage'):
+            self.stage.release_instrument()
             
 class DataHandler():
     '''

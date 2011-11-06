@@ -15,6 +15,7 @@ import os
 #    -f run all tests
 #TODO# 3.optional: -d - delete all files generated during test
 #TODO: delete users.zoltan.presentinator*.*files
+#TODO: individual command line switches for testing hardware related modules: -daq, -stage, -filterwheel, -parallel, ....
 
 #== Test control ==
 #Parse command line arguments
@@ -55,22 +56,27 @@ TEST_filterwheel_enable  = True #If set to False, many tests fail.
 
 if TEST_os == 'nt':
     TEST_com_port = 'COM4'
-    TEST_working_folder = 'c:\\_del\\test'
+    TEST_working_folder = 'c:\\temp\\test'
     TEST_valid_file = 'c:\\windows\\win.ini'
     TEST_invalid_file = 'c:\\windows'
+    TEST_stage_com_port = 'COM1'
 elif TEST_os == 'posix':
     TEST_com_port = '/dev/ttyUSB0'
     TEST_working_folder = '/media/Common/visexpman_data/test'
     TEST_valid_file = '/home/zoltan/Downloads/qtgl.py'
     TEST_invalid_file = '/home'
+    TEST_stage_com_port = ''
 elif TEST_os == 'osx':
     TEST_com_port = ''
     TEST_working_folder = '/Users/rz/visexpman/data/test'
     TEST_valid_file = '/Users/rz/test_stimulus.py'
     TEST_invalid_file = '/Users'
+    TEST_stage_com_port = ''
     
 TEST_daq = (os.name == 'nt') and TEST_hardware_test
 TEST_daq_device = 'Dev1'
+
+TEST_stage = not True
 
 class unitTestRunner():
     '''
@@ -102,6 +108,8 @@ class unitTestRunner():
                'enable' : TEST_hardware_test},
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testDataHandler',
                'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
+               'enable' : TEST_stage},
                ]
 
     def fetch_test_methods(self, test_class):
