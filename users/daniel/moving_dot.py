@@ -51,6 +51,9 @@ class MovingDot(experiment.Experiment):
     def run(self):
         for dot_row_col in self.row_col:
             self.show_dots(self.diameter_pix, dot_row_col, self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+            if self.row_col.index(dot_row_col) in self.angle_end:
+                print 'wait'
+                time.sleep(1)
         pass
 
     def prepare(self):
@@ -114,7 +117,7 @@ class MovingDot(experiment.Experiment):
                             vc = vc[-1::-1]
                     # try to balance the dot run lengths (in case of multiple dots) so that most of the time the number of dots on screen is constant        
                     
-                    segm_length = vr.shape[0]/self.experiment_config.NDOTS #length of the trajectory 1 dot has to run in the stimulation segment
+                    segm_length = vr.shape[1]/self.experiment_config.NDOTS #length of the trajectory 1 dot has to run in the stimulation segment
                     cl =range(vr.shape[0])
                     #partsep = [zeros(1,self.experiment_config.NDOTS),size(vr,2)]
                     partsep = range(0 , vr.shape[0], numpy.ceil(segm_length))
@@ -302,10 +305,10 @@ class MovingDotTestConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty
         self.DIAMETER_UM = [200]
-        self.ANGLES = [45, 135]#, 45, 135]#,  90,  180,  270,  45,  135,  225,  315] # degrees
+        self.ANGLES = [0,   90,  180,  270,  45,  135,  225,  315] # degrees
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
-        self.REPEATS = 1#2
+        self.REPEATS = 2
         self.PDURATION = 0
         self.GRIDSTEP = 1.0/1#3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1

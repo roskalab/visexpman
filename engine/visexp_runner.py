@@ -23,7 +23,7 @@ class VisExpRunner(object):
     This class is responsible for running vision experiment.
     '''
     def __init__(self, user, config_class):        
-        self.state = 'init'
+        #self.state = 'init'
         #== Find and instantiate machine configuration ==
         try:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()
@@ -67,18 +67,18 @@ class VisExpRunner(object):
             self.udp_listener.start()
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
-        self.loop_state = 'running'
+        #self.loop_state = 'running'
         #create list of imported python modules
         module_info = utils.imported_modules()        
         self.visexpman_module_paths  = module_info[1]
         self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))        
         self.module_versions = utils.module_versions(module_info[0])
         #When initialization is done, visexpman state is 'ready'
-        self.state = 'ready'
+        #self.state = 'ready'
         self.log.info('Visexpman initialized')        
 
     def run_loop(self):
-        while self.loop_state == 'running':
+        while 1:#self.loop_state == 'running':
             self.screen_and_keyboard.clear_screen_to_background()
             if hasattr(self.selected_experiment_config, 'pre_runnable') and self.selected_experiment_config.pre_runnable is not None:
                 self.selected_experiment_config.pre_runnable.run()

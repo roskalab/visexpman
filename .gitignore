@@ -4,3 +4,4 @@
 *.bak
 *.*~
 temp.bmp
+.DS*
