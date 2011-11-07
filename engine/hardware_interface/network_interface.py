@@ -12,22 +12,21 @@ import os
 #Network listener -> CommandServer
 
 class NetworkListener(QtCore.QThread):
+    ''' Waits for connections on the port specified
     '''
-    '''
-    def __init__(self, config, command_queue, socket_type, port):        
+    def __init__(self, ip_address, command_queue, socket_type, port,  udp_buffer_size=65535):        
         target = None
         name = None
         QtCore.QThread.__init__(self)
-        self.config = config
         self.command_queue = command_queue
         self.socket_type = socket_type
         #set up socket
         self.socket = socket.socket(socket.AF_INET, self.socket_type)
-        #self.socket.setblocking(0)
         # Bind the socket to the port
-        server_address = (self.config.SERVER_IP, port)
+        server_address = (ip_address, port)
+        self.udp_buffer_size = udp_buffer_size
         self.socket.bind(server_address)
-        if 1 and self.socket_type ==  socket.SOCK_DGRAM:
+        if 1 and self.socket_type ==  socket.SOCK_DGRAM: #why only for UDP?
             self.socket.settimeout(0.001)
         self.sleep_sec=0
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -43,7 +42,6 @@ class NetworkListener(QtCore.QThread):
                     try:
                         data = ''
                         while True and self.sleep_sec==0:
-                            #print(self.sleep_sec)
                             newdata = connection.recv(16)
                             data = data+newdata
                             if len(newdata)==0:
@@ -59,12 +57,11 @@ class NetworkListener(QtCore.QThread):
                 else:
                     self.sleep(self.sleep_sec)
                     self.sleep_sec=0
-                    #print('slept enough')
         elif self.socket_type ==  socket.SOCK_DGRAM:
             while True:
                 if self.sleep_sec==0:
                     try:
-                        udp_buffer, addr = self.socket.recvfrom(self.config.UDP_BUFFER_SIZE)
+                        udp_buffer, addr = self.socket.recvfrom(self.udp_buffer_size)
                         self.client_address = addr
     #                    print udp_buffer
                         self.command_queue.put(udp_buffer)
@@ -75,18 +72,12 @@ class NetworkListener(QtCore.QThread):
                 else:
                     self.sleep(self.sleep_sec)
                     self.sleep_sec=0
-                    print('slept')
 
                     
     def close(self):
 #        if self.socket_type ==  socket.SOCK_STREAM:
 #            self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
-        #Terminate thread
-#        self.exit()
-#        self.terminate()
-#        self.wait()
-    
 
 
 class NetworkSender(QtCore.QThread):    
@@ -131,7 +122,7 @@ class testRunner():
     def run(self):
         print 'test runner started'        
         config = NetworkInterfaceTestConfig()
-        listener = NetworkListener(config, self.command_queue, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
+        listener = NetworkListener(config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
         sender1 = NetworkSender(config, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
         sender2 = NetworkSender(config, socket.SOCK_STREAM, config.COMMAND_INTERFACE_PORT)
         listener.start()
@@ -152,7 +143,7 @@ class testNetworkInterface(unittest.TestCase):
 
     def test_01_single_sender(self):
         self.command_queue = Queue.Queue()        
-        self.listener1 = NetworkListener(self.config, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
+        self.listener1 = NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
         sender = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
         self.listener1.start()
         sender.start()
@@ -173,7 +164,7 @@ class testNetworkInterface(unittest.TestCase):
         
     def test_02_multiple_tcpip_senders(self):
         self.command_queue = Queue.Queue()        
-        self.listener2 = NetworkListener(self.config, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
+        self.listener2 = NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
         sender1 = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
         sender2 = NetworkSender(self.config, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
         self.listener2.start()
@@ -225,10 +216,10 @@ class testNetworkInterface(unittest.TestCase):
     def test_03_single_udp_senders(self):
         self.command_queue = Queue.Queue()
         config = NetworkInterfaceTestConfig()
-        self.listener3 = NetworkListener(config, self.command_queue, socket.SOCK_DGRAM, config.UDP_PORT)
+        self.listener3 = NetworkListener(config.SERVER_IP, self.command_queue, socket.SOCK_DGRAM, config.UDP_PORT)
         sender1 = NetworkSender(config, socket.SOCK_DGRAM, config.UDP_PORT)        
         self.listener3.start()
-        sender1.run()#start()
+        sender1.start()
         if os.name == 'nt':
             time.sleep(2.5)
         elif os.name == 'posix':
@@ -247,7 +238,7 @@ class testNetworkInterface(unittest.TestCase):
     def test_04_multiple_udp_senders(self):
         self.command_queue = Queue.Queue()
         config = NetworkInterfaceTestConfig()
-        self.listener4 = NetworkListener(config, self.command_queue, socket.SOCK_DGRAM, config.UDP_PORT)
+        self.listener4 = NetworkListener(config.SERVER_IP, self.command_queue, socket.SOCK_DGRAM, config.UDP_PORT)
         sender1 = NetworkSender(config, socket.SOCK_DGRAM, config.UDP_PORT)
         sender2 = NetworkSender(config, socket.SOCK_DGRAM, config.UDP_PORT)
         self.listener4.start()

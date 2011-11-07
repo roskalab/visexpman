@@ -23,7 +23,7 @@ class VisExpRunner(object):
     This class is responsible for running vision experiment.
     '''
     def __init__(self, user, config_class):        
-        self.state = 'init'
+        #self.state = 'init'
         #== Find and instantiate machine configuration ==
         try:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()
@@ -37,17 +37,6 @@ class VisExpRunner(object):
         #== Fetch experiment classes ==        
         if self.config.user != 'undefined':
             self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.visual_stimulation.experiment.ExperimentConfig)
-            #Filter experiment config list. In test mode, experiment configs are loaded only from automated_test_data. In application run mode
-            #this module is omitted
-            experiment_config_list = []
-            for experiment_config in self.experiment_config_list:
-                if experiment_config[0].__name__.find('automated_test_data') != -1 and unit_test_runner.TEST_test:
-                    experiment_config_list.append(experiment_config)
-                elif not experiment_config[0].__name__.find('automated_test_data') != -1 and not unit_test_runner.TEST_test:
-                    experiment_config_list.append(experiment_config)
-            
-            self.experiment_config_list = experiment_config_list
-                    
         else:
             #In case of SafestartConfig, no experiment configs are loaded
             #TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig
@@ -70,28 +59,27 @@ class VisExpRunner(object):
         self.command_queue = Queue.Queue()
         #In test_mode the network operations are disabled
         if unit_test_runner.TEST_enable_network:
-            self.tcpip_listener = network_interface.NetworkListener(self.config, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
+            self.tcpip_listener = network_interface.NetworkListener(self.config.SERVER_IP, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
             self.tcpip_listener.start()
         #Start udp listener if not in test mode
         if self.config.ENABLE_UDP and unit_test_runner.TEST_enable_network:            
-            self.udp_listener = network_interface.NetworkListener(self.config, self.command_queue, socket.SOCK_DGRAM, self.config.UDP_PORT)
+            self.udp_listener = network_interface.NetworkListener(self.config.SERVER_IP, socket.SOCK_DGRAM, self.config.UDP_PORT)
             self.udp_listener.start()
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
-        self.loop_state = 'running'
+        #self.loop_state = 'running'
         #create list of imported python modules
         module_info = utils.imported_modules()        
         self.visexpman_module_paths  = module_info[1]
         self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))        
         self.module_versions = utils.module_versions(module_info[0])
         #When initialization is done, visexpman state is 'ready'
-        self.state = 'ready'
+        #self.state = 'ready'
         self.log.info('Visexpman initialized')        
 
     def run_loop(self):
-        while self.loop_state == 'running':
+        while 1:#self.loop_state == 'running':
             self.screen_and_keyboard.clear_screen_to_background()
-            self.screen_and_keyboard.display_bullseye()
             if hasattr(self.selected_experiment_config, 'pre_runnable') and self.selected_experiment_config.pre_runnable is not None:
                 self.selected_experiment_config.pre_runnable.run()
             self.screen_and_keyboard.user_interface_handler()
@@ -105,8 +93,9 @@ class VisExpRunner(object):
             self.tcpip_listener.close()
         self.log.info('Visexpman quit')
         self.handler.flush()
-
+            
     def _init_logging(self):
+        #TODO: make folder to store all the files created by this run
         #set up logging
         self.logfile_path = utils.generate_filename(self.config.LOG_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')
         self.log = logging.getLogger('visexpman log ' +  str(time.time()))
@@ -522,78 +511,6 @@ class testVisexpRunner(unittest.TestCase):
                         log.find('Command handler: experiment executed') != -1,                         
                         self.check_hdf5_file(v)), 
                         (True, True, True, True, True, True, True, True))
-                        
-    def test_17_presentinator_interface(self):
-        mylog_path = os.path.join(unit_test_runner.TEST_working_folder, 'mylog.txt')
-        experiment_source = utils.read_text_file(os.path.join(os.path.dirname(visexpman.__file__), 'users', 'templateuser', 'presentinator_experiment.py'))
-        experiment_source = experiment_source.replace('self.duration = 1.0',  'self.duration = 0.0')
-        if os.name == 'nt':
-            experiment1_source = experiment_source
-        else:
-            experiment1_source = experiment_source.replace('self.experiment_log_copy_path = \'\'',  'self.experiment_log_copy_path = \'' + mylog_path + '\'')
-        experiment2_source = experiment1_source.replace('self.color = 1.0',  'self.color = 0.5')
-        commands = [
-                    [0.01,'SOCexecute_experimentEOC' + experiment1_source + 'EOP'], 
-                    [0.01,'SOCexecute_experimentEOC' + experiment2_source + 'EOP'], 
-                    [0.01,'SOCquitEOC'],
-                    ]
-        config_name = 'VerySimpleExperimentTestConfig'
-        
-        v = VisExpRunner('zoltan', config_name)
-        cs = command_handler.CommandSender(v.config, v, commands)
-        cs.start()
-        v.run_loop()
-        cs.close()
-        #Read logs
-        log = utils.read_text_file(v.logfile_path)
-        experiment_log = utils.read_text_file(v.experiment_control.logfile_path)        
-        #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
-        self.assertEqual(
-                         (self.check_application_log(log), 
-                         self.check_experiment_log(experiment_log), 
-                         experiment_log.find('show_fullscreen(0.0, [0.5, 0.5, 0.5])') != -1, 
-                        log.find('init experiment visexpman.users.') != -1, 
-                        log.find('Started experiment: visexpman.users.') != -1, 
-                        log.find('Experiment complete') != -1, 
-                        log.find('Command handler: experiment executed') != -1, 
-                        zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
-                        self.check_zip_file(v.experiment_control.data_handler.zip_file_path, 'PresentinatorExperiment'), 
-                        os.path.exists(mylog_path)), 
-                        (True, True, True, True, True, True, True, True, True, True))
-
-    def test_18_stage_control(self):
-        if unit_test_runner.TEST_stage:
-            commands = [
-                        [0.01,'SOCexecute_experimentEOC'], 
-                        [0.01,'SOCquitEOC'], 
-                        ]
-            config_name = 'StageExperimentTestConfig'
-            
-            v = VisExpRunner('zoltan', config_name)
-            cs = command_handler.CommandSender(v.config, v, commands)
-            cs.start()
-            v.run_loop()
-            cs.close()
-            #Read logs
-            log = utils.read_text_file(v.logfile_path)
-            experiment_log = utils.read_text_file(v.experiment_control.logfile_path)
-            #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
-            self.assertEqual(
-                             (self.check_application_log(log), 
-                             self.check_experiment_log(experiment_log),                          
-                            log.find('init experiment visexpman.users.') != -1, 
-                            log.find('Started experiment: visexpman.users.') != -1, 
-                            log.find('Experiment complete') != -1, 
-                            log.find('Command handler: experiment executed') != -1, 
-                            zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
-                            self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', '')),
-                            v.selected_experiment_config.runnable.result1,
-                            v.selected_experiment_config.runnable.result2,
-                            (abs(v.selected_experiment_config.runnable.initial_position - v.selected_experiment_config.runnable.stage.position)).sum() == 0,
-                            experiment_log.find('stage move') != -1
-                            ),
-                            (True, True, True, True, True, True, True, True, True, True, True, True))
-       
     
 
 #== Test helpers ==
@@ -612,7 +529,7 @@ class testVisexpRunner(unittest.TestCase):
         else:
             return False
     
-
+            
     def check_zip_file(self, zip_path, experiment_name):
         '''
         Check if some of the necessary files are included into the zipfile
@@ -620,11 +537,6 @@ class testVisexpRunner(unittest.TestCase):
         archive = zipfile.ZipFile(zip_path, "r")
         namelist = archive.namelist()
         archive.close()
-#         print utils.is_in_list(namelist, 'module_versions.txt')
-#         print utils.is_in_list(namelist, 'engine/visexp_runner.py')
-#         print utils.is_in_list(namelist, 'engine/__init__.py') 
-#         print utils.is_in_list(namelist, '__init__.py') 
-#         print str(namelist).find('log_' + experiment_name + '_'+ utils.date_string()) != -1
         if utils.is_in_list(namelist, 'module_versions.txt') and utils.is_in_list(namelist, 'engine/visexp_runner.py')\
         and utils.is_in_list(namelist, 'engine/__init__.py') and utils.is_in_list(namelist, '__init__.py') and str(namelist).find('log_' + experiment_name + '_'+ utils.date_string()) != -1:
             return True
