@@ -48,6 +48,7 @@ class NetworkListener(QtCore.QThread):
                             data = data+newdata
                             if len(newdata)==0:
                                 #print >>sys.stderr, 'received "%s"' % data
+                                print data
                                 self.command_queue.put(data)
                                 break
                     except Exception as e:

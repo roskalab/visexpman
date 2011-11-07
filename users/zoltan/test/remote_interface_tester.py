@@ -8,7 +8,7 @@ import visexpman.engine.generic.utils as utils
 class RemoteTesterConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         SERVER_IP = 'localhost'
-        import random
+        SERVER_IP = '172.27.26.8'
         COMMAND_INTERFACE_PORT = [10000, [300,  65000]]
         
         ENABLE_UDP = True
