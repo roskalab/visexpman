@@ -30,11 +30,21 @@ class VisexpmanScreen(graphics.Screen):
         self.message_position = utils.cr(( int(self.config.MESSAGE_POSITION['col'] * self.config.SCREEN_RESOLUTION['col']), int(self.config.MESSAGE_POSITION['row'] * self.config.SCREEN_RESOLUTION['row'])))
         self.message = 'no message'
         self.hide_menu = False
+        self.show_bullseye = False
         #== Update text to screen ==
 #        self.refresh_non_experiment_screen()
         
     def clear_screen_to_background(self):
-        graphics.Screen.clear_screen(self, color = self.config.BACKGROUND_COLOR)        
+        color = self.config.BACKGROUND_COLOR
+        if self.caller.command_handler.presentinator_interface['command'] == 'color':
+            color = utils.convert_color(self.caller.command_handler.presentinator_interface['color'])
+        graphics.Screen.clear_screen(self, color = color)
+        
+    def display_bullseye(self):
+        if self.show_bullseye:
+            #TODO: bullseye size
+            self.render_imagefile(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'))
+            
         
     def _show_menu(self, flip = False):
         '''
@@ -69,7 +79,7 @@ class VisexpmanScreen(graphics.Screen):
         '''
         
         #TODO: when TEXT_ENABLE = False, screen has to be cleared to background color, self.clear_screen_to_background()
-        if self.config.TEXT_ENABLE:# and not self.hide_menu:#TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command
+        if self.config.ENABLE_TEXT:# and not self.hide_menu:#TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command
             self._show_menu()
             self._show_message(self.message, flip = flip)
 

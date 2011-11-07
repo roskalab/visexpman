@@ -840,8 +840,7 @@ class TestDaqInstruments(unittest.TestCase):
         ai_config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
         
         ai = AnalogIO(ai_config, self)
-        ai.start_daq_activity()        
-        #TODO: check waveform on oscilloscope with durations > 4.0 s
+        ai.start_daq_activity()
         duration = 4.0
         #Channel0
         import random

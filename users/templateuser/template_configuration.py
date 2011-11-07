@@ -69,7 +69,7 @@ class TemplateConfig(Configuration.PresentinatorConfig):
 #        GRATING_TEXTURE_RESOLUTION = [512,  [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]]
 #        
 #        #user interface
-#        TEXT_ENABLE = True
+#        ENABLE_TEXT = True
 #        TEXT_COLOR = [[1.0,  -1.0,  -1.0] ,  [[-1.0,  -1.0,  -1.0],  [1.0,  1.0,  1.0]]]
 #        TEXT_SIZE = [12,  [2,  20]]
 #        

@@ -8,6 +8,15 @@ import os
 # - full test, filterhweel disabled
 # - test without hardware
 
+#command line parameters:
+#1. test - mandatory
+#2. mandatory
+#   -h - skip hardware related tests
+#    -f run all tests
+#TODO# 3.optional: -d - delete all files generated during test
+#TODO: delete users.zoltan.presentinator*.*files
+#TODO: individual command line switches for testing hardware related modules: -daq, -stage, -filterwheel, -parallel, ....
+
 #== Test control ==
 #Parse command line arguments
 run_mode = 'application'
@@ -36,7 +45,7 @@ TEST_hardware_test = (run_mode == 'full test')
 TEST_pixel_difference_threshold = 50.0
 
 if TEST_os == 'nt':
-    TEST_reference_frames_folder = 'm:\\Raicszol\\visexpman\\test_data\\reference_frames_win'
+    TEST_reference_frames_folder = 'm:\\Zoltan\\visexpman\\test_data\\reference_frames_win'
 elif TEST_os == 'posix':
     TEST_reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
 elif TEST_os == 'osx':
@@ -47,22 +56,27 @@ TEST_filterwheel_enable  = True #If set to False, many tests fail.
 
 if TEST_os == 'nt':
     TEST_com_port = 'COM4'
-    TEST_working_folder = 'c:\\_del\\test'
+    TEST_working_folder = 'c:\\temp\\test'
     TEST_valid_file = 'c:\\windows\\win.ini'
     TEST_invalid_file = 'c:\\windows'
+    TEST_stage_com_port = 'COM1'
 elif TEST_os == 'posix':
     TEST_com_port = '/dev/ttyUSB0'
     TEST_working_folder = '/media/Common/visexpman_data/test'
     TEST_valid_file = '/home/zoltan/Downloads/qtgl.py'
     TEST_invalid_file = '/home'
+    TEST_stage_com_port = ''
 elif TEST_os == 'osx':
     TEST_com_port = ''
     TEST_working_folder = '/Users/rz/visexpman/data/test'
     TEST_valid_file = '/Users/rz/test_stimulus.py'
     TEST_invalid_file = '/Users'
+    TEST_stage_com_port = ''
     
 TEST_daq = (os.name == 'nt') and TEST_hardware_test
 TEST_daq_device = 'Dev1'
+
+TEST_stage = not True
 
 class unitTestRunner():
     '''
@@ -94,6 +108,8 @@ class unitTestRunner():
                'enable' : TEST_hardware_test},
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testDataHandler',
                'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
+               'enable' : TEST_stage},
                ]
 
     def fetch_test_methods(self, test_class):

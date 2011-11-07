@@ -168,7 +168,7 @@ class TestExternalHardwareExperiment(experiment.Experiment):
     def run(self):
         self.show_fullscreen(duration = 0.0, color = 0.5)
         self.parallel_port.set_data_bit(1, 1)
-        self.parallel_port.set_data_bit(1, 0)        
+        self.parallel_port.set_data_bit(1, 0)
         filter = int(5 * random.Random().random()) + 1
         time.sleep(0.2)
         self.filterwheels[0].set(filter)
@@ -361,3 +361,50 @@ class VisualStimulationsExperiment(experiment.Experiment):
         self.show_shape(shape = 'r', size = utils.rc((100.0, 200)), color = [1.0, 0.0,0.0], orientation = 10)
         self.disable_text()
         self.show_shape(shape = 'a', size = utils.rc((100.0, 200)), ring_size = 10.0) 
+
+#== Stage test experiment ==
+class StageExperimentTestConfig(VisionExperimentConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'StageExperimentConfig'        
+        #paths
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        
+        #screen
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+        
+        motor_serial_port = {
+                                    'port' :  unit_test_runner.TEST_stage_com_port,
+                                    'baudrate' : 19200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }
+                                    
+        STAGE = [[{'serial_port' : motor_serial_port,
+                 'enable': True,
+                 'speed': 1000000,
+                 'acceleration' : 1000000,
+                 'move_timeout' : 45.0,
+                 'um_per_ustep' : numpy.ones(3, dtype = numpy.float)
+                 }]]
+
+        COORDINATE_SYSTEM='center'
+        ARCHIVE_FORMAT = 'zip'
+        self._create_parameters_from_locals(locals())
+
+class StageExperimentConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'StageExperiment'
+        self._create_parameters_from_locals(locals())
+        
+class StageExperiment(experiment.Experiment):
+    def run(self):
+        self.initial_position = self.stage.position
+        movement_vector = numpy.array([10000.0,1000.0,10.0])
+        self.result1 = self.stage.move(movement_vector)
+        self.result2 = self.stage.move(-movement_vector)
+        
+#TODO: test for usage of experiment config

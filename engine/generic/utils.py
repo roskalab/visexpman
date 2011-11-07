@@ -239,13 +239,14 @@ def rc_pack(raw, order = 'rc'):
     elif isinstance(raw, numpy.ndarray) and raw.ndim > 2:
         raise TypeError('Input data dimension must be 2. Call rc_flatten if you want data to be flattened before conversion')
     else:
-        #input is a tuple or 1D numpy array: this case has to be handled separately so that indexing mydata['row'] returns a value and not an array.
-        if isinstance(raw[0], float):
+        #input is a tuple or 1D numpy array: this case has to be handled separately so that indexing mydata['row'] returns a value and not an array.        
+        if isinstance(raw[0], float) or isinstance(raw[1], float) or isinstance(raw[0], numpy.float32) or isinstance(raw[1], numpy.float32) or\
+        isinstance(raw[0], numpy.float64) or isinstance(raw[1], numpy.float64) or isinstance(raw[0], numpy.float) or isinstance(raw[1], numpy.float):
             return numpy.array((raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.float32,numpy.float32]})
         else:
             return numpy.array((raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
 
-def rc_add(operand1, operand2):
+def rc_add(operand1, operand2,  operation = '+'):
     '''
     supported inputs:
     - single rc + single rc
@@ -254,21 +255,36 @@ def rc_add(operand1, operand2):
     - array of rc + single rc
     (- constant + single rc
     - constant + array of rc)
-    '''
-    if isinstance(operand1, numpy.ndarray) and (isinstance(operand2, numpy.ndarray)):
+    '''    
+    if isinstance(operand1, numpy.ndarray) and (isinstance(operand2, numpy.ndarray)):        
         if operand1.shape == () and operand2.shape == ():
-            return rc((operand1['row'] + operand2['row'], operand1['col'] + operand2['col']))
+            if operation == '+':                
+                return rc((operand1['row'] + operand2['row'], operand1['col'] + operand2['col']))
+            elif operation == '-':
+                return rc((operand1['row'] - operand2['row'], operand1['col'] - operand2['col']))
         elif operand1.shape != () and operand2.shape != ():
-            rows = operand1[:]['row'] + operand2[:]['row']
-            cols = operand1[:]['col'] + operand2[:]['col']
+            if operation == '+':
+                rows = operand1[:]['row'] + operand2[:]['row']
+                cols = operand1[:]['col'] + operand2[:]['col']
+            elif operation == '-':
+                rows = operand1[:]['row'] - operand2[:]['row']
+                cols = operand1[:]['col'] - operand2[:]['col']
             return rc(numpy.array([rows, cols]))
         elif operand1.shape == () and operand2.shape != ():
-            rows = operand1['row'] + operand2[:]['row']
-            cols = operand1['col'] + operand2[:]['col']
+            if operation == '+':
+                rows = operand1['row'] + operand2[:]['row']
+                cols = operand1['col'] + operand2[:]['col']
+            elif operation == '-':
+                rows = operand1['row'] - operand2[:]['row']
+                cols = operand1['col'] - operand2[:]['col']
             return rc(numpy.array([rows, cols]))
         elif operand1.shape != () and operand2.shape == ():
-            rows = operand1[:]['row'] + operand2['row']
-            cols = operand1[:]['col'] + operand2['col']
+            if operation == '+':
+                rows = operand1[:]['row'] + operand2['row']
+                cols = operand1[:]['col'] + operand2['col']
+            elif operation == '-':
+                rows = operand1[:]['row'] - operand2['row']
+                cols = operand1[:]['col'] - operand2['col']
             return rc(numpy.array([rows, cols]))
     
     
@@ -333,6 +349,28 @@ def arc_perimeter(radius,  angle):
     '''
     slice_ratio = angle / 360.0
     return numpy.pi  * 2 *radius * slice_ratio
+    
+def rc_distance(point1,  point2):
+    return numpy.sqrt((point1['col']-point2['col'])**2 + (point1['row']-point2['row'])**2)
+    
+def calculate_trajectory(start_point,  end_point,  spatial_resolution,  curve = 'linear'):
+    '''
+    Calculate trajectory coordinates between two points or a point pairs
+    '''
+    #TODO: multiple trajectories, trajectory of multiple predefined points    
+    distance = rc_distance(start_point,  end_point)
+    number_of_steps = int(round(distance / spatial_resolution, 0))
+    step_size = distance / number_of_steps    
+    if curve == 'linear':
+        direction = rc_add(end_point, start_point, operation = '-')
+        angle = numpy.arctan(float(direction['row'])/float(direction['col']))
+        trajectory = []
+        step_vector = cr((numpy.cos(angle) * step_size, numpy.sin(angle) * step_size))
+        for step in range(number_of_steps):
+            trajectory.append(rc_add(start_point, rc_multiply_with_constant(step_vector, step)))
+        trajectory = numpy.array(trajectory)
+        return trajectory
+        
     
 #== Application management ==    
 def class_name(object):
@@ -434,30 +472,7 @@ def find_class_in_module(modules,  class_name, module_name_with_hierarchy = Fals
                     module_found = module.split(os.sep)[-1].split('.')[0]
     return module_found
     
-def imported_modules():
-    '''
-    - List of imported visexpman module paths
-    - List of imported module names
-    '''        
-    import visexpman.engine.generic.parameter
-    visexpman_modules = []
-    module_names = []
-    for k, v in sys.modules.items():
-        if k.find('visexpman') != -1:
-            if v == None:
-                new_module_name = k.split('.')[-1]
-                if not is_in_list(module_names, new_module_name):
-                    module_names.append(new_module_name)
-            else:
-                new_module_path = v.__file__.replace('.pyc', '.py')
-                if not is_in_list(module_names, new_module_path):
-                    visexpman_modules.append(new_module_path)
-    module_names.sort()
-    visexpman_modules.sort()    
-    return [module_names, visexpman_modules]
-    
-def module_versions(modules):
-    version_paths = {
+version_paths = {
     'Queue' : 'standard', 
     'socket': 'standard', 
     'visexpman': 'version', 
@@ -494,6 +509,30 @@ def module_versions(modules):
     'Helpers' : 'version', 
     
     }    
+    
+def imported_modules():
+    '''
+    - List of imported visexpman module paths
+    - List of imported module names
+    '''        
+    import visexpman.engine.generic.parameter
+    visexpman_modules = []
+    module_names = []
+    for k, v in sys.modules.items():
+        if k.find('visexpman') != -1:
+            if v == None:
+                new_module_name = k.split('.')[-1]
+                if not is_in_list(module_names, new_module_name):
+                    module_names.append(new_module_name)
+            else:
+                new_module_path = v.__file__.replace('.pyc', '.py')
+                if not is_in_list(module_names, new_module_path):
+                    visexpman_modules.append(new_module_path)
+    module_names.sort()
+    visexpman_modules.sort()    
+    return [module_names, visexpman_modules]
+    
+def module_versions(modules):    
     module_version = ''
     for module in modules:
         __import__(module)        
@@ -768,8 +807,6 @@ def generate_pulse_train(offsets, pulse_widths, amplitudes, duration, sample_rat
         waveform[offset: offset + _pulse_widths[pulse_index]] = pulse
         
     return waveform
-    
-
 
 def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):
     wave = []
@@ -905,8 +942,13 @@ class TestUtils(unittest.TestCase):
         self.assertRaises(RuntimeError, generate_pulse_train, numpy.array([0,2,4]), [1,1,2], numpy.array([10.0, 20.0, 10.0]), 5)
 
 if __name__ == "__main__":
-    l = [1, 2, 3]
-    imported_modules()
+    start_point = cr((0.0, 0.0))
+    end_point = cr((10.0, 10.0))
+    spatial_resolution =2.5
+#    print rc_add(start_point, end_point)
+    print calculate_trajectory(start_point,  end_point,  spatial_resolution)
+#    l = [1, 2, 3]
+#    imported_modules()
 # temp solution by Daniel:
     
     class Test(unittest.TestCase):

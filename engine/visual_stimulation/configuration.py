@@ -37,9 +37,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         PIN_RANGE = [0,  7]
         
-        #run options: single experiment, user interface
-        RUN_MODE = ['single experiment',  ['single experiment',  'user interface',  'unknown']]#TODO: Obsolete???
-        
         #parameters that the user need to define: (This is a way to force users to create their configs carefully
 #        EXPERIMENT_CONFIG = 'TestExperimentConfig'
 #        LOG_PATH = '/media/Common/visexpman_data'
@@ -79,16 +76,21 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_UDP = True
         UDP_PORT = [446,  [300,  65000]]
         UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
-        COMMAND_INTERFACE_PORT = [10000, [300,  65000]]
+        COMMAND_INTERFACE_PORT = [10000, [300,  65000]]        
         
         COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
-        COMMANDS = {
+        #Currently the keyboard and running experiment domains are considered:
+        #-keyboard: at generating menu for hotkeys
+        #-running experiment: during experiment only these commands are accepted
+        COMMANDS = { 
                     'hide_menu': {'key': 'h', 'domain': ['keyboard']}, 
                     #Dynamically added to the list: 'experiment_select' : {'key' : None, 'domain': ['keyboard']},
                     'execute_experiment': {'key': 'e', 'domain': ['keyboard', 'network interface', 'remote client']}, 
                     'abort_experiment': {'key': 'a', 'domain': ['running experiment']}, 
                     'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
-                    'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},                    
+                    'color': {'key': 'c', 'domain': ['network interface', 'remote client']},
+                    'filterwheel': {'key': 'f', 'domain': ['network interface', 'remote client']},
+                    'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},#Perhaps this command shall be accepted from keyboard
                     }
                     
         #By overriding this parameter, the user can define additional keyboard commands that are handled during experiment
@@ -105,7 +107,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #        GRATING_TEXTURE_RESOLUTION = [512,  [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]]
         
         #user interface
-        TEXT_ENABLE = True
+        ENABLE_TEXT = True
         TEXT_COLOR = [[1.0,  0.0,  0.0] ,  [[0.0, 0.0, 0.0],  [1.0,  1.0,  1.0]]]
 #        TEXT_SIZE = [12,  [2,  20]]
         
@@ -323,15 +325,17 @@ class testApplicationConfiguration(unittest.TestCase):
         t = TestConfig()
         self.assertEqual((t.PAR1,  t.PAR2,  t.PAR3),  ('par1', 'par2',  t.PAR1+t.PAR2))
         
-    def test_02_non_redundant_user_command_config(self):
-        commands = {
+    def test_02_non_redundant_user_command_config(self):        
+        commands = { 
                     'hide_menu': {'key': 'h', 'domain': ['keyboard']}, 
                     #Dynamically added to the list: 'experiment_select' : {'key' : None, 'domain': ['keyboard']},
                     'execute_experiment': {'key': 'e', 'domain': ['keyboard', 'network interface', 'remote client']}, 
                     'abort_experiment': {'key': 'a', 'domain': ['running experiment']}, 
                     'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
+                    'color': {'key': 'c', 'domain': ['network interface', 'remote client']},
+                    'filterwheel': {'key': 'f', 'domain': ['network interface', 'remote client']},
                     'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},
-                    'dummy': {'key': 'd', 'domain': ['running experiment']},
+                    'dummy': {'key': 'd', 'domain': ['running experiment']}, 
                     }
         t = NonRedundantCommandConfig()
         self.assertEqual((t.COMMANDS),  (commands))

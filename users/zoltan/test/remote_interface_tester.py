@@ -42,18 +42,23 @@ try:
     stimulus_file = sys.argv[2]
     f = open(stimulus_file, 'rt')
     stimulation_code = f.read(os.path.getsize(stimulus_file))
-    print stimulation_code
+#    print stimulation_code
     f.close()
 except IndexError:
     stimulus_file = ''
     stimulation_code = ''
-    
-print command,  stimulus_file
 
-if command == 't':
-    command = command + stimulation_code
+#print command,  stimulus_file
 
-
+if command == 'execute_experiment':
+    command = 'SOC' + command + 'EOC' + stimulation_code + 'EOP'
+else:
+    command = command.split(',')
+    if len(command) == 1:
+        command = 'SOC' + command[0] + 'EOC'
+    else:
+        command = 'SOC' + command[0] + 'EOC' + command[1] + 'EOP'
+print command
 sock = socket.socket( socket.AF_INET, socket.SOCK_DGRAM )
 sock.sendto( command, (conf.SERVER_IP, conf.UDP_PORT) )
 #data, addr = sock.recvfrom( conf.UDP_BUFFER_SIZE )

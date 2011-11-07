@@ -20,15 +20,15 @@ class ExperimentConfig(Config):
             if hasattr(self, 'pre_runnable'):
                 self.pre_runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.visual_stimulation.experiment.PreExperiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the pre experiment code
 
-    def run(self):  #RZ: Why is the experiment started by the experiment config class?
+    def run(self):
         if self.runnable == None:
             raise ValueError('Specified stimulus class is not instantiated.')
         else:
-            self.runnable.run()        
+            self.runnable.run()
         self.runnable.cleanup()
 
-    def set_experiment_control_context(self):        
-        self.runnable.set_experiment_control_context()    
+    def set_experiment_control_context(self):
+        self.runnable.set_experiment_control_context()
 
 class Experiment(stimulation_library.Stimulations):
     def __init__(self, machine_config, caller, experiment_config):
@@ -45,9 +45,11 @@ class Experiment(stimulation_library.Stimulations):
         self.devices = self.caller.experiment_control.devices
         self.parallel_port = self.devices.parallel_port        
         self.filterwheels = self.devices.filterwheels
+        self.stage = self.devices.stage
         if hasattr(self.devices, 'led_controller'): #This hasattr checking is unnecessary
             self.led_controller = self.devices.led_controller
         self.log = self.caller.experiment_control.log
+        self.logfile_path = self.caller.experiment_control.logfile_path
         self.command_buffer = ''
         self.abort = False
 

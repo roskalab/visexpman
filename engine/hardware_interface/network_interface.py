@@ -66,7 +66,6 @@ class NetworkListener(QtCore.QThread):
                         udp_buffer, addr = self.socket.recvfrom(self.config.UDP_BUFFER_SIZE)
                         self.client_address = addr
     #                    print udp_buffer
-                        #TODO: here comes the presentinator command translator
                         self.command_queue.put(udp_buffer)
     #                 except socket.timeout:
     #                     pass
@@ -76,11 +75,16 @@ class NetworkListener(QtCore.QThread):
                     self.sleep(self.sleep_sec)
                     self.sleep_sec=0
                     print('slept')
+
                     
     def close(self):
 #        if self.socket_type ==  socket.SOCK_STREAM:
 #            self.socket.shutdown(socket.SHUT_RDWR)
         self.socket.close()
+        #Terminate thread
+#        self.exit()
+#        self.terminate()
+#        self.wait()
     
 
 
@@ -163,6 +167,8 @@ class testNetworkInterface(unittest.TestCase):
             expected_string += str(i)
         self.assertEqual((response),  (expected_string))
         self.listener1.close()
+        self.listener1.terminate()
+        self.listener1.wait()
         
     def test_02_multiple_tcpip_senders(self):
         self.command_queue = Queue.Queue()        
@@ -189,6 +195,8 @@ class testNetworkInterface(unittest.TestCase):
         expected_string = expected_string + expected_string
         self.assertEqual((response),  (expected_string))
         self.listener2.close()
+        self.listener2.terminate()
+        self.listener2.wait()
         
 #    def test_03_multiple_tcpip_listeners(self):
 #        #This test case does not work because a previously used socket cannot be reused
@@ -231,6 +239,8 @@ class testNetworkInterface(unittest.TestCase):
         for i in range(self.config.MSG_LENGTH):
             expected_string += str(i)        
         self.listener3.close()
+        self.listener3.terminate()
+        self.listener3.wait()
         self.assertEqual((response),  (expected_string))        
     
     def test_04_multiple_udp_senders(self):
@@ -244,12 +254,12 @@ class testNetworkInterface(unittest.TestCase):
         if os.name == 'nt':
             time.sleep(2.5)
         elif os.name == 'posix':
-            time.sleep(2.5)
+            time.sleep(1.5) #or 2.5
         sender2.start()
         if os.name == 'nt':
             time.sleep(2.5)
         elif os.name == 'posix':
-            time.sleep(3.5)
+            time.sleep(1.5) #or 3.5
         response = ''
         while not self.command_queue.empty():
             response += self.command_queue.get()
@@ -258,6 +268,8 @@ class testNetworkInterface(unittest.TestCase):
             expected_string += str(i)
         expected_string = expected_string + expected_string
         self.listener4.close()
+        self.listener4.terminate()
+        self.listener4.wait()
         self.assertEqual((response),  (expected_string))
         
 if __name__ == "__main__":

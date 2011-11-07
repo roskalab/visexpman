@@ -45,7 +45,6 @@ class Config(object):
             self._create_parameters_from_locals(locals())            
         
         '''
-        #TODO: log 'Loaded configuration class: ' + self.__class__.__name__        
         self.machine_config = machine_config
         if generic_parameters:
             self._create_generic_parameters()
@@ -58,9 +57,9 @@ class Config(object):
         self._calculate_parameters()
         #check for modified or new parameters created by calculate_parameters method, get their names and load them:
         self._create_parameter_aliases()
-        
+
     def _create_generic_parameters(self):
-        self.PACKAGE_PATH_p = parameter.Parameter(os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0], is_path=True)                
+        self.PACKAGE_PATH_p = parameter.Parameter(os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0], is_path=True)
         self._create_parameter_aliases()
         return
 

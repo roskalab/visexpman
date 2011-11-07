@@ -169,7 +169,7 @@ class ZoliTester(VisionExperimentConfig):
         FRAME_WAIT_FACTOR = 0 
         GAMMA = 1.0
         ENABLE_FILTERWHEEL = False
-        TEXT_ENABLE = False
+        ENABLE_TEXT = False
         
         MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
 

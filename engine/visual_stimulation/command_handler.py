@@ -5,8 +5,11 @@ import re
 import PyQt4.QtCore as QtCore
 #import visexpman.engine.hardware_interface.udp_interface as network_interface
 import stimulation_control as experiment_control
+import experiment
+import visexpman.engine.hardware_interface.instrument as instrument
 command_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
 parameter_extract = re.compile('EOC(.+)EOP') # an optional parameter string follows EOC terminated by EOP. In case of binary data EOC and EOP should be escaped.
+
 
 class CommandHandler(object):
     '''
@@ -23,15 +26,19 @@ class CommandHandler(object):
         for i in range(len(self.caller.experiment_config_list)):
             if self.caller.experiment_config_list[i][1].__name__ == self.config.EXPERIMENT_CONFIG:
                 self.selected_experiment_config_index = i
-                
         #Experiment counter will be used to identify each experiment (logging,....)
         self.experiment_counter = 0
+        
+        self.presentinator_interface = {
+                                        'command' : '', 
+                                        'color' : None                                        
+                                        }
         
     def process_command_buffer(self):
         '''
         Parsing all the commands in the command buffer
         '''
-        result = ''        
+        result = ''
         while not self.caller.command_queue.empty():
             result += '\n' + str(self.parse(self.caller.command_queue.get()))
         self.caller.command_buffer = []
@@ -41,12 +48,12 @@ class CommandHandler(object):
         '''
         Selects experiment config based on keyboard command and instantiates the experiment config class
         '''
-        self.selected_experiment_config_index = int(par)        
+        self.selected_experiment_config_index = int(par)
         return 'selected experiment: ' + str(par) + ' '
 
     def execute_experiment(self, par):        
         #Experiment control class is always (re)created so that the necessary hardware initializations could take place
-        self.caller.experiment_control = experiment_control.ExperimentControl(self.config, self.caller)
+        self.caller.experiment_control = experiment_control.ExperimentControl(self.config, self.caller, par)
         #Run experiment
         self.caller.experiment_control.run_experiment()
         #Clean up experiment
@@ -55,22 +62,40 @@ class CommandHandler(object):
         return 'experiment executed'
 
     def bullseye(self, par):
-        #TODO: stimulus fajlla (experiment class) kene alakitani         
+        self.caller.screen_and_keyboard.show_bullseye = not self.caller.screen_and_keyboard.show_bullseye
         return 'bullseye'
+
+    def color(self, par):
+        self.presentinator_interface['command'] = 'color'
+        self.presentinator_interface['color'] = int(par)
+        return 'color'
         
+    def filterwheel(self, par):        
+        if len(par) != 2:
+            raise RuntimeError('Invalid filter id and position')
+        filterwheel_id = int(par[0])
+        filter = int(par[1])
+#        #Here comes an init-set-close sequence
+        if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):            
+            filterwheel = instrument.Filterwheel(self.config, self.caller, id = filterwheel_id)
+            filterwheel.set(filter)
+            if os.name == 'nt':
+                filterwheel.release_instrument()
+        return 'filterwheel ' + par
+
     def hide_menu(self, par):
         self.caller.screen_and_keyboard.hide_menu = not self.caller.screen_and_keyboard.hide_menu
         if self.caller.screen_and_keyboard.hide_menu:
             return ''
         else:
             return 'menu is unhidden'
-            
+
     def abort_experiment(self, par):
         return 'abort_experiment'
-        
+
     def quit(self, par):
-        self.caller.loop_state = 'end loop'        
-        return 'quit'        
+        self.caller.loop_state = 'end loop'
+        return 'quit'
 
     def parse(self,  command_buffer,  state = 'unspecified'):
         '''
@@ -79,9 +104,12 @@ class CommandHandler(object):
         result  = None
         if len(command_buffer) > 6: #SOC + EOC + 1 character is at least present in a command            
             cmd = command_extract.findall(command_buffer)
-            par = parameter_extract.findall(command_buffer) #par is not at the beginning of the buffer            
+            command_buffer_newline_replaced = command_buffer.replace('\n',  '<newline>')
+            par = parameter_extract.findall(command_buffer_newline_replaced) #par is not at the beginning of the buffer 
             if len(par)>0:
-                par = par[0]            
+                par = [par[0].replace('<newline>',  '\n')]            
+            if len(par)>0:
+                par = par[0]
             if hasattr(self, cmd[0]):
                 result=getattr(self, cmd[0])(par) # call the selected function with the optional parameter
             else:
