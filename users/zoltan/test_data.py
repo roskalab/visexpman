@@ -230,60 +230,7 @@ class TestExp1(experiment.Experiment):
 class TestExpShort(experiment.Experiment):
     def run(self):
         self.show_grating(duration =1.0, profile = 'sqr', orientation = 0, velocity = 50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
-        
-class DotsExperimentConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.NDOTS = 20
-        self.NFRAMES = 1
-        self.PATTERN_DURATION = 10.0
-        self.RANDOM_DOTS = True
-        self.runnable = 'MultipleDotTest'
-        self.pre_runnable = 'TestPre'
-        self._create_parameters_from_locals(locals())
-        
-class MultipleDotTest(experiment.Experiment):
-    def run(self):
-        self.add_text('tex\nt', color = (1.0,  0.0,  0.0), position = utils.cr((100.0, 100.0)))
-        self.change_text(0, text = 'aa')
-        self.add_text('tex\nt', color = (1.0,  0.0,  0.0), position = utils.cr((100.0, 200.0)))
-        self.disable_text(1)
-        import random
-        self.config = self.experiment_config.machine_config
-        random.seed(0)
-        dot_sizes = []
-        dot_positions = []
-        for j in range(self.experiment_config.NFRAMES):
-            dot_sizes_per_frame = []
-            dot_positions_per_frame = []
-            if isinstance(self.experiment_config.NDOTS,  list):
-                dots = ndots[j]
-            else:
-                dots = self.experiment_config.NDOTS
-            for i in range(dots):
-                coords = (random.random(),  random.random())
-                coords = utils.rc(coords)
-                dot_positions.append([coords['col'] * self.config.SCREEN_RESOLUTION['col'] - self.config.SCREEN_RESOLUTION['col'] * 0.5, coords['row'] * self.config.SCREEN_RESOLUTION['row'] - 0.5 * self.config.SCREEN_RESOLUTION['row']])
-                dot_sizes.append(10 + 100 * random.random())
-        
-        dot_positions = utils.cr(numpy.array(dot_positions).transpose())
-        dot_sizes = numpy.array(dot_sizes)
-        if isinstance(self.experiment_config.NDOTS, list):
-            colors = utils.random_colors(max(self.experiment_config.NDOTS), self.experiment_config.NFRAMES,  greyscale = True,  inital_seed = 0)
-        else:
-            colors = utils.random_colors(self.experiment_config.NDOTS, self.experiment_config.NFRAMES,  greyscale = True,  inital_seed = 0)
-        if self.experiment_config.NFRAMES == 1:
-            colors = [colors]
-        
-        if self.experiment_config.RANDOM_DOTS:
-            self.show_dots(dot_sizes, dot_positions, self.experiment_config.NDOTS, duration = self.experiment_config.PATTERN_DURATION,  color = numpy.array(colors))
-        else:
-            side = 240.0
-            dot_sizes = numpy.array([50, 30, 30, 30, 30, 20])
-            colors = numpy.array([[[1.0,0.0,0.0],[1.0,1.0,1.0],[0.0,1.0,0.0],[0.0,0.0,1.0],[0.0,1.0,1.0],[0.8,0.0,0.0]]])
-            dot_positions = utils.cr(numpy.array([[0, side, side, -side, -side, 1.5 * side], [0, side, -side, -side, side, 1.5 * side]]))
-            ndots = 6
-            self.show_dots(dot_sizes, dot_positions, ndots, duration = 4.0,  color = colors)    
-            
+
 class ManipulationExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         

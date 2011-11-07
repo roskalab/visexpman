@@ -14,7 +14,7 @@ import os
 class NetworkListener(QtCore.QThread):
     ''' Waits for connections on the port specified
     '''
-    def __init__(self, ip_address, command_queue, socket_type, port,  udp_buffer_size=65535):        
+    def __init__(self, ip_address, command_queue, socket_type, port,  udp_buffer_size=65535):        #TODO reorganize the order of these parameters
         target = None
         name = None
         QtCore.QThread.__init__(self)
