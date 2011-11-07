@@ -33,7 +33,7 @@ class CommandHandler(object):
         '''
         result = ''        
         while not self.caller.command_queue.empty():
-            result += '\n' + str(self.parse(self.caller.command_queue.get(),  state = self.caller.state))
+            result += '\n' + str(self.parse(self.caller.command_queue.get()))
         self.caller.command_buffer = []
         self.caller.screen_and_keyboard.message += result
 
