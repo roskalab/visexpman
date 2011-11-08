@@ -76,7 +76,7 @@ class VisExpRunner(object):
             self.udp_listener.start()
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
-        self.loop_state = 'running' #Ez kell ide, hogy ki tudjunk lepni a programbol
+        self.loop_state = 'running' #This state variable is necessary to end the main loop of the program from the command handler
         #create list of imported python modules
         module_info = utils.imported_modules()        
         self.visexpman_module_paths  = module_info[1]
@@ -87,7 +87,7 @@ class VisExpRunner(object):
         self.log.info('Visexpman initialized')        
 
     def run_loop(self):
-        while self.loop_state == 'running': #Ez is!
+        while self.loop_state == 'running':
             self.screen_and_keyboard.clear_screen_to_background()
             self.screen_and_keyboard.display_bullseye()
             if hasattr(self.selected_experiment_config, 'pre_runnable') and self.selected_experiment_config.pre_runnable is not None:

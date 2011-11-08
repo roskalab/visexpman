@@ -271,7 +271,7 @@ class ManipulationExperimentConfig(experiment.ExperimentConfig):
         self.grating_angle = 0.0 #degrees
         self.grating_size = utils.cr((0, 0))
         
-        self.runnable = 'ManipulationExperiment'        
+        self.runnable = 'ManipulationExperiment'
         self._create_parameters_from_locals(locals())
 
 class ManipulationExperiment(experiment.Experiment):

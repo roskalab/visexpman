@@ -2,6 +2,8 @@ import unittest
 import sys
 import os
 
+#Quickstart: test without hardware : python unit_test_runner.py test -h
+
 #run modes:
 # - application
 # - full test

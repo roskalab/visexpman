@@ -1,12 +1,21 @@
-
+import time
+import socket
 import sys
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import visexpman.engine.generic.utils as utils
+import visexpman.engine.generic.configuration as configuration
+import visexpman.engine.hardware_interface.network_interface as network_interface
+import Queue
 
 class Gui(Qt.QMainWindow):
-    def __init__(self):
+    def __init__(self, config, command_queue, response_queue):
+        self.config = config
+        self.command_queue = command_queue
+        self.response_queue = response_queue
+        self.default_parameters()
+        #=== Init GUI ===
         Qt.QMainWindow.__init__(self)
         self.setWindowTitle('Vision Experiment Manager GUI')
         self.resize(800, 600)
@@ -14,9 +23,7 @@ class Gui(Qt.QMainWindow):
         self.create_user_interface()
         self.show()
         
-    def create_user_interface(self):
-        
-        
+    def create_user_interface(self):        
         panel_size = utils.cr((180, 40))
         date_format = QtCore.QString('dd-mm-yyyy')        
         mouse_birth_date = {'size' : panel_size,  'position' : utils.cr((0,  100))}
@@ -35,6 +42,8 @@ class Gui(Qt.QMainWindow):
         acquire_camera_image = {'size' : panel_size,  'position' : utils.cr((0,  350))}
         acquire_z_stack = {'size' : panel_size,  'position' : utils.cr((panel_size['col'],  350))}
         two_photon_recording = {'size' : panel_size,  'position' : utils.cr((2*panel_size['col'],  350))}
+        log = {'size' : utils.cr((640, 40)),  'position' : utils.cr((0,  400))}
+        update = {'size' : panel_size,  'position' : utils.cr((0,  450))}
         
         #=== Generating experiment id ===
 
@@ -112,10 +121,32 @@ class Gui(Qt.QMainWindow):
         self.acquire_z_stack_button.move(acquire_z_stack['position']['col'],  acquire_z_stack['position']['row'])
         self.connect(self.acquire_z_stack_button, QtCore.SIGNAL('clicked()'),  self.acquire_z_stack)
         
-        self.two_photon_recording_button = QtGui.QPushButton('Acquire z stack',  self)
+        self.two_photon_recording_button = QtGui.QPushButton('Two photon record',  self)
         self.two_photon_recording_button.resize(two_photon_recording['size']['col'],  two_photon_recording['size']['row'])
         self.two_photon_recording_button.move(two_photon_recording['position']['col'],  two_photon_recording['position']['row'])
         self.connect(self.two_photon_recording_button, QtCore.SIGNAL('clicked()'),  self.two_photon_recording)
+        
+        #=== Others ===
+        self.log = QtGui.QLabel('',  self)
+        self.log.resize(log['size']['col'],  log['size']['row'])
+        self.log.move(log['position']['col'],  log['position']['row'])
+        self.log.setText('')
+        
+        self.update_button = QtGui.QPushButton('Update',  self)
+        self.update_button.resize(update['size']['col'],  update['size']['row'])
+        self.update_button.move(update['position']['col'],  update['position']['row'])
+        self.connect(self.update_button, QtCore.SIGNAL('clicked()'),  self.update)
+        
+    def default_parameters(self):
+        self.acquire_camera_image_parameters = 'valami.m'
+        self.acquire_z_stack_parameters = 'valami.m'
+        self.two_photon_parameters = 'valami.m'
+        
+#        Mat file handling
+#        data = scipy.io.loadmat('test.mat')
+#        data = {}
+#        data['x'] = x
+#        scipy.io.savemat('test.mat',data)
         
     def generate_id(self):
         mouse_birth_date = self.mouse_birth_date.date()
@@ -148,19 +179,40 @@ class Gui(Qt.QMainWindow):
         pass
         
     def acquire_camera_image(self):
-        pass
+        self.command_queue.put('SOCacquire_camera_imageEOC{0}EOP' .format(self.acquire_camera_image_parameters))        
         
     def acquire_z_stack(self):
-        pass
+        self.command_queue.put('SOCacquire_z_stackEOC{0}EOP' .format(self.acquire_z_stack_parameters))
         
     def two_photon_recording(self):
-        pass
+        self.command_queue.put('SOCtwo_photon_recordingEOC{0}EOP'.format(self.two_photon_parameters))
+        
+    def update(self):
+        message = self.log.text()
+        while not response_queue.empty():
+            message += response_queue.get() + ' '
+        message = message[-100:]
+        self.log.setText(message)
         
     def closeEvent(self, e):
         e.accept()
+        self.command_queue.put('SOCclose_connectionEOCEOP')
+        time.sleep(1.0) #Enough time to close connection with MES
         sys.exit(0)
+
+class GuiConfig(configuration.Config):
+    def _create_application_parameters(self):
+        MES = {'ip': '',  'port' : int(sys.argv[1]),  'receive buffer' : 256}
+        VISEXPMAN = {'ip': '',  'port' : 10001}
+        VISEXPA = {'ip': '',  'port' : 10002}
+        self._create_parameters_from_locals(locals())
         
 if __name__ == '__main__':
+    config = GuiConfig()    
+    command_queue = Queue.Queue()
+    response_queue = Queue.Queue()
+    server = network_interface.MesServer(config, command_queue, response_queue)
+    server.start()    
     app = Qt.QApplication(sys.argv)
-    gui = Gui()
+    gui = Gui(config, command_queue, response_queue)
     app.exec_()

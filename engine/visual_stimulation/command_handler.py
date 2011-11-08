@@ -10,7 +10,6 @@ import visexpman.engine.hardware_interface.instrument as instrument
 command_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
 parameter_extract = re.compile('EOC(.+)EOP') # an optional parameter string follows EOC terminated by EOP. In case of binary data EOC and EOP should be escaped.
 
-
 class CommandHandler(object):
     '''
     Responsible for interpreting incoming commands and calling the necessary functions
