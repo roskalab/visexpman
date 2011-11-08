@@ -50,16 +50,19 @@ class MovingDot(experiment.Experiment):
         
     def run(self):
         for dot_row_col in self.row_col:
-            self.show_dots(self.diameter_pix, dot_row_col, self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
-            if self.row_col.index(dot_row_col) in self.angle_end:
-                print 'wait'
-                time.sleep(1)
+            self.show_dots([self.diameter_pix]*len(dot_row_col), dot_row_col, self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+            print 'wait'
+            time.sleep(1)
         pass
 
     def prepare(self):
         # we want at least 2 repetitions in the same recording, but the best is to
         # keep all repetitions in the same recording
         angleset = numpy.sort(numpy.unique(self.experiment_config.ANGLES))
+        allangles0 = numpy.tile(angleset, [self.experiment_config.REPEATS])
+        permlist = getpermlist(allangles0.shape[0], self.experiment_config.RANDOMIZE)
+        allangles = allangles0[permlist]
+
         diameter_pix = utils.retina2screen(self.experiment_config.DIAMETER_UM,machine_config=self.experiment_config.machine_config,option='pixels')
         self.diameter_pix = diameter_pix
         speed_pix = utils.retina2screen(self.experiment_config.SPEED,machine_config=self.experiment_config.machine_config,option='pixels')
@@ -77,46 +80,135 @@ class MovingDot(experiment.Experiment):
         # diagonals run from bottom left to top right
         dlines,dlines_len = diagonal_tr(45,diameter_pix,gridstep_pix,movestep_pix,w,h)
 
-        diag_dur = 4*sum(dlines_len)/speed_pix/self.experiment_config.NDOTS
-        line_len={'ver0': (w+(diameter_pix*2))*numpy.ones((1,vlines_c.shape[0])), 
+        diag_dur = 4*sum(dlines_len)/speed_pix/self.experiment_config.NDOTS #each diagonal is shown 4 times, this is not optimal, we should look into angles and check the number of diagonal directions
+        diag_line_maxlength = max(dlines_len)
+        longest_line_dur = max([diag_line_maxlength, (w+diameter_pix*2)])/speed_pix/self.experiment_config.NDOTS # vertical direction has no chance to be longer than diagonal
+        if longest_line_dur > self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION: #check if allowed block duration can accomodate the longest line
+            raise ValueError('The longest trajectory cannot be shown within the time interval set as MAXIMUM RECORDING DURATION')
+        line_len={'ver0': (w+(diameter_pix*2))*numpy.ones((1,vlines_c.shape[0])),  # add 2*line_lenght to trajectory length, because the dot has to completely run in/out to/of the screen in both directions
                         'hor0' : (h+(diameter_pix*2))*numpy.ones((1,hlines_c.shape[0]))}
-        ver_dur = 2*line_len['ver0'].sum()/speed_pix/self.experiment_config.NDOTS
+        ver_dur = 2*line_len['ver0'].sum()/speed_pix/self.experiment_config.NDOTS #2 vertical directions are to be shown
         hor_dur = 2*line_len['hor0'].sum()/speed_pix/self.experiment_config.NDOTS
         total_dur = (self.experiment_config.PDURATION*8+diag_dur+ver_dur+hor_dur)*self.experiment_config.REPEATS
         nblocks = numpy.ceil(total_dur/self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION)[0]
+        # hard limit: a block in which all directions are shown the grid must not be sparser than 3*dot size. Reason: we assume dotsize
+        # corresponds to excitatory receptive field size. We assume excitatiory receptive field is surrounded by inhibitory fields with same width.
+         # here we divide the grid into multiple recording blocks if necessary
+        if nblocks*gridstep_pix > diameter_pix*3:
+            self.caller.log.info('Stimulation has to be split into blocks. The number of blocks is too high meaning that the visual field would be covered too sparsely in a block \
+                if we wanted to present all angles in every block. We shall multiple lines in a block but not all angles.')
+            self.angles_broken_to_multi_block( w, h, diameter_pix, speed_pix,gridstep_pix, movestep_pix,  hlines_r, hlines_c, vlines_r, vlines_c,   angleset, allangles)
+        else:
+            vr_all= dict();vc_all=dict()
+            vr_all[(90, 270,)] = [vlines_r[b::nblocks, :] for b in range(nblocks)]
+            vc_all[(90, 270,)] = [vlines_c[b::nblocks, :] for b in range(nblocks)]
+            vr_all[(0, 180,)] = [hlines_r[b::nblocks, :] for b in range(nblocks)]
+            vc_all[(0, 180,)]= [hlines_c[b::nblocks, :] for b in range(nblocks)]
+            self.allangles_in_a_block(diameter_pix,gridstep_pix,movestep_pix,w, h, nblocks,  vr_all, vc_all, angleset, allangles, total_dur)
+
+    def angles_broken_to_multi_block(self, w, h, diameter_pix, speed_pix,gridstep_pix, movestep_pix,  hlines_r, hlines_c, vlines_r, vlines_c,   angleset, allangles):
+        '''In a block the maximum possible lines from the same direction is put. Direction is shuffled till all lines to be shown are put into blocks.
+        Repetitions are not put into the same block'''
+        from copy import deepcopy
+        if self.experiment_config.NDOTS > 1:
+            raise NotImplementedError('This algorithm is not yet working when multiple dots are to be shown on the screen')
+        nlines_in_block_hor = int(numpy.floor(self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION / ((w+diameter_pix*2)/speed_pix/self.experiment_config.NDOTS))) #how many horizontal trajectories fit into a block? 
+        nlines_in_block_ver = int(numpy.floor(self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION / ((h+diameter_pix*2)/speed_pix/self.experiment_config.NDOTS))) #how many horizontal trajectories fit into a block? 
+        nblocks_hor = int(numpy.ceil(float(hlines_r.shape[0])/nlines_in_block_hor))
+        nblocks_ver = int(numpy.ceil(float(vlines_r.shape[0])/nlines_in_block_ver))
+        #nlines_in_block_diag=
+        line_order = dict()
+        lines_rowcol = dict()
+        line_order[90] = [numpy.arange(b, vlines_r.shape[0], nblocks_ver) for b in range(nblocks_ver)]
+        line_order[270] = [numpy.arange(b, vlines_r.shape[0], nblocks_ver) for b in range(nblocks_ver)]
+        line_order[0] = [numpy.arange(b, hlines_r.shape[0], nblocks_hor) for b in range(nblocks_hor)]
+        line_order[180] = [numpy.arange(b, hlines_r.shape[0], nblocks_hor) for b in range(nblocks_hor)]
+        lines_rowcol[90] = [numpy.vstack(numpy.dstack([vlines_r[b::nblocks_ver, :],  vlines_c[b::nblocks_ver, :]])) for b in range(nblocks_ver)]
+        lines_rowcol[270] = [numpy.vstack(numpy.dstack([vlines_r[b::nblocks_ver, :][-1::-1, :],  vlines_c[b::nblocks_ver, :][-1::-1, :]])) for b in range(nblocks_ver)]
+        lines_rowcol[0] = [numpy.vstack(numpy.dstack([hlines_r[b::nblocks_hor, :],  hlines_c[b::nblocks_hor, :]])) for b in range(nblocks_hor)]
+        lines_rowcol[180] = [numpy.vstack(numpy.dstack([hlines_r[b::nblocks_hor, :][-1::-1, :],  hlines_c[b::nblocks_hor, :][-1::-1, :]])) for b in range(nblocks_hor)]
+        diag_angles = [a1 for a1 in angleset if a1 in [45, 135, 225, 315]] #this implementation does not require doing the loop for all angles but we do it anyway, eventually another implementation might give different results for different angles
+        for a1 in diag_angles:
+            line_order[a1]=[]
+            lines_rowcol[a1] = []
+            row_col_f,linelengths_f = diagonal_tr(a1,diameter_pix,gridstep_pix,movestep_pix,w, h)
+            linelengths_f = numpy.squeeze(linelengths_f) # .shape[1] = NDOTS
+            # for diagonal lines we need to find a good combination of lines that fill the available recording time
+            while linelengths_f.sum()>0:
+                line_order[a1].append([])
+                # in a new block, first take the longest line
+                cblockdur=0
+                while linelengths_f.sum()>0 and cblockdur < self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION:
+                    li = int(numpy.where(linelengths_f==max(linelengths_f))[0])
+                    if cblockdur+linelengths_f[li]/speed_pix/self.experiment_config.NDOTS > self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION:
+                        break # we found a line that fits into max recording duration
+                    line_order[a1][-1].append(int(numpy.where(linelengths_f==linelengths_f[li])[0])) #if needed, this converts negative index to normal index
+                    cblockdur += max(linelengths_f)/speed_pix/self.experiment_config.NDOTS
+                    linelengths_f[li] = 0
+                    if linelengths_f.sum()==0: break
+                    # then find the line at half-screen distance and take it as next line
+                    li = li - int(row_col_f.shape[0]/2) #negative direction automatically wrapped in numpy
+                    step=1
+                    all_sides = 0
+                    while linelengths_f[li]==0: # look at both sides of the line which was already used
+                        li += -1*step
+                        if cblockdur+linelengths_f[li]/speed_pix/self.experiment_config.NDOTS <  self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION:
+                            break # we found a line that fits into max recording duration
+                        allsides+=1
+                        if allsides == 2: #both negative and positive offsets from the original lines have been tried
+                            step+=1 # step to next two neighbors
+                            allsides=0
+                        if li + step > len(linelengths_f):
+                            li = None
+                            break
+                    if li== None: # no more lines for this block
+                        break
+                    else: # append the line to the list of lines in the current block
+                        line_order[a1][-1] .append(int(numpy.where(linelengths_f==linelengths_f[li])[0]))
+                        cblockdur += linelengths_f[li]/speed_pix/self.experiment_config.NDOTS
+                        linelengths_f[li]=0
+                lines_rowcol[a1].append(numpy.vstack(row_col_f[line_order[a1][-1]]))
+
+        self.row_col = [] # list of coordinates to show on the screen
+        self.block_end = [] # index in the coordinate list where stimulation has to stop and microscope needs to save data
+        self.shown_directions = [] # list of direction of each block presented on the screen
+        self.shown_line_order  = []
+        for r in range(self.experiment_config.REPEATS):
+            lines_rc = deepcopy(lines_rowcol) # keep original data in case of multiple repetitions. 
+            lineo = deepcopy(line_order)
+            while sum([len(value) for key, value in lines_rc.items()])>0: # are there lines that have not yet been shown?
+                for direction in angleset: # display blocks obeying angle pseudorandom order
+                    if len(lines_rc[direction])>0:
+                        lrc = lines_rc[direction].pop();# take the last element (containing n lines) and remove from list of lines to be shown
+                        self.row_col.append(utils.rc(numpy.array(lrc)))
+                        self.block_end.append(len(self.row_col))
+                        self.shown_directions.append(direction)
+                        self.shown_line_order.append(lineo[direction].pop())
+        return 
+        
+    def allangles_in_a_block(self, diameter_pix,gridstep_pix,movestep_pix,w, h, nblocks,  vr_all, vc_all, angleset, allangles, total_dur):
+        '''algortithm that splits the trajectories to be shown into blocks so that each block shows all angles and repetitions'''
         block_dur = total_dur/nblocks
-        block_dur = block_dur
-        # we divide the grid into multiple recording blocks if necessary, all
+        
         # ANGLES and repetitions are played within a block
-        allangles0 = numpy.tile(angleset, [self.experiment_config.REPEATS])
-        permlist = getpermlist(allangles0.shape[0], self.experiment_config.RANDOMIZE)
-        allangles = allangles0[permlist]
-        ANGLES = allangles
         # coords are in matrix coordinates: origin is topleft corner. 0 degree runs
         # from left to right.
-        #ANGLES = 0:45:315
-        #screen('closeall')
         arow_col = []
         for a in range(len(angleset)):
             arow_col.append([])
             for b in range(int(nblocks)):
                 arow_col[a].append([])
-                # subsample the trajectories keeping only every nblocks'th line
+                # in order to fit into the time available for one recording (microscope limitation) we keep only every nblocks'th line in one block. This way all blocks have all directions. 
+                #For very short block times this would keep only 1 or 2 trajectory from a given direction in a block which is not good because we are supposed to wait between changing directions
+               # so that calcium transients can settle and we can clearly distinguish responses belonging to different directions. 
                 if numpy.any(angleset[a]==[0,90,180,270]):
-                    if numpy.any(angleset[a]==[90,270]):
-                        vr = vlines_r[b::nblocks, :] 
-                        vc=vlines_c[b::nblocks, :]
-                        if angleset[a]==270: # swap coordinates
-                            vr = vr[-1::-1] 
-                            vc = vc[-1::-1]
-                    elif numpy.any(angleset[a]==[0,180]): # dots run horizontally
-                        vr = hlines_r[b::nblocks, :]
-                        vc= hlines_c[b::nblocks, :]
-                        if angleset[a]==180:
-                            vr = vr[-1::-1]
-                            vc = vc[-1::-1]
-                    # try to balance the dot run lengths (in case of multiple dots) so that most of the time the number of dots on screen is constant        
+                    direction = [k for k in vr_all.keys() if angleset[a] in k][0]
+                    vr = vr_all[direction][b]; vc = vc_all[direction][b]
+                    if angleset[a] in [270, 180]: # swap coordinates
+                        vr = vr[-1::-1] 
+                        vc = vc[-1::-1]
                     
+                    # try to balance the dot run lengths (in case of multiple dots) so that most of the time the number of dots on screen is constant        
                     segm_length = vr.shape[1]/self.experiment_config.NDOTS #length of the trajectory 1 dot has to run in the stimulation segment
                     cl =range(vr.shape[0])
                     #partsep = [zeros(1,self.experiment_config.NDOTS),size(vr,2)]
@@ -132,7 +224,7 @@ class MovingDot(experiment.Experiment):
                         if s1>1 and dl < len(drc[s1-1]): # a dot will run shorter than the others
                         # the following line was not tested in python (works in matlab)
                             drc[s1] = numpy.c_[drc[s1],-diameter_pix*numpy.ones(2,len(drc[s1-1])-dl)] # complete with coordinate outside of the screen
-                else:
+                else: # diagonal line
                     row_col_f,linelengths_f = diagonal_tr(angleset[a],diameter_pix,gridstep_pix,movestep_pix,w, h)
                     row_col =row_col_f[b::nblocks]
                     linelengths = linelengths_f[b:: nblocks]
@@ -170,9 +262,10 @@ class MovingDot(experiment.Experiment):
                         if len(drc[s1])<max(ml): # a dot will run shorter than the others
                             drc[s1] = numpy.c_[drc[s1],-diameter_pix*numpy.ones(2,max(ml)-len(drc[s1]))] # complete with coordinate outside of the screen
                 arow_col[a][b] = drc
-        self.row_col = []
-        self.angle_end = []
-        self.block_end = []
+        self.row_col = [] # list of coordinates to show on the screen
+        self.line_end = [] # index in coordinate list where a line ends and another starts (the other line can be of the same or a different direction
+        self.angle_end = [] # index of the coordinate where the angle of the trajectory is changed from one to another
+        self.block_end = [] # index in the coordinate list where stimulation has to stop and microscope needs to save data
         # create a list of coordinates where dots have to be shown, note when a direction subblock ends, and when a block ends (in case the stimulus has to be split into blocks due to recording duration limit)
         for b in range(int(nblocks)):
             for a1 in range(len(allangles)):
@@ -259,6 +352,8 @@ def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
     row_col = dlines
     return numpy.array(row_col),numpy.array(dlines_len) #using array instead of list enables fancy indexing of elements when splitting lines into blocks
         
+
+
 def getpermlist(veclength,RANDOMIZE):
     if veclength > 256:
         raise ValueError('Predefined random order is only for vectors with max len 256')
