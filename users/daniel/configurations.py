@@ -78,7 +78,6 @@ class K247AWindowsConfig(VisionExperimentConfig):
         
         SEGMENT_DURATION = 2
         MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
-        ACTION_BETWEEN_STIMULUS = 'off'
 
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         COORDINATE_SYSTEM='ulcorner'
@@ -135,8 +134,7 @@ class MBP(VisionExperimentConfig):
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
         
         SEGMENT_DURATION = 2
-        MAXIMUM_RECORDING_DURATION = [60, [0, 10000]] #seconds
-        ACTION_BETWEEN_STIMULUS = 'off'
+        MAXIMUM_RECORDING_DURATION = [10, [0, 10000]] #seconds
         ARCHIVE_FORMAT = 'hdf5'
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         COORDINATE_SYSTEM='ulcorner'

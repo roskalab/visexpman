@@ -518,6 +518,7 @@ def imported_modules():
     import visexpman.engine.generic.parameter
     visexpman_modules = []
     module_names = []
+    #stdlib = list_stdlib() this takes long
     for k, v in sys.modules.items():
         if k.find('visexpman') != -1:
             if v == None:
@@ -549,9 +550,23 @@ def module_versions(modules):
             else:
                 module_version += '%s\n'%(module)
         except KeyError:
-            raise RuntimeError('This module is not in the version list: %s. Update list in utils.module_versions() function' % str(module))
+            pass
+            #raise RuntimeError('This module is not in the version list: %s. Update list in utils.module_versions() function' % str(module))
     return module_version
-    
+
+
+def list_stdlib():
+    import distutils.sysconfig as sysconfig
+    import os
+    std_lib = sysconfig.get_python_lib(standard_lib=True)
+    lib_members = []
+    for top, dirs, files in os.walk(std_lib):
+        if 'site_packages' in top or 'dist_packages' in top: continue
+        for nm in files:
+            if nm != '__init__.py' and nm[-3:] == '.py':
+                lib_members.append(os.path.join(top, nm)[len(std_lib)+1:-3].replace('\\','.'))
+    return lib_members
+
 #== Experiment specific ==
 def um_to_normalized_display(value, config):
     '''
