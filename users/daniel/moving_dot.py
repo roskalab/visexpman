@@ -413,7 +413,8 @@ class MovingDotTestConfig(experiment.ExperimentConfig):
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
         self._create_parameters_from_locals(locals())
         
-def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):
+#RZ: send_tcpip_sequence and run_stimulation methods are probably obsolete:
+def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):    
     '''This method is intended to be run as a thread and sends multiple message-parameter pairs. 
     Between sending individual message-parameter pairs, we wait pause_before amount of time. This can be used to allow remote side do its processing.'''
     import socket

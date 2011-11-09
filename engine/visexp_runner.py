@@ -41,9 +41,9 @@ class VisExpRunner(object):
             #this module is omitted
             experiment_config_list = []
             for experiment_config in self.experiment_config_list:
-                if experiment_config[0].__name__.find('automated_test_data') != -1 and unit_test_runner.TEST_test:
+                if (experiment_config[0].__name__.find('automated_test_data') != -1 or experiment_config[0].__name__.find('default_configs') != -1) and unit_test_runner.TEST_test:
                     experiment_config_list.append(experiment_config)
-                elif not experiment_config[0].__name__.find('automated_test_data') != -1 and not unit_test_runner.TEST_test:
+                elif experiment_config[0].__name__.find('automated_test_data') == -1 and not unit_test_runner.TEST_test:
                     experiment_config_list.append(experiment_config)
             self.experiment_config_list = experiment_config_list
         else:
@@ -71,9 +71,19 @@ class VisExpRunner(object):
             self.tcpip_listener = network_interface.NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
             self.tcpip_listener.start()
         #Start udp listener if not in test mode
-        if self.config.ENABLE_UDP and unit_test_runner.TEST_enable_network:            
+        if self.config.ENABLE_UDP and unit_test_runner.TEST_enable_network:
+            #TODO: This network listener is used for internal communication between command handler and user interface. This can be solved with queues, so both Qthread
+            # and tcp/ip communication can be eliminated
             self.udp_listener = network_interface.NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_DGRAM, self.config.UDP_PORT)
             self.udp_listener.start()
+        #Start up MES listener
+        self.mes_command_queue = Queue.Queue()
+        self.mes_response_queue = Queue.Queue()
+        if hasattr(self.config, 'MES'):
+            if self.config.MES['ENABLE'] and unit_test_runner.TEST_enable_network:
+                
+                self.mes_listener = network_interface.MesServer(self.config, self.mes_command_queue, self.mes_response_queue)
+                self.mes_listener.start()
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
         self.loop_state = 'running' #This state variable is necessary to end the main loop of the program from the command handler
@@ -103,6 +113,9 @@ class VisExpRunner(object):
             self.tcpip_listener.close()
         self.log.info('Visexpman quit')
         self.handler.flush()
+        if hasattr(self.config, 'MES'):
+            if self.config.MES['ENABLE'] and unit_test_runner.TEST_enable_network:
+                self.mes_command_queue.put('SOCclose_connectionEOC')
             
     def _init_logging(self):
         #TODO: make folder to store all the files created by this run
@@ -265,7 +278,7 @@ class testVisexpRunner(unittest.TestCase):
                         zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
                         self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', ''))), 
                         (True, True, True, True, True, True, True, True, True))
-                        
+
     def test_09_abort_experiment(self):
         commands = [
                     [0.01,'SOCexecute_experimentEOC'],                     

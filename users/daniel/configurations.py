@@ -150,6 +150,7 @@ class ZoliTester(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
         path = '/Users/rz/visexpman/data'
         path = 'c:\\_del\\test'
+        path = '/media/Common/visexpman_data/test'
         LOG_PATH = path        
         EXPERIMENT_LOG_PATH = path
         ARCHIVE_PATH = path

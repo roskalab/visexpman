@@ -10,7 +10,7 @@ import os
 
 #Try: multiple clients, client thread starts in a thread, command buffer mutual exclusion. check out thread/target parameter
 #Network listener -> CommandServer
-class MesServer(QtCore.QThread):
+class MesServer(QtCore.QThread):#TODO unit test
     def __init__(self, config, command_queue, response_queue):
         self.config = config
         QtCore.QThread.__init__(self)
@@ -24,6 +24,7 @@ class MesServer(QtCore.QThread):
         self.socket.bind(server_address)
         self.socket.listen(1)
         self.connection, client_address = self.socket.accept()
+        print 'connection accepted'
         self.response_queue.put(self.connection.recv(self.config.MES['receive buffer']))
         while True:
             if not self.command_queue.empty():
@@ -31,7 +32,7 @@ class MesServer(QtCore.QThread):
                     self.send_command(command)
                     if command == 'SOCclose_connectionEOC':
                         break
-        connection.close()
+        self.connection.close()
 
     def send_command(self, command):
         self.connection.send(command)

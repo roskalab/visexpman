@@ -144,6 +144,8 @@ class Devices():
 #             if self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ENABLE'] and self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ANALOG_CONFIG'] == 'ao':
         self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)
         self.stage = motor_control.AllegraStage(self.config, self.caller)
+        
+        
 
     def close(self):        
         self.parallel_port.release_instrument()

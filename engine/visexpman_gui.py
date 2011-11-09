@@ -8,6 +8,7 @@ import visexpman.engine.generic.utils as utils
 import visexpman.engine.generic.configuration as configuration
 import visexpman.engine.hardware_interface.network_interface as network_interface
 import Queue
+import os.path
 
 class Gui(Qt.QMainWindow):
     def __init__(self, config, command_queue, response_queue):
@@ -138,9 +139,9 @@ class Gui(Qt.QMainWindow):
         self.connect(self.update_button, QtCore.SIGNAL('clicked()'),  self.update)
         
     def default_parameters(self):
-        self.acquire_camera_image_parameters = 'valami.m'
-        self.acquire_z_stack_parameters = 'valami.m'
-        self.two_photon_parameters = 'valami.m'
+        self.acquire_camera_image_parameters = os.path.join(self.config.working_path, 'acquire_camera_image_parameters.m')
+        self.acquire_z_stack_parameters = os.path.join(self.config.working_path, 'acquire_z_stack_parameters.m')
+        self.two_photon_parameters = os.path.join(self.config.working_path, 'two_photon_parameters.m')
         
 #        Mat file handling
 #        data = scipy.io.loadmat('test.mat')
@@ -190,9 +191,11 @@ class Gui(Qt.QMainWindow):
     def update(self):
         message = self.log.text()
         while not response_queue.empty():
-            message += response_queue.get() + ' '
+            response = response_queue.get()
+            print response
+            message += response + ' '
         message = message[-100:]
-        self.log.setText(message)
+        self.log.setText(message)        
         
     def closeEvent(self, e):
         e.accept()
@@ -202,9 +205,18 @@ class Gui(Qt.QMainWindow):
 
 class GuiConfig(configuration.Config):
     def _create_application_parameters(self):
-        MES = {'ip': '',  'port' : int(sys.argv[1]),  'receive buffer' : 256}
+        if len(sys.argv) > 1:
+            port = int(sys.argv[1])
+        else:
+            port = 10000
+            
+        if len(sys.argv) > 2:
+            self.working_path =  sys.argv[2]
+        else:
+            self.working_path = ''
+        MES = {'ip': '',  'port' : port,  'receive buffer' : 256}
         VISEXPMAN = {'ip': '',  'port' : 10001}
-        VISEXPA = {'ip': '',  'port' : 10002}
+        VISEXPA = {'ip': '',  'port' : 10002}        
         self._create_parameters_from_locals(locals())
         
 if __name__ == '__main__':
@@ -212,7 +224,7 @@ if __name__ == '__main__':
     command_queue = Queue.Queue()
     response_queue = Queue.Queue()
     server = network_interface.MesServer(config, command_queue, response_queue)
-    server.start()    
+    server.start()
     app = Qt.QApplication(sys.argv)
     gui = Gui(config, command_queue, response_queue)
     app.exec_()
