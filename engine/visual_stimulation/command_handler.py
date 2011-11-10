@@ -119,11 +119,14 @@ class CommandHandler(object):
                 par = [par[0].replace('<newline>',  '\n')]            
             if len(par)>0:
                 par = par[0]
-            if hasattr(self, cmd[0]):
-                result=getattr(self, cmd[0])(par) # call the selected function with the optional parameter
+            if len(cmd) > 0: #To avoid crash, dummy commands are sent by Presentinator.
+                if hasattr(self, cmd[0]):
+                    result=getattr(self, cmd[0])(par) # call the selected function with the optional parameter
+                else:
+                    #If no function belong to the command, just return it. During experiment, keyboard commands are passed to command buffer this way.
+                    result = cmd[0]
             else:
-                #If no function belong to the command, just return it. During experiment, keyboard commands are passed to command buffer this way.
-                result = cmd[0]
+                result = ''
             self.caller.log.info('Command handler: ' + result)
         return result
         

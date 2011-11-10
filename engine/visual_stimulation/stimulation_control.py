@@ -55,7 +55,6 @@ class ExperimentControl():
         self.caller = caller
         self.devices = Devices(config, caller)
         self.data_handler = DataHandler(config, caller)
-        
         #saving experiment source to a temporary file in the user's folder
         self.experiment_source = experiment_source
         self.experiment_source_path = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user, 'presentinator_experiment' + str(self.caller.command_handler.experiment_counter) + '.py')
@@ -64,12 +63,17 @@ class ExperimentControl():
             f = open(self.experiment_source_path, 'wt')
             f.write(self.experiment_source)
             f.close()
+            #Find out name of experiment config sent over udp
+            original_class_list = utils.class_list_in_string(self.caller.experiment_config_list)
             #Instantiate this experiment
             self.caller.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.visual_stimulation.experiment.ExperimentConfig)
-            for i in range(len(self.caller.experiment_config_list)):
-                if self.caller.experiment_config_list[i][1].__name__ == 'PresentinatorExperimentConfig':
+            #compare lists and find out index of newly sent experiment config
+            new_class_list = utils.class_list_in_string(self.caller.experiment_config_list)
+            for i in range(len(new_class_list)):
+                if not utils.is_in_list(original_class_list, new_class_list[i]):
                     self.caller.command_handler.selected_experiment_config_index = i
                     break
+            
             reload(sys.modules['visexpman.users.' + self.config.user + '.' + self.experiment_source_module])
 
     def init_experiment_logging(self):
@@ -91,7 +95,6 @@ class ExperimentControl():
         self.data_handler.prepare_archive()
         #Set experiment control context in selected experiment configuration
         self.caller.selected_experiment_config.set_experiment_control_context()
-        
 
     def run_experiment(self):
         if hasattr(self.caller, 'selected_experiment_config') and hasattr(self.caller.selected_experiment_config, 'run'):
@@ -126,6 +129,9 @@ class ExperimentControl():
         if len(self.experiment_source)>0 and self.config.ENABLE_UDP:
             os.remove(self.experiment_source_path)
             os.remove(self.experiment_source_path+'c')            
+        if hasattr(self.caller, 'mes_command_queue'):
+            while not self.caller.mes_command_queue.empty():
+                print self.caller.mes_command_queue.get()
         
 class Devices():
     '''

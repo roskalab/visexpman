@@ -58,7 +58,6 @@ class Experiment(stimulation_library.Stimulations):
         self.command_buffer = ''
         self.abort = False
         self.experiment_name = self.__class__.__name__
-        print self.experiment_name, type(self.experiment_name)
 
     def run(self):
         pass

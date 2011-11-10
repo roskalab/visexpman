@@ -234,7 +234,7 @@ class VS3DUS(VisionExperimentConfig):
                                     }
                                     
         STAGE = [[{'serial_port' : motor_serial_port,
-                 'enable': True,
+                 'enable': not True,
                  'speed': 1000000,
                  'acceleration' : 1000000,
                  'move_timeout' : 45.0,

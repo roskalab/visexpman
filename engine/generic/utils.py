@@ -10,6 +10,7 @@ import pkgutil
 import inspect
 import time
 import unittest
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 #== Computer graphics colors ==
 def convert_color(color):
@@ -408,7 +409,25 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
             if (attr[0] == classname or classname==None):
                 class_list.append((m, attr[1]))
                 # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run    
-    return class_list    
+                
+    #Filter experiment config list. In test mode, experiment configs are loaded only from automated_test_data. In application run mode
+    #this module is omitted
+    filtered_class_list = []
+    for class_item in class_list:
+        if (class_item[0].__name__.find('automated_test_data') != -1 or \
+        class_item[0].__name__.find('presentinator_experiment') != -1 or\
+        class_item[0].__name__.find('default_configs') != -1) and unit_test_runner.TEST_test:
+            filtered_class_list.append(class_item)
+        elif not class_item[0].__name__.find('automated_test_data') != -1 and not unit_test_runner.TEST_test:
+            filtered_class_list.append(class_item)
+    return filtered_class_list
+    
+def class_list_in_string(class_list):
+    class_list_string = []
+    for item in class_list:
+        class_list_string.append(item[1].__name__)
+    return class_list_string
+        
 
 def keep_closest_ancestors(class_list,  required_ancestors):
     '''From the result of fetch_classes method, if class_list contains multiple items, this routine
@@ -826,7 +845,7 @@ def generate_pulse_train(offsets, pulse_widths, amplitudes, duration, sample_rat
 def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):
     wave = []
     period = int(period)
-    for i in range(n_sample):
+    for i in range(int(n_sample)):
         if period == 0:
             value = 0
         elif waveform_type == 'sin':

@@ -163,21 +163,42 @@ class LDC(VisionExperimentConfig):
 
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
         self._create_parameters_from_locals(locals())
+        
+class MESExperimentConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'MESExperiment'
+#        self.pre_runnable = 'TestPre'
+        self._create_parameters_from_locals(locals())       
+
+class MESExperiment(experiment.Experiment):
+    def run(self):
+        orientation = [0,45,90]
+        for i in range(len(orientation)):
+            self.mes_command.put('SOCacquire_line_scanEOCc:\\temp\\test\\line_scan_data{0}.matEOP'.format(i))
+            self.show_grating(duration =1.0, profile = 'sqr', orientation = orientation[i], velocity = 50.0, white_bar_width = 100)
+        
+    def cleanup(self):
+        #Empty command buffer, this shall be done by experiment control
+        time.sleep(0.1)
+        while not self.mes_command.empty():
+            print self.mes_command.get()
+
+        
 
 class TestExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'TestExp1'
 #        self.pre_runnable = 'TestPre'
         self._create_parameters_from_locals(locals())
-
+        
+        
 class TestPre(experiment.PreExperiment):
     def run(self):
         self.show_fullscreen(color = (0.28, 0.29, 0.3), flip = False)
 
 class TestExp1(experiment.Experiment):
     def run(self):
-        self.mes_command.put('SOCcommandEOCoEOP')
-        self.mes_command.put('SOCcommandEOCoEOP')
+        self.show_shape(shape = 'a', duration = 2.0,  size = 100.0, background_color = 120, ring_size = 10.0)
 #        non_dot = False
 #        #moving dots
 #        

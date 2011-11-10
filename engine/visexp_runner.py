@@ -23,7 +23,8 @@ class VisExpRunner(object):
     This class is responsible for running vision experiment.
     '''
     def __init__(self, user, config_class):
-        #self.state = 'init'
+        self.state = 'init'
+        #TODO: from users.user folder remove all presentinator*.py files
         #== Find and instantiate machine configuration ==
         try:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()
@@ -36,16 +37,7 @@ class VisExpRunner(object):
             self.config.user = user
         #== Fetch experiment classes ==        
         if self.config.user != 'undefined':
-            self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.visual_stimulation.experiment.ExperimentConfig)
-            #Filter experiment config list. In test mode, experiment configs are loaded only from automated_test_data. In application run mode
-            #this module is omitted
-            experiment_config_list = []
-            for experiment_config in self.experiment_config_list:
-                if (experiment_config[0].__name__.find('automated_test_data') != -1 or experiment_config[0].__name__.find('default_configs') != -1) and unit_test_runner.TEST_test:
-                    experiment_config_list.append(experiment_config)
-                elif experiment_config[0].__name__.find('automated_test_data') == -1 and not unit_test_runner.TEST_test:
-                    experiment_config_list.append(experiment_config)
-            self.experiment_config_list = experiment_config_list
+            self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.visual_stimulation.experiment.ExperimentConfig)                    
         else:
             #In case of SafestartConfig, no experiment configs are loaded
             #TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig
@@ -116,6 +108,7 @@ class VisExpRunner(object):
         if hasattr(self.config, 'MES'):
             if self.config.MES['ENABLE'] and unit_test_runner.TEST_enable_network:
                 self.mes_command_queue.put('SOCclose_connectionEOC')
+                time.sleep(1.0)
             
     def _init_logging(self):
         #TODO: make folder to store all the files created by this run
@@ -500,6 +493,7 @@ class testVisexpRunner(unittest.TestCase):
                 ),
                 (True, True, True, True, True, True, True, True, True, True, True))
     #TODO: test case for um_to_pixel_scale parameter
+    #TODO: test for long lasting stimuli with frame delay and check if exits from loop when duration is expired
     
     def test_16_hdf5io_archiving(self):
         '''

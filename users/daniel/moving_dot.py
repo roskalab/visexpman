@@ -65,7 +65,7 @@ class MovingDot(experiment.Experiment):
             self.mes_command.put('SOCacquire_line_scanEOCc:\\temp\\test\\line_scan_data{0}.matEOP'.format(mes_fragment_name))
             variables_to_log = [ self.shown_directions[di]]
             if hasattr(self, 'shown_line_order' ): variables_to_log.append(self.shown_line_order[di])
-            for variable in variables_to_log:
+            for variable in variables_to_log: #Perhaps this logging is not necessary any more
                 self.log.info('%2.3f\t%s'%(self.elapsed_time, str(variable)))
             self.show_dots([self.diameter_pix]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
 
@@ -183,7 +183,7 @@ class MovingDot(experiment.Experiment):
             line_order[180] = [numpy.arange(b, hlines_r.shape[0], nblocks_hor) for b in range(nblocks_hor)]
             lines_rowcol[180] = [numpy.vstack(numpy.dstack([hlines_r[b::nblocks_hor, :][-1::-1, :],  hlines_c[b::nblocks_hor, :][-1::-1, :]])) for b in range(nblocks_hor)]
         diag_angles = [a1 for a1 in angleset if a1 in [45, 135, 225, 315]] #this implementation does not require doing the loop for all angles but we do it anyway, eventually another implementation might give different results for different angles
-        for a1 in diag_angles:            
+        for a1 in diag_angles:
             line_order[a1]=[]
             lines_rowcol[a1] = []
             row_col_f,linelengths_f = diagonal_tr(a1,diameter_pix,gridstep_pix,movestep_pix,w, h)

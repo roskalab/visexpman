@@ -26,14 +26,12 @@ class Stimulations(command_handler.CommandHandler):
         self.experiment_control_dependent = experiment_control_dependent
         self.screen = caller.screen_and_keyboard
 #        self.stimulation_control = stimulation_control
-#        self.parallel = parallel
-        start_time = time.time()         
+#        self.parallel = parallel        
         
         #self.image = psychopy.visual.SimpleImageStim(self.screen,  image = self.config.DEFAULT_IMAGE_PATH)         
         #self.shape = psychopy.visual.ShapeStim(self.screen)
         #self.inner_circle = psychopy.visual.ShapeStim(self.screen)
         
-        default_texture = Image.new('RGBA',  (16, 16))
         #self.checkerboard = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
         self.grating_texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.grating_texture)
@@ -414,6 +412,8 @@ class Stimulations(command_handler.CommandHandler):
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         first_flip = False
+        stop_stimulus = False
+        start_time = time.time()
         for frame_i in range(n_frames):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if shape_type != 'annulus':
@@ -429,7 +429,11 @@ class Stimulations(command_handler.CommandHandler):
                 self.log_on_flip_message = self.log_on_flip_message_initial
                 first_flip = True
             else:
-                self.log_on_flip_message = self.log_on_flip_message_continous
+                if time.time() - start_time > duration and duration >=1.0:
+                    stop_stimulus = True
+                    self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
+                else:
+                    self.log_on_flip_message = self.log_on_flip_message_continous
             if frame_i == 0:
                 self._flip(trigger = True)
             else:
@@ -437,8 +441,7 @@ class Stimulations(command_handler.CommandHandler):
             if self.abort:
                 self.abort = False
                 break
-            if self.abort:
-                self.abort = False
+            if stop_stimulus:                
                 break
                 
         glDisableClientState(GL_VERTEX_ARRAY)        
@@ -692,7 +695,7 @@ class Stimulations(command_handler.CommandHandler):
         vertices = vertices.transpose()
         vertices = vertices + numpy.array(pos_adjusted)            
         glEnableClientState(GL_VERTEX_ARRAY)        
-        glVertexPointerf(vertices) #!!!!! THIS IS SAID TO BE: Attempt to retrieve context when no valid context
+        glVertexPointerf(vertices)
         #== Generate grating profile        
         if isinstance(profile, str):
             profile_adjusted = [profile,  profile,  profile]            
@@ -754,13 +757,12 @@ class Stimulations(command_handler.CommandHandler):
             number_of_frames = 1
         else:
             number_of_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
+        start_time = time.time()
+        stop_stimulus = False
         for i in range(number_of_frames):
             phase = pixel_velocity * i
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
-#            glDisable(GL_TEXTURE_2D)
-#            self._show_text()
-#            glEnable(GL_TEXTURE_2D)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
             #Make sure that at the first flip the parameters of the function call are logged
@@ -768,17 +770,25 @@ class Stimulations(command_handler.CommandHandler):
                 self.log_on_flip_message = self.log_on_flip_message_initial
                 first_flip = True
             else:
-                self.log_on_flip_message = self.log_on_flip_message_continous
+                #If running of stimulus lasts longer than duration, abort it, unless duration is less than 1 sec. In this case
+                #it is assumed that the number of displayable  frames are more important than the duration
+                if time.time() - start_time > duration and duration >=1.0:
+                    stop_stimulus = True
+                    self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
+                else:
+                    self.log_on_flip_message = self.log_on_flip_message_continous
             self._flip(trigger = True)
             if self.abort:
                 self.abort = False
+                break
+            if stop_stimulus:                
                 break
                     
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
                     
-    def show_dots(self,  dot_sizes, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0)):
+    def show_dots(self,  dot_diameters, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0)):
         '''
         Shows a huge number (up to several hunders) of dots.
         Parameters:
@@ -793,7 +803,7 @@ class Stimulations(command_handler.CommandHandler):
         that on each frame the number of dots are equal.
         '''
         #TODO/idea: add support for showing rectangles and annuli
-        self.log_on_flip_message_initial = 'show_dots(' + str(duration)+ ', ' + str(dot_sizes) +', ' + str(dot_positions) +')'
+        self.log_on_flip_message_initial = 'show_dots(' + str(duration)+ ', ' + str(dot_diameters) +', ' + str(dot_positions) +')'
         self.log_on_flip_message_continous = 'show_dots'
         first_flip = False
         radius = 1.0
@@ -805,7 +815,7 @@ class Stimulations(command_handler.CommandHandler):
         for frame_i in range(n_frames):
             for dot_i in range(ndots):
                 dot_index = frame_i * ndots + dot_i
-                dot_size = dot_sizes[dot_index]
+                dot_size = dot_diameters[dot_index]
                 dot_position = numpy.array((dot_positions[dot_index]['col'], dot_positions[dot_index]['row']))
                 dot_to_screen =  self.config.SCREEN_UM_TO_PIXEL_SCALE * (vertices * dot_size + dot_position)
                 frames_vertices[index: index + n_vertices] = dot_to_screen
@@ -851,7 +861,7 @@ class Stimulations(command_handler.CommandHandler):
                 
         glDisableClientState(GL_VERTEX_ARRAY)
         
-    
+    #TODO:watch timing and abort if necessary similarly to show_grating
         
 #    def show_shape_new(self):
 #        size = 40

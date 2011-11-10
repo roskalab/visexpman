@@ -43,6 +43,7 @@ class VisexpmanScreen(graphics.Screen):
     def display_bullseye(self):
         if self.show_bullseye:
             #TODO: bullseye size
+            #TODO: consider coordinate system type
             self.render_imagefile(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'))
             
         
