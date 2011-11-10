@@ -10,7 +10,7 @@ import os
 
 #Try: multiple clients, client thread starts in a thread, command buffer mutual exclusion. check out thread/target parameter
 #Network listener -> CommandServer
-class MesServer(QtCore.QThread):
+class MesServer(QtCore.QThread):#TODO unit test
     def __init__(self, config, command_queue, response_queue):
         self.config = config
         QtCore.QThread.__init__(self)
@@ -23,20 +23,66 @@ class MesServer(QtCore.QThread):
         server_address = ('', self.config.MES['port'])
         self.socket.bind(server_address)
         self.socket.listen(1)
-        self.connection, client_address = self.socket.accept()
-        self.response_queue.put(self.connection.recv(self.config.MES['receive buffer']))
+        end_loop = False
         while True:
-            if not self.command_queue.empty():
+            self.connection, client_address = self.socket.accept()
+            self.connection.settimeout(1.0)
+            print 'connection accepted'  
+            self.response_queue.put('connection accepted')   
+#            response = self.connection.recv(self.config.MES['receive buffer'])
+#            self.response_queue.put(response)
+#            print response   
+            start_time = time.time()
+            timeout = 5000
+            while True:                
+                if self.command_queue.empty():
+                    #If client does not respond to the echo command, connection is closed
+                    elapsed_time_ms = int(1000* (time.time() - start_time))
+                    if elapsed_time_ms%timeout == 0 and elapsed_time_ms > timeout:
+                        try:
+                            if self.send_command('SOCechoEOCaliveEOP').find('echo') == -1:
+                                print 'client does not respond'
+                                break
+                        except:
+                            print sys.exc_info()[0]
+                            break
+                    else:
+                        timeout_saved = self.connection.gettimeout()
+                        self.connection.settimeout(0.1)
+                        try:
+                            response = self.connection.recv(self.config.MES['receive buffer'])
+                            if len(response) > 0:
+                                print response
+                                self.response_queue.put(response)
+                        except socket.timeout:
+                            pass
+                        except socket.error:   
+                            print 'end of connection'
+                            break
+                        self.connection.settimeout(timeout_saved)
+                else:                    
                     command = self.command_queue.get()
-                    self.send_command(command)
+                    try:
+                        response = self.send_command(command)
+                        print response
+                    except:
+                            print sys.exc_info()[0]
+                            break
+                    self.response_queue.put(response)
                     if command == 'SOCclose_connectionEOC':
-                        break
-        connection.close()
+                        end_loop = True
+                if end_loop:
+                    break    
+#            time.sleep(0.5)            
+            self.connection.close()
+            
+#             if end_loop:
+#                 break
 
     def send_command(self, command):
         self.connection.send(command)
-        response = ''
-        self.response_queue.put(self.connection.recv(self.config.MES['receive buffer']))
+        response = self.connection.recv(self.config.MES['receive buffer'])        
+        return response        
 
 
 class NetworkListener(QtCore.QThread):

@@ -92,9 +92,11 @@ class AnalogIO(instrument.Instrument):
                 
             if self.enable_ai:
                 self.analog_input = PyDAQmx.Task()
+                #TODO: parameter or based on device type
+                terminal_config = DAQmxConstants.DAQmx_Val_PseudoDiff #DAQmx_Val_RSE
                 self.analog_input.CreateAIVoltageChan(self.daq_config['AI_CHANNEL'],
                                                             'ai',
-                                                            DAQmxConstants.DAQmx_Val_RSE,
+                                                            terminal_config,
                                                             self.daq_config['MIN_VOLTAGE'], 
                                                             self.daq_config['MAX_VOLTAGE'], 
                                                             DAQmxConstants.DAQmx_Val_Volts,
@@ -102,6 +104,8 @@ class AnalogIO(instrument.Instrument):
                 self.read = DAQmxTypes.int32()
                 channel_indexes = self.daq_config['AI_CHANNEL'].split('/')[-1].replace('ai','').split(':')
                 self.number_of_ai_channels = abs(int(channel_indexes[-1]) - int(channel_indexes[0])) + 1
+                
+               #TODO: shorten daq ai in time
 
     def _configure_timing(self):    
         if os.name == 'nt' and self.daq_config['ENABLE']:    
@@ -563,7 +567,7 @@ class TestDaqInstruments(unittest.TestCase):
     def test_14_analog_input_and_output_have_different_sampling_rates(self):
         self.config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 200000
         self.config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 100
-        aio = AnalogIO(self.config, self)       
+        aio = AnalogIO(self.config, self)
         waveform = self.generate_waveform2(0.2)
         aio.waveform = waveform
         aio.run()

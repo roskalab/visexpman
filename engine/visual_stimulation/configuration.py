@@ -68,14 +68,16 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         IMAGE_PROJECTED_ON_RETINA = True
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel
         
-        #Network/UDP settings
+        #UDP interface
         SERVER_UDP_IP = 'localhost'
-        SERVER_IP = 'localhost'
         WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
         CLIENT_UDP_IP = ''
         ENABLE_UDP = True
-        UDP_PORT =[9999,  [1100,  65000]]
+        UDP_PORT =[446,  [100,  65000]] #Since this is used only in Presentinator setups and there the 446 port is used, this can be 446 instead of 9999
         UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
+        
+        #Command interface        
+        SERVER_IP = ''
         COMMAND_INTERFACE_PORT = [10000, [1100,  65000]]        
         
         COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
@@ -90,6 +92,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
                     'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
                     'color': {'key': 'c', 'domain': ['network interface', 'remote client']},
                     'filterwheel': {'key': 'f', 'domain': ['network interface', 'remote client']},
+                    'echo' : {'key' : 't', 'domain': ['keyboard', 'network interface', 'remote client']},
+                    'set_measurement_id' : {'key' : 'i', 'domain': ['keyboard', 'network interface', 'remote client']},
                     'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},#Perhaps this command shall be accepted from keyboard
                     }
                     
@@ -100,11 +104,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_FRAME_CAPTURE = False
         
         #logging 
-        MAX_LOG_COLORS = [3,  [0,  100000]]
-        
-#        #grating
-#        MIN_PHASE_STEP = [0.001,  [1e-5,  1.0]]
-#        GRATING_TEXTURE_RESOLUTION = [512,  [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]]
+        MAX_LOG_COLORS = [3,  [0,  100000]]        
         
         #user interface
         ENABLE_TEXT = True
@@ -117,9 +117,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         MESSAGE_POSITION = utils.cr((-0.48,0.0))
         NUMBER_OF_MESSAGE_ROWS = [20, [1, 40]]
         MAX_MESSAGE_LENGTH = [200,  [10,  1000]] #length of message displayed on screen
-
-        #example config
-        SHOW_ALL_EXAMPLES = True    #This might be obsolete
         
         #stimulus control
         SEGMENT_DURATION = [100,  [1,  100000]]
@@ -334,6 +331,8 @@ class testApplicationConfiguration(unittest.TestCase):
                     'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
                     'color': {'key': 'c', 'domain': ['network interface', 'remote client']},
                     'filterwheel': {'key': 'f', 'domain': ['network interface', 'remote client']},
+                    'echo' : {'key' : 't', 'domain': ['keyboard', 'network interface', 'remote client']},
+                    'set_measurement_id' : {'key' : 'i', 'domain': ['keyboard', 'network interface', 'remote client']},
                     'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},
                     'dummy': {'key': 'd', 'domain': ['running experiment']}, 
                     }

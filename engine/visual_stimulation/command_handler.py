@@ -40,6 +40,8 @@ class CommandHandler(object):
         result = ''
         while not self.caller.command_queue.empty():
             result += '\n' + str(self.parse(self.caller.command_queue.get()))
+        while not self.caller.mes_response_queue.empty():
+            result += '\n' + self.caller.mes_response_queue.get()
         self.caller.command_buffer = []
         self.caller.screen_and_keyboard.message += result
 
@@ -91,6 +93,14 @@ class CommandHandler(object):
 
     def abort_experiment(self, par):
         return 'abort_experiment'
+        
+    def echo(self, par):
+        self.caller.mes_command_queue.put('SOCechoEOCvisexpmanEOP')
+        return 'echo'
+        
+    def set_measurement_id(self, par): #temporary, this command will be sent by GUI
+        self.caller.mes_command_queue.put('SOCsetIDEOCvalami{0}EOP'.format(time.time()))
+        return 'set_measurement_id'
 
     def quit(self, par):
         self.caller.loop_state = 'end loop'

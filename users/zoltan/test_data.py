@@ -98,7 +98,7 @@ class VRWT(VisionExperimentConfig):
 
         self._create_parameters_from_locals(locals())
 
-class VRTC(VisionExperimentConfig):
+class LDC(VisionExperimentConfig):
     def _set_user_parameters(self):
         dataset = 0        
         #paths
@@ -113,16 +113,16 @@ class VRTC(VisionExperimentConfig):
         
         #hardware
         ENABLE_PARALLEL_PORT = True
-        ENABLE_UDP = True
+        ENABLE_UDP = False
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
-        ENABLE_FILTERWHEEL = True
+        ENABLE_FILTERWHEEL = False
         FILTERWHEEL_SERIAL_PORT = [[{
                                     'port' :  unit_test_runner.TEST_com_port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    'bytesize' : serial.EIGHTBITS,
                                     }]]
                                     
         FILTERWHEEL_FILTERS = [[{
@@ -134,7 +134,7 @@ class VRTC(VisionExperimentConfig):
                                                 'ND50': 6, 
                                                 }]]
 
-        
+        MES = {'ENABLE' : True, 'ip': '',  'port' : 20001,  'receive buffer' : 256}
         #screen
         FULLSCREEN = False        
         SCREEN_RESOLUTION = utils.cr([800, 600])        
@@ -176,56 +176,58 @@ class TestPre(experiment.PreExperiment):
 
 class TestExp1(experiment.Experiment):
     def run(self):
-        non_dot = False
-        #moving dots
-        
-        
-        dot_positions = utils.calculate_trajectory(utils.cr((-400.0, -300.0)), utils.cr((400.0, 300.0)), 10.1)        
-        n_frames = dot_positions.shape[0]
-        dot_sizes =numpy.ones(n_frames) * 50.0
-        ndots = 1
-        for i in range(3):
-            self.show_dots(dot_sizes, dot_positions, ndots, duration = 0.0)
-        
-        if non_dot:        
-            self.log.info('%2.3f\tMy log'%time.time())
-            self.show_fullscreen(duration = 3.0,  color = 0.5)
-            
-            #generate pulses        
-            offsets = [0, 0.2, 0.5]
-            pulse_widths = 0.1
-            amplitudes = 2.0
-            duration = 1.0
-            self.led_controller.set([[offsets, pulse_widths, amplitudes], [offsets, pulse_widths, amplitudes]], duration)
-            self.led_controller.start()
-            self.led_controller.release_instrument()
-            
-            import random
-            filter = int(5 * random.Random().random()) + 1
-            time.sleep(0.2)
-            self.filterwheels[0].set(filter)        
-            self.filterwheels[0].set_filter('ND0')
-            self.parallel_port.set_data_bit(0, 0)
-            time.sleep(0.1)
-            self.parallel_port.set_data_bit(0, 1)
-            
-            wait = 0.8
-            self.show_shape(size = 200.0, pos = utils.cr((-50, 100)))
-            time.sleep(wait)
-            self.show_shape(shape = 'circle', color = 200, duration = 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, size = utils.cr((100.0, 200.0)))
-            time.sleep(wait)
-            self.show_shape(shape = 'r', size = 100.0, background_color = 100)
-            time.sleep(wait)
-            self.show_shape(shape = 'a', size = 100.0, background_color = 120, ring_size = 10.0)
-            time.sleep(wait)
-            self.show_shape(shape = 'a', size = utils.rc((100.0, 110)), ring_size = 10.0)
-            time.sleep(wait)
-            self.show_shape(shape = 'r', size = utils.rc((100.0, 110)), color = [1.0, 0.0,0.0], orientation = 45)
-            time.sleep(wait)
-            
-            self.show_grating(duration =1.0, profile = 'sqr', orientation = 0, velocity =50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
-            if self.command_buffer.find('dummy') != -1:
-                self.show_grating(duration =10.0, profile = 'sqr', orientation = 0, velocity = 50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
+        self.mes_command.put('SOCcommandEOCoEOP')
+        self.mes_command.put('SOCcommandEOCoEOP')
+#        non_dot = False
+#        #moving dots
+#        
+#        
+#        dot_positions = utils.calculate_trajectory(utils.cr((-400.0, -300.0)), utils.cr((400.0, 300.0)), 10.1)        
+#        n_frames = dot_positions.shape[0]
+#        dot_sizes =numpy.ones(n_frames) * 50.0
+#        ndots = 1
+#        for i in range(3):
+#            self.show_dots(dot_sizes, dot_positions, ndots, duration = 0.0)
+#        
+#        if non_dot:        
+#            self.log.info('%2.3f\tMy log'%time.time())
+#            self.show_fullscreen(duration = 3.0,  color = 0.5)
+#            
+#            #generate pulses        
+#            offsets = [0, 0.2, 0.5]
+#            pulse_widths = 0.1
+#            amplitudes = 2.0
+#            duration = 1.0
+#            self.led_controller.set([[offsets, pulse_widths, amplitudes], [offsets, pulse_widths, amplitudes]], duration)
+#            self.led_controller.start()
+#            self.led_controller.release_instrument()
+#            
+#            import random
+#            filter = int(5 * random.Random().random()) + 1
+#            time.sleep(0.2)
+#            self.filterwheels[0].set(filter)        
+#            self.filterwheels[0].set_filter('ND0')
+#            self.parallel_port.set_data_bit(0, 0)
+#            time.sleep(0.1)
+#            self.parallel_port.set_data_bit(0, 1)
+#            
+#            wait = 0.8
+#            self.show_shape(size = 200.0, pos = utils.cr((-50, 100)))
+#            time.sleep(wait)
+#            self.show_shape(shape = 'circle', color = 200, duration = 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, size = utils.cr((100.0, 200.0)))
+#            time.sleep(wait)
+#            self.show_shape(shape = 'r', size = 100.0, background_color = 100)
+#            time.sleep(wait)
+#            self.show_shape(shape = 'a', size = 100.0, background_color = 120, ring_size = 10.0)
+#            time.sleep(wait)
+#            self.show_shape(shape = 'a', size = utils.rc((100.0, 110)), ring_size = 10.0)
+#            time.sleep(wait)
+#            self.show_shape(shape = 'r', size = utils.rc((100.0, 110)), color = [1.0, 0.0,0.0], orientation = 45)
+#            time.sleep(wait)
+#            
+#            self.show_grating(duration =1.0, profile = 'sqr', orientation = 0, velocity =50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
+#            if self.command_buffer.find('dummy') != -1:
+#                self.show_grating(duration =10.0, profile = 'sqr', orientation = 0, velocity = 50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
 
 class TestExpShort(experiment.Experiment):
     def run(self):
