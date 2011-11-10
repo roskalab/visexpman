@@ -22,12 +22,12 @@ class MovingDotConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty        
         self.DIAMETER_UM = [200]
-        self.ANGLES = [0,  90,  180,  270,  45,  135,  225,  315] # degrees
+        self.ANGLES = [0,  45]#90,  180,  270,  45,  135,  225,  315] # degrees
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
-        self.REPEATS = 2
+        self.REPEATS = 1
         self.PDURATION = 0
-        self.GRIDSTEP = 1/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+        self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'
