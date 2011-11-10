@@ -43,6 +43,7 @@ class Stimulations(command_handler.CommandHandler):
         
         self.delayed_frame_counter = 0 #counts how many frames were delayed
         self.log_on_flip_message = ''
+        self.elapsed_time = 0.0
         
         self.text_on_stimulus = []
         

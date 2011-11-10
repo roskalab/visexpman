@@ -92,6 +92,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
                     'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
                     'color': {'key': 'c', 'domain': ['network interface', 'remote client']},
                     'filterwheel': {'key': 'f', 'domain': ['network interface', 'remote client']},
+                    'echo' : {'key' : 't', 'domain': ['keyboard', 'network interface', 'remote client']},
+                    'set_measurement_id' : {'key' : 'i', 'domain': ['keyboard', 'network interface', 'remote client']},
                     'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},#Perhaps this command shall be accepted from keyboard
                     }
                     
@@ -329,6 +331,8 @@ class testApplicationConfiguration(unittest.TestCase):
                     'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
                     'color': {'key': 'c', 'domain': ['network interface', 'remote client']},
                     'filterwheel': {'key': 'f', 'domain': ['network interface', 'remote client']},
+                    'echo' : {'key' : 't', 'domain': ['keyboard', 'network interface', 'remote client']},
+                    'set_measurement_id' : {'key' : 'i', 'domain': ['keyboard', 'network interface', 'remote client']},
                     'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},
                     'dummy': {'key': 'd', 'domain': ['running experiment']}, 
                     }

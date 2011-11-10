@@ -1,5 +1,6 @@
 '''calculates positions of n dots moving in 8 directions through the screen'''
 import visexpman
+import os.path
 try:
     import Helpers
     from Helpers import normalize,  imshow
@@ -13,6 +14,7 @@ from visexpman.engine.generic import utils
 #from visexpman.engine.visual_stimulation import stimulation_library as stl
 #import visexpman.engine.generic.configuration
 import visexpman.engine.visual_stimulation.command_handler as command_handler
+import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import time
 
 class MovingDotConfig(experiment.ExperimentConfig):
@@ -22,19 +24,20 @@ class MovingDotConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty        
         self.DIAMETER_UM = [200]
-        self.ANGLES = [0,  90,  180,  270,  45,  135,  225,  315] # degrees
-        self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
+        self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees
+        self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 2
         self.PDURATION = 0
-        self.GRIDSTEP = 1/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+        self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
+        self.MAX_FRAGMENT_TIME = 20.0
         self.runnable = 'MovingDot'
-        self.pre_runnable = 'MovingDotPre'
+#         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
         self._create_parameters_from_locals(locals())
-        experiment.ExperimentConfig.__init__(self) # needs to be called so that runnable is instantiated and other checks are done
+#         experiment.ExperimentConfig.__init__(self) # needs to be called so that runnable is instantiated and other checks are done
 
 class MovingDotPre(experiment.PreExperiment):    
     def run(self):
@@ -46,14 +49,62 @@ class MovingDotPre(experiment.PreExperiment):
 class MovingDot(experiment.Experiment):
     def __init__(self, machine_config, caller, experiment_config):
         experiment.Experiment.__init__(self, machine_config, caller, experiment_config)
+        print 'prepare started'
         self.prepare()
+        print 'prepare complete'
         
     def run(self):
-        for dot_row_col in self.row_col:
-            self.show_dots([self.diameter_pix]*len(dot_row_col), dot_row_col, self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
-            print 'wait'
-            time.sleep(1)
-        pass
+        i = 0     
+        fragment_runtimes = []   
+        for di in range(len(self.row_col)):
+            fragment_start_time = time.time()            
+            mes_fragment_name = '{0}_{1}_{2}'.format(self.experiment_name, int(time.time()), i)
+            ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
+            ai.start_daq_activity() 
+            self.log.info('%2.3f\t%s'%(self.elapsed_time, 'ai recording started'))      
+            self.mes_command.put('SOCacquire_line_scanEOCc:\\temp\\test\\line_scan_data{0}.matEOP'.format(mes_fragment_name))
+            variables_to_log = [self.shown_line_order[di], self.shown_directions[di]]
+            for variable in variables_to_log:
+                self.log.info('%2.3f\t%s'%(self.elapsed_time, str(variable)))
+            self.show_dots([self.diameter_pix]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+
+            fragment_runtimes.append(time.time() - fragment_start_time)
+            print fragment_runtimes[-1]
+            if fragment_runtimes[-1] < self.experiment_config.MAX_FRAGMENT_TIME:
+                time.sleep(self.experiment_config.MAX_FRAGMENT_TIME - fragment_runtimes[-1])
+                
+            ai.finish_daq_activity()
+            ai.release_instrument()
+            
+            #Save 
+            if not hasattr(ai, 'ai_data'):
+                ai.ai_data = numpy.zeros(2)
+            path = utils.generate_filename(os.path.join(self.machine_config.ARCHIVE_PATH, 'ai_data.txt'))
+            numpy.savetxt(path, ai.ai_data)            
+            data_to_hdf5 = {'shown_line_order' : self.shown_line_order[di], 'shown_directions' :  self.shown_directions[di],
+                            'sync_data' : ai.ai_data}
+            setattr(self.hdf5, mes_fragment_name, data_to_hdf5)
+            self.hdf5.save(mes_fragment_name)
+            
+            
+            #if MES is busy, then wait
+            time.sleep(3.0)           
+            i += 1
+            if self.command_buffer.find('stop') != -1:
+                self.command_buffer.replace('stop', '')
+                print 'stop'
+                break
+#             print 'wait'
+#             time.sleep(1)
+        print fragment_runtimes
+        print min(fragment_runtimes)
+        print max(fragment_runtimes)
+        
+    def cleanup(self):
+        #Empty command buffer, this shall be done by experiment control
+        time.sleep(0.1)
+        while not self.mes_command.empty():
+            print self.mes_command.get()
 
     def prepare(self):
         # we want at least 2 repetitions in the same recording, but the best is to
@@ -76,7 +127,6 @@ class MovingDot(experiment.Experiment):
             numpy.arange(numpy.ceil(diameter_pix/2), w-numpy.ceil(diameter_pix/2), gridstep_pix))
         # we go along the diagonal from origin to bottom right and take perpicular diagonals' starting
         # and ing coords and lengths
-
         # diagonals run from bottom left to top right
         dlines,dlines_len = diagonal_tr(45,diameter_pix,gridstep_pix,movestep_pix,w,h)
 
@@ -100,12 +150,12 @@ class MovingDot(experiment.Experiment):
             self.angles_broken_to_multi_block( w, h, diameter_pix, speed_pix,gridstep_pix, movestep_pix,  hlines_r, hlines_c, vlines_r, vlines_c,   angleset, allangles)
         else:
             vr_all= dict();vc_all=dict()
-            vr_all[(90, 270,)] = [vlines_r[b::nblocks, :] for b in range(nblocks)]
-            vc_all[(90, 270,)] = [vlines_c[b::nblocks, :] for b in range(nblocks)]
-            vr_all[(0, 180,)] = [hlines_r[b::nblocks, :] for b in range(nblocks)]
-            vc_all[(0, 180,)]= [hlines_c[b::nblocks, :] for b in range(nblocks)]
+            vr_all[(90, 270,)] = [vlines_r[b::nblocks, :] for b in range(int(nblocks))]
+            vc_all[(90, 270,)] = [vlines_c[b::nblocks, :] for b in range(int(nblocks))]
+            vr_all[(0, 180,)] = [hlines_r[b::nblocks, :] for b in range(int(nblocks))]
+            vc_all[(0, 180,)]= [hlines_c[b::nblocks, :] for b in range(int(nblocks))]
             self.allangles_in_a_block(diameter_pix,gridstep_pix,movestep_pix,w, h, nblocks,  vr_all, vc_all, angleset, allangles, total_dur)
-
+            
     def angles_broken_to_multi_block(self, w, h, diameter_pix, speed_pix,gridstep_pix, movestep_pix,  hlines_r, hlines_c, vlines_r, vlines_c,   angleset, allangles):
         '''In a block the maximum possible lines from the same direction is put. Direction is shuffled till all lines to be shown are put into blocks.
         Repetitions are not put into the same block'''
@@ -119,16 +169,20 @@ class MovingDot(experiment.Experiment):
         #nlines_in_block_diag=
         line_order = dict()
         lines_rowcol = dict()
-        line_order[90] = [numpy.arange(b, vlines_r.shape[0], nblocks_ver) for b in range(nblocks_ver)]
-        line_order[270] = [numpy.arange(b, vlines_r.shape[0], nblocks_ver) for b in range(nblocks_ver)]
-        line_order[0] = [numpy.arange(b, hlines_r.shape[0], nblocks_hor) for b in range(nblocks_hor)]
-        line_order[180] = [numpy.arange(b, hlines_r.shape[0], nblocks_hor) for b in range(nblocks_hor)]
-        lines_rowcol[90] = [numpy.vstack(numpy.dstack([vlines_r[b::nblocks_ver, :],  vlines_c[b::nblocks_ver, :]])) for b in range(nblocks_ver)]
-        lines_rowcol[270] = [numpy.vstack(numpy.dstack([vlines_r[b::nblocks_ver, :][-1::-1, :],  vlines_c[b::nblocks_ver, :][-1::-1, :]])) for b in range(nblocks_ver)]
-        lines_rowcol[0] = [numpy.vstack(numpy.dstack([hlines_r[b::nblocks_hor, :],  hlines_c[b::nblocks_hor, :]])) for b in range(nblocks_hor)]
-        lines_rowcol[180] = [numpy.vstack(numpy.dstack([hlines_r[b::nblocks_hor, :][-1::-1, :],  hlines_c[b::nblocks_hor, :][-1::-1, :]])) for b in range(nblocks_hor)]
+        if 90 in angleset:
+            line_order[90] = [numpy.arange(b, vlines_r.shape[0], nblocks_ver) for b in range(nblocks_ver)]
+            lines_rowcol[90] = [numpy.vstack(numpy.dstack([vlines_r[b::nblocks_ver, :],  vlines_c[b::nblocks_ver, :]])) for b in range(nblocks_ver)]
+        if 270 in angleset:
+            line_order[270] = [numpy.arange(b, vlines_r.shape[0], nblocks_ver) for b in range(nblocks_ver)]
+            lines_rowcol[270] = [numpy.vstack(numpy.dstack([vlines_r[b::nblocks_ver, :][-1::-1, :],  vlines_c[b::nblocks_ver, :][-1::-1, :]])) for b in range(nblocks_ver)]
+        if 0 in angleset:
+            line_order[0] = [numpy.arange(b, hlines_r.shape[0], nblocks_hor) for b in range(nblocks_hor)]
+            lines_rowcol[0] = [numpy.vstack(numpy.dstack([hlines_r[b::nblocks_hor, :],  hlines_c[b::nblocks_hor, :]])) for b in range(nblocks_hor)]
+        if 180 in angleset:
+            line_order[180] = [numpy.arange(b, hlines_r.shape[0], nblocks_hor) for b in range(nblocks_hor)]
+            lines_rowcol[180] = [numpy.vstack(numpy.dstack([hlines_r[b::nblocks_hor, :][-1::-1, :],  hlines_c[b::nblocks_hor, :][-1::-1, :]])) for b in range(nblocks_hor)]
         diag_angles = [a1 for a1 in angleset if a1 in [45, 135, 225, 315]] #this implementation does not require doing the loop for all angles but we do it anyway, eventually another implementation might give different results for different angles
-        for a1 in diag_angles:
+        for a1 in diag_angles:            
             line_order[a1]=[]
             lines_rowcol[a1] = []
             row_col_f,linelengths_f = diagonal_tr(a1,diameter_pix,gridstep_pix,movestep_pix,w, h)
@@ -138,11 +192,11 @@ class MovingDot(experiment.Experiment):
                 line_order[a1].append([])
                 # in a new block, first take the longest line
                 cblockdur=0
-                while linelengths_f.sum()>0 and cblockdur < self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION:
-                    li = int(numpy.where(linelengths_f==max(linelengths_f))[0])
+                while linelengths_f.sum()>0 and cblockdur < self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION:                    
+                    li = int(numpy.where(linelengths_f==max(linelengths_f))[0][0])
                     if cblockdur+linelengths_f[li]/speed_pix/self.experiment_config.NDOTS > self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION:
                         break # we found a line that fits into max recording duration
-                    line_order[a1][-1].append(int(numpy.where(linelengths_f==linelengths_f[li])[0])) #if needed, this converts negative index to normal index
+                    line_order[a1][-1].append(int(numpy.where(linelengths_f==linelengths_f[li])[0][0])) #if needed, this converts negative index to normal index
                     cblockdur += max(linelengths_f)/speed_pix/self.experiment_config.NDOTS
                     linelengths_f[li] = 0
                     if linelengths_f.sum()==0: break
@@ -164,7 +218,7 @@ class MovingDot(experiment.Experiment):
                     if li== None: # no more lines for this block
                         break
                     else: # append the line to the list of lines in the current block
-                        line_order[a1][-1] .append(int(numpy.where(linelengths_f==linelengths_f[li])[0]))
+                        line_order[a1][-1] .append(int(numpy.where(linelengths_f==linelengths_f[li])[0][0]))
                         cblockdur += linelengths_f[li]/speed_pix/self.experiment_config.NDOTS
                         linelengths_f[li]=0
                 lines_rowcol[a1].append(numpy.vstack(row_col_f[line_order[a1][-1]]))
@@ -212,7 +266,7 @@ class MovingDot(experiment.Experiment):
                     segm_length = vr.shape[1]/self.experiment_config.NDOTS #length of the trajectory 1 dot has to run in the stimulation segment
                     cl =range(vr.shape[0])
                     #partsep = [zeros(1,self.experiment_config.NDOTS),size(vr,2)]
-                    partsep = range(0 , vr.shape[0], numpy.ceil(segm_length))
+                    partsep = range(0 , vr.shape[0], int(numpy.ceil(segm_length)))
                     if len(partsep)<self.experiment_config.NDOTS+1:
                         partsep.append(vr.shape[1])
                     dots_line_i = [range(partsep[d1-1], partsep[d1]) for d1 in range(1, self.experiment_config.NDOTS+1)]
@@ -394,22 +448,20 @@ def generate_filename(args):
         return fn
         
 class MovingDotTestConfig(experiment.ExperimentConfig):
-    def _create_application_parameters(self):
-        #place for experiment parameters
-        #parameter with range: list[0] - value, list[0] - range
-        #path parameter: parameter name contains '_PATH'
-        #string list: list[0] - empty
+    def _create_application_parameters(self):  
+  
+
+        
         self.DIAMETER_UM = [200]
-        self.ANGLES = [0,   90,  180,  270,  45,  135,  225,  315] # degrees
+        self.ANGLES = [0,90] # degrees
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
-        self.REPEATS = 2
+        self.REPEATS = 1
         self.PDURATION = 0
-        self.GRIDSTEP = 1.0/1#3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+        self.GRIDSTEP = 1.0 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'
-        self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
         self._create_parameters_from_locals(locals())
         
@@ -447,12 +499,12 @@ if __name__ == '__main__':
     import sys
     from visexpman.engine.visexp_runner import VisExpRunner
     vs_runner = VisExpRunner('daniel', sys.argv[1]) #first argument should be a class name
-    commands = [
-                    [0.0,'SOCexecute_experimentEOC'],                    
-                    [0.0,'SOCquitEOC'],
-                    ]
-    cs = command_handler.CommandSender(vs_runner.config, vs_runner, commands)
-    cs.start()
+#     commands = [
+#                     [0.0,'SOCexecute_experimentEOC'],                    
+#                     [0.0,'SOCquitEOC'],
+#                     ]
+#     cs = command_handler.CommandSender(vs_runner.config, vs_runner, commands)
+#     cs.start()
     vs_runner.run_loop()
-    cs.close()
+#     cs.close()
 

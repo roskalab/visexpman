@@ -48,12 +48,17 @@ class Experiment(stimulation_library.Stimulations):
         self.stage = self.devices.stage        
         self.mes_command = self.caller.mes_command_queue
         self.mes_response = self.caller.mes_response_queue
+        self.zip = self.caller.experiment_control.data_handler.archive
+        if self.machine_config.ARCHIVE_FORMAT == 'hdf5':
+            self.hdf5 = self.caller.experiment_control.data_handler.hdf5_handler
         if hasattr(self.devices, 'led_controller'): #This hasattr checking is unnecessary
             self.led_controller = self.devices.led_controller
         self.log = self.caller.experiment_control.log
         self.logfile_path = self.caller.experiment_control.logfile_path
         self.command_buffer = ''
         self.abort = False
+        self.experiment_name = self.__class__.__name__
+        print self.experiment_name, type(self.experiment_name)
 
     def run(self):
         pass

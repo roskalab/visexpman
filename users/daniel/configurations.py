@@ -1,7 +1,11 @@
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 from visexpman.engine.generic.parameter import Parameter
 from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
 import visexpman.engine.generic.utils as utils
 import os
+import serial
+import numpy
+
 class PPRLConfig(VisionExperimentConfig):
     
     def _set_user_parameters(self):
@@ -144,39 +148,139 @@ class MBP(VisionExperimentConfig):
         VisionExperimentConfig._create_parameters_from_locals(self, locals())
         #VisionExperimentConfig._set_parameters_from_locals(self, locals())
 
-class ZoliTester(VisionExperimentConfig):
+# class ZoliTester(VisionExperimentConfig):
+# 
+#     def _set_user_parameters(self):     
+#         MES = {'ENABLE' : True, 'ip': '',  'port' : 10001,  'receive buffer' : 256}   
+#         RUN_MODE = 'single experiment'
+#         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
+#         path = '/Users/rz/visexpman/data'
+#         path = 'c:\\temp\\test'
+# #         path = '/media/Common/visexpman_data/test'
+#         LOG_PATH = path        
+#         EXPERIMENT_LOG_PATH = path
+#         ARCHIVE_PATH = path
+#         CAPTURE_PATH = path
+#         ENABLE_PARALLEL_PORT = False
+#         UDP_ENABLE = False        
+#         FULLSCREEN = False
+#         SCREEN_RESOLUTION = utils.rc([768, 1024])
+#         ENABLE_FRAME_CAPTURE = False
+#         SCREEN_EXPECTED_FRAME_RATE = 60.0
+#         SCREEN_MAX_FRAME_RATE = 60.0
+#         IMAGE_PROJECTED_ON_RETINA = False
+#         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
+#         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
+#         FRAME_WAIT_FACTOR = 0 
+#         GAMMA = 1.0
+#         ENABLE_FILTERWHEEL = False
+#         ENABLE_TEXT = False
+#         
+#         MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
+# 
+#         SCREEN_UM_TO_PIXEL_SCALE = 1.0
+#         COORDINATE_SYSTEM='ulcorner'
+#         ARCHIVE_FORMAT = 'hdf5'
+#         ACQUISITION_TRIGGER_PIN = 2
+#         FRAME_TRIGGER_PIN = 0
+#         self._create_parameters_from_locals(locals())
+        
+class VS3DUS(VisionExperimentConfig):
+    '''
+    Visual stimulation machine of 3D microscope setup
+    '''
     def _set_user_parameters(self):        
-        RUN_MODE = 'single experiment'
-        EXPERIMENT_CONFIG = 'MovingDotTestConfig'
-        path = '/Users/rz/visexpman/data'
-        path = 'c:\\_del\\test'
-        path = '/media/Common/visexpman_data/test'
-        LOG_PATH = path        
-        EXPERIMENT_LOG_PATH = path
-        ARCHIVE_PATH = path
-        CAPTURE_PATH = path
-        ENABLE_PARALLEL_PORT = False
-        UDP_ENABLE = False        
+        EXPERIMENT_CONFIG = 'MovingDotConfig'
+        
+        #=== paths/data handling ===
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_FORMAT = 'hdf5'
+        
+        #=== screen ===
         FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.rc([768, 1024])
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+#         SCREEN_RESOLUTION = utils.rc([768, 1024])
+        COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0        
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+        
+        #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
-        FRAME_WAIT_FACTOR = 0 
-        GAMMA = 1.0
-        ENABLE_FILTERWHEEL = False
-        ENABLE_TEXT = False
+        MAXIMUM_RECORDING_DURATION = [10, [0, 10000]] #seconds RZ: Isn't it an experiment config?
         
-        MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
-
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0
-        COORDINATE_SYSTEM='ulcorner'
-        ARCHIVE_FORMAT = 'hdf5'
+        #=== Network ===
+        ENABLE_UDP = False
+        MES = {'ENABLE' : True, 'ip': '',  'port' : 10002,  'receive buffer' : 256}
+        
+        #=== hardware ===
+        ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PULSE_WIDTH = 10e-3
+        
+        #=== stage ===
+        motor_serial_port = {
+                                    'port' :  unit_test_runner.TEST_stage_com_port,
+                                    'baudrate' : 19200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }
+                                    
+        STAGE = [[{'serial_port' : motor_serial_port,
+                 'enable': True,
+                 'speed': 1000000,
+                 'acceleration' : 1000000,
+                 'move_timeout' : 45.0,
+                 'um_per_ustep' : numpy.ones(3, dtype = numpy.float)
+                 }]]
+                 
+        #=== Filterwheel ===
+        
+        ENABLE_FILTERWHEEL = False
+        
+        FILTERWHEEL_SERIAL_PORT = [[{
+                                    'port' :  unit_test_runner.TEST_com_port,
+                                    'baudrate' : 115200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }]]        
+                                    
+        FILTERWHEEL_FILTERS = [[{
+                                                'ND0': 1, 
+                                                'ND10': 2, 
+                                                'ND20': 3, 
+                                                'ND30': 4, 
+                                                'ND40': 5, 
+                                                'ND50': 6, 
+                                                }]]
+                                                
+        #=== LED controller ===
+        DAQ_CONFIG = [[
+                    {
+                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 1.0,
+                    'SAMPLE_RATE' : 1000,                    
+                    'AI_CHANNEL' : 'Dev1/ai0:1',
+                    'MAX_VOLTAGE' : 5.0,
+                    'MIN_VOLTAGE' : -5.0,
+                    'DURATION_OF_AI_READ' : 10.0,
+                    'ENABLE' : not False
+                    }
+                    ]]
+        
+        #=== Others ===
+        
+        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
+        
+        
         self._create_parameters_from_locals(locals())
 
 if __name__ == "__main__":

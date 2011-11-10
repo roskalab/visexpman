@@ -55,6 +55,7 @@ class ExperimentControl():
         self.caller = caller
         self.devices = Devices(config, caller)
         self.data_handler = DataHandler(config, caller)
+        
         #saving experiment source to a temporary file in the user's folder
         self.experiment_source = experiment_source
         self.experiment_source_path = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user, 'presentinator_experiment' + str(self.caller.command_handler.experiment_counter) + '.py')
@@ -86,8 +87,11 @@ class ExperimentControl():
         self.caller.selected_experiment_config = self.caller.experiment_config_list[int(self.caller.command_handler.selected_experiment_config_index)][1](self.config, self.caller)        
         #init experiment logging
         self.init_experiment_logging()
+        #Create archive files so that user can save data during the experiment
+        self.data_handler.prepare_archive()
         #Set experiment control context in selected experiment configuration
         self.caller.selected_experiment_config.set_experiment_control_context()
+        
 
     def run_experiment(self):
         if hasattr(self.caller, 'selected_experiment_config') and hasattr(self.caller.selected_experiment_config, 'run'):
@@ -168,7 +172,22 @@ class DataHandler():
         self.caller = caller
         self.config = config
         self.visexpman_module_paths  = self.caller.visexpman_module_paths
-        self.module_versions = self.caller.module_versions        
+        self.module_versions = self.caller.module_versions
+        
+    def prepare_archive(self):
+        #If the archive format is hdf5, zip file is saved to a temporary folder
+        if self.config.ARCHIVE_FORMAT == 'zip':
+            zip_folder = self.config.ARCHIVE_PATH
+            self.zip_file_path = experiment_file_name(self.caller.selected_experiment_config, zip_folder, 'zip')
+        elif self.config.ARCHIVE_FORMAT == 'hdf5':
+            self.zip_file_path = tempfile.mktemp()
+            self.hdf5_path = experiment_file_name(self.caller.selected_experiment_config, self.config.ARCHIVE_PATH, 'hdf5')
+            self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self.caller)
+        else:
+            raise RuntimeError('Archive format is not defined. Check the configuration!')
+        #Create zip file
+        self.archive = zipfile.ZipFile(self.zip_file_path, "w")
+        
         
     def archive_software_environment(self):
         '''
@@ -179,28 +198,17 @@ class DataHandler():
         f = open(module_versions_file_path, 'wt')
         f.write(self.module_versions)
         f.close()
-        #If the archive format is hdf5, zip file is saved to a temporary folder
-        if self.config.ARCHIVE_FORMAT == 'zip':
-            zip_folder = self.config.ARCHIVE_PATH
-            self.zip_file_path = experiment_file_name(self.caller.selected_experiment_config, zip_folder, 'zip')
-        elif self.config.ARCHIVE_FORMAT == 'hdf5':
-            self.zip_file_path = tempfile.mktemp()
-            self.hdf5_path = experiment_file_name(self.caller.selected_experiment_config, self.config.ARCHIVE_PATH, 'hdf5')
-            self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self.caller)
-        else:
-            raise RuntimeError('Archive format is not defined. Please check the configuration!')
-        #Create zip file
-        archive = zipfile.ZipFile(self.zip_file_path, "w")
-        archive.write(module_versions_file_path, module_versions_file_path.replace(os.path.dirname(module_versions_file_path), ''))
+        self.archive.write(module_versions_file_path, module_versions_file_path.replace(os.path.dirname(module_versions_file_path), ''))
+        #Save source files
         if len(self.caller.experiment_control.experiment_source)>0 and self.config.ENABLE_UDP and not utils.is_in_list(self.visexpman_module_paths, self.caller.experiment_control.experiment_source_path):
             self.visexpman_module_paths.append(self.caller.experiment_control.experiment_source_path)
         for python_module in self.visexpman_module_paths:
             zip_path = python_module.split('visexpman')[-1]
             if os.path.exists(python_module):
-                archive.write(python_module, zip_path)
+                self.archive.write(python_module, zip_path)
         #include experiment log
-        archive.write(self.caller.experiment_control.logfile_path, self.caller.experiment_control.logfile_path.replace(os.path.dirname(self.caller.experiment_control.logfile_path), ''))
-        archive.close()
+        self.archive.write(self.caller.experiment_control.logfile_path, self.caller.experiment_control.logfile_path.replace(os.path.dirname(self.caller.experiment_control.logfile_path), ''))
+        self.archive.close()
         f = open(self.zip_file_path, 'rb')
         archive_binary = f.read(os.path.getsize(self.zip_file_path))
         f.close()
