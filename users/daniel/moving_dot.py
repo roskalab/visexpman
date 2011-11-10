@@ -63,7 +63,8 @@ class MovingDot(experiment.Experiment):
             ai.start_daq_activity() 
             self.log.info('%2.3f\t%s'%(self.elapsed_time, 'ai recording started'))      
             self.mes_command.put('SOCacquire_line_scanEOCc:\\temp\\test\\line_scan_data{0}.matEOP'.format(mes_fragment_name))
-            variables_to_log = [self.shown_line_order[di], self.shown_directions[di]]
+            variables_to_log = [ self.shown_directions[di]]
+            if hasattr(self, 'shown_line_order' ): variables_to_log.append(self.shown_line_order[di])
             for variable in variables_to_log:
                 self.log.info('%2.3f\t%s'%(self.elapsed_time, str(variable)))
             self.show_dots([self.diameter_pix]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
@@ -318,19 +319,23 @@ class MovingDot(experiment.Experiment):
                 arow_col[a][b] = drc
         self.row_col = [] # list of coordinates to show on the screen
         self.line_end = [] # index in coordinate list where a line ends and another starts (the other line can be of the same or a different direction
-        self.angle_end = [] # index of the coordinate where the angle of the trajectory is changed from one to another
-        self.block_end = [] # index in the coordinate list where stimulation has to stop and microscope needs to save data
+        self.shown_directions = [] # list of direction of each block presented on the screen
         # create a list of coordinates where dots have to be shown, note when a direction subblock ends, and when a block ends (in case the stimulus has to be split into blocks due to recording duration limit)
         for b in range(int(nblocks)):
+            self.row_col.append([])
+            self.shown_directions.append([])
+            self.line_end.append([])
             for a1 in range(len(allangles)):
                 cai = numpy.where(angleset==allangles[a1])[0]
                 for f in range(arow_col[cai][b][0].shape[1]):
                     coords = []
                     for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[cai][b][n][:,f])
-                    self.row_col.append(utils.rc(numpy.array(coords)))
-                self.angle_end.append(len(self.row_col))
-            self.block_end.append(len(self.row_col))
+                    self.row_col[-1].extend(coords)
+                self.shown_directions[-1].append(allangles[a1]) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
+                self.line_end[-1].append(arow_col[cai][b][0].shape[1])
+            self.row_col[-1]=utils.rc(numpy.array(self.row_col[-1]))
+        pass
     
 def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
     ''' Calculates positions of the dot(s) for each movie frame along the lines dissecting the screen at 45 degrees'''
@@ -449,9 +454,6 @@ def generate_filename(args):
         
 class MovingDotTestConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):  
-  
-
-        
         self.DIAMETER_UM = [200]
         self.ANGLES = [0,90] # degrees
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size

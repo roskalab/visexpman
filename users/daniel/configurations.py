@@ -138,7 +138,7 @@ class MBP(VisionExperimentConfig):
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
         
         SEGMENT_DURATION = 2
-        MAXIMUM_RECORDING_DURATION = [10, [0, 10000]] #seconds
+        MAXIMUM_RECORDING_DURATION = [90, [0, 10000]] #seconds
         ARCHIVE_FORMAT = 'hdf5'
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         COORDINATE_SYSTEM='ulcorner'
