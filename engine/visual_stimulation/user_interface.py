@@ -1,6 +1,7 @@
 #TODO: Rename this module
 
 import pygame
+#import pyglet
 import socket
 #import threading
 #import time#?
@@ -9,6 +10,9 @@ import visexpman.engine.generic.utils as utils
 import visexpman.engine.generic.graphics as graphics
 from OpenGL.GL import *#?
 from OpenGL.GLUT import *
+
+#global pyglet_key_pressed
+#pyglet_key_pressed = ''
 
 def experiment_choices(experiment_list):
     '''
@@ -78,7 +82,6 @@ class VisexpmanScreen(graphics.Screen):
         '''
         Render menu and message texts to screen
         '''
-        
         #TODO: when TEXT_ENABLE = False, screen has to be cleared to background color, self.clear_screen_to_background()
         if self.config.ENABLE_TEXT:# and not self.hide_menu:#TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command
             self._show_menu()
@@ -87,27 +90,44 @@ class VisexpmanScreen(graphics.Screen):
     def run_preexperiment(self):
         pass
 
+#def get_key(symbol,  modifiers):    
+#    global pyglet_key_pressed
+#    pyglet_key_pressed = pyglet.window.key.symbol_string(symbol).lower().replace('_',  '')
+
 class ScreenAndKeyboardHandler(VisexpmanScreen):
     '''
     VisexpmanScreen is amended with keyboard handling
     '''
-    def __init__(self, config, caller):
+    def __init__(self, config, caller, keyboard_command_queue):
         VisexpmanScreen.__init__(self, config, caller)
+        self.keyboard_command_queue = keyboard_command_queue
         self.experiment_config_shortcuts = ['{0}'.format(i) for i in range(len(caller.experiment_config_list))]#stimulus_file_shortcut
         self.command_domain = 'keyboard'
         self.keyboard_commands = self.config.COMMANDS
         self.separator = '@'
         for shortcut in self.experiment_config_shortcuts:
             self.keyboard_commands['select_experiment' + self.separator + shortcut] = {'key': shortcut, 'domain' : [self.command_domain]}
+#        if self.window_type == 'pyglet':
+#            self.screen.on_key_press = get_key
 
     def _check_keyboard(self):
         '''
         Get pressed key
         '''
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                key_pressed = pygame.key.name(event.key)
-                return key_pressed
+        if self.window_type == 'pygame':
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    key_pressed = pygame.key.name(event.key)
+                    return key_pressed
+#        elif self.window_type == 'pyglet':
+#            wins = pyglet.window.get_platform().get_default_display().get_windows()
+#            for win in wins:
+#                win.dispatch_events()
+#            global pyglet_key_pressed
+#            if len(pyglet_key_pressed)>0:
+#                key_pressed = pyglet_key_pressed                
+#                pyglet_key_pressed = ''                
+#                return key_pressed
         return
 
     def _parse_keyboard_command(self, key_pressed, domain):
@@ -150,8 +170,10 @@ class ScreenAndKeyboardHandler(VisexpmanScreen):
         command = self.keyboard_handler(self.command_domain)
         #Send command to command handler via tcp ip
         if command != None:
-            sock = socket.create_connection(('localhost',  self.config.COMMAND_INTERFACE_PORT))
-            sock.sendall(command)
+            self.keyboard_command_queue.put(command)
+#            sock = socket.create_connection(('localhost',  self.config.COMMAND_INTERFACE_PORT))
+#            sock.sendall(command)
+
 #            sock.shutdown(socket.SHUT_RDWR)
 #            sock.close()        
         

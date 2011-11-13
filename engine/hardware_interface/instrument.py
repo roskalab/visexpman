@@ -90,7 +90,7 @@ class Instrument():
         
     def log_during_experiment(self, log_message):
         if self.caller.state == 'experiment running':
-            self.caller.experiment_control.log.info('%2.3f\t%s' %(self.get_elapsed_time(), log_message))
+            self.caller.experiment_control.log.info(log_message)
 
 #    def __del__(self):        
 #        self.release_instrument()

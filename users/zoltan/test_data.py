@@ -138,6 +138,8 @@ class LDC(VisionExperimentConfig):
         #screen
         FULLSCREEN = False        
         SCREEN_RESOLUTION = utils.cr([800, 600])        
+#        SCREEN_RESOLUTION = utils.cr([1680, 1050])        
+#        SCREEN_RESOLUTION = utils.cr([1024, 768])        
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
@@ -175,13 +177,8 @@ class MESExperiment(experiment.Experiment):
         orientation = [0,45,90]
         for i in range(len(orientation)):
             self.mes_command.put('SOCacquire_line_scanEOCc:\\temp\\test\\line_scan_data{0}.matEOP'.format(i))
-            self.show_grating(duration =1.0, profile = 'sqr', orientation = orientation[i], velocity = 50.0, white_bar_width = 100)
+            self.show_grating(duration =1.0, profile = 'sqr', orientation = orientation[i], velocity = 500.0, white_bar_width = 100)
         
-    def cleanup(self):
-        #Empty command buffer, this shall be done by experiment control
-        time.sleep(0.1)
-        while not self.mes_command.empty():
-            print self.mes_command.get()
 
         
 

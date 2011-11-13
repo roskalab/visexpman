@@ -48,7 +48,7 @@ class Stimulations(command_handler.CommandHandler):
         #Command buffer for keyboard commands during experiment
         self.command_buffer = ''
         #Abort command received signalling
-        self.abort = False
+        self.abort = False        
         
         #self.test_message = psychopy.visual.TextStim(self.screen,  text = '',  pos = (0, 0),  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)        
         
@@ -107,8 +107,7 @@ class Stimulations(command_handler.CommandHandler):
         if self.experiment_control_dependent:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place            
             self.elapsed_time = self.flip_time -  self.caller.experiment_control.start_time
-            self.caller.experiment_control.log.info('%2.3f\t%2.2f\t%s'%(self.elapsed_time,self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))
-        
+            self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
         if trigger:
             self._frame_trigger_pulse()
             
@@ -118,7 +117,7 @@ class Stimulations(command_handler.CommandHandler):
             self.command_buffer += self.parse(command)
             if self.command_buffer.find('abort_experiment') != -1:
                 self.command_buffer = self.command_buffer.replace('abort_experiment', '')
-                self.caller.experiment_control.log.info('%2.3f\tAbort pressed'%(self.elapsed_time))
+                self.caller.experiment_control.log.info('Abort pressed')
                 self.abort = True
 
     def _frame_trigger_pulse(self):
@@ -773,7 +772,7 @@ class Stimulations(command_handler.CommandHandler):
                 #If running of stimulus lasts longer than duration, abort it, unless duration is less than 1 sec. In this case
                 #it is assumed that the number of displayable  frames are more important than the duration
                 if time.time() - start_time > duration and duration >=1.0:
-                    stop_stimulus = True
+#                    stop_stimulus = True#TODO!!!!
                     self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous

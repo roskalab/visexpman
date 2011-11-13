@@ -131,6 +131,8 @@ class unitTestRunner():
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
                'enable' : TEST_stage},
+               {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
+               'enable' : True},
                ]
 
     def fetch_test_methods(self, test_class):
@@ -190,9 +192,6 @@ class unitTestRunner():
         source_zip.write(self.test_log,  'test_log.txt')        
         source_zip.close()
         
-        
-        
-
 if __name__ == "__main__":
     utr = unitTestRunner()
     utr.run()

@@ -32,7 +32,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
-        self.MAX_FRAGMENT_TIME = 20.0
+        self.MAX_FRAGMENT_TIME = 120.0
         self.runnable = 'MovingDot'
 #         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
@@ -62,7 +62,22 @@ class MovingDot(experiment.Experiment):
             ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
             ai.start_daq_activity() 
             self.log.info('%2.3f\t%s'%(self.elapsed_time, 'ai recording started'))      
+            #empty queue
+            while not self.mes_response.empty():
+            	self.mes_response.get()
             self.mes_command.put('SOCacquire_line_scanEOCc:\\temp\\test\\line_scan_data{0}.matEOP'.format(mes_fragment_name))
+            while self.mes_response.empty():
+            	pass
+            while True:
+                try:
+                    response = self.mes_response.get()
+                except:
+                    response = ''
+                if response.find('SOCacquire_line_scanEOCstartedEOP') != -1:
+                    break
+                else:
+                    time.sleep(0.5)
+            time.sleep(1.0)
             variables_to_log = [ self.shown_directions[di]]
             if hasattr(self, 'shown_line_order' ): variables_to_log.append(self.shown_line_order[di])
             for variable in variables_to_log: #Perhaps this logging is not necessary any more
@@ -71,8 +86,8 @@ class MovingDot(experiment.Experiment):
 
             fragment_runtimes.append(time.time() - fragment_start_time)
             print fragment_runtimes[-1]
-            if fragment_runtimes[-1] < self.experiment_config.MAX_FRAGMENT_TIME:
-                time.sleep(self.experiment_config.MAX_FRAGMENT_TIME - fragment_runtimes[-1])
+#             if fragment_runtimes[-1] < self.experiment_config.MAX_FRAGMENT_TIME:
+#                 time.sleep(self.experiment_config.MAX_FRAGMENT_TIME - fragment_runtimes[-1])
                 
             ai.finish_daq_activity()
             ai.release_instrument()
@@ -82,14 +97,35 @@ class MovingDot(experiment.Experiment):
                 ai.ai_data = numpy.zeros(2)
             path = utils.generate_filename(os.path.join(self.machine_config.ARCHIVE_PATH, 'ai_data.txt'))
             numpy.savetxt(path, ai.ai_data)            
-            data_to_hdf5 = {'shown_line_order' : self.shown_line_order[di], 'shown_directions' :  self.shown_directions[di],
+            data_to_hdf5 = {'shown_directions' :  self.shown_directions[di],
                             'sync_data' : ai.ai_data}
+            if hasattr(self, 'show_line_order'):
+            	data_to_hdf5['shown_line_order'] = self.shown_line_order[di]
+            	
             setattr(self.hdf5, mes_fragment_name, data_to_hdf5)
             self.hdf5.save(mes_fragment_name)
             
-            
+            while True:
+                try:
+                    response = self.mes_response.get()
+                except:
+                    response = ''
+                if response.find('SOCacquire_line_scanEOCOKEOP') != -1:
+                    break
+                else:
+                    time.sleep(0.1)
+            print 'line scan complete'
+            while True:
+                try:
+                    response = self.mes_response.get()
+                except:
+                    response = ''
+                if response.find('SOCacquire_line_scanEOCsaveOKEOP') != -1:
+                    break
+                else:
+                    time.sleep(0.1)
             #if MES is busy, then wait
-            time.sleep(3.0)           
+#             time.sleep(20.0)           
             i += 1
             if self.command_buffer.find('stop') != -1:
                 self.command_buffer.replace('stop', '')
@@ -454,13 +490,14 @@ def generate_filename(args):
         
 class MovingDotTestConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):  
+    	self.MAX_FRAGMENT_TIME = 120.0
         self.DIAMETER_UM = [200]
-        self.ANGLES = [0,90] # degrees
+        self.ANGLES = [0] # degrees
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
         self.PDURATION = 0
-        self.GRIDSTEP = 1.0 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+        self.GRIDSTEP = 1.0/1 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'

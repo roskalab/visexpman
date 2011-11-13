@@ -17,6 +17,7 @@ import random
 import zipfile
 import re
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+import visexpman.engine.generic.log as log
 
 class VisExpRunner(object):
     '''
@@ -26,7 +27,7 @@ class VisExpRunner(object):
         self.state = 'init'
         #TODO: from users.user folder remove all presentinator*.py files
         #== Find and instantiate machine configuration ==
-        try:
+        try:            
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()
         except IndexError:
             raise RuntimeError('Configuration class does not exist.')
@@ -52,14 +53,14 @@ class VisExpRunner(object):
         #Reference to experiment control class which is instantiated when the start of the experiment is evoked
         self.experiment_control = None
         #Create screen and keyboard handler
-        self.screen_and_keyboard = user_interface.ScreenAndKeyboardHandler(self.config, self)
+        self.command_queue = Queue.Queue()
+        self.screen_and_keyboard = user_interface.ScreenAndKeyboardHandler(self.config, self, self.command_queue)
         #Select and instantiate stimulus as specified in machine config, This is necessary to ensure that pre-experiment will run immediately after startup        
         if len(self.experiment_config_list) > 0:
             self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self)            
-        #start listening on tcp ip for receiving commands
-        self.command_queue = Queue.Queue()
+        #start listening on tcp ip for receiving commands        
         #In test_mode the network operations are disabled
-        if unit_test_runner.TEST_enable_network:
+        if unit_test_runner.TEST_enable_network and False:
             self.tcpip_listener = network_interface.NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
             self.tcpip_listener.start()
         #Start udp listener if not in test mode
@@ -101,25 +102,32 @@ class VisExpRunner(object):
         self.close()
             
     def close(self):
-        if unit_test_runner.TEST_enable_network:
+        if unit_test_runner.TEST_enable_network and False:
             self.tcpip_listener.close()
         self.log.info('Visexpman quit')
-        self.handler.flush()
+        self.log.flush()
         if hasattr(self.config, 'MES'):
             if self.config.MES['ENABLE'] and unit_test_runner.TEST_enable_network:
                 self.mes_command_queue.put('SOCclose_connectionEOC')
                 time.sleep(1.0)
+        if self.screen_and_keyboard.window_type == 'pyglet':
+            self.screen_and_keyboard.__del__()
+#        print self.screen_and_keyboard.diff
             
     def _init_logging(self):
-        #TODO: make folder to store all the files created by this run
         #set up logging
         self.logfile_path = utils.generate_filename(self.config.LOG_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')
-        self.log = logging.getLogger('visexpman log ' +  str(time.time()))
-        self.handler = logging.FileHandler(self.logfile_path)
-        formatter = logging.Formatter('%(asctime)s %(message)s')
-        self.handler.setFormatter(formatter)
-        self.log.addHandler(self.handler)
-        self.log.setLevel(logging.INFO)
+        self.log = log.Log('visexpman log ' +  str(time.time()), self.logfile_path, write_mode = 'user control')
+#        self.log = logging.getLogger('visexpman log ' +  str(time.time()))
+#        self.handler = logging.FileHandler(self.logfile_path)
+#        formatter = logging.Formatter('%(asctime)s %(message)s')
+#        self.handler.setFormatter(formatter)
+#        self.log.addHandler(self.handler)
+#        self.log.setLevel(logging.INFO)
+#        
+
+      
+    
 
 def find_out_config():
     '''
@@ -735,7 +743,7 @@ class testVisexpRunner(unittest.TestCase):
             if experiment_log.find(reference_string) == -1:               
                 return False
         return True
-        
+#TODO: test for check frame rate        
 if __name__ == "__main__":
     if unit_test_runner.TEST_test:
         unittest.main()
