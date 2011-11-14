@@ -71,8 +71,8 @@ class MovingDot(experiment.Experiment):
 
             fragment_runtimes.append(time.time() - fragment_start_time)
             print fragment_runtimes[-1]
-            if fragment_runtimes[-1] < self.experiment_config.MAX_FRAGMENT_TIME:
-                time.sleep(self.experiment_config.MAX_FRAGMENT_TIME - fragment_runtimes[-1])
+            if ai.started and fragment_runtimes[-1] < self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION:
+                time.sleep(self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION - fragment_runtimes[-1])
                 
             ai.finish_daq_activity()
             ai.release_instrument()
@@ -82,10 +82,10 @@ class MovingDot(experiment.Experiment):
                 ai.ai_data = numpy.zeros(2)
             path = utils.generate_filename(os.path.join(self.machine_config.ARCHIVE_PATH, 'ai_data.txt'))
             numpy.savetxt(path, ai.ai_data)            
-            data_to_hdf5 = {'shown_line_order' : self.shown_line_order[di], 'shown_directions' :  self.shown_directions[di],
-                            'sync_data' : ai.ai_data}
-            setattr(self.hdf5, mes_fragment_name, data_to_hdf5)
-            self.hdf5.save(mes_fragment_name)
+           # data_to_hdf5 = {'shown_line_order' : self.shown_line_order[di], 'shown_directions' :  self.shown_directions[di],
+             #               'sync_data' : ai.ai_data}
+            #setattr(self.hdf5, mes_fragment_name, data_to_hdf5)
+            #self.hdf5.save(mes_fragment_name)
             
             
             #if MES is busy, then wait
