@@ -9,7 +9,6 @@ import unittest
 import pkgutil
 import inspect
 import time
-import unittest
 
 #== Computer graphics colors ==
 def convert_color(color):
