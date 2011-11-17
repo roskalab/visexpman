@@ -328,7 +328,7 @@ class testLogClass():
         self.log.setLevel(logging.INFO)
         self.log.info('instrument test')
    
-class testInstruments(unittest.TestCase):
+class TestInstruments(unittest.TestCase):
     def setUp(self):
         self.state = 'experiment running'
         self.config = testConfig()

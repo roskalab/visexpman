@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project visexpman -->
-<!-- Saved: 2011-11-09, 10:47:54 -->
+<!-- Saved: 2011-11-14, 15:37:55 -->
 <!-- Copyright (C) 2011 Zoltan Raics, zoltan.raics@fmi.ch -->
 <Project version="4.6">
   <Language>en</Language>
@@ -87,6 +87,8 @@
     <Source>users/templateuser/presentinator_experiment.py</Source>
     <Source>engine/visexpman_gui.py</Source>
     <Source>users/zoltan/test/test_server.py</Source>
+    <Source>engine/hardware_interface/mes_interface.py</Source>
+    <Source>users/zoltan/machine_configs.py</Source>
   </Sources>
   <Forms>
   </Forms>

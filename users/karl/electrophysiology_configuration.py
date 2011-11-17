@@ -8,8 +8,7 @@ class KarlWindowsConfig(Configuration.PresentinatorConfig):
         FULLSCR = True
         SCREEN_RESOLUTION = [1024,  768]
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        SERVER_UDP_IP = '172.27.34.12'
+        FRAME_TRIGGER_PIN = 0        
         ARCHIVE_PATH = self.BASE_PATH + os.sep + 'data'
         LOG_PATH = self.BASE_PATH + os.sep + 'data'
         SCREEN_EXPECTED_FRAME_RATE = 75.0

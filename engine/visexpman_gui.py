@@ -1,9 +1,7 @@
 
 #TODO: log
 #TODO: command with previous setting
-#Execute experiment
-#Save ID to hdf5io
-
+#TODO:Execute experiment
 
 import time
 import socket
@@ -12,62 +10,70 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import visexpman.engine.generic.utils as utils
-import visexpman.engine.generic.configuration as configuration
+import visexpman.engine.visual_stimulation.configuration as configuration
 import visexpman.engine.hardware_interface.network_interface as network_interface
+import visexpman.engine.generic.utils as utils
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import Queue
 import os.path
+import visexpA.engine.datahandlers.hdf5io as hdf5io
 
 class Gui(Qt.QMainWindow):
-    def __init__(self, config, command_queue, response_queue):
+    def __init__(self, config):
         self.config = config
-        self.command_queue = command_queue
-        self.response_queue = response_queue
-        self.default_parameters()
+        self.init_network()
+        self.init_files()       
+        
         #=== Init GUI ===
         Qt.QMainWindow.__init__(self)
-        self.setWindowTitle('Vision Experiment Manager GUI')
-        self.resize(800, 600)
-        self.move(100,  100)
+        self.setWindowTitle('Vision Experiment Manager GUI')        
+        self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
+        self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
         self.create_user_interface()
         self.show()
         
+    def init_network(self):
+        self.mes_command_queue = Queue.Queue()
+        self.mes_response_queue = Queue.Queue()
+        self.mes_server = network_interface.CommandServer(self.mes_command_queue, self.mes_response_queue, self.config.GUI_MES['PORT'])
+        self.mes_server.start()
+        
     def create_user_interface(self):
-        panel_size = utils.cr((160, 40))
-        date_format = QtCore.QString('dd-mm-yyyy')        
-        mouse_birth_date = {'size' : panel_size,  'position' : utils.cr((0,  100))}
-        gcamp_injection_date = {'size' : panel_size,  'position' : utils.cr((2.1*panel_size['col'],  100))}
-        ear_punch_l = {'size' : panel_size,  'position' : utils.cr((0,  150))}
-        ear_punch_r = {'size' : panel_size,  'position' : utils.cr((2.1*panel_size['col'],  150))}
-        ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])       
-        anesthesia_protocol = {'size' : panel_size,  'position' : utils.cr((0,  200))}
-        anesthesia_protocol_items = QtCore.QStringList(['isoflCP 1.0', 'isoflCP 0.5', 'isoflCP 1.5'])
-        mouse_strain = {'size' : panel_size,  'position' : utils.cr((2.1*panel_size['col'],  200))}
+        self.panel_size = utils.cr((150, 35))
+        
+        self.experiment_identification_gui(50)
+        self.mes_control(50 + 4 * self.panel_size['row'])
+        self.visexpman_control(50 + 6.5 * self.panel_size['row'])
+        self.visexpa_control(50 + 9 * self.panel_size['row'])       
+        
+    def experiment_identification_gui(self, row):
+        
+        #== Parameters of gui items ==
+        title = {'title' : '---------------------    Experiment identification    ---------------------', 'size' : utils.cr((self.config.GUI_SIZE['col'], 40)),  'position' : utils.cr((0, row))}
+        date_format = QtCore.QString('dd-mm-yyyy')
+        mouse_birth_date = {'size' : self.panel_size,  'position' : utils.cr((0, row + 1.1 * self.panel_size['row']))}
+        gcamp_injection_date = {'size' : self.panel_size,  'position' : utils.cr((2.1*self.panel_size['col'],  row + 1.1 * self.panel_size['row']))}
+        anesthesia_protocol = {'size' : self.panel_size,  'position' : utils.cr((4.1*self.panel_size['col'], row + 1.1 * self.panel_size['row']))}
+        anesthesia_protocol_items = QtCore.QStringList(['isoflCP 1.0', 'isoflCP 0.5', 'isoflCP 1.5'])        
+        ear_punch_l = {'size' : self.panel_size,  'position' : utils.cr((0, row + 2.1 * self.panel_size['row']))}
+        ear_punch_r = {'size' : self.panel_size,  'position' : utils.cr((2.1*self.panel_size['col'], row + 2.1 * self.panel_size['row']))}
+        ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])               
+        mouse_strain = {'size' : self.panel_size,  'position' : utils.cr((4.1*self.panel_size['col'], row + 2.1 * self.panel_size['row']))}
         mouse_strain_items = QtCore.QStringList(['bl6', 'chat', 'chatdtr'])
-        generate_id = {'size' : panel_size,  'position' : utils.cr((0,  250))}
-        load_previous_experiment = {'size' : panel_size,  'position' : utils.cr((2.1*panel_size['col'],  250))}
-        id = {'size' : utils.cr((640, 40)),  'position' : utils.cr((0,  300))}
+        generate_id = {'size' : self.panel_size,  'position' : utils.cr((0, row + 3.1 * self.panel_size['row']))}
         
-        acquire_camera_image = {'size' : panel_size,  'position' : utils.cr((0,  350))}
-        acquire_z_stack = {'size' : panel_size,  'position' : utils.cr((panel_size['col'],  350))}
-        single_two_photon_recording = {'size' : panel_size,  'position' : utils.cr((2*panel_size['col'],  350))}
-        two_photon_recording = {'size' : panel_size,  'position' : utils.cr((3*panel_size['col'],  350))}
-        rc_scan = {'size' : panel_size,  'position' : utils.cr((4*panel_size['col'],  350))}
+        id = {'size' : utils.cr((self.config.GUI_SIZE['col'] - self.panel_size['col'], 40)),  'position' : utils.cr((1.1 * self.panel_size['col'], row + 3.1 * self.panel_size['row']))}       
         
-        log = {'size' : utils.cr((640, 40)),  'position' : utils.cr((0,  400))}
-        update = {'size' : panel_size,  'position' : utils.cr((0,  450))}
-        echo = {'size' : panel_size,  'position' : utils.cr((panel_size['col'],  450))}
+        #== Create gui items ==
+        self.experiment_identification_title = QtGui.QLabel(title['title'],  self)
+        self.experiment_identification_title.resize(title['size']['col'],  title['size']['row'])
+        self.experiment_identification_title.move(title['position']['col'],  title['position']['row'])
+        self.experiment_identification_title.setAlignment(QtCore.Qt.AlignHCenter)
         
-        #=== Generating experiment id ===
-
         self.generate_id_button = QtGui.QPushButton('Generate ID',  self)
         self.generate_id_button.resize(generate_id['size']['col'],  generate_id['size']['row'])
         self.generate_id_button.move(generate_id['position']['col'],  generate_id['position']['row'])
         self.connect(self.generate_id_button, QtCore.SIGNAL('clicked()'),  self.generate_id)
-        
-        self.load_previous_experiment_button = QtGui.QPushButton('Load previous experiment',  self)
-        self.load_previous_experiment_button.resize(load_previous_experiment['size']['col'],  load_previous_experiment['size']['row'])
-        self.load_previous_experiment_button.move(load_previous_experiment['position']['col'],  load_previous_experiment['position']['row'])
-        self.connect(self.load_previous_experiment_button, QtCore.SIGNAL('clicked()'),  self.load_previous_experiment)
         
         self.mouse_birth_date = QtGui.QDateEdit(self)
         self.mouse_birth_date.setDisplayFormat(date_format)
@@ -121,7 +127,23 @@ class Gui(Qt.QMainWindow):
         self.id.resize(id['size']['col'],  id['size']['row'])
         self.id.move(id['position']['col'],  id['position']['row'])
         
-        #=== Experiment commands ===        
+        
+    
+    def mes_control(self, row):
+        #== Params ==
+        title = {'title' : '---------------------    MES    ---------------------', 'size' : utils.cr((self.config.GUI_SIZE['col'], 40)),  'position' : utils.cr((0, row))}
+        acquire_camera_image = {'size' : self.panel_size,  'position' : utils.cr((0,  row + 1.1 *  self.panel_size['row']))}
+        acquire_z_stack = {'size' : self.panel_size,  'position' : utils.cr((self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
+        single_two_photon_recording = {'size' : self.panel_size,  'position' : utils.cr((2*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
+        two_photon_recording = {'size' : self.panel_size,  'position' : utils.cr((3*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
+        rc_scan = {'size' : self.panel_size,  'position' : utils.cr((4*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
+        echo = {'size' : self.panel_size,  'position' : utils.cr((5*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
+        
+        #== gui items ==        
+        self.mes_title = QtGui.QLabel(title['title'],  self)
+        self.mes_title.resize(title['size']['col'],  title['size']['row'])
+        self.mes_title.move(title['position']['col'],  title['position']['row'])
+        self.mes_title.setAlignment(QtCore.Qt.AlignHCenter)
         
         self.acquire_camera_image_button = QtGui.QPushButton('Acquire camera image',  self)
         self.acquire_camera_image_button.resize(acquire_camera_image['size']['col'],  acquire_camera_image['size']['row'])
@@ -138,7 +160,7 @@ class Gui(Qt.QMainWindow):
         self.two_photon_recording_button.move(two_photon_recording['position']['col'],  two_photon_recording['position']['row'])
         self.connect(self.two_photon_recording_button, QtCore.SIGNAL('clicked()'),  self.two_photon_recording)
         
-        self.single_photon_recording_button = QtGui.QPushButton('Single two photon record',  self)
+        self.single_photon_recording_button = QtGui.QPushButton('Single two photon',  self)
         self.single_photon_recording_button.resize(single_two_photon_recording['size']['col'],  single_two_photon_recording['size']['row'])
         self.single_photon_recording_button.move(single_two_photon_recording['position']['col'],  single_two_photon_recording['position']['row'])
         self.connect(self.single_photon_recording_button, QtCore.SIGNAL('clicked()'),  self.single_two_photon_recording)
@@ -148,34 +170,63 @@ class Gui(Qt.QMainWindow):
         self.rc_scan_button.move(rc_scan['position']['col'],  rc_scan['position']['row'])
         self.connect(self.rc_scan_button, QtCore.SIGNAL('clicked()'),  self.rc_scan)
         
-        #=== Others ===
-        self.log = QtGui.QLabel('',  self)
-        self.log.resize(log['size']['col'],  log['size']['row'])
-        self.log.move(log['position']['col'],  log['position']['row'])
-        self.log.setText('')
-        
-        self.update_button = QtGui.QPushButton('Update',  self)
-        self.update_button.resize(update['size']['col'],  update['size']['row'])
-        self.update_button.move(update['position']['col'],  update['position']['row'])
-        self.connect(self.update_button, QtCore.SIGNAL('clicked()'),  self.update)
-        
         self.echo_button = QtGui.QPushButton('Echo MES',  self)
         self.echo_button.resize(echo['size']['col'],  echo['size']['row'])
         self.echo_button.move(echo['position']['col'],  echo['position']['row'])
         self.connect(self.echo_button, QtCore.SIGNAL('clicked()'),  self.echo)
         
-    def default_parameters(self):
-        self.acquire_camera_image_parameters = os.path.join(self.config.working_path, 'acquire_camera_image_parameters.mat').replace('/', '\\')
-        self.acquire_z_stack_parameters = os.path.join(self.config.working_path, 'acquire_z_stack_parameters.mat')
-        self.two_photon_parameters = os.path.join(self.config.working_path, 'two_photon_parameters.mat').replace('/', '\\')
-        self.single_two_photon_parameters = os.path.join(self.config.working_path, 'single_two_photon_parameters.mat').replace('/', '\\')
-        self.rc_scan_parameters = os.path.join(self.config.working_path, 'rc_scan_parameters.mat')
+    def visexpman_control(self, row):
+        #== Params ==
+        title = {'title' : '---------------------    Visexpman    ---------------------', 'size' : utils.cr((self.config.GUI_SIZE['col'], 40)),  'position' : utils.cr((0, row))}
+        execute_experiment = {'size' : self.panel_size,  'position' : utils.cr((0,  row + 1.1 *  self.panel_size['row']))}
+        experiment_config = {'size' : self.panel_size,  'position' : utils.cr((self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
+        
+        #== Gui items ==
+        self.visexpman_title = QtGui.QLabel(title['title'],  self)
+        self.visexpman_title.resize(title['size']['col'],  title['size']['row'])
+        self.visexpman_title.move(title['position']['col'],  title['position']['row'])
+        self.visexpman_title.setAlignment(QtCore.Qt.AlignHCenter)
+        
+        self.execute_experiment_button = QtGui.QPushButton('Execute experiment',  self)
+        self.execute_experiment_button.resize(execute_experiment['size']['col'],  execute_experiment['size']['row'])
+        self.execute_experiment_button.move(execute_experiment['position']['col'],  execute_experiment['position']['row'])
+        self.connect(self.execute_experiment_button, QtCore.SIGNAL('clicked()'),  self.execute_experiment)
+        
+        self.experiment_config_input = QtGui.QTextEdit(self)
+        self.experiment_config_input.resize(experiment_config['size']['col'],  experiment_config['size']['row'])
+        self.experiment_config_input.move(experiment_config['position']['col'],  experiment_config['position']['row'])
+        
+    def visexpa_control(self, row):
+        #== Params ==
+        title = {'title' : '---------------------    VisexpA    ---------------------', 'size' : utils.cr((self.config.GUI_SIZE['col'], 40)),  'position' : utils.cr((0, row))}
+        execute_experiment = {'size' : self.panel_size,  'position' : utils.cr((0,  row + 1.1 *  self.panel_size['row']))}
+        experiment_config = {'size' : self.panel_size,  'position' : utils.cr((self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
+        
+        #== Gui items ==
+        self.visexpa_title = QtGui.QLabel(title['title'],  self)
+        self.visexpa_title.resize(title['size']['col'],  title['size']['row'])
+        self.visexpa_title.move(title['position']['col'],  title['position']['row'])
+        self.visexpa_title.setAlignment(QtCore.Qt.AlignHCenter)
+        
+    def init_files(self):
+        self.acquire_camera_image_parameters = os.path.join(self.config.MAT_PATH, 'acquire_camera_image_parameters.mat').replace('/', '\\')
+        self.acquire_z_stack_parameters = os.path.join(self.config.MAT_PATH, 'acquire_z_stack_parameters.mat')
+        self.two_photon_parameters = os.path.join(self.config.MAT_PATH, 'two_photon_parameters.mat').replace('/', '\\')
+        self.single_two_photon_parameters = os.path.join(self.config.MAT_PATH, 'single_two_photon_parameters.mat').replace('/', '\\')
+        self.rc_scan_parameters = os.path.join(self.config.MAT_PATH, 'rc_scan_parameters.mat')
+        
+        #create hdf5io
+        self.hdf5_path = utils.generate_filename(os.path.join(self.config.ARCHIVE_PATH, 'gui.hdf5'))
+        self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self)
         
 #        Mat file handling
 #        data = scipy.io.loadmat('test.mat')
 #        data = {}
 #        data['x'] = x
 #        scipy.io.savemat('test.mat',data)
+
+    def execute_experiment(self):
+        print 'SOCexecute_experimentEOC{0}EOP'.format(self.experiment_config_input.toPlainText())
         
     def generate_id(self):
         mouse_birth_date = self.mouse_birth_date.date()
@@ -202,66 +253,52 @@ class Gui(Qt.QMainWindow):
                                                                                    self.anesthesia_protocol.currentText(), 
                                                                                    self.ear_punch_l.currentText(), self.ear_punch_r.currentText(), 
                                                                                    )
-        self.id.setText(id_text)
-        
-    def load_previous_experiment(self):
-        pass
+        self.hdf5_handler.id = id_text
+        self.hdf5_handler.save('id')
+        self.id.setText(id_text)        
         
     def acquire_camera_image(self):
-        self.command_queue.put('SOCacquire_camera_imageEOC{0}EOP' .format(self.acquire_camera_image_parameters))        
+        self.mes_command_queue.put('SOCacquire_camera_imageEOC{0}EOP' .format(self.acquire_camera_image_parameters))        
         
     def acquire_z_stack(self):
-        self.command_queue.put('SOCacquire_z_stackEOC{0}EOP' .format(self.acquire_z_stack_parameters))
+        self.mes_command_queue.put('SOCacquire_z_stackEOC{0}EOP' .format(self.acquire_z_stack_parameters))
         
     def two_photon_recording(self):
-        self.command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(self.two_photon_parameters))
+        self.mes_command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(self.two_photon_parameters))
         
     def single_two_photon_recording(self):
-        self.command_queue.put('SOCacquire_xy_imageEOC{0}EOP'.format(self.single_two_photon_parameters))
+        self.mes_command_queue.put('SOCacquire_xy_imageEOC{0}EOP'.format(self.single_two_photon_parameters))
 
     def rc_scan(self):
-        self.command_queue.put('SOCrc_scanEOC{0}EOP'.format(self.rc_scan_parameters))
-        
-    def update(self):
-        message = self.log.text()
-        while not response_queue.empty():
-            response = response_queue.get()
-#            print response
-            message += response + ' '
-        message = message[-100:]
-        self.log.setText(message)        
+        self.mes_command_queue.put('SOCrc_scanEOC{0}EOP'.format(self.rc_scan_parameters))
         
     def echo(self):
-        self.command_queue.put('SOCechoEOCguiEOP')
+        self.mes_command_queue.put('SOCechoEOCguiEOP')
         
     def closeEvent(self, e):
         e.accept()
-        self.command_queue.put('SOCclose_connectionEOCEOP')
+        self.mes_command_queue.put('SOCclose_connectionEOCEOP')
+        self.hdf5_handler.close()
         time.sleep(1.0) #Enough time to close connection with MES
+        self.mes_server.terminate()
         sys.exit(0)
-
-class GuiConfig(configuration.Config):
-    def _create_application_parameters(self):
-        if len(sys.argv) > 1:
-            port = int(sys.argv[1])
-        else:
-            port = 10000
-            
-        if len(sys.argv) > 2:
-            self.working_path =  sys.argv[2]
-        else:
-            self.working_path = 'c:\\temp\\test'
-        MES = {'ip': '',  'port' : port,  'receive buffer' : 256}
-        VISEXPMAN = {'ip': '',  'port' : 10001}
-        VISEXPA = {'ip': '',  'port' : 10002}        
+        
+class GuiConfig(configuration.VisionExperimentConfig):
+    def _set_user_parameters(self):
+        COORDINATE_SYSTEM='center'
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        MAT_PATH= unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        
+        #== GUI specific ==
+        GUI_POSITION = utils.cr((10, 10))
+        GUI_SIZE = utils.cr((1024, 768))
         self._create_parameters_from_locals(locals())
         
 if __name__ == '__main__':
     config = GuiConfig()    
-    command_queue = Queue.Queue()
-    response_queue = Queue.Queue()
-    server = network_interface.MesServer(config, command_queue, response_queue)
-    server.start()
     app = Qt.QApplication(sys.argv)
-    gui = Gui(config, command_queue, response_queue)
+    gui = Gui(config)
     app.exec_()
+#TODO: send commands to visexpman

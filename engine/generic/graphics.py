@@ -7,9 +7,6 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
-import ctypes
-from pyglet.gl import glxext_arb
-
 if window_type == 'pygame':
     import pygame
 #elif window_type == 'pyglet':

@@ -48,6 +48,7 @@ class Experiment(stimulation_library.Stimulations):
         self.stage = self.devices.stage        
         self.mes_command = self.caller.mes_command_queue
         self.mes_response = self.caller.mes_response_queue
+        self.mes_interface = self.caller.experiment_control.devices.mes_interface
         self.zip = self.caller.experiment_control.data_handler.archive
         if self.machine_config.ARCHIVE_FORMAT == 'hdf5':
             self.hdf5 = self.caller.experiment_control.data_handler.hdf5_handler
@@ -66,7 +67,7 @@ class Experiment(stimulation_library.Stimulations):
         '''
         Operations to execute right after running the experiment. Saving user specific files, closing instruments  that are not handled within Device class, user specific file operations
         '''
-        pass        
+        pass
 
 class PreExperiment(Experiment):
     '''

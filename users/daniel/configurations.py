@@ -100,8 +100,7 @@ class RC3DWindowsConfig(VisionExperimentConfig):
         FULLSCREEN = True
         SCREEN_RESOLUTION = [1600,  1200]
         ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 2
-        SERVER_UDP_IP = '172.27.26.10'
+        FRAME_TRIGGER_PIN = 2        
         ARCHIVE_PATH = self.BASE_PATH
         LOG_PATH = self.BASE_PATH
         #test steps:
@@ -217,8 +216,7 @@ class VS3DUS(VisionExperimentConfig):
         MAXIMUM_RECORDING_DURATION = [13, [0, 10000]]
         
         #=== Network ===
-        ENABLE_UDP = False
-        MES = {'ENABLE' : True, 'ip': '',  'port' : 10002,  'receive buffer' : 256}
+        ENABLE_UDP = False        
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True

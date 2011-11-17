@@ -412,14 +412,14 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
                 
     #Filter experiment config list. In test mode, experiment configs are loaded only from automated_test_data. In application run mode
     #this module is omitted
-    filtered_class_list = []    
+    filtered_class_list = []
     for class_item in class_list:
         if (class_item[0].__name__.find('automated_test_data') != -1 or \
         class_item[0].__name__.find('presentinator_experiment') != -1 or\
         class_item[0].__name__.find('default_configs') != -1) and unit_test_runner.TEST_test:
             filtered_class_list.append(class_item)
         elif not class_item[0].__name__.find('automated_test_data') != -1 and not unit_test_runner.TEST_test:
-            filtered_class_list.append(class_item)    
+            filtered_class_list.append(class_item)
     return filtered_class_list
     
 def class_list_in_string(class_list):
@@ -875,10 +875,6 @@ def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0
 
 
 #== Others ==
-#def os():
-#    if sys.platform
-
-
 def in_range(number,  range1,  range2, preceision = None):
     if preceision != None:
         number_rounded = round(number, preceision)

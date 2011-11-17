@@ -23,6 +23,7 @@ import visexpman.users as users
 import visexpman.engine.hardware_interface.instrument as instrument
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.hardware_interface.motor_control as motor_control
+import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 
 import os
@@ -154,15 +155,11 @@ class Devices():
             self.number_of_filterwheels = 2
         for id in range(self.number_of_filterwheels):
             self.filterwheels.append(instrument.Filterwheel(config, caller, id =id))
-
-#        if hasattr(self.config, 'LED_CONTROLLER_INSTRUMENT_INDEX') and hasattr(self.config, 'DAQ_CONFIG'):
-#             if self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ENABLE'] and self.config.DAQ_CONFIG[self.config.LED_CONTROLLER_INSTRUMENT_INDEX]['ANALOG_CONFIG'] == 'ao':
         self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)
         self.stage = motor_control.AllegraStage(self.config, self.caller)
-        
-        
+        self.mes_interface = mes_interface.MesInterface(self.config, self.caller.mes_command_queue, self.caller.mes_response_queue, self.caller.mes_listener)
 
-    def close(self):        
+    def close(self):
         self.parallel_port.release_instrument()
         if os.name == 'nt':
             for filterwheel in self.filterwheels:
@@ -199,7 +196,7 @@ class DataHandler():
         #Create zip file
         self.archive = zipfile.ZipFile(self.zip_file_path, "w")
         
-        
+        #TODO: rename archive path to experiment result path
     def archive_software_environment(self):
         '''
         Archives the called python modules within visexpman package and the versions of all the called packages
@@ -258,7 +255,7 @@ class TestConfig(configuration.Config):
         ARCHIVE_PATH = os.path.join(ARCHIVE_PATH, 'test')
         if not os.path.exists(ARCHIVE_PATH):
             os.mkdir(ARCHIVE_PATH)
-        
+        VISEXPMAN_MES = {'ENABLE' : False,'IP': '',  'PORT' : 10003,  'RECEIVE_BUFFER' : 256}
         ARCHIVE_FORMAT = 'zip'
 
         self._create_parameters_from_locals(locals())
@@ -281,9 +278,13 @@ class testExternalHardware(unittest.TestCase):
     '''
     '''
     def setUp(self):
+        import Queue
         self.state = 'ready'
+        self.mes_command_queue = Queue.Queue()
+        self.mes_response_queue = Queue.Queue()
+        self.mes_listener = None
         self.config = TestConfig()
-        self.start_time = time.time()        
+        self.start_time = time.time()
         
     #Testing constructor
     def test_01_creating_instruments(self):        
