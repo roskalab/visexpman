@@ -184,7 +184,9 @@ class AnalogIO(instrument.Instrument):
                 self.analog_output.StopTask()
             if self.enable_ai:
                 self.analog_input.StopTask()
-                self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.number_of_ai_samples)).transpose()
+                self.ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
+                self.ai_raw_data = self.ai_data
+                self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()
 
     def start_instrument(self):
         if os.name == 'nt' and self.daq_config['ENABLE']:
@@ -348,7 +350,7 @@ class testDaqConfig(configuration.Config):
         'AO_SAMPLE_RATE' : 100,
         'AI_SAMPLE_RATE' : 1000,
         'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
-        'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',        
+        'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',
         'MAX_VOLTAGE' : 5.0,
         'MIN_VOLTAGE' : 0.0,
         'DURATION_OF_AI_READ' : 1.0,
@@ -873,34 +875,54 @@ class TestDaqInstruments(unittest.TestCase):
 
         
         self.assertEqual((ai0_sum, ai1_sum), (ai0_sum_ref, ai1_sum_ref))
-        
-    #TODO: buffer overflow is not handled yet
+    
     def test_28_stop_ai_before_ai_duration(self):
-        ai_read_time = 2.5
-        self.config.DAQ_CONFIG[0]['DURATION_OF_AI_READ'] = 5.0
-        self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 50
-        self.config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'ai'
+        ai_read_time = 1.2
         
+        #Generate signals on AO's
+        self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 1000
+        self.config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'ao'
+        
+        waveform = numpy.ones(3 * ai_read_time * self.config.DAQ_CONFIG[0]['SAMPLE_RATE'])
+        waveform[-1] = 0
+        voltage_levels = [1.0, 2.0]
+        waveform = numpy.array([waveform * voltage_levels[0], waveform * voltage_levels[1]]).transpose()
+        
+        ao1 = AnalogIO(self.config, self)
+        ao1.waveform = waveform
+        ao1.start_daq_activity()
+    
+        #Start the ai
+        self.config.DAQ_CONFIG[0]['DURATION_OF_AI_READ'] = 10.0
+        self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 10000
+        self.config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'ai'
         
         aio = AnalogIO(self.config, self)        
         aio.start_daq_activity()
         time.sleep(ai_read_time)
         aio.finish_daq_activity()
-#         self.assertRaises(RuntimeError, aio.finish_daq_activity)        
-        aio.release_instrument()               
-        ai0 = aio.ai_data[:,-1]
-        ai1 = aio.ai_data[:,-2]
-        ai2 = aio.ai_data[:,-3]
-        ai3 = aio.ai_data[:,-4]
-        ai4 = aio.ai_data[:,-5]    
-#         numpy.savetxt('c:\\temp\\test\\ai.txt', aio.ai_data[:,-1])
-        #Check whether at least ai_read_time * sample rate amount of data is available
-        self.assertEqual((self.zero_non_zero_ratio(ai0) > ai_read_time/self.config.DAQ_CONFIG[0]['DURATION_OF_AI_READ'],
-                         self.zero_non_zero_ratio(ai1) > ai_read_time/self.config.DAQ_CONFIG[0]['DURATION_OF_AI_READ'], 
-                         self.zero_non_zero_ratio(ai2) > ai_read_time/self.config.DAQ_CONFIG[0]['DURATION_OF_AI_READ'], 
-                         self.zero_non_zero_ratio(ai3) > ai_read_time/self.config.DAQ_CONFIG[0]['DURATION_OF_AI_READ'], 
-                         self.zero_non_zero_ratio(ai4) > ai_read_time/self.config.DAQ_CONFIG[0]['DURATION_OF_AI_READ']),
-                         (True, True, True, True, True))
+        aio.release_instrument()
+        
+        #Finish AO
+        time.sleep(2*ai_read_time)
+        ao1.finish_daq_activity()
+        ao1.release_instrument()
+
+        ai_data = numpy.round(aio.ai_data,2)
+        ai0 = ai_data[:,-1]
+        ai1 = ai_data[:,-2]
+        ai2 = ai_data[:,-3]
+        ai3 = ai_data[:,-4]
+        ai4 = ai_data[:,-5]
+        ao0 = numpy.ones_like(ai0) * voltage_levels[0]
+        ao1 = numpy.ones_like(ai0) * voltage_levels[1]
+        
+        self.assertEqual((abs(ai0 - ao0).sum(),
+                            abs(ai1 - ao1).sum(),
+                            abs(ai2 - ao0).sum(),
+                            abs(ai3 - ao1).sum(),
+                            ai4.sum()),
+                            (0.0, 0.0, 0.0, 0.0, 0.0))
     
     #== Test utilities ==
     def zero_non_zero_ratio(self, data):

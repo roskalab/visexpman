@@ -11,6 +11,9 @@ import inspect
 import time
 import unittest
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+import tempfile
+import cPickle as pickle
+
 
 #== Computer graphics colors ==
 def convert_color(color):
@@ -875,6 +878,31 @@ def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0
 
 
 #== Others ==
+def object_to_binary_array(object):
+    file_path = tempfile.mktemp()
+    pickle.dump(object, open(file_path, 'wb'))
+    return file_to_binary_array(file_path)
+
+def file_to_binary_array(path):
+    if os.path.exists(path):
+        f = open(path, 'rb')
+        binary = f.read(os.path.getsize(path))
+        f.close()
+        binary_in_bytes = []
+        for byte in list(binary):
+            binary_in_bytes.append(ord(byte))
+        return numpy.array(binary_in_bytes, dtype = numpy.uint8)
+    else:
+        return numpy.zeros(2)
+        
+def string_to_binary_array(s):
+    binary_in_bytes = []
+    for byte in list(s):
+        binary_in_bytes.append(ord(byte))
+    return numpy.array(binary_in_bytes, dtype = numpy.uint8)
+    
+        
+    
 def in_range(number,  range1,  range2, preceision = None):
     if preceision != None:
         number_rounded = round(number, preceision)

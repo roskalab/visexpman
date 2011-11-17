@@ -812,6 +812,7 @@ class Stimulations(command_handler.CommandHandler):
         radius = 1.0
         vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
         n_frames = len(dot_positions) / ndots
+        self.log_on_flip_message_initial += ' n_frames = ' + str(n_frames)
         n_vertices = len(vertices)        
         frames_vertices = numpy.zeros((n_frames * ndots * n_vertices,  2))         
         index = 0

@@ -1,4 +1,4 @@
-
+#TODO: rename to visexp_gui.py
 #TODO: log
 #TODO: command with previous setting
 #TODO:Execute experiment
@@ -37,6 +37,11 @@ class Gui(Qt.QMainWindow):
         self.mes_response_queue = Queue.Queue()
         self.mes_server = network_interface.CommandServer(self.mes_command_queue, self.mes_response_queue, self.config.GUI_MES['PORT'])
         self.mes_server.start()
+        
+        self.visexpman_out_queue = Queue.Queue()
+        self.visexpman_in_queue = Queue.Queue()
+        self.visexpman_client = network_interface.CommandClient(self.visexpman_out_queue, self.visexpman_in_queue, self.config.VISEXPMAN_GUI['IP'], self.config.VISEXPMAN_GUI['PORT'])
+        self.visexpman_client.start()
         
     def create_user_interface(self):
         self.panel_size = utils.cr((150, 35))
@@ -138,6 +143,7 @@ class Gui(Qt.QMainWindow):
         two_photon_recording = {'size' : self.panel_size,  'position' : utils.cr((3*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
         rc_scan = {'size' : self.panel_size,  'position' : utils.cr((4*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
         echo = {'size' : self.panel_size,  'position' : utils.cr((5*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
+        previous_settings = {'position' : utils.cr((6.5*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
         
         #== gui items ==        
         self.mes_title = QtGui.QLabel(title['title'],  self)
@@ -174,6 +180,11 @@ class Gui(Qt.QMainWindow):
         self.echo_button.resize(echo['size']['col'],  echo['size']['row'])
         self.echo_button.move(echo['position']['col'],  echo['position']['row'])
         self.connect(self.echo_button, QtCore.SIGNAL('clicked()'),  self.echo)
+        
+        self.previous_settings_checkbox = QtGui.QCheckBox(self)        
+        self.previous_settings_checkbox.move(previous_settings['position']['col'],  previous_settings['position']['row'])
+        self.connect(self.previous_settings_checkbox, QtCore.SIGNAL('stateChanged()'),  self.update_mes_command_parameter_file_names)
+        
         
     def visexpman_control(self, row):
         #== Params ==
@@ -225,8 +236,13 @@ class Gui(Qt.QMainWindow):
 #        data['x'] = x
 #        scipy.io.savemat('test.mat',data)
 
+    def update_mes_command_parameter_file_names(self):
+        print 'a'
+
     def execute_experiment(self):
-        print 'SOCexecute_experimentEOC{0}EOP'.format(self.experiment_config_input.toPlainText())
+        command = 'SOCexecute_experimentEOC{0}EOP'.format(self.experiment_config_input.toPlainText())
+        self.visexpman_out_queue.put(command)
+        print command
         
     def generate_id(self):
         mouse_birth_date = self.mouse_birth_date.date()
@@ -278,6 +294,7 @@ class Gui(Qt.QMainWindow):
     def closeEvent(self, e):
         e.accept()
         self.mes_command_queue.put('SOCclose_connectionEOCEOP')
+        self.visexpman_out_queue.put('SOCclose_connectionEOCEOP')
         self.hdf5_handler.close()
         time.sleep(1.0) #Enough time to close connection with MES
         self.mes_server.terminate()
@@ -290,6 +307,8 @@ class GuiConfig(configuration.VisionExperimentConfig):
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
         MAT_PATH= unit_test_runner.TEST_working_folder
         ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        
+        self.VISEXPMAN_GUI['IP'] = 'Fu238D-DDF19D.fmi.ch'
         
         #== GUI specific ==
         GUI_POSITION = utils.cr((10, 10))

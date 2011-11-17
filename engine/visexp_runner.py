@@ -75,7 +75,11 @@ class VisExpRunner(object):
         self.mes_listener = None        
         if self.config.VISEXPMAN_MES['ENABLE'] and unit_test_runner.TEST_enable_network:
             self.mes_listener = network_interface.CommandServer(self.mes_command_queue, self.mes_response_queue, self.config.VISEXPMAN_MES['PORT'])
-            self.mes_listener.start()            
+            self.mes_listener.start()
+            
+        if self.config.VISEXPMAN_GUI['ENABLE'] and unit_test_runner.TEST_enable_network:
+            self.gui_listener = network_interface.CommandServer(self.mes_command_queue, self.mes_response_queue, self.config.VISEXPMAN_GUI['PORT'])
+            self.gui_listener.start()
         
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
@@ -84,10 +88,11 @@ class VisExpRunner(object):
         module_info = utils.imported_modules()        
         self.visexpman_module_paths  = module_info[1]
         self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))        
+        #TODO: check for redundancies in list, for some reason visexp_runner is saved twice
         self.module_versions = utils.module_versions(module_info[0])
         #When initialization is done, visexpman state is 'ready'
         #self.state = 'ready'
-        self.log.info('Visexpman initialized')        
+        self.log.info('Visexpman initialized')
 
     def run_loop(self):
         while self.loop_state == 'running':
@@ -97,6 +102,9 @@ class VisExpRunner(object):
                 self.selected_experiment_config.pre_runnable.run()
             self.screen_and_keyboard.user_interface_handler()
             self.command_handler.process_command_buffer()
+            #Log 'loop alive' in every 10 sec
+            if int(1000 * time.time()) % 10000 == 0:
+                self.log.info('main loop alive')
             #To avoid race condition
             time.sleep(0.1)
         self.close()
@@ -467,7 +475,7 @@ class testVisexpRunner(unittest.TestCase):
                 self.check_experiment_log_for_visual_stimuli(experiment_log)
                 ),
                 (True, True, True, True, True, True, True, True, True, True, True))
-                
+    #TODO: test case for showshape(dur = 1.0), showfullscreen(dur = 1.0) sequence
     def test_15_visual_stimulations_ulcorner(self):        
         config_name = 'VisualStimulationsUlCornerTestConfig'
         v = VisExpRunner('zoltan', config_name)        
@@ -679,8 +687,13 @@ class testVisexpRunner(unittest.TestCase):
         hdf5_path = visexp_runner.experiment_control.data_handler.hdf5_path
         import visexpA.engine.datahandlers.hdf5io as hdf5io
         hdf5_handler = hdf5io.Hdf5io(hdf5_path)
-        hdf5_handler.load('visexprunner_archive')        
-        result =  ((hdf5_handler.visexprunner_archive == reference_data).sum() == reference_data.shape[0])
+        hdf5_handler.load('source_code')
+        hdf5_handler.load('module_versions')
+        hdf5_handler.load('experiment_log')
+        
+        result =  ((hdf5_handler.source_code == reference_data).sum() == reference_data.shape[0]) and\
+                                 (visexp_runner.module_versions == hdf5_handler.module_versions) and \
+                                    (hasattr(hdf5_handler, 'experiment_log'))
         hdf5_handler.close()        
         return result
             

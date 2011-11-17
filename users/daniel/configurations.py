@@ -123,7 +123,7 @@ class MBP(VisionExperimentConfig):
         ENABLE_PARALLEL_PORT = False
         UDP_ENABLE = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
-        FULLSCREEN = False
+        FULLSCREEN = True 
         SCREEN_RESOLUTION = utils.rc([768,   1024])
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
@@ -194,9 +194,12 @@ class VS3DUS(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MovingDotConfig'
         
         #=== paths/data handling ===
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        m_drive_data_folder = 'M:\\Zoltan\\visexpman\\data'
+        g_drive_data_folder = 'G:\\User\\Zoltan\\visexpdata'
+        LOG_PATH = m_drive_data_folder
+        EXPERIMENT_LOG_PATH = m_drive_data_folder
+        EXPERIMENT_RESULT_PATH = m_drive_data_folder
+        ARCHIVE_PATH = EXPERIMENT_RESULT_PATH
         ARCHIVE_FORMAT = 'hdf5'
         
         #=== screen ===
@@ -216,13 +219,15 @@ class VS3DUS(VisionExperimentConfig):
         MAXIMUM_RECORDING_DURATION = [13, [0, 10000]]
         
         #=== Network ===
-        ENABLE_UDP = False        
+        ENABLE_UDP = False     
+        self.VISEXPMAN_GUI['ENABLE'] = True        
+        self.VISEXPMAN_MES['ENABLE'] = True
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 10e-3
+        FRAME_TRIGGER_PULSE_WIDTH = 2e-3
         
         #=== stage ===
         motor_serial_port = {
@@ -266,12 +271,12 @@ class VS3DUS(VisionExperimentConfig):
         DAQ_CONFIG = [[
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
-                    'DAQ_TIMEOUT' : 1.0,
+                    'DAQ_TIMEOUT' : 3.0,
                     'SAMPLE_RATE' : 1000,                    
                     'AI_CHANNEL' : 'Dev1/ai0:1',
                     'MAX_VOLTAGE' : 5.0,
                     'MIN_VOLTAGE' : -5.0,
-                    'DURATION_OF_AI_READ' : 10.0,
+                    'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
                     'ENABLE' : not False
                     }
                     ]]
@@ -307,8 +312,8 @@ class GratingExperiment(experiment.Experiment):
         path = utils.generate_filename(os.path.join(self.machine_config.ARCHIVE_PATH, 'ai_data.txt'))
         numpy.savetxt(path, ai.ai_data)            
         data_to_hdf5 = {'sync_data' : ai.ai_data}
-        setattr(self.hdf5, mes_fragment_name, data_to_hdf5)
-        self.hdf5.save(mes_fragment_name)
+#         setattr(self.hdf5, mes_fragment_name, data_to_hdf5)
+#         self.hdf5.save(mes_fragment_name)
         
 
 if __name__ == "__main__":

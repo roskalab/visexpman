@@ -38,8 +38,10 @@ class Log(object):
             self.log_messages.append(message_to_log)
             
     def flush(self):
+        full_log = ''
         for item in self.log_messages:
-            self.log.info(item)
+            full_log += item + '\n'
+        self.log.info(full_log)
         self.handler.flush()
         
 class TestLog(unittest.TestCase):

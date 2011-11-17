@@ -82,13 +82,7 @@ class ExperimentControl():
         self.logfile_path = experiment_file_name(self.caller.selected_experiment_config, self.config.EXPERIMENT_LOG_PATH, 'txt', 'log') 
         self.log = log.Log('experiment log' + str(self.caller.command_handler.experiment_counter) + str(time.time()),
                                                                                                                    self.logfile_path, write_mode = 'user control', timestamp = 'elapsed_time')
-        
-#        self.log = logging.getLogger('experiment log' + str(self.caller.command_handler.experiment_counter) + str(time.time()))
-#        self.handler = logging.FileHandler(self.logfile_path)
-#        formatter = logging.Formatter('%(message)s')
-#        self.handler.setFormatter(formatter)
-#        self.log.addHandler(self.handler)
-#        self.log.setLevel(logging.INFO)
+        self.devices.mes_interface.log = self.log #Probably this is not the nicest solution
 
     def prepare_experiment_run(self):
         #(Re)instantiate selected experiment config        
@@ -138,6 +132,7 @@ class ExperimentControl():
         if hasattr(self.caller, 'mes_command_queue'):
             while not self.caller.mes_command_queue.empty():
                 print self.caller.mes_command_queue.get()
+        self.caller.log.info('Experiment sequence finished')
         
 class Devices():
     '''
@@ -157,7 +152,7 @@ class Devices():
             self.filterwheels.append(instrument.Filterwheel(config, caller, id =id))
         self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)
         self.stage = motor_control.AllegraStage(self.config, self.caller)
-        self.mes_interface = mes_interface.MesInterface(self.config, self.caller.mes_command_queue, self.caller.mes_response_queue, self.caller.mes_listener)
+        self.mes_interface = mes_interface.MesInterface(self.config, self.caller.mes_command_queue, self.caller.mes_response_queue, self.caller.mes_listener, self.caller.screen_and_keyboard)
 
     def close(self):
         self.parallel_port.release_instrument()
@@ -201,12 +196,15 @@ class DataHandler():
         '''
         Archives the called python modules within visexpman package and the versions of all the called packages
         '''
+        #TODO: archiving to mat file
+        
         #save module version data to file
         module_versions_file_path = os.path.join(os.path.dirname(tempfile.mktemp()),'module_versions.txt')
         f = open(module_versions_file_path, 'wt')
         f.write(self.module_versions)
         f.close()
-        self.archive.write(module_versions_file_path, module_versions_file_path.replace(os.path.dirname(module_versions_file_path), ''))
+        if self.config.ARCHIVE_FORMAT == 'zip':
+            self.archive.write(module_versions_file_path, module_versions_file_path.replace(os.path.dirname(module_versions_file_path), ''))
         #Save source files
         if len(self.caller.experiment_control.experiment_source)>0 and self.config.ENABLE_UDP and not utils.is_in_list(self.visexpman_module_paths, self.caller.experiment_control.experiment_source_path):
             self.visexpman_module_paths.append(self.caller.experiment_control.experiment_source_path)
@@ -215,7 +213,8 @@ class DataHandler():
             if os.path.exists(python_module):
                 self.archive.write(python_module, zip_path)
         #include experiment log
-        self.archive.write(self.caller.experiment_control.logfile_path, self.caller.experiment_control.logfile_path.replace(os.path.dirname(self.caller.experiment_control.logfile_path), ''))
+        if self.config.ARCHIVE_FORMAT == 'zip':
+            self.archive.write(self.caller.experiment_control.logfile_path, self.caller.experiment_control.logfile_path.replace(os.path.dirname(self.caller.experiment_control.logfile_path), ''))
         self.archive.close()
         f = open(self.zip_file_path, 'rb')
         archive_binary = f.read(os.path.getsize(self.zip_file_path))
@@ -225,10 +224,25 @@ class DataHandler():
             self.archive_binary_in_bytes.append(ord(byte))
         self.archive_binary_in_bytes = numpy.array(self.archive_binary_in_bytes, dtype = numpy.uint8)
         if self.config.ARCHIVE_FORMAT == 'hdf5':
-            self.hdf5_handler.visexprunner_archive = self.archive_binary_in_bytes
-            self.hdf5_handler.save('visexprunner_archive')
+            self.hdf5_handler.source_code = self.archive_binary_in_bytes
+            self.hdf5_handler.save('source_code')
+            self.hdf5_handler.module_versions = self.module_versions
+            self.hdf5_handler.save('module_versions')
+            self.hdf5_handler.experiment_log = utils.string_to_binary_array(self.experiment_log_to_string(self.caller.experiment_control.log.log_messages))#TODO: numpy array of strings
+            self.hdf5_handler.save('experiment_log')
             self.hdf5_handler.close()
         #Restoring it to zip file: utils.numpy_array_to_file(archive_binary_in_bytes, '/media/Common/test.zip')
+
+    def experiment_log_to_string(self, log):
+        '''
+        --(Transforms experiment log to the following format:)--
+        --([[float(timestamp), str(log)]])--
+        '''
+        log_string = ''
+        for log_record in log:  
+            log_string += log_record + '\n'
+        return log_string
+
         
 
 class TestConfig(configuration.Config):
@@ -283,6 +297,7 @@ class testExternalHardware(unittest.TestCase):
         self.mes_command_queue = Queue.Queue()
         self.mes_response_queue = Queue.Queue()
         self.mes_listener = None
+        self.screen_and_keyboard = None
         self.config = TestConfig()
         self.start_time = time.time()
         

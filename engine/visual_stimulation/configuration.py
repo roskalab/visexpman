@@ -80,11 +80,11 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         COMMAND_INTERFACE_PORT = [10000, [1100,  65000]]        
         
         #naming: server - client
-        base_port = 10000
-        GUI_MES = {'ENABLE' : False, 'IP': '',  'PORT' : base_port,  'RECEIVE_BUFFER' : 256}
-        VISEXPMAN_GUI = {'ENABLE' : False,'IP': '',  'PORT' : base_port + 1,  'RECEIVE_BUFFER' : 256}
-        VISEXPA_GUI = {'ENABLE' : False,'IP': '',  'PORT' : base_port + 2,  'RECEIVE_BUFFER' : 256} #client-server role is undefined yet
-        VISEXPMAN_MES = {'ENABLE' : False,'IP': '',  'PORT' : base_port + 3,  'RECEIVE_BUFFER' : 256}
+        BASE_PORT = [10000, [1000, 50000]]
+        GUI_MES = {'ENABLE' : not False, 'IP': '',  'PORT' : BASE_PORT[0],  'RECEIVE_BUFFER' : 256}
+        VISEXPMAN_GUI = {'ENABLE' : False,'IP': '',  'PORT' : BASE_PORT[0] + 1,  'RECEIVE_BUFFER' : 256}
+        VISEXPA_GUI = {'ENABLE' : False,'IP': '',  'PORT' : BASE_PORT[0] + 2,  'RECEIVE_BUFFER' : 256} #client-server role is undefined yet
+        VISEXPMAN_MES = {'ENABLE' : False,'IP': '',  'PORT' : BASE_PORT[0] + 3,  'RECEIVE_BUFFER' : 256}
         
         COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
         #Currently the keyboard and running experiment domains are considered:

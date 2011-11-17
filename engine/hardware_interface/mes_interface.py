@@ -6,7 +6,7 @@ import visexpman.engine.generic.configuration
 import socket
 import Queue
 import sys
-
+#TODO: do not wait when mes is not connected
 class MesInterface(object):
     '''
     Protocol:
@@ -16,53 +16,96 @@ class MesInterface(object):
         4. acquire_line_scan, OK is received when the two photon acquisition is finished
         5. acquire_line_scan, saveOK is received when saving data is complete
     '''
-    def __init__(self, config, command_queue, response_queue, command_server):
+    def __init__(self, config, command_queue, response_queue, command_server, screen = None, log = None, ):
         self.config = config
         self.command_queue = command_queue
-        self.response_queue = response_queue        
+        self.response_queue = response_queue
+        self.screen = screen
+        self.log = log
         if self.config.VISEXPMAN_MES['ENABLE']:
             self.command_server = command_server
+            
+    def _watch_keyboard(self):
+        #Keyboard commands
+        if self.screen != None:
+            return self.screen.experiment_user_interface_handler() #Here only commands with running experiment domain are considered           
+                
+                        
         
         
-    def start_line_scan(self, mat_file_path):        
+    def start_line_scan(self, mat_file_path):
+        aborted = False
         if self.config.VISEXPMAN_MES['ENABLE']:
-            self.command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(mat_file_path))        
+            self.command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(mat_file_path))
             #Wait for MES response        
             while True:
                 try:
-                    response = self.response_queue.get()
+                    response = self.response_queue.get(False)
                 except:
                     response = ''
                 if response.find('SOCacquire_line_scanEOCstartedEOP') != -1:
+                    if self.log != None:
+                        self.log.info('line scan started')
+                        self.command_server.enable_keep_alive_check = False
                     break
-                else:
-                    time.sleep(0.1)
+                user_command = self._watch_keyboard()
+                if user_command != None:
+                    if user_command.find('stop') != -1:
+                        aborted = True
+                        if self.log != None:
+                            self.log.info('stopped')
+                        break
+                time.sleep(0.1)
+        return aborted
                 
     def wait_for_line_scan_complete(self):        
+        aborted = False
         if self.config.VISEXPMAN_MES['ENABLE']:
             self.command_server.enable_keep_alive_check = False
            #wait for finishing two photon acquisition
             while True:
                 try:
-                    response = self.response_queue.get()
+                    response = self.response_queue.get(False)
                 except:
                     response = ''
                 if response.find('SOCacquire_line_scanEOCOKEOP') != -1:
+                    if self.log != None:
+                        self.log.info('line scan complete')
                     break
-                else:
-                    time.sleep(0.1)
+                user_command = self._watch_keyboard()
+                if user_command != None:
+                    if user_command.find('stop') != -1:
+                        aborted = True
+                        if self.log != None:
+                            self.log.info('stopped')
+                        break                    
+                time.sleep(0.1)
+        return aborted
+                
+    def wait_for_data_save_complete(self):
+        aborted = False
+        if self.config.VISEXPMAN_MES['ENABLE']:
             #Wait for saving data to disk
             while True:
                 try:
-                    response = self.response_queue.get()
+                    response = self.response_queue.get(False)
                 except:
                     response = ''
                 if response.find('SOCacquire_line_scanEOCsaveOKEOP') != -1:
+                    if self.log != None:
+                        self.log.info('line scan data saved')
                     break
-                else:
-                    time.sleep(0.1)
+                user_command = self._watch_keyboard()
+                if user_command != None:
+                    if user_command.find('stop') != -1:
+                        aborted = True
+                        if self.log != None:
+                            self.log.info('stopped')
+                        break                    
+                time.sleep(0.1)
             self.command_server.enable_keep_alive_check = True
-
+        return aborted
+    
 class MesEmulator(QtCore.QThread):
     def __init__(self, config, port):
         self.config = config
@@ -104,6 +147,8 @@ class ExperimentThread(QtCore.QThread):
         self.mes_if.start_line_scan('dummy.mat')
         time.sleep(1.0)
         self.mes_if.wait_for_line_scan_complete()
+        time.sleep(0.3)
+        self.mes_if.wait_for_data_save_complete()
         self.done = True        
             
 class NetworkInterfaceTestConfig(visexpman.engine.generic.configuration.Config):
