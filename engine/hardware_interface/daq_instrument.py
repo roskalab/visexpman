@@ -3,10 +3,10 @@ import time
 import instrument
 import visexpman.engine.generic.configuration as configuration
 import visexpman.engine.generic.utils as utils
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import unittest
 import logging
 import os
-
 
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
@@ -93,7 +93,7 @@ class AnalogIO(instrument.Instrument):
             if self.enable_ai:
                 self.analog_input = PyDAQmx.Task()
                 #TODO: parameter or based on device type
-                terminal_config = DAQmxConstants.DAQmx_Val_RSE#DAQmx_Val_PseudoDiff #DAQmx_Val_RSE
+                terminal_config = DAQmxConstants.DAQmx_Val_RSE #If PCI-6110 device is used: DAQmx_Val_PseudoDiff
                 self.analog_input.CreateAIVoltageChan(self.daq_config['AI_CHANNEL'],
                                                             'ai',
                                                             terminal_config,
@@ -116,10 +116,11 @@ class AnalogIO(instrument.Instrument):
                                             DAQmxConstants.DAQmx_Val_FiniteSamps,
                                             self.number_of_ao_samples)                                            
             if self.enable_ai:
+                sampling = DAQmxConstants.DAQmx_Val_ContSamps #DAQmx_Val_ContSamps #DAQmxConstants.DAQmx_Val_FiniteSamps
                 self.analog_input.CfgSampClkTiming("OnboardClock",
                                             self.ai_sample_rate,
                                             DAQmxConstants.DAQmx_Val_Rising,
-                                            DAQmxConstants.DAQmx_Val_FiniteSamps,
+                                            sampling,
                                             self.number_of_ai_samples)
         
     def _write_waveform(self):
@@ -164,29 +165,34 @@ class AnalogIO(instrument.Instrument):
     def finish_daq_activity(self):
         if os.name == 'nt' and self.daq_config['ENABLE']:
             if self.enable_ai:
-                self.analog_input.ReadAnalogF64(self.number_of_ai_samples,
+                try:
+                    self.analog_input.ReadAnalogF64(self.number_of_ai_samples,
                                                 self.daq_config['DAQ_TIMEOUT'],
                                                 DAQmxConstants.DAQmx_Val_GroupByChannel,
                                                 self.ai_data,
                                                 self.number_of_ai_samples * self.number_of_ai_channels,
                                                 DAQmxTypes.byref(self.read),
                                                 None)
-                #Make sure that all the acquisitions are completed
-                self.analog_input.WaitUntilTaskDone(self.daq_config['DAQ_TIMEOUT'])
+                except PyDAQmx.DAQError:
+                    pass
+                
+                #Make sure that all the acquisitions are completed                
+#                 self.analog_input.WaitUntilTaskDone(self.daq_config['DAQ_TIMEOUT'])
             if self.enable_ao:
                 self.analog_output.WaitUntilTaskDone(self.daq_config['DAQ_TIMEOUT'])
             if self.enable_ao:
                 self.analog_output.StopTask()
             if self.enable_ai:
                 self.analog_input.StopTask()
-                self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.number_of_ai_samples)).transpose()
+                self.ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
+                self.ai_raw_data = self.ai_data
+                self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()
 
     def start_instrument(self):
         if os.name == 'nt' and self.daq_config['ENABLE']:
             self.start_daq_activity()        
             time.sleep(self.analog_activity_time)
             self.finish_daq_activity()
-        
 
     def close_instrument(self):
         if os.name == 'nt' and self.daq_config['ENABLE']:
@@ -301,10 +307,7 @@ class AnalogPulse(AnalogIO):
 #=== TESTS ===
 class InvalidTestConfig(configuration.Config):
     def _create_application_parameters(self):
-        if os.name == 'nt':
-            TEST_DATA_PATH = 'c:\\_del'
-        elif os.name == 'posix':
-            TEST_DATA_PATH = '/media/Common/visexpman_data/test'
+        TEST_DATA_PATH = unit_test_runner.TEST_working_folder        
         DAQ_CONFIG = [[
                     {
                     'ANALOG_CONFIG' : 'aio',
@@ -322,10 +325,7 @@ class InvalidTestConfig(configuration.Config):
 
 class InvalidTestConfig1(configuration.Config):
     def _create_application_parameters(self):
-        if os.name == 'nt':
-            TEST_DATA_PATH = 'c:\\_del'
-        elif os.name == 'posix':
-            TEST_DATA_PATH = '/media/Common/visexpman_data/test'
+        TEST_DATA_PATH = unit_test_runner.TEST_working_folder
         DAQ_CONFIG = [[
                     {                    
                     'DAQ_TIMEOUT' : 1.0,
@@ -342,10 +342,7 @@ class InvalidTestConfig1(configuration.Config):
                 
 class testDaqConfig(configuration.Config):
     def _create_application_parameters(self):
-        if os.name == 'nt':
-            TEST_DATA_PATH = 'c:\\_del'
-        elif os.name == 'posix':
-            TEST_DATA_PATH = '/media/Common/visexpman_data/test'
+        TEST_DATA_PATH = unit_test_runner.TEST_working_folder
         DAQ_CONFIG = [[
         {
         'ANALOG_CONFIG' : 'aio', #'ai', 'ao', 'aio', 'undefined'
@@ -353,7 +350,7 @@ class testDaqConfig(configuration.Config):
         'AO_SAMPLE_RATE' : 100,
         'AI_SAMPLE_RATE' : 1000,
         'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
-        'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',        
+        'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',
         'MAX_VOLTAGE' : 5.0,
         'MIN_VOLTAGE' : 0.0,
         'DURATION_OF_AI_READ' : 1.0,
@@ -377,10 +374,7 @@ class testDaqConfig(configuration.Config):
         
 class testAnalogPulseConfig(configuration.Config):
     def _create_application_parameters(self):
-        if os.name == 'nt':
-            TEST_DATA_PATH = 'c:\\_del'
-        elif os.name == 'posix':
-            TEST_DATA_PATH = '/media/Common/visexpman_data/test'
+        TEST_DATA_PATH = unit_test_runner.TEST_working_folder
         DAQ_CONFIG = [[
         {
         'ANALOG_CONFIG' : 'ao',
@@ -876,15 +870,64 @@ class TestDaqInstruments(unittest.TestCase):
         ai0_sum_ref = numpy.round(2 * len(offsets0) * pulse_widths0 * amplitudes0 * float(self.config.DAQ_CONFIG[0]['SAMPLE_RATE']),1)
         ai1_sum_ref = numpy.round(2 * len(offsets1) * pulse_widths1 * amplitudes1 * float(self.config.DAQ_CONFIG[0]['SAMPLE_RATE']),1)        
         
-        numpy.savetxt('c:\\_del\\txt\\ai0.csv', ai0, delimiter='\t')
-        numpy.savetxt('c:\\_del\\txt\\wave.csv', ap.waveform, delimiter='\t')
+#         numpy.savetxt('c:\\_del\\txt\\ai0.csv', ai0, delimiter='\t')
+#         numpy.savetxt('c:\\_del\\txt\\wave.csv', ap.waveform, delimiter='\t')
 
         
         self.assertEqual((ai0_sum, ai1_sum), (ai0_sum_ref, ai1_sum_ref))
+    
+    def test_28_stop_ai_before_ai_duration(self):
+        ai_read_time = 1.2
+        
+        #Generate signals on AO's
+        self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 1000
+        self.config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'ao'
+        
+        waveform = numpy.ones(3 * ai_read_time * self.config.DAQ_CONFIG[0]['SAMPLE_RATE'])
+        waveform[-1] = 0
+        voltage_levels = [1.0, 2.0]
+        waveform = numpy.array([waveform * voltage_levels[0], waveform * voltage_levels[1]]).transpose()
+        
+        ao1 = AnalogIO(self.config, self)
+        ao1.waveform = waveform
+        ao1.start_daq_activity()
+    
+        #Start the ai
+        self.config.DAQ_CONFIG[0]['DURATION_OF_AI_READ'] = 10.0
+        self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 10000
+        self.config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'ai'
+        
+        aio = AnalogIO(self.config, self)        
+        aio.start_daq_activity()
+        time.sleep(ai_read_time)
+        aio.finish_daq_activity()
+        aio.release_instrument()
+        
+        #Finish AO
+        time.sleep(2*ai_read_time)
+        ao1.finish_daq_activity()
+        ao1.release_instrument()
 
-
+        ai_data = numpy.round(aio.ai_data,2)
+        ai0 = ai_data[:,-1]
+        ai1 = ai_data[:,-2]
+        ai2 = ai_data[:,-3]
+        ai3 = ai_data[:,-4]
+        ai4 = ai_data[:,-5]
+        ao0 = numpy.ones_like(ai0) * voltage_levels[0]
+        ao1 = numpy.ones_like(ai0) * voltage_levels[1]
+        
+        self.assertEqual((abs(ai0 - ao0).sum(),
+                            abs(ai1 - ao1).sum(),
+                            abs(ai2 - ao0).sum(),
+                            abs(ai3 - ao1).sum(),
+                            ai4.sum()),
+                            (0.0, 0.0, 0.0, 0.0, 0.0))
     
     #== Test utilities ==
+    def zero_non_zero_ratio(self, data):
+        return float(numpy.nonzero(data)[0].shape[0]) / float(data.shape[0])
+
     def non_blocking_daq(self, activity_time, waveform):        
         aio = AnalogIO(self.config, self)        
         aio.waveform = waveform

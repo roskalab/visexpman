@@ -10,6 +10,9 @@ import pkgutil
 import inspect
 import time
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+import tempfile
+import cPickle as pickle
+
 
 #== Computer graphics colors ==
 def convert_color(color):
@@ -411,14 +414,14 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
                 
     #Filter experiment config list. In test mode, experiment configs are loaded only from automated_test_data. In application run mode
     #this module is omitted
-    filtered_class_list = []    
+    filtered_class_list = []
     for class_item in class_list:
         if (class_item[0].__name__.find('automated_test_data') != -1 or \
         class_item[0].__name__.find('presentinator_experiment') != -1 or\
         class_item[0].__name__.find('default_configs') != -1) and unit_test_runner.TEST_test:
             filtered_class_list.append(class_item)
         elif not class_item[0].__name__.find('automated_test_data') != -1 and not unit_test_runner.TEST_test:
-            filtered_class_list.append(class_item)    
+            filtered_class_list.append(class_item)
     return filtered_class_list
     
 def class_list_in_string(class_list):
@@ -874,10 +877,31 @@ def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0
 
 
 #== Others ==
-#def os():
-#    if sys.platform
+def object_to_binary_array(object):
+    file_path = tempfile.mktemp()
+    pickle.dump(object, open(file_path, 'wb'))
+    return file_to_binary_array(file_path)
 
-
+def file_to_binary_array(path):
+    if os.path.exists(path):
+        f = open(path, 'rb')
+        binary = f.read(os.path.getsize(path))
+        f.close()
+        binary_in_bytes = []
+        for byte in list(binary):
+            binary_in_bytes.append(ord(byte))
+        return numpy.array(binary_in_bytes, dtype = numpy.uint8)
+    else:
+        return numpy.zeros(2)
+        
+def string_to_binary_array(s):
+    binary_in_bytes = []
+    for byte in list(s):
+        binary_in_bytes.append(ord(byte))
+    return numpy.array(binary_in_bytes, dtype = numpy.uint8)
+    
+        
+    
 def in_range(number,  range1,  range2, preceision = None):
     if preceision != None:
         number_rounded = round(number, preceision)

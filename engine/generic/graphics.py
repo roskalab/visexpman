@@ -7,8 +7,6 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
-import ctypes
-
 if window_type == 'pygame':
     import pygame
 #elif window_type == 'pyglet':
@@ -102,7 +100,7 @@ class Screen(object):
             self.screen = pygame.display.set_mode((self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), flags)
 #            glxext_arb.glXSwapIntervalSGI(0)
             #Hide mouse cursor
-            pygame.mouse.set_visible(False)            
+            pygame.mouse.set_visible(not self.config.FULLSCREEN)            
 #        elif self.window_type == 'pyglet':
 #            if self.config.FULLSCREEN:
 #                self.screen = pyglet.window.Window(fullscreen = self.config.FULLSCREEN, 

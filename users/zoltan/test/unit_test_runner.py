@@ -33,6 +33,15 @@ if len(sys.argv) > 2:
         elif sys.argv[2] == '-h':
             run_mode = 'test without hardware'
 
+TEST_daq = False
+TEST_stage = False
+for arg in sys.argv:
+    if arg == '-daqmx':
+        TEST_daq = True
+    elif arg == '-stage':
+        TEST_stage = True
+                    
+            
 TEST_os = os.name
 if hasattr(os,  'uname'):
     if os.uname()[0] != 'Linux':
@@ -79,10 +88,7 @@ elif TEST_os == 'osx':
     TEST_invalid_file = '/Users'
     TEST_stage_com_port = ''
     
-TEST_daq = (os.name == 'nt') and TEST_hardware_test
 TEST_daq_device = 'Dev1'
-
-TEST_stage = not True
 
 def generate_filename(path):
     '''
@@ -119,11 +125,11 @@ class unitTestRunner():
                'enable' : not True}, #Not part of visexpman application
                {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
                'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.testInstruments',
+               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestInstruments',
                'enable' : TEST_hardware_test}, #Shutter tests are not complete
                {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
                'enable' : TEST_daq},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.testNetworkInterface',
+               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testExternalHardware',
                'enable' : TEST_hardware_test},
@@ -132,6 +138,8 @@ class unitTestRunner():
                {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
                'enable' : TEST_stage},
                {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
                'enable' : True},
                ]
 

@@ -68,8 +68,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         IMAGE_PROJECTED_ON_RETINA = True
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel
         
-        #UDP interface
-        SERVER_UDP_IP = 'localhost'
+        #UDP interface        
         WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
         CLIENT_UDP_IP = ''
         ENABLE_UDP = True
@@ -79,6 +78,13 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #Command interface        
         SERVER_IP = ''
         COMMAND_INTERFACE_PORT = [10000, [1100,  65000]]        
+        
+        #naming: server - client
+        BASE_PORT = [10000, [1000, 50000]]
+        GUI_MES = {'ENABLE' : not False, 'IP': '',  'PORT' : BASE_PORT[0],  'RECEIVE_BUFFER' : 256}
+        VISEXPMAN_GUI = {'ENABLE' : False,'IP': '',  'PORT' : BASE_PORT[0] + 1,  'RECEIVE_BUFFER' : 256}
+        VISEXPA_GUI = {'ENABLE' : False,'IP': '',  'PORT' : BASE_PORT[0] + 2,  'RECEIVE_BUFFER' : 256} #client-server role is undefined yet
+        VISEXPMAN_MES = {'ENABLE' : False,'IP': '',  'PORT' : BASE_PORT[0] + 3,  'RECEIVE_BUFFER' : 256}
         
         COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
         #Currently the keyboard and running experiment domains are considered:

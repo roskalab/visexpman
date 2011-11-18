@@ -42,8 +42,7 @@ class VS3DUS(VisionExperimentConfig):
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
         
         #=== Network ===
-        ENABLE_UDP = False
-        MES = {'ENABLE' : True, 'ip': '',  'port' : 10002,  'receive buffer' : 256}
+        ENABLE_UDP = False        
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True

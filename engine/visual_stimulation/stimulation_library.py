@@ -194,7 +194,7 @@ class Stimulations(command_handler.CommandHandler):
             color_to_set = utils.convert_color(color)
         self.log_on_flip_message_initial = 'show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')'
         self.log_on_flip_message_continous = 'show_fullscreen'
-        self.screen.clear_screen(color = color_to_set)        
+        self.screen.clear_screen(color = color_to_set)
         if duration == 0.0:
             self.log_on_flip_message = self.log_on_flip_message_initial
             if flip:
@@ -204,6 +204,8 @@ class Stimulations(command_handler.CommandHandler):
             while not self.abort:
                 if i == 0:
                     self.log_on_flip_message = self.log_on_flip_message_initial
+                elif i == 1:
+                    self.screen.clear_screen(color = color_to_set)
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
@@ -213,6 +215,8 @@ class Stimulations(command_handler.CommandHandler):
             for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
                 if i == 0:
                     self.log_on_flip_message = self.log_on_flip_message_initial
+                elif i == 1:
+                    self.screen.clear_screen(color = color_to_set)
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
@@ -808,6 +812,7 @@ class Stimulations(command_handler.CommandHandler):
         radius = 1.0
         vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
         n_frames = len(dot_positions) / ndots
+        self.log_on_flip_message_initial += ' n_frames = ' + str(n_frames)
         n_vertices = len(vertices)        
         frames_vertices = numpy.zeros((n_frames * ndots * n_vertices,  2))         
         index = 0

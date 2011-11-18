@@ -27,7 +27,7 @@ class VisExpRunner(object):
         self.state = 'init'
         #TODO: from users.user folder remove all presentinator*.py files
         #== Find and instantiate machine configuration ==
-        try:            
+        try:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()
         except IndexError:
             raise RuntimeError('Configuration class does not exist.')
@@ -58,7 +58,7 @@ class VisExpRunner(object):
         #Select and instantiate stimulus as specified in machine config, This is necessary to ensure that pre-experiment will run immediately after startup        
         if len(self.experiment_config_list) > 0:
             self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self)            
-        #start listening on tcp ip for receiving commands        
+        #start listening on tcp ip for receiving commands
         #In test_mode the network operations are disabled
         if unit_test_runner.TEST_enable_network and False:
             self.tcpip_listener = network_interface.NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
@@ -72,11 +72,15 @@ class VisExpRunner(object):
         #Start up MES listener
         self.mes_command_queue = Queue.Queue()
         self.mes_response_queue = Queue.Queue()
-        if hasattr(self.config, 'MES'):
-            if self.config.MES['ENABLE'] and unit_test_runner.TEST_enable_network:
-                
-                self.mes_listener = network_interface.MesServer(self.config, self.mes_command_queue, self.mes_response_queue)
-                self.mes_listener.start()
+        self.mes_listener = None        
+        if self.config.VISEXPMAN_MES['ENABLE'] and unit_test_runner.TEST_enable_network:
+            self.mes_listener = network_interface.CommandServer(self.mes_command_queue, self.mes_response_queue, self.config.VISEXPMAN_MES['PORT'])
+            self.mes_listener.start()
+            
+        if self.config.VISEXPMAN_GUI['ENABLE'] and unit_test_runner.TEST_enable_network:
+            self.gui_listener = network_interface.CommandServer(self.mes_command_queue, self.mes_response_queue, self.config.VISEXPMAN_GUI['PORT'])
+            self.gui_listener.start()
+        
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
         self.loop_state = 'running' #This state variable is necessary to end the main loop of the program from the command handler
@@ -84,10 +88,11 @@ class VisExpRunner(object):
         module_info = utils.imported_modules()        
         self.visexpman_module_paths  = module_info[1]
         self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))        
+        #TODO: check for redundancies in list, for some reason visexp_runner is saved twice
         self.module_versions = utils.module_versions(module_info[0])
         #When initialization is done, visexpman state is 'ready'
         #self.state = 'ready'
-        self.log.info('Visexpman initialized')        
+        self.log.info('Visexpman initialized')
 
     def run_loop(self):
         while self.loop_state == 'running':
@@ -97,6 +102,9 @@ class VisExpRunner(object):
                 self.selected_experiment_config.pre_runnable.run()
             self.screen_and_keyboard.user_interface_handler()
             self.command_handler.process_command_buffer()
+            #Log 'loop alive' in every 10 sec
+            if int(1000 * time.time()) % 10000 == 0:
+                self.log.info('main loop alive')
             #To avoid race condition
             time.sleep(0.1)
         self.close()
@@ -105,14 +113,10 @@ class VisExpRunner(object):
         if unit_test_runner.TEST_enable_network and False:
             self.tcpip_listener.close()
         self.log.info('Visexpman quit')
-        self.log.flush()
-        if hasattr(self.config, 'MES'):
-            if self.config.MES['ENABLE'] and unit_test_runner.TEST_enable_network:
-                self.mes_command_queue.put('SOCclose_connectionEOC')
-                time.sleep(1.0)
-        if self.screen_and_keyboard.window_type == 'pyglet':
-            self.screen_and_keyboard.__del__()
-#        print self.screen_and_keyboard.diff
+        self.log.flush()        
+        if self.config.VISEXPMAN_MES['ENABLE'] and unit_test_runner.TEST_enable_network:
+            self.mes_command_queue.put('SOCclose_connectionEOC')
+            time.sleep(1.0)
             
     def _init_logging(self):
         #set up logging
@@ -201,7 +205,7 @@ class testFindoutConfig(unittest.TestCase):
         
 class testVisexpRunner(unittest.TestCase):
     
-    #== Test cases for VisexpRunner's constructor ==    
+   #== Test cases for VisexpRunner's constructor ==    
     def test_01_VisexpRunner_SafestartConfig(self):        
         self.v1 = VisExpRunner('default', 'SafestartConfig')
         self.assertEqual((self.v1.config.__class__, self.v1.config.user),  (visexpman.users.default.default_configs.SafestartConfig, 'default'))
@@ -471,7 +475,7 @@ class testVisexpRunner(unittest.TestCase):
                 self.check_experiment_log_for_visual_stimuli(experiment_log)
                 ),
                 (True, True, True, True, True, True, True, True, True, True, True))
-                
+    #TODO: test case for showshape(dur = 1.0), showfullscreen(dur = 1.0) sequence
     def test_15_visual_stimulations_ulcorner(self):        
         config_name = 'VisualStimulationsUlCornerTestConfig'
         v = VisExpRunner('zoltan', config_name)        
@@ -607,8 +611,41 @@ class testVisexpRunner(unittest.TestCase):
                             experiment_log.find('stage move') != -1
                             ),
                             (True, True, True, True, True, True, True, True, True, True, True, True))
+                            
+    def test_19_frame_rate(self):
+        '''       
+        
+        '''
+        commands = [
+                    [0.01,'SOCexecute_experimentEOC'], 
+                    [0.01,'SOCquitEOC'], 
+                    ]
+        config_name = 'FrameRateTestConfig'
+        
+        v = VisExpRunner('zoltan', config_name)        
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+        #Read logs
+        dt = v.selected_experiment_config.runnable.t1-v.selected_experiment_config.runnable.t0
+        timing_tolerance = 0.1
+        log = utils.read_text_file(v.logfile_path)
+        experiment_log = utils.read_text_file(v.experiment_control.logfile_path)
+        #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
+        self.assertEqual(
+                         (self.check_application_log(log), 
+                         self.check_experiment_log(experiment_log), 
+                         experiment_log.find('show_grating(10.0, sqr, 200, (0, 0), 0, 0.0, 500.0, 1.0, 0.5, (0, 0))') != -1, 
+                        log.find('init experiment visexpman.users.') != -1, 
+                        log.find('Started experiment: visexpman.users.') != -1, 
+                        log.find('Experiment complete') != -1, 
+                        log.find('Command handler: experiment executed') != -1, 
+                        zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
+                        self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', 'Experiment')), 
+                        dt < 10 + timing_tolerance and dt > 10.0 - timing_tolerance), 
+                        (True, True, True, True, True, True, True, True, True, True))
     
-
 #== Test helpers ==
     def check_application_log(self, log):
         if log.find('Visexpman started') != -1 and\
@@ -650,8 +687,13 @@ class testVisexpRunner(unittest.TestCase):
         hdf5_path = visexp_runner.experiment_control.data_handler.hdf5_path
         import visexpA.engine.datahandlers.hdf5io as hdf5io
         hdf5_handler = hdf5io.Hdf5io(hdf5_path)
-        hdf5_handler.load('visexprunner_archive')        
-        result =  ((hdf5_handler.visexprunner_archive == reference_data).sum() == reference_data.shape[0])
+        hdf5_handler.load('source_code')
+        hdf5_handler.load('module_versions')
+        hdf5_handler.load('experiment_log')
+        
+        result =  ((hdf5_handler.source_code == reference_data).sum() == reference_data.shape[0]) and\
+                                 (visexp_runner.module_versions == hdf5_handler.module_versions) and \
+                                    (hasattr(hdf5_handler, 'experiment_log'))
         hdf5_handler.close()        
         return result
             
@@ -697,13 +739,13 @@ class testVisexpRunner(unittest.TestCase):
                 'show_grating(0.0, tri, 20, (100, 100), 350, 0.0, 0.0, 0.5, 0.25, (100, 0))', 
                 'show_grating(0.0, tri, 20, (100, 100), 350, 90.0, 0.0, 0.5, 0.25, (100, 0))', 
                 'show_grating(0.0, saw, 50, (200, 100), 0, 0.0, 0.0, 1.0, 0.5, (300, 250))', 
-                'show_grating(0.1, sqr, 40, (0, 0), 0, 0.0, 800.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0333333333333, sqr, 40, (0, 0), 0, 0.0, 2400.0, 1.0, 0.5, (0, 0))',
                 'show_dots(0.0, [100, 100], [array((0, 0),',  
                 'show_dots(0.0, [100, 100, 10], [array((0, 0),', 
                 'show_dots(0.0, [100, 100, 10], [array((0, 0), ', 
-                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])', 
+                'show_dots(0.0333333333333, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])', 
                 'show_shape(, 0.0, (-50, 100), [1.0, 1.0, 1.0], None, 0.0, 200.0, 1.0)', 
-                'show_shape(circle, 0.1, (0, 0), 200, None, 0.0, (100.0, 200.0), 1.0)', 
+                'show_shape(circle, 0.0333333333333, (0, 0), 200, None, 0.0, (100.0, 200.0), 1.0)', 
                 'show_shape(r, 0.0, (0, 0), [1.0, 1.0, 1.0], (1.0, 0.0, 0.0), 0.0, 100.0, 1.0)', 
                 'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], 120, 0.0, 100.0, 10.0)', 
                 'show_shape(r, 0.0, (0, 0), [1.0, 0.0, 0.0], None, 10, (200.0, 100.0), 1.0)', 
@@ -727,20 +769,21 @@ class testVisexpRunner(unittest.TestCase):
                 'show_grating(0.0, tri, 20, (100, 100), 350, 0.0, 0.0, 0.5, 0.25, (100, 0))', 
                 'show_grating(0.0, tri, 20, (100, 100), 350, 90.0, 0.0, 0.5, 0.25, (100, 0))', 
                 'show_grating(0.0, saw, 50, (200, 100), 0, 0.0, 0.0, 1.0, 0.5, (300, 250))', 
-                'show_grating(0.1, sqr, 40, (0, 0), 0, 0.0, 800.0, 1.0, 0.5, (0, 0))', 
+                'show_grating(0.0333333333333, sqr, 40, (0, 0), 0, 0.0, 2400.0, 1.0, 0.5, (0, 0))', 
                 'show_dots(0.0, [100, 100], [array((0, 0),',  
                 'show_dots(0.0, [100, 100, 10], [array((0, 0),', 
                 'show_dots(0.0, [100, 100, 10], [array((0, 0), ', 
-                'show_dots(0.1, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])', 
+                'show_dots(0.0333333333333, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])', 
                 'show_shape(, 0.0, (-50, 100), [1.0, 1.0, 1.0], None, 0.0, 200.0, 1.0)', 
-                'show_shape(circle, 0.1, (0, 0), 200, None, 0.0, (100.0, 200.0), 1.0)', 
+                'show_shape(circle, 0.0333333333333, (0, 0), 200, None, 0.0, (100.0, 200.0), 1.0)', 
                 'show_shape(r, 0.0, (0, 0), [1.0, 1.0, 1.0], (1.0, 0.0, 0.0), 0.0, 100.0, 1.0)', 
                 'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], 120, 0.0, 100.0, 10.0)', 
                 'show_shape(r, 0.0, (0, 0), [1.0, 0.0, 0.0], None, 10, (200.0, 100.0), 1.0)', 
                 'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], None, 0.0, (200.0, 100.0), 10.0)'
                              ]
         for reference_string in reference_strings:
-            if experiment_log.find(reference_string) == -1:               
+            if experiment_log.find(reference_string) == -1:
+                print reference_string
                 return False
         return True
 #TODO: test for check frame rate        

@@ -251,8 +251,35 @@ class PreExperiment(experiment.Experiment):
     def run(self):
         self.show_fullscreen(duration = 0.0, color = 0.5)
 
-#== Test visual stimulations ==
+#== Test frame rate ==
+class FrameRateTestConfig(VisionExperimentConfig):
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'FrameRateExperimentConfig'        
+        #paths
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        
+        #screen
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.cr([800, 600])
 
+        COORDINATE_SYSTEM='center'
+        ARCHIVE_FORMAT = 'zip'
+        self._create_parameters_from_locals(locals())
+
+class FrameRateExperimentConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'FrameRateExperiment'        
+        self._create_parameters_from_locals(locals())
+
+class FrameRateExperiment(experiment.Experiment):
+    def run(self):
+        self.t0 = time.time()
+        self.show_grating(duration = 10.0, velocity = 500.0, white_bar_width = 200)
+        self.t1 = time.time()
+
+#== Test visual stimulations ==
 class VisualStimulationsTestConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
@@ -267,7 +294,7 @@ class VisualStimulationsTestConfig(VisionExperimentConfig):
         ENABLE_FRAME_CAPTURE = True
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.cr([800, 600])
-        SCREEN_EXPECTED_FRAME_RATE = 20.0
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
 
         COORDINATE_SYSTEM='center'
         ARCHIVE_FORMAT = 'zip'
@@ -287,7 +314,7 @@ class VisualStimulationsUlCornerTestConfig(VisionExperimentConfig):
         ENABLE_FRAME_CAPTURE = True
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.cr([800, 600])
-        SCREEN_EXPECTED_FRAME_RATE = 20.0
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
 
         COORDINATE_SYSTEM='ulcorner'
         ARCHIVE_FORMAT = 'zip'
@@ -333,7 +360,7 @@ class VisualStimulationsExperiment(experiment.Experiment):
         self.show_grating(duration =0.0, profile = 'saw', orientation = 0, starting_phase = 0.0, velocity = 0.0, white_bar_width = 50, display_area =  utils.cr((200, 100)), pos = utils.cr((300, 250)), color_contrast = 1.0 , color_offset = 0.5)        
         self.set_background(self.config.BACKGROUND_COLOR)
         #Test speed        
-        self.show_grating(duration =2.0/self.config.SCREEN_EXPECTED_FRAME_RATE, profile = 'sqr', orientation = 0, velocity = 800.0, white_bar_width = 40)
+        self.show_grating(duration =2.0/self.config.SCREEN_EXPECTED_FRAME_RATE, profile = 'sqr', orientation = 0, velocity = 2400.0, white_bar_width = 40)
         #== Test show_dots ==        
         self.add_text('TEST', color = (0.0,  0.0,  1.0), position = utils.cr((200.0, 100.0)))
         ndots = 2
@@ -360,7 +387,7 @@ class VisualStimulationsExperiment(experiment.Experiment):
         self.add_text('TEST', color = (0.0,  0.0,  1.0), position = utils.cr((200.0, 100.0)))
         self.show_shape(shape = 'r', size = utils.rc((100.0, 200)), color = [1.0, 0.0,0.0], orientation = 10)
         self.disable_text()
-        self.show_shape(shape = 'a', size = utils.rc((100.0, 200)), ring_size = 10.0) 
+        self.show_shape(shape = 'a', size = utils.rc((100.0, 200)), ring_size = 10.0)        
 
 #== Stage test experiment ==
 class StageExperimentTestConfig(VisionExperimentConfig):
