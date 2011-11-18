@@ -1,10 +1,18 @@
 import time
 import os.path
+window_type = 'pygame'
+#window_type = 'pyglet'
 import numpy
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
-import pygame
+
+import ctypes
+
+if window_type == 'pygame':
+    import pygame
+#elif window_type == 'pyglet':
+#    import pyglet
 import Image
 import visexpman.engine.generic.utils as utils
 
@@ -52,6 +60,7 @@ class Screen(object):
         
         Future: GAMMA, TEXT_COLOR
         """
+        self.window_type = window_type
         self.config = configuration
         self.mode = graphics_mode
         self.position = [0.0, 0.0, 0.0]
@@ -74,9 +83,7 @@ class Screen(object):
         self.create_screen()        
         #setting background color to clear color
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
-        glEnable(GL_DEPTH_TEST)
-        #Hide mouse cursor
-        pygame.mouse.set_visible(False)
+        glEnable(GL_DEPTH_TEST)        
         
         self.image_texture_id = glGenTextures(1)
         
@@ -88,15 +95,30 @@ class Screen(object):
         '''
         Create pygame screen using SCREEN_RESOLUTION and FULLSCREEN parameters
         '''
-        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
-        if self.config.FULLSCREEN:            
-            flags = flags | pygame.FULLSCREEN
-        self.screen = pygame.display.set_mode((self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), flags)
+        if self.window_type == 'pygame':
+            flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
+            if self.config.FULLSCREEN:            
+                flags = flags | pygame.FULLSCREEN
+            self.screen = pygame.display.set_mode((self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), flags)
+#            glxext_arb.glXSwapIntervalSGI(0)
+            #Hide mouse cursor
+            pygame.mouse.set_visible(False)            
+#        elif self.window_type == 'pyglet':
+#            if self.config.FULLSCREEN:
+#                self.screen = pyglet.window.Window(fullscreen = self.config.FULLSCREEN, 
+#                                                vsync = True)
+#            else:
+#                self.screen = pyglet.window.Window(self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'], fullscreen = self.config.FULLSCREEN, 
+#                                                vsync = True)
+#            self.screen.set_mouse_visible(False)
         
     def close_screen(self):
-        pygame.quit()
+        if self.window_type == 'pygame':
+            pygame.quit()
+#        elif self.window_type == 'pyglet':
+#            self.screen.close()
         
-    def __del__(self):
+    def __del__(self):        
         self.close_screen()
         
     def run(self):
@@ -119,7 +141,7 @@ class Screen(object):
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
                 #default view is set
                 self.set_view((0, 0, 0),  0, 0, 0, 1.0)
-                #glDisable(GL_LIGHTING) if light is enabled               
+                #glDisable(GL_LIGHTING) if light is enabled
                 self.render_before_set_view()
                 self.set_view(self.position,  self.heading,  self.roll, self.pitch, self.scale)
                 self.draw_scene()
@@ -143,17 +165,34 @@ class Screen(object):
         required frame rate
         '''        
         self.before_flip()
-        if ALTERNATIVE_TIMING:
-            next_flip_time = self.flip_time_previous + 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE            
-            while True:
-                if next_flip_time <= time.time():
-                    break
-        else:
-            self.elapsed_time = time.time() - self.flip_time_previous
-            self.wait_time_left = self.frame_wait_time - self.elapsed_time
-            if self.wait_time_left > 0.0:
-                time.sleep(self.wait_time_left)
-        pygame.display.flip()
+#        if window_type == 'pygame':
+#            if ALTERNATIVE_TIMING:
+#                next_flip_time = self.flip_time_previous + 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE            
+#                while True:
+#                    if next_flip_time <= time.time():
+#                        break
+#            else:
+#                self.elapsed_time = time.time() - self.flip_time_previous
+#                self.wait_time_left = self.frame_wait_time - self.elapsed_time
+#                if self.wait_time_left > 0.0:
+#                    time.sleep(self.wait_time_left)
+                    
+        if window_type == 'pygame':
+            count = ctypes.c_uint()
+#            glxext_arb.glXGetVideoSyncSGI(ctypes.byref(count))
+#            glxext_arb.glXWaitVideoSyncSGI(0, 0, ctypes.byref(count))
+            
+#            if hasattr(self,  'prev'):
+#                self.diff.append(count.value-self.prev)
+#            else:
+#                self.diff = []
+#            self.prev = count.value
+            
+#            glxext_arb.glXWaitVideoSyncSGI(2, (count.value+1)%2, ctypes.byref(count))
+            pygame.display.flip()            
+
+#        elif window_type == 'pyglet':
+#            self.screen.flip()
         self.flip_time = time.time()
         if self.flip_time - self.flip_time_previous != 0.0:
             self.frame_rate = 1.0 / (self.flip_time - self.flip_time_previous)
@@ -184,6 +223,7 @@ class Screen(object):
         right = 0.5 * self.config.SCREEN_RESOLUTION['col']
         bottom = 0.5 * self.config.SCREEN_RESOLUTION['row']
         top = -0.5 * self.config.SCREEN_RESOLUTION['row']
+        
         if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'left':
             left = left * -1.0 + self.config.ORIGO['col']
             right = right * -1.0 + self.config.ORIGO['col']

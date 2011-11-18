@@ -33,19 +33,23 @@ class MesServer(QtCore.QThread):#TODO unit test
 #            self.response_queue.put(response)
 #            print response   
             start_time = time.time()
-            timeout = 5000
+            timeout = 1000
             while True:                
                 if self.command_queue.empty():
                     #If client does not respond to the echo command, connection is closed
                     elapsed_time_ms = int(1000* (time.time() - start_time))
-                    if elapsed_time_ms%timeout == 0 and elapsed_time_ms > timeout:
+                    if elapsed_time_ms%timeout == 0 and elapsed_time_ms > 20*timeout:
+                    	#other detection of periodicity
+                    	timeout_saved = self.connection.gettimeout()
+                    	self.connection.settimeout(30.0)
                         try:
                             if self.send_command('SOCechoEOCaliveEOP').find('echo') == -1:
                                 print 'client does not respond'
-                                break
+#                                 break
                         except:
                             print sys.exc_info()[0]
                             break
+                        self.connection.settimeout(timeout_saved)
                     else:
                         timeout_saved = self.connection.gettimeout()
                         self.connection.settimeout(0.1)
@@ -73,6 +77,7 @@ class MesServer(QtCore.QThread):#TODO unit test
                         end_loop = True
                 if end_loop:
                     break    
+                time.sleep(0.1)
 #            time.sleep(0.5)            
             self.connection.close()
             

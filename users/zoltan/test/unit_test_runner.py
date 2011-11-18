@@ -1,6 +1,10 @@
 import unittest
 import sys
 import os
+import datetime
+import os.path
+import zipfile
+import tempfile
 
 #Quickstart: test without hardware : python unit_test_runner.py test -h
 
@@ -80,6 +84,21 @@ TEST_daq_device = 'Dev1'
 
 TEST_stage = not True
 
+def generate_filename(path):
+    '''
+    Inserts index into filename resulting unique name.
+    '''    
+    index = 0
+    number_of_digits = 5
+    while True:
+        testable_path = path.replace('.',  '_%5i.'%index).replace(' ', '0')
+        if not os.path.isfile(testable_path):
+            break
+        index = index + 1
+        if index >= 10 ** number_of_digits:
+            raise RuntimeError('Filename cannot be generated')
+    return testable_path
+
 class unitTestRunner():
     '''
     This class is responsible for maintaining a list of implemented and ready to run unit tests. Test methods are aggregated and executed with unittest's TextTestRunner class.
@@ -112,6 +131,8 @@ class unitTestRunner():
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
                'enable' : TEST_stage},
+               {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
+               'enable' : True},
                ]
 
     def fetch_test_methods(self, test_class):
@@ -137,6 +158,8 @@ class unitTestRunner():
         '''
         Aggregates and runs tests.
         '''        
+        self.test_log = tempfile.mktemp()        
+        f = open(self.test_log,  'w')
         test_suite = unittest.TestSuite()
         #Collect test classes, get test methods from them and add methods to test suite.
         for test_config in self.test_configs:
@@ -146,8 +169,30 @@ class unitTestRunner():
                 for test_method in test_methods:
                     test_suite.addTest(test_class(test_method))
         #Run tests
-        unittest.TextTestRunner(verbosity=2).run(test_suite)        
-
+        unittest.TextTestRunner(f, verbosity=2).run(test_suite)
+        #Save tested source files        
+        f.close()
+        f = open(self.test_log)
+        print f.read()
+        f.close()
+        
+        self.save_source_and_results()
+        print str(datetime.datetime.now())
+        
+    def save_source_and_results(self):
+        test_archive_path = generate_filename(os.path.join(TEST_working_folder, 'test_archive.zip'))
+        package_path = os.path.split(os.path.split(os.path.split(os.getcwd())[0])[0])[0]        
+        #generate list of archivable files and write them to zipfile
+        source_zip = zipfile.ZipFile(test_archive_path, "w")
+        for (path, dirs, files) in os.walk(package_path):
+            for file in files:                
+                if file[-3:] == '.py':
+                    file_path = os.path.join(path,  file)
+                    source_zip.write(file_path,  file_path.replace(package_path,  ''))
+        source_zip.write(self.test_log,  'test_log.txt')        
+        source_zip.close()
+        
 if __name__ == "__main__":
     utr = unitTestRunner()
     utr.run()
+    

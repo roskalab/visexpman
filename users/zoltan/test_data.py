@@ -138,6 +138,8 @@ class LDC(VisionExperimentConfig):
         #screen
         FULLSCREEN = False        
         SCREEN_RESOLUTION = utils.cr([800, 600])        
+#        SCREEN_RESOLUTION = utils.cr([1680, 1050])        
+#        SCREEN_RESOLUTION = utils.cr([1024, 768])        
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
@@ -163,21 +165,37 @@ class LDC(VisionExperimentConfig):
 
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
         self._create_parameters_from_locals(locals())
+        
+class MESExperimentConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'MESExperiment'
+#        self.pre_runnable = 'TestPre'
+        self._create_parameters_from_locals(locals())       
+
+class MESExperiment(experiment.Experiment):
+    def run(self):
+        orientation = [0,45,90]
+        for i in range(len(orientation)):
+            self.mes_command.put('SOCacquire_line_scanEOCc:\\temp\\test\\line_scan_data{0}.matEOP'.format(i))
+            self.show_grating(duration =1.0, profile = 'sqr', orientation = orientation[i], velocity = 500.0, white_bar_width = 100)
+        
+
+        
 
 class TestExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'TestExp1'
 #        self.pre_runnable = 'TestPre'
         self._create_parameters_from_locals(locals())
-
+        
+        
 class TestPre(experiment.PreExperiment):
     def run(self):
         self.show_fullscreen(color = (0.28, 0.29, 0.3), flip = False)
 
 class TestExp1(experiment.Experiment):
     def run(self):
-        self.mes_command.put('SOCcommandEOCoEOP')
-        self.mes_command.put('SOCcommandEOCoEOP')
+        self.show_shape(shape = 'a', duration = 2.0,  size = 100.0, background_color = 120, ring_size = 10.0)
 #        non_dot = False
 #        #moving dots
 #        

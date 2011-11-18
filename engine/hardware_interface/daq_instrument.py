@@ -93,7 +93,7 @@ class AnalogIO(instrument.Instrument):
             if self.enable_ai:
                 self.analog_input = PyDAQmx.Task()
                 #TODO: parameter or based on device type
-                terminal_config = DAQmxConstants.DAQmx_Val_PseudoDiff #DAQmx_Val_RSE
+                terminal_config = DAQmxConstants.DAQmx_Val_RSE#DAQmx_Val_PseudoDiff #DAQmx_Val_RSE
                 self.analog_input.CreateAIVoltageChan(self.daq_config['AI_CHANNEL'],
                                                             'ai',
                                                             terminal_config,

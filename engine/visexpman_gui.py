@@ -1,3 +1,10 @@
+
+#TODO: log
+#TODO: command with previous setting
+#Execute experiment
+#Save ID to hdf5io
+
+
 import time
 import socket
 import sys
@@ -24,8 +31,8 @@ class Gui(Qt.QMainWindow):
         self.create_user_interface()
         self.show()
         
-    def create_user_interface(self):        
-        panel_size = utils.cr((180, 40))
+    def create_user_interface(self):
+        panel_size = utils.cr((160, 40))
         date_format = QtCore.QString('dd-mm-yyyy')        
         mouse_birth_date = {'size' : panel_size,  'position' : utils.cr((0,  100))}
         gcamp_injection_date = {'size' : panel_size,  'position' : utils.cr((2.1*panel_size['col'],  100))}
@@ -42,9 +49,13 @@ class Gui(Qt.QMainWindow):
         
         acquire_camera_image = {'size' : panel_size,  'position' : utils.cr((0,  350))}
         acquire_z_stack = {'size' : panel_size,  'position' : utils.cr((panel_size['col'],  350))}
-        two_photon_recording = {'size' : panel_size,  'position' : utils.cr((2*panel_size['col'],  350))}
+        single_two_photon_recording = {'size' : panel_size,  'position' : utils.cr((2*panel_size['col'],  350))}
+        two_photon_recording = {'size' : panel_size,  'position' : utils.cr((3*panel_size['col'],  350))}
+        rc_scan = {'size' : panel_size,  'position' : utils.cr((4*panel_size['col'],  350))}
+        
         log = {'size' : utils.cr((640, 40)),  'position' : utils.cr((0,  400))}
         update = {'size' : panel_size,  'position' : utils.cr((0,  450))}
+        echo = {'size' : panel_size,  'position' : utils.cr((panel_size['col'],  450))}
         
         #=== Generating experiment id ===
 
@@ -127,6 +138,16 @@ class Gui(Qt.QMainWindow):
         self.two_photon_recording_button.move(two_photon_recording['position']['col'],  two_photon_recording['position']['row'])
         self.connect(self.two_photon_recording_button, QtCore.SIGNAL('clicked()'),  self.two_photon_recording)
         
+        self.single_photon_recording_button = QtGui.QPushButton('Single two photon record',  self)
+        self.single_photon_recording_button.resize(single_two_photon_recording['size']['col'],  single_two_photon_recording['size']['row'])
+        self.single_photon_recording_button.move(single_two_photon_recording['position']['col'],  single_two_photon_recording['position']['row'])
+        self.connect(self.single_photon_recording_button, QtCore.SIGNAL('clicked()'),  self.single_two_photon_recording)
+        
+        self.rc_scan_button = QtGui.QPushButton('RC scan',  self)
+        self.rc_scan_button.resize(rc_scan['size']['col'],  rc_scan['size']['row'])
+        self.rc_scan_button.move(rc_scan['position']['col'],  rc_scan['position']['row'])
+        self.connect(self.rc_scan_button, QtCore.SIGNAL('clicked()'),  self.rc_scan)
+        
         #=== Others ===
         self.log = QtGui.QLabel('',  self)
         self.log.resize(log['size']['col'],  log['size']['row'])
@@ -138,10 +159,17 @@ class Gui(Qt.QMainWindow):
         self.update_button.move(update['position']['col'],  update['position']['row'])
         self.connect(self.update_button, QtCore.SIGNAL('clicked()'),  self.update)
         
+        self.echo_button = QtGui.QPushButton('Echo MES',  self)
+        self.echo_button.resize(echo['size']['col'],  echo['size']['row'])
+        self.echo_button.move(echo['position']['col'],  echo['position']['row'])
+        self.connect(self.echo_button, QtCore.SIGNAL('clicked()'),  self.echo)
+        
     def default_parameters(self):
-        self.acquire_camera_image_parameters = os.path.join(self.config.working_path, 'acquire_camera_image_parameters.m')
-        self.acquire_z_stack_parameters = os.path.join(self.config.working_path, 'acquire_z_stack_parameters.m')
-        self.two_photon_parameters = os.path.join(self.config.working_path, 'two_photon_parameters.m')
+        self.acquire_camera_image_parameters = os.path.join(self.config.working_path, 'acquire_camera_image_parameters.mat').replace('/', '\\')
+        self.acquire_z_stack_parameters = os.path.join(self.config.working_path, 'acquire_z_stack_parameters.mat')
+        self.two_photon_parameters = os.path.join(self.config.working_path, 'two_photon_parameters.mat').replace('/', '\\')
+        self.single_two_photon_parameters = os.path.join(self.config.working_path, 'single_two_photon_parameters.mat').replace('/', '\\')
+        self.rc_scan_parameters = os.path.join(self.config.working_path, 'rc_scan_parameters.mat')
         
 #        Mat file handling
 #        data = scipy.io.loadmat('test.mat')
@@ -186,16 +214,25 @@ class Gui(Qt.QMainWindow):
         self.command_queue.put('SOCacquire_z_stackEOC{0}EOP' .format(self.acquire_z_stack_parameters))
         
     def two_photon_recording(self):
-        self.command_queue.put('SOCtwo_photon_recordingEOC{0}EOP'.format(self.two_photon_parameters))
+        self.command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(self.two_photon_parameters))
+        
+    def single_two_photon_recording(self):
+        self.command_queue.put('SOCacquire_xy_imageEOC{0}EOP'.format(self.single_two_photon_parameters))
+
+    def rc_scan(self):
+        self.command_queue.put('SOCrc_scanEOC{0}EOP'.format(self.rc_scan_parameters))
         
     def update(self):
         message = self.log.text()
         while not response_queue.empty():
             response = response_queue.get()
-            print response
+#            print response
             message += response + ' '
         message = message[-100:]
         self.log.setText(message)        
+        
+    def echo(self):
+        self.command_queue.put('SOCechoEOCguiEOP')
         
     def closeEvent(self, e):
         e.accept()
@@ -213,7 +250,7 @@ class GuiConfig(configuration.Config):
         if len(sys.argv) > 2:
             self.working_path =  sys.argv[2]
         else:
-            self.working_path = ''
+            self.working_path = 'c:\\temp\\test'
         MES = {'ip': '',  'port' : port,  'receive buffer' : 256}
         VISEXPMAN = {'ip': '',  'port' : 10001}
         VISEXPA = {'ip': '',  'port' : 10002}        

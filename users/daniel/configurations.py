@@ -1,6 +1,8 @@
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 from visexpman.engine.generic.parameter import Parameter
 from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
+import visexpman.engine.visual_stimulation.experiment as experiment
+import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.generic.utils as utils
 import os
 import serial
@@ -122,7 +124,7 @@ class MBP(VisionExperimentConfig):
         ENABLE_PARALLEL_PORT = False
         UDP_ENABLE = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
-        FULLSCREEN = False
+        FULLSCREEN = True 
         SCREEN_RESOLUTION = utils.rc([768,   1024])
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
@@ -138,7 +140,7 @@ class MBP(VisionExperimentConfig):
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
         
         SEGMENT_DURATION = 2
-        MAXIMUM_RECORDING_DURATION = [10, [0, 10000]] #seconds
+        MAXIMUM_RECORDING_DURATION = [90, [0, 10000]] #seconds
         ARCHIVE_FORMAT = 'hdf5'
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         COORDINATE_SYSTEM='ulcorner'
@@ -212,7 +214,7 @@ class VS3DUS(VisionExperimentConfig):
         IMAGE_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
-        MAXIMUM_RECORDING_DURATION = [10, [0, 10000]] #seconds RZ: Isn't it an experiment config?
+        MAXIMUM_RECORDING_DURATION = [13, [0, 10000]]
         
         #=== Network ===
         ENABLE_UDP = False
@@ -234,7 +236,7 @@ class VS3DUS(VisionExperimentConfig):
                                     }
                                     
         STAGE = [[{'serial_port' : motor_serial_port,
-                 'enable': True,
+                 'enable': not True,
                  'speed': 1000000,
                  'acceleration' : 1000000,
                  'move_timeout' : 45.0,
@@ -282,6 +284,34 @@ class VS3DUS(VisionExperimentConfig):
         
         
         self._create_parameters_from_locals(locals())
+        
+class GratingConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'GratingExperiment'
+#        self.pre_runnable = 'TestPre'
+        self._create_parameters_from_locals(locals())       
+
+class GratingExperiment(experiment.Experiment):
+    def run(self):
+        orientation = [0,45,90]
+        ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
+        ai.start_daq_activity() 
+        for i in range(len(orientation)):
+            self.mes_command.put('SOCacquire_line_scanEOCc:\\temp\\test\\line_scan_data{0}.matEOP'.format(i))
+            self.show_grating(duration =9.0, profile = 'sqr', orientation = orientation[i], velocity = 500.0, white_bar_width = 100)
+            
+        ai.finish_daq_activity()
+        ai.release_instrument()
+            
+        #Save 
+        if not hasattr(ai, 'ai_data'):
+            ai.ai_data = numpy.zeros(2)
+        path = utils.generate_filename(os.path.join(self.machine_config.ARCHIVE_PATH, 'ai_data.txt'))
+        numpy.savetxt(path, ai.ai_data)            
+        data_to_hdf5 = {'sync_data' : ai.ai_data}
+        setattr(self.hdf5, mes_fragment_name, data_to_hdf5)
+        self.hdf5.save(mes_fragment_name)
+        
 
 if __name__ == "__main__":
     

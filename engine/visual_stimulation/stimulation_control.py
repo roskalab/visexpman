@@ -35,7 +35,7 @@ import tempfile
 #For unittest:
 import visexpman.engine.generic.configuration as configuration
 import serial
-
+import visexpman.engine.generic.log as log
  
 def experiment_file_name(experiment_config, folder, extension, name = ''):
     experiment_class_name = str(experiment_config.runnable.__class__).split('.users.')[-1].split('.')[-1].replace('\'', '').replace('>','')
@@ -55,7 +55,6 @@ class ExperimentControl():
         self.caller = caller
         self.devices = Devices(config, caller)
         self.data_handler = DataHandler(config, caller)
-        
         #saving experiment source to a temporary file in the user's folder
         self.experiment_source = experiment_source
         self.experiment_source_path = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user, 'presentinator_experiment' + str(self.caller.command_handler.experiment_counter) + '.py')
@@ -64,23 +63,31 @@ class ExperimentControl():
             f = open(self.experiment_source_path, 'wt')
             f.write(self.experiment_source)
             f.close()
+            #Find out name of experiment config sent over udp
+            original_class_list = utils.class_list_in_string(self.caller.experiment_config_list)
             #Instantiate this experiment
             self.caller.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.visual_stimulation.experiment.ExperimentConfig)
-            for i in range(len(self.caller.experiment_config_list)):
-                if self.caller.experiment_config_list[i][1].__name__ == 'PresentinatorExperimentConfig':
+            #compare lists and find out index of newly sent experiment config
+            new_class_list = utils.class_list_in_string(self.caller.experiment_config_list)
+            for i in range(len(new_class_list)):
+                if not utils.is_in_list(original_class_list, new_class_list[i]):
                     self.caller.command_handler.selected_experiment_config_index = i
                     break
+            
             reload(sys.modules['visexpman.users.' + self.config.user + '.' + self.experiment_source_module])
 
     def init_experiment_logging(self):
-        self.logfile_path = experiment_file_name(self.caller.selected_experiment_config, self.config.EXPERIMENT_LOG_PATH, 'txt', 'log')
         #Ensure that the name of the log object is unique
-        self.log = logging.getLogger('experiment log' + str(self.caller.command_handler.experiment_counter) + str(time.time()))
-        self.handler = logging.FileHandler(self.logfile_path)
-        formatter = logging.Formatter('%(message)s')
-        self.handler.setFormatter(formatter)
-        self.log.addHandler(self.handler)
-        self.log.setLevel(logging.INFO)
+        self.logfile_path = experiment_file_name(self.caller.selected_experiment_config, self.config.EXPERIMENT_LOG_PATH, 'txt', 'log') 
+        self.log = log.Log('experiment log' + str(self.caller.command_handler.experiment_counter) + str(time.time()),
+                                                                                                                   self.logfile_path, write_mode = 'user control', timestamp = 'elapsed_time')
+        
+#        self.log = logging.getLogger('experiment log' + str(self.caller.command_handler.experiment_counter) + str(time.time()))
+#        self.handler = logging.FileHandler(self.logfile_path)
+#        formatter = logging.Formatter('%(message)s')
+#        self.handler.setFormatter(formatter)
+#        self.log.addHandler(self.handler)
+#        self.log.setLevel(logging.INFO)
 
     def prepare_experiment_run(self):
         #(Re)instantiate selected experiment config        
@@ -91,7 +98,6 @@ class ExperimentControl():
         self.data_handler.prepare_archive()
         #Set experiment control context in selected experiment configuration
         self.caller.selected_experiment_config.set_experiment_control_context()
-        
 
     def run_experiment(self):
         if hasattr(self.caller, 'selected_experiment_config') and hasattr(self.caller.selected_experiment_config, 'run'):
@@ -100,32 +106,37 @@ class ExperimentControl():
             self.caller.screen_and_keyboard.message += '\nexperiment started'
             self.caller.log.info('Started experiment: ' + utils.class_name(self.caller.selected_experiment_config.runnable))
             self.start_time = time.time()
-            self.log.info('{0:2.3f}\tExperiment started at {1}'.format(time.time()-self.start_time, utils.datetime_string()))
+#            self.log.info('{0:2.3f}\tExperiment started at {1}'.format(time.time()-self.start_time, utils.datetime_string()))
+            self.log.info('Experiment started at {0}'.format(utils.datetime_string()))
             #Change visexprunner state
             self.caller.state = 'experiment running'
             #Set acquisition trigger pin to high
             self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             #Run experiment
-            self.caller.selected_experiment_config.run()            
+            self.caller.selected_experiment_config.run()
             #Clear acquisition trigger pin
             self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             #Change visexprunner state to ready
             self.caller.state = 'ready'
             #Send message to screen, log experiment completition
-            self.log.info('{0:2.3f}\tExperiment finished at {1}' .format(time.time()-self.start_time, utils.datetime_string()))
+            self.log.info('Experiment finished at {0}' .format(utils.datetime_string()))
             self.caller.screen_and_keyboard.message += '\nexperiment ended'
             self.caller.log.info('Experiment complete')
         else:
             raise AttributeError('Stimulus config class does not have a run method?')
         
     def finish_experiment(self):
-        self.handler.flush()
+        self.log.flush()
+        self.caller.log.flush()
         self.devices.close()
         self.data_handler.archive_software_environment()
         #remove temporary experiment file
         if len(self.experiment_source)>0 and self.config.ENABLE_UDP:
             os.remove(self.experiment_source_path)
             os.remove(self.experiment_source_path+'c')            
+        if hasattr(self.caller, 'mes_command_queue'):
+            while not self.caller.mes_command_queue.empty():
+                print self.caller.mes_command_queue.get()
         
 class Devices():
     '''

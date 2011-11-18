@@ -26,7 +26,7 @@ class ExperimentConfig(Config):
         else:
             self.runnable.run()
         self.runnable.cleanup()
-
+        
     def set_experiment_control_context(self):
         self.runnable.set_experiment_control_context()
 
@@ -58,7 +58,6 @@ class Experiment(stimulation_library.Stimulations):
         self.command_buffer = ''
         self.abort = False
         self.experiment_name = self.__class__.__name__
-        print self.experiment_name, type(self.experiment_name)
 
     def run(self):
         pass
@@ -67,7 +66,7 @@ class Experiment(stimulation_library.Stimulations):
         '''
         Operations to execute right after running the experiment. Saving user specific files, closing instruments  that are not handled within Device class, user specific file operations
         '''
-        pass
+        pass        
 
 class PreExperiment(Experiment):
     '''

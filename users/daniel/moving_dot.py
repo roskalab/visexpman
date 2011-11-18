@@ -27,12 +27,12 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees
         self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
-        self.REPEATS = 2
+        self.REPEATS = 1
         self.PDURATION = 0
         self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
-        self.MAX_FRAGMENT_TIME = 20.0
+        self.MAX_FRAGMENT_TIME = 120.0
         self.runnable = 'MovingDot'
 #         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
@@ -62,17 +62,33 @@ class MovingDot(experiment.Experiment):
             ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
             ai.start_daq_activity() 
             self.log.info('%2.3f\t%s'%(self.elapsed_time, 'ai recording started'))      
+            #empty queue
+            while not self.mes_response.empty():
+            	self.mes_response.get()
             self.mes_command.put('SOCacquire_line_scanEOCc:\\temp\\test\\line_scan_data{0}.matEOP'.format(mes_fragment_name))
-            variables_to_log = [self.shown_line_order[di], self.shown_directions[di]]
-            for variable in variables_to_log:
+            while self.mes_response.empty():
+            	pass
+            while True:
+                try:
+                    response = self.mes_response.get()
+                except:
+                    response = ''
+                if response.find('SOCacquire_line_scanEOCstartedEOP') != -1:
+                    break
+                else:
+                    time.sleep(0.5)
+            time.sleep(1.0)
+            variables_to_log = [ self.shown_directions[di]]
+            if hasattr(self, 'shown_line_order' ): variables_to_log.append(self.shown_line_order[di])
+            for variable in variables_to_log: #Perhaps this logging is not necessary any more
                 self.log.info('%2.3f\t%s'%(self.elapsed_time, str(variable)))
             self.show_dots([self.diameter_pix]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
 
             fragment_runtimes.append(time.time() - fragment_start_time)
             print fragment_runtimes[-1]
-            if fragment_runtimes[-1] < self.experiment_config.MAX_FRAGMENT_TIME:
-                time.sleep(self.experiment_config.MAX_FRAGMENT_TIME - fragment_runtimes[-1])
-                
+            if ai.started and fragment_runtimes[-1] < self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION:
+                time.sleep(self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION - fragment_runtimes[-1])
+
             ai.finish_daq_activity()
             ai.release_instrument()
             
@@ -81,14 +97,35 @@ class MovingDot(experiment.Experiment):
                 ai.ai_data = numpy.zeros(2)
             path = utils.generate_filename(os.path.join(self.machine_config.ARCHIVE_PATH, 'ai_data.txt'))
             numpy.savetxt(path, ai.ai_data)            
-            data_to_hdf5 = {'shown_line_order' : self.shown_line_order[di], 'shown_directions' :  self.shown_directions[di],
+
+            data_to_hdf5 = {'shown_directions' :  self.shown_directions[di],
                             'sync_data' : ai.ai_data}
+            if hasattr(self, 'show_line_order'):
+            	data_to_hdf5['shown_line_order'] = self.shown_line_order[di]
             setattr(self.hdf5, mes_fragment_name, data_to_hdf5)
             self.hdf5.save(mes_fragment_name)
             
-            
+            while True:
+                try:
+                    response = self.mes_response.get()
+                except:
+                    response = ''
+                if response.find('SOCacquire_line_scanEOCOKEOP') != -1:
+                    break
+                else:
+                    time.sleep(0.1)
+            print 'line scan complete'
+            while True:
+                try:
+                    response = self.mes_response.get()
+                except:
+                    response = ''
+                if response.find('SOCacquire_line_scanEOCsaveOKEOP') != -1:
+                    break
+                else:
+                    time.sleep(0.1)
             #if MES is busy, then wait
-            time.sleep(3.0)           
+#             time.sleep(20.0)           
             i += 1
             if self.command_buffer.find('stop') != -1:
                 self.command_buffer.replace('stop', '')
@@ -182,7 +219,7 @@ class MovingDot(experiment.Experiment):
             line_order[180] = [numpy.arange(b, hlines_r.shape[0], nblocks_hor) for b in range(nblocks_hor)]
             lines_rowcol[180] = [numpy.vstack(numpy.dstack([hlines_r[b::nblocks_hor, :][-1::-1, :],  hlines_c[b::nblocks_hor, :][-1::-1, :]])) for b in range(nblocks_hor)]
         diag_angles = [a1 for a1 in angleset if a1 in [45, 135, 225, 315]] #this implementation does not require doing the loop for all angles but we do it anyway, eventually another implementation might give different results for different angles
-        for a1 in diag_angles:            
+        for a1 in diag_angles:
             line_order[a1]=[]
             lines_rowcol[a1] = []
             row_col_f,linelengths_f = diagonal_tr(a1,diameter_pix,gridstep_pix,movestep_pix,w, h)
@@ -318,19 +355,23 @@ class MovingDot(experiment.Experiment):
                 arow_col[a][b] = drc
         self.row_col = [] # list of coordinates to show on the screen
         self.line_end = [] # index in coordinate list where a line ends and another starts (the other line can be of the same or a different direction
-        self.angle_end = [] # index of the coordinate where the angle of the trajectory is changed from one to another
-        self.block_end = [] # index in the coordinate list where stimulation has to stop and microscope needs to save data
+        self.shown_directions = [] # list of direction of each block presented on the screen
         # create a list of coordinates where dots have to be shown, note when a direction subblock ends, and when a block ends (in case the stimulus has to be split into blocks due to recording duration limit)
         for b in range(int(nblocks)):
+            self.row_col.append([])
+            self.shown_directions.append([])
+            self.line_end.append([])
             for a1 in range(len(allangles)):
                 cai = numpy.where(angleset==allangles[a1])[0]
                 for f in range(arow_col[cai][b][0].shape[1]):
                     coords = []
                     for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[cai][b][n][:,f])
-                    self.row_col.append(utils.rc(numpy.array(coords)))
-                self.angle_end.append(len(self.row_col))
-            self.block_end.append(len(self.row_col))
+                    self.row_col[-1].extend(coords)
+                self.shown_directions[-1].append(allangles[a1]) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
+                self.line_end[-1].append(arow_col[cai][b][0].shape[1])
+            self.row_col[-1]=utils.rc(numpy.array(self.row_col[-1]))
+        pass
     
 def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
     ''' Calculates positions of the dot(s) for each movie frame along the lines dissecting the screen at 45 degrees'''
@@ -449,16 +490,14 @@ def generate_filename(args):
         
 class MovingDotTestConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):  
-  
-
-        
+    	self.MAX_FRAGMENT_TIME = 120.0
         self.DIAMETER_UM = [200]
-        self.ANGLES = [0,90] # degrees
+        self.ANGLES = [0] # degrees
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
         self.PDURATION = 0
-        self.GRIDSTEP = 1.0 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+        self.GRIDSTEP = 1.0/1 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'
