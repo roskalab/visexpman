@@ -880,7 +880,9 @@ def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0
 #== Others ==
 def object_to_binary_array(object):
     file_path = tempfile.mktemp()
-    pickle.dump(object, open(file_path, 'wb'))
+    f = open(file_path, 'wb')
+    pickle.dump(object, f, 1)
+    f.close()
     return file_to_binary_array(file_path)
 
 def file_to_binary_array(path):

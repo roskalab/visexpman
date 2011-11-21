@@ -13,7 +13,6 @@ class Log(object):
         '''
         self.log = logging.getLogger(name)
         self.handler = logging.FileHandler(path)
-#        formatter = logging.Formatter('%(asctime)s %(message)s')
         formatter = logging.Formatter('%(message)s')
         self.handler.setFormatter(formatter)
         self.log.addHandler(self.handler)

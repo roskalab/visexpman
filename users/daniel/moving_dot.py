@@ -103,7 +103,7 @@ class MovingDot(experiment.Experiment):
                     break
             #Saving machine and experiment configs, pickle experiment config does not work yet
             data_to_hdf5['machine_config'] = utils.object_to_binary_array(self.machine_config)
-#             data_to_hdf5['experiment_config'] = utils.object_to_binary_array(self.experiment_config)
+            data_to_hdf5['experiment_config'] = utils.object_to_binary_array(self.experiment_config)
             
             setattr(fragment_hdf5, mes_fragment_name, data_to_hdf5)
             fragment_hdf5.save(mes_fragment_name)

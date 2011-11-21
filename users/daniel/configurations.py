@@ -194,8 +194,12 @@ class VS3DUS(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MovingDotConfig'
         
         #=== paths/data handling ===
-        m_drive_data_folder = 'M:\\Zoltan\\visexpman\\data'
-        g_drive_data_folder = 'G:\\User\\Zoltan\\visexpdata'
+        if os.name == 'nt':
+            m_drive_data_folder = 'M:\\Zoltan\\visexpman\\data'
+            g_drive_data_folder = 'G:\\User\\Zoltan\\visexpdata'
+        else:
+            m_drive_data_folder = '/media/Common/visexpman_data/test'
+            g_drive_data_folder = '/media/Common/visexpman_data/test'
         LOG_PATH = m_drive_data_folder
         EXPERIMENT_LOG_PATH = m_drive_data_folder
         EXPERIMENT_RESULT_PATH = m_drive_data_folder
@@ -220,8 +224,8 @@ class VS3DUS(VisionExperimentConfig):
         
         #=== Network ===
         ENABLE_UDP = False     
-        self.VISEXPMAN_GUI['ENABLE'] = True        
-        self.VISEXPMAN_MES['ENABLE'] = True
+#        self.VISEXPMAN_GUI['ENABLE'] = True        
+#        self.VISEXPMAN_MES['ENABLE'] = True
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True

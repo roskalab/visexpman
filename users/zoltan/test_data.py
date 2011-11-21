@@ -49,7 +49,7 @@ class LDC(VisionExperimentConfig):
                                                 }]]
         
         #screen
-        FULLSCREEN = not False        
+        FULLSCREEN = False        
         SCREEN_RESOLUTION = utils.cr([800, 600])        
 #        SCREEN_RESOLUTION = utils.cr([1680, 1050])        
 #        SCREEN_RESOLUTION = utils.cr([1024, 768])        

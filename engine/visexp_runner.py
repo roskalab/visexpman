@@ -36,7 +36,7 @@ class VisExpRunner(object):
             self.config.user = 'undefined'
         else:
             self.config.user = user
-        #== Fetch experiment classes ==        
+        #== Fetch experiment classes ==
         if self.config.user != 'undefined':
             self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.visual_stimulation.experiment.ExperimentConfig)                    
         else:
@@ -85,14 +85,16 @@ class VisExpRunner(object):
         self.command_handler =  command_handler.CommandHandler(self.config, self)
         self.loop_state = 'running' #This state variable is necessary to end the main loop of the program from the command handler
         #create list of imported python modules
-        module_info = utils.imported_modules()        
+        module_info = utils.imported_modules()
         self.visexpman_module_paths  = module_info[1]
-        self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))        
+        self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))
         #TODO: check for redundancies in list, for some reason visexp_runner is saved twice
         self.module_versions = utils.module_versions(module_info[0])
         #When initialization is done, visexpman state is 'ready'
         #self.state = 'ready'
-        self.log.info('Visexpman initialized')
+        self.log.info('Visexpman initialized')        
+
+        self.selected_experiment_config.caller = []
 
     def run_loop(self):
         while self.loop_state == 'running':
