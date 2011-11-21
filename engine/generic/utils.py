@@ -9,7 +9,6 @@ import unittest
 import pkgutil
 import inspect
 import time
-import unittest
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import tempfile
 import cPickle as pickle
