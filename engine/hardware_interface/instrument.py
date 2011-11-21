@@ -216,6 +216,7 @@ class Shutter(Instrument):
                     pass
 
 class Filterwheel(Instrument):
+    #TODO: incorporate enable to FILTERWHEEL_SERIAL_PORT (FILTERWHEEL_SERIAL)
     def init_communication_interface(self):
         self.position = -1        
         if self.config.ENABLE_FILTERWHEEL:
@@ -241,7 +242,7 @@ class Filterwheel(Instrument):
                 
             #logging
             if log:
-                self.log_during_experiment('Filterwheel set to %i' % position)                
+                self.log_during_experiment('Filterwheel set to %i' % position)
         
     def set_filter(self,  filter = '', log = True):
         if self.config.ENABLE_FILTERWHEEL:
@@ -277,34 +278,34 @@ class testConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_FILTERWHEEL = unit_test_runner.TEST_filterwheel_enable
         ENABLE_PARALLEL_PORT = True
         ENABLE_SHUTTER = True
-        FILTERWHEEL_SERIAL_PORT = [[{
+        FILTERWHEEL_SERIAL_PORT = [{
                                     'port' :  port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
-                                    }] ]
+                                    }, ]                                
                                     
         FILTERWHEEL_SETTLING_TIME = [2.0,  [0,  20]]
 
         FILTERWHEEL_VALID_POSITIONS = [[1, 6],  [[0, 0],  [100, 100]]]
         
-        FILTERWHEEL_FILTERS = [[{
+        FILTERWHEEL_FILTERS = [{
                                                 'ND0': 1, 
                                                 'ND10': 2, 
                                                 'ND20': 3, 
                                                 'ND30': 4, 
                                                 'ND40': 5, 
                                                 'ND50': 6, 
-                                                }]]
+                                                }]
                                                 
-        SHUTTER_SERIAL_PORT = [[{
+        SHUTTER_SERIAL_PORT = [{
                                     'port' :  port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
-                                    }] ]
+                                    }] 
                                     
         SHUTTER_COMMUNICATION = 'serial_port'
         

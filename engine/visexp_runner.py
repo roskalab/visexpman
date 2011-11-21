@@ -1,3 +1,4 @@
+#TODO: ENABLE_UDP ahsll be replaced with udp config dictionary (similar to mes interface)
 import sys
 import visexpman
 import threading
@@ -65,7 +66,6 @@ class VisExpRunner(object):
             self.tcpip_listener.start()
         #Start udp listener if not in test mode
         if self.config.ENABLE_UDP and unit_test_runner.TEST_enable_network:
-            #TODO: This network listener is used for internal communication between command handler and user interface. This can be solved with queues, so both Qthread
             # and tcp/ip communication can be eliminated
             self.udp_listener = network_interface.NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_DGRAM, self.config.UDP_PORT)
             self.udp_listener.start()
@@ -92,9 +92,7 @@ class VisExpRunner(object):
         self.module_versions = utils.module_versions(module_info[0])
         #When initialization is done, visexpman state is 'ready'
         #self.state = 'ready'
-        self.log.info('Visexpman initialized')        
-
-        self.selected_experiment_config.caller = []
+        self.log.info('Visexpman initialized')
 
     def run_loop(self):
         while self.loop_state == 'running':
@@ -507,7 +505,6 @@ class testVisexpRunner(unittest.TestCase):
                 ),
                 (True, True, True, True, True, True, True, True, True, True, True))
     #TODO: test case for um_to_pixel_scale parameter
-    #TODO: test for long lasting stimuli with frame delay and check if exits from loop when duration is expired
     
     def test_16_hdf5io_archiving(self):
         '''
@@ -692,7 +689,7 @@ class testVisexpRunner(unittest.TestCase):
         hdf5_handler.load('source_code')
         hdf5_handler.load('module_versions')
         hdf5_handler.load('experiment_log')
-        
+#TODO: test for experiment and machine log data and check if all the files are saved        
         result =  ((hdf5_handler.source_code == reference_data).sum() == reference_data.shape[0]) and\
                                  (visexp_runner.module_versions == hdf5_handler.module_versions) and \
                                     (hasattr(hdf5_handler, 'experiment_log'))
@@ -788,7 +785,6 @@ class testVisexpRunner(unittest.TestCase):
                 print reference_string
                 return False
         return True
-#TODO: test for check frame rate        
 if __name__ == "__main__":
     if unit_test_runner.TEST_test:
         unittest.main()

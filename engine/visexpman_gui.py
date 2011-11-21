@@ -1,6 +1,5 @@
 #TODO: rename to visexp_gui.py
 #TODO: log
-#TODO: command with previous setting
 #TODO:Execute experiment
 
 import time
@@ -48,8 +47,8 @@ class Gui(Qt.QMainWindow):
         
         self.experiment_identification_gui(50)
         self.mes_control(50 + 4 * self.panel_size['row'])
-        self.visexpman_control(50 + 6.5 * self.panel_size['row'])
-        self.visexpa_control(50 + 9 * self.panel_size['row'])       
+        self.visexpman_control(50 + 7.5 * self.panel_size['row'])
+        self.visexpa_control(50 + 10 * self.panel_size['row'])
         
     def experiment_identification_gui(self, row):
         
@@ -142,9 +141,9 @@ class Gui(Qt.QMainWindow):
         single_two_photon_recording = {'size' : self.panel_size,  'position' : utils.cr((2*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
         two_photon_recording = {'size' : self.panel_size,  'position' : utils.cr((3*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
         rc_scan = {'size' : self.panel_size,  'position' : utils.cr((4*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
-        echo = {'size' : self.panel_size,  'position' : utils.cr((5*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
-        previous_settings = {'position' : utils.cr((6.5*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
-        
+        echo = {'size' : self.panel_size, 'position' : utils.cr((5*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
+        previous_settings = {'size' : self.panel_size, 'position' : utils.cr((0,  row + 2.1 *  self.panel_size['row']))}
+                
         #== gui items ==        
         self.mes_title = QtGui.QLabel(title['title'],  self)
         self.mes_title.resize(title['size']['col'],  title['size']['row'])
@@ -176,14 +175,17 @@ class Gui(Qt.QMainWindow):
         self.rc_scan_button.move(rc_scan['position']['col'],  rc_scan['position']['row'])
         self.connect(self.rc_scan_button, QtCore.SIGNAL('clicked()'),  self.rc_scan)
         
-        self.echo_button = QtGui.QPushButton('Echo MES',  self)
-        self.echo_button.resize(echo['size']['col'],  echo['size']['row'])
-        self.echo_button.move(echo['position']['col'],  echo['position']['row'])
-        self.connect(self.echo_button, QtCore.SIGNAL('clicked()'),  self.echo)
+        self.echo_button = QtGui.QPushButton('Echo MES', self)
+        self.echo_button.resize(echo['size']['col'], echo['size']['row'])
+        self.echo_button.move(echo['position']['col'], echo['position']['row'])
+        self.connect(self.echo_button, QtCore.SIGNAL('clicked()'), self.echo)
         
         self.previous_settings_checkbox = QtGui.QCheckBox(self)        
-        self.previous_settings_checkbox.move(previous_settings['position']['col'],  previous_settings['position']['row'])
-        self.connect(self.previous_settings_checkbox, QtCore.SIGNAL('stateChanged()'),  self.update_mes_command_parameter_file_names)
+        self.previous_settings_checkbox.move(previous_settings['size']['col'] + previous_settings['position']['col'], previous_settings['position']['row'])
+        self.previous_settings_label = QtGui.QLabel('Use previous settings', self)
+        self.previous_settings_label.resize(previous_settings['size']['col'], previous_settings['size']['row'])
+        self.previous_settings_label.move(previous_settings['position']['col'], previous_settings['position']['row'])
+        self.connect(self.previous_settings_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.update_mes_command_parameter_file_names)
         
         
     def visexpman_control(self, row):
@@ -219,25 +221,29 @@ class Gui(Qt.QMainWindow):
         self.visexpa_title.move(title['position']['col'],  title['position']['row'])
         self.visexpa_title.setAlignment(QtCore.Qt.AlignHCenter)
         
-    def init_files(self):
-        self.acquire_camera_image_parameters = os.path.join(self.config.MAT_PATH, 'acquire_camera_image_parameters.mat').replace('/', '\\')
-        self.acquire_z_stack_parameters = os.path.join(self.config.MAT_PATH, 'acquire_z_stack_parameters.mat')
-        self.two_photon_parameters = os.path.join(self.config.MAT_PATH, 'two_photon_parameters.mat').replace('/', '\\')
-        self.single_two_photon_parameters = os.path.join(self.config.MAT_PATH, 'single_two_photon_parameters.mat').replace('/', '\\')
-        self.rc_scan_parameters = os.path.join(self.config.MAT_PATH, 'rc_scan_parameters.mat')
+    def init_files(self):   
         
         #create hdf5io
-        self.hdf5_path = utils.generate_filename(os.path.join(self.config.ARCHIVE_PATH, 'gui.hdf5'))
+        #TODO: File name generation shall depend on config class
+        self.hdf5_path = os.path.join(self.config.ARCHIVE_PATH, 'gui_MovingDot_{0}.hdf5'.format(int(time.time())))
         self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self)
-        
-#        Mat file handling
-#        data = scipy.io.loadmat('test.mat')
-#        data = {}
-#        data['x'] = x
-#        scipy.io.savemat('test.mat',data)
 
     def update_mes_command_parameter_file_names(self):
-        print 'a'
+        self.parameter_files = {}
+        self.parameter_files['acquire_camera_image'] = os.path.join(self.config.MAT_PATH, 'acquire_camera_image_parameters.mat').replace('/', '\\')
+        self.parameter_files['acquire_z_stack'] = os.path.join(self.config.MAT_PATH, 'acquire_z_stack_parameters.mat')
+        self.parameter_files['line_scan'] = os.path.join(self.config.MAT_PATH, 'line_scan_parameters.mat').replace('/', '\\')
+        self.parameter_files['single_two_photon'] = os.path.join(self.config.MAT_PATH, 'single_two_photon_parameters.mat').replace('/', '\\')
+        self.parameter_files['rc_scan'] = os.path.join(self.config.MAT_PATH, 'rc_scan_parameters.mat')
+        for k, v in self.parameter_files.items():
+            if self.previous_settings_checkbox.checkState() == 0:
+                self.parameter_files[k] = utils.generate_filename(v)
+            else:
+                latest = utils.find_latest(v)
+                if latest != '':
+                    self.parameter_files[k] = latest
+                else:
+                    self.parameter_files[k] = utils.generate_filename(v)
 
     def execute_experiment(self):
         command = 'SOCexecute_experimentEOC{0}EOP'.format(self.experiment_config_input.toPlainText())
@@ -256,7 +262,7 @@ class Gui(Qt.QMainWindow):
         stagez = 'tbd'
         i = 'tbd'
         data_type = 'tbd'
-        experiment_class_name = 'tbd'
+        experiment_class_name = 'MovingDot'
         experiment_config_name = 'tbd'
         #[mouse strain](b[birth date] i[injection date] [stagex] [stagey] [zpos])-r[i]-[data type]-[stim class name]-[stimcfgname]-[anesthesia]-[earpunch]
         id_text = '{0}(b{1}i{2}{3}{4}{5})-r{6}-{7}-{8}-{9}-{10}-{11}{12}' .format(
@@ -269,24 +275,43 @@ class Gui(Qt.QMainWindow):
                                                                                    self.anesthesia_protocol.currentText(), 
                                                                                    self.ear_punch_l.currentText(), self.ear_punch_r.currentText(), 
                                                                                    )
-        self.hdf5_handler.id = id_text
+        id = {'mouse_strain' : str(self.mouse_strain.currentText()),
+            'mouse_birth_date' : mouse_birth_date,
+            'gcamp_injection_date' : gcamp_injection_date,
+            'stagex' : stagex,
+            'stagey' : stagey,
+            'stagez' : stagez,
+            'i' : i,
+            'data_type' : data_type,
+            'experiment_class_name' : experiment_class_name,
+            'experiment_config_name' : experiment_config_name,
+            'anesthesia_protocol' : str(self.anesthesia_protocol.currentText()),
+            'ear_punch_l' : str(self.ear_punch_l.currentText()), 
+            'ear_punch_r' : str(self.ear_punch_r.currentText()),
+        }
+        self.hdf5_handler.id = id
         self.hdf5_handler.save('id')
         self.id.setText(id_text)        
         
     def acquire_camera_image(self):
-        self.mes_command_queue.put('SOCacquire_camera_imageEOC{0}EOP' .format(self.acquire_camera_image_parameters))        
+        self.update_mes_command_parameter_file_names()
+        self.mes_command_queue.put('SOCacquire_camera_imageEOC{0}EOP' .format(self.parameter_files['acquire_camera_image']))
         
     def acquire_z_stack(self):
-        self.mes_command_queue.put('SOCacquire_z_stackEOC{0}EOP' .format(self.acquire_z_stack_parameters))
+        self.update_mes_command_parameter_file_names()
+        self.mes_command_queue.put('SOCacquire_z_stackEOC{0}EOP' .format(self.parameter_files['acquire_z_stack']))
         
     def two_photon_recording(self):
-        self.mes_command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(self.two_photon_parameters))
+        self.update_mes_command_parameter_file_names()
+        self.mes_command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(self.parameter_files['line_scan']))
         
     def single_two_photon_recording(self):
-        self.mes_command_queue.put('SOCacquire_xy_imageEOC{0}EOP'.format(self.single_two_photon_parameters))
+        self.update_mes_command_parameter_file_names()
+        self.mes_command_queue.put('SOCacquire_xy_imageEOC{0}EOP'.format(self.parameter_files['single_two_photon']))
 
     def rc_scan(self):
-        self.mes_command_queue.put('SOCrc_scanEOC{0}EOP'.format(self.rc_scan_parameters))
+        self.update_mes_command_parameter_file_names()
+        self.mes_command_queue.put('SOCrc_scanEOC{0}EOP'.format(self.parameter_files['rc_scan']))
         
     def echo(self):
         self.mes_command_queue.put('SOCechoEOCguiEOP')
@@ -303,10 +328,11 @@ class Gui(Qt.QMainWindow):
 class GuiConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
         COORDINATE_SYSTEM='center'
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        MAT_PATH= unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        m_drive_folder = 'M:\\Zoltan\\visexpman\\data'
+        LOG_PATH = m_drive_folder
+        EXPERIMENT_LOG_PATH = m_drive_folder
+        MAT_PATH= m_drive_folder
+        ARCHIVE_PATH = m_drive_folder
         
         self.VISEXPMAN_GUI['IP'] = 'Fu238D-DDF19D.fmi.ch'
         

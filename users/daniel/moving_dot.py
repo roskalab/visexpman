@@ -17,6 +17,8 @@ import visexpman.engine.visual_stimulation.command_handler as command_handler
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import time
 import visexpA.engine.datahandlers.hdf5io as hdf5io
+import pickle
+import copy
 
 class MovingDotConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
@@ -26,7 +28,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         #string list: list[0] - empty        
         self.DIAMETER_UM = [200]
         self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees
-        self.ANGLES = [0,  90] # degrees
+#         self.ANGLES = [0] # degrees
         self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
@@ -34,10 +36,10 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
-        #self.MAX_FRAGMENT_TIME = 120.0
         self.runnable = 'MovingDot'
 #         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
+#        MES_PARAMETER_PATH = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, 'mes_parameter_sets', 'acquire_line_scan.mat')
         self._create_parameters_from_locals(locals())
 #         experiment.ExperimentConfig.__init__(self) # needs to be called so that runnable is instantiated and other checks are done
 
@@ -51,19 +53,18 @@ class MovingDotPre(experiment.PreExperiment):
 class MovingDot(experiment.Experiment):
     def __init__(self, machine_config, caller, experiment_config):
         experiment.Experiment.__init__(self, machine_config, caller, experiment_config)
-        print 'prepare started'
         self.prepare()
-        print 'prepare complete'
         
     def run(self):
-        data_files = []
+        self.show_fullscreen(color = 0.0)
         for di in range(len(self.row_col)):
             print 'Fragment {0}/{1}'.format(di + 1, len(self.row_col))
             #Generate file name
-            mes_fragment_name = '{0}_{1}'.format(self.experiment_name, di)
-            fragment_mat_path = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, ('line_scan_data_{0}.mat'.format(mes_fragment_name)))
-            fragment_hdf5_path = utils.generate_filename(fragment_mat_path.replace('.mat', '.hdf5'))
-            fragment_mat_path = utils.generate_filename(fragment_mat_path)
+            mes_fragment_name = '{0}_{1}_{2}'.format(self.experiment_name, int(time.time()), di)
+            fragment_mat_path = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, ('fragment_{0}.mat'.format(mes_fragment_name)))
+            fragment_hdf5_path = fragment_mat_path.replace('.mat', '.hdf5')
+            #Create mes parameter file
+#             self.mes_interface.set_scan_time(self.machine_config.MAXIMUM_RECORDING_DURATION + 3, self.experiment_config.MES_PARAMETER_PATH, fragment_mat_path)
             #Start recording analog signals
             ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
             ai.start_daq_activity()
@@ -76,7 +77,8 @@ class MovingDot(experiment.Experiment):
             print 'visual stimulation starts'
             time.sleep(1.0)
             #Show visual stimulus
-            self.show_dots([self.diameter_pix]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])            
+            self.show_dots([self.diameter_pix]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+            self.show_fullscreen(color = 0.0)
             
             self.mes_interface.wait_for_line_scan_complete()
             #Stop acquiring analog signals
@@ -101,24 +103,22 @@ class MovingDot(experiment.Experiment):
                 if path.find('moving_dot.py') != -1:
                     data_to_hdf5['experiment_source'] = utils.file_to_binary_array(path)
                     break
-            #Saving machine and experiment configs, pickle experiment config does not work yet
-            data_to_hdf5['machine_config'] = utils.object_to_binary_array(self.machine_config)
-            data_to_hdf5['experiment_config'] = utils.object_to_binary_array(self.experiment_config)
-            
+            fragment_hdf5.machine_config = copy.deepcopy(self.machine_config.get_all_parameters())
+            fragment_hdf5.experiment_config = self.experiment_config.get_all_parameters()
             setattr(fragment_hdf5, mes_fragment_name, data_to_hdf5)
             fragment_hdf5.save(mes_fragment_name)
+            fragment_hdf5.save('machine_config')
+            fragment_hdf5.save('experiment_config')
             fragment_hdf5.close()
             #move/delete mat file
             self.log.info('measurement data saved to hdf5: {0}'.format(fragment_hdf5_path))
             
             #Notify VisexpA, data files are ready
-            
             if self.command_buffer.find('stop') != -1:
                 self.command_buffer.replace('stop', '')
                 print 'stop'
 
         print 'moving dot complete'
-        
         
     def prepare(self):
         # we want at least 2 repetitions in the same recording, but the best is to

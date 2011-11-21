@@ -21,13 +21,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             self.PAR_p =              
         '''        
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
-        #system parameters
-        if os.name == 'nt':
-            OS_TYPE = 'win'
-        elif os.name == 'posix':
-            OS_TYPE = 'linux'
-        else:
-            OS_TYPE = 'unknown'
         
         #parameter with range: list[0] - value, list[1] - range
         #path parameter: parameter name contains '_PATH'

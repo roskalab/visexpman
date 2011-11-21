@@ -163,6 +163,7 @@ class Screen(object):
         required frame rate
         '''        
         self.before_flip()
+        #TODO: mac needs the delay
 #        if window_type == 'pygame':
 #            if ALTERNATIVE_TIMING:
 #                next_flip_time = self.flip_time_previous + 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE            

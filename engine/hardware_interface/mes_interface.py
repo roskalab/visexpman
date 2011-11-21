@@ -6,7 +6,7 @@ import visexpman.engine.generic.configuration
 import socket
 import Queue
 import sys
-#TODO: do not wait when mes is not connected
+import scipy.io
 class MesInterface(object):
     '''
     Protocol:
@@ -25,17 +25,25 @@ class MesInterface(object):
         if self.config.VISEXPMAN_MES['ENABLE']:
             self.command_server = command_server
             
+
+
+    def set_scan_time(self, scan_time, path1, path2):
+        m = scipy.io.loadmat(path1)
+        m['DATA'][0][0][46][0][0][4][0][0][0][0][-1] = scan_time
+        m['DATA'][0][0][46][0][0][5][0][0][3][0][0][0][0][-1] = scan_time
+        m['DATA'][0][0][46][0][0][6][0][0][3][0][0][0][0][-1] = scan_time
+        scipy.io.savemat(path2, m)
+
+            
     def _watch_keyboard(self):
         #Keyboard commands
         if self.screen != None:
-            return self.screen.experiment_user_interface_handler() #Here only commands with running experiment domain are considered           
-                
-                        
+            return self.screen.experiment_user_interface_handler() #Here only commands with running experiment domain are considered
         
         
     def start_line_scan(self, mat_file_path):
         aborted = False
-        if self.config.VISEXPMAN_MES['ENABLE']:
+        if self.config.VISEXPMAN_MES['ENABLE'] and self.command_server.connection_state:
             self.command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(mat_file_path))
             #Wait for MES response        
             while True:
@@ -46,6 +54,12 @@ class MesInterface(object):
                 if response.find('SOCacquire_line_scanEOCstartedEOP') != -1:
                     if self.log != None:
                         self.log.info('line scan started')
+                        self.command_server.enable_keep_alive_check = False
+                    break
+                elif response.find('SOCacquire_line_scanEOCerror_starting_measurementEOP') != -1:
+                    aborted = True
+                    if self.log != None:
+                        self.log.info('error starting measurement')
                         self.command_server.enable_keep_alive_check = False
                     break
                 user_command = self._watch_keyboard()
@@ -60,7 +74,7 @@ class MesInterface(object):
                 
     def wait_for_line_scan_complete(self):        
         aborted = False
-        if self.config.VISEXPMAN_MES['ENABLE']:
+        if self.config.VISEXPMAN_MES['ENABLE'] and self.command_server.connection_state:
             self.command_server.enable_keep_alive_check = False
            #wait for finishing two photon acquisition
             while True:
@@ -84,7 +98,7 @@ class MesInterface(object):
                 
     def wait_for_data_save_complete(self):
         aborted = False
-        if self.config.VISEXPMAN_MES['ENABLE']:
+        if self.config.VISEXPMAN_MES['ENABLE'] and self.command_server.connection_state:
             #Wait for saving data to disk
             while True:
                 try:
@@ -113,15 +127,15 @@ class MesEmulator(QtCore.QThread):
         QtCore.QThread.__init__(self)
 
         self.commands  = [['', 0.5], 
-                        ['SOCacquire_line_scanEOCstartedEOP', 0.5], 
-                        ['SOCacquire_line_scanEOCOKEOP', 0.5], 
-                        ['SOCacquire_line_scanEOCsaveOKEOP', 0.5], ]
+                        ['SOCacquire_line_scanEOCstartedEOP', 0.35], 
+                        ['SOCacquire_line_scanEOCOKEOP', 0.35], 
+                        ['SOCacquire_line_scanEOCsaveOKEOP', 0.35], ]
 
     def run(self):
         self.sock = socket.create_connection(('localhost', self.port))
         self.sock.send('create_connection')
         self.sock.recv(256)
-        time.sleep(0.1)
+        time.sleep(0.1)        
         for command in self.commands:
             if len(command[0]) > 0:
                 try:
@@ -144,7 +158,8 @@ class ExperimentThread(QtCore.QThread):
         
     def run(self):
         self.mes_if = MesInterface(self.config, self.command_queue, self.response_queue, self.command_server)
-        self.mes_if.start_line_scan('dummy.mat')
+        time.sleep(0.1)
+        self.mes_if.start_line_scan('dummy.mat')        
         time.sleep(1.0)
         self.mes_if.wait_for_line_scan_complete()
         time.sleep(0.3)

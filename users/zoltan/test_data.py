@@ -31,22 +31,22 @@ class LDC(VisionExperimentConfig):
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
         ENABLE_FILTERWHEEL = False
-        FILTERWHEEL_SERIAL_PORT = [[{
+        FILTERWHEEL_SERIAL_PORT = [{
                                     'port' :  unit_test_runner.TEST_com_port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,
-                                    }]]
+                                    }]
                                     
-        FILTERWHEEL_FILTERS = [[{
+        FILTERWHEEL_FILTERS = [{
                                                 'ND0': 1, 
                                                 'ND10': 2, 
                                                 'ND20': 3, 
                                                 'ND30': 4, 
                                                 'ND40': 5, 
                                                 'ND50': 6, 
-                                                }]]
+                                                }]
         
         #screen
         FULLSCREEN = False        

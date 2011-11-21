@@ -104,8 +104,6 @@ class AnalogIO(instrument.Instrument):
                 self.read = DAQmxTypes.int32()
                 channel_indexes = self.daq_config['AI_CHANNEL'].split('/')[-1].replace('ai','').split(':')
                 self.number_of_ai_channels = abs(int(channel_indexes[-1]) - int(channel_indexes[0])) + 1
-                
-               #TODO: shorten daq ai in time
 
     def _configure_timing(self):    
         if os.name == 'nt' and self.daq_config['ENABLE']:    
@@ -308,7 +306,7 @@ class AnalogPulse(AnalogIO):
 class InvalidTestConfig(configuration.Config):
     def _create_application_parameters(self):
         TEST_DATA_PATH = unit_test_runner.TEST_working_folder        
-        DAQ_CONFIG = [[
+        DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'aio',
                     'DAQ_TIMEOUT' : 1.0,
@@ -319,14 +317,14 @@ class InvalidTestConfig(configuration.Config):
                     'MIN_VOLTAGE' : 0.0,
                     'ENABLE' : True
                     }
-                    ]]
+                    ]
         
         self._create_parameters_from_locals(locals())
 
 class InvalidTestConfig1(configuration.Config):
     def _create_application_parameters(self):
         TEST_DATA_PATH = unit_test_runner.TEST_working_folder
-        DAQ_CONFIG = [[
+        DAQ_CONFIG = [
                     {                    
                     'DAQ_TIMEOUT' : 1.0,
                     'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
@@ -335,7 +333,7 @@ class InvalidTestConfig1(configuration.Config):
                     'MIN_VOLTAGE' : 0.0,
                     'ENABLE' : True
                     }
-                    ]]
+                    ]
         
         self._create_parameters_from_locals(locals())
 
@@ -343,7 +341,7 @@ class InvalidTestConfig1(configuration.Config):
 class testDaqConfig(configuration.Config):
     def _create_application_parameters(self):
         TEST_DATA_PATH = unit_test_runner.TEST_working_folder
-        DAQ_CONFIG = [[
+        DAQ_CONFIG = [
         {
         'ANALOG_CONFIG' : 'aio', #'ai', 'ao', 'aio', 'undefined'
         'DAQ_TIMEOUT' : 1.0, 
@@ -368,14 +366,14 @@ class testDaqConfig(configuration.Config):
         'DURATION_OF_AI_READ' : 1.0,
         'ENABLE' : True
         }
-        ]]
+        ]
         
         self._create_parameters_from_locals(locals())
         
 class testAnalogPulseConfig(configuration.Config):
     def _create_application_parameters(self):
         TEST_DATA_PATH = unit_test_runner.TEST_working_folder
-        DAQ_CONFIG = [[
+        DAQ_CONFIG = [
         {
         'ANALOG_CONFIG' : 'ao',
         'DAQ_TIMEOUT' : 1.0, 
@@ -385,7 +383,7 @@ class testAnalogPulseConfig(configuration.Config):
         'MIN_VOLTAGE' : 0.0,
         'ENABLE' : True
         },        
-        ]]
+        ]
         self._create_parameters_from_locals(locals())
 
 class TestDaqInstruments(unittest.TestCase):
