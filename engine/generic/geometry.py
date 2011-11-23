@@ -464,6 +464,11 @@ def overlap(p1, p2,  thr=0.25):
     else:
         return 0
 
+def versor2angle(versor):
+    '''From a versor computes the angle of the rotation'''
+    if len(versor)!=3:
+        raise TypeError('Versor must be a list or numpy array with 3 values')
+    return 2*numpy.arcsin(numpy.sqrt(sum([versor[i]**2 for i in range(3)])))
 
 class testGeometry(unittest.TestCase):
     
