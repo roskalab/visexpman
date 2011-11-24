@@ -1,7 +1,9 @@
 #TODO: rename to visexp_gui.py
 #TODO: log
 #TODO:Execute experiment
-
+#TODO: timestamp to gui.hdf5 and string_timestamp node
+#TODO: string parsing: re
+#TODO: string to binary array: numpy.loadtext, loadfile or struct.struct
 import time
 import socket
 import sys
@@ -64,9 +66,9 @@ class Gui(Qt.QMainWindow):
         ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])               
         mouse_strain = {'size' : self.panel_size,  'position' : utils.cr((4.1*self.panel_size['col'], row + 2.1 * self.panel_size['row']))}
         mouse_strain_items = QtCore.QStringList(['bl6', 'chat', 'chatdtr'])
-        generate_id = {'size' : self.panel_size,  'position' : utils.cr((0, row + 3.1 * self.panel_size['row']))}
+        generate_animal_parameters = {'size' : self.panel_size,  'position' : utils.cr((0, row + 3.1 * self.panel_size['row']))}
         
-        id = {'size' : utils.cr((self.config.GUI_SIZE['col'] - self.panel_size['col'], 40)),  'position' : utils.cr((1.1 * self.panel_size['col'], row + 3.1 * self.panel_size['row']))}       
+        animal_parameters = {'size' : utils.cr((self.config.GUI_SIZE['col'] - self.panel_size['col'], 40)),  'position' : utils.cr((1.1 * self.panel_size['col'], row + 3.1 * self.panel_size['row']))}       
         
         #== Create gui items ==
         self.experiment_identification_title = QtGui.QLabel(title['title'],  self)
@@ -74,10 +76,10 @@ class Gui(Qt.QMainWindow):
         self.experiment_identification_title.move(title['position']['col'],  title['position']['row'])
         self.experiment_identification_title.setAlignment(QtCore.Qt.AlignHCenter)
         
-        self.generate_id_button = QtGui.QPushButton('Generate ID',  self)
-        self.generate_id_button.resize(generate_id['size']['col'],  generate_id['size']['row'])
-        self.generate_id_button.move(generate_id['position']['col'],  generate_id['position']['row'])
-        self.connect(self.generate_id_button, QtCore.SIGNAL('clicked()'),  self.generate_id)
+        self.generate_animal_parameters_button = QtGui.QPushButton('Save animal parameters',  self)
+        self.generate_animal_parameters_button.resize(generate_animal_parameters['size']['col'],  generate_animal_parameters['size']['row'])
+        self.generate_animal_parameters_button.move(generate_animal_parameters['position']['col'],  generate_animal_parameters['position']['row'])
+        self.connect(self.generate_animal_parameters_button, QtCore.SIGNAL('clicked()'),  self.generate_animal_parameters)
         
         self.mouse_birth_date = QtGui.QDateEdit(self)
         self.mouse_birth_date.setDisplayFormat(date_format)
@@ -127,9 +129,9 @@ class Gui(Qt.QMainWindow):
         self.mouse_strain_label.move(mouse_strain['position']['col'],  mouse_strain['position']['row'])
         self.mouse_strain.addItems(mouse_strain_items)
         
-        self.id = QtGui.QLabel('',  self)
-        self.id.resize(id['size']['col'],  id['size']['row'])
-        self.id.move(id['position']['col'],  id['position']['row'])
+        self.animal_parameters = QtGui.QLabel('',  self)
+        self.animal_parameters.resize(animal_parameters['size']['col'],  animal_parameters['size']['row'])
+        self.animal_parameters.move(animal_parameters['position']['col'],  animal_parameters['position']['row'])
         
         
     
@@ -225,7 +227,7 @@ class Gui(Qt.QMainWindow):
         
         #create hdf5io
         #TODO: File name generation shall depend on config class
-        self.hdf5_path = os.path.join(self.config.ARCHIVE_PATH, 'gui_MovingDot_{0}.hdf5'.format(int(time.time())))
+        self.hdf5_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'gui_MovingDot_{0}.hdf5'.format(int(time.time())))
         self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self)
 
     def update_mes_command_parameter_file_names(self):
@@ -250,7 +252,7 @@ class Gui(Qt.QMainWindow):
         self.visexpman_out_queue.put(command)
         print command
         
-    def generate_id(self):
+    def generate_animal_parameters(self):
         mouse_birth_date = self.mouse_birth_date.date()
         mouse_birth_date = '{0}{1}20{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
         gcamp_injection_date = self.gcamp_injection_date.date()
@@ -265,7 +267,7 @@ class Gui(Qt.QMainWindow):
         experiment_class_name = 'MovingDot'
         experiment_config_name = 'tbd'
         #[mouse strain](b[birth date] i[injection date] [stagex] [stagey] [zpos])-r[i]-[data type]-[stim class name]-[stimcfgname]-[anesthesia]-[earpunch]
-        id_text = '{0}(b{1}i{2}{3}{4}{5})-r{6}-{7}-{8}-{9}-{10}-{11}{12}' .format(
+        animal_parameters_text = '{0}(b{1}i{2}{3}{4}{5})-r{6}-{7}-{8}-{9}-{10}-{11}{12}' .format(
                                                                                    self.mouse_strain.currentText(),  
                                                                                    mouse_birth_date, 
                                                                                    gcamp_injection_date, 
@@ -275,7 +277,7 @@ class Gui(Qt.QMainWindow):
                                                                                    self.anesthesia_protocol.currentText(), 
                                                                                    self.ear_punch_l.currentText(), self.ear_punch_r.currentText(), 
                                                                                    )
-        id = {'mouse_strain' : str(self.mouse_strain.currentText()),
+        animal_parameters = {'mouse_strain' : str(self.mouse_strain.currentText()),
             'mouse_birth_date' : mouse_birth_date,
             'gcamp_injection_date' : gcamp_injection_date,
             'stagex' : stagex,
@@ -289,9 +291,12 @@ class Gui(Qt.QMainWindow):
             'ear_punch_l' : str(self.ear_punch_l.currentText()), 
             'ear_punch_r' : str(self.ear_punch_r.currentText()),
         }
-        self.hdf5_handler.id = id
-        self.hdf5_handler.save('id')
-        self.id.setText(id_text)        
+        self.hdf5_handler.animal_parameters = animal_parameters
+        self.hdf5_handler.save('animal_parameters')
+        hdf5_id = 'gui_' + str(int(time.time()))
+        setattr(self.hdf5_handler, hdf5_id, 0)
+        self.hdf5_handler.save(hdf5_id)
+        self.animal_parameters.setText(animal_parameters_text)        
         
     def acquire_camera_image(self):
         self.update_mes_command_parameter_file_names()
@@ -332,7 +337,7 @@ class GuiConfig(configuration.VisionExperimentConfig):
         LOG_PATH = m_drive_folder
         EXPERIMENT_LOG_PATH = m_drive_folder
         MAT_PATH= m_drive_folder
-        ARCHIVE_PATH = m_drive_folder
+        EXPERIMENT_DATA_PATH = m_drive_folder
         
         self.VISEXPMAN_GUI['IP'] = 'Fu238D-DDF19D.fmi.ch'
         

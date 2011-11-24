@@ -181,18 +181,17 @@ class DataHandler():
     def prepare_archive(self):
         #If the archive format is hdf5, zip file is saved to a temporary folder
         if self.config.ARCHIVE_FORMAT == 'zip':
-            zip_folder = self.config.ARCHIVE_PATH
+            zip_folder = self.config.EXPERIMENT_DATA_PATH
             self.zip_file_path = experiment_file_name(self.caller.selected_experiment_config, zip_folder, 'zip')
         elif self.config.ARCHIVE_FORMAT == 'hdf5':
             self.zip_file_path = tempfile.mktemp()
-            self.hdf5_path = experiment_file_name(self.caller.selected_experiment_config, self.config.ARCHIVE_PATH, 'hdf5')
+            self.hdf5_path = experiment_file_name(self.caller.selected_experiment_config, self.config.EXPERIMENT_DATA_PATH, 'hdf5')
             self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self.caller)
         else:
-            raise RuntimeError('Archive format is not defined. Check the configuration!')
+            raise RuntimeError('Unknown archive format, check configuration!')
         #Create zip file
         self.archive = zipfile.ZipFile(self.zip_file_path, "w")
         
-        #TODO: rename archive path to experiment result path
     def archive_software_environment(self):
         '''
         Archives the called python modules within visexpman package and the versions of all the called packages
@@ -270,10 +269,10 @@ class TestConfig(configuration.Config):
                                     'bytesize' : serial.EIGHTBITS,
                                     }]
         
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = os.path.join(ARCHIVE_PATH, 'test')
-        if not os.path.exists(ARCHIVE_PATH):
-            os.mkdir(ARCHIVE_PATH)
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = os.path.join(EXPERIMENT_DATA_PATH, 'test')
+        if not os.path.exists(EXPERIMENT_DATA_PATH):
+            os.mkdir(EXPERIMENT_DATA_PATH)
         VISEXPMAN_MES = {'ENABLE' : False,'IP': '',  'PORT' : 10003,  'RECEIVE_BUFFER' : 256}
         ARCHIVE_FORMAT = 'zip'
 
@@ -291,7 +290,7 @@ class testDataHandler(unittest.TestCase):
         self.assertEqual((hasattr(self.dh, 'visexpman_module_paths'), hasattr(self.dh, 'module_versions')), (True, True))
 
     def tearDown(self):
-        shutil.rmtree(self.config.ARCHIVE_PATH)
+        shutil.rmtree(self.config.EXPERIMENT_DATA_PATH)
 
 class testExternalHardware(unittest.TestCase):
     '''

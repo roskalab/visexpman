@@ -23,7 +23,7 @@ class PPRLConfig(VisionExperimentConfig):
 #        SINGLE_EXPERIMENT = 'GratingMaskTest'
 #        SINGLE_EXPERIMENT = 'DrumStimTest'
         LOG_PATH = '/var/log/'
-        ARCHIVE_PATH = '../../../presentinator/data'
+        EXPERIMENT_DATA_PATH = '../../../presentinator/data'
         CAPTURE_PATH = '../../../presentinator/data/capture'
         ENABLE_PARALLEL_PORT = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
@@ -62,10 +62,10 @@ class K247AWindowsConfig(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
         LOG_PATH = 'c:\\temp\\'
         BASE_PATH='c:\\Data\\stimuli\\'
-        ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
+        EXPERIMENT_DATA_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
         CAPTURE_PATH = os.path.join(BASE_PATH,'capture')#'../../../presentinator/data/capture'
         ENABLE_PARALLEL_PORT = False
-        UDP_ENABLE = False
+        ENABLE_UDP = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.rc([768,   1024])
@@ -101,7 +101,7 @@ class RC3DWindowsConfig(VisionExperimentConfig):
         SCREEN_RESOLUTION = [1600,  1200]
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2        
-        ARCHIVE_PATH = self.BASE_PATH
+        EXPERIMENT_DATA_PATH = self.BASE_PATH
         LOG_PATH = self.BASE_PATH
         #test steps:
         # 1. frame rate 60
@@ -118,11 +118,10 @@ class MBP(VisionExperimentConfig):
         LOG_PATH = '/Users/hd/Documents/DataBase'
         EXPERIMENT_LOG_PATH = LOG_PATH
         BASE_PATH='/Users/hd/Documents/DataBase'
-        ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
+        EXPERIMENT_DATA_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
         CAPTURE_PATH = os.path.join(BASE_PATH,'capture')#'../../../presentinator/data/capture'
         ENABLE_PARALLEL_PORT = False
-        UDP_ENABLE = False
-#        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
+        ENABLE_UDP = False
         FULLSCREEN = True 
         SCREEN_RESOLUTION = utils.rc([768,   1024])
         ENABLE_FRAME_CAPTURE = False
@@ -166,7 +165,7 @@ class VS3DUS(VisionExperimentConfig):
         LOG_PATH = m_drive_data_folder
         EXPERIMENT_LOG_PATH = m_drive_data_folder
         EXPERIMENT_RESULT_PATH = m_drive_data_folder
-        ARCHIVE_PATH = EXPERIMENT_RESULT_PATH
+        EXPERIMENT_DATA_PATH = EXPERIMENT_RESULT_PATH
         ARCHIVE_FORMAT = 'hdf5'
         
         #=== screen ===
@@ -276,7 +275,7 @@ class GratingExperiment(experiment.Experiment):
         #Save 
         if not hasattr(ai, 'ai_data'):
             ai.ai_data = numpy.zeros(2)
-        path = utils.generate_filename(os.path.join(self.machine_config.ARCHIVE_PATH, 'ai_data.txt'))
+        path = utils.generate_filename(os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, 'ai_data.txt'))
         numpy.savetxt(path, ai.ai_data)            
         data_to_hdf5 = {'sync_data' : ai.ai_data}
 #         setattr(self.hdf5, mes_fragment_name, data_to_hdf5)

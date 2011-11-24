@@ -9,7 +9,7 @@ class KarlWindowsConfig(Configuration.PresentinatorConfig):
         SCREEN_RESOLUTION = [1024,  768]
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0        
-        ARCHIVE_PATH = self.BASE_PATH + os.sep + 'data'
+        EXPERIMENT_DATA_PATH = self.BASE_PATH + os.sep + 'data'
         LOG_PATH = self.BASE_PATH + os.sep + 'data'
         SCREEN_EXPECTED_FRAME_RATE = 75.0
         SCREEN_MAX_FRAME_RATE = 75.0

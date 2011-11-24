@@ -7,6 +7,9 @@ import socket
 import Queue
 import sys
 import scipy.io
+import visexpA.engine.datahandlers.matlabfile as matlabfile
+import numpy
+
 class MesInterface(object):
     '''
     Protocol:
@@ -24,16 +27,15 @@ class MesInterface(object):
         self.log = log
         if self.config.VISEXPMAN_MES['ENABLE']:
             self.command_server = command_server
-            
+        self.stop = False
 
 
-    def set_scan_time(self, scan_time, path1, path2):
-        m = scipy.io.loadmat(path1)
-        m['DATA'][0][0][46][0][0][4][0][0][0][0][-1] = scan_time
-        m['DATA'][0][0][46][0][0][5][0][0][3][0][0][0][0][-1] = scan_time
-        m['DATA'][0][0][46][0][0][6][0][0][3][0][0][0][0][-1] = scan_time
-        scipy.io.savemat(path2, m)
+    def set_scan_time(self, scan_time, reference_path, target_path):        
 
+        m = matlabfile.MatData(reference_path, target_path)
+        ts = m.get_field(m.name2path('ts'))[0][0][0][0]
+        ts = numpy.array([ts[0],ts[1],ts[2],float(1000*scan_time)], dtype = numpy.float64)
+        m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
             
     def _watch_keyboard(self):
         #Keyboard commands
@@ -43,6 +45,7 @@ class MesInterface(object):
         
     def start_line_scan(self, mat_file_path):
         aborted = False
+        self.stop = False
         if self.config.VISEXPMAN_MES['ENABLE'] and self.command_server.connection_state:
             self.command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(mat_file_path))
             #Wait for MES response        
@@ -51,15 +54,16 @@ class MesInterface(object):
                     response = self.response_queue.get(False)
                 except:
                     response = ''
-                if response.find('SOCacquire_line_scanEOCstartedEOP') != -1:
+                if 'SOCacquire_line_scanEOCstartedEOP' in response:
                     if self.log != None:
                         self.log.info('line scan started')
                         self.command_server.enable_keep_alive_check = False
                     break
-                elif response.find('SOCacquire_line_scanEOCerror_starting_measurementEOP') != -1:
+                elif 'SOCacquire_line_scanEOCerror_starting_measurementEOP' in response:
                     aborted = True
                     if self.log != None:
                         self.log.info('error starting measurement')
+                        self.stop = True
                         self.command_server.enable_keep_alive_check = False
                     break
                 user_command = self._watch_keyboard()
@@ -78,11 +82,13 @@ class MesInterface(object):
             self.command_server.enable_keep_alive_check = False
            #wait for finishing two photon acquisition
             while True:
+                if self.stop:
+                    break
                 try:
                     response = self.response_queue.get(False)
                 except:
                     response = ''
-                if response.find('SOCacquire_line_scanEOCOKEOP') != -1:
+                if 'SOCacquire_line_scanEOCOKEOP' in response or 'SOCacquire_line_scanEOCUSEOP' in response:
                     if self.log != None:
                         self.log.info('line scan complete')
                     break
@@ -101,11 +107,13 @@ class MesInterface(object):
         if self.config.VISEXPMAN_MES['ENABLE'] and self.command_server.connection_state:
             #Wait for saving data to disk
             while True:
+                if self.stop:
+                    break
                 try:
                     response = self.response_queue.get(False)
                 except:
                     response = ''
-                if response.find('SOCacquire_line_scanEOCsaveOKEOP') != -1:
+                if 'SOCacquire_line_scanEOCsaveOKEOP' in response:
                     if self.log != None:
                         self.log.info('line scan data saved')
                     break

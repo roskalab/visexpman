@@ -20,7 +20,7 @@ class LDC(VisionExperimentConfig):
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
         BASE_PATH= unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         CAPTURE_PATH = os.path.join(unit_test_runner.TEST_working_folder,'Capture')
         if not os.path.exists(CAPTURE_PATH):
             os.mkdir(CAPTURE_PATH)

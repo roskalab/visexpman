@@ -6,7 +6,7 @@ class PetersConfig(Configuration.PresentinatorConfig):
         FRAME_TRIGGER_PIN = 6
         RUN_MODE = 'user interface'
         LOG_PATH = '../data'
-        ARCHIVE_PATH = '../data'
+        EXPERIMENT_DATA_PATH = '../data'
         CAPTURE_PATH = '../data'
         ENABLE_PARALLEL_PORT = True
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        

@@ -18,7 +18,7 @@ class VerySimpleExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -45,7 +45,7 @@ class Hdf5TestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -62,7 +62,7 @@ class AbortableExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -89,7 +89,7 @@ class UserCommandExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -122,7 +122,7 @@ class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder       
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder       
         
         #screen
         FULLSCREEN = False
@@ -189,7 +189,7 @@ class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -226,7 +226,7 @@ class PreExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder     
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder     
         
         #screen
         FULLSCREEN = False
@@ -258,7 +258,7 @@ class FrameRateTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -286,7 +286,7 @@ class VisualStimulationsTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         CAPTURE_PATH = utils.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
         os.mkdir(CAPTURE_PATH)
         
@@ -306,7 +306,7 @@ class VisualStimulationsUlCornerTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder       
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder       
         CAPTURE_PATH = utils.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
         os.mkdir(CAPTURE_PATH)
         
@@ -396,7 +396,7 @@ class StageExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False

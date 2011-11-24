@@ -61,8 +61,10 @@ TEST_pixel_difference_threshold = 50.0
 
 if TEST_os == 'nt':
     TEST_reference_frames_folder = 'm:\\Zoltan\\visexpman\\test_data\\reference_frames_win'
+    TEST_reference_mat_file = 'm:\\Zoltan\\visexpman\\test_data\\line_scan_parameters.mat'
 elif TEST_os == 'posix':
     TEST_reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
+    TEST_reference_mat_file = '/home/zoltan/mdrive/Zoltan/visexpman/test_data/line_scan_parameters.mat'
 elif TEST_os == 'osx':
     TEST_reference_frames_folder = '/Users/rz/visexpman/data/test_data/reference_frames_osx'
 
@@ -111,35 +113,37 @@ class unitTestRunner():
     '''
     def __init__(self):        
         self.test_configs = [
-#               {'test_class_path' : 'visexpman.engine.visexp_runner.testVisexpRunner',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.visexp_runner.testFindoutConfig',
-#               'enable' : True}, 
-#               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.utils.TestUtils',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
-#               'enable' : not True}, #Not part of visexpman application
-#               {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestInstruments',
-#               'enable' : TEST_hardware_test}, #Shutter tests are not complete
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
-#               'enable' : TEST_daq},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testExternalHardware',
-#               'enable' : TEST_hardware_test},
-#               {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testDataHandler',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
-#               'enable' : TEST_stage},
-#               {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
-#               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.visexp_runner.testVisexpRunner',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.visexp_runner.testFindoutConfig',
+               'enable' : True}, 
+               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.generic.utils.TestUtils',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
+               'enable' : not True}, #Not part of visexpman application
+               {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestInstruments',
+               'enable' : TEST_hardware_test}, #Shutter tests are not complete
+               {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
+               'enable' : TEST_daq},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testExternalHardware',
+               'enable' : TEST_hardware_test},
+               {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testDataHandler',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
+               'enable' : TEST_stage},
+               {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
+               'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
+               'enable' : True},
+               {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
                'enable' : True},
                ]
 
@@ -188,10 +192,11 @@ class unitTestRunner():
         print str(datetime.datetime.now())
         
     def save_source_and_results(self):
-        test_archive_path = generate_filename(os.path.join(TEST_working_folder, 'test_archive.zip'))
+        test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(TEST_working_folder, 'test_archive.zip'))
         package_path = os.path.split(os.path.split(os.path.split(os.getcwd())[0])[0])[0]        
         #generate list of archivable files and write them to zipfile
-        source_zip = zipfile.ZipFile(test_archive_path, "w")
+        #TODO: include visexpa
+        source_zip = zipfile.ZipFile(test_EXPERIMENT_DATA_PATH, "w")
         for (path, dirs, files) in os.walk(package_path):
             for file in files:                
                 if file[-3:] == '.py':

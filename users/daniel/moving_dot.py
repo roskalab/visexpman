@@ -19,6 +19,7 @@ import time
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 import pickle
 import copy
+import visexpA.engine.datahandlers.matlab_mat as matlab_mat
 
 class MovingDotConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
@@ -39,7 +40,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingDot'
 #         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
-#        MES_PARAMETER_PATH = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, 'mes_parameter_sets', 'acquire_line_scan.mat')
+        MES_PARAMETER_PATH = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, 'mes_parameter_sets', 'line_scan_parameters.mat')
         self._create_parameters_from_locals(locals())
 #         experiment.ExperimentConfig.__init__(self) # needs to be called so that runnable is instantiated and other checks are done
 
@@ -57,14 +58,18 @@ class MovingDot(experiment.Experiment):
         
     def run(self):
         self.show_fullscreen(color = 0.0)
+        experiment_start_time = int(time.time())
+        number_of_fragments = len(self.row_col)
         for di in range(len(self.row_col)):
             print 'Fragment {0}/{1}'.format(di + 1, len(self.row_col))
             #Generate file name
-            mes_fragment_name = '{0}_{1}_{2}'.format(self.experiment_name, int(time.time()), di)
+            mes_fragment_name = '{0}_{1}_{2}'.format(self.experiment_name, experiment_start_time, di)
+            print mes_fragment_name
             fragment_mat_path = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, ('fragment_{0}.mat'.format(mes_fragment_name)))
             fragment_hdf5_path = fragment_mat_path.replace('.mat', '.hdf5')
             #Create mes parameter file
-#             self.mes_interface.set_scan_time(self.machine_config.MAXIMUM_RECORDING_DURATION + 3, self.experiment_config.MES_PARAMETER_PATH, fragment_mat_path)
+            stimulus_duration = float(len(self.row_col[di]) / self.experiment_config.NDOTS)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+            self.mes_interface.set_scan_time(stimulus_duration + 3, self.experiment_config.MES_PARAMETER_PATH, fragment_mat_path)
             #Start recording analog signals
             ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
             ai.start_daq_activity()
@@ -95,7 +100,10 @@ class MovingDot(experiment.Experiment):
 
             data_to_hdf5 = {'shown_directions' :  self.shown_directions[di],
                             'sync_data' : ai.ai_data,
-                            'two_photon_data': utils.file_to_binary_array(fragment_mat_path)}
+                            'mes_data': utils.file_to_binary_array(fragment_mat_path),
+                            'number_of_fragments' : number_of_fragments,
+                            'actual_fragment' : di,                            
+                            }
             if hasattr(self, 'show_line_order'):
             	data_to_hdf5['shown_line_order'] = self.shown_line_order[di]
             #Saving source code of experiment
@@ -117,7 +125,9 @@ class MovingDot(experiment.Experiment):
             if self.command_buffer.find('stop') != -1:
                 self.command_buffer.replace('stop', '')
                 print 'stop'
-
+        experiment_identifier = '{0}_{1}'.format(self.experiment_name, experiment_start_time)
+        setattr(self.hdf5, experiment_identifier, 0)
+        self.hdf5.save(experiment_identifier)
         print 'moving dot complete'
         
     def prepare(self):
