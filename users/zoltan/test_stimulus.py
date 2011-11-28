@@ -20,7 +20,7 @@ class WDC(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'DebugExperimentConfig'
         LOG_PATH = unit_test_runner.TEST_working_folder      
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder        
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder        
         ARCHIVE_FORMAT = 'zip'
         
         #hardware

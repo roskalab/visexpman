@@ -13,7 +13,6 @@ class Log(object):
         '''
         self.log = logging.getLogger(name)
         self.handler = logging.FileHandler(path)
-#        formatter = logging.Formatter('%(asctime)s %(message)s')
         formatter = logging.Formatter('%(message)s')
         self.handler.setFormatter(formatter)
         self.log.addHandler(self.handler)
@@ -32,7 +31,7 @@ class Log(object):
             message_to_log = str(elapsed_time) + '\t' + message
         else:
             message_to_log = message
-        if self.write_mode == 'automatic':            
+        if self.write_mode == 'automatic':
             self.log.info(message_to_log)
         elif self.write_mode == 'user control':
             self.log_messages.append(message_to_log)

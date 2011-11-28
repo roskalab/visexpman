@@ -1,8 +1,10 @@
+#TODO: ENABLE_UDP ahsll be replaced with udp config dictionary (similar to mes interface)
 import sys
 import visexpman
 import threading
 import time
 import unittest
+import os.path
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.visual_stimulation.configuration
 import visexpman.engine.visual_stimulation.experiment
@@ -36,7 +38,7 @@ class VisExpRunner(object):
             self.config.user = 'undefined'
         else:
             self.config.user = user
-        #== Fetch experiment classes ==        
+        #== Fetch experiment classes ==
         if self.config.user != 'undefined':
             self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.visual_stimulation.experiment.ExperimentConfig)                    
         else:
@@ -57,18 +59,18 @@ class VisExpRunner(object):
         self.screen_and_keyboard = user_interface.ScreenAndKeyboardHandler(self.config, self, self.command_queue)
         #Select and instantiate stimulus as specified in machine config, This is necessary to ensure that pre-experiment will run immediately after startup        
         if len(self.experiment_config_list) > 0:
-            self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self)            
-        #start listening on tcp ip for receiving commands
-        #In test_mode the network operations are disabled
-        if unit_test_runner.TEST_enable_network and False:
-            self.tcpip_listener = network_interface.NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
-            self.tcpip_listener.start()
+            self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self)
         #Start udp listener if not in test mode
         if self.config.ENABLE_UDP and unit_test_runner.TEST_enable_network:
-            #TODO: This network listener is used for internal communication between command handler and user interface. This can be solved with queues, so both Qthread
             # and tcp/ip communication can be eliminated
             self.udp_listener = network_interface.NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_DGRAM, self.config.UDP_PORT)
             self.udp_listener.start()
+            
+        if self.config.ENABLE_UDP or True:
+            #If udp enabled (= presentinator interface enabled), check for *presentinator*.py files in current user folder and delete them
+            user_folder = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user)
+            for file in utils.filtered_file_list(user_folder,  'presentinator_experiment', fullpath = True):
+                os.remove(file)
         #Start up MES listener
         self.mes_command_queue = Queue.Queue()
         self.mes_response_queue = Queue.Queue()
@@ -85,13 +87,11 @@ class VisExpRunner(object):
         self.command_handler =  command_handler.CommandHandler(self.config, self)
         self.loop_state = 'running' #This state variable is necessary to end the main loop of the program from the command handler
         #create list of imported python modules
-        module_info = utils.imported_modules()        
+        module_info = utils.imported_modules()
         self.visexpman_module_paths  = module_info[1]
-        self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))        
-        #TODO: check for redundancies in list, for some reason visexp_runner is saved twice
+        if not 'visexp_runner.py' in self.visexpman_module_paths:
+            self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))
         self.module_versions = utils.module_versions(module_info[0])
-        #When initialization is done, visexpman state is 'ready'
-        #self.state = 'ready'
         self.log.info('Visexpman initialized')
 
     def run_loop(self):
@@ -505,7 +505,6 @@ class testVisexpRunner(unittest.TestCase):
                 ),
                 (True, True, True, True, True, True, True, True, True, True, True))
     #TODO: test case for um_to_pixel_scale parameter
-    #TODO: test for long lasting stimuli with frame delay and check if exits from loop when duration is expired
     
     def test_16_hdf5io_archiving(self):
         '''
@@ -690,7 +689,7 @@ class testVisexpRunner(unittest.TestCase):
         hdf5_handler.load('source_code')
         hdf5_handler.load('module_versions')
         hdf5_handler.load('experiment_log')
-        
+#TODO: test for experiment and machine log data and check if all the files are saved        
         result =  ((hdf5_handler.source_code == reference_data).sum() == reference_data.shape[0]) and\
                                  (visexp_runner.module_versions == hdf5_handler.module_versions) and \
                                     (hasattr(hdf5_handler, 'experiment_log'))
@@ -786,7 +785,6 @@ class testVisexpRunner(unittest.TestCase):
                 print reference_string
                 return False
         return True
-#TODO: test for check frame rate        
 if __name__ == "__main__":
     if unit_test_runner.TEST_test:
         unittest.main()

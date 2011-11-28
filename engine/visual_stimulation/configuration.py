@@ -21,13 +21,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             self.PAR_p =              
         '''        
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
-        #system parameters
-        if os.name == 'nt':
-            OS_TYPE = 'win'
-        elif os.name == 'posix':
-            OS_TYPE = 'linux'
-        else:
-            OS_TYPE = 'unknown'
         
         #parameter with range: list[0] - value, list[1] - range
         #path parameter: parameter name contains '_PATH'
@@ -42,7 +35,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #        LOG_PATH = '/media/Common/visexpman_data'
 #        EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
 #        BASE_PATH= '/media/Common/visexpman_data' THIS MIGHT BE ELIMINATED
-#        ARCHIVE_PATH = '/media/Common/visexpman_data'
+#        EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
 #        CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
 
         ARCHIVE_FORMAT = ['undefined', ['hdf5', 'zip', 'undefined']]
@@ -217,12 +210,10 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         #== Screen scaling ==
         self.SCREEN_PIXEL_TO_UM_SCALE_p = visexpman.engine.generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
-        if isinstance(self.SCREEN_RESOLUTION, list):
-            screen_resolution = 1.0 / numpy.array(self.SCREEN_RESOLUTION)
-        elif isinstance(self.SCREEN_RESOLUTION, numpy.ndarray):
-            screen_resolution = 1.0 / numpy.array([self.SCREEN_RESOLUTION['col'], self.SCREEN_RESOLUTION['row']])
-        SCREEN_UM_TO_NORM_SCALE = 2.0 * self.SCREEN_PIXEL_TO_UM_SCALE_p.v * screen_resolution        
+        screen_resolution = 1.0 / numpy.array([self.SCREEN_RESOLUTION['col'], self.SCREEN_RESOLUTION['row']])
+        SCREEN_UM_TO_NORM_SCALE = 2.0 * self.SCREEN_PIXEL_TO_UM_SCALE_p.v * screen_resolution
         self.SCREEN_UM_TO_NORM_SCALE_p = visexpman.engine.generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
+        self.SCREEN_SIZE_UM_p = visexpman.engine.generic.parameter.Parameter(utils.cr((self.SCREEN_RESOLUTION['col'] / self.SCREEN_UM_TO_PIXEL_SCALE, self.SCREEN_RESOLUTION['row'] / self.SCREEN_UM_TO_PIXEL_SCALE)))
         
         #== Coordinate system ==        
         if self.COORDINATE_SYSTEM != 'undefined':
@@ -280,7 +271,7 @@ class RedundantCommandConfig1(VisionExperimentConfig):
         path = unit_test_runner.TEST_working_folder
         LOG_PATH = path
         EXPERIMENT_LOG_PATH = path
-        ARCHIVE_PATH = path
+        EXPERIMENT_DATA_PATH = path
         ARCHIVE_FORMAT = 'zip'
         COORDINATE_SYSTEM='center'
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'dummy1': {'key': 'e', 'domain': ['running experiment']}, 'dummy': {'key': 'w', 'domain': ['running experiment']},}
@@ -292,7 +283,7 @@ class RedundantCommandConfig2(VisionExperimentConfig):
         path = unit_test_runner.TEST_working_folder
         LOG_PATH = path
         EXPERIMENT_LOG_PATH = path
-        ARCHIVE_PATH = path
+        EXPERIMENT_DATA_PATH = path
         ARCHIVE_FORMAT = 'zip'
         COORDINATE_SYSTEM='center'
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'dummy1': {'key': 'e', 'domain': ['running experiment']}, }
@@ -304,7 +295,7 @@ class RedundantCommandConfig3(VisionExperimentConfig):
         path = unit_test_runner.TEST_working_folder
         LOG_PATH = path
         EXPERIMENT_LOG_PATH = path
-        ARCHIVE_PATH = path
+        EXPERIMENT_DATA_PATH = path
         ARCHIVE_FORMAT = 'zip'
         COORDINATE_SYSTEM='center'
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, 'bullseye': {'key': 'x', 'domain': ['running experiment']},}
@@ -316,7 +307,7 @@ class NonRedundantCommandConfig(VisionExperimentConfig):
         path = unit_test_runner.TEST_working_folder
         LOG_PATH = path
         EXPERIMENT_LOG_PATH = path
-        ARCHIVE_PATH = path
+        EXPERIMENT_DATA_PATH = path
         ARCHIVE_FORMAT = 'zip'
         COORDINATE_SYSTEM='center'
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
@@ -359,7 +350,7 @@ class testApplicationConfiguration(unittest.TestCase):
         self.assertEqual((hasattr(t, 'EXPERIMENT_CONFIG'),
                           hasattr(t, 'LOG_PATH'),
                           hasattr(t, 'EXPERIMENT_LOG_PATH'),
-                          hasattr(t, 'ARCHIVE_PATH'),
+                          hasattr(t, 'EXPERIMENT_DATA_PATH'),
                           hasattr(t, 'CAPTURE_PATH'),
                           hasattr(t, 'FILTERWHEEL_FILTERS'), 
                           hasattr(t, 'FILTERWHEEL_SERIAL_PORT'), 

@@ -36,7 +36,7 @@ class SafestartConfig(VisionExperimentConfig):
         LOG_PATH = tmp_folder
         EXPERIMENT_LOG_PATH = tmp_folder
         BASE_PATH= tmp_folder
-        ARCHIVE_PATH = tmp_folder        
+        EXPERIMENT_DATA_PATH = tmp_folder        
         CAPTURE_PATH = tmp_folder
         
         ARCHIVE_FORMAT = 'zip'

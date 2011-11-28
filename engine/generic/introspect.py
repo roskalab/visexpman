@@ -5,6 +5,7 @@ import PyQt4.QtCore as QtCore
 from contextlib import contextmanager
 import inspect
 import re
+import six
 
 ## {{{ http://code.activestate.com/recipes/519621/ (r4)
 import weakref
@@ -191,3 +192,80 @@ def traverse(obj,  attrchain):
             return None
         obj = getattr(obj, a)
     return obj
+
+from collections import deque
+class ModifiableIterator(object):
+    '''Implements an normal iterator but the order of the elements in the list being iterated 
+    can be rearranged during run-time.'''
+    def __init__(self,alist):
+        from collections import deque
+        self.original = list(alist)
+        self.consuming = []
+        self.refill()
+    
+    def refill(self):
+        self.list = deque(self.original)
+        self.consumed = list(self.consuming) # keep contents in case user wants to look at it
+        self.consuming = []
+    
+    def __len__(self):
+        '''Gives back the number of items to be processed'''
+        return len(self.list)
+        
+    def next(self):
+        if len(self.list) == 0:
+            self.refill()
+            raise StopIteration
+        else:
+            if not hasattr(self.list,'popleft'): # user modified list, make it correct type
+                self.list = deque(self.list)
+            self.consuming.append(self.list.popleft())
+            return self.consuming[-1]
+    
+    #def __next__(self):
+       # self.next()
+        
+    def __getitem__(self,index):
+        if index > len(self.consumed)-1:
+            raise IndexError('Index value too hight, cannot return non-consumed items')
+        return self.consumed[index]
+        
+    def __iter__(self):
+        if len(self.consuming)>0:
+            raise UserWarning('Using the same instance of this class in different for loops can lead to unexpected behavior.')
+        return self
+    
+    def reorder(self,order_list):
+        if len(order_list) != len(self.list):
+            raise ValueError('Length of the list containing the ordering indices differs from the length of the iterator') 
+        self.list = deque(self.list[i] for i in order_list)
+        
+import unittest
+class TestUtils(unittest.TestCase):
+    def setUp(self):
+        pass
+        
+    def tearDown(self):
+        pass
+
+    def test_01_ModifiableIterator(self):
+        list = [1,2,3,4]
+        alist = ModifiableIterator(list)
+        result=[]
+        for item in alist:
+            if item==2:
+                alist.list = [1,3,4,5]
+            result.append(item)
+        self.assertEqual(result,[1,2,1,3,4,5])
+        
+    
+if __name__=='__main__':
+    unittest.main()
+   
+
+
+
+
+
+
+    

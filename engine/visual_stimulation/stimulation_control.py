@@ -32,6 +32,7 @@ import zipfile
 import os.path
 import shutil
 import tempfile
+import copy
 
 #For unittest:
 import visexpman.engine.generic.configuration as configuration
@@ -150,7 +151,7 @@ class Devices():
             self.number_of_filterwheels = 2
         for id in range(self.number_of_filterwheels):
             self.filterwheels.append(instrument.Filterwheel(config, caller, id =id))
-        self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)
+        self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
         self.stage = motor_control.AllegraStage(self.config, self.caller)
         self.mes_interface = mes_interface.MesInterface(self.config, self.caller.mes_command_queue, self.caller.mes_response_queue, self.caller.mes_listener, self.caller.screen_and_keyboard)
 
@@ -180,18 +181,17 @@ class DataHandler():
     def prepare_archive(self):
         #If the archive format is hdf5, zip file is saved to a temporary folder
         if self.config.ARCHIVE_FORMAT == 'zip':
-            zip_folder = self.config.ARCHIVE_PATH
+            zip_folder = self.config.EXPERIMENT_DATA_PATH
             self.zip_file_path = experiment_file_name(self.caller.selected_experiment_config, zip_folder, 'zip')
         elif self.config.ARCHIVE_FORMAT == 'hdf5':
             self.zip_file_path = tempfile.mktemp()
-            self.hdf5_path = experiment_file_name(self.caller.selected_experiment_config, self.config.ARCHIVE_PATH, 'hdf5')
+            self.hdf5_path = experiment_file_name(self.caller.selected_experiment_config, self.config.EXPERIMENT_DATA_PATH, 'hdf5')
             self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self.caller)
         else:
-            raise RuntimeError('Archive format is not defined. Check the configuration!')
+            raise RuntimeError('Unknown archive format, check configuration!')
         #Create zip file
         self.archive = zipfile.ZipFile(self.zip_file_path, "w")
         
-        #TODO: rename archive path to experiment result path
     def archive_software_environment(self):
         '''
         Archives the called python modules within visexpman package and the versions of all the called packages
@@ -230,6 +230,10 @@ class DataHandler():
             self.hdf5_handler.save('module_versions')
             self.hdf5_handler.experiment_log = utils.string_to_binary_array(self.experiment_log_to_string(self.caller.experiment_control.log.log_messages))#TODO: numpy array of strings
             self.hdf5_handler.save('experiment_log')
+            self.hdf5_handler.machine_config = copy.deepcopy(self.config.get_all_parameters()) #The deepcopy is necessary to avoid conflict between daqmx and hdf5io
+            self.hdf5_handler.save('machine_config')
+            self.hdf5_handler.experiment_config = self.caller.selected_experiment_config.get_all_parameters()
+            self.hdf5_handler.save('experiment_config')            
             self.hdf5_handler.close()
         #Restoring it to zip file: utils.numpy_array_to_file(archive_binary_in_bytes, '/media/Common/test.zip')
 
@@ -257,18 +261,18 @@ class TestConfig(configuration.Config):
         #filterwheel settings
         ENABLE_FILTERWHEEL = unit_test_runner.TEST_filterwheel_enable
         port = unit_test_runner.TEST_com_port
-        FILTERWHEEL_SERIAL_PORT = [[{
+        FILTERWHEEL_SERIAL_PORT = [{
                                     'port' :  port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,
-                                    }]]
+                                    }]
         
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = os.path.join(ARCHIVE_PATH, 'test')
-        if not os.path.exists(ARCHIVE_PATH):
-            os.mkdir(ARCHIVE_PATH)
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = os.path.join(EXPERIMENT_DATA_PATH, 'test')
+        if not os.path.exists(EXPERIMENT_DATA_PATH):
+            os.mkdir(EXPERIMENT_DATA_PATH)
         VISEXPMAN_MES = {'ENABLE' : False,'IP': '',  'PORT' : 10003,  'RECEIVE_BUFFER' : 256}
         ARCHIVE_FORMAT = 'zip'
 
@@ -286,7 +290,7 @@ class testDataHandler(unittest.TestCase):
         self.assertEqual((hasattr(self.dh, 'visexpman_module_paths'), hasattr(self.dh, 'module_versions')), (True, True))
 
     def tearDown(self):
-        shutil.rmtree(self.config.ARCHIVE_PATH)
+        shutil.rmtree(self.config.EXPERIMENT_DATA_PATH)
 
 class testExternalHardware(unittest.TestCase):
     '''

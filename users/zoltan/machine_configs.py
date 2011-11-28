@@ -20,7 +20,7 @@ class VS3DUS(VisionExperimentConfig):
         #=== paths/data handling ===
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         CAPTURE_PATH = os.path.join(unit_test_runner.TEST_working_folder,'Capture')
         
         ARCHIVE_FORMAT = 'hdf5'
@@ -118,7 +118,7 @@ class AEPHVS(VisionExperimentConfig):
         #=== paths/data handling ===
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         ARCHIVE_FORMAT = 'zip'
         
         #=== screen ===

@@ -776,7 +776,7 @@ class Stimulations(command_handler.CommandHandler):
                 #If running of stimulus lasts longer than duration, abort it, unless duration is less than 1 sec. In this case
                 #it is assumed that the number of displayable  frames are more important than the duration
                 if time.time() - start_time > duration and duration >=1.0:
-#                    stop_stimulus = True#TODO!!!!
+#                    stop_stimulus = True#TODO This functionality shall be completely removed
                     self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
@@ -865,124 +865,6 @@ class Stimulations(command_handler.CommandHandler):
                 
         glDisableClientState(GL_VERTEX_ARRAY)
         
-    #TODO:watch timing and abort if necessary similarly to show_grating
-        
-#    def show_shape_new(self):
-#        size = 40
-#        n_frames = 100
-#        spd = 0.003
-#        vertices = numpy.array([[0.5 * size,  0.5 * size], 
-#                                [0.5 * size,  -0.5 * size], 
-#                                [-0.5 * size,  -0.5 * size], 
-#                                [-0.5 * size,  0.5 * size], 
-#                                ])
-#
-#        vertices = vertices  * self.config.SCREEN_UM_TO_NORM_SCALE
-#        
-#        vert = numpy.zeros((n_frames,  4,  2))
-#        for i in range(n_frames):
-#            vert[i] = vertices + 0*numpy.array([-5 + i*6, 0])
-#        
-#        glEnableClientState(GL_VERTEX_ARRAY)
-#        glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT)
-#        
-#        glMatrixMode(GL_PROJECTION)
-#        glLoadIdentity()
-#        gluOrtho2D(-0.5 * self.config.SCREEN_RESOLUTION[0], 0.5 * self.config.SCREEN_RESOLUTION[0],  -0.5 * self.config.SCREEN_RESOLUTION[1], 0.5 * self.config.SCREEN_RESOLUTION[1])
-#        glMatrixMode(GL_MODELVIEW)
-#        glLoadIdentity()
-
-#        for i in range(n_frames):          
-#            
-#            glVertexPointerf(vertices)
-#            glColor3fv(numpy.array([1.0,  1.0,  1.0]))
-#            glTranslatef(-0.5+i*spd, 0.0, 0.0)
-#            glDrawArrays(GL_POLYGON,  0, 4)
-#            
-#            self._flip()
-#            if self.stimulation_control.abort_stimulus():                    
-#                break
-        
-#        glDisableClientState(GL_VERTEX_ARRAY)
-        
-        
-                    
-#    def show_image_list(self,  image_list,  duration = 0.0, pos = (0,  0),  display_size = (0,  0),  orientation = 0):
-#        '''
-#        TBD        
-#        '''
-#       
-#        for imi in image_list:
-#            self.image_list.setTex(imi)
-#            if duration == 0.0:
-#                self._flip(trigger = True)                                     
-#                self.image_list.draw()
-#            else:
-#                for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                 
-#                    if i == 0:
-#                        self._flip(trigger = True)
-#                    else:
-#                        self._flip(trigger = False)                
-##                     self.image_list.setPhase(phase_step,  '+')
-#                    self.image_list.draw()
-#                    if self.stimulation_control.abort_stimulus():
-#                        break
-
-#    def set_parallel(self,  bitmask):
-#        if self.config.ENABLE_PARALLEL_PORT:
-#            self.bitmask = bitmask
-#            self.parallel.setData(self.config.ACQUISITION_TRIGGER_ON | bitmask)
-                        
-#    def _display_test_message(self,  message,  duration = 1.5):
-#    	if self.config.TEXT_ENABLE:
-#            self.test_message.setText(message)
-#            for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
-#                self.test_message.draw()
-#                self._flip()
-#        
-#    def stimulation_library_test(self):   
-#        stimulus_library_test_data = visexpman.users.zoltan.test.stimulus_library_test_data.StimulusLibraryTestData(self.config)
-#        if stimulus_library_test_data.run_test['show_image() tests']:           
-#            test_datas =  stimulus_library_test_data.test_data_set[0]
-#            for test_data in test_datas:
-#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])
-#                self.show_image(test_data['path'],  duration = test_data['duration'],  position = test_data['position'],  formula = test_data['formula'],  size = test_data['size'])            
-#                self.clear_screen(duration = 0.5)
-#                
-#        if stimulus_library_test_data.run_test['show_movie() tests']:
-#            test_datas =  stimulus_library_test_data.test_data_set[1]
-#            for test_data in test_datas:
-#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])    
-#                self.show_movie(test_data['video_file_path'],  position = test_data['position'])
-#                self.clear_screen(duration = 0.5)
-#                
-#        if stimulus_library_test_data.run_test['show_shape() test']:
-#            test_datas =  stimulus_library_test_data.test_data_set[2]
-#            for test_data in test_datas:
-#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])    
-#                self.show_shape(test_data['shape'],  duration = test_data['duration'],  pos =  test_data['position'],  color =  test_data['color'],  orientation =  test_data['orientation'],  size =  test_data['size'],  formula =  test_data['formula'],  ring_size =  test_data['ring_size'])
-#                self.clear_screen(duration = 0.5)
-#        
-#        if stimulus_library_test_data.run_test['show_checkerboard() test']:
-#            test_datas =  stimulus_library_test_data.test_data_set[3]
-#            for test_data in test_datas:
-#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n' + 'Expected result: ' + test_data['expected result'])    
-#                self.show_checkerboard( test_data['n_checkers'],  duration =  test_data['duration'],  pos = test_data['position'],  color = test_data['color'],  box_size = test_data['box_size'])
-#                self.clear_screen(duration = 0.5)
-#                
-#        if stimulus_library_test_data.run_test['show_ring() test']:
-#            test_datas =  stimulus_library_test_data.test_data_set[4]
-#            for test_data in test_datas:
-#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n\r\n' + 'Expected result: ' + test_data['expected result'])    
-#                self.show_ring( test_data['n_rings'],  test_data['diameter'],  inner_diameter = test_data['inner_diameter'],  duration =  test_data['duration'],  n_slices = test_data['n_slices'],  colors = test_data['color'], pos = test_data['pos'])
-#                self.clear_screen(duration = 0.5)
-#        
-#        if stimulus_library_test_data.run_test['show_grating() test']:
-#            test_datas =  stimulus_library_test_data.test_data_set[5]
-#            for test_data in test_datas:
-#                self._display_test_message('Test name: ' + test_data['test name'] + '\r\n\r\n' + 'Expected result: ' + test_data['expected result'])    
-#                self.show_grating(duration =  test_data['duration'],   profile =  test_data['profile'],  spatial_frequency = test_data['spatial_frequency'],  display_area = test_data['display_area'], orientation = test_data['orientation'],  starting_phase = test_data['starting_phase'],  velocity = test_data['velocity'],  color_contrast = test_data['color_contrast'],  color_offset = test_data['color_offset'],  pos = test_data['pos'],  duty_cycle = test_data['duty_cycle'],  noise_intensity = test_data['noise_intensity'])
-#                self.clear_screen(duration = 0.5)
 
 if __name__ == "__main__":
     pass

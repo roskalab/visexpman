@@ -18,7 +18,7 @@ class VerySimpleExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -45,7 +45,7 @@ class Hdf5TestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -62,7 +62,7 @@ class AbortableExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -89,7 +89,7 @@ class UserCommandExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -122,7 +122,7 @@ class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder       
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder       
         
         #screen
         FULLSCREEN = False
@@ -133,15 +133,15 @@ class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
         ENABLE_FILTERWHEEL = unit_test_runner.TEST_filterwheel_enable
-        FILTERWHEEL_SERIAL_PORT = [[{
+        FILTERWHEEL_SERIAL_PORT = [{
                                     'port' :  unit_test_runner.TEST_com_port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,
-                                    }]]
+                                    }]
 
-        DAQ_CONFIG = [[
+        DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 1.0,
@@ -153,7 +153,7 @@ class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
                     'DURATION_OF_AI_READ' : 1.0,
                     'ENABLE' : True
                     }
-                    ]]
+                    ]
 
         COORDINATE_SYSTEM='center'
         ARCHIVE_FORMAT = 'zip'
@@ -189,7 +189,7 @@ class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -201,7 +201,7 @@ class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
         FRAME_TRIGGER_PIN = 2
         ENABLE_FILTERWHEEL = False
         
-        DAQ_CONFIG = [[
+        DAQ_CONFIG = [
                     {
 #                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
 #                     'DAQ_TIMEOUT' : 1.0,
@@ -213,7 +213,7 @@ class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
 #                     'DURATION_OF_AI_READ' : 1.0,
                     'ENABLE' : False
                     }
-                    ]]
+                    ]
 
         COORDINATE_SYSTEM='center'
         ARCHIVE_FORMAT = 'zip'
@@ -226,7 +226,7 @@ class PreExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder     
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder     
         
         #screen
         FULLSCREEN = False
@@ -258,7 +258,7 @@ class FrameRateTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -286,7 +286,7 @@ class VisualStimulationsTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         CAPTURE_PATH = utils.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
         os.mkdir(CAPTURE_PATH)
         
@@ -306,7 +306,7 @@ class VisualStimulationsUlCornerTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder       
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder       
         CAPTURE_PATH = utils.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
         os.mkdir(CAPTURE_PATH)
         
@@ -396,7 +396,7 @@ class StageExperimentTestConfig(VisionExperimentConfig):
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -410,13 +410,13 @@ class StageExperimentTestConfig(VisionExperimentConfig):
                                     'bytesize' : serial.EIGHTBITS,                                    
                                     }
                                     
-        STAGE = [[{'serial_port' : motor_serial_port,
+        STAGE = [{'serial_port' : motor_serial_port,
                  'enable': True,
                  'speed': 1000000,
                  'acceleration' : 1000000,
                  'move_timeout' : 45.0,
                  'um_per_ustep' : numpy.ones(3, dtype = numpy.float)
-                 }]]
+                 }]
 
         COORDINATE_SYSTEM='center'
         ARCHIVE_FORMAT = 'zip'
@@ -434,4 +434,4 @@ class StageExperiment(experiment.Experiment):
         self.result1 = self.stage.move(movement_vector)
         self.result2 = self.stage.move(-movement_vector)
         
-#TODO: test for usage of experiment config
+#TODO: test for referencing experiment config in stimulus

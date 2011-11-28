@@ -20,7 +20,7 @@ class LDC(VisionExperimentConfig):
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
         BASE_PATH= unit_test_runner.TEST_working_folder
-        ARCHIVE_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         CAPTURE_PATH = os.path.join(unit_test_runner.TEST_working_folder,'Capture')
         if not os.path.exists(CAPTURE_PATH):
             os.mkdir(CAPTURE_PATH)
@@ -31,25 +31,25 @@ class LDC(VisionExperimentConfig):
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2
         ENABLE_FILTERWHEEL = False
-        FILTERWHEEL_SERIAL_PORT = [[{
+        FILTERWHEEL_SERIAL_PORT = [{
                                     'port' :  unit_test_runner.TEST_com_port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,
-                                    }]]
+                                    }]
                                     
-        FILTERWHEEL_FILTERS = [[{
+        FILTERWHEEL_FILTERS = [{
                                                 'ND0': 1, 
                                                 'ND10': 2, 
                                                 'ND20': 3, 
                                                 'ND30': 4, 
                                                 'ND40': 5, 
                                                 'ND50': 6, 
-                                                }]]
+                                                }]
         
         #screen
-        FULLSCREEN = not False        
+        FULLSCREEN = False        
         SCREEN_RESOLUTION = utils.cr([800, 600])        
 #        SCREEN_RESOLUTION = utils.cr([1680, 1050])        
 #        SCREEN_RESOLUTION = utils.cr([1024, 768])        

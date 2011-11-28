@@ -13,10 +13,10 @@ class VirtualRealityTestConfig(VisionExperimentConfig):
         LOG_PATH = '/media/Common/visexpman_data'
         EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
         BASE_PATH= '/media/Common/visexpman_data'
-        ARCHIVE_PATH = '/media/Common/visexpman_data'
+        EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
         CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
         ENABLE_PARALLEL_PORT = True
-        UDP_ENABLE = False
+        ENABLE_UDP = False
         FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([1680, 1050])
         ENABLE_FRAME_CAPTURE = False

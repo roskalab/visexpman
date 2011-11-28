@@ -9,6 +9,7 @@ import visexpman.engine.generic.utils as utils
 import visexpman.engine.generic.graphics as graphics
 from OpenGL.GL import *#?
 from OpenGL.GLUT import *
+import copy
 
 def experiment_choices(experiment_list):
     '''
@@ -79,7 +80,7 @@ class VisexpmanScreen(graphics.Screen):
         Render menu and message texts to screen
         '''
         
-        #TODO: when TEXT_ENABLE = False, screen has to be cleared to background color, self.clear_screen_to_background()
+        #TODO: when ENABLE_TEXT = False, screen has to be cleared to background color, self.clear_screen_to_background()
         if self.config.ENABLE_TEXT:# and not self.hide_menu:#TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command
             self._show_menu()
             self._show_message(self.message, flip = flip)
@@ -96,7 +97,7 @@ class ScreenAndKeyboardHandler(VisexpmanScreen):
         self.keyboard_command_queue = keyboard_command_queue
         self.experiment_config_shortcuts = ['{0}'.format(i) for i in range(len(caller.experiment_config_list))]#stimulus_file_shortcut
         self.command_domain = 'keyboard'
-        self.keyboard_commands = self.config.COMMANDS
+        self.keyboard_commands = copy.deepcopy(self.config.COMMANDS)
         self.separator = '@'
         for shortcut in self.experiment_config_shortcuts:
             self.keyboard_commands['select_experiment' + self.separator + shortcut] = {'key': shortcut, 'domain' : [self.command_domain]}
@@ -141,7 +142,6 @@ class ScreenAndKeyboardHandler(VisexpmanScreen):
         Keyboard commands accepted during running experiment are handled here
         '''
         return self.keyboard_handler('running experiment')
-        #TODO: create example for using user keyboard commands during experiment but outside visual stimulation
 
     def user_interface_handler(self):
         '''

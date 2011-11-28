@@ -23,7 +23,7 @@ class PPRLConfig(VisionExperimentConfig):
 #        SINGLE_EXPERIMENT = 'GratingMaskTest'
 #        SINGLE_EXPERIMENT = 'DrumStimTest'
         LOG_PATH = '/var/log/'
-        ARCHIVE_PATH = '../../../presentinator/data'
+        EXPERIMENT_DATA_PATH = '../../../presentinator/data'
         CAPTURE_PATH = '../../../presentinator/data/capture'
         ENABLE_PARALLEL_PORT = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
@@ -62,10 +62,10 @@ class K247AWindowsConfig(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
         LOG_PATH = 'c:\\temp\\'
         BASE_PATH='c:\\Data\\stimuli\\'
-        ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
+        EXPERIMENT_DATA_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
         CAPTURE_PATH = os.path.join(BASE_PATH,'capture')#'../../../presentinator/data/capture'
         ENABLE_PARALLEL_PORT = False
-        UDP_ENABLE = False
+        ENABLE_UDP = False
 #        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.rc([768,   1024])
@@ -101,7 +101,7 @@ class RC3DWindowsConfig(VisionExperimentConfig):
         SCREEN_RESOLUTION = [1600,  1200]
         ACQUISITION_TRIGGER_PIN = 0
         FRAME_TRIGGER_PIN = 2        
-        ARCHIVE_PATH = self.BASE_PATH
+        EXPERIMENT_DATA_PATH = self.BASE_PATH
         LOG_PATH = self.BASE_PATH
         #test steps:
         # 1. frame rate 60
@@ -121,10 +121,10 @@ class MBP(VisionExperimentConfig):
         ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')
         EXPERIMENT_RESULT_PATH = ARCHIVE_PATH
         CAPTURE_PATH = os.path.join(BASE_PATH,'capture')
-        ENABLE_PARALLEL_PORT = False
-        UDP_ENABLE = False
-#        STIMULATION_FOLDER_PATH = 'stimulus_examples'        
         FULLSCREEN = False
+        EXPERIMENT_DATA_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
+        ENABLE_PARALLEL_PORT = False
+        ENABLE_UDP = False
         SCREEN_RESOLUTION = utils.rc([768,   1024])
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
@@ -149,43 +149,6 @@ class MBP(VisionExperimentConfig):
         FRAME_TRIGGER_PIN = 0
         VisionExperimentConfig._create_parameters_from_locals(self, locals())
         #VisionExperimentConfig._set_parameters_from_locals(self, locals())
-
-# class ZoliTester(VisionExperimentConfig):
-# 
-#     def _set_user_parameters(self):     
-#         MES = {'ENABLE' : True, 'ip': '',  'port' : 10001,  'receive buffer' : 256}   
-#         RUN_MODE = 'single experiment'
-#         EXPERIMENT_CONFIG = 'MovingDotTestConfig'
-#         path = '/Users/rz/visexpman/data'
-#         path = 'c:\\temp\\test'
-# #         path = '/media/Common/visexpman_data/test'
-#         LOG_PATH = path        
-#         EXPERIMENT_LOG_PATH = path
-#         ARCHIVE_PATH = path
-#         CAPTURE_PATH = path
-#         ENABLE_PARALLEL_PORT = False
-#         UDP_ENABLE = False        
-#         FULLSCREEN = False
-#         SCREEN_RESOLUTION = utils.rc([768, 1024])
-#         ENABLE_FRAME_CAPTURE = False
-#         SCREEN_EXPECTED_FRAME_RATE = 60.0
-#         SCREEN_MAX_FRAME_RATE = 60.0
-#         IMAGE_PROJECTED_ON_RETINA = False
-#         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
-#         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
-#         FRAME_WAIT_FACTOR = 0 
-#         GAMMA = 1.0
-#         ENABLE_FILTERWHEEL = False
-#         ENABLE_TEXT = False
-#         
-#         MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
-# 
-#         SCREEN_UM_TO_PIXEL_SCALE = 1.0
-#         COORDINATE_SYSTEM='ulcorner'
-#         ARCHIVE_FORMAT = 'hdf5'
-#         ACQUISITION_TRIGGER_PIN = 2
-#         FRAME_TRIGGER_PIN = 0
-#         self._create_parameters_from_locals(locals())
         
 class VS3DUS(VisionExperimentConfig):
     '''
@@ -195,12 +158,16 @@ class VS3DUS(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MovingDotConfig'
         
         #=== paths/data handling ===
-        m_drive_data_folder = 'M:\\Zoltan\\visexpman\\data'
-        g_drive_data_folder = 'G:\\User\\Zoltan\\visexpdata'
+        if os.name == 'nt':
+            m_drive_data_folder = 'M:\\Zoltan\\visexpman\\data'
+            g_drive_data_folder = 'G:\\User\\Zoltan\\visexpdata'
+        else:
+            m_drive_data_folder = '/media/Common/visexpman_data/test'
+            g_drive_data_folder = '/media/Common/visexpman_data/test'
         LOG_PATH = m_drive_data_folder
         EXPERIMENT_LOG_PATH = m_drive_data_folder
         EXPERIMENT_RESULT_PATH = m_drive_data_folder
-        ARCHIVE_PATH = EXPERIMENT_RESULT_PATH
+        EXPERIMENT_DATA_PATH = EXPERIMENT_RESULT_PATH
         ARCHIVE_FORMAT = 'hdf5'
         
         #=== screen ===
@@ -217,11 +184,11 @@ class VS3DUS(VisionExperimentConfig):
         IMAGE_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
-        MAXIMUM_RECORDING_DURATION = [13, [0, 10000]]
+        MAXIMUM_RECORDING_DURATION = [120, [0, 10000]]
         
         #=== Network ===
         ENABLE_UDP = False     
-        self.VISEXPMAN_GUI['ENABLE'] = True        
+        self.VISEXPMAN_GUI['ENABLE'] = True
         self.VISEXPMAN_MES['ENABLE'] = True
         
         #=== hardware ===
@@ -239,48 +206,48 @@ class VS3DUS(VisionExperimentConfig):
                                     'bytesize' : serial.EIGHTBITS,                                    
                                     }
                                     
-        STAGE = [[{'serial_port' : motor_serial_port,
+        STAGE = [{'serial_port' : motor_serial_port,
                  'enable': not True,
                  'speed': 1000000,
                  'acceleration' : 1000000,
                  'move_timeout' : 45.0,
                  'um_per_ustep' : numpy.ones(3, dtype = numpy.float)
-                 }]]
+                 }]
                  
         #=== Filterwheel ===
         
         ENABLE_FILTERWHEEL = False
         
-        FILTERWHEEL_SERIAL_PORT = [[{
+        FILTERWHEEL_SERIAL_PORT = [{
                                     'port' :  unit_test_runner.TEST_com_port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
-                                    }]]        
+                                    }]
                                     
-        FILTERWHEEL_FILTERS = [[{
+        FILTERWHEEL_FILTERS = [{
                                                 'ND0': 1, 
                                                 'ND10': 2, 
                                                 'ND20': 3, 
                                                 'ND30': 4, 
                                                 'ND40': 5, 
                                                 'ND50': 6, 
-                                                }]]
+                                                }]
                                                 
         #=== LED controller ===
-        DAQ_CONFIG = [[
+        DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
-                    'SAMPLE_RATE' : 1000,                    
+                    'SAMPLE_RATE' : 1000,
                     'AI_CHANNEL' : 'Dev1/ai0:1',
                     'MAX_VOLTAGE' : 5.0,
                     'MIN_VOLTAGE' : -5.0,
                     'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
                     'ENABLE' : not False
                     }
-                    ]]
+                    ]
         
         #=== Others ===
         
@@ -310,7 +277,7 @@ class GratingExperiment(experiment.Experiment):
         #Save 
         if not hasattr(ai, 'ai_data'):
             ai.ai_data = numpy.zeros(2)
-        path = utils.generate_filename(os.path.join(self.machine_config.ARCHIVE_PATH, 'ai_data.txt'))
+        path = utils.generate_filename(os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, 'ai_data.txt'))
         numpy.savetxt(path, ai.ai_data)            
         data_to_hdf5 = {'sync_data' : ai.ai_data}
 #         setattr(self.hdf5, mes_fragment_name, data_to_hdf5)

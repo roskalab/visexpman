@@ -59,7 +59,16 @@ class Config(object):
         self._create_parameter_aliases()
 
     def _create_generic_parameters(self):
-        self.PACKAGE_PATH_p = parameter.Parameter(os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0], is_path=True)
+        self.PACKAGE_PATH_p = parameter.Parameter(os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0], is_path=True)                
+        OS = 'unknown'
+        if os.name == 'nt':
+            OS = 'win'
+        elif os.name == 'posix':
+            OS = 'linux'
+        elif hasattr(os,  'uname'):            
+            if os.uname()[0] != 'Linux':
+                OS = 'osx'                
+        self.OS_p = parameter.Parameter(OS)
         self._create_parameter_aliases()
         return
 
@@ -73,8 +82,8 @@ class Config(object):
                 if isinstance(v,  list):
                     if len(v)==2 and ((isinstance(v[1], (list, tuple)) and v[1][0] !='not_range') or v[1]==None):
                         setattr(self,  k + '_p',  parameter.Parameter(v[0],  range_ = v[1]))
-                    elif len(v) == 1: #when no range is provied (list of strings or dictionaries) # why we do this???
-                        setattr(self,  k + '_p',  parameter.Parameter(v[0]))
+                    elif len(v) == 1: #when no range is provided (list of strings or dictionaries) # why we do this???
+                        setattr(self,  k + '_p',  parameter.Parameter(v))
                     elif len(v)==2 and isinstance(v[1], (list, tuple)) and v[1][0] =='not_range':
                         # in theory such data would not be used as data
                         # for the rare case when parameter is a two element list, seond element is a 4 element list with first element 'not_range', meaning that second element is also data and should be treated as data
@@ -148,6 +157,22 @@ class Config(object):
         parameter_names = [class_variable for class_variable in class_variables if class_variable.isupper()] 
         for parameter_name in parameter_names:
             print parameter_name + ' = ' + str(getattr(self,  parameter_name))
+            
+    def get_all_parameters(self):
+    #TODO: test case for this function
+        class_variables = dir(self)
+        parameter_names = [class_variable for class_variable in class_variables if class_variable.isupper()] 
+        all_parameters = {}
+        for parameter_name in parameter_names:
+            all_parameters[parameter_name] = getattr(self,  parameter_name)
+            #If a list contains dicitonary items, convert them to a dict of dict. hdf5io module cannot handle this type of data
+            if isinstance(getattr(self,  parameter_name), list):
+                if isinstance(getattr(self,  parameter_name)[0], dict):
+                    d = {}
+                    for i in range(len(getattr(self,  parameter_name))):
+                        d['index_'+str(i)] = getattr(self,  parameter_name)[i]
+                    all_parameters[parameter_name] = d
+        return all_parameters
         
 class ApplicationTestClass(Config):
     def _create_application_parameters(self):
@@ -172,7 +197,7 @@ class WrongUserTestClass(UserTestClass):
         PAR1 = -2
         PAR5 = 200
         self._set_parameters_from_locals(locals())
-    
+#TODO: test cases for complex parameters: list of dict, dict of dict....
 class testConfiguration(unittest.TestCase):    
     def test_01_package_path_parameter(self):
         '''

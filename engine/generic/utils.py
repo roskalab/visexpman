@@ -9,10 +9,9 @@ import unittest
 import pkgutil
 import inspect
 import time
+import unittest
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import tempfile
-import cPickle as pickle
-
 
 #== Computer graphics colors ==
 def convert_color(color):
@@ -528,6 +527,7 @@ version_paths = {
     'weakref' : 'standard', 
     'sip': 'SIP_VERSION_STR', 
     'Helpers' : 'version', 
+    'copy' : 'standard'
     
     }    
     
@@ -729,6 +729,19 @@ def listdir_fullpath(folder):
         full_paths.append(os.path.join(folder,  file))
     return full_paths
     
+def find_latest(path):
+    number_of_digits = 5
+    latest_date = 0
+    latest_file = ''
+    for file in listdir_fullpath(os.path.split(path)[0]):
+        if file.find(os.path.split(path)[-1].split('.')[0][:-number_of_digits]) != -1:
+            file_date = os.path.getmtime(file)
+            if latest_date < file_date:
+                latest_date = file_date
+                latest_file = file
+    return latest_file
+    
+    
 def generate_filename(path):
     '''
     Inserts index into filename resulting unique name.
@@ -877,11 +890,6 @@ def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0
 
 
 #== Others ==
-def object_to_binary_array(object):
-    file_path = tempfile.mktemp()
-    pickle.dump(object, open(file_path, 'wb'))
-    return file_to_binary_array(file_path)
-
 def file_to_binary_array(path):
     if os.path.exists(path):
         f = open(path, 'rb')

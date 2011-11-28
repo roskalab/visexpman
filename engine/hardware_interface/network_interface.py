@@ -19,6 +19,7 @@ class CommandServer(QtCore.QThread):#TODO unit test
         self.port = port
         self.buffer_size = buffer_size
         self.enable_keep_alive_check = True
+        self.connection_state = False
         
     def run(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -31,6 +32,7 @@ class CommandServer(QtCore.QThread):#TODO unit test
             self.connection.settimeout(1.0)
             print 'connection accepted'
             self.response_queue.put('connection accepted')
+            self.connection_state = True
 #            response = self.connection.recv(self.config.MES['receive buffer'])
 #            self.response_queue.put(response)
 #            print response              
@@ -48,6 +50,7 @@ class CommandServer(QtCore.QThread):#TODO unit test
                         try:
                             if self.send_command('SOCechoEOCaliveEOP').find('echo') == -1:
                                 print 'client does not respond'
+                                self.connection_state = False
 #                                 break
                         except:
                             print sys.exc_info()[0]
@@ -66,6 +69,7 @@ class CommandServer(QtCore.QThread):#TODO unit test
                             pass
                         except socket.error:
                             print 'end of connection'
+                            self.connection_state = False
                             break
                         self.connection.settimeout(timeout_saved)
                 else:
@@ -79,11 +83,14 @@ class CommandServer(QtCore.QThread):#TODO unit test
                     self.response_queue.put(response)
                     if command == 'SOCclose_connectionEOC':
                         end_loop = True
+                        self.connection_state = False
                 if end_loop:
                     break
                 time.sleep(0.1)
 #            time.sleep(0.5)
+            self.connection_state = False
             self.connection.close()
+            
             
 #             if end_loop:
 #                 break
