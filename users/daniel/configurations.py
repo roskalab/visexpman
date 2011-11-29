@@ -118,11 +118,13 @@ class MBP(VisionExperimentConfig):
         LOG_PATH = '/Users/hd/Documents/DataBase'
         EXPERIMENT_LOG_PATH = LOG_PATH
         BASE_PATH='/Users/hd/Documents/DataBase'
+        ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')
+        EXPERIMENT_RESULT_PATH = ARCHIVE_PATH
+        CAPTURE_PATH = os.path.join(BASE_PATH,'capture')
+        FULLSCREEN = False
         EXPERIMENT_DATA_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
-        CAPTURE_PATH = os.path.join(BASE_PATH,'capture')#'../../../presentinator/data/capture'
         ENABLE_PARALLEL_PORT = False
         ENABLE_UDP = False
-        FULLSCREEN = True 
         SCREEN_RESOLUTION = utils.rc([768,   1024])
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0

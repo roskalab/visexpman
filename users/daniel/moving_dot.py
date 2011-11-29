@@ -20,7 +20,7 @@ import time
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 import pickle
 import copy
-import visexpA.engine.datahandlers.matlab_mat as matlab_mat
+import visexpA.engine.datahandlers.matlabfile as matlab_mat
 
 class MovingDotConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
@@ -99,14 +99,18 @@ class MovingDot(experiment.Experiment):
             if not hasattr(ai, 'ai_data'):
                 ai.ai_data = numpy.zeros(2)
 
-            data_to_hdf5 = {'shown_directions' :  self.shown_directions[di],
+            data_to_hdf5 = {
                             'sync_data' : ai.ai_data,
                             'mes_data': utils.file_to_binary_array(fragment_mat_path),
                             'number_of_fragments' : number_of_fragments,
                             'actual_fragment' : di,
                             }
+            helper_data ={}
             if hasattr(self, 'show_line_order'):
-            	data_to_hdf5['shown_line_order'] = self.shown_line_order[di]
+            	helper_data['shown_line_order'] = self.shown_line_order[di]
+            if hasattr(self,'shown_directions'):
+                helper_data['shown_directions']= self.shown_directions[di]
+            data_to_hdf5['generated_data'] = helper_data
             #Saving source code of experiment
             for path in self.caller.visexpman_module_paths:
                 if 'moving_dot.py' in path:
@@ -356,7 +360,7 @@ class MovingDot(experiment.Experiment):
                     for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[cai][b][n][:,f])
                     self.row_col[-1].extend(coords)
-                self.shown_directions[-1].append(allangles[a1]) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
+                self.shown_directions[-1].append((allangles[a1], sum(len(s1) for s1 in self.row_col[-1]))) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
                 self.line_end[-1].append(arow_col[cai][b][0].shape[1])
             self.row_col[-1]=utils.rc(numpy.array(self.row_col[-1]))
         pass
@@ -480,10 +484,10 @@ class MovingDotTestConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):  
     	self.MAX_FRAGMENT_TIME = 120.0
         self.DIAMETER_UM = [200]
-        self.ANGLES = [0] # degrees
+        self.ANGLES = [0, 90, 180, 270] # degrees
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
-        self.REPEATS = 1
+        self.REPEATS = 2
         self.PDURATION = 0
         self.GRIDSTEP = 1.0/1 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
