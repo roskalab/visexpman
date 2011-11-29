@@ -12,6 +12,7 @@ import time
 import unittest
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import tempfile
+import copy
 
 #== Computer graphics colors ==
 def convert_color(color):
@@ -644,7 +645,7 @@ def um2degrees(umonretina):
     
 #== File(name) operations ==
 
-def find_files_and_folders(start_path,  extension = None):
+def find_files_and_folders(start_path,  extension = None, filter = None):
         '''
         Finds all folders and files. With extension the files can be filtered
         '''
@@ -658,7 +659,10 @@ def find_files_and_folders(start_path,  extension = None):
                 if extension != None:
                     if file.split('.')[1] == extension:
                         all_files.append(root + os.sep + file)
-                else:
+                elif filter != None:
+                    if filter in file:
+                        all_files.append(root + os.sep + file)
+                else:                        
                     all_files.append(root + os.sep + file)    
         return directories, all_files
 
@@ -887,7 +891,24 @@ def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0
             value = 0
         wave.append(value)    
     return wave            
-
+    
+#== Saving data to hdf5 ==
+def save_config(hdf5, machine_config, experiment_config = None):
+    hdf5.machine_config = copy.deepcopy(machine_config.get_all_parameters()) #The deepcopy is necessary to avoid conflict between daqmx and hdf5io
+    hdf5.save('machine_config')
+    hdf5.experiment_config = experiment_config.get_all_parameters()
+    hdf5.save('experiment_config')
+    
+def save_position(hdf5, stagexyz, objective_z = None):
+    '''
+    z is the objective's position, since this is more frequently used than z_stage.
+    '''
+    if isinstance(objective_z, numpy.ndarray):
+        objective_z_to_save = objective_z[0]
+    else:
+        objective_z_to_save = objective_z
+    hdf5.position = numpy.array([(0, stagexyz[0], stagexyz[1], stagexyz[2], objective_z_to_save)], [('um',numpy.float64), ('x',numpy.float64),('y',numpy.float64),('z',numpy.float64), ('z_stage',numpy.float64)])
+    hdf5.save('position')
 
 #== Others ==
 def file_to_binary_array(path):

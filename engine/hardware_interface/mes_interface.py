@@ -9,7 +9,44 @@ import sys
 import scipy.io
 import visexpA.engine.datahandlers.matlabfile as matlabfile
 import numpy
+import Image
 
+def get_objective_position(mat_file):    
+    m = matlabfile.MatData(mat_file)
+    data = m.get_field('DATA')
+    n_frames = data[0].shape[0]
+    if n_frames <= 2: #For some reason sometimes two data units reside in the mat file
+        data = m.get_field('DATA.Zlevel.0')[0].flatten()
+    else:
+        data = []
+        data_set = m.get_field('DATA.Zlevel') 
+        for i in range(n_frames):
+            data.append(data_set[0][i][0][0][0])
+        data = numpy.array(data)
+    return data
+
+def image_from_mes_mat(mat_file, image_file = None, z_stack = False):
+    if z_stack:
+        data = matlabfile.MatData(mat_file).get_field('DATA')
+        n_frames = data[0].shape[0]
+        frames = []
+        for i in range(n_frames):
+            frame = data[0][i]['IMAGE'][0]
+            frames.append(frame)
+        image = numpy.array(frames)
+    else:
+        image = matlabfile.MatData(mat_file).get_field('DATA.0.IMAGE')[0]
+
+    image_f32 = numpy.cast['float32'](image)
+    image = image_f32 / 2.0**7
+    image = numpy.cast['uint8'](image)
+    
+    if not z_stack:
+        im = Image.fromarray(image)
+        if image_file != None:
+            im.save(image_file)
+    return image_f32
+    
 class MesInterface(object):
     '''
     Protocol:
@@ -206,4 +243,8 @@ class TestMesInterface(unittest.TestCase):
         
     
 if __name__ == "__main__":
-    unittest.main()
+#    unittest.main()
+    mat_file = '/media/sf_M_DRIVE/Zoltan/visexpman/data/0_X-820381_Y-252527_Z+57516/acquire_z_stack_parameters_MovingDot_1321687013_0.mat'
+    print get_objective_position(mat_file)    
+    mat_file = '/media/sf_M_DRIVE/Zoltan/visexpman/data/test.mat'    
+    print get_objective_position(mat_file)

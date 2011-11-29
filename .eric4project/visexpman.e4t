@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Tasks SYSTEM "Tasks-4.2.dtd">
 <!-- eric4 tasks file for project visexpman -->
-<!-- Saved: 2011-11-18, 13:34:04 -->
+<!-- Saved: 2011-11-25, 11:39:54 -->
 <Tasks version="4.2">
   <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: save self.simulation_config</Summary>
@@ -103,60 +103,6 @@
     </Resource>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: Rename this module</Summary>
-    <Description></Description>
-    <Created>2011-11-13, 16:24:56</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/user_interface.py</Filename>
-      <Linenumber>1</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: bullseye size</Summary>
-    <Description></Description>
-    <Created>2011-11-13, 16:24:56</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/user_interface.py</Filename>
-      <Linenumber>49</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: consider coordinate system type</Summary>
-    <Description></Description>
-    <Created>2011-11-13, 16:24:56</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/user_interface.py</Filename>
-      <Linenumber>50</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: when TEXT_ENABLE = False, screen has to be cleared to background color, self.clear_screen_to_background()</Summary>
-    <Description></Description>
-    <Created>2011-11-13, 16:24:56</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/user_interface.py</Filename>
-      <Linenumber>85</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command</Summary>
-    <Description></Description>
-    <Created>2011-11-13, 16:24:56</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/user_interface.py</Filename>
-      <Linenumber>86</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: create example for using user keyboard commands during experiment but outside visual stimulation</Summary>
-    <Description></Description>
-    <Created>2011-11-13, 16:24:56</Created>
-    <Resource>
-      <Filename>engine/visual_stimulation/user_interface.py</Filename>
-      <Linenumber>163</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: test for usage of experiment config</Summary>
     <Description></Description>
     <Created>2011-11-14, 09:53:43</Created>
@@ -247,9 +193,54 @@
     </Resource>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: Rename this module</Summary>
+    <Description></Description>
+    <Created>2011-11-23, 12:53:48</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/user_interface.py</Filename>
+      <Linenumber>1</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: bullseye size</Summary>
+    <Description></Description>
+    <Created>2011-11-23, 12:53:48</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/user_interface.py</Filename>
+      <Linenumber>46</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: consider coordinate system type</Summary>
+    <Description></Description>
+    <Created>2011-11-23, 12:53:48</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/user_interface.py</Filename>
+      <Linenumber>47</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: when ENABLE_TEXT = False, screen has to be cleared to background color, self.clear_screen_to_background()</Summary>
+    <Description></Description>
+    <Created>2011-11-23, 12:53:48</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/user_interface.py</Filename>
+      <Linenumber>83</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command</Summary>
+    <Description></Description>
+    <Created>2011-11-23, 12:53:48</Created>
+    <Resource>
+      <Filename>engine/visual_stimulation/user_interface.py</Filename>
+      <Linenumber>84</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: delete users.zoltan.presentinator*.*files</Summary>
     <Description></Description>
-    <Created>2011-11-14, 13:35:34</Created>
+    <Created>2011-11-24, 17:10:21</Created>
     <Resource>
       <Filename>users/zoltan/test/unit_test_runner.py</Filename>
       <Linenumber>23</Linenumber>
@@ -258,82 +249,73 @@
   <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: individual command line switches for testing hardware related modules: -daq, -stage, -filterwheel, -parallel, ....</Summary>
     <Description></Description>
-    <Created>2011-11-14, 13:35:34</Created>
+    <Created>2011-11-24, 17:10:21</Created>
     <Resource>
       <Filename>users/zoltan/test/unit_test_runner.py</Filename>
       <Linenumber>24</Linenumber>
     </Resource>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: from users.user folder remove all presentinator*.py files</Summary>
+    <Summary>TODO: include visexpa,</Summary>
     <Description></Description>
-    <Created>2011-11-18, 13:33:09</Created>
+    <Created>2011-11-24, 17:10:21</Created>
+    <Resource>
+      <Filename>users/zoltan/test/unit_test_runner.py</Filename>
+      <Linenumber>198</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: ENABLE_UDP ahsll be replaced with udp config dictionary (similar to mes interface)</Summary>
+    <Description></Description>
+    <Created>2011-11-25, 09:46:47</Created>
     <Resource>
       <Filename>engine/visexp_runner.py</Filename>
-      <Linenumber>28</Linenumber>
+      <Linenumber>1</Linenumber>
+    </Resource>
+  </Task>
+  <Task priority="1" completed="False" bugfix="False">
+    <Summary>TODO: from users.user folder remove all presentinator*.py files</Summary>
+    <Description></Description>
+    <Created>2011-11-25, 09:46:47</Created>
+    <Resource>
+      <Filename>engine/visexp_runner.py</Filename>
+      <Linenumber>30</Linenumber>
     </Resource>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig</Summary>
     <Description></Description>
-    <Created>2011-11-18, 13:33:09</Created>
+    <Created>2011-11-25, 09:46:47</Created>
     <Resource>
       <Filename>engine/visexp_runner.py</Filename>
-      <Linenumber>44</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: This network listener is used for internal communication between command handler and user interface. This can be solved with queues, so both Qthread</Summary>
-    <Description></Description>
-    <Created>2011-11-18, 13:33:09</Created>
-    <Resource>
-      <Filename>engine/visexp_runner.py</Filename>
-      <Linenumber>68</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: check for redundancies in list, for some reason visexp_runner is saved twice</Summary>
-    <Description></Description>
-    <Created>2011-11-18, 13:33:09</Created>
-    <Resource>
-      <Filename>engine/visexp_runner.py</Filename>
-      <Linenumber>91</Linenumber>
+      <Linenumber>46</Linenumber>
     </Resource>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: test case for showshape(dur = 1.0), showfullscreen(dur = 1.0) sequence</Summary>
     <Description></Description>
-    <Created>2011-11-18, 13:33:09</Created>
+    <Created>2011-11-25, 09:46:47</Created>
     <Resource>
       <Filename>engine/visexp_runner.py</Filename>
-      <Linenumber>482</Linenumber>
+      <Linenumber>478</Linenumber>
     </Resource>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
     <Summary>TODO: test case for um_to_pixel_scale parameter</Summary>
     <Description></Description>
-    <Created>2011-11-18, 13:33:09</Created>
+    <Created>2011-11-25, 09:46:47</Created>
     <Resource>
       <Filename>engine/visexp_runner.py</Filename>
-      <Linenumber>511</Linenumber>
+      <Linenumber>507</Linenumber>
     </Resource>
   </Task>
   <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: test for long lasting stimuli with frame delay and check if exits from loop when duration is expired</Summary>
+    <Summary>TODO: test for experiment and machine log data and check if all the files are saved</Summary>
     <Description></Description>
-    <Created>2011-11-18, 13:33:09</Created>
+    <Created>2011-11-25, 09:46:47</Created>
     <Resource>
       <Filename>engine/visexp_runner.py</Filename>
-      <Linenumber>512</Linenumber>
-    </Resource>
-  </Task>
-  <Task priority="1" completed="False" bugfix="False">
-    <Summary>TODO: test for check frame rate</Summary>
-    <Description></Description>
-    <Created>2011-11-18, 13:33:09</Created>
-    <Resource>
-      <Filename>engine/visexp_runner.py</Filename>
-      <Linenumber>793</Linenumber>
+      <Linenumber>692</Linenumber>
     </Resource>
   </Task>
 </Tasks>

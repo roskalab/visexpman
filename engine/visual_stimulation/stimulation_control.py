@@ -230,10 +230,7 @@ class DataHandler():
             self.hdf5_handler.save('module_versions')
             self.hdf5_handler.experiment_log = utils.string_to_binary_array(self.experiment_log_to_string(self.caller.experiment_control.log.log_messages))#TODO: numpy array of strings
             self.hdf5_handler.save('experiment_log')
-            self.hdf5_handler.machine_config = copy.deepcopy(self.config.get_all_parameters()) #The deepcopy is necessary to avoid conflict between daqmx and hdf5io
-            self.hdf5_handler.save('machine_config')
-            self.hdf5_handler.experiment_config = self.caller.selected_experiment_config.get_all_parameters()
-            self.hdf5_handler.save('experiment_config')            
+            utils.save_config(self.hdf5_handler, self.config, self.caller.selected_experiment_config)
             self.hdf5_handler.close()
         #Restoring it to zip file: utils.numpy_array_to_file(archive_binary_in_bytes, '/media/Common/test.zip')
 

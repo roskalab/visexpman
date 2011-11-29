@@ -182,7 +182,7 @@ class VS3DUS(VisionExperimentConfig):
         IMAGE_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
-        MAXIMUM_RECORDING_DURATION = [120, [0, 10000]]
+        MAXIMUM_RECORDING_DURATION = [300, [0, 10000]]
         
         #=== Network ===
         ENABLE_UDP = False     
@@ -197,7 +197,7 @@ class VS3DUS(VisionExperimentConfig):
         
         #=== stage ===
         motor_serial_port = {
-                                    'port' :  unit_test_runner.TEST_stage_com_port,
+                                    'port' :  'COM1',
                                     'baudrate' : 19200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
@@ -205,7 +205,7 @@ class VS3DUS(VisionExperimentConfig):
                                     }
                                     
         STAGE = [{'serial_port' : motor_serial_port,
-                 'enable': not True,
+                 'enable': True,
                  'speed': 1000000,
                  'acceleration' : 1000000,
                  'move_timeout' : 45.0,
@@ -238,7 +238,7 @@ class VS3DUS(VisionExperimentConfig):
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
-                    'SAMPLE_RATE' : 1000,
+                    'SAMPLE_RATE' : 5000,
                     'AI_CHANNEL' : 'Dev1/ai0:1',
                     'MAX_VOLTAGE' : 5.0,
                     'MIN_VOLTAGE' : -5.0,

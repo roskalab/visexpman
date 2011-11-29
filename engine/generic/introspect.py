@@ -5,7 +5,7 @@ import PyQt4.QtCore as QtCore
 from contextlib import contextmanager
 import inspect
 import re
-import six
+#import six
 
 ## {{{ http://code.activestate.com/recipes/519621/ (r4)
 import weakref

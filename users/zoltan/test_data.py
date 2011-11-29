@@ -79,6 +79,49 @@ class LDC(VisionExperimentConfig):
         USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
         self._create_parameters_from_locals(locals())
         
+class PPRL(VisionExperimentConfig):
+    def _set_user_parameters(self):
+        dataset = 0        
+        #paths
+        EXPERIMENT_CONFIG = 'TestExperimentConfig'
+        folder = '/home/rz/Downloads'
+        LOG_PATH = folder
+        EXPERIMENT_LOG_PATH = folder
+        BASE_PATH= folder
+        EXPERIMENT_DATA_PATH = folder        
+        
+        #hardware
+        ENABLE_PARALLEL_PORT = not True
+        ENABLE_UDP = False
+        ACQUISITION_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PIN = 2
+        ENABLE_FILTERWHEEL = False
+        #screen
+        FULLSCREEN = False        
+        SCREEN_RESOLUTION = utils.cr([800, 600])        
+        ENABLE_FRAME_CAPTURE = False
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0
+        GAMMA = 1.0
+        ENABLE_TEXT = True
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+
+        COORDINATE_SYSTEM='center'
+        IMAGE_PROJECTED_ON_RETINA = False
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
+        SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
+
+
+
+        MAXIMUM_RECORDING_DURATION = [270, [0, 10000]] #seconds
+
+
+        ARCHIVE_FORMAT = 'hdf5'
+
+
+        self._create_parameters_from_locals(locals())
+        
+        
 class MESExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MESExperiment'

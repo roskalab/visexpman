@@ -15,6 +15,7 @@ from visexpman.engine.generic import utils
 #import visexpman.engine.generic.configuration
 import visexpman.engine.visual_stimulation.command_handler as command_handler
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
+import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import time
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 import pickle
@@ -102,21 +103,21 @@ class MovingDot(experiment.Experiment):
                             'sync_data' : ai.ai_data,
                             'mes_data': utils.file_to_binary_array(fragment_mat_path),
                             'number_of_fragments' : number_of_fragments,
-                            'actual_fragment' : di,                            
+                            'actual_fragment' : di,
                             }
             if hasattr(self, 'show_line_order'):
             	data_to_hdf5['shown_line_order'] = self.shown_line_order[di]
             #Saving source code of experiment
             for path in self.caller.visexpman_module_paths:
-                if path.find('moving_dot.py') != -1:
+                if 'moving_dot.py' in path:
                     data_to_hdf5['experiment_source'] = utils.file_to_binary_array(path)
                     break
+            utils.save_config(fragment_hdf5, self.machine_config, self.experiment_config)
+            utils.save_position(fragment_hdf5, self.stage.read_position(),mes_interface.get_objective_position(fragment_mat_path))
             fragment_hdf5.machine_config = copy.deepcopy(self.machine_config.get_all_parameters())
             fragment_hdf5.experiment_config = self.experiment_config.get_all_parameters()
             setattr(fragment_hdf5, mes_fragment_name, data_to_hdf5)
             fragment_hdf5.save(mes_fragment_name)
-            fragment_hdf5.save('machine_config')
-            fragment_hdf5.save('experiment_config')
             fragment_hdf5.close()
             #move/delete mat file
             self.log.info('measurement data saved to hdf5: {0}'.format(fragment_hdf5_path))

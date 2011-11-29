@@ -20,7 +20,6 @@ import tempfile
 #   -h - skip hardware related tests
 #    -f run all tests
 #TODO# 3.optional: -d - delete all files generated during test
-#TODO: delete users.zoltan.presentinator*.*files
 #TODO: individual command line switches for testing hardware related modules: -daq, -stage, -filterwheel, -parallel, ....
 
 #== Test control ==
@@ -195,7 +194,7 @@ class unitTestRunner():
         test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(TEST_working_folder, 'test_archive.zip'))
         package_path = os.path.split(os.path.split(os.path.split(os.getcwd())[0])[0])[0]        
         #generate list of archivable files and write them to zipfile
-        #TODO: include visexpa
+        #TODO: include visexpa, 
         source_zip = zipfile.ZipFile(test_EXPERIMENT_DATA_PATH, "w")
         for (path, dirs, files) in os.walk(package_path):
             for file in files:                

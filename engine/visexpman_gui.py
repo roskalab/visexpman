@@ -1,23 +1,43 @@
+#TODO: Load animal parameters, select ref image should come from that
 #TODO: rename to visexp_gui.py
 #TODO: log
 #TODO:Execute experiment
 #TODO: timestamp to gui.hdf5 and string_timestamp node
 #TODO: string parsing: re
 #TODO: string to binary array: numpy.loadtext, loadfile or struct.struct
+import sys
+if sys.argv[1] == '-pprl':
+    new_path = []
+    new_path.append('/home/rz/development')
+    for p in sys.path:
+        if 'usr' in p:
+            new_path.append(p)
+    sys.path = new_path
+                
 import time
 import socket
-import sys
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.visual_stimulation.configuration as configuration
 import visexpman.engine.hardware_interface.network_interface as network_interface
+import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpman.engine.generic.utils as utils
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import Queue
 import os.path
 import visexpA.engine.datahandlers.hdf5io as hdf5io
+try:
+    import visexpA.engine.dataprocessors.itk_image_registration as itk_image_registration
+    import visexpA.engine.dataprocessors.itk_versor_rigid_registration as itk_versor_rigid_registration
+except:
+    print 'itk not installed'
+import threading
+import visexpA.engine.datahandlers.matlabfile as matlabfile
+import tempfile
+import Image
+import numpy
 
 class Gui(Qt.QMainWindow):
     def __init__(self, config):
@@ -46,11 +66,14 @@ class Gui(Qt.QMainWindow):
         
     def create_user_interface(self):
         self.panel_size = utils.cr((150, 35))
-        
+        self.wide_panel_size = utils.cr((300, 35))
+        self.image_size = utils.cr((300, 300))
         self.experiment_identification_gui(50)
         self.mes_control(50 + 4 * self.panel_size['row'])
         self.visexpman_control(50 + 7.5 * self.panel_size['row'])
-        self.visexpa_control(50 + 10 * self.panel_size['row'])
+        self.realignment_gui(50 + 10 * self.panel_size['row'])
+        self.visexpa_control(50 + 20 * self.panel_size['row'])
+        
         
     def experiment_identification_gui(self, row):
         
@@ -132,8 +155,6 @@ class Gui(Qt.QMainWindow):
         self.animal_parameters = QtGui.QLabel('',  self)
         self.animal_parameters.resize(animal_parameters['size']['col'],  animal_parameters['size']['row'])
         self.animal_parameters.move(animal_parameters['position']['col'],  animal_parameters['position']['row'])
-        
-        
     
     def mes_control(self, row):
         #== Params ==
@@ -223,6 +244,61 @@ class Gui(Qt.QMainWindow):
         self.visexpa_title.move(title['position']['col'],  title['position']['row'])
         self.visexpa_title.setAlignment(QtCore.Qt.AlignHCenter)
         
+        
+    def realignment_gui(self, row):
+        title = {'title' : '---------------------    Realignment    ---------------------', 'size' : utils.cr((self.config.GUI_SIZE['col'], 40)),  'position' : utils.cr((0, row))}
+        realign = {'size' : self.panel_size,  'position' : utils.cr((0,  row + 1.1 *  self.panel_size['row']))}
+        realignment_method = {'size' : self.panel_size,  'position' : utils.cr((0, row + 2.1 * self.panel_size['row']))}
+        realignment_method_items = QtCore.QStringList(['z stack', 'none', 'two photon frame'])
+        required_translation = {'size' : self.panel_size,  'position' : utils.cr((0, row + 3.1 * self.panel_size['row']))}
+        filter = 'single_two_photon'
+        filter = 'acquire_z_stack'
+        select_reference_mat = {'size' : self.wide_panel_size,  'position' : utils.cr((self.wide_panel_size['col'], row + 1.1 * self.wide_panel_size['row']))}
+        select_reference_mat_items = QtCore.QStringList(utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter = filter)[-1])
+        select_acquired_mat = {'size' : self.wide_panel_size,  'position' : utils.cr((self.wide_panel_size['col'] + self.image_size['col'], row + 1.1 * self.wide_panel_size['row']))}
+        select_acquired_mat_items = QtCore.QStringList(utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter = filter)[-1])
+                
+        reference_image = {'size' : self.image_size,  'position' : utils.cr((self.wide_panel_size['col'], row + 2.1 * self.wide_panel_size['row']))}
+        acquired_image = {'size' : self.image_size,  'position' : utils.cr((self.wide_panel_size['col'] + self.image_size['col'] , row + 2.1 * self.wide_panel_size['row']))}
+        
+        #== Gui items ==
+        self.visexpa_title = QtGui.QLabel(title['title'],  self)
+        self.visexpa_title.resize(title['size']['col'],  title['size']['row'])
+        self.visexpa_title.move(title['position']['col'],  title['position']['row'])
+        self.visexpa_title.setAlignment(QtCore.Qt.AlignHCenter)
+        
+        self.realign_button = QtGui.QPushButton('Realign',  self)
+        self.realign_button.resize(realign['size']['col'],  realign['size']['row'])
+        self.realign_button.move(realign['position']['col'],  realign['position']['row'])
+        self.connect(self.realign_button, QtCore.SIGNAL('clicked()'),  self.realign)
+        
+        self.realignment_method = QtGui.QComboBox(self)
+        self.realignment_method.resize(realignment_method['size']['col'],  realignment_method['size']['row'])
+        self.realignment_method.move(realignment_method['position']['col'],  realignment_method['position']['row'])
+        self.realignment_method.addItems(realignment_method_items)
+        
+        self.required_translation_label = QtGui.QLabel('unknown',  self)
+        self.required_translation_label.resize(2*required_translation['size']['col'],  required_translation['size']['row'])
+        self.required_translation_label.move(required_translation['position']['col'],  required_translation['position']['row'])
+        
+        self.select_reference_mat = QtGui.QComboBox(self)
+        self.select_reference_mat.resize(select_reference_mat['size']['col'],  select_reference_mat['size']['row'])
+        self.select_reference_mat.move(select_reference_mat['position']['col'] + 0.0*select_reference_mat['size']['col'],  select_reference_mat['position']['row'])
+        self.select_reference_mat.addItems(select_reference_mat_items)
+        
+        self.select_acquired_mat = QtGui.QComboBox(self)
+        self.select_acquired_mat.resize(select_acquired_mat['size']['col'],  select_acquired_mat['size']['row'])
+        self.select_acquired_mat.move(select_acquired_mat['position']['col'] + 0.0*select_acquired_mat['size']['col'],  select_acquired_mat['position']['row'])
+        self.select_acquired_mat.addItems(select_acquired_mat_items)
+        
+        self.reference_image_label = QtGui.QLabel('',self)
+        self.reference_image_label.resize(reference_image['size']['col'],  reference_image['size']['row'])
+        self.reference_image_label.move(reference_image['position']['col'],  reference_image['position']['row'])
+        
+        self.acquired_image_label = QtGui.QLabel('',self)
+        self.acquired_image_label.resize(acquired_image['size']['col'],  acquired_image['size']['row'])
+        self.acquired_image_label.move(acquired_image['position']['col'],  acquired_image['position']['row'])
+        
     def init_files(self):   
         
         #create hdf5io
@@ -247,11 +323,73 @@ class Gui(Qt.QMainWindow):
                 else:
                     self.parameter_files[k] = utils.generate_filename(v)
 
+#==== Function called via signals ====
+
+#== Realignment ==
+#    def select_reference_mat(self):
+#        file_name_dialog = QtGui.QFileDialog(self)
+#        self.realignment_reference_image_path = file_name_dialog.getOpenFileName()
+#        self.select_reference_image_label.setText(self.realignment_reference_image_path)
+#        if '.mat' in self.realignment_reference_image_path:
+#            self.update_realignment_images()
+
+    def realign(self):
+        
+        if self.realignment_method.currentText() == 'two photon frame':
+            #THIS BRANCH IS OBSOLETE
+            acquired_image_path = tempfile.mktemp() + '.bmp'
+            reference_image_path = tempfile.mktemp() + '.bmp'
+            #Read image from mat files:
+            reference_image_np_array = mes_interface.image_from_mes_mat(str(self.select_reference_mat.currentText()), reference_image_path)
+            acquired_image_np_array = mes_interface.image_from_mes_mat(str(self.select_acquired_mat.currentText()), acquired_image_path)
+            #Display images
+            self.update_realignment_images(reference_image_path, acquired_image_path)
+            translation = itk_image_registration.register(reference_image_np_array, acquired_image_np_array, transform_type='CenteredRigid2D')[0]
+        
+            message = 'Translation [X,Y in pixel]: {0}, {1}, Angle [rad] {2}'.format(
+                                                                                                        numpy.round(translation[-2],0), 
+                                                                                                        numpy.round(translation[-1],0),
+                                                                                                        numpy.round(translation[0],3),
+                                                                                                        )
+        elif self.realignment_method.currentText() == 'z stack':
+            #Read image from mat files:
+            acquired_z_stack_path = str(self.select_acquired_mat.currentText())            
+            reference_image_np_array = mes_interface.image_from_mes_mat(str(self.select_reference_mat.currentText()), z_stack = True)
+            acquired_image_np_array = mes_interface.image_from_mes_mat(acquired_z_stack_path, z_stack = True)
+            st = time.time()
+            translation = itk_versor_rigid_registration.register(reference_image_np_array, acquired_image_np_array,calc_difference = False)[0]
+            print time.time()-st
+            message = '{0}'.format(numpy.round(translation,2))
+            print message
+        self.required_translation_label.setText(message)
+        #Save to hdf5
+        timestamp = str(int(time.time()))
+        hdf5_id = 'realignment_' + timestamp
+        realignment_hdf5_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, hdf5_id + '.hdf5')
+        realignment_hdf5_handler = hdf5io.Hdf5io(realignment_hdf5_path , config = self.config, caller = self)
+        #Save hdf5 id
+        setattr(realignment_hdf5_handler, hdf5_id, 0)
+        #save position
+        stagexyz = [0,0,0]#placeholder for command querying current stage position
+        utils.save_position(realignment_hdf5_handler, stagexyz, mes_interface.get_objective_position(acquired_z_stack_path))
+        realignment_hdf5_handler.z_stack_mat = utils.file_to_binary_array(acquired_z_stack_path)
+        realignment_hdf5_handler.z_stack = acquired_image_np_array        
+        realignment_hdf5_handler.translation = numpy.array(translation)
+        realignment_hdf5_handler.save('z_stack_mat')
+        realignment_hdf5_handler.save('z_stack')
+        realignment_hdf5_handler.save('translation')
+        realignment_hdf5_handler.close()
+        
+    def update_realignment_images(self, reference_image, acquired_image):
+        self.reference_image_label.setPixmap(QtGui.QPixmap(reference_image))
+        self.acquired_image_label.setPixmap(QtGui.QPixmap(acquired_image))
+#== Visesxpman ==
     def execute_experiment(self):
         command = 'SOCexecute_experimentEOC{0}EOP'.format(self.experiment_config_input.toPlainText())
         self.visexpman_out_queue.put(command)
         print command
         
+#== General ==
     def generate_animal_parameters(self):
         mouse_birth_date = self.mouse_birth_date.date()
         mouse_birth_date = '{0}{1}20{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
@@ -297,7 +435,7 @@ class Gui(Qt.QMainWindow):
         setattr(self.hdf5_handler, hdf5_id, 0)
         self.hdf5_handler.save(hdf5_id)
         self.animal_parameters.setText(animal_parameters_text)        
-        
+#== MES ==        
     def acquire_camera_image(self):
         self.update_mes_command_parameter_file_names()
         self.mes_command_queue.put('SOCacquire_camera_imageEOC{0}EOP' .format(self.parameter_files['acquire_camera_image']))
@@ -321,6 +459,7 @@ class Gui(Qt.QMainWindow):
     def echo(self):
         self.mes_command_queue.put('SOCechoEOCguiEOP')
         
+#== Others ==        
     def closeEvent(self, e):
         e.accept()
         self.mes_command_queue.put('SOCclose_connectionEOCEOP')
@@ -333,22 +472,40 @@ class Gui(Qt.QMainWindow):
 class GuiConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
         COORDINATE_SYSTEM='center'
-        m_drive_folder = 'M:\\Zoltan\\visexpman\\data'
-        LOG_PATH = m_drive_folder
-        EXPERIMENT_LOG_PATH = m_drive_folder
-        MAT_PATH= m_drive_folder
-        EXPERIMENT_DATA_PATH = m_drive_folder
-        
-        self.VISEXPMAN_GUI['IP'] = 'Fu238D-DDF19D.fmi.ch'
+        if self.OS == 'win':
+            m_drive_folder = 'M:\\Zoltan\\visexpman'
+        elif self.OS == 'linux':
+            m_drive_folder = '/home/zoltan/mdrive/Zoltan/visexpman'
+            if not os.path.exists(m_drive_folder):
+                m_drive_folder = '/media/sf_M_DRIVE/Zoltan/visexpman'
+            if sys.argv[1] == '-pprl':
+                m_drive_folder = '/mnt/mdrive2/Zoltan/visexpman'
+        data_folder = os.path.join(m_drive_folder, 'data')
+        TEST_DATA_PATH = os.path.join(m_drive_folder, 'test_data')
+        LOG_PATH = data_folder
+        EXPERIMENT_LOG_PATH = data_folder
+        MAT_PATH= data_folder
+        EXPERIMENT_DATA_PATH = data_folder
+        self.VISEXPMAN_GUI['IP'] = 'Fu238D-DDF19D.fmi.ch'        
         
         #== GUI specific ==
         GUI_POSITION = utils.cr((10, 10))
         GUI_SIZE = utils.cr((1024, 768))
         self._create_parameters_from_locals(locals())
         
-if __name__ == '__main__':
+class Main(threading.Thread):
+    def run(self):
+        run_gui()
+
+def run_gui():
     config = GuiConfig()    
     app = Qt.QApplication(sys.argv)
     gui = Gui(config)
     app.exec_()
+    
+if __name__ == '__main__':
+#    m = Main()
+#    m.start()
+    run_gui()
+    
 #TODO: send commands to visexpman
