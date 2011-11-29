@@ -193,6 +193,16 @@ def traverse(obj,  attrchain):
         obj = getattr(obj, a)
     return obj
 
+def index(seq, f):
+    """Return the index of the first item in seq where f(item) == True.
+    Example: check if Intrinsic can be found in a list of strings:
+    if Helpers.index(zlist, lambda text: text.find('Intrinsic')):
+        return 'Intrinsic'
+    else:
+        return 'Calcium'
+    """
+    return next((i for i in xrange(len(seq)) if f(seq[i])), None)
+
 from collections import deque
 class ModifiableIterator(object):
     '''Implements an normal iterator but the order of the elements in the list being iterated 
@@ -239,6 +249,12 @@ class ModifiableIterator(object):
         if len(order_list) != len(self.list):
             raise ValueError('Length of the list containing the ordering indices differs from the length of the iterator') 
         self.list = deque(self.list[i] for i in order_list)
+    
+    def consume(self,items):
+        '''Moves the items from the list of items to be iterated to the list of items already visited'''
+        self.consuming.extend(items)
+        self.list = deque([f for f in self.list if f not in items])
+    
         
 import unittest
 class TestUtils(unittest.TestCase):

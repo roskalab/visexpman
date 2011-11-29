@@ -98,14 +98,18 @@ class MovingDot(experiment.Experiment):
             if not hasattr(ai, 'ai_data'):
                 ai.ai_data = numpy.zeros(2)
 
-            data_to_hdf5 = {'shown_directions' :  self.shown_directions[di],
+            data_to_hdf5 = {
                             'sync_data' : ai.ai_data,
                             'mes_data': utils.file_to_binary_array(fragment_mat_path),
                             'number_of_fragments' : number_of_fragments,
                             'actual_fragment' : di,                            
                             }
+            helper_data ={}
             if hasattr(self, 'show_line_order'):
-            	data_to_hdf5['shown_line_order'] = self.shown_line_order[di]
+            	helper_data['shown_line_order'] = self.shown_line_order[di]
+            if hasattr(self,'shown_directions'):
+                helper_data['shown_directions']= self.shown_directions[di]
+            data_to_hdf5['generated_data'] = helper_data
             #Saving source code of experiment
             for path in self.caller.visexpman_module_paths:
                 if path.find('moving_dot.py') != -1:
@@ -113,7 +117,7 @@ class MovingDot(experiment.Experiment):
                     break
             fragment_hdf5.machine_config = copy.deepcopy(self.machine_config.get_all_parameters())
             fragment_hdf5.experiment_config = self.experiment_config.get_all_parameters()
-            setattr(fragment_hdf5, mes_fragment_name, data_to_hdf5)
+            setattr(fragment_hddata_to_hdff5, mes_fragment_name, data_to_hdf5)
             fragment_hdf5.save(mes_fragment_name)
             fragment_hdf5.save('machine_config')
             fragment_hdf5.save('experiment_config')
