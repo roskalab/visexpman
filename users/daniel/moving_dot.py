@@ -19,7 +19,7 @@ import time
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 import pickle
 import copy
-import visexpA.engine.datahandlers.matlab_mat as matlab_mat
+import visexpA.engine.datahandlers.matlabfile as matlab_mat
 
 class MovingDotConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
