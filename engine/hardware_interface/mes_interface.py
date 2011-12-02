@@ -62,8 +62,7 @@ class MesInterface(object):
         self.response_queue = response_queue
         self.screen = screen
         self.log = log
-        if self.config.VISEXPMAN_MES['ENABLE']:
-            self.command_server = command_server
+        self.command_server = command_server
         self.stop = False
 
 
@@ -79,11 +78,11 @@ class MesInterface(object):
         if self.screen != None:
             return self.screen.experiment_user_interface_handler() #Here only commands with running experiment domain are considered
         
-        
+        #TODO: handle US parameter from mes: user abort
     def start_line_scan(self, mat_file_path):
         aborted = False
         self.stop = False
-        if self.config.VISEXPMAN_MES['ENABLE'] and self.command_server.connection_state:
+        if self.command_server.connection_state:
             self.command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(mat_file_path))
             #Wait for MES response        
             while True:
@@ -115,7 +114,7 @@ class MesInterface(object):
                 
     def wait_for_line_scan_complete(self):        
         aborted = False
-        if self.config.VISEXPMAN_MES['ENABLE'] and self.command_server.connection_state:
+        if self.command_server.connection_state:
             self.command_server.enable_keep_alive_check = False
            #wait for finishing two photon acquisition
             while True:
@@ -141,7 +140,7 @@ class MesInterface(object):
                 
     def wait_for_data_save_complete(self):
         aborted = False
-        if self.config.VISEXPMAN_MES['ENABLE'] and self.command_server.connection_state:
+        if self.command_server.connection_state:
             #Wait for saving data to disk
             while True:
                 if self.stop:
@@ -221,7 +220,7 @@ class NetworkInterfaceTestConfig(visexpman.engine.generic.configuration.Config):
             
 class TestMesInterface(unittest.TestCase):
     def setUp(self):
-       
+       #TODO: this test has to be reworked because of the network thing
         self.config = NetworkInterfaceTestConfig()
         self.command_queue = Queue.Queue()
         self.response_queue = Queue.Queue()

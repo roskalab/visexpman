@@ -73,12 +73,19 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         COMMAND_INTERFACE_PORT = [10000, [1100,  65000]]        
         
         #naming: server - client
-        BASE_PORT = [10000, [1000, 50000]]
-        GUI_MES = {'ENABLE' : not False, 'IP': '',  'PORT' : BASE_PORT[0],  'RECEIVE_BUFFER' : 256}
-        VISEXPMAN_GUI = {'ENABLE' : False,'IP': '',  'PORT' : BASE_PORT[0] + 1,  'RECEIVE_BUFFER' : 256}
-        VISEXPA_GUI = {'ENABLE' : False,'IP': '',  'PORT' : BASE_PORT[0] + 2,  'RECEIVE_BUFFER' : 256} #client-server role is undefined yet
-        VISEXPMAN_MES = {'ENABLE' : False,'IP': '',  'PORT' : BASE_PORT[0] + 3,  'RECEIVE_BUFFER' : 256}
-        
+        self.BASE_PORT = 10000
+        COMMAND_RELAY_SERVER  = {
+        'RELAY_SERVER_IP' : 'localhost', 
+        'CONNECTION_MATRIX':
+            {
+            'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
+            'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
+            'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
+            'GUI_ANAL'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANAL' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
+            'STIM_ANAL'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'ANAL' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}}, 
+            }
+        }
+        #TODO: probably IP addresses are not necessary here
         COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
         #Currently the keyboard and running experiment domains are considered:
         #-keyboard: at generating menu for hotkeys

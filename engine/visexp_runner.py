@@ -75,11 +75,11 @@ class VisExpRunner(object):
         self.mes_command_queue = Queue.Queue()
         self.mes_response_queue = Queue.Queue()
         self.mes_listener = None        
-        if self.config.VISEXPMAN_MES['ENABLE'] and unit_test_runner.TEST_enable_network:
+        if unit_test_runner.TEST_enable_network:
             self.mes_listener = network_interface.CommandServer(self.mes_command_queue, self.mes_response_queue, self.config.VISEXPMAN_MES['PORT'])
             self.mes_listener.start()
             
-        if self.config.VISEXPMAN_GUI['ENABLE'] and unit_test_runner.TEST_enable_network:
+        if unit_test_runner.TEST_enable_network:
             self.gui_listener = network_interface.CommandServer(self.mes_command_queue, self.mes_response_queue, self.config.VISEXPMAN_GUI['PORT'])
             self.gui_listener.start()
         
@@ -114,7 +114,7 @@ class VisExpRunner(object):
             self.tcpip_listener.close()
         self.log.info('Visexpman quit')
         self.log.flush()        
-        if self.config.VISEXPMAN_MES['ENABLE'] and unit_test_runner.TEST_enable_network:
+        if unit_test_runner.TEST_enable_network:
             self.mes_command_queue.put('SOCclose_connectionEOC')
             time.sleep(1.0)
             
@@ -141,6 +141,7 @@ def find_out_config():
         user<separator>configclass, where separator can be: . , / \ <space> 
     - username and config class are provided as separate arguments
     '''        
+    #TODO: optparser shall be used
     separators = [' ',  '.',  ',',  '/',  '\\']
     config_class = ''
     user = ''

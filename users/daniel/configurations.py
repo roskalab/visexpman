@@ -195,7 +195,7 @@ class VS3DUS(VisionExperimentConfig):
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 2e-3
+        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
         
         #=== stage ===
         motor_serial_port = {

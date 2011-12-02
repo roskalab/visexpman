@@ -21,6 +21,7 @@ import visexpA.engine.datahandlers.hdf5io as hdf5io
 import pickle
 import copy
 import visexpA.engine.datahandlers.matlabfile as matlab_mat
+import shutil
 
 class MovingDotConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
@@ -130,10 +131,18 @@ class MovingDot(experiment.Experiment):
             if self.command_buffer.find('stop') != -1:
                 self.command_buffer.replace('stop', '')
                 print 'stop'
-        experiment_identifier = '{0}_{1}'.format(self.experiment_name, experiment_start_time)
-        setattr(self.hdf5, experiment_identifier, 0)
+        experiment_identifier = '{0}_{1}'.format(self.experiment_name, experiment_start_time)        
+        self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, experiment_identifier + '.hdf5')
+        setattr(self.hdf5, experiment_identifier, {'id': None})
         self.hdf5.save(experiment_identifier)
         print 'moving dot complete'
+        
+    def post_experiment(self):
+        try:
+            shutil.move(self.hdf5.filename, self.experiment_hdf5_path)
+        except:
+            print self.hdf5.filename, self.experiment_hdf5_path
+            print 'not copied for some reason'
         
     def prepare(self):
         # we want at least 2 repetitions in the same recording, but the best is to

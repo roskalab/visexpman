@@ -119,7 +119,7 @@ class ExperimentControl():
             self.caller.screen_and_keyboard.message += '\nexperiment ended'
             self.caller.log.info('Experiment complete')
         else:
-            raise AttributeError('Stimulus config class does not have a run method?')
+            raise AttributeError('Does stimulus config class have run method?')
         
     def finish_experiment(self):
         self.log.flush()
@@ -133,6 +133,7 @@ class ExperimentControl():
         if hasattr(self.caller, 'mes_command_queue'):
             while not self.caller.mes_command_queue.empty():
                 print self.caller.mes_command_queue.get()
+        self.caller.selected_experiment_config.post_experiment()
         self.caller.log.info('Experiment sequence finished')
         
 class Devices():

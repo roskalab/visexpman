@@ -6,14 +6,6 @@
 #TODO: string parsing: re
 #TODO: string to binary array: numpy.loadtext, loadfile or struct.struct
 import sys
-if sys.argv[1] == '-pprl':
-    new_path = []
-    new_path.append('/home/rz/development')
-    for p in sys.path:
-        if 'usr' in p:
-            new_path.append(p)
-    sys.path = new_path
-                
 import time
 import socket
 import PyQt4.Qt as Qt
@@ -40,8 +32,9 @@ import Image
 import numpy
 
 class Gui(Qt.QMainWindow):
-    def __init__(self, config):
+    def __init__(self, config, command_relay_server):
         self.config = config
+        self.command_relay_server = command_relay_server
         self.init_network()
         self.init_files()       
         
@@ -56,13 +49,11 @@ class Gui(Qt.QMainWindow):
     def init_network(self):
         self.mes_command_queue = Queue.Queue()
         self.mes_response_queue = Queue.Queue()
-        self.mes_server = network_interface.CommandServer(self.mes_command_queue, self.mes_response_queue, self.config.GUI_MES['PORT'])
-        self.mes_server.start()
+        self.mes_connection = network_interface.start_client(self.config, 'GUI', 'GUI_MES', self.mes_response_queue, self.mes_command_queue)
         
         self.visexpman_out_queue = Queue.Queue()
         self.visexpman_in_queue = Queue.Queue()
-        self.visexpman_client = network_interface.CommandClient(self.visexpman_out_queue, self.visexpman_in_queue, self.config.VISEXPMAN_GUI['IP'], self.config.VISEXPMAN_GUI['PORT'])
-        self.visexpman_client.start()
+        self.stim_connection = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.visexpman_in_queue, self.visexpman_out_queue)        
         
     def create_user_interface(self):
         self.panel_size = utils.cr((150, 35))
@@ -154,10 +145,13 @@ class Gui(Qt.QMainWindow):
         
         self.animal_parameters = QtGui.QLabel('',  self)
         self.animal_parameters.resize(animal_parameters['size']['col'],  animal_parameters['size']['row'])
-        self.animal_parameters.move(animal_parameters['position']['col'],  animal_parameters['position']['row'])
+        self.animal_parameters.move(animal_parameters['position']['col'],  animal_parameters['position']['row'])    
     
     def mes_control(self, row):
-        #== Params ==
+        '''
+        
+        '''
+        #== Params ==#
         title = {'title' : '---------------------    MES    ---------------------', 'size' : utils.cr((self.config.GUI_SIZE['col'], 40)),  'position' : utils.cr((0, row))}
         acquire_camera_image = {'size' : self.panel_size,  'position' : utils.cr((0,  row + 1.1 *  self.panel_size['row']))}
         acquire_z_stack = {'size' : self.panel_size,  'position' : utils.cr((self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
@@ -167,7 +161,7 @@ class Gui(Qt.QMainWindow):
         echo = {'size' : self.panel_size, 'position' : utils.cr((5*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
         previous_settings = {'size' : self.panel_size, 'position' : utils.cr((0,  row + 2.1 *  self.panel_size['row']))}
                 
-        #== gui items ==        
+        #== gui items ==#        
         self.mes_title = QtGui.QLabel(title['title'],  self)
         self.mes_title.resize(title['size']['col'],  title['size']['row'])
         self.mes_title.move(title['position']['col'],  title['position']['row'])
@@ -357,7 +351,8 @@ class Gui(Qt.QMainWindow):
             reference_image_np_array = mes_interface.image_from_mes_mat(str(self.select_reference_mat.currentText()), z_stack = True)
             acquired_image_np_array = mes_interface.image_from_mes_mat(acquired_z_stack_path, z_stack = True)
             st = time.time()
-            translation = itk_versor_rigid_registration.register(reference_image_np_array, acquired_image_np_array,calc_difference = False)[0]
+#            translation = itk_versor_rigid_registration.register(reference_image_np_array, acquired_image_np_array,calc_difference = False)[0]
+            translation = itk_versor_rigid_registration.register(reference_image_np_array, acquired_image_np_array, metric = 'MattesMutual', multiresolution=True, calc_difference = False)[0]
             print time.time()-st
             message = '{0}'.format(numpy.round(translation,2))
             print message
@@ -465,8 +460,10 @@ class Gui(Qt.QMainWindow):
         self.mes_command_queue.put('SOCclose_connectionEOCEOP')
         self.visexpman_out_queue.put('SOCclose_connectionEOCEOP')
         self.hdf5_handler.close()
+        for i in self.command_relay_server.get_debug_info():
+            print i
         time.sleep(1.0) #Enough time to close connection with MES
-        self.mes_server.terminate()
+#        self.mes_server.terminate()
         sys.exit(0)
         
 class GuiConfig(configuration.VisionExperimentConfig):
@@ -478,15 +475,12 @@ class GuiConfig(configuration.VisionExperimentConfig):
             m_drive_folder = '/home/zoltan/mdrive/Zoltan/visexpman'
             if not os.path.exists(m_drive_folder):
                 m_drive_folder = '/media/sf_M_DRIVE/Zoltan/visexpman'
-            if sys.argv[1] == '-pprl':
-                m_drive_folder = '/mnt/mdrive2/Zoltan/visexpman'
         data_folder = os.path.join(m_drive_folder, 'data')
         TEST_DATA_PATH = os.path.join(m_drive_folder, 'test_data')
         LOG_PATH = data_folder
         EXPERIMENT_LOG_PATH = data_folder
         MAT_PATH= data_folder
-        EXPERIMENT_DATA_PATH = data_folder
-        self.VISEXPMAN_GUI['IP'] = 'Fu238D-DDF19D.fmi.ch'        
+        EXPERIMENT_DATA_PATH = data_folder        
         
         #== GUI specific ==
         GUI_POSITION = utils.cr((10, 10))
@@ -499,13 +493,15 @@ class Main(threading.Thread):
 
 def run_gui():
     config = GuiConfig()    
+    cr = network_interface.CommandRelayServer(config)
     app = Qt.QApplication(sys.argv)
-    gui = Gui(config)
+    gui = Gui(config, cr)
     app.exec_()
     
 if __name__ == '__main__':
 #    m = Main()
 #    m.start()
     run_gui()
+    
     
 #TODO: send commands to visexpman

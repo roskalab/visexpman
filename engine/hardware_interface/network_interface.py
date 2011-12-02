@@ -1,5 +1,4 @@
 import socket
-#import threading
 import Queue
 import sys
 import time
@@ -7,6 +6,208 @@ import unittest
 import visexpman.engine.generic.configuration
 import PyQt4.QtCore as QtCore
 import os
+import sys
+import SocketServer
+
+class SockServer(SocketServer.TCPServer):
+    def __init__(self, address, queue_in, queue_out, name, debug_queue):        
+        SocketServer.TCPServer.__init__(self, address, None)
+        self.queue_in = queue_in
+        self.queue_out = queue_out
+        self.debug_queue = debug_queue
+        self.state = True   
+        self.connection_timeout = 1.0
+        self.name = name
+        
+    def debug(self, message):
+        if self.debug_queue != None:
+            debug_message = self.name + ': ' + message
+            self.debug_queue.put([time.time(), debug_message], True)
+        
+    def process_request(self, request, client_address):
+        self.last_receive_timeout = time.time()
+        request.settimeout(0.01)
+        print client_address, self.name
+        request.send('connected')
+        while True:            
+            # self.request is the TCP socket connected to the client
+            if self.queue_out.empty():
+                alive = False
+                try:
+                    data = request.recv(1024)
+                except:
+                    if sys.exc_info()[0].__name__ == 'timeout':
+                        self.last_receive_timeout = time.time()
+                    data = ''
+                
+                if len(data) > 0:                    
+                    if 'close' in data or\
+                       'close_connection' in data or\
+                       'quit' in data or\
+                       time.time() - self.last_receive_timeout > self.connection_timeout:
+    #                    print data, time.time() - self.last_receive_timeout
+                        break
+                    else:
+                        self.queue_in.put(data)
+                        self.debug(data)
+                    
+                
+            else:
+                out = self.queue_out.get()
+                try:
+                    request.send(out)
+                except:
+                    self.queue_out.put(out)
+                    print sys.exc_info()
+                    break
+            
+        print 'closed'
+
+class QueuedServer(QtCore.QThread):
+    #TODO: Queued server and sock server could be subclassed 
+    def __init__(self, queue_in, queue_out, port, name, debug_queue = None):
+        QtCore.QThread.__init__(self)
+        self.port = port
+        self.queue_in = queue_in
+        self.queue_out = queue_out
+        self.debug_queue = debug_queue
+        self.name = name
+        self.server = SockServer(("", port), self.queue_in, self.queue_out, self.name, self.debug_queue)
+
+    def run(self):
+        self.server.serve_forever()
+
+class CommandRelayServer(object):
+    def __init__(self, config):
+        self.config = config
+        self.generate_queues()
+        self.create_servers()
+        self.start_servers()
+        
+    def generate_queues(self):
+        '''
+        Generates queues and put them in a dictionary :
+        queues[connection_name][endpointA2endpointB], queues[connection_name][endpointB2endpointA]
+        '''
+        self.debug_queue = Queue.Queue()
+        self.queues = {}
+        for connection, connection_config in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
+            endpoints = connection_config.keys()
+            self.queues[connection] = {}
+            self.queues[connection][endpoints[0] + '2' + endpoints[1]] = Queue.Queue()
+            self.queues[connection][endpoints[1] + '2' + endpoints[0]] = Queue.Queue()
+        
+            
+    def create_servers(self):
+        '''
+        Generates server threads, two for each connection.
+        Dictionary format:
+            servers[connection][endpointA]
+            servers[connection][endpointB]
+        '''
+        self.servers = {}
+        for connection, connection_config in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
+            endpoints = connection_config.keys()
+            self.servers[connection] = {}
+            
+            self.servers[connection][endpoints[0]] = QueuedServer(
+                                                                            self.queues[connection][endpoints[1] + '2' + endpoints[0]], #in
+                                                                            self.queues[connection][endpoints[0] + '2' + endpoints[1]], #out
+                                                                            connection_config[endpoints[0]]['PORT'], 
+                                                                            'connection: {0}, endpoint {1}, port {2}'.format(connection, endpoints[0], connection_config[endpoints[0]]['PORT']), 
+                                                                            self.debug_queue
+                                                                            )
+                                                                            
+            self.servers[connection][endpoints[1]] = QueuedServer(
+                                                                            self.queues[connection][endpoints[0] + '2' + endpoints[1]], #in
+                                                                            self.queues[connection][endpoints[1] + '2' + endpoints[0]], #out
+                                                                            connection_config[endpoints[1]]['PORT'], 
+                                                                            'connection: {0}, endpoint {1}, port {2}'.format(connection, endpoints[1], connection_config[endpoints[1]]['PORT']), 
+                                                                            self.debug_queue
+                                                                            )
+
+    def start_servers(self):
+        for connection_name, connection in self.servers.items():
+            for endpoint, server in connection.items():
+                server.start()
+                
+    def get_debug_info(self):
+        debug_info = []
+        while not self.debug_queue.empty():
+            debug_info.append(self.debug_queue.get())
+        return debug_info
+
+class QueuedClient(QtCore.QThread):
+    def __init__(self, queue_out, queue_in, server_address, port):
+        QtCore.QThread.__init__(self)
+        self.queue_in = queue_in
+        self.queue_out = queue_out
+        self.port = port
+        self.server_address = server_address
+        
+    def run(self):   
+        out = ''
+        while True:
+            try:
+                self.connection = socket.create_connection((self.server_address, self.port))
+                self.queue_in.put('connected to server')
+                self.last_receive_timout = time.time()
+                self.connection.settimeout(0.01)
+#                 self.queue_out.put('SOCconnection_createdEOC')
+                while True:
+                    if not self.queue_out.empty():
+                        out = self.queue_out.get()
+                        if 'stop_client' in out:
+                            break
+                        else:
+                            if 'close' in out:
+                                break
+                            try:                    
+                                self.connection.send(out)
+                            except:                                
+                                self.queue_out.put(out)
+                                break
+                        
+                    else:
+                        try:
+                            data = self.connection.recv(1024)
+                        except:                    
+                            if sys.exc_info()[0].__name__ == 'timeout':
+                                self.last_receive_timout = time.time()
+                            data = ''
+                        if len(data) > 0:
+                            self.queue_in.put(data)
+                
+                time.sleep(0.1)  
+                self.connection.close()                
+                self.queue_in.put('connection closed')
+            except socket.error:
+                #Server does not respond
+                pass
+            if 'stop_client' in out:
+                break
+        print 'quit'       
+
+def start_client(config, client_name, connection_name, queue_in, queue_out):
+    '''
+    Returns a reference to the client thread.
+    '''
+    client = QueuedClient(queue_out, queue_in, 
+                          config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'], 
+                          config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'][connection_name][client_name]['PORT'])
+    client.start()
+    return client
+
+
+
+
+
+
+
+
+
+#===================================================================================================
+
 
 #Try: multiple clients, client thread starts in a thread, command buffer mutual exclusion. check out thread/target parameter
 #Network listener -> CommandServer
@@ -43,7 +244,7 @@ class CommandServer(QtCore.QThread):#TODO unit test
                 if self.command_queue.empty():
                     #If client does not respond to the echo command, connection is closed
                     elapsed_time_ms = int(1000* (time.time() - start_time))
-                    if elapsed_time_ms%timeout == 0 and elapsed_time_ms > 20*timeout and self.enable_keep_alive_check:
+                    if elapsed_time_ms%timeout == 0 and elapsed_time_ms > 20 * timeout and self.enable_keep_alive_check:
                     	#other detection of periodicity                        
                     	timeout_saved = self.connection.gettimeout()
                         self.connection.settimeout(30.0)                        

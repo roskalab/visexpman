@@ -27,6 +27,9 @@ class ExperimentConfig(Config):
             self.runnable.run()
         self.runnable.cleanup()
         
+    def post_experiment(self):
+        self.runnable.post_experiment()
+        
     def set_experiment_control_context(self):
         self.runnable.set_experiment_control_context()
 
@@ -66,6 +69,12 @@ class Experiment(stimulation_library.Stimulations):
     def cleanup(self):
         '''
         Operations to execute right after running the experiment. Saving user specific files, closing instruments  that are not handled within Device class, user specific file operations
+        '''
+        pass
+        
+    def post_experiment(self):
+        '''
+        Instructions can be put here that are intended to execute after the whole experiment procedure, when all the logfiles are flushed
         '''
         pass
 
