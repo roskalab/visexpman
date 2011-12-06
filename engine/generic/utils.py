@@ -746,7 +746,7 @@ def find_latest(path):
     return latest_file
     
     
-def generate_filename(path):
+def generate_filename(path, insert_timestamp = False):
     '''
     Inserts index into filename resulting unique name.
     '''    
@@ -759,6 +759,8 @@ def generate_filename(path):
         index = index + 1
         if index >= 10 ** number_of_digits:
             raise RuntimeError('Filename cannot be generated')
+    if insert_timestamp:
+        testable_path = path.replace('.',  '_%i_%5i.'%(int(time.time()), index)).replace(' ', '0')
     return testable_path
     
 def generate_foldername(path):

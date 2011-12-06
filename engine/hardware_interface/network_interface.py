@@ -8,16 +8,25 @@ import PyQt4.QtCore as QtCore
 import os
 import sys
 import SocketServer
+import random
+
+TIMEOUT = 10.0
 
 class SockServer(SocketServer.TCPServer):
-    def __init__(self, address, queue_in, queue_out, name, debug_queue):        
+    def __init__(self, address, queue_in, queue_out, name, debug_queue):
         SocketServer.TCPServer.__init__(self, address, None)
+        self.allow_reuse_address  = True
         self.queue_in = queue_in
         self.queue_out = queue_out
         self.debug_queue = debug_queue
         self.state = True   
-        self.connection_timeout = 1.0
+        self.connection_timeout = TIMEOUT       
         self.name = name
+        self.alive_message = 'SOCechoEOCaliveEOP'
+        self.shutdown_requested = False
+        
+    def shutdown_request(self):
+        self.shutdown_requested = True
         
     def debug(self, message):
         if self.debug_queue != None:
@@ -25,47 +34,65 @@ class SockServer(SocketServer.TCPServer):
             self.debug_queue.put([time.time(), debug_message], True)
         
     def process_request(self, request, client_address):
-        self.last_receive_timeout = time.time()
-        request.settimeout(0.01)
-        print client_address, self.name
-        request.send('connected')
-        while True:            
-            # self.request is the TCP socket connected to the client
-            if self.queue_out.empty():
-                alive = False
-                try:
-                    data = request.recv(1024)
-                except:
-                    if sys.exc_info()[0].__name__ == 'timeout':
-                        self.last_receive_timeout = time.time()
-                    data = ''
-                
-                if len(data) > 0:                    
-                    if 'close' in data or\
-                       'close_connection' in data or\
-                       'quit' in data or\
-                       time.time() - self.last_receive_timeout > self.connection_timeout:
-    #                    print data, time.time() - self.last_receive_timeout
-                        break
-                    else:
-                        self.queue_in.put(data)
-                        self.debug(data)
-                    
-                
-            else:
-                out = self.queue_out.get()
-                try:
-                    request.send(out)
-                except:
-                    self.queue_out.put(out)
-                    print sys.exc_info()
+        if not self.shutdown_requested:
+            self.last_receive_time = time.time()
+            self.last_alive_message = time.time()
+            request.settimeout(0.01)
+            print client_address, self.name
+            request.send('connected')
+            connection_close_request = False
+            while True:            
+                # self.request is the TCP socket connected to the client
+                now = time.time()
+                if self.shutdown_requested:
+                    connection_close_request = True
+                #Check if connection is alive
+                if self.queue_out.empty():
+                    if now - self.last_alive_message > 0.2 * self.connection_timeout:
+                        try:
+                            request.send(self.alive_message)
+                            self.last_alive_message = now
+                        except:                            
+                            print self.name + ' ' + str(sys.exc_info())
+                            #If sending alive message is unsuccessful, connection terminated
+                            connection_close_request = True
+                    #Receive data
+                    try:
+                        data = request.recv(1024)
+                        self.last_receive_time = now
+                    except:
+    #                    if sys.exc_info()[0].__name__ == 'timeout':
+    #                        self.last_receive_time = now
+                        data = ''
+                    data = data.replace(self.alive_message,'')
+                    if len(data) > 0:                    
+                        if not self.alive_message in data:
+                            self.debug(data)
+                        if 'close' in data or\
+                           'close_connection' in data or\
+                           'quit' in data:    
+                            print self.name + ' connection close requested'
+                            connection_close_request = True
+                        else:
+                            self.queue_in.put(data)
+                    if now - self.last_receive_time > self.connection_timeout:
+                        connection_close_request = True
+                else:
+                    out = self.queue_out.get()
+                    try:
+                        request.send(out)
+                    except:
+                        self.queue_out.put(out)
+                        print self.name + ' ' + str(sys.exc_info())
+                        connection_close_request = True
+                if connection_close_request:
                     break
-            
-        print 'closed'
+            print self.name + ' closed'
+            time.sleep(0.5 + 1.5 * random.random())
 
 class QueuedServer(QtCore.QThread):
     #TODO: Queued server and sock server could be subclassed 
-    def __init__(self, queue_in, queue_out, port, name, debug_queue = None):
+    def __init__(self, queue_in, queue_out, port, name, debug_queue):
         QtCore.QThread.__init__(self)
         self.port = port
         self.queue_in = queue_in
@@ -76,6 +103,10 @@ class QueuedServer(QtCore.QThread):
 
     def run(self):
         self.server.serve_forever()
+        
+    def shutdown(self):
+        self.server.shutdown_request()
+        self.server.shutdown()
 
 class CommandRelayServer(object):
     def __init__(self, config):
@@ -131,6 +162,11 @@ class CommandRelayServer(object):
             for endpoint, server in connection.items():
                 server.start()
                 
+    def shutdown_servers(self):
+        for connection_name, connection in self.servers.items():
+            for endpoint, server in connection.items():
+                server.shutdown()
+                
     def get_debug_info(self):
         debug_info = []
         while not self.debug_queue.empty():
@@ -144,48 +180,82 @@ class QueuedClient(QtCore.QThread):
         self.queue_out = queue_out
         self.port = port
         self.server_address = server_address
+        self.no_message_timeout = TIMEOUT
+        self.alive_message = 'SOCechoEOCaliveEOP'
         
     def run(self):   
+        shutdown_request = False
         out = ''
         while True:
-            try:
+            connection_close_request = False
+            try:                
                 self.connection = socket.create_connection((self.server_address, self.port))
+                print self.connection.getpeername()
                 self.queue_in.put('connected to server')
                 self.last_receive_timout = time.time()
+                self.last_message_time = time.time()
                 self.connection.settimeout(0.01)
-#                 self.queue_out.put('SOCconnection_createdEOC')
-                while True:
-                    if not self.queue_out.empty():
-                        out = self.queue_out.get()
-                        if 'stop_client' in out:
-                            break
+                time.sleep(0.5)
+                try:
+                    data = self.connection.recv(1024)
+                except:
+                    connection_close_request = True
+                if 'connected' in data:                    
+                    while True:                    
+                        if not self.queue_out.empty():
+                            out = self.queue_out.get()                        
+                            if 'stop_client' in out:
+                                self.connection.send('close_connection')
+                                connection_close_request = True
+                                shutdown_request = True
+                            else:
+                                if 'close_connection' in out:
+                                    connection_close_request = True
+                                try:
+                                    self.connection.send(out)
+                                except:
+                                    print sys.exc_info()
+                                    self.queue_out.put(out)
+                                    connection_close_request = True
                         else:
-                            if 'close' in out:
-                                break
-                            try:                    
-                                self.connection.send(out)
-                            except:                                
-                                self.queue_out.put(out)
-                                break
-                        
-                    else:
-                        try:
-                            data = self.connection.recv(1024)
-                        except:                    
-                            if sys.exc_info()[0].__name__ == 'timeout':
-                                self.last_receive_timout = time.time()
-                            data = ''
-                        if len(data) > 0:
-                            self.queue_in.put(data)
-                
+                            try:
+                                data = self.connection.recv(1024)
+                            except:
+                                if sys.exc_info()[0].__name__ == 'timeout':
+                                    self.last_receive_timout = time.time()
+                                data = ''
+                            if len(data) > 0:                            
+                                if self.alive_message in data:
+                                   #Send back keep alive message
+                                    data = data.replace(self.alive_message,'')
+                                    try:
+                                        self.connection.send(self.alive_message)
+                                    except:
+                                        pass
+                                elif 'close_connection' in data:
+                                    connection_close_request = True
+                                if len(data)>0:
+                                    self.queue_in.put(data)
+                                self.last_message_time = time.time()
+                            if time.time() - self.last_message_time > self.no_message_timeout:
+                                connection_close_request = True
+                        if connection_close_request:
+                            break
+                        time.sleep(0.02)
+                else:
+                    time.sleep(TIMEOUT)
                 time.sleep(0.1)  
-                self.connection.close()                
+                self.connection.close()
+                time.sleep(1.0 + 1.5 * random.random())
+                print 'connection closed'
                 self.queue_in.put('connection closed')
             except socket.error:
                 #Server does not respond
-                pass
-            if 'stop_client' in out:
+                pass            
+            if shutdown_request:
+                print 'stop client'
                 break
+            time.sleep(0.5)
         print 'quit'       
 
 def start_client(config, client_name, connection_name, queue_in, queue_out):

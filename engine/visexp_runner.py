@@ -74,14 +74,16 @@ class VisExpRunner(object):
         #Start up MES listener
         self.mes_command_queue = Queue.Queue()
         self.mes_response_queue = Queue.Queue()
+        self.gui_command_queue = Queue.Queue()
+        self.gui_response_queue = Queue.Queue()
         self.mes_listener = None        
         if unit_test_runner.TEST_enable_network:
-            self.mes_listener = network_interface.CommandServer(self.mes_command_queue, self.mes_response_queue, self.config.VISEXPMAN_MES['PORT'])
-            self.mes_listener.start()
+            self.mes_connection = network_interface.start_client(self.config, 'STIM', 'STIM_MES', self.mes_response_queue, self.mes_command_queue) 
+        else:
+            self.mes_connection = None
             
         if unit_test_runner.TEST_enable_network:
-            self.gui_listener = network_interface.CommandServer(self.mes_command_queue, self.mes_response_queue, self.config.VISEXPMAN_GUI['PORT'])
-            self.gui_listener.start()
+            self.gui_connection = network_interface.start_client(self.config, 'STIM', 'GUI_STIM', self.gui_response_queue, self.gui_command_queue)
         
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
@@ -115,8 +117,9 @@ class VisExpRunner(object):
         self.log.info('Visexpman quit')
         self.log.flush()        
         if unit_test_runner.TEST_enable_network:
-            self.mes_command_queue.put('SOCclose_connectionEOC')
-            time.sleep(1.0)
+            self.mes_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
+            self.gui_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
+            time.sleep(3.0)
             
     def _init_logging(self):
         #set up logging

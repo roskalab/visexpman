@@ -42,6 +42,8 @@ class CommandHandler(object):
             result += '\n' + str(self.parse(self.caller.command_queue.get()))
         while not self.caller.mes_response_queue.empty():
             result += '\n' + self.caller.mes_response_queue.get()
+        while not self.caller.gui_response_queue.empty():
+            result += '\n' + self.caller.gui_response_queue.get()
         self.caller.command_buffer = []
         self.caller.screen_and_keyboard.message += result
 
@@ -84,6 +86,30 @@ class CommandHandler(object):
                 filterwheel.release_instrument()
         return 'filterwheel ' + par
 
+    def stage(self,par):
+        '''
+        read stage:
+            command: SOCstageEOCreadEOP
+            response: SOCstageEOCx,y,zEOP
+        set tage:
+            command: SOCstageEOCset,y,zEOP
+            response: SOCstageEOC<status>,x,y,zEOP, <status> = OK, error
+        '''
+        if 'read' in par or 'set' in par:
+            stage = motor_control.AllegraStage(self.config, self.caller)
+            position = stage.read_position()
+            stage.release_instrument()
+            self.caller.gui_command_queue.put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
+            if 'set' in par:
+                new_position = par.split(',')[1:]
+                new_position = numpy.array([float(new_position[0]), float(new_position[1]), float(new_position[2])])
+                reached = stage.move(new_position)
+            position = stage.read_position()
+            stage.release_instrument()
+            self.caller.gui_command_queue.put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
+        
+            
+        
     def hide_menu(self, par):
         self.caller.screen_and_keyboard.hide_menu = not self.caller.screen_and_keyboard.hide_menu
         if self.caller.screen_and_keyboard.hide_menu:
@@ -96,6 +122,7 @@ class CommandHandler(object):
         
     def echo(self, par):
         self.caller.mes_command_queue.put('SOCechoEOCvisexpmanEOP')
+        self.caller.gui_command_queue.put('SOCechoEOCvisexpmanEOP')
         return 'echo'
         
     def set_measurement_id(self, par): #temporary, this command will be sent by GUI

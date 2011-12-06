@@ -26,6 +26,7 @@ def get_objective_position(mat_file):
     return data
 
 def image_from_mes_mat(mat_file, image_file = None, z_stack = False):
+    from visexpA.engine.datadisplay.imaged import imshow
     if z_stack:
         data = matlabfile.MatData(mat_file).get_field('DATA')
         n_frames = data[0].shape[0]
@@ -36,16 +37,27 @@ def image_from_mes_mat(mat_file, image_file = None, z_stack = False):
         image = numpy.array(frames)
     else:
         image = matlabfile.MatData(mat_file).get_field('DATA.0.IMAGE')[0]
-
-    image_f32 = numpy.cast['float32'](image)
-    image = image_f32 / 2.0**7
-    image = numpy.cast['uint8'](image)
     
     if not z_stack:
-        im = Image.fromarray(image)
         if image_file != None:
-            im.save(image_file)
-    return image_f32
+            imshow(image,save=image_file)
+    return image
+    
+def set_mes_mesaurement_save_flag(mat_file, flag):
+    m = matlabfile.MatData(reference_path, target_path)
+    m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
+    m.flush()
+    
+def roller_coaster_set_points(points, mat_file):
+    '''
+    Points shall be a struct array of numpy.float64 with x, y and z fields.
+    numpy.zeros((3,100), {'names': ('x', 'y', 'z'), 'formats': (numpy.float64, numpy.float64, numpy.float64)})
+    '''
+    if points.dtype != [('x', '<f8'), ('y', '<f8'), ('z', '<f8')]:
+        raise RuntimeError('Data format is incorrect')
+    data_to_mes_mat = {}
+    data_to_mes_mat['DATA'] = points
+    scipy.io.savemat(mat_file, data_to_mes_mat, oned_as = 'column')
     
 class MesInterface(object):
     '''
@@ -82,7 +94,7 @@ class MesInterface(object):
     def start_line_scan(self, mat_file_path):
         aborted = False
         self.stop = False
-        if self.command_server.connection_state:
+        if True: #self.command_server.connection_state:
             self.command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(mat_file_path))
             #Wait for MES response        
             while True:
@@ -93,14 +105,14 @@ class MesInterface(object):
                 if 'SOCacquire_line_scanEOCstartedEOP' in response:
                     if self.log != None:
                         self.log.info('line scan started')
-                        self.command_server.enable_keep_alive_check = False
+#                        self.command_server.enable_keep_alive_check = False
                     break
                 elif 'SOCacquire_line_scanEOCerror_starting_measurementEOP' in response:
                     aborted = True
                     if self.log != None:
                         self.log.info('error starting measurement')
                         self.stop = True
-                        self.command_server.enable_keep_alive_check = False
+#                        self.command_server.enable_keep_alive_check = False
                     break
                 user_command = self._watch_keyboard()
                 if user_command != None:
@@ -114,8 +126,8 @@ class MesInterface(object):
                 
     def wait_for_line_scan_complete(self):        
         aborted = False
-        if self.command_server.connection_state:
-            self.command_server.enable_keep_alive_check = False
+        if True: #self.command_server.connection_state:
+#            self.command_server.enable_keep_alive_check = False
            #wait for finishing two photon acquisition
             while True:
                 if self.stop:
@@ -140,7 +152,7 @@ class MesInterface(object):
                 
     def wait_for_data_save_complete(self):
         aborted = False
-        if self.command_server.connection_state:
+        if True:#self.command_server.connection_state:
             #Wait for saving data to disk
             while True:
                 if self.stop:
@@ -161,7 +173,7 @@ class MesInterface(object):
                             self.log.info('stopped')
                         break                    
                 time.sleep(0.1)
-            self.command_server.enable_keep_alive_check = True
+#            self.command_server.enable_keep_alive_check = True
         return aborted
     
 class MesEmulator(QtCore.QThread):

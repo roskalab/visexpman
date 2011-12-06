@@ -152,7 +152,7 @@ class AllegraStage(StageControl):
         
                                                             
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
-    def _create_application_parameters(self):           
+    def _create_application_parameters(self):
         
         motor_serial_port = {
                                     'port' :  unit_test_runner.TEST_stage_com_port,

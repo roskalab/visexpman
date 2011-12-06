@@ -188,8 +188,8 @@ class VS3DUS(VisionExperimentConfig):
         
         #=== Network ===
         ENABLE_UDP = False     
-        self.VISEXPMAN_GUI['ENABLE'] = True
-        self.VISEXPMAN_MES['ENABLE'] = True
+#        self.VISEXPMAN_GUI['ENABLE'] = True
+#        self.VISEXPMAN_MES['ENABLE'] = True
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
