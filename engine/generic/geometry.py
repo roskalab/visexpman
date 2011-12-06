@@ -472,7 +472,7 @@ def versor2angle_axis(versor):
     angle = 2.0*numpy.arcsin(K)
     axis = numpy.array(versor)/K
     return angle,axis
-    
+
 class testGeometry(unittest.TestCase):
     
     test_data = [
