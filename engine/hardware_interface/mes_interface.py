@@ -9,8 +9,113 @@ import sys
 import scipy.io
 import visexpA.engine.datahandlers.matlabfile as matlabfile
 import numpy
-import Image
+import os.path
+import visexpman.engine.generic.utils as utils
+import re
+#TODO: This module needs to be reworked: two group of functions: communication helpers and mat interfacing, mes intrerface class shall take care of both
+#TODO: generate reference mat files without the unnecessary numpy.object parts
 
+#================ Z stack ========================#
+def acquire_z_stack(command_queue, response_queue, config, timeout = -1, channel = 'pmtUGraw', test_mat_file = None):
+    z_stack_path, z_stack_path_on_mes = generate_paths('z_stack.mat', config)    
+    #Acquire z stack
+    command_queue.put('SOCacquire_z_stackEOC{0}EOP' .format(z_stack_path_on_mes))
+    results = []
+    results.append(network_interface.wait_for_response(response_queue, 'SOCacquire_z_stackEOCstartedEOP', error_response = 'error', timeout = timeout))
+    results.append(network_interface.wait_for_response(response_queue, ['SOCacquire_z_stackEOCOKEOP', 'SOCacquire_z_stackEOCUSEOP'], error_response = 'error', timeout = timeout))
+    results.append(network_interface.wait_for_response(response_queue, 'SOCacquire_z_stackEOCsaveOKEOP', error_response = 'error', timeout = timeout))
+    #Extract z stack from mat file
+    if test_mat_file != None:
+        z_stack_path = test_mat_file
+    z_stack = {}
+    if isinstance(z_stack_path, str):
+        if os.path.exists(z_stack_path):            
+            z_stack['data'], z_stack['origin'], z_stack['scale'], z_stack['size'] = z_stack_from_mes_file(z_stack_path, channel = channel)
+    return z_stack, results
+
+def z_stack_from_mes_file(mes_file, channel = 'pmtUGraw'):
+    '''
+    Extract the following form a mes file containing a Z stack:
+    -z stack data as a 3D array where the dimensions are: row, col, depth
+    -mes system origin [um]
+    -step size [um/pixel]
+    -z stack size [um; row, col, depth]
+    '''
+    data = matlabfile.MatData(mes_file).get_field('DATA')
+    n_frames = data[0].shape[0]
+    n_average = int(data[0][0]['Average'][0][0][0])
+    frames = []
+    for i in range(n_frames):
+        frame = data[0][i]['IMAGE'][0]
+        channel_name = str(data[0][i]['Channel'][0][0])
+        if channel_name == channel:
+            frames.append(frame)
+        
+    z_stack_data = numpy.array(frames).transpose()
+    depth_step = data[0][0]['D3Step'][0][0]
+    col_origin = data[0][0]['WidthOrigin'][0][0]
+    row_origin = data[0][0]['HeightOrigin'][0][0]
+    depth_origin = data[0][0]['D3Origin'][0][0]
+    col_step = data[0][0]['WidthStep'][0][0]
+    row_step = data[0][0]['HeightStep'][0][0]
+    origin  = numpy.array([row_origin, col_origin, depth_origin]).flatten()
+    step = numpy.array([row_step, col_step, depth_step]).flatten()
+    size = step * (numpy.array(z_stack_data.shape)    -1)
+    return z_stack_data, origin, step, size
+    
+#======================  RC scan =======================#
+def rc_scan(trajectory, command_queue, response_queue, config, timeout = -1):
+    #Send trajectory points to mes
+    set_points(trajectory, command_queue, response_queue, config, timeout = timeout)
+    rc_scan_path, rc_scan_path_on_mes = generate_paths('rc_scan.mat', config)
+    command_queue.put('SOCrc_scanEOC{0}EOP' .format(rc_scan_path_on_mes))
+    results = []
+    results.append(network_interface.wait_for_response(response_queue, 'SOCrc_scanEOCstartedEOP', error_response = 'error', timeout = timeout))
+    results.append(network_interface.wait_for_response(response_queue, ['SOCrc_scanEOCOKEOP', 'SOCrc_scanEOCUSEOP'], error_response = 'error', timeout = timeout))
+    results.append(network_interface.wait_for_response(response_queue, 'SOCrc_scanEOCsaveOKEOP', error_response = 'error', timeout = timeout))
+    scanned_trajectory = {}
+    if os.path.exists(rc_scan_path):
+        #Extract data from file
+        pass
+    return scanned_trajectory, results
+
+def set_points(points, command_queue, response_queue, config, timeout = -1):
+    points_mat, points_mat_on_mes = generate_paths('rc_points.mat', config)
+    generate_scan_points_mat(points, points_mat)
+    command_queue.put('SOCset_pointsEOC{0}EOP' .format(points_mat_on_mes))
+    return network_interface.wait_for_response(response_queue, 'SOCset_pointsEOCpoints_setEOP', error_response = 'error', timeout = timeout)
+
+def generate_scan_points_mat(points, mat_file):
+    '''
+    Points shall be a struct array of numpy.float64 with x, y and z fields.
+    numpy.zeros((3,100), {'names': ('x', 'y', 'z'), 'formats': (numpy.float64, numpy.float64, numpy.float64)})
+    '''
+    if points.dtype != [('row', '<f8'), ('col', '<f8'), ('depth', '<f8')]:
+        raise RuntimeError('Data format is incorrect')
+    data_to_mes_mat = {}
+    data_to_mes_mat['DATA'] = points
+    scipy.io.savemat(mat_file, data_to_mes_mat, oned_as = 'column')
+    
+def get_rc_range(command_queue, response_queue, timeout = -1):
+    '''
+    MES returns the range as follows: xmin, xmax, ymin, ymax, z range
+    '''
+    command_queue.put('SOCget_rangeEOCEOP')
+    result = network_interface.wait_for_response(response_queue, 'SOCget_rangeEOC', error_response = 'error', timeout = timeout)[0]
+    ranges =  re.findall('EOC(.+)EOP',result).split(',')
+    mes_scan_range = {}
+    if len(ranges) == 5:
+        mes_scan_range['col'] = map(float, result[:2])
+        mes_scan_range['row'] = map(float, result[2:4])
+        mes_scan_range['depth'] = map(float, result[4])
+    return mes_scan_range
+
+#=========== General helpers ========================#
+def generate_paths(filename, config):
+    path = utils.generate_filename(os.path.join(config.EXPERMENT_DATA_PATH, filename))
+    path_on_mes = utils.convert_path_to_remote_machine_path(path, config.MES_DATA_FOLDER)
+    return path, path_on_mes
+    
 def get_objective_position(mat_file):    
     m = matlabfile.MatData(mat_file)
     data = m.get_field('DATA')
@@ -25,39 +130,10 @@ def get_objective_position(mat_file):
         data = numpy.array(data)
     return data
 
-def image_from_mes_mat(mat_file, image_file = None, z_stack = False):
-    from visexpA.engine.datadisplay.imaged import imshow
-    if z_stack:
-        data = matlabfile.MatData(mat_file).get_field('DATA')
-        n_frames = data[0].shape[0]
-        frames = []
-        for i in range(n_frames):
-            frame = data[0][i]['IMAGE'][0]
-            frames.append(frame)
-        image = numpy.array(frames)
-    else:
-        image = matlabfile.MatData(mat_file).get_field('DATA.0.IMAGE')[0]
-    
-    if not z_stack:
-        if image_file != None:
-            imshow(image,save=image_file)
-    return image
-    
 def set_mes_mesaurement_save_flag(mat_file, flag):
     m = matlabfile.MatData(reference_path, target_path)
     m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
     m.flush()
-    
-def roller_coaster_set_points(points, mat_file):
-    '''
-    Points shall be a struct array of numpy.float64 with x, y and z fields.
-    numpy.zeros((3,100), {'names': ('x', 'y', 'z'), 'formats': (numpy.float64, numpy.float64, numpy.float64)})
-    '''
-    if points.dtype != [('x', '<f8'), ('y', '<f8'), ('z', '<f8')]:
-        raise RuntimeError('Data format is incorrect')
-    data_to_mes_mat = {}
-    data_to_mes_mat['DATA'] = points
-    scipy.io.savemat(mat_file, data_to_mes_mat, oned_as = 'column')
     
 class MesInterface(object):
     '''

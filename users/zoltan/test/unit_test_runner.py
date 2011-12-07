@@ -132,6 +132,8 @@ class unitTestRunner():
                'enable' : TEST_daq},
                {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
                'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestQueuedServer',
+               'enable' : True},               
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testExternalHardware',
                'enable' : TEST_hardware_test},
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testDataHandler',

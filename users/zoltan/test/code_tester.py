@@ -1,34 +1,48 @@
-import visexpman.engine.generic.configuration as configuration
-import visexpman.engine.hardware_interface.network_interface as network_interface
-import time
-import Queue
+import sys
+from PyQt4 import QtGui
 
-class CommandRelayTestConfig(configuration.Config):
-    def _create_application_parameters(self):
-        import random
-        self.BASE_PORT = 10000 +0* int(10000*random.random())
-        COMMAND_RELAY_SERVER  = {
-        'RELAY_SERVER_IP' : 'localhost', 
-        'CONNECTION_MATRIX':
-            {
-            'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
-            'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
-            'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
-            'GUI_ANAL'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANAL' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
-            'STIM_ANAL'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'ANAL' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}}, 
-            }
+
+class Example(QtGui.QWidget):
+    
+    def __init__(self):
+        super(Example, self).__init__()
         
-        }
-        self._create_parameters_from_locals(locals())
+        self.initUI()
+        
+    def initUI(self):
+        
+        names = ['Cls', 'Bck', '', 'Close', '7', '8', '9', '/',
+                '4', '5', '6', '*', '1', '2', '3', '-',
+                '0', '.', '=', '+']
 
-if __name__ == "__main__":  
-    queue_in = Queue.Queue()
-    queue_out = Queue.Queue()
-    config = CommandRelayTestConfig()
-    cr = network_interface.CommandRelayServer(config)    
-    a = network_interface.start_client(config, 'GUI', 'GUI_MES', queue_in, queue_out)
+        grid = QtGui.QGridLayout()
+
+        j = 0
+        pos = [(0, 0), (0, 1), (0, 2), (0, 3),
+                (1, 0), (1, 1), (1, 2), (1, 3),
+                (2, 0), (2, 1), (2, 2), (2, 3),
+                (3, 0), (3, 1), (3, 2), (3, 3 ),
+                (4, 0), (4, 1), (4, 2), (4, 3)]
+
+        for i in names:
+            button = QtGui.QPushButton(i)
+            if j == 2:
+                grid.addWidget(QtGui.QLabel(''), 0, 2)
+            else: grid.addWidget(button, pos[j][0], pos[j][1])
+            j = j + 1
+
+        self.setLayout(grid)   
+        
+        self.move(300, 150)
+        self.setWindowTitle('Calculator')    
+        self.show()
+        
+def main():
     
-    time.sleep(30.0)
-    while not cr.debug_queue.empty():
-        print cr.debug_queue.get()
-    
+    app = QtGui.QApplication(sys.argv)
+    ex = Example()
+    sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    main()

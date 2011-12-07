@@ -214,6 +214,17 @@ def ulcorner_to_centered_coordinate_system(coordinates, screen_size):
     cooridnates_centered['col'] = cooridnates_centered['col'] - 0.5 * screen_size['col']
     return cooridnates_centered
 
+def arrays_equal(a1, a2):
+    if isinstance(a1, list):
+        a1_ = numpy.array(a1)
+    else:
+        a1_ = a1
+    if isinstance(a2, list):
+        a2_ = numpy.array(a2)
+    else:
+        a2_ = a2
+    return (abs(a1_-a2_)).sum() == 0
+
 def nd(rcarray):
     '''Convenience function to convert a recarray to nd array'''
     return rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
@@ -777,6 +788,13 @@ def generate_foldername(path):
         if index >= 10 ** number_of_digits:
             raise RuntimeError('Foldername cannot be generated')
     return testable_path
+
+def convert_path_to_remote_machine_path(local_file_path, remote_machine_folder, remote_win_path = True):
+    filename = os.path.split(local_file_path)[-1]
+    remote_file_path = os.path.join(remote_machine_folder, filename)
+    if remote_win_path:
+        remote_file_path = remote_file_path.replace('/',  '\\')
+    return remote_file_path
 
 #== Time /Date ==
 def datetime_string():
