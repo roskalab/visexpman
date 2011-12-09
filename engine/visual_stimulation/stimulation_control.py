@@ -154,7 +154,7 @@ class Devices():
             self.filterwheels.append(instrument.Filterwheel(config, caller, id =id))
         self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
         self.stage = motor_control.AllegraStage(self.config, self.caller)
-        self.mes_interface = mes_interface.MesInterface(self.config, self.caller.mes_command_queue, self.caller.mes_response_queue, self.caller.mes_connection, self.caller.screen_and_keyboard)
+        self.mes_interface = mes_interface.MesInterface(self.config, self.caller.mes_connection, self.caller.screen_and_keyboard)
 
     def close(self):
         self.parallel_port.release_instrument()

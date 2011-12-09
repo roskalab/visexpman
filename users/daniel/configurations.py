@@ -161,12 +161,14 @@ class VS3DUS(VisionExperimentConfig):
         if os.name == 'nt':
             m_drive_data_folder = 'M:\\Zoltan\\visexpman\\data'
             g_drive_data_folder = 'G:\\User\\Zoltan\\visexpdata'
+            v_drive_data_folder = 'V:\\data'
         else:
             m_drive_data_folder = '/media/Common/visexpman_data/test'
             g_drive_data_folder = '/media/Common/visexpman_data/test'
-        LOG_PATH = m_drive_data_folder
-        EXPERIMENT_LOG_PATH = m_drive_data_folder
-        EXPERIMENT_RESULT_PATH = m_drive_data_folder
+            v_drive_data_folder = '/home/zoltan/share/data'
+        LOG_PATH = os.path.join(v_drive_data_folder, 'log')
+        EXPERIMENT_LOG_PATH = LOG_PATH
+        EXPERIMENT_RESULT_PATH = v_drive_data_folder
         EXPERIMENT_DATA_PATH = EXPERIMENT_RESULT_PATH
         ARCHIVE_FORMAT = 'hdf5'
         

@@ -20,11 +20,11 @@ class SockServer(SocketServer.TCPServer):
         self.queue_in = queue_in
         self.queue_out = queue_out
         self.debug_queue = debug_queue
-        self.state = True   
+        self.connected = False
         self.connection_timeout = timeout
         self.name = name
         self.alive_message = 'SOCechoEOCaliveEOP'
-        self.shutdown_requested = False
+        self.shutdown_requested = False        
         
     def shutdown_request(self):
         self.shutdown_requested = True
@@ -42,8 +42,9 @@ class SockServer(SocketServer.TCPServer):
             if DISPLAY_MESSAGE:
                 print client_address, self.name
             request.send('connected')
+            self.connected = True            
             connection_close_request = False
-            while True:            
+            while True:
                 # self.request is the TCP socket connected to the client
                 now = time.time()
                 if self.shutdown_requested:
@@ -92,6 +93,7 @@ class SockServer(SocketServer.TCPServer):
                     break
             if DISPLAY_MESSAGE:
                 print self.name + ' closed'
+            self.connected = False
             time.sleep(0.5 + 1.5 * random.random())
 
 class QueuedServer(QtCore.QThread):
@@ -104,7 +106,7 @@ class QueuedServer(QtCore.QThread):
         self.debug_queue = debug_queue
         self.name = name
         self.timeout = timeout
-        self.server = SockServer(("", port), self.queue_in, self.queue_out, self.name, self.debug_queue, self.timeout)
+        self.server = SockServer(("", port), self.queue_in, self.queue_out, self.name, self.debug_queue, self.timeout)        
 
     def run(self):
         self.server.serve_forever()
@@ -178,10 +180,20 @@ class CommandRelayServer(object):
                 
     def get_debug_info(self):
         debug_info = []
-        if self.config.COMMAND_RELAY_SERVER['ENABLE']:        
+        if self.config.COMMAND_RELAY_SERVER['ENABLE']:
             while not self.debug_queue.empty():
                 debug_info.append(self.debug_queue.get())
         return debug_info
+        
+    def get_connection_status(self, connection_id = None, endpoint_name = None, ):
+        connection_status = {}
+        for connection_name, connection in self.servers.items():
+            for endpoint, server in connection.items():
+                connection_status[connection_name + '/' + endpoint]  = server.server.connected
+        if connection_id != None and endpoint_name != None:
+            connection_status = self.servers[connection_id][endpoint_name].server.connected
+        return connection_status        
+    
 
 class QueuedClient(QtCore.QThread):
     def __init__(self, queue_out, queue_in, server_address, port, timeout):
@@ -191,7 +203,7 @@ class QueuedClient(QtCore.QThread):
         self.port = port
         self.server_address = server_address
         self.no_message_timeout = timeout
-        self.alive_message = 'SOCechoEOCaliveEOP'
+        self.alive_message = 'SOCechoEOCaliveEOP'        
         
     def run(self):   
         shutdown_request = False
@@ -214,7 +226,7 @@ class QueuedClient(QtCore.QThread):
                 if 'connected' in data:                    
                     while True:                    
                         if not self.queue_out.empty():
-                            out = self.queue_out.get()                        
+                            out = self.queue_out.get()
                             if 'stop_client' in out:
                                 self.connection.send('close_connection')
                                 connection_close_request = True
@@ -245,7 +257,7 @@ class QueuedClient(QtCore.QThread):
                                     except:
                                         pass
                                 elif 'close_connection' in data:
-                                    connection_close_request = True
+                                    connection_close_request = True                                
                                 if len(data)>0:
                                     self.queue_in.put(data)
                                 self.last_message_time = time.time()
@@ -293,11 +305,12 @@ def wait_for_response(queue, expected_responses, error_response = None, timeout 
     error_response: if this string is in the response, returns with error
     timeout: -1: waits forever, otherwise interpreted in seconds
     '''
-    if not isinstance(expected_responses, list):
+    if not isinstance(expected_responses, list):  
         expected_responses = [expected_responses]
     result = None, ''
     start_time = time.time()
     while True:
+        time.sleep(0.01)
         if not queue.empty():
             response = queue.get()
             if any(expected_response in response for expected_response in expected_responses):                
@@ -341,14 +354,15 @@ class TestQueuedServer(unittest.TestCase):
             connection_name = (i / 2) * 2+4
             connection_name  = '{0}_{1}'.format(connection_name, connection_name+1)
             self.clients.append(start_client(self.config, str(i+4), connection_name, self.client_queues[-1]['in'], self.client_queues[-1]['out']) )
-                      
+    #TODO: check for connection status, and remote conn stat flags
     def test_01_check_connected_commands(self):
         time.sleep(0.5)        
         self.server.shutdown_servers()
         result = True
         for queues in self.client_queues:
             while not queues['in'].empty():
-                if not queues['in'].get() == 'connected to server':
+                msg =  queues['in'].get()
+                if not msg == 'connected to server' and not msg == 'client connected' and not msg == 'client disconnected':
                     result = False      
         self.assertEqual(result, True)
                 
@@ -369,7 +383,8 @@ class TestQueuedServer(unittest.TestCase):
             connection_closed = False
             while not queues['in'].empty():
                 data_from_client = queues['in'].get()
-                if not 'connected to server' in data_from_client and not 'connection closed' in data_from_client:
+                if not 'connected to server' in data_from_client and not 'connection closed' in data_from_client and\
+                not 'client connected' in data_from_client and not 'client disconnected' in data_from_client:
                     messages.append(int(data_from_client))        
                 if 'connection closed' in data_from_client:
                     connection_closed = True

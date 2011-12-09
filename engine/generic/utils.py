@@ -931,6 +931,11 @@ def save_position(hdf5, stagexyz, objective_z = None):
     hdf5.save('position')
 
 #== Others ==
+def empty_queue(queue):
+    results = []
+    if not queue.empty():
+        results.append(queue.get())
+    return results
 def file_to_binary_array(path):
     if os.path.exists(path):
         f = open(path, 'rb')

@@ -31,7 +31,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         #string list: list[0] - empty        
         self.DIAMETER_UM = [200]
         self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees
-#         self.ANGLES = [0] # degrees
+        self.ANGLES = [0] # degrees
         self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
