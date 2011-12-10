@@ -16,6 +16,7 @@ DISPLAY_MESSAGE = False
 class SockServer(SocketServer.TCPServer):
     def __init__(self, address, queue_in, queue_out, name, debug_queue, timeout):
         SocketServer.TCPServer.__init__(self, address, None)
+        #TODO: self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.allow_reuse_address  = True
         self.queue_in = queue_in
         self.queue_out = queue_out
@@ -196,14 +197,15 @@ class CommandRelayServer(object):
     
 
 class QueuedClient(QtCore.QThread):
-    def __init__(self, queue_out, queue_in, server_address, port, timeout):
+    def __init__(self, queue_out, queue_in, server_address, port, timeout, endpoint_name):
         QtCore.QThread.__init__(self)
         self.queue_in = queue_in
         self.queue_out = queue_out
         self.port = port
         self.server_address = server_address
         self.no_message_timeout = timeout
-        self.alive_message = 'SOCechoEOCaliveEOP'        
+        self.alive_message = 'SOCechoEOCaliveEOP'
+        self.endpoint_name = endpoint_name
         
     def run(self):   
         shutdown_request = False
@@ -268,7 +270,7 @@ class QueuedClient(QtCore.QThread):
                         time.sleep(0.02)
                 else:
                     time.sleep(self.no_message_timeout)
-                time.sleep(0.1)  
+                time.sleep(0.1)
                 self.connection.close()
                 time.sleep(1.0 + 1.5 * random.random())
                 if DISPLAY_MESSAGE:
@@ -276,14 +278,32 @@ class QueuedClient(QtCore.QThread):
                 self.queue_in.put('connection closed')
             except socket.error:
                 #Server does not respond
-                pass            
+                pass
             if shutdown_request:
                 if DISPLAY_MESSAGE:
                     print 'stop client'
                 break
             time.sleep(0.5)
         if DISPLAY_MESSAGE:
-            print 'quit'       
+            print 'quit'
+
+    def _is_echo_arrived(self):
+        result = False        
+        if not self.queue_in.empty():
+            response = self.queue_in.get()
+            if 'SOCechoEOC' in response:
+                result = True                
+        return result
+            
+    def connected_to_remote_client(self, timeout = 1.5):
+        '''
+        Sends an echo message to the remote client and waits for the response. If it does not arrive within the timout provided, it is assumed that the remote client is not connected
+        '''
+        #TODO: testcase is missing for this function
+        echo_message = 'SOCechoEOC{0}EOP'.format(self.endpoint_name)
+        self.queue_out.put(echo_message)
+        t = utils.Timeout(timeout)
+        return t.wait_timeout(self._is_echo_arrived)        
 
 def start_client(config, client_name, connection_name, queue_in, queue_out):
     '''
@@ -292,13 +312,22 @@ def start_client(config, client_name, connection_name, queue_in, queue_out):
     client = QueuedClient(queue_out, queue_in, 
                           config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'], 
                           config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'][connection_name][client_name]['PORT'], 
-                          config.COMMAND_RELAY_SERVER['TIMEOUT'])
+                          config.COMMAND_RELAY_SERVER['TIMEOUT'], 
+                          client_name)
     client.start()
     return client
 
 #============= Helpers ====================#
 
-def wait_for_response(queue, expected_responses, error_response = None, timeout = -1):
+def check_response(queue, expected_responses):    
+    result = False
+    if not queue.empty():
+        response = queue.get()
+        if any(expected_response in response for expected_response in expected_responses):
+            result = True
+    return result
+
+def wait_for_response(queue, expected_responses, timeout = -1):
     '''
     Wait for response from a remote peer by checking the response queue.
     expected_responses: can be either a list of string or a string. If any of these patterns are detected, the response is assumed to arrive
@@ -307,22 +336,11 @@ def wait_for_response(queue, expected_responses, error_response = None, timeout 
     '''
     if not isinstance(expected_responses, list):  
         expected_responses = [expected_responses]
-    result = None, ''
-    start_time = time.time()
-    while True:
-        time.sleep(0.01)
-        if not queue.empty():
-            response = queue.get()
-            if any(expected_response in response for expected_response in expected_responses):                
-                result = response,'ok'                
-                break
-            elif error_response in response:
-                result = response, 'error'
-                break
-        if timeout != -1 and time.time() - start_time > timeout:
-            result = 'timeout'
-            break
-    return result
+    t = utils.Timeout(timeout)
+    return t.wait_timeout(check_response, queue, expected_responses)
+    
+    
+    
 
 #============== Unit tests =======================#
 
@@ -383,8 +401,7 @@ class TestQueuedServer(unittest.TestCase):
             connection_closed = False
             while not queues['in'].empty():
                 data_from_client = queues['in'].get()
-                if not 'connected to server' in data_from_client and not 'connection closed' in data_from_client and\
-                not 'client connected' in data_from_client and not 'client disconnected' in data_from_client:
+                if not 'connected to server' in data_from_client and not 'connection closed' in data_from_client:
                     messages.append(int(data_from_client))        
                 if 'connection closed' in data_from_client:
                     connection_closed = True

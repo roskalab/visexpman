@@ -8,7 +8,6 @@ import time
 import unittest
 import pkgutil
 import inspect
-import time
 import unittest
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import tempfile
@@ -229,36 +228,29 @@ def nd(rcarray):
     '''Convenience function to convert a recarray to nd array'''
     return rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
 
+def rcd(raw):
+    return rc_pack(raw, dim_order = [0, 1, 2])
 def rc(raw):
-    return rc_pack(raw, order = 'rc')
+    return rc_pack(raw, dim_order = [0, 1])
 
 def cr(raw):
-    return rc_pack(raw, order = 'cr')    
+    return rc_pack(raw, dim_order = [1, 0])    
             
-def rc_pack(raw, order = 'rc'):
-    if order == 'rc':
-        index_first = 1
-        index_second = 0
-    elif order == 'cr':
-        index_first = 0
-        index_second = 1    
-    if isinstance(raw, numpy.ndarray) and raw.ndim==2:
-        #input is a numpy array
-        if raw.ndim==2 and raw.shape[1]==2:
-            raw=raw.T
-        if raw.dtype == numpy.float:
-            return numpy.array(zip(raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.float32,numpy.float32]})
-        else:
-            return numpy.array(zip(raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
-    elif isinstance(raw, numpy.ndarray) and raw.ndim > 2:
-        raise TypeError('Input data dimension must be 2. Call rc_flatten if you want data to be flattened before conversion')
-    else:
+def rc_pack(raw, dim_order = [0, 1]):
+    dim_names0 = ['row','col','depth']
+    dim_names = [dim_names0[n] for n in dim_order]
+    raw = numpy.array(raw, ndmin=2)
+    if numpy.squeeze(raw).ndim!=2 and raw.size!=len(dim_names): #1 dimensional with exactly 2 values is accepted as row,col pair
+        raise RuntimeError('At least '+ str(len(dim_names)) +' values are needed')
+    dtype={'names':dim_names,'formats':[raw.dtype]*len(dim_names)}
+    if raw.ndim > len(dim_names):
+        raise TypeError('Input data dimension must be '+str(len(dim_names))+' Call rc_flatten if you want data to be flattened before conversion')
+    if raw.ndim==2 and raw.shape[1]==len(dim_names): # convenience feature: user must not care if input shape is (2,x) or (x,2)  we convert to the required format (2,x)
+        raw=raw.T
+    return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
+    #else:
         #input is a tuple or 1D numpy array: this case has to be handled separately so that indexing mydata['row'] returns a value and not an array.        
-        if isinstance(raw[0], float) or isinstance(raw[1], float) or isinstance(raw[0], numpy.float32) or isinstance(raw[1], numpy.float32) or\
-        isinstance(raw[0], numpy.float64) or isinstance(raw[1], numpy.float64) or isinstance(raw[0], numpy.float) or isinstance(raw[1], numpy.float):
-            return numpy.array((raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.float32,numpy.float32]})
-        else:
-            return numpy.array((raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
+        #return numpy.array((raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
 
 def rc_add(operand1, operand2,  operation = '+'):
     '''
@@ -805,6 +797,44 @@ def date_string():
     now = time.localtime()
     return ('%4i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday)).replace(' ', '0')
     
+class Timeout(object):
+    def __init__(self, timeout, sleep_period = 0.01):
+        self.start_time = time.time()
+        self.timeout = timeout
+        self.sleep_period = sleep_period
+        
+    def is_timeout(self):
+        now = time.time()
+        if now - self.start_time > self.timeout and self.timeout != -1:
+            return True
+        else:
+            return False
+            
+    def wait_timeout(self, break_wait_function = None, *args):
+        '''
+        break_wait_function: shall not block and shall return with a boolean fielld
+        Returns True if expected condition is True
+        '''
+        result = False
+        while True:
+            if self.is_timeout():
+                result = False                
+                break
+            elif  break_wait_function != None:                
+                if break_wait_function(*args): 
+                    result = True                   
+                    break
+            time.sleep(self.sleep_period)
+        return result
+        
+class Timer(object):
+    '''
+    Handles periodic timing
+    '''
+    pass
+
+        
+    
 #== Signals ==
 def interpolate_waveform(waveform, ratio):    
     waveform_interpolated = []    
@@ -1055,7 +1085,29 @@ class TestUtils(unittest.TestCase):
         
     def test_11_pulse_train(self):
         self.assertRaises(RuntimeError, generate_pulse_train, numpy.array([0,2,4]), [1,1,2], numpy.array([10.0, 20.0, 10.0]), 5)
-
+    
+    def test_12_rc_0(self):
+        data = numpy.array(1)
+        self.assertRaises(RuntimeError, rc_pack, data, dim_order = dim_order)
+    
+    def test_12_rc_1(self):
+        data = numpy.array([1, 2])
+        self.assertRaises(RuntimeError, rc_pack, data, dim_order = dim_order)
+        
+    def test_12_rc(self):
+        results = []
+        for d in range(2, 4):
+            data = numpy.ones((4, d, ), numpy.uint16)
+            if d>0:
+                for d1 in range(1, 4):
+                    data[0] = d1*data[0]
+                if d>1:
+                    for d2 in range(2, 4):
+                        data[0, 0]=10*d2*data[0, 0]
+            results.append(nd(rc_pack(data, dim_order = range(d))))
+        self.assertTrue(numpy.all(item) for item in results)    
+        pass
+                
 if __name__ == "__main__":
     start_point = cr((0.0, 0.0))
     end_point = cr((10.0, 10.0))
@@ -1126,6 +1178,7 @@ if __name__ == "__main__":
     mytest.addTest(TestUtils('test_05_pulse_train'))
     mytest.addTest(TestUtils('test_06_pulse_train'))
     mytest.addTest(TestUtils('test_07_pulse_train'))
+    mytest.addTest(TestUtils('test_12_rc'))
     alltests = unittest.TestSuite([mytest])
     #suite = unittest.TestLoader().loadTestsFromTestCase(Test)
     unittest.TextTestRunner(verbosity=2).run(alltests)
