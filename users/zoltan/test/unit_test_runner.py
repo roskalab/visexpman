@@ -63,7 +63,7 @@ if TEST_os == 'nt':
     TEST_reference_mat_file = 'm:\\Zoltan\\visexpman\\test_data\\line_scan_parameters.mat'
 elif TEST_os == 'posix':
     TEST_reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
-    TEST_reference_mat_file = '/home/zoltan/mdrive/Zoltan/visexpman/test_data/line_scan_parameters.mat'
+    TEST_reference_mat_file = '/home/zoltan/mdrive/Zoltan/visexpman/test_data/line_scan_parameters.mat' #INVALID
 elif TEST_os == 'osx':
     TEST_reference_frames_folder = '/Users/rz/visexpman/data/test_data/reference_frames_osx'
 
