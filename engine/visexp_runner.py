@@ -751,8 +751,8 @@ class testVisexpRunner(unittest.TestCase):
                 'show_shape(circle, 0.0333333333333, (0, 0), 200, None, 0.0, (100.0, 200.0), 1.0)', 
                 'show_shape(r, 0.0, (0, 0), [1.0, 1.0, 1.0], (1.0, 0.0, 0.0), 0.0, 100.0, 1.0)', 
                 'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], 120, 0.0, 100.0, 10.0)', 
-                'show_shape(r, 0.0, (0, 0), [1.0, 0.0, 0.0], None, 10, (200.0, 100.0), 1.0)', 
-                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], None, 0.0, (200.0, 100.0), 10.0)'                
+                'show_shape(r, 0.0, (0, 0), [1.0, 0.0, 0.0], None, 10, (100.0, 200.0), 1.0)',
+                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], None, 0.0, (100.0, 200.0), 10.0)'                
                              ]        
         elif sys.version.find('2.6.') != -1: 
             reference_strings = [
@@ -781,8 +781,8 @@ class testVisexpRunner(unittest.TestCase):
                 'show_shape(circle, 0.0333333333333, (0, 0), 200, None, 0.0, (100.0, 200.0), 1.0)', 
                 'show_shape(r, 0.0, (0, 0), [1.0, 1.0, 1.0], (1.0, 0.0, 0.0), 0.0, 100.0, 1.0)', 
                 'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], 120, 0.0, 100.0, 10.0)', 
-                'show_shape(r, 0.0, (0, 0), [1.0, 0.0, 0.0], None, 10, (200.0, 100.0), 1.0)', 
-                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], None, 0.0, (200.0, 100.0), 10.0)'
+                'show_shape(r, 0.0, (0, 0), [1.0, 0.0, 0.0], None, 10, (100.0, 200.0), 1.0)', 
+                'show_shape(a, 0.0, (0, 0), [1.0, 1.0, 1.0], None, 0.0, (100.0, 200.0), 10.0)'
                              ]
         for reference_string in reference_strings:
             if experiment_log.find(reference_string) == -1:

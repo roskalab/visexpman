@@ -78,11 +78,18 @@ class MesInterface(object):
         4. acquire_line_scan, OK is received when the two photon acquisition is finished
         5. acquire_line_scan, saveOK is received when saving data is complete
     '''
+    #TODO: handle situations when interface is disabled
     def __init__(self, config, connection = None, screen = None, log = None):
         self.config = config
         self.connection = connection
-        self.command_queue = self.connection.queue_out
-        self.response_queue = self.connection.queue_in
+        if hasattr(self.connection, 'queue_out'):
+            self.command_queue = self.connection.queue_out
+        else:
+            self.command_queue = None
+        if hasattr(self.connection, 'queue_in'):
+            self.response_queue = self.connection.queue_in
+        else:
+            self.response_queue = None
         self.screen = screen
         self.log = log
         self.stop = False
@@ -269,19 +276,19 @@ def read_z_stack(mes_file_or_stream, channel = 'pmtUGraw'):
     #TODO: reverse z stack over z axis
     #TODO data in row col depth format
     if not hasattr(mes_file_or_stream, 'raw_mat') and not hasattr(mes_file_or_stream, 'get_field'):
-        data = matlabfile.MatData(mes_file).get_field('DATA')
+        data = matlabfile.MatData(mes_file_or_stream).get_field('DATA')
     else:
         data = mes_file_or_stream.get_field('DATA')
     n_frames = data[0].shape[0]
     n_average = int(data[0][0]['Average'][0][0][0])
     frames = []
-    for i in range(n_frames, -1, -1):  # MES takes zstacks from the bottom, we treat zstacks starting from the cortex surface
-        frame = data[0][i]['IMAGE'][0]
+    for i in range(n_frames-1, -1, -1):  # MES takes zstacks from the bottom, we treat zstacks starting from the cortex surface
+        frame = matlab_image2numpy(data[0][i]['IMAGE'][0])
         channel_name = str(data[0][i]['Channel'][0][0])
         if channel_name == channel:
             frames.append(frame)
         
-    z_stack_data = numpy.array(frames).transpose()
+    z_stack_data = numpy.array(frames)#.transpose()
     depth_step = data[0][0]['D3Step'][0][0]#TODO: use getfield
     col_origin = data[0][0]['WidthOrigin'][0][0]
     row_origin = data[0][0]['HeightOrigin'][0][0]
@@ -290,9 +297,9 @@ def read_z_stack(mes_file_or_stream, channel = 'pmtUGraw'):
     row_step = data[0][0]['HeightStep'][0][0]
     z_stack = {}
     z_stack['data'] = z_stack_data
-    z_stack['origin'] = numpy.array([row_origin, col_origin, depth_origin]).flatten()
-    z_stack['scale'] = numpy.array([row_step, col_step, depth_step]).flatten()
-    z_stack['size'] = z_stack['scale'] * (numpy.array(z_stack_data.shape)    -1)
+    z_stack['origin'] = utils.rcd(numpy.array([row_origin, col_origin, depth_origin]))
+    z_stack['scale'] = utils.rcd(numpy.array([row_step, col_step, depth_step]))
+    z_stack['size'] = utils.rcd(utils.nd(z_stack['scale']) * (numpy.array(z_stack_data.shape)    -1))
     return z_stack
     
 def matlab_image2numpy(data):
@@ -383,7 +390,8 @@ class TestMesInterface(unittest.TestCase):
             self.assertEqual(self.experiment.done,  True)
             
     def test_02_rc_scan(self):
-        zhandler = RowColDepthChan(r2c(zf, cfg.basepath, cfg.cachepath, cfg.rawext, cfg.cacheext),cfg,raw_filename=zf)
+        zf = '/home/zoltan/share/danitest/RC-elso-zstack.mat'
+        zdata = read_z_stack(zf)
         
     def tearDown(self):
         pass

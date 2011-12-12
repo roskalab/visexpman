@@ -229,14 +229,15 @@ def nd(rcarray):
     return rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
 
 def rcd(raw):
-    return rc_pack(raw, dim_order = [0, 1, 2])
+    return rcd_pack(raw, dim_order = [0, 1, 2])
+    
 def rc(raw):
-    return rc_pack(raw, dim_order = [0, 1])
+    return rcd_pack(raw, dim_order = [0, 1])
 
 def cr(raw):
-    return rc_pack(raw, dim_order = [1, 0])    
+    return rcd_pack(raw, dim_order = [1, 0])    
             
-def rc_pack(raw, dim_order = [0, 1]):
+def rcd_pack(raw, dim_order = [0, 1]):
     dim_names0 = ['row','col','depth']
     dim_names = [dim_names0[n] for n in dim_order]
     raw = numpy.array(raw, ndmin=2)
@@ -246,11 +247,11 @@ def rc_pack(raw, dim_order = [0, 1]):
     if raw.ndim > len(dim_names):
         raise TypeError('Input data dimension must be '+str(len(dim_names))+' Call rc_flatten if you want data to be flattened before conversion')
     if raw.ndim==2 and raw.shape[1]==len(dim_names): # convenience feature: user must not care if input shape is (2,x) or (x,2)  we convert to the required format (2,x)
-        raw=raw.T
-    return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
-    #else:
-        #input is a tuple or 1D numpy array: this case has to be handled separately so that indexing mydata['row'] returns a value and not an array.        
-        #return numpy.array((raw[index_first], raw[index_second]),dtype={'names':['col','row'],'formats':[numpy.int16,numpy.int16]})
+        raw=raw.T    
+    if raw.size == len(dim_names):
+        return numpy.array(tuple(raw), dtype)
+    else:
+        return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
 
 def rc_add(operand1, operand2,  operation = '+'):
     '''
@@ -1086,15 +1087,15 @@ class TestUtils(unittest.TestCase):
     def test_11_pulse_train(self):
         self.assertRaises(RuntimeError, generate_pulse_train, numpy.array([0,2,4]), [1,1,2], numpy.array([10.0, 20.0, 10.0]), 5)
     
-    def test_12_rc_0(self):
+    def test_12_rcd_pack(self):
         data = numpy.array(1)
-        self.assertRaises(RuntimeError, rc_pack, data, dim_order = dim_order)
+        self.assertRaises(RuntimeError, rcd_pack, data, dim_order = [0, 1, 2])
     
-    def test_12_rc_1(self):
+    def test_13_rcd_pack(self):
         data = numpy.array([1, 2])
-        self.assertRaises(RuntimeError, rc_pack, data, dim_order = dim_order)
+        self.assertRaises(RuntimeError, rcd_pack, data, dim_order = [0, 1, 2])
         
-    def test_12_rc(self):
+    def test_14_rcd_pack(self):
         results = []
         for d in range(2, 4):
             data = numpy.ones((4, d, ), numpy.uint16)
@@ -1104,9 +1105,14 @@ class TestUtils(unittest.TestCase):
                 if d>1:
                     for d2 in range(2, 4):
                         data[0, 0]=10*d2*data[0, 0]
-            results.append(nd(rc_pack(data, dim_order = range(d))))
+            results.append(nd(rcd_pack(data, dim_order = range(d))))
         self.assertTrue(numpy.all(item) for item in results)    
         pass
+        
+    def test_15_rcd_pack(self):
+        data = (1, 2)
+        rc_value = rc(data)
+        self.assertEqual((rc_value['row'], rc_value['col']), data)
                 
 if __name__ == "__main__":
     start_point = cr((0.0, 0.0))
@@ -1178,7 +1184,10 @@ if __name__ == "__main__":
     mytest.addTest(TestUtils('test_05_pulse_train'))
     mytest.addTest(TestUtils('test_06_pulse_train'))
     mytest.addTest(TestUtils('test_07_pulse_train'))
-    mytest.addTest(TestUtils('test_12_rc'))
+    mytest.addTest(TestUtils('test_12_rcd_pack'))
+    mytest.addTest(TestUtils('test_13_rcd_pack'))
+    mytest.addTest(TestUtils('test_14_rcd_pack'))
+    mytest.addTest(TestUtils('test_15_rcd_pack'))
     alltests = unittest.TestSuite([mytest])
     #suite = unittest.TestLoader().loadTestsFromTestCase(Test)
     unittest.TextTestRunner(verbosity=2).run(alltests)

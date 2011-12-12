@@ -689,15 +689,15 @@ class Stimulations(command_handler.CommandHandler):
             display_area_adjusted[1] = self.config.SCREEN_RESOLUTION['row'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['col'] * abs(math.sin(orientation_rad))
             
         #calculate vertices of display area
-        #angles between diagonals            
+        #angles between diagonals
         alpha = numpy.arctan(display_area_adjusted[0]/display_area_adjusted[1])
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
-        angles = angles - orientation_rad        
+        angles = angles - orientation_rad
         diagonal = numpy.sqrt((display_area_adjusted **2).sum())
-        vertices = 0.5 * diagonal * numpy.array([numpy.sin(angles), numpy.cos(angles)])        
+        vertices = 0.5 * diagonal * numpy.array([numpy.sin(angles), numpy.cos(angles)])
         vertices = vertices.transpose()
-        vertices = vertices + numpy.array(pos_adjusted)            
-        glEnableClientState(GL_VERTEX_ARRAY)        
+        vertices = vertices + numpy.array([pos_adjusted])
+        glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         #== Generate grating profile        
         if isinstance(profile, str):
