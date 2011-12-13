@@ -5,7 +5,7 @@
 #TODO: timestamp to gui.hdf5 and string_timestamp node
 #TODO: string parsing: re
 #TODO: string to binary array: numpy.loadtext, loadfile or struct.struct
-ENABLE_NETWORK = not True
+ENABLE_NETWORK = True
 SEARCH_SUBFOLDERS = True
 import sys
 import time
@@ -782,18 +782,15 @@ class GuiConfig(configuration.VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         
         if self.OS == 'win':
-            m_drive_folder = 'M:\\Zoltan\\visexpman'
-        elif self.OS == 'linux':
-            m_drive_folder = '/home/zoltan/mdrive/Zoltan/visexpman'
-            m_drive_folder = '/home/zoltan/share'
-            if not os.path.exists(m_drive_folder):
-                m_drive_folder = '/media/sf_M_DRIVE/Zoltan/visexpman'
-        data_folder = os.path.join(m_drive_folder, 'data')
-        TEST_DATA_PATH = os.path.join(m_drive_folder, 'test_data')
+            v_drive_folder = 'V:'
+        elif self.OS == 'linux':                        
+            v_drive_folder = '/home/zoltan/visexp'
+        data_folder = os.path.join(v_drive_folder, 'data')
+        TEST_DATA_PATH = os.path.join(data_folder, 'test')
         LOG_PATH = data_folder
         EXPERIMENT_LOG_PATH = data_folder        
         EXPERIMENT_DATA_PATH = data_folder
-        MES_DATA_PATH = os.path.join(m_drive_folder, 'data')        
+        MES_DATA_PATH = os.path.join(v_drive_folder, 'data')        
         MES_DATA_FOLDER = 'V:\\data'     
         self.COMMAND_RELAY_SERVER['ENABLE'] = ENABLE_NETWORK
         
@@ -809,8 +806,8 @@ def run_gui():
     else:
         cr = None
     app = Qt.QApplication(sys.argv)
-#    gui = Gui(config, cr)
-    gui2 = VisionExperimentGui(config, cr)
+    gui = Gui(config, cr)
+#    gui2 = VisionExperimentGui(config, cr)
     app.exec_()
 
 if __name__ == '__main__':

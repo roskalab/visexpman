@@ -31,7 +31,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         #string list: list[0] - empty        
         self.DIAMETER_UM = [200]
         self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees
-        self.ANGLES = [0] # degrees
+#        self.ANGLES = [0] # degrees
         self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
@@ -42,7 +42,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingDot'
 #         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
-        MES_PARAMETER_PATH = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, 'mes_parameter_sets', 'line_scan_parameters.mat')
+        MES_PARAMETER_PATH = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, 'parameter', 'line_scan_parameters.mat')
         self._create_parameters_from_locals(locals())
 #         experiment.ExperimentConfig.__init__(self) # needs to be called so that runnable is instantiated and other checks are done
 
@@ -71,7 +71,7 @@ class MovingDot(experiment.Experiment):
             fragment_hdf5_path = fragment_mat_path.replace('.mat', '.hdf5')
             #Create mes parameter file
             stimulus_duration = float(len(self.row_col[di]) / self.experiment_config.NDOTS)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-            self.mes_interface.set_scan_time(stimulus_duration + 3, self.experiment_config.MES_PARAMETER_PATH, fragment_mat_path)
+            mes_interface.set_line_scan_time(stimulus_duration + 3, self.experiment_config.MES_PARAMETER_PATH, fragment_mat_path)
             #Start recording analog signals
             ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
             ai.start_daq_activity()
@@ -94,7 +94,8 @@ class MovingDot(experiment.Experiment):
             self.log.info('ai recording finished')
             
             self.mes_interface.wait_for_data_save_complete()
-            time.sleep(1.0)#Make sure that file operations are complete
+            print 'save to hdf5'
+#            time.sleep(1.0)#Make sure that file operations are complete
             #Save
             fragment_hdf5 = hdf5io.Hdf5io(fragment_hdf5_path , config = self.machine_config, caller = self.caller)
             if not hasattr(ai, 'ai_data'):
@@ -118,6 +119,7 @@ class MovingDot(experiment.Experiment):
                     data_to_hdf5['experiment_source'] = utils.file_to_binary_array(path)
                     break
             utils.save_config(fragment_hdf5, self.machine_config, self.experiment_config)
+            time.sleep(5.0) #Wait for file ready            
             utils.save_position(fragment_hdf5, self.stage.read_position(),mes_interface.get_objective_position(fragment_mat_path))
             fragment_hdf5.machine_config = copy.deepcopy(self.machine_config.get_all_parameters())
             fragment_hdf5.experiment_config = self.experiment_config.get_all_parameters()

@@ -36,38 +36,38 @@ class MesData(object):
             raise RuntimeError('Data format is incorrect')
         data_to_mes_mat = {}
         data_to_mes_mat['DATA'] = points
-        scipy.io.savemat(mat_file, data_to_mes_mat, oned_as = 'column')
+        scipy.io.savemat(mat_file, data_to_mes_mat, oned_as = 'column')       
+
         
-    def set_line_scan_time(self, scan_time, reference_path, target_path):        
-        '''
-        scan_time: in ms
-        reference_path: reference mat file that will be used as a template
-        target_path: 
-        '''
-        m = matlabfile.MatData(reference_path, target_path)
-        ts = m.get_field(m.name2path('ts'))[0][0][0][0]
-        ts = numpy.array([ts[0],ts[1],ts[2],float(1000*scan_time)], dtype = numpy.float64)
-        m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
+def get_objective_position(mat_file):        
+    m = matlabfile.MatData(mat_file)
+    data = m.get_field('DATA')
+    n_frames = data[0].shape[0]
+    if n_frames <= 2: #For some reason sometimes two data units reside in the mat file
+        data = m.get_field('DATA.Zlevel.0')[0].flatten()
+    else:
+        data = []
+        data_set = m.get_field('DATA.Zlevel') 
+        for i in range(n_frames):
+            data.append(data_set[0][i][0][0][0])
+        data = numpy.array(data)
+    return data
         
-    def get_objective_position(sef, mat_file):
-        #TODO: Where is that used? Needs to be reworked
-        m = matlabfile.MatData(mat_file)
-        data = m.get_field('DATA')
-        n_frames = data[0].shape[0]
-        if n_frames <= 2: #For some reason sometimes two data units reside in the mat file
-            data = m.get_field('DATA.Zlevel.0')[0].flatten()
-        else:
-            data = []
-            data_set = m.get_field('DATA.Zlevel') 
-            for i in range(n_frames):
-                data.append(data_set[0][i][0][0][0])
-            data = numpy.array(data)
-        return data
+def set_mes_mesaurement_save_flag(mat_file, flag):
+    m = matlabfile.MatData(reference_path, target_path)
+    m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
+    m.flush()   
         
-    def set_mes_mesaurement_save_flag(self, mat_file, flag):
-        m = matlabfile.MatData(reference_path, target_path)
-        m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
-        m.flush()   
+def set_line_scan_time(scan_time, reference_path, target_path):        
+    '''
+    scan_time: in ms
+    reference_path: reference mat file that will be used as a template
+    target_path: 
+    '''
+    m = matlabfile.MatData(reference_path, target_path)
+    ts = m.get_field(m.name2path('ts'))[0][0][0][0]
+    ts = numpy.array([ts[0],ts[1],ts[2],float(1000*scan_time)], dtype = numpy.float64)
+    m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
     
 class MesInterface(object):
     '''
@@ -210,7 +210,9 @@ class MesInterface(object):
 
     def wait_for_line_scan_complete(self):        
         aborted = False
-        if self.connection.connected_to_remote_client():
+        #TODO: GUI tdisplay network messages with dat/time format
+#        if self.connection.connected_to_remote_client(): #TODO
+        if True:
 #            self.command_server.enable_keep_alive_check = False
            #wait for finishing two photon acquisition
             while True:
@@ -236,7 +238,8 @@ class MesInterface(object):
                 
     def wait_for_data_save_complete(self):
         aborted = False
-        if self.connection.connected_to_remote_client():
+        if True:
+#        if self.connection.connected_to_remote_client():
             #Wait for saving data to disk
             while True:
                 if self.stop:
