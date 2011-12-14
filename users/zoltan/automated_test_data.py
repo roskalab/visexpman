@@ -275,9 +275,14 @@ class FrameRateExperimentConfig(experiment.ExperimentConfig):
 
 class FrameRateExperiment(experiment.Experiment):
     def run(self):
+        duration = 10.0        
         self.t0 = time.time()
-        self.show_grating(duration = 10.0, velocity = 500.0, white_bar_width = 200)
+        self.show_grating(duration = duration, velocity = 500.0, white_bar_width = 200)
         self.t1 = time.time()
+        self.frame_rate = (self.t1 - self.t0) / duration * self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        print self.frame_rate
+        self.log.info('Frame rate: ' + str(self.frame_rate))
+        
 
 #== Test visual stimulations ==
 class VisualStimulationsTestConfig(VisionExperimentConfig):

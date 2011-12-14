@@ -5,7 +5,7 @@ import datetime
 import os.path
 import zipfile
 import tempfile
-
+#TODO: remove /media/Common dependencies
 #Quickstart: test without hardware : python unit_test_runner.py test -h
 
 #run modes:
@@ -45,7 +45,6 @@ TEST_os = os.name
 if hasattr(os,  'uname'):
     if os.uname()[0] != 'Linux':
         TEST_os = 'osx'
-
 #== Test parameters ==
 TEST_test = (run_mode != 'application')
 
@@ -171,6 +170,10 @@ class unitTestRunner():
         '''
         Aggregates and runs tests.
         '''        
+        if TEST_os == 'posix':
+            #load parallel port driver        
+            os.system('rmmod lp')
+            os.system('modprobe ppdev')#TODO: replace to popen
         self.test_log = tempfile.mktemp()        
         f = open(self.test_log,  'w')
         test_suite = unittest.TestSuite()

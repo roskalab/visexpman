@@ -632,10 +632,15 @@ class testVisexpRunner(unittest.TestCase):
         cs.close()
         #Read logs
         dt = v.selected_experiment_config.runnable.t1-v.selected_experiment_config.runnable.t0
-        timing_tolerance = 0.1
+        frame_rate = v.selected_experiment_config.runnable.frame_rate
+        expected_frame_rate = v.selected_experiment_config.runnable.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        if unit_test_runner.TEST_os == 'posix':
+            frame_rate_tolerance = 3.0
+        else:
+            frame_rate_tolerance = 0.01
         log = utils.read_text_file(v.logfile_path)
         experiment_log = utils.read_text_file(v.experiment_control.logfile_path)
-        #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
+        #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files        
         self.assertEqual(
                          (self.check_application_log(log), 
                          self.check_experiment_log(experiment_log), 
@@ -646,8 +651,9 @@ class testVisexpRunner(unittest.TestCase):
                         log.find('Command handler: experiment executed') != -1, 
                         zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path), 
                         self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', 'Experiment')), 
-                        dt < 10 + timing_tolerance and dt > 10.0 - timing_tolerance), 
+                        frame_rate < expected_frame_rate + frame_rate_tolerance and frame_rate > expected_frame_rate - frame_rate_tolerance), 
                         (True, True, True, True, True, True, True, True, True, True))
+        
     
 #== Test helpers ==
     def check_application_log(self, log):
@@ -699,8 +705,9 @@ class testVisexpRunner(unittest.TestCase):
                                     (hasattr(hdf5_handler, 'experiment_log'))
         hdf5_handler.close()        
         return result
-            
+#TODO: file comparison is slow, a faster method shall be used
     def check_captured_frames(self, capture_folder, reference_folder):
+        result = True
         for reference_file_path in utils.listdir_fullpath(reference_folder):
             reference_file = open(reference_file_path, 'rb')
             reference_data = reference_file.read(os.path.getsize(reference_file_path))
@@ -709,19 +716,12 @@ class testVisexpRunner(unittest.TestCase):
             captured_file = open(captured_frame_path, 'rb')
             captured_data = captured_file.read(os.path.getsize(captured_frame_path))
             captured_file.close()
-            number_of_differing_pixels = (utils.string_to_array(reference_data) != utils.string_to_array(captured_data)).sum()/3.0
-            if unit_test_runner.TEST_os == 'posix':
-                if reference_data != captured_data:
-                    print 'number of differing pixels %f'%number_of_differing_pixels
-                    print reference_file_path
-                    return False
-            else:
-                if reference_data != captured_data:                                                            
-                    if number_of_differing_pixels >= unit_test_runner.TEST_pixel_difference_threshold:
-                        print reference_file_path, number_of_differing_pixels
-                        return False
-
-        return True
+            number_of_differing_pixels = (utils.string_to_array(reference_data) != utils.string_to_array(captured_data)).sum()/3.0                        
+            if reference_data != captured_data:                                                            
+                if number_of_differing_pixels >= unit_test_runner.TEST_pixel_difference_threshold:
+                    print reference_file_path, number_of_differing_pixels
+                    result = False
+        return result
         
     def check_experiment_log_for_visual_stimuli(self, experiment_log):        
         if sys.version.find('2.7.') != -1:        
