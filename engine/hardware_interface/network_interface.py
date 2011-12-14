@@ -288,11 +288,17 @@ class QueuedClient(QtCore.QThread):
             print 'quit'
 
     def _is_echo_arrived(self):
-        result = False        
-        if not self.queue_in.empty():
+        result = False
+        data_back_to_queue = []
+        while not self.queue_in.empty():
             response = self.queue_in.get()
             if 'SOCechoEOC' in response:
-                result = True                
+                result = True
+            else:
+                #Save non-echo messages
+                data_back_to_queue.append(response)
+        #Put non-echo messages back to queue so that other methods could process them
+        map(self.queue_in.put, data_back_to_queue)
         return result
             
     def connected_to_remote_client(self, timeout = 1.5):
@@ -303,7 +309,7 @@ class QueuedClient(QtCore.QThread):
         echo_message = 'SOCechoEOC{0}EOP'.format(self.endpoint_name)
         self.queue_out.put(echo_message)
         t = utils.Timeout(timeout)
-        return t.wait_timeout(self._is_echo_arrived)        
+        return t.wait_timeout(break_wait_function = self._is_echo_arrived)        
 
 def start_client(config, client_name, connection_name, queue_in, queue_out):
     '''
@@ -321,13 +327,19 @@ def start_client(config, client_name, connection_name, queue_in, queue_out):
 
 def check_response(queue, expected_responses):    
     result = False
-    if not queue.empty():
+    data_back_to_queue = []
+    while not queue.empty():
         response = queue.get()
         if any(expected_response in response for expected_response in expected_responses):
             result = True
+        else:
+            #Save non-echo messages
+            data_back_to_queue.append(response)
+    #Put non-echo messages back to queue so that other methods could process them
+    map(queue.put, data_back_to_queue)
     return result
 
-def wait_for_response(queue, expected_responses, timeout = -1):
+def wait_for_response(queue, expected_responses, timeout = -1, keyboard_handler = None):
     '''
     Wait for response from a remote peer by checking the response queue.
     expected_responses: can be either a list of string or a string. If any of these patterns are detected, the response is assumed to arrive
@@ -337,7 +349,7 @@ def wait_for_response(queue, expected_responses, timeout = -1):
     if not isinstance(expected_responses, list):  
         expected_responses = [expected_responses]
     t = utils.Timeout(timeout)
-    return t.wait_timeout(check_response, queue, expected_responses)
+    return t.wait_timeout(keyboard_handler, check_response, queue, expected_responses)
     
     
     

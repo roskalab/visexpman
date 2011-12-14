@@ -811,13 +811,13 @@ class Timeout(object):
         else:
             return False
             
-    def wait_timeout(self, break_wait_function = None, *args):
+    def wait_timeout(self, keyboard_handler = None, break_wait_function = None, *args):
         '''
         break_wait_function: shall not block and shall return with a boolean fielld
         Returns True if expected condition is True
         '''
         result = False
-        while True:
+        while True:            
             if self.is_timeout():
                 result = False                
                 break
@@ -825,6 +825,10 @@ class Timeout(object):
                 if break_wait_function(*args): 
                     result = True                   
                     break
+            elif hasattr(keyboard_handler, 'experiment_user_interface_handler'):
+                if 'stop' in keyboard_handler.experiment_user_interface_handler():
+                    result = True
+                    break                
             time.sleep(self.sleep_period)
         return result
         

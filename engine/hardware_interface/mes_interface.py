@@ -58,7 +58,7 @@ def set_mes_mesaurement_save_flag(mat_file, flag):
     m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
     m.flush()   
         
-def set_line_scan_time(scan_time, reference_path, target_path):        
+def set_line_scan_time(scan_time, reference_path, target_path):
     '''
     scan_time: in ms
     reference_path: reference mat file that will be used as a template
@@ -79,7 +79,7 @@ class MesInterface(object):
         5. acquire_line_scan, saveOK is received when saving data is complete
     '''
     #TODO: handle situations when interface is disabled
-    def __init__(self, config, connection = None, screen = None, log = None):
+    def __init__(self, config, connection = None, keyboard_handler = None, log = None):
         self.config = config
         self.connection = connection
         if hasattr(self.connection, 'queue_out'):
@@ -90,14 +90,14 @@ class MesInterface(object):
             self.response_queue = self.connection.queue_in
         else:
             self.response_queue = None
-        self.screen = screen
+        self.keyboard_handler = keyboard_handler
         self.log = log
         self.stop = False
         self.mes_file_handler = MesData()
 
     #================ Z stack ========================#
     def acquire_z_stack(self, timeout = -1, channel = 'pmtUGraw', test_mat_file = None):
-        z_stack_path, z_stack_path_on_mes = self.generate_mes_file_paths('z_stack.mat')
+        z_stack_path, z_stack_path_on_mes = self._generate_mes_file_paths('z_stack.mat')
         utils.empty_queue(self.response_queue)
         results = []
         #Acquire z stack
@@ -129,7 +129,7 @@ class MesInterface(object):
         scanned_trajectory = {}
         #Send trajectory points to mes
         results.append(self.set_trajectory(trajectory, timeout = timeout))
-        rc_scan_path, rc_scan_path_on_mes = self.generate_mes_file_paths('rc_scan.mat')
+        rc_scan_path, rc_scan_path_on_mes = self._generate_mes_file_paths('rc_scan.mat')
         utils.empty_queue(self.response_queue)
         if self.connection.connected_to_remote_client():
             self.command_queue.put('SOCrc_scanEOC{0}EOP' .format(rc_scan_path_on_mes))
@@ -143,7 +143,7 @@ class MesInterface(object):
         return scanned_trajectory, results
 
     def set_trajectory(self, points, timeout = -1):
-        points_mat, points_mat_on_mes = self.generate_mes_file_paths('rc_points.mat')
+        points_mat, points_mat_on_mes = self._generate_mes_file_paths('rc_points.mat')
         self.mes_file_handler.generate_scan_points_mat(points, points_mat)
         utils.empty_queue(self.response_queue)
         self.command_queue.put('SOCset_pointsEOC{0}EOP' .format(points_mat_on_mes))
@@ -168,104 +168,84 @@ class MesInterface(object):
         
     #======================  Line scan =======================#    
             
-    def _watch_keyboard(self):
-        #Keyboard commands
-        if self.screen != None:
-            return self.screen.experiment_user_interface_handler() #Here only commands with running experiment domain are considered
+    
+    def prepare_line_scan(self, scan_time, template_parameter_file = None):
+        '''
+        '''        
+        result = False, None
+        if template_parameter_file == None:
+            #Get parameters from MES by requesting a short line scan
+            query_parameters_result, modified_parameter_file = self.start_line_scan(timeout = 2.0)            
+            if query_parameters_result:
+                query_parameters_response_result = self.wait_for_line_scan_complete(10.0)                
+                if query_parameters_response_result:                    
+                    query_parameters_response_result = self.wait_for_line_scan_save_complete(10.0)                    
+                    if query_parameters_response_result:
+                        #prepare parameter file
+                        set_line_scan_time(scan_time, modified_parameter_file, modified_parameter_file)                        
+                        result = True, modified_parameter_file                    
+        else:
+            parameter_file = utils.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'line_scan_parameters.mat'))
+            set_line_scan_time(scan_time, template_parameter_file, parameter_file)
+            result = True, parameter_file
+        return result
         
-        #TODO: handle US parameter from mes: user abort
-        #TODO: input parameter is the duration
-    def start_line_scan(self, mat_file_path):
-        aborted = False
-        self.stop = False
+    def start_line_scan(self, timeout = -1, parameter_file = None):
+        if parameter_file == None:
+            #generate a mes parameter file name, that does not exits
+            line_scan_path, line_scan_path_on_mes = self._generate_mes_file_paths('line_scan.mat')
+        else:
+            line_scan_path = parameter_file
+            line_scan_path_on_mes = utils.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS == 'win'))            
+        
+        #previously sent garbage is removed from queue
+        utils.empty_queue(self.response_queue)        
+        #Acquire line scan if MES is connected
         if self.connection.connected_to_remote_client():
-            self.command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(mat_file_path))
-            #Wait for MES response        
-            while True:
-                try:
-                    response = self.response_queue.get(False)
-                except:
-                    response = ''
-                if 'SOCacquire_line_scanEOCstartedEOP' in response:
-                    if self.log != None:
-                        self.log.info('line scan started')
-#                        self.command_server.enable_keep_alive_check = False
-                    break
-                elif 'SOCacquire_line_scanEOCerror_starting_measurementEOP' in response:
-                    aborted = True
-                    if self.log != None:
-                        self.log.info('error starting measurement')
-                        self.stop = True
-#                        self.command_server.enable_keep_alive_check = False
-                    break
-                user_command = self._watch_keyboard()
-                if user_command != None:
-                    if user_command.find('stop') != -1:
-                        aborted = True
-                        if self.log != None:
-                            self.log.info('stopped')
-                        break
-                time.sleep(0.1)
-        return aborted
-
-    def wait_for_line_scan_complete(self):        
-        aborted = False
-        #TODO: GUI tdisplay network messages with dat/time format
-#        if self.connection.connected_to_remote_client(): #TODO
-        if True:
-#            self.command_server.enable_keep_alive_check = False
-           #wait for finishing two photon acquisition
-            while True:
-                if self.stop:
-                    break
-                try:
-                    response = self.response_queue.get(False)
-                except:
-                    response = ''
-                if 'SOCacquire_line_scanEOCOKEOP' in response or 'SOCacquire_line_scanEOCUSEOP' in response:
-                    if self.log != None:
-                        self.log.info('line scan complete')
-                    break
-                user_command = self._watch_keyboard()
-                if user_command != None:
-                    if user_command.find('stop') != -1:
-                        aborted = True
-                        if self.log != None:
-                            self.log.info('stopped')
-                        break                    
-                time.sleep(0.1)
-        return aborted
-                
-    def wait_for_data_save_complete(self):
-        aborted = False
-        if True:
-#        if self.connection.connected_to_remote_client():
-            #Wait for saving data to disk
-            while True:
-                if self.stop:
-                    break
-                try:
-                    response = self.response_queue.get(False)
-                except:
-                    response = ''
-                if 'SOCacquire_line_scanEOCsaveOKEOP' in response:
-                    if self.log != None:
-                        self.log.info('line scan data saved')
-                    break
-                user_command = self._watch_keyboard()
-                if user_command != None:
-                    if user_command.find('stop') != -1:
-                        aborted = True
-                        if self.log != None:
-                            self.log.info('stopped')
-                        break                    
-                time.sleep(0.1)
-#            self.command_server.enable_keep_alive_check = True
-        return aborted
+            self.command_queue.put('SOCacquire_line_scanEOC{0}EOP' .format(line_scan_path_on_mes))
+            result = network_interface.wait_for_response(self.response_queue, 'SOCacquire_line_scanEOCstartedEOP', timeout = timeout)
+            if result:
+                self._log_info('line scan started')
+            else:
+                self._log_info('line scan not started')
+        else:
+            self._log_info('mes not connected')
+            result = False
+        return result, line_scan_path
         
-    def generate_mes_file_paths(self, filename):
+    def wait_for_line_scan_complete(self, timeout = -1):        
+        return self._wait_for_mes_response(timeout, ['SOCacquire_line_scanEOCOKEOP', 'SOCacquire_line_scanEOCUSEOP'])
+        
+        
+    def wait_for_line_scan_save_complete(self, timeout = -1):
+        return self._wait_for_mes_response(timeout, 'SOCacquire_line_scanEOCsaveOKEOP')    
+    
+####################### Private functions ########################
+
+    def _wait_for_mes_response(self, timeout, expected_responses):
+        '''
+        Waits till MES sends notification about the completition of a certain command.
+        Waiting is aborted by the following events:
+            -timeout
+            -stop keyboard command, if keyboard_handler is present
+        '''
+        result = network_interface.wait_for_response(self.response_queue, 
+                                                     expected_responses, 
+                                                     timeout = timeout, 
+                                                     keyboard_handler = self.keyboard_handler)
+        if result:
+            self._log_info('MES responded with ' + str(expected_responses))
+        else:
+            self._log_info('No MES response')
+        return result
+        
+    def _log_info(self, message):
+        if self.log != None:
+            self.log.info(message)
+        
+    def _generate_mes_file_paths(self, filename):
         path = utils.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename))
-        path_on_mes = utils.convert_path_to_remote_machine_path(path, self.config.MES_DATA_FOLDER)
+        path_on_mes = utils.convert_path_to_remote_machine_path(path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS == 'win'))
         return path, path_on_mes
 ######
 def read_z_stack(mes_file_or_stream, channel = 'pmtUGraw'):

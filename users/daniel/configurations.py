@@ -167,13 +167,13 @@ class VS3DUS(VisionExperimentConfig):
             g_drive_data_folder = '/media/Common/visexpman_data/test'
             v_drive_data_folder = '/home/zoltan/visexp/data'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
-        EXPERIMENT_LOG_PATH = LOG_PATH
-        EXPERIMENT_RESULT_PATH = v_drive_data_folder
-        EXPERIMENT_DATA_PATH = EXPERIMENT_RESULT_PATH
+        EXPERIMENT_LOG_PATH = LOG_PATH        
+        EXPERIMENT_DATA_PATH = v_drive_data_folder
+        MES_DATA_FOLDER = 'V:\\data'
         ARCHIVE_FORMAT = 'hdf5'
         
         #=== screen ===
-        FULLSCREEN = not False
+        FULLSCREEN = False
         SCREEN_RESOLUTION = utils.cr([800, 600])
 #        SCREEN_RESOLUTION = utils.rc([768, 1024])
         COORDINATE_SYSTEM='ulcorner'
@@ -186,7 +186,7 @@ class VS3DUS(VisionExperimentConfig):
         IMAGE_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
-        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]]
+        MAXIMUM_RECORDING_DURATION = [10, [0, 10000]]
         
         #=== Network ===
         ENABLE_UDP = False     

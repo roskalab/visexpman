@@ -31,7 +31,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         #string list: list[0] - empty        
         self.DIAMETER_UM = [200]
         self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees
-#        self.ANGLES = [0] # degrees
+        self.ANGLES = [0] # degrees
         self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
@@ -42,7 +42,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingDot'
 #         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
-        MES_PARAMETER_PATH = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, 'parameter', 'line_scan_parameters.mat')
+        MES_PARAMETER_PATH = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, 'parameter', 'line_scan_parameters.mat')
         self._create_parameters_from_locals(locals())
 #         experiment.ExperimentConfig.__init__(self) # needs to be called so that runnable is instantiated and other checks are done
 
@@ -67,74 +67,80 @@ class MovingDot(experiment.Experiment):
             #Generate file name
             mes_fragment_name = '{0}_{1}_{2}'.format(self.experiment_name, experiment_start_time, di)
             print mes_fragment_name
-            fragment_mat_path = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, ('fragment_{0}.mat'.format(mes_fragment_name)))
+            fragment_mat_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, ('fragment_{0}.mat'.format(mes_fragment_name)))
             fragment_hdf5_path = fragment_mat_path.replace('.mat', '.hdf5')
             #Create mes parameter file
             stimulus_duration = float(len(self.row_col[di]) / self.experiment_config.NDOTS)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-            mes_interface.set_line_scan_time(stimulus_duration + 3, self.experiment_config.MES_PARAMETER_PATH, fragment_mat_path)
-            #Start recording analog signals
-            ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
-            ai.start_daq_activity()
-            self.log.info('ai recording started')
-            #empty queue
-            while not self.mes_response.empty():
-            	self.mes_response.get()
-            #start two photon recording
-            self.mes_interface.start_line_scan(fragment_mat_path)
-            print 'visual stimulation starts'
-            time.sleep(1.0)
-            #Show visual stimulus
-            self.show_dots([self.diameter_pix]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
-            self.show_fullscreen(color = 0.0)
-            
-            self.mes_interface.wait_for_line_scan_complete()
-            #Stop acquiring analog signals
-            ai.finish_daq_activity()
-            ai.release_instrument()
-            self.log.info('ai recording finished')
-            
-            self.mes_interface.wait_for_data_save_complete()
-            print 'save to hdf5'
-#            time.sleep(1.0)#Make sure that file operations are complete
-            #Save
-            fragment_hdf5 = hdf5io.Hdf5io(fragment_hdf5_path , config = self.machine_config, caller = self.caller)
-            if not hasattr(ai, 'ai_data'):
-                ai.ai_data = numpy.zeros(2)
-
-            data_to_hdf5 = {
-                            'sync_data' : ai.ai_data,
-                            'mes_data': utils.file_to_binary_array(fragment_mat_path),
-                            'number_of_fragments' : number_of_fragments,
-                            'actual_fragment' : di,
-                            }
-            helper_data ={}
-            if hasattr(self, 'show_line_order'):
-            	helper_data['shown_line_order'] = self.shown_line_order[di]
-            if hasattr(self,'shown_directions'):
-                helper_data['shown_directions']= self.shown_directions[di]
-            data_to_hdf5['generated_data'] = helper_data
-            #Saving source code of experiment
-            for path in self.caller.visexpman_module_paths:
-                if 'moving_dot.py' in path:
-                    data_to_hdf5['experiment_source'] = utils.file_to_binary_array(path)
-                    break
-            utils.save_config(fragment_hdf5, self.machine_config, self.experiment_config)
-            time.sleep(5.0) #Wait for file ready            
-            utils.save_position(fragment_hdf5, self.stage.read_position(),mes_interface.get_objective_position(fragment_mat_path))
-            fragment_hdf5.machine_config = copy.deepcopy(self.machine_config.get_all_parameters())
-            fragment_hdf5.experiment_config = self.experiment_config.get_all_parameters()
-            setattr(fragment_hdf5, mes_fragment_name, data_to_hdf5)
-            fragment_hdf5.save(mes_fragment_name)
-            fragment_hdf5.close()
-            #move/delete mat file
-            self.log.info('measurement data saved to hdf5: {0}'.format(fragment_hdf5_path))
-            
-            #Notify VisexpA, data files are ready
-            if self.command_buffer.find('stop') != -1:
-                self.command_buffer.replace('stop', '')
-                print 'stop'
+            parameter_file_prepare_success, parameter_file = self.mes_interface.prepare_line_scan(scan_time = stimulus_duration + 3.0)
+            print parameter_file_prepare_success
+            if parameter_file_prepare_success:
+                #Start recording analog signals
+                ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
+                ai.start_daq_activity()
+                self.log.info('ai recording started')
+                #empty queue
+                while not self.mes_response.empty():
+                    self.mes_response.get()
+                #start two photon recording
+                line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(parameter_file = parameter_file)
+                if line_scan_start_success:
+                    time.sleep(1.0)
+                    print 'visual stimulation starts'            
+                    #Show visual stimulus
+                    self.show_dots([self.diameter_pix]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+                    self.show_fullscreen(color = 0.0)                    
+                    line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(stimulus_duration)
+                    if line_scan_complete_success:
+                        #Stop acquiring analog signals
+                        ai.finish_daq_activity()
+                        ai.release_instrument()
+                        self.log.info('ai recording finished')
+                        line_scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(stimulus_duration)           
+                        if line_scan_data_save_success:
+                            print 'save to hdf5'
+                            #Save
+                            fragment_hdf5 = hdf5io.Hdf5io(fragment_hdf5_path , config = self.machine_config, caller = self.caller)
+                            if not hasattr(ai, 'ai_data'):
+                                ai.ai_data = numpy.zeros(2)            
+                            shutil.move(parameter_file, fragment_mat_path)
+                            data_to_hdf5 = {
+                                            'sync_data' : ai.ai_data,
+                                            'mes_data': utils.file_to_binary_array(fragment_mat_path),
+                                            'number_of_fragments' : number_of_fragments,
+                                            'actual_fragment' : di,
+                                            }
+                            helper_data ={}
+                            if hasattr(self, 'show_line_order'):
+                                helper_data['shown_line_order'] = self.shown_line_order[di]
+                            if hasattr(self,'shown_directions'):
+                                helper_data['shown_directions']= self.shown_directions[di]
+                            data_to_hdf5['generated_data'] = helper_data
+                            #Saving source code of experiment
+                            for path in self.caller.visexpman_module_paths:
+                                if 'moving_dot.py' in path:
+                                    data_to_hdf5['experiment_source'] = utils.file_to_binary_array(path)
+                                    break
+                            utils.save_config(fragment_hdf5, self.machine_config, self.experiment_config)
+                            time.sleep(5.0) #Wait for file ready            
+                            utils.save_position(fragment_hdf5, self.stage.read_position(),mes_interface.get_objective_position(fragment_mat_path))
+                            fragment_hdf5.machine_config = copy.deepcopy(self.machine_config.get_all_parameters())
+                            fragment_hdf5.experiment_config = self.experiment_config.get_all_parameters()
+                            setattr(fragment_hdf5, mes_fragment_name, data_to_hdf5)
+                            fragment_hdf5.save(mes_fragment_name)
+                            fragment_hdf5.close()
+                            #move/delete mat file
+                            self.log.info('measurement data saved to hdf5: {0}'.format(fragment_hdf5_path))
+                            
+                            #Notify VisexpA, data files are ready
+                            if self.command_buffer.find('stop') != -1:
+                                self.command_buffer.replace('stop', '')
+                                print 'stop'
+                else:
+                    self.log.info('line scan did not start')
+                    ai.finish_daq_activity()
+                    ai.release_instrument()
         experiment_identifier = '{0}_{1}'.format(self.experiment_name, experiment_start_time)        
-        self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, experiment_identifier + '.hdf5')
+        self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
         setattr(self.hdf5, experiment_identifier, {'id': None})
         self.hdf5.save(experiment_identifier)
         print 'moving dot complete'
