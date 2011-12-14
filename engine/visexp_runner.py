@@ -709,14 +709,14 @@ class testVisexpRunner(unittest.TestCase):
             captured_file = open(captured_frame_path, 'rb')
             captured_data = captured_file.read(os.path.getsize(captured_frame_path))
             captured_file.close()
+            number_of_differing_pixels = (utils.string_to_array(reference_data) != utils.string_to_array(captured_data)).sum()/3.0
             if unit_test_runner.TEST_os == 'posix':
                 if reference_data != captured_data:
+                    print 'number of differing pixels %f'%number_of_differing_pixels
                     print reference_file_path
                     return False
             else:
-                if reference_data != captured_data:                    
-                    number_of_differing_pixels = (utils.string_to_array(reference_data) != utils.string_to_array(captured_data)).sum()/3.0
-                    print 'number of differing pixels %f'%number_of_differing_pixels
+                if reference_data != captured_data:                                                            
                     if number_of_differing_pixels >= unit_test_runner.TEST_pixel_difference_threshold:
                         print reference_file_path, number_of_differing_pixels
                         return False

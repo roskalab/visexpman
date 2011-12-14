@@ -393,7 +393,7 @@ class TestMesInterface(unittest.TestCase):
             self.assertEqual(self.experiment.done,  True)
             
     def test_02_rc_scan(self):
-        zf = '/home/zoltan/share/danitest/RC-elso-zstack.mat'
+        zf = '/home/zoltan/visexp/data/danitest/RC-elso-zstack.mat'
         zdata = read_z_stack(zf)
         
     def tearDown(self):

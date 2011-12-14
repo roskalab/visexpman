@@ -62,8 +62,8 @@ if TEST_os == 'nt':
     TEST_reference_frames_folder = 'm:\\Zoltan\\visexpman\\test_data\\reference_frames_win'
     TEST_reference_mat_file = 'm:\\Zoltan\\visexpman\\test_data\\line_scan_parameters.mat'
 elif TEST_os == 'posix':
-    TEST_reference_frames_folder = '/media/Common/visexpman_data/reference_frames'
-    TEST_reference_mat_file = '/home/zoltan/mdrive/Zoltan/visexpman/test_data/line_scan_parameters.mat' #INVALID
+    TEST_reference_frames_folder = '/home/zoltan/visexp/data/test/frames'
+    TEST_reference_mat_file = '/home/zoltan/visexp/data/test/mes/line_scan_parameters.mat'
 elif TEST_os == 'osx':
     TEST_reference_frames_folder = '/Users/rz/visexpman/data/test_data/reference_frames_osx'
 
@@ -78,8 +78,8 @@ if TEST_os == 'nt':
     TEST_stage_com_port = 'COM1'
 elif TEST_os == 'posix':
     TEST_com_port = '/dev/ttyUSB0'
-    TEST_working_folder = '/media/Common/visexpman_data/test'
-    TEST_valid_file = '/home/zoltan/Downloads/qtgl.py'
+    TEST_working_folder = '/home/zoltan/visexp/data/unit_test_output'
+    TEST_valid_file = '/home/zoltan/visexp/codes/experiment/Helpers.py'
     TEST_invalid_file = '/home'
     TEST_stage_com_port = ''
 elif TEST_os == 'osx':
