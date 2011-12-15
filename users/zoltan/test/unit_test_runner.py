@@ -141,6 +141,8 @@ class unitTestRunner():
                'enable' : TEST_stage},
                {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
                'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
+               'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
                'enable' : True},
                {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',

@@ -302,28 +302,27 @@ class MesEmulator(QtCore.QThread):
         self.response_pattern  = response_pattern
         self.queue_in = queue_in
         self.queue_out = queue_out
-        self.run_complete = False
+        self.acquire_line_scan_received = False
         
     def run(self):        
         while True:            
             if not self.queue_in.empty():
-                message = self.queue_in.get()
+                message = self.queue_in.get()                
                 command = re.findall('SOC(.+)EOC', message)
-                parameter = re.findall('EOC(.+)EOP', message)
-                print message
-                if command == 'acquire_line_scan':
-                    for response in reponse_pattern:
+                parameter = re.findall('EOC(.+)EOP', message)                
+                if 'acquire_line_scan' in message:
+                    self.acquire_line_scan_received = True
+                    for response in self.response_pattern:
                         time.sleep(response['delay'])
                         self.queue_out.put(response['response'])
-                elif command == 'end':
-                    break
+                elif 'echo' in command:
+                    self.queue_out.put(message)
             time.sleep(0.1)        
-        self.run_complete = True
+        
                 
             
 class MESTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
-        import random
         import random
         self.BASE_PORT = 10000 + 1* int(10000*random.random())
         COMMAND_RELAY_SERVER  = {
@@ -339,59 +338,114 @@ class MESTestConfig(visexpman.engine.generic.configuration.Config):
         MES_DATA_FOLDER = unit_test_runner.TEST_working_folder
         self._create_parameters_from_locals(locals())
 
-class TestMesInterface(unittest.TestCase):
-    '''
-    Planned tests:
-    1. MesData functions
-    2. MesInterface, not connected to MES
-    3. Mes Interface, connected to MES
-    '''
+class TestMesInterfaceEmulated(unittest.TestCase):
     
     def tearDown(self):
         self.user_to_client.put('SOCclose_connectionEOCstop_clientEOP')
         if hasattr(self, 'mes_queue_out'):
             self.mes_to_client.put('SOCclose_connectionEOCstop_clientEOP')
-        self.server.shutdown_servers()     
+        if hasattr(self, 'server'):
+            self.server.shutdown_servers()     
         time.sleep(1.0)
         
     def setUp(self):
         self.config = MESTestConfig()       
         self.user_to_client = Queue.Queue()
-        self.client_to_user = Queue.Queue()        
-        self.server = network_interface.CommandRelayServer(self.config)
-        self.user_client = network_interface.start_client(self.config, 'USER', 'MES_USER', self.user_to_client, self.client_to_user)
+        self.client_to_user = Queue.Queue()
+        self.user_client = network_interface.start_client(self.config, 'USER', 'MES_USER', self.client_to_user, self.user_to_client)
         self.mes_interface = MesInterface(self.config, connection = self.user_client)        
         if not '_01_' in self._testMethodName:
+            self.server = network_interface.CommandRelayServer(self.config)
             self.mes_to_client = Queue.Queue()
             self.client_to_mes = Queue.Queue()
-            self.mes_client = network_interface.start_client(self.config, 'MES', 'MES_USER', self.mes_to_client, self.client_to_mes)
+            self.mes_client = network_interface.start_client(self.config, 'MES', 'MES_USER', self.client_to_mes, self.mes_to_client)
     
     def test_01_line_scan_mes_not_connected(self):   
         result = self.mes_interface.start_line_scan(2.0)
         self.assertEqual((result[0], os.path.exists(result[1])), (False, False))
         
     def test_02_line_scan_start_fails(self):
+        '''
+        Connection test should pass but mes will not respond with 'line scan started'
+        '''
         response_pattern = []
         mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
         mes_emulator.start()
-        time.sleep(1.0)
-        result = self.mes_interface.start_line_scan(2.0)
-        time.sleep(1.0)
-        print result, mes_emulator.run_complete
-        print self.server.get_debug_info()
-        print self.server.get_connection_status()
-#        self.assertEqual((result[0], os.path.exists(result[1])), (False, False))
+        result = self.mes_interface.start_line_scan(1.0)
+        self.assertEqual((result[0], mes_emulator.acquire_line_scan_received), (False, True))
+
+    def test_03_line_scan_started(self):
+        '''
+        Line scan started without error
+        '''
+        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}]
+        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
+        mes_emulator.start()
+        result = self.mes_interface.start_line_scan(1.0)        
+        self.assertEqual((result[0], mes_emulator.acquire_line_scan_received), (True, True))
         
-            
-#    def test_02_rc_scan(self):
-#        zf = '/home/zoltan/visexp/data/danitest/RC-elso-zstack.mat'
-#        zdata = read_z_stack(zf)
+    def test_04_line_scan_started_timeout(self):
+        '''
+        Line scan started but later than the timeout given in start_line_scan
+        '''
+        response_pattern = [{'delay':1.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}]
+        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
+        mes_emulator.start()
+        result = self.mes_interface.start_line_scan(1.0)
+        self.assertEqual((result[0], mes_emulator.acquire_line_scan_received), (False, True))
         
+    def test_05_line_scan_and_data_save_completed(self):
+        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}, 
+                            {'delay':0.1, 'response':'SOCacquire_line_scanEOCOKEOP'}, 
+                            {'delay':0.1, 'response':'SOCacquire_line_scanEOCsaveOKEOP'}
+                            ]
+        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
+        mes_emulator.start()
+        result_line_scan_started = self.mes_interface.start_line_scan(1.0)
+        result_scan_ok = self.mes_interface.wait_for_line_scan_complete(1.0)
+        result_save_ok = self.mes_interface.wait_for_line_scan_save_complete(1.0)
+        self.assertEqual((result_line_scan_started[0], result_scan_ok, result_save_ok, mes_emulator.acquire_line_scan_received), 
+                         (True, True, True, True))
+                         
+    def test_06_line_scan_save_ok_delayed(self):
+        '''
+        saveOK arrives later than timeout
+        '''
+        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}, 
+                            {'delay':0.1, 'response':'SOCacquire_line_scanEOCOKEOP'}, 
+                            {'delay':3.1, 'response':'SOCacquire_line_scanEOCsaveOKEOP'}
+                            ]
+        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
+        mes_emulator.start()
+        result_line_scan_started = self.mes_interface.start_line_scan(0.5)
+        result_scan_ok = self.mes_interface.wait_for_line_scan_complete(0.5)
+        result_save_ok = self.mes_interface.wait_for_line_scan_save_complete(0.5)
+        time.sleep(3.0)
+        mes_responses = utils.empty_queue(self.client_to_user)
+        self.assertEqual((result_line_scan_started[0], result_scan_ok, result_save_ok, mes_emulator.acquire_line_scan_received, 
+                          'SOCacquire_line_scanEOCsaveOKEOP' in mes_responses), 
+                         (True, True, False, True, True))
+
+class TestMesInterface(unittest.TestCase):
+    
     def tearDown(self):
         pass
-#        self.command_server.terminate()
-#        self.mes.terminate()        
-#        self.experiment.terminate()
+        
+    def setUp(self):
+        pass
+        
+    def test_all_functions(self):
+        '''
+        1. line scan with mes settings
+        2. line scan with user scan time
+        '''
+        pass
+    
+        
+
+        
+            
+        
         
     
 if __name__ == "__main__":
