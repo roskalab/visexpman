@@ -60,7 +60,6 @@ def random_colors(n,  frames = 1,  greyscale = False,  inital_seed = 0):
                 b = r
             col.append([r,g,b])
     else:
-        
         for f in range(frames):
             c = []
             for i in range(n):
@@ -798,6 +797,10 @@ def date_string():
     now = time.localtime()
     return ('%4i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday)).replace(' ', '0')
     
+def time_stamp_to_hms(timestamp):
+    time_struct = time.localtime(timestamp)
+    return ('%2i:%2i:%2.3f'%(time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec + numpy.modf(timestamp)[0])).replace(' ', '0')
+    
 class Timeout(object):
     def __init__(self, timeout, sleep_period = 0.01):
         self.start_time = time.time()
@@ -811,24 +814,20 @@ class Timeout(object):
         else:
             return False
             
-    def wait_timeout(self, keyboard_handler = None, break_wait_function = None, *args):
+    def wait_timeout(self, break_wait_function = None, *args):
         '''
         break_wait_function: shall not block and shall return with a boolean fielld
         Returns True if expected condition is True
-        '''
+        '''        
         result = False
-        while True:            
+        while True:
             if self.is_timeout():
                 result = False                
                 break
             elif  break_wait_function != None:                
                 if break_wait_function(*args): 
                     result = True                   
-                    break
-            elif hasattr(keyboard_handler, 'experiment_user_interface_handler'):
-                if 'stop' in keyboard_handler.experiment_user_interface_handler():
-                    result = True
-                    break                
+                    break            
             time.sleep(self.sleep_period)
         return result
         

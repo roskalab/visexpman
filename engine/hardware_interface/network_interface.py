@@ -179,11 +179,14 @@ class CommandRelayServer(object):
                 for endpoint, server in connection.items():
                     server.shutdown()
                 
-    def get_debug_info(self):
+    def get_debug_info(self, time_format = True):
         debug_info = []
         if self.config.COMMAND_RELAY_SERVER['ENABLE']:
             while not self.debug_queue.empty():
-                debug_info.append(self.debug_queue.get())
+                packet = self.debug_queue.get()
+                if time_format:
+                    packet = [utils.time_stamp_to_hms(packet[0]), packet[1]]
+                debug_info.append(packet)
         return debug_info
         
     def get_connection_status(self, connection_id = None, endpoint_name = None, ):
@@ -224,6 +227,7 @@ class QueuedClient(QtCore.QThread):
                 try:
                     data = self.connection.recv(1024)
                 except:
+                    data = ''
                     connection_close_request = True
                 if 'connected' in data:                    
                     while True:                    
@@ -325,7 +329,7 @@ def start_client(config, client_name, connection_name, queue_in, queue_out):
 
 #============= Helpers ====================#
 
-def check_response(queue, expected_responses):    
+def check_response(queue, expected_responses, keyboard_handler):    
     result = False
     data_back_to_queue = []
     while not queue.empty():
@@ -334,9 +338,14 @@ def check_response(queue, expected_responses):
             result = True
         else:
             #Save non-echo messages
-            data_back_to_queue.append(response)
+            data_back_to_queue.append(response)    
     #Put non-echo messages back to queue so that other methods could process them
     map(queue.put, data_back_to_queue)
+    if hasattr(keyboard_handler, 'experiment_user_interface_handler'):
+        key_pressed = keyboard_handler.experiment_user_interface_handler()
+        if isinstance(key_pressed, str):
+            if 'stop' in key_pressed:
+                result = True
     return result
 
 def wait_for_response(queue, expected_responses, timeout = -1, keyboard_handler = None):
@@ -349,7 +358,7 @@ def wait_for_response(queue, expected_responses, timeout = -1, keyboard_handler 
     if not isinstance(expected_responses, list):  
         expected_responses = [expected_responses]
     t = utils.Timeout(timeout)
-    return t.wait_timeout(keyboard_handler, check_response, queue, expected_responses)
+    return t.wait_timeout(check_response, queue, expected_responses, keyboard_handler)
     
     
     
@@ -384,7 +393,7 @@ class TestQueuedServer(unittest.TestCase):
             connection_name = (i / 2) * 2+4
             connection_name  = '{0}_{1}'.format(connection_name, connection_name+1)
             self.clients.append(start_client(self.config, str(i+4), connection_name, self.client_queues[-1]['in'], self.client_queues[-1]['out']) )
-    #TODO: check for connection status, and remote conn stat flags
+    #TODO: check for connection status
     def test_01_check_connected_commands(self):
         time.sleep(0.5)        
         self.server.shutdown_servers()

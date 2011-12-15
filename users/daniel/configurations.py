@@ -186,7 +186,7 @@ class VS3DUS(VisionExperimentConfig):
         IMAGE_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
-        MAXIMUM_RECORDING_DURATION = [10, [0, 10000]]
+        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]]
         
         #=== Network ===
         ENABLE_UDP = False     

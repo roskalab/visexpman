@@ -3,7 +3,7 @@
 import pygame
 import socket
 #import threading
-#import time#?
+import time
 #import os#?
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.generic.graphics as graphics
@@ -63,7 +63,6 @@ class VisexpmanScreen(graphics.Screen):
         '''
         Display messages coming from command handler
         '''
-
         #count number of message rows and limit their number
         lines = message.split('\n')
         lines = lines[-self.config.NUMBER_OF_MESSAGE_ROWS:]
@@ -105,10 +104,10 @@ class ScreenAndKeyboardHandler(VisexpmanScreen):
     def _check_keyboard(self):
         '''
         Get pressed key
-        '''
+        '''        
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
-                key_pressed = pygame.key.name(event.key)
+                key_pressed = pygame.key.name(event.key)                
                 return key_pressed
         return
 
@@ -140,7 +139,7 @@ class ScreenAndKeyboardHandler(VisexpmanScreen):
     def experiment_user_interface_handler(self):
         '''
         Keyboard commands accepted during running experiment are handled here
-        '''
+        '''        
         return self.keyboard_handler('running experiment')
 
     def user_interface_handler(self):
@@ -149,14 +148,9 @@ class ScreenAndKeyboardHandler(VisexpmanScreen):
         '''
         self.refresh_non_experiment_screen()
         command = self.keyboard_handler(self.command_domain)
-        #Send command to command handler via tcp ip
+        #Send command to queue
         if command != None:
             self.keyboard_command_queue.put(command)
-#            sock = socket.create_connection(('localhost',  self.config.COMMAND_INTERFACE_PORT))
-#            sock.sendall(command)
-
-#            sock.shutdown(socket.SHUT_RDWR)
-#            sock.close()        
         
 if __name__ == "__main__":
     pass

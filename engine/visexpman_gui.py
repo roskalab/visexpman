@@ -441,20 +441,22 @@ class Gui(QtGui.QWidget):
         self.printc(self.mes_interface.set_trajectory(points, timeout = self.mes_timeout))
         
     def line_scan(self):
-        result, parameter_file = self.mes_interface.prepare_line_scan(10.0)
-        self.printc((result, parameter_file))
-        result = self.mes_interface.start_line_scan(parameter_file = parameter_file, timeout = 10.0)
+        result = self.mes_interface.start_line_scan(timeout = 10.0)
         self.printc(result)
-        if result[0]:
-            result = self.mes_interface.wait_for_line_scan_complete(15.0)
-            self.printc(result)
-            if result:
-                result = self.mes_interface.wait_for_line_scan_save_complete(15.0)
-                self.printc(result)
-            else:
-                self.printc('scan completition failed')
-        else:
-            self.printc('line scan not started')
+#        result, parameter_file = self.mes_interface.prepare_line_scan(10.0)
+#        self.printc((result, parameter_file))
+#        result = self.mes_interface.start_line_scan(parameter_file = parameter_file, timeout = 10.0)
+#        self.printc(result)
+#        if result[0]:
+#            result = self.mes_interface.wait_for_line_scan_complete(15.0)
+#            self.printc(result)
+#            if result:
+#                result = self.mes_interface.wait_for_line_scan_save_complete(15.0)
+#                self.printc(result)
+#            else:
+#                self.printc('scan completition failed')
+#        else:
+#            self.printc('line scan not started')
     
     def echo(self):
         self.mes_command_queue.put('SOCechoEOCguiEOP')
@@ -803,8 +805,9 @@ class GuiConfig(configuration.VisionExperimentConfig):
         EXPERIMENT_LOG_PATH = data_folder        
         EXPERIMENT_DATA_PATH = data_folder
         MES_DATA_PATH = os.path.join(v_drive_folder, 'data')        
-        MES_DATA_FOLDER = 'V:\\data'     
+        MES_DATA_FOLDER = 'V:\\data'
         self.COMMAND_RELAY_SERVER['ENABLE'] = ENABLE_NETWORK
+        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 60.0
         
         #== GUI specific ==
         GUI_POSITION = utils.cr((10, 10))

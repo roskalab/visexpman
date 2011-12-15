@@ -52,6 +52,9 @@ class Experiment(stimulation_library.Stimulations):
         self.mes_command = self.caller.mes_command_queue
         self.mes_response = self.caller.mes_response_queue
         self.mes_interface = self.caller.experiment_control.devices.mes_interface
+        self.gui_command = self.caller.gui_command_queue
+        self.gui_response = self.caller.gui_response_queue
+        self.gui_connection = self.caller.gui_connection
         self.zip = self.caller.experiment_control.data_handler.archive
         if self.machine_config.ARCHIVE_FORMAT == 'hdf5':
             self.hdf5 = self.caller.experiment_control.data_handler.hdf5_handler
@@ -77,6 +80,20 @@ class Experiment(stimulation_library.Stimulations):
         Instructions can be put here that are intended to execute after the whole experiment procedure, when all the logfiles are flushed
         '''
         pass
+        
+    ################# helpers ############################
+    def printl(self, message):
+        '''
+        Helper function that can be called during experiment. The message is sent to:
+        -standard output
+        -gui
+        -experiment log
+        '''
+        print message
+        self.gui_command.put(str(message))
+        if hasattr(self, 'log'):
+            self.log.info(str(message))
+        
 
 class PreExperiment(Experiment):
     '''
