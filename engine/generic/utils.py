@@ -972,13 +972,7 @@ def empty_queue(queue):
     return results
 def file_to_binary_array(path):
     if os.path.exists(path):
-        f = open(path, 'rb')
-        binary = f.read(os.path.getsize(path))
-        f.close()
-        binary_in_bytes = []
-        for byte in list(binary):
-            binary_in_bytes.append(ord(byte))
-        return numpy.array(binary_in_bytes, dtype = numpy.uint8)
+        return numpy.fromfile(path, dtype = numpy.uint8)        
     else:
         return numpy.zeros(2)
         

@@ -119,7 +119,7 @@ class MesInterface(object):
             z_stack = {}
             if isinstance(z_stack_path, str):
                 if os.path.exists(z_stack_path):            
-                    z_stack = self.self.mes_file_handler.read_z_stack(z_stack_path, channel = channel)
+                    z_stack = self.mes_file_handler.read_z_stack(z_stack_path, channel = channel)
             return z_stack, results
         else:
             return {}, results
