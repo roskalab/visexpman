@@ -18,7 +18,15 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         '''
         By overdefining this function, the application/user etc specific parameters can be definced here:
-            self.PAR_p =              
+            self.PAR_p =   
+            
+            parameters that the user need to define: (This is a way to force users to create their configs carefully
+            EXPERIMENT_CONFIG = 'TestExperimentConfig'
+            LOG_PATH = '/media/Common/visexpman_data'
+            EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
+            EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
+            CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
+           
         '''        
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
         
@@ -28,15 +36,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #ranges
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
-        PIN_RANGE = [0,  7]
-        
-        #parameters that the user need to define: (This is a way to force users to create their configs carefully
-#        EXPERIMENT_CONFIG = 'TestExperimentConfig'
-#        LOG_PATH = '/media/Common/visexpman_data'
-#        EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
-#        BASE_PATH= '/media/Common/visexpman_data' THIS MIGHT BE ELIMINATED
-#        EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
-#        CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
+        PIN_RANGE = [0,  7]        
 
         ARCHIVE_FORMAT = ['undefined', ['hdf5', 'zip', 'undefined']]
         
@@ -77,7 +77,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         COMMAND_RELAY_SERVER  = {
         'RELAY_SERVER_IP' : '172.27.25.220', 
         'ENABLE' : False, 
-        'TIMEOUT':60.0, 
+        'TIMEOUT':6.0, 
 #        'RELAY_SERVER_IP' : '172.27.26.1', 
 #        'RELAY_SERVER_IP' : 'localhost', 
         'CONNECTION_MATRIX':

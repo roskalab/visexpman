@@ -807,7 +807,7 @@ class GuiConfig(configuration.VisionExperimentConfig):
         MES_DATA_PATH = os.path.join(v_drive_folder, 'data')        
         MES_DATA_FOLDER = 'V:\\data'
         self.COMMAND_RELAY_SERVER['ENABLE'] = ENABLE_NETWORK
-        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 60.0
+#        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 60.0
         
         #== GUI specific ==
         GUI_POSITION = utils.cr((10, 10))

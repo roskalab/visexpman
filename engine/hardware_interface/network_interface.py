@@ -26,6 +26,7 @@ class SockServer(SocketServer.TCPServer):
         self.name = name
         self.alive_message = 'SOCechoEOCaliveEOP'
         self.shutdown_requested = False        
+        self.keepalive = True#Client can request to stop keep alive check until the next message
         
     def shutdown_request(self):
         self.shutdown_requested = True
@@ -65,6 +66,7 @@ class SockServer(SocketServer.TCPServer):
                     try:
                         data = request.recv(1024)
                         self.last_receive_time = now
+                        self.keepalive = True
                     except:
                         data = ''
                     data = data.replace(self.alive_message,'')
@@ -73,13 +75,15 @@ class SockServer(SocketServer.TCPServer):
                             self.debug(data)
                         if 'close' in data or\
                            'close_connection' in data or\
-                           'quit' in data:
+                           'quit' in data:                               
                             if DISPLAY_MESSAGE:
                                 print self.name + ' connection close requested'
                             connection_close_request = True
+                        elif 'keepalive' in data and 'off' in data:
+                            self.keepalive = False
                         else:
                             self.queue_in.put(data)
-                    if now - self.last_receive_time > self.connection_timeout:
+                    if now - self.last_receive_time > self.connection_timeout and self.keepalive:
                         connection_close_request = True
                 else:
                     out = self.queue_out.get()

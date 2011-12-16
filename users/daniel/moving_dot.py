@@ -22,6 +22,7 @@ import pickle
 import copy
 import visexpA.engine.datahandlers.matlabfile as matlab_mat
 import shutil
+import os
 
 class MovingDotConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
@@ -100,7 +101,7 @@ class MovingDot(experiment.Experiment):
                         ai.release_instrument()
                         self.printl('ai recording finished, waiting for data save complete')
                         line_scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(stimulus_duration)
-                        ######################## Save data ###############################
+                        ######################## Save data ###############################                        
                         if line_scan_data_save_success:
                             self.printl('Saving measurement data to hdf5')
                            #Save
@@ -139,18 +140,18 @@ class MovingDot(experiment.Experiment):
                                 self.command_buffer.replace('stop', '')
                                 self.printl('user stopped experiment')
                         else:
-                            reason = 'line scan data save error'
+                            reason = 'line scan data save ERROR'
                             self.printl(reason)                            
                     else:
-                        reason = 'line scan complete error'
+                        reason = 'line scan complete ERROR'
                         self.printl(reason)                        
                 else:
-                    reason = 'line scan start error'
+                    reason = 'line scan start ERROR'
                     self.printl(reason)                    
             experiment_identifier = '{0}_{1}'.format(self.experiment_name, experiment_start_time)        
             self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
             setattr(self.hdf5, experiment_identifier, {'id': None})
-            self.hdf5.save(experiment_identifier)            
+            self.hdf5.save(experiment_identifier)
             #Try to set back line scan time to initial 2 sec
             self.printl('set back line scan time to 2s')
             mes_interface.set_line_scan_time(2.0, parameter_file, parameter_file)
@@ -158,11 +159,13 @@ class MovingDot(experiment.Experiment):
             if not line_scan_start_success:
                 self.printl('setting line scan time to 2 s was not successful')
             else:
-                line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(2.0)
+                line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(5.0)
                 if line_scan_complete_success:
-                    line_scan_save_complete_success =  self.mes_interface.wait_for_line_scan_save_complete(2.0)
+                    line_scan_save_complete_success =  self.mes_interface.wait_for_line_scan_save_complete(5.0)
+                    if line_scan_save_complete_success:
+                        os.remove(parameter_file) #Parameter file is not used any more
         else:
-            self.printl( 'Parameter file not created')
+            self.printl( 'Parameter file NOT created')
         self.printl('moving dot complete')
     
     def post_experiment(self):
@@ -171,7 +174,7 @@ class MovingDot(experiment.Experiment):
                 shutil.move(self.hdf5.filename, self.experiment_hdf5_path)
             except:
                 print self.hdf5.filename, self.experiment_hdf5_path
-                self.printl('not copied for some reason')
+                self.printl('NOT copied for some reason')
         
     def prepare(self):
         # we want at least 2 repetitions in the same recording, but the best is to

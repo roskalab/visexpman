@@ -34,11 +34,14 @@ if len(sys.argv) > 2:
 
 TEST_daq = False
 TEST_stage = False
+TEST_mes = False
 for arg in sys.argv:
     if arg == '-daqmx':
         TEST_daq = True
     elif arg == '-stage':
         TEST_stage = True
+    elif arg == '-mes':
+        TEST_mes = True
                     
             
 TEST_os = os.name
@@ -111,6 +114,8 @@ class unitTestRunner():
     '''
     def __init__(self):        
         self.test_configs = [
+               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
+               'enable' : TEST_mes},
                {'test_class_path' : 'visexpman.engine.visexp_runner.testVisexpRunner',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.visexp_runner.testFindoutConfig',
@@ -143,8 +148,7 @@ class unitTestRunner():
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
                'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
-               'enable' : True},
+               
                {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
                'enable' : True},
                ]

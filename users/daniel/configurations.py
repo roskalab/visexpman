@@ -173,7 +173,7 @@ class VS3DUS(VisionExperimentConfig):
         ARCHIVE_FORMAT = 'hdf5'
         
         #=== screen ===
-        FULLSCREEN = True
+        FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
 #        SCREEN_RESOLUTION = utils.rc([768, 1024])
         COORDINATE_SYSTEM='ulcorner'
