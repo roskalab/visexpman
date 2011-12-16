@@ -6,21 +6,25 @@ import unittest
 import visexpman.engine.generic.configuration
 import PyQt4.QtCore as QtCore
 import os
+import os.path
 import sys
 import SocketServer
 import random
 import visexpman.engine.generic.utils as utils
+import visexpman.engine.generic.log as log
+import traceback
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 DISPLAY_MESSAGE = False
 
 class SockServer(SocketServer.TCPServer):
-    def __init__(self, address, queue_in, queue_out, name, debug_queue, timeout):
+    def __init__(self, address, queue_in, queue_out, name, log_queue, timeout):
         SocketServer.TCPServer.__init__(self, address, None)
         #TODO: self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.allow_reuse_address  = True
         self.queue_in = queue_in
         self.queue_out = queue_out
-        self.debug_queue = debug_queue
+        self.log_queue = log_queue
         self.connected = False
         self.connection_timeout = timeout
         self.name = name
@@ -31,87 +35,87 @@ class SockServer(SocketServer.TCPServer):
     def shutdown_request(self):
         self.shutdown_requested = True
         
-    def debug(self, message):
-        if self.debug_queue != None:
-            debug_message = self.name + ': ' + message
-            self.debug_queue.put([time.time(), debug_message], True)
+    def printl(self, message):        
+        debug_message = self.name + ': ' + str(message)
+        if DISPLAY_MESSAGE:
+            print debug_message
+        if self.log_queue != None:
+            self.log_queue.put([time.time(), debug_message], True)
         
     def process_request(self, request, client_address):
-        if not self.shutdown_requested:
-            self.last_receive_time = time.time()
-            self.last_alive_message = time.time()
-            request.settimeout(0.01)
-            if DISPLAY_MESSAGE:
-                print client_address, self.name
-            request.send('connected')
-            self.connected = True            
-            connection_close_request = False
-            while True:
-                # self.request is the TCP socket connected to the client
-                now = time.time()
-                if self.shutdown_requested:
-                    connection_close_request = True
-                #Check if connection is alive
-                if self.queue_out.empty():
-                    if now - self.last_alive_message > 0.2 * self.connection_timeout:
+        try:
+            if not self.shutdown_requested:
+                self.last_receive_time = time.time()
+                self.last_alive_message = time.time()
+                request.settimeout(0.01)
+                self.printl('Client: ' + str(client_address))
+                request.send('connected')
+                self.connected = True            
+                connection_close_request = False
+                while True:
+                    # self.request is the TCP socket connected to the client
+                    now = time.time()
+                    if self.shutdown_requested:
+                        connection_close_request = True
+                    #Check if connection is alive
+                    if self.queue_out.empty():
+                        if now - self.last_alive_message > 0.2 * self.connection_timeout:
+                            try:
+                                request.send(self.alive_message)
+                                self.last_alive_message = now
+                            except:
+                                self.printl(traceback.format_exc())
+                                #If sending alive message is unsuccessful, connection terminated
+                                connection_close_request = True
+                        #Receive data
                         try:
-                            request.send(self.alive_message)
-                            self.last_alive_message = now
-                        except:            
-                            if DISPLAY_MESSAGE:
-                                print self.name + ' ' + str(sys.exc_info())
-                            #If sending alive message is unsuccessful, connection terminated
+                            data = request.recv(1024)
+                            self.last_receive_time = now
+                            self.keepalive = True
+                        except:           
+                            data = ''
+                        data = data.replace(self.alive_message,'')
+                        if len(data) > 0: #Non empty messages are processed                        
+                            if not self.alive_message in data: #Save message to debug queue except for keep alive messages
+                                self.printl(data)
+                            if 'close' in data or\
+                               'close_connection' in data or\
+                               'quit' in data:                               
+                                self.printl('connection close requested')
+                                connection_close_request = True
+                            elif 'keepalive' in data and 'off' in data:
+                                self.keepalive = False
+                            else:
+                                self.queue_in.put(data)
+                        if now - self.last_receive_time > self.connection_timeout and self.keepalive:
                             connection_close_request = True
-                    #Receive data
-                    try:
-                        data = request.recv(1024)
-                        self.last_receive_time = now
-                        self.keepalive = True
-                    except:
-                        data = ''
-                    data = data.replace(self.alive_message,'')
-                    if len(data) > 0:                    
-                        if not self.alive_message in data:
-                            self.debug(data)
-                        if 'close' in data or\
-                           'close_connection' in data or\
-                           'quit' in data:                               
-                            if DISPLAY_MESSAGE:
-                                print self.name + ' connection close requested'
+                    else:
+                        out = self.queue_out.get()
+                        try:
+                            request.send(out)
+                        except:
+                            self.queue_out.put(out)
+                            self.printl(traceback.format_exc())
                             connection_close_request = True
-                        elif 'keepalive' in data and 'off' in data:
-                            self.keepalive = False
-                        else:
-                            self.queue_in.put(data)
-                    if now - self.last_receive_time > self.connection_timeout and self.keepalive:
-                        connection_close_request = True
-                else:
-                    out = self.queue_out.get()
-                    try:
-                        request.send(out)
-                    except:
-                        self.queue_out.put(out)
-                        if DISPLAY_MESSAGE:
-                            print self.name + ' ' + str(sys.exc_info())
-                        connection_close_request = True
-                if connection_close_request:
-                    break
-            if DISPLAY_MESSAGE:
-                print self.name + ' closed'
-            self.connected = False
-            time.sleep(0.5 + 1.5 * random.random())
+                    if connection_close_request:
+                        break
+                self.printl('closed')
+                self.connected = False
+                time.sleep(0.5 + 1.5 * random.random())
+        except:
+            self.printl(traceback.format_exc())
 
 class QueuedServer(QtCore.QThread):
     #TODO: Queued server and sock server could be subclassed 
-    def __init__(self, queue_in, queue_out, port, name, debug_queue, timeout):
+    def __init__(self, queue_in, queue_out, port, name, log_queue, timeout):
         QtCore.QThread.__init__(self)
         self.port = port
         self.queue_in = queue_in
         self.queue_out = queue_out
-        self.debug_queue = debug_queue
+        self.log_queue = log_queue
         self.name = name
         self.timeout = timeout
-        self.server = SockServer(("", port), self.queue_in, self.queue_out, self.name, self.debug_queue, self.timeout)        
+        self.server = SockServer(("", port), self.queue_in, self.queue_out, self.name, self.log_queue, self.timeout)
 
     def run(self):
         self.server.serve_forever()
@@ -122,8 +126,9 @@ class QueuedServer(QtCore.QThread):
 
 class CommandRelayServer(object):
     def __init__(self, config):
-        self.config = config
+        self.config = config        
         if self.config.COMMAND_RELAY_SERVER['ENABLE']:
+            self.log = log.Log('server log', utils.generate_filename(os.path.join(self.config.LOG_PATH, 'server_log.txt')), timestamp = 'no') 
             self._generate_queues()
             self._create_servers()
             self._start_servers()
@@ -133,7 +138,7 @@ class CommandRelayServer(object):
         Generates queues and put them in a dictionary :
         queues[connection_name][endpointA2endpointB], queues[connection_name][endpointB2endpointA]
         '''
-        self.debug_queue = Queue.Queue()
+        self.log_queue = Queue.Queue()        
         self.queues = {}
         for connection, connection_config in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
             endpoints = connection_config.keys()            
@@ -159,7 +164,7 @@ class CommandRelayServer(object):
                                                                             self.queues[connection][endpoints[0] + '2' + endpoints[1]], #out
                                                                             connection_config[endpoints[0]]['PORT'], 
                                                                             'connection: {0}, endpoint {1}, port {2}'.format(connection, endpoints[0], connection_config[endpoints[0]]['PORT']), 
-                                                                            self.debug_queue, 
+                                                                            self.log_queue, 
                                                                             self.config.COMMAND_RELAY_SERVER['TIMEOUT'], 
                                                                             )
                                                                             
@@ -168,7 +173,7 @@ class CommandRelayServer(object):
                                                                             self.queues[connection][endpoints[1] + '2' + endpoints[0]], #out
                                                                             connection_config[endpoints[1]]['PORT'], 
                                                                             'connection: {0}, endpoint {1}, port {2}'.format(connection, endpoints[1], connection_config[endpoints[1]]['PORT']), 
-                                                                            self.debug_queue, 
+                                                                            self.log_queue, 
                                                                             self.config.COMMAND_RELAY_SERVER['TIMEOUT'], 
                                                                             )
 
@@ -182,14 +187,16 @@ class CommandRelayServer(object):
             for connection_name, connection in self.servers.items():
                 for endpoint, server in connection.items():
                     server.shutdown()
+            self.log.queue(self.log_queue)
                 
     def get_debug_info(self, time_format = True):
         debug_info = []
         if self.config.COMMAND_RELAY_SERVER['ENABLE']:
-            while not self.debug_queue.empty():
-                packet = self.debug_queue.get()
+            while not self.log_queue.empty():
+                packet = self.log_queue.get()
                 if time_format:
                     packet = [utils.time_stamp_to_hms(packet[0]), packet[1]]
+                self.log.info(packet)
                 debug_info.append(packet)
         return debug_info
         
@@ -213,6 +220,13 @@ class QueuedClient(QtCore.QThread):
         self.no_message_timeout = timeout
         self.alive_message = 'SOCechoEOCaliveEOP'
         self.endpoint_name = endpoint_name
+        self.log_queue = Queue.Queue()        
+        
+    def printl(self, message):
+        debug_message = str(message)
+        if DISPLAY_MESSAGE:
+            print debug_message        
+        self.log_queue.put([time.time(), debug_message], True)
         
     def run(self):   
         shutdown_request = False
@@ -221,8 +235,7 @@ class QueuedClient(QtCore.QThread):
             connection_close_request = False
             try:                
                 self.connection = socket.create_connection((self.server_address, self.port))
-                if DISPLAY_MESSAGE:
-                    print self.connection.getpeername()
+                self.printl(self.connection.getpeername())                
                 self.queue_in.put('connected to server')
                 self.last_receive_timout = time.time()
                 self.last_message_time = time.time()
@@ -233,7 +246,8 @@ class QueuedClient(QtCore.QThread):
                 except:
                     data = ''
                     connection_close_request = True
-                if 'connected' in data:                    
+                    self.printl(traceback.format_exc())
+                if 'connected' in data:
                     while True:                    
                         if not self.queue_out.empty():
                             out = self.queue_out.get()
@@ -247,8 +261,7 @@ class QueuedClient(QtCore.QThread):
                                 try:
                                     self.connection.send(out)
                                 except:
-                                    if DISPLAY_MESSAGE:
-                                        print sys.exc_info()
+                                    self.printl(traceback.format_exc())
                                     self.queue_out.put(out)
                                     connection_close_request = True
                         else:
@@ -281,19 +294,18 @@ class QueuedClient(QtCore.QThread):
                 time.sleep(0.1)
                 self.connection.close()
                 time.sleep(1.0 + 1.5 * random.random())
-                if DISPLAY_MESSAGE:
-                    print 'connection closed'
+                self.printl('connection closed')                
                 self.queue_in.put('connection closed')
             except socket.error:
-                #Server does not respond
-                pass
+                self.printl('socket error: ' + traceback.format_exc())                
+            except:
+                self.printl(traceback.format_exc())
+                
             if shutdown_request:
-                if DISPLAY_MESSAGE:
-                    print 'stop client'
+                self.printl('stop client')
                 break
-            time.sleep(0.5)
-        if DISPLAY_MESSAGE:
-            print 'quit'
+            time.sleep(0.5)        
+        self.printl('quit')
 
     def _is_echo_arrived(self):
         result = False
@@ -367,7 +379,7 @@ def wait_for_response(queue, expected_responses, timeout = -1, keyboard_handler 
     
     
 
-#============== Unit tests =======================#
+####################################### Unit tests #################################################xx
 
 class QueuedServerTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
@@ -383,7 +395,8 @@ class QueuedServerTestConfig(visexpman.engine.generic.configuration.Config):
             '4_5'  : {'4' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, '5' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}},
             '6_7'  : {'6' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, '7' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}},
             }
-        }        
+        }
+        LOG_PATH = unit_test_runner.TEST_working_folder
         self._create_parameters_from_locals(locals())
 
 class TestQueuedServer(unittest.TestCase):
@@ -440,7 +453,8 @@ class TestQueuedServer(unittest.TestCase):
 
     def tearDown(self):
         pass
-        
+
+#########################################################################################################xx
 #===== Network listener ========#
        
 class NetworkListener(QtCore.QThread):

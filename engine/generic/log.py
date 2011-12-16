@@ -22,11 +22,12 @@ class Log(object):
         self.log_messages = []
         self.start_time = time.time()
         
-    def info(self, message):
+    def info(self, message, log_timestamp = True):
+        message = str(message)
         message_to_log = message
-        if self.timestamp == 'date_time':
+        if self.timestamp == 'date_time' and log_timestamp:
             message_to_log = str(datetime.datetime.now()) + '\t' + message
-        elif self.timestamp == 'elapsed_time':
+        elif self.timestamp == 'elapsed_time' and log_timestamp:
             elapsed_time = round(time.time() - self.start_time, 3)
             message_to_log = str(elapsed_time) + '\t' + message
         else:
@@ -42,6 +43,15 @@ class Log(object):
             full_log += item + '\n'
         self.log.info(full_log)
         self.handler.flush()
+        
+    def queue(self, queue, name = None):
+        '''
+        Assuming that each item in the queue is a list or tuple, where the first item is a timestamp
+        '''
+        if name != None:
+            self.info(name, log_timestamp = False)
+        for entry in utils.empty_queue(queue):
+            self.info([utils.time_stamp_to_hms(entry[0]), entry[1]], log_timestamp = False)
         
 class TestLog(unittest.TestCase):
     def setUp(self):

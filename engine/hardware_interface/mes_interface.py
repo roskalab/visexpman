@@ -355,7 +355,8 @@ class MESTestConfig(visexpman.engine.generic.configuration.Config):
         else:
             EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         
-        MES_DATA_FOLDER = EXPERIMENT_DATA_PATH.replace('/home/zoltan/visexp', 'V:').replace('/', '\\')        
+        MES_DATA_FOLDER = EXPERIMENT_DATA_PATH.replace('/home/zoltan/visexp', 'V:').replace('/', '\\')
+        LOG_PATH = unit_test_runner.TEST_working_folder
         self._create_parameters_from_locals(locals())
 
 class TestMesInterfaceEmulated(unittest.TestCase):

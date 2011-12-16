@@ -76,15 +76,14 @@ class VisExpRunner(object):
         self.mes_response_queue = Queue.Queue()
         self.gui_command_queue = Queue.Queue()
         self.gui_response_queue = Queue.Queue()
-        self.mes_listener = None        
-        if unit_test_runner.TEST_enable_network:
-            self.mes_connection = network_interface.start_client(self.config, 'STIM', 'STIM_MES', self.mes_response_queue, self.mes_command_queue) 
-        else:
-            self.mes_connection = None
-            
+        self.mes_listener = None
         if unit_test_runner.TEST_enable_network:
             self.gui_connection = network_interface.start_client(self.config, 'STIM', 'GUI_STIM', self.gui_response_queue, self.gui_command_queue)
-        
+            self.mes_connection = network_interface.start_client(self.config, 'STIM', 'STIM_MES', self.mes_response_queue, self.mes_command_queue) 
+        else:
+            self.gui_connection = None
+            self.mes_connection = None            
+            
         #Set up command handler
         self.command_handler =  command_handler.CommandHandler(self.config, self)
         self.loop_state = 'running' #This state variable is necessary to end the main loop of the program from the command handler
@@ -97,29 +96,36 @@ class VisExpRunner(object):
         self.log.info('Visexpman initialized')
 
     def run_loop(self):
-        while self.loop_state == 'running':
-            self.screen_and_keyboard.clear_screen_to_background()
-            self.screen_and_keyboard.display_bullseye()
-            if hasattr(self.selected_experiment_config, 'pre_runnable') and self.selected_experiment_config.pre_runnable is not None:
-                self.selected_experiment_config.pre_runnable.run()
-            self.screen_and_keyboard.user_interface_handler()
-            self.command_handler.process_command_buffer()
-            #Log 'loop alive' in every 10 sec
-            if int(1000 * time.time()) % 10000 == 0:
-                self.log.info('main loop alive')
-            #To avoid race condition
-            time.sleep(0.1)
+        try:
+            while self.loop_state == 'running':
+                self.screen_and_keyboard.clear_screen_to_background()
+                self.screen_and_keyboard.display_bullseye()
+                if hasattr(self.selected_experiment_config, 'pre_runnable') and self.selected_experiment_config.pre_runnable is not None:
+                    self.selected_experiment_config.pre_runnable.run()
+                self.screen_and_keyboard.user_interface_handler()
+                self.command_handler.process_command_buffer()
+                #Log 'loop alive' in every 10 sec
+                if int(1000 * time.time()) % 10000 == 0:
+                    self.log.info('main loop alive')
+                #To avoid race condition
+                time.sleep(0.1)
+        except:
+            import traceback
+            self.log.info(traceback.format_exc())
         self.close()
+        #Finish log
+        self.log.info('Visexpman quit')
+        self.log.flush()
             
     def close(self):
         if unit_test_runner.TEST_enable_network and False:
             self.tcpip_listener.close()
-        self.log.info('Visexpman quit')
-        self.log.flush()        
         if unit_test_runner.TEST_enable_network:
             self.mes_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
             self.gui_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
             time.sleep(3.0)
+            self.log.queue(self.mes_connection.log_queue, 'mes connection')
+            self.log.queue(self.gui_connection.log_queue, 'gui connection')
             
     def _init_logging(self):
         #set up logging

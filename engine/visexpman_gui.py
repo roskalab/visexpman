@@ -800,8 +800,8 @@ class GuiConfig(configuration.VisionExperimentConfig):
         elif self.OS == 'linux':                        
             v_drive_folder = '/home/zoltan/visexp'
         data_folder = os.path.join(v_drive_folder, 'data')
-        TEST_DATA_PATH = os.path.join(data_folder, 'test')
-        LOG_PATH = data_folder
+        #TEST_DATA_PATH = os.path.join(data_folder, 'test')
+        LOG_PATH = os.path.join(data_folder, 'log')
         EXPERIMENT_LOG_PATH = data_folder        
         EXPERIMENT_DATA_PATH = data_folder
         MES_DATA_PATH = os.path.join(v_drive_folder, 'data')        

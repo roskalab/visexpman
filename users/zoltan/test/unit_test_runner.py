@@ -61,8 +61,8 @@ TEST_hardware_test = (run_mode == 'full test')
 TEST_pixel_difference_threshold = 50.0
 
 if TEST_os == 'nt':
-    TEST_reference_frames_folder = 'm:\\Zoltan\\visexpman\\test_data\\reference_frames_win'
-    TEST_reference_mat_file = 'm:\\Zoltan\\visexpman\\test_data\\line_scan_parameters.mat'
+    TEST_reference_frames_folder = 'v:\\data\\test\\frames_win'
+    TEST_reference_mat_file = 'v:\\data\\test\\mes\\line_scan_parameters.mat'
 elif TEST_os == 'posix':
     TEST_reference_frames_folder = '/home/zoltan/visexp/data/test/frames'
     TEST_reference_mat_file = '/home/zoltan/visexp/data/test/mes/line_scan_parameters.mat'
@@ -74,7 +74,7 @@ TEST_filterwheel_enable  = True #If set to False, many tests fail.
 
 if TEST_os == 'nt':
     TEST_com_port = 'COM4'
-    TEST_working_folder = 'c:\\temp\\test'
+    TEST_working_folder = 'v:\\data\\unit_test_output'
     TEST_valid_file = 'c:\\windows\\win.ini'
     TEST_invalid_file = 'c:\\windows'
     TEST_stage_com_port = 'COM1'
@@ -147,8 +147,7 @@ class unitTestRunner():
                {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
-               'enable' : True},
-               
+               'enable' : True},               
                {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
                'enable' : True},
                ]
