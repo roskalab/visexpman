@@ -430,15 +430,16 @@ class Gui(QtGui.QWidget):
         self.printc((results, self.z_stack))
         
     def rc_scan(self):
-        self.z_stack = self.mes_interface.mes_file_handler.z_stack_from_mes_file(str(self.select_z_stack_mat.currentText()))
-        self.trajectory = self.generate_trajectory(self.z_stack)
-        self.scanned_trajectory, result = self.mes_interface.rc_scan(self.trajectory, timeout = self.mes_timeout)
+#        self.z_stack = mes_interface.read_z_stack(str(self.select_z_stack_mat.currentText()), channel = 'pmtUGraw')
+#        self.cell_centers = self.generate_trajectory(self.z_stack)
+#        self.printc(self.mes_interface.set_trajectory(self.trajectory, timeout = self.mes_timeout))
+        self.scanned_trajectory, result = self.mes_interface.rc_scan(self.cell_centers, timeout = self.mes_timeout)
         self.printc((result, self.scanned_trajectory))
         
     def rc_set_trajectory(self):
-        self.z_stack = self.mes_interface.mes_file_handler.z_stack_from_mes_file(str(self.select_z_stack_mat.currentText()))
-        points = self.generate_trajectory(self.z_stack)
-        self.printc(self.mes_interface.set_trajectory(points, timeout = self.mes_timeout))
+#        self.z_stack = mes_interface.z_stack_from_mes_file(str(self.select_z_stack_mat.currentText()))
+#        points = self.generate_trajectory(self.z_stack)
+        self.printc(self.mes_interface.set_trajectory(self.centroids, timeout = self.mes_timeout))
         
     def line_scan(self):
         result = self.mes_interface.start_line_scan(timeout = 10.0)
@@ -737,9 +738,9 @@ class Gui(QtGui.QWidget):
         #convert from record array to normal array, so that it could be shifted and scaled, when RC array operators are ready,. this wont be necessary anymore
         centroids = numpy.array([centroids['row'], centroids['col'], centroids['depth']], dtype = numpy.float64).transpose()
         #Scale to um
-        centroids *=  z_stack['scale']
+        centroids *=  utils.nd(z_stack['scale'])
         #Move with MES system origo
-        centroids += z_stack['origin']
+        centroids += utils.nd(z_stack['origin'])
         #Convert back to recordarray
         centroid_dtype = [('row', numpy.float64), ('col', numpy.float64), ('depth', numpy.float64)]
         centroids_tuple = []

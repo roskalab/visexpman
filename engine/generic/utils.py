@@ -545,7 +545,7 @@ def imported_modules():
     module_names = []
     #stdlib = list_stdlib() this takes long
     for k, v in sys.modules.items():
-        if k.find('visexpman') != -1:
+        if k.find('visexpman') != -1 or k.find('visexpA') != -1:
             if v == None:
                 new_module_name = k.split('.')[-1]
                 if not is_in_list(module_names, new_module_name):
@@ -1017,7 +1017,13 @@ def is_in_list(list, item_to_find):
         return True
     else:
         return False
-
+        
+def is_substring_in_list(list, substring):
+    result = [item for item in list if substring in item]
+    if len(result) > 0:
+        return True
+    else:
+        return False
 def string_to_array(string):
     array = []
     for byte in list(string):

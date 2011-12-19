@@ -210,7 +210,10 @@ class DataHandler():
         if len(self.caller.experiment_control.experiment_source)>0 and self.config.ENABLE_UDP and not utils.is_in_list(self.visexpman_module_paths, self.caller.experiment_control.experiment_source_path):
             self.visexpman_module_paths.append(self.caller.experiment_control.experiment_source_path)
         for python_module in self.visexpman_module_paths:
-            zip_path = python_module.split('visexpman')[-1]
+            if 'visexpA' in python_module:
+                zip_path = '/visexpA' + python_module.split('visexpA')[-1]
+            elif 'visexpman' in python_module:
+                zip_path = '/visexpman' + python_module.split('visexpman')[-1]
             if os.path.exists(python_module):
                 self.archive.write(python_module, zip_path)
         #include experiment log

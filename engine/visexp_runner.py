@@ -28,7 +28,7 @@ class VisExpRunner(object):
     def __init__(self, user, config_class):
         self.state = 'init'
         #TODO: from users.user folder remove all presentinator*.py files
-        #== Find and instantiate machine configuration ==
+        #== Find and instantiate machine configuration ==        
         try:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()
         except IndexError:
@@ -90,7 +90,8 @@ class VisExpRunner(object):
         #create list of imported python modules
         module_info = utils.imported_modules()
         self.visexpman_module_paths  = module_info[1]
-        if not 'visexp_runner.py' in self.visexpman_module_paths:
+        
+        if not utils.is_substring_in_list(self.visexpman_module_paths,'visexp_runner.py'):
             self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))
         self.module_versions = utils.module_versions(module_info[0])
         self.log.info('Visexpman initialized')
@@ -111,7 +112,8 @@ class VisExpRunner(object):
                 time.sleep(0.1)
         except:
             import traceback
-            self.log.info(traceback.format_exc())
+            traceback_info = traceback.format_exc()
+            self.log.info(traceback_info)
         self.close()
         #Finish log
         self.log.info('Visexpman quit')
@@ -360,7 +362,7 @@ class testVisexpRunner(unittest.TestCase):
        -how two different experiments can be played right after each other
        -Call to external hardware
         '''
-        if unit_test_runner.TEST_hardware_test:
+        if unit_test_runner.TEST_parallel_port and unit_test_runner.TEST_filterwheel:
             config_name = 'TestExternalHardwareExperimentTestConfig'
             second_experiment = 'TestExternalHardwareExperimentConfig'
             v = VisExpRunner('zoltan', config_name)
@@ -427,7 +429,7 @@ class testVisexpRunner(unittest.TestCase):
                 (True, True, True, True, True, True, True, True, True, True, True))
                 
     def test_13_experiment_with_pre_experiment(self):
-        if unit_test_runner.TEST_hardware_test:
+        if unit_test_runner.TEST_parallel_port and unit_test_runner.TEST_filterwheel:
             config_name = 'PreExperimentTestConfig'
             v = VisExpRunner('zoltan', config_name)        
             commands = [
@@ -641,7 +643,7 @@ class testVisexpRunner(unittest.TestCase):
         frame_rate = v.selected_experiment_config.runnable.frame_rate
         expected_frame_rate = v.selected_experiment_config.runnable.machine_config.SCREEN_EXPECTED_FRAME_RATE
         if unit_test_runner.TEST_os == 'posix':
-            frame_rate_tolerance = 3.0
+            frame_rate_tolerance = 30.0
         else:
             frame_rate_tolerance = 0.01
         log = utils.read_text_file(v.logfile_path)
@@ -690,8 +692,8 @@ class testVisexpRunner(unittest.TestCase):
 #         print utils.is_in_list(namelist, 'engine/__init__.py') 
 #         print utils.is_in_list(namelist, '__init__.py') 
 #         print str(namelist).find('log_' + experiment_name + '_'+ utils.date_string()) != -1
-        if utils.is_in_list(namelist, 'module_versions.txt') and utils.is_in_list(namelist, 'engine/visexp_runner.py')\
-        and utils.is_in_list(namelist, 'engine/__init__.py') and utils.is_in_list(namelist, '__init__.py') and str(namelist).find('log_' + experiment_name + '_'+ utils.date_string()) != -1:
+        if utils.is_in_list(namelist, 'module_versions.txt') and utils.is_in_list(namelist, 'visexpman/engine/visexp_runner.py')\
+        and utils.is_in_list(namelist, 'visexpman/engine/__init__.py') and utils.is_in_list(namelist, 'visexpman/__init__.py') and str(namelist).find('log_' + experiment_name + '_'+ utils.date_string()) != -1:
             return True
         else:
             return False

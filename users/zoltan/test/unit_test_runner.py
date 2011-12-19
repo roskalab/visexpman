@@ -5,8 +5,8 @@ import datetime
 import os.path
 import zipfile
 import tempfile
-#TODO: remove /media/Common dependencies
-#Quickstart: test without hardware : python unit_test_runner.py test -h
+import time
+import shutil
 
 #run modes:
 # - application
@@ -14,27 +14,15 @@ import tempfile
 # - full test, filterhweel disabled
 # - test without hardware
 
-#command line parameters:
-#1. test - mandatory
-#2. mandatory
-#   -h - skip hardware related tests
-#    -f run all tests
-#TODO# 3.optional: -d - delete all files generated during test
-#TODO: individual command line switches for testing hardware related modules: -daq, -stage, -filterwheel, -parallel, ....
-
-#== Test control ==
 #Parse command line arguments
-run_mode = 'application'
-if len(sys.argv) > 2:
-    if sys.argv[1] == 'test':
-        if sys.argv[2] == '-f':
-            run_mode = 'full test'
-        elif sys.argv[2] == '-h':
-            run_mode = 'test without hardware'
-
+TEST_test = 'unit_test' in sys.argv[0]
 TEST_daq = False
 TEST_stage = False
 TEST_mes = False
+TEST_hardware_test = False
+TEST_parallel_port = False
+TEST_filterwheel = False
+TEST_delete_files = False
 for arg in sys.argv:
     if arg == '-daqmx':
         TEST_daq = True
@@ -42,21 +30,20 @@ for arg in sys.argv:
         TEST_stage = True
     elif arg == '-mes':
         TEST_mes = True
-                    
-            
+    elif arg == '-pp':
+        TEST_parallel_port = True
+    elif arg == '-fw':
+        TEST_filterwheel = True
+    elif arg == '-del':
+        TEST_delete_files = True
+
 TEST_os = os.name
 if hasattr(os,  'uname'):
     if os.uname()[0] != 'Linux':
         TEST_os = 'osx'
-#== Test parameters ==
-TEST_test = (run_mode != 'application')
-
+################# Test parameters ####################
 #For running automated tests, network operations have to be disabled for visexp_runner
-TEST_enable_network = (run_mode == 'application')
-
-#Set this to False if any of the controleld hardware (parallel port, filterwheel, etc) is not available
-TEST_hardware_test = (run_mode == 'full test')
-
+TEST_enable_network = not TEST_test
 #The maximal number of pixels that can differ from the reference frame at the testing the rendering of visual stimulation patterns
 TEST_pixel_difference_threshold = 50.0
 
@@ -90,7 +77,7 @@ elif TEST_os == 'osx':
     TEST_valid_file = '/Users/rz/test_stimulus.py'
     TEST_invalid_file = '/Users'
     TEST_stage_com_port = ''
-    
+
 TEST_daq_device = 'Dev1'
 
 def generate_filename(path):
@@ -130,8 +117,10 @@ class unitTestRunner():
                'enable' : not True}, #Not part of visexpman application
                {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
                'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestInstruments',
-               'enable' : TEST_hardware_test}, #Shutter tests are not complete
+               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestParallelPort',
+               'enable' : TEST_parallel_port},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestFilterwheel',
+               'enable' : TEST_filterwheel},
                {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
                'enable' : TEST_daq},
                {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
@@ -139,7 +128,7 @@ class unitTestRunner():
                {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestQueuedServer',
                'enable' : True},               
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testExternalHardware',
-               'enable' : TEST_hardware_test},
+               'enable' : TEST_parallel_port and TEST_filterwheel },
                {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testDataHandler',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
@@ -147,7 +136,9 @@ class unitTestRunner():
                {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
-               'enable' : True},               
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesDataHandlers',
+               'enable' : True},
                {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
                'enable' : True},
                ]
@@ -170,11 +161,12 @@ class unitTestRunner():
         module_path = test_class_path.replace('.' + test_class_name, '')        
         __import__(module_path)
         return getattr(sys.modules[module_path], test_class_name)
-    
+
     def run(self):
         '''
         Aggregates and runs tests.
-        '''        
+        '''
+        unit_test_start_time = time.time()
         if TEST_os == 'posix':
             #load parallel port driver        
             os.system('rmmod lp')
@@ -196,15 +188,30 @@ class unitTestRunner():
         f = open(self.test_log)
         print f.read()
         f.close()
-        
+
         self.save_source_and_results()
         print str(datetime.datetime.now())
-        
+        if TEST_delete_files:
+            print TEST_working_folder
+        directories = []
+        all_files  = []
+        directories = []
+
+        #TODO: not tested
+        for root, dirs, files in os.walk(TEST_working_folder):                        
+            for file in files:
+                path = root + os.sep + file
+                if os.stat(path).st_mtime > unit_test_start_time and not 'test_archive' in path:
+                    os.remove(path)
+            for dir in dirs:
+                path = root + os.sep + dir
+                if os.stat(path).st_mtime > unit_test_start_time:
+                    shutil.rmtree(path)       
+
     def save_source_and_results(self):
         test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(TEST_working_folder, 'test_archive.zip'))
-        package_path = os.path.split(os.path.split(os.path.split(os.getcwd())[0])[0])[0]        
-        #generate list of archivable files and write them to zipfile
-        #TODO: include visexpa, 
+        package_path = os.path.split(os.path.split(os.path.split(os.path.split(os.getcwd())[0])[0])[0])[0]        
+        #generate list of archivable files and write them to zipfile        
         source_zip = zipfile.ZipFile(test_EXPERIMENT_DATA_PATH, "w")
         for (path, dirs, files) in os.walk(package_path):
             for file in files:                
@@ -213,8 +220,8 @@ class unitTestRunner():
                     source_zip.write(file_path,  file_path.replace(package_path,  ''))
         source_zip.write(self.test_log,  'test_log.txt')        
         source_zip.close()
-        
+
 if __name__ == "__main__":
     utr = unitTestRunner()
     utr.run()
-    
+
