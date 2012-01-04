@@ -5,9 +5,10 @@
 #TODO: timestamp to gui.hdf5 and string_timestamp node
 #TODO: string parsing: re
 #TODO: string to binary array: numpy.loadtext, loadfile or struct.struct
-ENABLE_NETWORK = True
-SEARCH_SUBFOLDERS = True
 import sys
+ENABLE_NETWORK = not 'dev' in sys.argv[1]
+SEARCH_SUBFOLDERS = True
+
 import time
 import socket
 import PyQt4.Qt as Qt
@@ -15,6 +16,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.visual_stimulation.configuration as configuration
+import visexpman.engine.visual_stimulation.gui as gui
 import visexpman.engine.hardware_interface.network_interface as network_interface
 import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpman.engine.generic.utils as utils
@@ -35,171 +37,114 @@ import Image
 import numpy
 import visexpA.engine.dataprocessors.signal as signal
 
-
-class AnimalParametersGroupBox(QtGui.QGroupBox):
-    def __init__(self, parent):
-        QtGui.QGroupBox.__init__(self, 'Animal parameters', parent)                    
-        self.create_widgets()
-        self.create_layout()
-
-    def create_widgets(self):
-        date_format = QtCore.QString('dd-mm-yyyy')
-        ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])                
-        self.mouse_birth_date_label = QtGui.QLabel('Mouse birth date',  self)        
-        self.mouse_birth_date = QtGui.QDateEdit(self)
-        self.mouse_birth_date.setDisplayFormat(date_format)
-        self.gcamp_injection_date_label = QtGui.QLabel('GCAMP injection date',  self)
-        self.gcamp_injection_date = QtGui.QDateEdit(self)
-        self.gcamp_injection_date.setDisplayFormat(date_format)
-        self.ear_punch_l_label = QtGui.QLabel('Ear punch L',  self)
-        self.ear_punch_l = QtGui.QComboBox(self)        
-        self.ear_punch_l.addItems(ear_punch_items)
-        self.ear_punch_r_label = QtGui.QLabel('Ear punch R',  self)
-        self.ear_punch_r = QtGui.QComboBox(self)                
-        self.ear_punch_r.addItems(ear_punch_items)
-        self.anesthesia_protocol_label = QtGui.QLabel('Anesthesia protocol',  self)
-        self.anesthesia_protocol = QtGui.QComboBox(self)        
-        self.anesthesia_protocol.addItems(QtCore.QStringList(['isoflCP 1.0', 'isoflCP 0.5', 'isoflCP 1.5']))
-        self.mouse_strain_label = QtGui.QLabel('Mouse strain',  self)
-        self.mouse_strain = QtGui.QComboBox(self)
-        self.mouse_strain.addItems(QtCore.QStringList(['bl6', 'chat', 'chatdtr']))
-        self.comments = QtGui.QComboBox(self)
-        self.comments.setEditable(True)
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.mouse_birth_date_label, 0, 0)
-        self.layout.addWidget(self.mouse_birth_date, 1, 0)
-        self.layout.addWidget(self.gcamp_injection_date_label, 2, 0)
-        self.layout.addWidget(self.gcamp_injection_date, 3, 0)
-        self.layout.addWidget(self.ear_punch_l_label, 0, 1)
-        self.layout.addWidget(self.ear_punch_l, 1, 1)
-        self.layout.addWidget(self.ear_punch_r_label, 2, 1)
-        self.layout.addWidget(self.ear_punch_r, 3, 1)
-        self.layout.addWidget(self.anesthesia_protocol_label, 0, 2)
-        self.layout.addWidget(self.anesthesia_protocol, 1, 2)
-        self.layout.addWidget(self.mouse_strain_label, 2, 2)
-        self.layout.addWidget(self.mouse_strain, 3, 2)
-        self.layout.addWidget(self.comments, 4, 0, 1, 3)
-        self.layout.setColumnStretch(7, 0)
-        self.setLayout(self.layout)
-        
-class ExperimentFileGroupBox(QtGui.QGroupBox):
-    def __init__(self, parent, config):
-        self.config = config
-        QtGui.QGroupBox.__init__(self, 'Experiment file', parent)                    
-        self.create_widgets()
-        self.create_layout()
-        
-    def create_widgets(self):        
-        self.new_experiment_file_button = QtGui.QPushButton('Create new experiment file',  self)
-        self.redefine_experiment_file_button = QtGui.QPushButton('Recreate experiment file',  self)
-        self.select_experiment_file_label = QtGui.QLabel('Experiment file',  self)
-        self.select_experiment_file_experiment = QtGui.QComboBox(self)
-        self.select_experiment_file_experiment.addItems(utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter = 'gui')[-1])
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.new_experiment_file_button, 0, 0, 1, 2)
-        self.layout.addWidget(self.redefine_experiment_file_button, 0, 2, 1, 2)
-        self.layout.addWidget(self.select_experiment_file_label, 1, 0)
-        self.layout.addWidget(self.select_experiment_file_experiment, 1, 1, 1, 3)        
-        self.setLayout(self.layout)
-        
-class MasterPositionGroupBox(QtGui.QGroupBox):
-    def __init__(self, parent):        
-        QtGui.QGroupBox.__init__(self, 'Master position', parent)
-        self.create_widgets()
-        self.create_layout()
-        
-    def create_widgets(self):        
-        self.z_stack_button = QtGui.QPushButton('Create Z stack',  self)
-        self.calculate_brain_surface_angle_button = QtGui.QPushButton('Calculate angle of brain surface',  self)
-        self.brain_surface_angle_display = QtGui.QComboBox(self)
-        self.brain_surface_angle_display.setEditable(True)
-        self.rotate_mouse_button = QtGui.QPushButton('Rotate mouse',  self)
-        self.save_master_position_button = QtGui.QPushButton('Save master position',  self)        
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.z_stack_button, 0, 1)
-        self.layout.addWidget(self.calculate_brain_surface_angle_button, 0, 2)
-        self.layout.addWidget(self.brain_surface_angle_display, 0, 3, 1, 1)
-        self.layout.addWidget(self.rotate_mouse_button, 0, 4)
-        self.layout.addWidget(self.save_master_position_button, 0, 5)
-        self.setLayout(self.layout)
-
-class NewScanRegion(QtGui.QGroupBox):
-    def __init__(self, parent, experiment_names):
-        QtGui.QGroupBox.__init__(self, 'Add new scan region', parent)
-        self.experiment_names = QtCore.QStringList(experiment_names)
-        self.create_widgets()
-        self.create_layout()
-
-    def create_widgets(self):
-        self.name_input = QtGui.QComboBox(self) #This combo box is to be updated with the added items
-        self.name_input.setEditable(True)
-        self.add_button = QtGui.QPushButton('Add',  self)
-        self.z_stack_button = QtGui.QPushButton('Create Z stack',  self)
-        self.experiment_name = QtGui.QComboBox(self)
-        self.experiment_name.setEditable(True)
-        self.experiment_name.addItems(self.experiment_names)
-        self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
-        self.stop_experiment_button = QtGui.QPushButton('Stop experiment',  self)
-        self.save_experiment_results_button = QtGui.QPushButton('Save experiment results',  self)
-        self.save_region_info_button = QtGui.QPushButton('Save region info',  self)
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.name_input, 0, 0)
-        self.layout.addWidget(self.add_button, 0, 1)
-        self.layout.addWidget(self.z_stack_button, 0, 2)
-        self.layout.addWidget(self.experiment_name, 1, 0)
-        self.layout.addWidget(self.start_experiment_button, 1, 1)
-        self.layout.addWidget(self.stop_experiment_button, 1, 2)
-        self.layout.addWidget(self.save_experiment_results_button, 1, 3)
-        self.layout.addWidget(self.save_region_info_button, 2, 0)
-        self.setLayout(self.layout)
-
-class NewMouseWidget(QtGui.QWidget):
-    def __init__(self, parent, config):
-        QtGui.QWidget.__init__(self, parent)
-        self.config = config
-        self.create_widgets()
-        self.create_layout()
-        self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
-        
-    def create_widgets(self):
-        self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
-        self.experiment_file_groupbox = ExperimentFileGroupBox(self, self.config)
-        self.master_position_groupbox = MasterPositionGroupBox(self)
-        self.new_scan_region_groupbox = NewScanRegion(self, ['moving_dot', 'grating'])        
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.animal_parameters_groupbox, 0, 0, 1, 2)
-        self.layout.addWidget(self.experiment_file_groupbox, 0, 2, 1, 2)
-        self.layout.addWidget(self.master_position_groupbox, 2, 0, 1, 3)
-        self.layout.addWidget(self.new_scan_region_groupbox, 3, 0, 1, 3)        
-#        self.layout.setRowStretch(3, 300)
-        self.setLayout(self.layout)
-        
+################### Main widget #######################
 class VisionExperimentGui(QtGui.QWidget):
     def __init__(self, config, command_relay_server = None):
         self.config = config
         self.command_relay_server = command_relay_server
+        self.console_text = ''
         QtGui.QWidget.__init__(self)
         self.setWindowTitle('Vision Experiment Manager GUI')        
         self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
         self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])        
         self.create_gui()
+        self.create_layout()
+        self.connect_signals()
         self.show()
         
     def create_gui(self):
-        self.new_mouse_widget = NewMouseWidget(self, self.config)
+        self.new_mouse_widget = gui.NewMouseWidget(self, self.config)
+        self.registered_mouse_widget = gui.RegisteredMouseWidget(self, self.config)
+        self.debug_widget = gui.DebugWidget(self, self.config)
         self.realignment_tab = QtGui.QTabWidget(self)
-        self.realignment_tab.addTab(self.new_mouse_widget, 'New mouse')        
+        self.realignment_tab.addTab(self.new_mouse_widget, 'New mouse')
+        self.realignment_tab.addTab(self.registered_mouse_widget, 'Registered mouse')
+        self.realignment_tab.addTab(self.debug_widget, 'Debug')
+        self.standard_io_widget = gui.StandardIOWidget(self, self.config)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.realignment_tab, 0, 0, 1, 1)
+        self.layout.addWidget(self.standard_io_widget, 1, 0, 1, 1)
+        self.layout.setRowStretch(3, 3)
+        self.layout.setColumnStretch(3, 3)
+        self.setLayout(self.layout)
+    
 
+    ####### Signals/functions ###############
+    def connect_signals(self):
+        self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
+        self.connect(self.standard_io_widget.clear_consol_button, QtCore.SIGNAL('clicked()'),  self.clear_consol)
+        self.connect(self.new_mouse_widget.mouse_file_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.new_mouse_file)
+        self.connect(self.new_mouse_widget.mouse_file_groupbox.redefine_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.redefine_mouse_file)
+
+    def new_mouse_file(self):
+        name = str(self.new_mouse_widget.mouse_file_groupbox.select_mouse_file.currentText())
+        if '.hdf5' in name:
+            name = 'nn'
+        mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'mouse_{0}_{1}.hdf5'\
+                                            .format(name, int(time.time())))
+        self.save_animal_parameters(mouse_file_path)
+
+    def redefine_mouse_file(self):
+        mouse_file_path = str(self.new_mouse_widget.mouse_file_groupbox.select_mouse_file.currentText())
+        self.save_animal_parameters(mouse_file_path)
+
+    def save_animal_parameters(self, path):
+        '''
+        Saves the following parameters of a mouse:
+        - birth date
+        - gcamp injection date
+        - anesthesia protocol
+        - ear punch infos
+        - strain
+        - user comments
+        
+        The hdf5 file is closed.
+        '''
+        self.hdf5_handler = hdf5io.Hdf5io(path , config = self.config, caller = self)
+        mouse_birth_date = self.new_mouse_widget.animal_parameters_groupbox.mouse_birth_date.date()        
+        mouse_birth_date = '{0}{1}20{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
+        gcamp_injection_date = self.new_mouse_widget.animal_parameters_groupbox.gcamp_injection_date.date()
+        gcamp_injection_date = '{0}{1}20{2}'.format(gcamp_injection_date.day(),  gcamp_injection_date.month(),  gcamp_injection_date.year())                
+        
+        animal_parameters = {
+            'mouse_birth_date' : mouse_birth_date,
+            'gcamp_injection_date' : gcamp_injection_date,        
+            'anesthesia_protocol' : str(self.new_mouse_widget.animal_parameters_groupbox.anesthesia_protocol.currentText()),
+            'ear_punch_l' : str(self.new_mouse_widget.animal_parameters_groupbox.ear_punch_l.currentText()), 
+            'ear_punch_r' : str(self.new_mouse_widget.animal_parameters_groupbox.ear_punch_r.currentText()),
+            'strain' : str(self.new_mouse_widget.animal_parameters_groupbox.mouse_strain.currentText()),
+            'comments' : str(self.new_mouse_widget.animal_parameters_groupbox.comments.currentText()),
+        }
+        variable_name = 'animal_parameters_{0}'.format(int(time.time()))
+        setattr(self.hdf5_handler,  variable_name, animal_parameters)
+        self.hdf5_handler.save(variable_name)
+        hdf5_id = 'gui_' + str(int(time.time()))
+        setattr(self.hdf5_handler, hdf5_id, 0)
+        self.hdf5_handler.save(hdf5_id)
+        self.printc('Animal parameters saved')
+        self.hdf5_handler.close()
+    
+    def execute_python(self):
+        exec(str(self.scanc()))
+        
+    def clear_consol(self):
+        self.console_text  = ''
+        self.standard_io_widget.text_out.setPlainText(self.console_text)
+
+    ####### Helpers ###############
+    def printc(self, text):
+        if not isinstance(text, str):
+            text = str(text)
+        self.console_text  += text + '\n'
+        self.standard_io_widget.text_out.setPlainText(self.console_text)
+        self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
+        
+    def scanc(self):
+        return str(self.standard_io_widget.text_in.toPlainText())
+
+################### Old stuff #######################
 class Gui(QtGui.QWidget):
     def __init__(self, config, command_relay_server):
         self.config = config
@@ -485,7 +430,7 @@ class Gui(QtGui.QWidget):
     def execute_experiment(self):
         command = 'SOCexecute_experimentEOC{0}EOP'.format(self.experiment_config_input.toPlainText())
         self.visexpman_out_queue.put(command)
-        self.printc (command)
+        self.printc(command)
         
 #============================== Analysis ==============================#
     def visexpa_control_gui(self):
@@ -657,8 +602,8 @@ class Gui(QtGui.QWidget):
         self.network_gui()
         layout.addWidget(self.network_box, alignment = QtCore.Qt.AlignTop) 
         
-        self.text_io_box.setLayout(layout)
-
+        self.text_io_box.setLayout(layout)       
+        
     def network_gui(self):
         self.network_box = QtGui.QGroupBox ('Network', self)
 #        self.layout.addWidget(self.network_box)
@@ -822,8 +767,11 @@ def run_gui():
     else:
         cr = None
     app = Qt.QApplication(sys.argv)
-    gui = Gui(config, cr)
-#    gui2 = VisionExperimentGui(config, cr)
+    if 'dev' in sys.argv[1]:
+        gui2 = VisionExperimentGui(config, cr)
+    else:
+        gui = Gui(config, cr)
+
     app.exec_()
 
 if __name__ == '__main__':
