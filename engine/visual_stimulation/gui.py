@@ -65,18 +65,18 @@ class MouseFileGroupBox(QtGui.QGroupBox):
         
     def create_widgets(self):        
         self.new_mouse_file_button = QtGui.QPushButton('Create new mouse file',  self)
-        self.redefine_mouse_file_button = QtGui.QPushButton('Redefine mouse file',  self)
-        self.select_mouse_file_label = QtGui.QLabel('Mouse file',  self)
-        self.select_mouse_file = QtGui.QComboBox(self)
-        self.select_mouse_file.addItems(utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter = 'gui')[-1])
-        self.select_mouse_file.setEditable(True)
+#        self.redefine_mouse_file_button = QtGui.QPushButton('Redefine mouse file',  self)
+#        self.select_mouse_file_label = QtGui.QLabel('Mouse file',  self)
+#        self.select_mouse_file = QtGui.QComboBox(self)
+#        self.select_mouse_file.addItems(utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter = 'gui')[-1])
+#        self.select_mouse_file.setEditable(True)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.new_mouse_file_button, 0, 0, 1, 2)
-        self.layout.addWidget(self.redefine_mouse_file_button, 0, 2, 1, 2)
-        self.layout.addWidget(self.select_mouse_file_label, 1, 0)
-        self.layout.addWidget(self.select_mouse_file, 1, 1, 1, 3)        
+#        self.layout.addWidget(self.redefine_mouse_file_button, 0, 2, 1, 2)
+#        self.layout.addWidget(self.select_mouse_file_label, 1, 0)
+#        self.layout.addWidget(self.select_mouse_file, 1, 1, 1, 3)
         self.setLayout(self.layout)
         
 class MasterPositionGroupBox(QtGui.QGroupBox):
@@ -311,14 +311,14 @@ class StandardIOWidget(QtGui.QWidget):
         self.text_in.setToolTip('self.printc()')
         
         self.execute_python_button = QtGui.QPushButton('Execute python code',  self)
-        self.clear_consol_button = QtGui.QPushButton('Clear consol',  self)
+        self.clear_console_button = QtGui.QPushButton('Clear console',  self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.text_out, 0, 0, 3, 3)
         self.layout.addWidget(self.text_in, 1, 3, 1, 2)
         self.layout.addWidget(self.execute_python_button, 0, 3, 1, 1)#, alignment = QtCore.Qt.AlignTop)
-        self.layout.addWidget(self.clear_consol_button, 0, 4, 1, 1)#, alignment = QtCore.Qt.AlignTop)
+        self.layout.addWidget(self.clear_console_button, 0, 4, 1, 1)#, alignment = QtCore.Qt.AlignTop)
         self.layout.setRowStretch(300, 300)
         self.layout.setColumnStretch(0, 100)
         self.setLayout(self.layout)

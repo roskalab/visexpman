@@ -1,3 +1,4 @@
+#TODO: rename to stage_control
 import numpy
 import instrument
 import visexpman.engine.generic.configuration
@@ -8,8 +9,7 @@ try:
     import serial
 except:
     pass
-    
-    
+
 import unittest
 import time
 

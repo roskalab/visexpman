@@ -35,6 +35,7 @@ import visexpA.engine.datahandlers.matlabfile as matlabfile
 import tempfile
 import Image
 import numpy
+import shutil
 import visexpA.engine.dataprocessors.signal as signal
 
 ################### Main widget #######################
@@ -74,23 +75,10 @@ class VisionExperimentGui(QtGui.QWidget):
     ####### Signals/functions ###############
     def connect_signals(self):
         self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
-        self.connect(self.standard_io_widget.clear_consol_button, QtCore.SIGNAL('clicked()'),  self.clear_consol)
-        self.connect(self.new_mouse_widget.mouse_file_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.new_mouse_file)
-        self.connect(self.new_mouse_widget.mouse_file_groupbox.redefine_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.redefine_mouse_file)
+        self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
+        self.connect(self.new_mouse_widget.mouse_file_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)
 
-    def new_mouse_file(self):
-        name = str(self.new_mouse_widget.mouse_file_groupbox.select_mouse_file.currentText())
-        if '.hdf5' in name:
-            name = 'nn'
-        mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'mouse_{0}_{1}.hdf5'\
-                                            .format(name, int(time.time())))
-        self.save_animal_parameters(mouse_file_path)
-
-    def redefine_mouse_file(self):
-        mouse_file_path = str(self.new_mouse_widget.mouse_file_groupbox.select_mouse_file.currentText())
-        self.save_animal_parameters(mouse_file_path)
-
-    def save_animal_parameters(self, path):
+    def save_animal_parameters(self):
         '''
         Saves the following parameters of a mouse:
         - birth date
@@ -101,8 +89,7 @@ class VisionExperimentGui(QtGui.QWidget):
         - user comments
         
         The hdf5 file is closed.
-        '''
-        self.hdf5_handler = hdf5io.Hdf5io(path , config = self.config, caller = self)
+        '''        
         mouse_birth_date = self.new_mouse_widget.animal_parameters_groupbox.mouse_birth_date.date()        
         mouse_birth_date = '{0}{1}20{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
         gcamp_injection_date = self.new_mouse_widget.animal_parameters_groupbox.gcamp_injection_date.date()
@@ -117,6 +104,11 @@ class VisionExperimentGui(QtGui.QWidget):
             'strain' : str(self.new_mouse_widget.animal_parameters_groupbox.mouse_strain.currentText()),
             'comments' : str(self.new_mouse_widget.animal_parameters_groupbox.comments.currentText()),
         }
+        name = '{0}_{1}_{2}_{3}_{4}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
+                                         animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'])
+        mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'mouse_{0}.hdf5'\
+                                            .format(name, int(time.time())))
+        self.hdf5_handler = hdf5io.Hdf5io(mouse_file_path , config = self.config, caller = self)
         variable_name = 'animal_parameters_{0}'.format(int(time.time()))
         setattr(self.hdf5_handler,  variable_name, animal_parameters)
         self.hdf5_handler.save(variable_name)
@@ -129,7 +121,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def execute_python(self):
         exec(str(self.scanc()))
         
-    def clear_consol(self):
+    def clear_console(self):
         self.console_text  = ''
         self.standard_io_widget.text_out.setPlainText(self.console_text)
 
@@ -152,6 +144,8 @@ class Gui(QtGui.QWidget):
         self.init_network()
         self.init_files()
         self.console_text = ''
+        self.stage_position = numpy.zeros(3)
+        self.stage_origin = numpy.zeros(3)
         self.mes_timeout = 3.0
         self.z_stack = {}
         #=== Init GUI ===
@@ -373,6 +367,13 @@ class Gui(QtGui.QWidget):
     def acquire_z_stack(self):
         self.z_stack, results = self.mes_interface.acquire_z_stack(self.mes_timeout)
         self.printc((results, self.z_stack))
+#        results = None
+#        self.z_stack = mes_interface.read_z_stack('/home/zoltan/visexp/data/z_stack_00005.mat')
+        zstop = self.z_stack['origin']['depth']
+        zstart = zstop + self.z_stack['size']['depth']
+        rel_position = self.stage_position - self.stage_origin        
+        shutil.move(self.z_stack['mat_path'], self.z_stack['mat_path'].replace('z_stack_', 'z_stack_{0}_{1}_{2}_{3}_' .format(rel_position[0], rel_position[1], zstart, zstop)))
+
         
     def rc_scan(self):
 #        self.z_stack = mes_interface.read_z_stack(str(self.select_z_stack_mat.currentText()), channel = 'pmtUGraw')
@@ -471,22 +472,30 @@ class Gui(QtGui.QWidget):
         self.connect(self.move_stage_button, QtCore.SIGNAL('clicked()'),  self.move_stage)
         layout1.addWidget(self.move_stage_button)
         
+        self.set_stage_origin_button = QtGui.QPushButton('Set stage origin',  self)
+        self.connect(self.set_stage_origin_button, QtCore.SIGNAL('clicked()'),  self.set_stage_origin)
+        layout1.addWidget(self.set_stage_origin_button)
+        
         self.select_cortical_region = QtGui.QComboBox(self)
-        layout1.addWidget(self.select_cortical_region)    
+        layout1.addWidget(self.select_cortical_region)
         self.select_cortical_region.addItems(QtCore.QStringList(['this list will be updated from hdf5']))
         
         self.add_cortical_region_button = QtGui.QPushButton('Add cortical region',  self)
         self.connect(self.add_cortical_region_button, QtCore.SIGNAL('clicked()'),  self.add_cortical_region)
-        layout1.addWidget(self.add_cortical_region_button) 
+        layout1.addWidget(self.add_cortical_region_button)
         
         layout1.addStretch(int(0.5 * self.config.GUI_SIZE['col']))
         
         self.realignment_box.setLayout(layout)
-        self.realignment_box1.setLayout(layout1)        
-        
+        self.realignment_box1.setLayout(layout1)
+
+    def set_stage_origin(self):
+        self.stage_origin = self.stage_position
+        self.visexpman_out_queue.put('SOCstageEOCoriginEOP')
+
     def read_stage(self):
+        utils.empty_queue(self.visexpman_in_queue)
         self.visexpman_out_queue.put('SOCstageEOCreadEOP')
-        self.printc('reads x, y, z, objective z,  rotation x,  rotation y')
         self.current_position = {}
         self.current_position['x'] = 0
         self.current_position['y'] = 0
@@ -494,17 +503,18 @@ class Gui(QtGui.QWidget):
         self.current_position['z'] = 0
         self.current_position['rot axis x'] = 0
         self.current_position['rot axis y'] = 0
-        
-        while not True:
-            if not self.visexpman_in_queue.empty():
-                response = self.visexpman_in_queue.get()
+        if utils.wait_data_appear_in_queue(self.visexpman_in_queue, 10.0):
+            while not self.visexpman_in_queue.empty():
+                response = self.visexpman_in_queue.get()            
                 if 'SOCstageEOC' in response:
                     position = response.split('EOC')[-1].replace('EOP', '')
-                    self.printc([map(int, i) for i in position.split(',')])
-                    break
-                    
+                    self.stage_position = numpy.array(map(float, position.split(',')))
+                    self.printc('abs: ' + str(self.stage_position))
+                    self.printc('rel: ' + str(self.stage_position - self.stage_origin))
+
+
     def move_stage(self):
-        self.printc('moves to {0}'.format(self.scan_console()))
+        self.printc('moves to {0}'.format(self.scanc()))
 
     def add_cortical_region(self):
         #Current stage position is saved to hdf5 as cortical scanning region, text input is added as name of region
@@ -666,15 +676,15 @@ class Gui(QtGui.QWidget):
         
 #============================== Others ==============================#
 
-#    def printc(self, text):
-#        if not isinstance(text, str):
-#            text = str(text)
-#        self.console_text  += text + '\n'
-#        self.text_o.setPlainText(self.console_text)
-#        self.text_o.moveCursor(QtGui.QTextCursor.End)
-#        
-#    def scanc(self):
-#        return str(self.text_i.toPlainText())
+    def printc(self, text):
+        if not isinstance(text, str):
+            text = str(text)
+        self.console_text  += text + '\n'
+        self.text_o.setPlainText(self.console_text)
+        self.text_o.moveCursor(QtGui.QTextCursor.End)
+        
+    def scanc(self):
+        return str(self.text_i.toPlainText())
 #        
     def generate_trajectory(self, z_stack):
         #Find cell centers
@@ -742,7 +752,7 @@ class GuiConfig(configuration.VisionExperimentConfig):
         COORDINATE_SYSTEM='center'
         
         if self.OS == 'win':
-            v_drive_folder = 'V:'
+            v_drive_folder = 'V:\\'
         elif self.OS == 'linux':                        
             v_drive_folder = '/home/zoltan/visexp'
         data_folder = os.path.join(v_drive_folder, 'data')
@@ -753,6 +763,7 @@ class GuiConfig(configuration.VisionExperimentConfig):
         MES_DATA_PATH = os.path.join(v_drive_folder, 'data')        
         MES_DATA_FOLDER = 'V:\\data'
         self.COMMAND_RELAY_SERVER['ENABLE'] = ENABLE_NETWORK
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'#'172.27.26.1'#'172.27.25.220'
 #        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 60.0
         
         #== GUI specific ==

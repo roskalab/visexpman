@@ -75,9 +75,9 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #naming: server - client
         self.BASE_PORT = 10000
         COMMAND_RELAY_SERVER  = {
-        'RELAY_SERVER_IP' : '172.27.25.220', 
-        'ENABLE' : False, 
-        'TIMEOUT':6.0, 
+        'RELAY_SERVER_IP' : '172.27.25.220',
+        'ENABLE' : False,
+        'TIMEOUT':6.0,
 #        'RELAY_SERVER_IP' : '172.27.26.1', 
 #        'RELAY_SERVER_IP' : 'localhost', 
         'CONNECTION_MATRIX':

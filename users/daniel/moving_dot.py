@@ -32,7 +32,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         #string list: list[0] - empty        
         self.DIAMETER_UM = [200]
         self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees
-#        self.ANGLES = [0] # degrees
+        self.ANGLES = [0] # degrees
         self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
@@ -58,7 +58,7 @@ class MovingDot(experiment.Experiment):
     def __init__(self, machine_config, caller, experiment_config):
         experiment.Experiment.__init__(self, machine_config, caller, experiment_config)
         self.prepare()
-        
+
     def run(self):
         self.show_fullscreen(color = 0.0)
         experiment_start_time = int(time.time())
@@ -67,8 +67,8 @@ class MovingDot(experiment.Experiment):
         self.printl('create parameter file')
         parameter_file_prepare_success, parameter_file = self.mes_interface.prepare_line_scan(scan_time = 1.0)
         if parameter_file_prepare_success:
-            for di in range(len(self.row_col)):
-                ######################## Prepare fragment ###############################                
+            for di in range(number_of_fragments):
+                ######################## Prepare fragment ###############################
                 #Generate file name
                 mes_fragment_name = '{0}_{1}_{2}'.format(self.experiment_name, experiment_start_time, di)
                 self.printl('Fragment {0}/{1}, name: {2}'.format(di + 1, len(self.row_col), mes_fragment_name))
@@ -92,7 +92,7 @@ class MovingDot(experiment.Experiment):
                     self.printl('visual stimulation started')
                    ######################## Start visual stimulation ###############################
                     self.show_dots([self.diameter_pix]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
-                    self.show_fullscreen(color = 0.0)                    
+                    self.show_fullscreen(color = 0.0)
                     line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(0.5 * stimulus_duration)
                     ######################## Finish fragment ###############################
                     if line_scan_complete_success:
@@ -101,7 +101,7 @@ class MovingDot(experiment.Experiment):
                         ai.release_instrument()
                         self.printl('ai recording finished, waiting for data save complete')
                         line_scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(stimulus_duration)
-                        ######################## Save data ###############################                        
+                        ######################## Save data ###############################
                         if line_scan_data_save_success:
                             self.printl('Saving measurement data to hdf5')
                            #Save
@@ -122,17 +122,21 @@ class MovingDot(experiment.Experiment):
                             data_to_hdf5['generated_data'] = helper_data
                            #Saving source code of experiment
                             for path in self.caller.visexpman_module_paths:
-                                if 'moving_dot.py' in path:
+                                if 'moving_dot.py' in path:#TODO: __file__
                                     data_to_hdf5['experiment_source'] = utils.file_to_binary_array(path)
                                     break
                             utils.save_config(fragment_hdf5, self.machine_config, self.experiment_config)
-                            time.sleep(5.0) #Wait for file ready            
-                            utils.save_position(fragment_hdf5, self.stage.read_position(),mes_interface.get_objective_position(fragment_mat_path))
+                            time.sleep(5.0) #Wait for file ready
+                            stage_position = self.stage.read_position() - self.caller.stage_origin
+                            objective_position = mes_interface.get_objective_position(fragment_mat_path)[0]
+                            utils.save_position(fragment_hdf5, stage_position, objective_position)
                             fragment_hdf5.machine_config = copy.deepcopy(self.machine_config.get_all_parameters())
                             fragment_hdf5.experiment_config = self.experiment_config.get_all_parameters()
                             setattr(fragment_hdf5, mes_fragment_name, data_to_hdf5)
                             fragment_hdf5.save(mes_fragment_name)
                             fragment_hdf5.close()
+                            #Rename fragment hdf5 so that coorinates are included
+                            shutil.move(fragment_hdf5_path, fragment_hdf5_path.replace('fragment_',  'fragment_{0}_{1}_{2}_'.format(stage_position[0], stage_position[1], objective_position)))
                            #move/delete mat file
                             self.printl('measurement data saved to hdf5: {0}'.format(fragment_hdf5_path))                            
                            #Notify VisexpA, data files are ready

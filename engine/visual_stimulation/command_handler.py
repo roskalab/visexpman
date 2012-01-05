@@ -7,6 +7,7 @@ import PyQt4.QtCore as QtCore
 import stimulation_control as experiment_control
 import experiment
 import visexpman.engine.hardware_interface.instrument as instrument
+import visexpman.engine.hardware_interface.motor_control as motor_control
 command_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
 parameter_extract = re.compile('EOC(.+)EOP') # an optional parameter string follows EOC terminated by EOP. In case of binary data EOC and EOP should be escaped.
 #TODO: at experiment start reload all modules so that user could edit them during runtime
@@ -42,8 +43,8 @@ class CommandHandler(object):
             result += '\n' + str(self.parse(self.caller.command_queue.get()))
         while not self.caller.mes_response_queue.empty():
             result += '\n' + self.caller.mes_response_queue.get()
-        while not self.caller.gui_response_queue.empty():
-            result += '\n' + self.caller.gui_response_queue.get()
+        while not self.caller.from_gui_queue.empty():            
+            result += '\n' + str(self.parse(self.caller.from_gui_queue.get()))
         self.caller.command_buffer = []
         self.caller.screen_and_keyboard.message += result
 
@@ -91,24 +92,25 @@ class CommandHandler(object):
         read stage:
             command: SOCstageEOCreadEOP
             response: SOCstageEOCx,y,zEOP
-        set tage:
+        set stage:
             command: SOCstageEOCset,y,zEOP
             response: SOCstageEOC<status>,x,y,zEOP, <status> = OK, error
         '''
-        if 'read' in par or 'set' in par:
+        
+        if 'read' in par or 'set' in par or 'origin' in par:
             stage = motor_control.AllegraStage(self.config, self.caller)
             position = stage.read_position()
-            stage.release_instrument()
-            self.caller.gui_command_queue.put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
+            self.caller.to_gui_queue.put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
+            if 'origin' in par:
+                self.caller.stage_origin = position                
             if 'set' in par:
                 new_position = par.split(',')[1:]
                 new_position = numpy.array([float(new_position[0]), float(new_position[1]), float(new_position[2])])
                 reached = stage.move(new_position)
-            position = stage.read_position()
-            stage.release_instrument()
-            self.caller.gui_command_queue.put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
-        
-            
+                position = stage.read_position()
+                self.caller.to_gui_queue.put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
+            stage.release_instrument()            
+        return str(position)
         
     def hide_menu(self, par):
         self.caller.screen_and_keyboard.hide_menu = not self.caller.screen_and_keyboard.hide_menu
@@ -122,7 +124,7 @@ class CommandHandler(object):
         
     def echo(self, par):
         self.caller.mes_command_queue.put('SOCechoEOCvisexpmanEOP')
-        self.caller.gui_command_queue.put('SOCechoEOCvisexpmanEOP')
+        self.caller.to_gui_queue.put('SOCechoEOCvisexpmanEOP')
         return 'echo'
         
     def set_measurement_id(self, par): #temporary, this command will be sent by GUI
@@ -137,13 +139,13 @@ class CommandHandler(object):
         '''
         Incoming string stream is parsed into commands depending on software state. When stimulation is running, incoming string is discarded
         '''        
-        result  = None
-        if len(command_buffer) > 6: #SOC + EOC + 1 character is at least present in a command            
+        result  = None        
+        if len(command_buffer) > 6: #SOC + EOC + 1 character is at least present in a command
             cmd = command_extract.findall(command_buffer)
             command_buffer_newline_replaced = command_buffer.replace('\n',  '<newline>')
-            par = parameter_extract.findall(command_buffer_newline_replaced) #par is not at the beginning of the buffer 
+            par = parameter_extract.findall(command_buffer_newline_replaced) #par is not at the beginning of the buffer             
             if len(par)>0:
-                par = [par[0].replace('<newline>',  '\n')]            
+                par = [par[0].replace('<newline>',  '\n')]
             if len(par)>0:
                 par = par[0]
             if len(cmd) > 0: #To avoid crash, dummy commands are sent by Presentinator.
@@ -156,7 +158,7 @@ class CommandHandler(object):
                 result = ''
             self.caller.log.info('Command handler: ' + result)
         return result
-        
+
 class CommandSender(QtCore.QThread):
     def __init__(self, config, caller, commands):
         self.config = config

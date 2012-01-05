@@ -186,12 +186,13 @@ class VS3DUS(VisionExperimentConfig):
         IMAGE_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
-        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]]
+        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         
         #=== Network ===
         ENABLE_UDP = False     
 #        self.VISEXPMAN_GUI['ENABLE'] = True
 #        self.VISEXPMAN_MES['ENABLE'] = True
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
@@ -262,7 +263,7 @@ class GratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'GratingExperiment'
 #        self.pre_runnable = 'TestPre'
-        self._create_parameters_from_locals(locals())       
+        self._create_parameters_from_locals(locals())
 
 class GratingExperiment(experiment.Experiment):
     def run(self):
@@ -284,6 +285,17 @@ class GratingExperiment(experiment.Experiment):
         data_to_hdf5 = {'sync_data' : ai.ai_data}
 #         setattr(self.hdf5, mes_fragment_name, data_to_hdf5)
 #         self.hdf5.save(mes_fragment_name)
+
+class PixelSizeCalibrationConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'PixelSizeCalibration'
+        self._create_parameters_from_locals(locals())
+
+class PixelSizeCalibration(experiment.Experiment):
+    def run(self):
+#         self.show_shape()
+        pass
+    
         
 
 if __name__ == "__main__":

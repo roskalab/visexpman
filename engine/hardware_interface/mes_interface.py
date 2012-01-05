@@ -51,7 +51,8 @@ def read_z_stack(mes_file_or_stream, channel = 'pmtUGraw'):
     z_stack['data'] = z_stack_data
     z_stack['origin'] = utils.rcd(numpy.array([row_origin, col_origin, depth_origin]))
     z_stack['scale'] = utils.rcd(numpy.array([row_step, col_step, depth_step]))
-    z_stack['size'] = utils.rcd(utils.nd(z_stack['scale']) * (numpy.array(z_stack_data.shape)    -1))
+    z_stack['size'] = utils.rcd(utils.nd(z_stack['scale']) * (numpy.array(z_stack_data.transpose().shape) -1)) #NOTE: here x and y size might be mixed up because of the dimensions of z_stack_data
+    z_stack['mat_path'] = mes_file_or_stream
     return z_stack
     
 def matlab_image2numpy(data):
@@ -161,7 +162,7 @@ class MesInterface(object):
             self.command_queue.put('SOCacquire_z_stackEOC{0}EOP' .format(z_stack_path_on_mes))
             results.append(network_interface.wait_for_response(self.response_queue, 'SOCacquire_z_stackEOCstartedEOP', timeout = timeout))
             if results[-1]:
-                results.append(network_interface.wait_for_response(self.response_queue, ['SOCacquire_z_stackEOCOKEOP', 'SOCacquire_z_stackEOCUSEOP'], timeout = -1))                 
+                results.append(network_interface.wait_for_response(self.response_queue, ['SOCacquire_z_stackEOCOKEOP', 'SOCacquire_z_stackEOCUSEOP'], timeout = -1))
                 results.append(network_interface.wait_for_response(self.response_queue, 'SOCacquire_z_stackEOCsaveOKEOP', timeout = -1))                
             else:
                 #Remove command from command queue
@@ -174,7 +175,7 @@ class MesInterface(object):
             z_stack = {}
             if isinstance(z_stack_path, str):
                 if os.path.exists(z_stack_path):            
-                    z_stack = read_z_stack(z_stack_path, channel = channel)
+                    z_stack = read_z_stack(z_stack_path, channel = channel)                    
             return z_stack, results
         else:
             return {}, results

@@ -212,6 +212,10 @@ class CommandRelayServer(object):
 
 class QueuedClient(QtCore.QThread):
     def __init__(self, queue_out, queue_in, server_address, port, timeout, endpoint_name):
+        '''
+        queue_in: data coming from network connection
+        queue_out: data to be sent via network
+        '''
         QtCore.QThread.__init__(self)
         self.queue_in = queue_in
         self.queue_out = queue_out
@@ -375,9 +379,6 @@ def wait_for_response(queue, expected_responses, timeout = -1, keyboard_handler 
         expected_responses = [expected_responses]
     t = utils.Timeout(timeout)
     return t.wait_timeout(check_response, queue, expected_responses, keyboard_handler)
-    
-    
-    
 
 ####################################### Unit tests #################################################xx
 

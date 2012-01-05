@@ -17,6 +17,7 @@ import logging
 import os
 import random
 import zipfile
+import numpy
 import re
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import visexpman.engine.generic.log as log
@@ -74,11 +75,11 @@ class VisExpRunner(object):
         #Start up MES listener
         self.mes_command_queue = Queue.Queue()
         self.mes_response_queue = Queue.Queue()
-        self.gui_command_queue = Queue.Queue()
-        self.gui_response_queue = Queue.Queue()
+        self.to_gui_queue = Queue.Queue()
+        self.from_gui_queue = Queue.Queue()
         self.mes_listener = None
         if unit_test_runner.TEST_enable_network:
-            self.gui_connection = network_interface.start_client(self.config, 'STIM', 'GUI_STIM', self.gui_response_queue, self.gui_command_queue)
+            self.gui_connection = network_interface.start_client(self.config, 'STIM', 'GUI_STIM', self.from_gui_queue, self.to_gui_queue)
             self.mes_connection = network_interface.start_client(self.config, 'STIM', 'STIM_MES', self.mes_response_queue, self.mes_command_queue) 
         else:
             self.gui_connection = None
@@ -90,7 +91,7 @@ class VisExpRunner(object):
         #create list of imported python modules
         module_info = utils.imported_modules()
         self.visexpman_module_paths  = module_info[1]
-        
+        self.stage_origin = numpy.zeros(3)
         if not utils.is_substring_in_list(self.visexpman_module_paths,'visexp_runner.py'):
             self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))
         self.module_versions = utils.module_versions(module_info[0])
@@ -112,8 +113,9 @@ class VisExpRunner(object):
                 time.sleep(0.1)
         except:
             import traceback
-            traceback_info = traceback.format_exc()
+            traceback_info = traceback.format_exc()            
             self.log.info(traceback_info)
+            print traceback_info
         self.close()
         #Finish log
         self.log.info('Visexpman quit')
@@ -124,7 +126,7 @@ class VisExpRunner(object):
             self.tcpip_listener.close()
         if unit_test_runner.TEST_enable_network:
             self.mes_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
-            self.gui_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
+            self.to_gui_queue.put('SOCclose_connectionEOCstop_clientEOP')
             time.sleep(3.0)
             self.log.queue(self.mes_connection.log_queue, 'mes connection')
             self.log.queue(self.gui_connection.log_queue, 'gui connection')
@@ -138,11 +140,7 @@ class VisExpRunner(object):
 #        formatter = logging.Formatter('%(asctime)s %(message)s')
 #        self.handler.setFormatter(formatter)
 #        self.log.addHandler(self.handler)
-#        self.log.setLevel(logging.INFO)
-#        
-
-      
-    
+#        self.log.setLevel(logging.INFO)   
 
 def find_out_config():
     '''

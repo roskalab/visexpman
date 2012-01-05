@@ -831,13 +831,15 @@ class Timeout(object):
             time.sleep(self.sleep_period)
         return result
         
-class Timer(object):
+def wait_data_appear_in_queue(queue, timeout):
     '''
-    Handles periodic timing
+    Waits till the empty queue receives an item considering timeout
     '''
-    pass
+    t = Timeout(timeout)
+    return t.wait_timeout(_is_queue_not_empty, queue)
 
-        
+def _is_queue_not_empty(queue):
+    return not queue.empty()        
     
 #== Signals ==
 def interpolate_waveform(waveform, ratio):    
