@@ -282,7 +282,7 @@ class Screen(object):
         row_index = 0
         for i in range(len(text)):
             if text_style == GLUT_BITMAP_TIMES_ROMAN_24:
-                spacing = 12
+                spacing = 14
             elif text_style == GLUT_BITMAP_TIMES_ROMAN_10:
                 spacing = 8
             elif text_style == GLUT_BITMAP_9_BY_15:

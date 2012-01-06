@@ -91,7 +91,7 @@ class MovingDot(experiment.Experiment):
                     time.sleep(1.0)
                     self.printl('visual stimulation started')
                    ######################## Start visual stimulation ###############################
-                    self.show_dots([self.diameter_pix]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+                    self.show_dots([self.diameter_pix*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
                     self.show_fullscreen(color = 0.0)
                     line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(0.5 * stimulus_duration)
                     ######################## Finish fragment ###############################
@@ -188,9 +188,9 @@ class MovingDot(experiment.Experiment):
         permlist = getpermlist(allangles0.shape[0], self.experiment_config.RANDOMIZE)
         allangles = allangles0[permlist]
 
-        diameter_pix = utils.retina2screen(self.experiment_config.DIAMETER_UM,machine_config=self.experiment_config.machine_config,option='pixels')
+        diameter_pix = self.experiment_config.DIAMETER_UM[0]*self.experiment_config.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         self.diameter_pix = diameter_pix
-        speed_pix = utils.retina2screen(self.experiment_config.SPEED,machine_config=self.experiment_config.machine_config,option='pixels')
+        speed_pix = self.experiment_config.SPEED[0]*self.experiment_config.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         gridstep_pix = numpy.floor(self.experiment_config.GRIDSTEP*diameter_pix)
         movestep_pix = speed_pix/self.experiment_config.machine_config.SCREEN_EXPECTED_FRAME_RATE
         h=self.experiment_config.machine_config.SCREEN_RESOLUTION['row']#monitor.resolution.height
@@ -214,7 +214,7 @@ class MovingDot(experiment.Experiment):
         ver_dur = 2*line_len['ver0'].sum()/speed_pix/self.experiment_config.NDOTS #2 vertical directions are to be shown
         hor_dur = 2*line_len['hor0'].sum()/speed_pix/self.experiment_config.NDOTS
         total_dur = (self.experiment_config.PDURATION*8+diag_dur+ver_dur+hor_dur)*self.experiment_config.REPEATS
-        nblocks = numpy.ceil(total_dur/self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION)[0]
+        nblocks = numpy.ceil(total_dur/self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION)#[0]
         # hard limit: a block in which all directions are shown the grid must not be sparser than 3*dot size. Reason: we assume dotsize
         # corresponds to excitatory receptive field size. We assume excitatiory receptive field is surrounded by inhibitory fields with same width.
          # here we divide the grid into multiple recording blocks if necessary
@@ -404,7 +404,7 @@ class MovingDot(experiment.Experiment):
                     coords = []
                     for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[cai][b][n][:,f])
-                    self.row_col[-1].extend(coords)
+                    self.row_col[-1].extend(coords*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE)
                 self.shown_directions[-1].append((allangles[a1], sum(len(s1) for s1 in self.row_col[-1]))) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
                 self.line_end[-1].append(arow_col[cai][b][0].shape[1])
             self.row_col[-1]=utils.rc(numpy.array(self.row_col[-1]))

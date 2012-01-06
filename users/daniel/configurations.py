@@ -7,6 +7,7 @@ import visexpman.engine.generic.utils as utils
 import os
 import serial
 import numpy
+import time
 
 class PPRLConfig(VisionExperimentConfig):
     
@@ -173,19 +174,21 @@ class VS3DUS(VisionExperimentConfig):
         ARCHIVE_FORMAT = 'hdf5'
         
         #=== screen ===
-        FULLSCREEN = not True
+        FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800, 600])
 #        SCREEN_RESOLUTION = utils.rc([768, 1024])
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0
         
         #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
-        SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
+        SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
+        degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
+        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
+        print SCREEN_UM_TO_PIXEL_SCALE
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         
         #=== Network ===
@@ -211,10 +214,10 @@ class VS3DUS(VisionExperimentConfig):
                                     
         STAGE = [{'serial_port' : motor_serial_port,
                  'enable': True,
-                 'speed': 1000000,
-                 'acceleration' : 1000000,
+                 'speed': 400,
+                 'acceleration' : 200,
                  'move_timeout' : 45.0,
-                 'um_per_ustep' : numpy.ones(3, dtype = numpy.float)
+                 'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]
                  
         #=== Filterwheel ===
@@ -254,7 +257,8 @@ class VS3DUS(VisionExperimentConfig):
         
         #=== Others ===
         
-        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
+        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
+                                    'next': {'key': 'n', 'domain': ['running experiment']},}
         
         
         self._create_parameters_from_locals(locals())
@@ -292,12 +296,29 @@ class PixelSizeCalibrationConfig(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
 
 class PixelSizeCalibration(experiment.Experiment):
+    '''
+    Helps pixel size calibration by showing 50 and 20 um circles
+    '''
     def run(self):
-#         self.show_shape()
-        pass
-    
-        
-
+        pattern = 0
+        self.add_text('Circle at 100,100 um, diameter is 20 um.', color = (1.0,  0.0,  0.0), position = utils.cr((10.0, 30.0)))        
+        while True:
+            if pattern == 0:
+                self.change_text(0, text = 'Circle at 100,100 um, diameter is 20 um.\n\nPress \'n\' to switch, \'s\' to stop.')
+                self.show_shape(shape = 'circle', size = 20.0, pos = utils.cr((100, 100)))
+            elif pattern == 1:
+                self.change_text(0, text = 'Circle at 50,50 um, diameter is 50 um.\n\nPress \'n\' to switch, \'s\' to stop.')
+                self.show_shape(shape = 'circle', size = 50.0, pos = utils.cr((50, 50)))
+            else:
+                pass
+            if 'stop' in self.command_buffer:
+                break
+            elif 'next' in self.command_buffer:
+                pattern += 1
+                if pattern == 2:
+                    pattern = 0
+                self.command_buffer = ''
+                    
 if __name__ == "__main__":
     
     c = UbuntuDeveloperConfig()

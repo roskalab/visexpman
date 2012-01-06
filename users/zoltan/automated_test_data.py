@@ -385,7 +385,7 @@ class VisualStimulationsExperiment(experiment.Experiment):
         color = numpy.array([[[1.0,  1.0,  0.0], [1.0,  0.0,  0.0], [0.0,  0.0,  1.0]], [[1.0,  1.0,  0.0], [1.0,  0.0,  0.0], [0.0,  0.0,  1.0]]])
         self.show_dots(dot_sizes, dot_positions, ndots, duration = 2.0/self.config.SCREEN_EXPECTED_FRAME_RATE, color = color)
         #Test show_shape
-        self.show_shape(size = 200.0, pos = utils.cr((-50, 100)))        
+        self.show_shape(size = 200.0, pos = utils.cr((-50, 100)))
         self.show_shape(shape = 'circle', color = 200, duration = 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, size = utils.cr((100.0, 200.0)))
         self.show_shape(shape = 'r', size = 100.0, background_color = (1.0, 0.0, 0.0))        
         self.show_shape(shape = 'a', size = 100.0, background_color = 120, ring_size = 10.0) 

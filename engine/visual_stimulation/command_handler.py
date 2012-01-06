@@ -1,4 +1,5 @@
 import socket
+import numpy
 import os
 import time
 import re

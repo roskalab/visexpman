@@ -78,6 +78,9 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
         self.connect(self.new_mouse_widget.mouse_file_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)
 
+    def acquire_z_stack(self):
+        pass
+        
     def save_animal_parameters(self):
         '''
         Saves the following parameters of a mouse:
@@ -514,7 +517,9 @@ class Gui(QtGui.QWidget):
 
 
     def move_stage(self):
-        self.printc('moves to {0}'.format(self.scanc()))
+        movement = self.scanc().split(',')
+        self.visexpman_out_queue.put('SOCstageEOCset,{0},{1},{2}EOP'.format(movement[0], movement[1], movement[2]))
+        self.printc('moves to {0}'.format(movement))
 
     def add_cortical_region(self):
         #Current stage position is saved to hdf5 as cortical scanning region, text input is added as name of region

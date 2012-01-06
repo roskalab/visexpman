@@ -113,7 +113,7 @@ class Stimulations(command_handler.CommandHandler):
             
         #Keyboard commands
         command = self.screen.experiment_user_interface_handler() #Here only commands with running experiment domain are considered
-        if command != None:
+        if command != None:            
             self.command_buffer += self.parse(command)
             if self.command_buffer.find('abort_experiment') != -1:
                 self.command_buffer = self.command_buffer.replace('abort_experiment', '')
@@ -364,7 +364,7 @@ class Stimulations(command_handler.CommandHandler):
 #            if self.stimulation_control.abort_stimulus():
 #                break
 
-    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0):
+    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
     
@@ -383,8 +383,8 @@ class Stimulations(command_handler.CommandHandler):
             size_pixel = size                
         else:
             raise RuntimeError('Parameter size is provided in an unsupported format')
-        size_pixel = utils.rc_multiply_with_constant(size_pixel, self.config.SCREEN_PIXEL_TO_UM_SCALE)        
-        pos_pixel = utils.rc_multiply_with_constant(pos, self.config.SCREEN_PIXEL_TO_UM_SCALE)        
+        size_pixel = utils.rc_multiply_with_constant(size_pixel, self.config.SCREEN_UM_TO_PIXEL_SCALE)        
+        pos_pixel = utils.rc_multiply_with_constant(pos, self.config.SCREEN_UM_TO_PIXEL_SCALE)        
         #Calculate vertices
         points_per_round = 360
         if shape == 'circle' or shape == '' or shape == 'o' or shape == 'c':
@@ -417,7 +417,7 @@ class Stimulations(command_handler.CommandHandler):
         first_flip = False
         stop_stimulus = False
         start_time = time.time()
-        for frame_i in range(n_frames):
+        for frame_i in range(n_frames):            
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if shape_type != 'annulus':
                 glDrawArrays(GL_POLYGON,  0, n_vertices)
@@ -436,7 +436,7 @@ class Stimulations(command_handler.CommandHandler):
                     stop_stimulus = True
                     self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
                 else:
-                    self.log_on_flip_message = self.log_on_flip_message_continous
+                    self.log_on_flip_message = self.log_on_flip_message_continous            
             if frame_i == 0:
                 self._flip(trigger = True)
             else:
