@@ -43,7 +43,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingDot'
 #         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
-        MES_PARAMETER_PATH = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, 'parameter', 'line_scan_parameters.mat')
+        #MES_PARAMETER_PATH = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, 'parameter', 'line_scan_parameters.mat')
         self._create_parameters_from_locals(locals())
 #         experiment.ExperimentConfig.__init__(self) # needs to be called so that runnable is instantiated and other checks are done
 
@@ -65,29 +65,29 @@ class MovingDot(experiment.Experiment):
         number_of_fragments = len(self.row_col)
         ######################## Prepare line scan parameter file ###############################
         self.printl('create parameter file')
-        parameter_file_prepare_success, parameter_file = self.mes_interface.prepare_line_scan(scan_time = 1.0)
-        if parameter_file_prepare_success:
+        #parameter_file_prepare_success, parameter_file = self.mes_interface.prepare_line_scan(scan_time = 1.0)
+        if 1:#parameter_file_prepare_success:
             for di in range(number_of_fragments):
                 ######################## Prepare fragment ###############################
                 #Generate file name
-                mes_fragment_name = '{0}_{1}_{2}'.format(self.experiment_name, experiment_start_time, di)
-                self.printl('Fragment {0}/{1}, name: {2}'.format(di + 1, len(self.row_col), mes_fragment_name))
-                fragment_mat_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, ('fragment_{0}.mat'.format(mes_fragment_name)))
-                fragment_hdf5_path = fragment_mat_path.replace('.mat', '.hdf5')
+                #mes_fragment_name = '{0}_{1}_{2}'.format(self.experiment_name, experiment_start_time, di)
+                #self.printl('Fragment {0}/{1}, name: {2}'.format(di + 1, len(self.row_col), mes_fragment_name))
+                #fragment_mat_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, ('fragment_{0}.mat'.format(mes_fragment_name)))
+                #fragment_hdf5_path = fragment_mat_path.replace('.mat', '.hdf5')
                 #Create mes parameter file
                 stimulus_duration = float(len(self.row_col[di]) / self.experiment_config.NDOTS)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                mes_interface.set_line_scan_time(stimulus_duration + 3.0, parameter_file, fragment_mat_path)
+                #mes_interface.set_line_scan_time(stimulus_duration + 3.0, parameter_file, fragment_mat_path)
                 ######################## Start mesurement ###############################
                #Start recording analog signals
-                ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
-                ai.start_daq_activity()
-                self.log.info('ai recording started')
+                #ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
+                #ai.start_daq_activity()
+                #self.log.info('ai recording started')
                #empty queue
-                while not self.mes_response.empty():
-                    self.mes_response.get()
+                #while not self.mes_response.empty():
+                  #  self.mes_response.get()
                #start two photon recording
-                line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(parameter_file = fragment_mat_path)
-                if line_scan_start_success:
+                #line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(parameter_file = fragment_mat_path)
+                if 1:#line_scan_start_success:
                     time.sleep(1.0)
                     self.printl('visual stimulation started')
                    ######################## Start visual stimulation ###############################
@@ -209,8 +209,8 @@ class MovingDot(experiment.Experiment):
         longest_line_dur = max([diag_line_maxlength, (w+diameter_pix*2)])/speed_pix/self.experiment_config.NDOTS # vertical direction has no chance to be longer than diagonal
         if longest_line_dur > self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION: #check if allowed block duration can accomodate the longest line
             raise ValueError('The longest trajectory cannot be shown within the time interval set as MAXIMUM RECORDING DURATION')
-        line_len={'ver0': (w+(diameter_pix*2))*numpy.ones((1,vlines_c.shape[0])),  # add 2*line_lenght to trajectory length, because the dot has to completely run in/out to/of the screen in both directions
-                        'hor0' : (h+(diameter_pix*2))*numpy.ones((1,hlines_c.shape[0]))}
+        line_len={'hor0': (w+(diameter_pix*2))*numpy.ones((1,hlines_c.shape[0])),  # add 2*line_length to trajectory length, because the dot has to completely run in/out to/of the screen in both directions
+                        'ver0' : (h+(diameter_pix*2))*numpy.ones((1,vlines_c.shape[0]))}
         ver_dur = 2*line_len['ver0'].sum()/speed_pix/self.experiment_config.NDOTS #2 vertical directions are to be shown
         hor_dur = 2*line_len['hor0'].sum()/speed_pix/self.experiment_config.NDOTS
         total_dur = (self.experiment_config.PDURATION*8+diag_dur+ver_dur+hor_dur)*self.experiment_config.REPEATS
@@ -218,9 +218,9 @@ class MovingDot(experiment.Experiment):
         # hard limit: a block in which all directions are shown the grid must not be sparser than 3*dot size. Reason: we assume dotsize
         # corresponds to excitatory receptive field size. We assume excitatiory receptive field is surrounded by inhibitory fields with same width.
          # here we divide the grid into multiple recording blocks if necessary
-        if nblocks*gridstep_pix > diameter_pix*3:
+        if 0:#nblocks*gridstep_pix > diameter_pix*3:
             self.caller.log.info('Stimulation has to be split into blocks. The number of blocks is too high meaning that the visual field would be covered too sparsely in a block \
-                if we wanted to present all angles in every block. We shall multiple lines in a block but not all angles.')
+                if we wanted to present all angles in every block. We shall show multiple lines in a block but not all angles.')
             self.angles_broken_to_multi_block( w, h, diameter_pix, speed_pix,gridstep_pix, movestep_pix,  hlines_r, hlines_c, vlines_r, vlines_c,   angleset, allangles)
         else:
             vr_all= dict();vc_all=dict()
@@ -404,7 +404,7 @@ class MovingDot(experiment.Experiment):
                     coords = []
                     for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[cai][b][n][:,f])
-                    self.row_col[-1].extend(coords*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE)
+                    self.row_col[-1].extend([c*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE for c in coords])
                 self.shown_directions[-1].append((allangles[a1], sum(len(s1) for s1 in self.row_col[-1]))) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
                 self.line_end[-1].append(arow_col[cai][b][0].shape[1])
             self.row_col[-1]=utils.rc(numpy.array(self.row_col[-1]))

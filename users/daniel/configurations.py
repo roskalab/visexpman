@@ -131,8 +131,11 @@ class MBP(VisionExperimentConfig):
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
         IMAGE_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
-        SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
+        SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
+        degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
+        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
+        
         FRAME_WAIT_FACTOR = 0 
         GAMMA = 1.0
         ENABLE_FILTERWHEEL = False
@@ -141,9 +144,9 @@ class MBP(VisionExperimentConfig):
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
         
         SEGMENT_DURATION = 2
+        
         MAXIMUM_RECORDING_DURATION = [90, [0, 10000]] #seconds
         ARCHIVE_FORMAT = 'hdf5'
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0
         COORDINATE_SYSTEM='ulcorner'
             
         ACQUISITION_TRIGGER_PIN = 2
@@ -188,7 +191,6 @@ class VS3DUS(VisionExperimentConfig):
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
-        print SCREEN_UM_TO_PIXEL_SCALE
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         
         #=== Network ===
