@@ -247,7 +247,7 @@ class VS3DUS(VisionExperimentConfig):
         #=== Network ===
         ENABLE_UDP = False
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
-        
+#        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.25.220'
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
