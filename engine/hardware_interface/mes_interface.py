@@ -15,7 +15,6 @@ import re
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import os
 import shutil
-#TODO: generate reference mat files without the unnecessary numpy.object part
 
 def read_z_stack(mes_file_or_stream, channel = 'pmtUGraw'):
     '''
@@ -139,7 +138,7 @@ class MesInterface(object):
         5. acquire_line_scan, saveOK is received when saving data is complete
     '''
     #TODO: handle situations when interface is disabled
-    def __init__(self, config, connection = None, keyboard_handler = None, log = None):        
+    def __init__(self, config, connection = None, keyboard_handler = None, log = None):
         self.config = config
         self.connection = connection
         if hasattr(self.connection, 'queue_out'):
@@ -165,7 +164,7 @@ class MesInterface(object):
             results.append(network_interface.wait_for_response(self.response_queue, 'SOCacquire_z_stackEOCstartedEOP', timeout = timeout))
             if results[-1]:
                 results.append(network_interface.wait_for_response(self.response_queue, ['SOCacquire_z_stackEOCOKEOP', 'SOCacquire_z_stackEOCUSEOP'], timeout = -1))
-                results.append(network_interface.wait_for_response(self.response_queue, 'SOCacquire_z_stackEOCsaveOKEOP', timeout = -1))                
+                results.append(network_interface.wait_for_response(self.response_queue, 'SOCacquire_z_stackEOCsaveOKEOP', timeout = 5 * timeout))
             else:
                 #Remove command from command queue
                 if not self.command_queue.empty():

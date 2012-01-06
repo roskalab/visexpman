@@ -79,7 +79,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def connect_signals(self):
         self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
-        self.connect(self.new_mouse_widget.mouse_file_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)
+        self.connect(self.new_mouse_widget.mouse_file_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)        
 
     def acquire_z_stack(self):
         pass
@@ -96,22 +96,23 @@ class VisionExperimentGui(QtGui.QWidget):
         
         The hdf5 file is closed.
         '''        
-        mouse_birth_date = self.new_mouse_widget.animal_parameters_groupbox.mouse_birth_date.date()        
-        mouse_birth_date = '{0}{1}20{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
+        mouse_birth_date = self.new_mouse_widget.animal_parameters_groupbox.mouse_birth_date.date()
+        mouse_birth_date = '{0}-{1}-{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
         gcamp_injection_date = self.new_mouse_widget.animal_parameters_groupbox.gcamp_injection_date.date()
-        gcamp_injection_date = '{0}{1}20{2}'.format(gcamp_injection_date.day(),  gcamp_injection_date.month(),  gcamp_injection_date.year())                
+        gcamp_injection_date = '{0}-{1}-{2}'.format(gcamp_injection_date.day(),  gcamp_injection_date.month(),  gcamp_injection_date.year())                
         
         animal_parameters = {
             'mouse_birth_date' : mouse_birth_date,
-            'gcamp_injection_date' : gcamp_injection_date,        
+            'gcamp_injection_date' : gcamp_injection_date,
             'anesthesia_protocol' : str(self.new_mouse_widget.animal_parameters_groupbox.anesthesia_protocol.currentText()),
             'ear_punch_l' : str(self.new_mouse_widget.animal_parameters_groupbox.ear_punch_l.currentText()), 
             'ear_punch_r' : str(self.new_mouse_widget.animal_parameters_groupbox.ear_punch_r.currentText()),
             'strain' : str(self.new_mouse_widget.animal_parameters_groupbox.mouse_strain.currentText()),
             'comments' : str(self.new_mouse_widget.animal_parameters_groupbox.comments.currentText()),
-        }
+        }        
         name = '{0}_{1}_{2}_{3}_{4}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
                                          animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'])
+                                                 
         mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'mouse_{0}.hdf5'\
                                             .format(name, int(time.time())))
         self.hdf5_handler = hdf5io.Hdf5io(mouse_file_path , config = self.config, caller = self)
@@ -141,6 +142,21 @@ class VisionExperimentGui(QtGui.QWidget):
         
     def scanc(self):
         return str(self.standard_io_widget.text_in.toPlainText())
+        
+    def closeEvent(self, e):
+        e.accept()
+        self.printc('Wait till server is closed')
+#         self.mes_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
+#         self.visexpman_out_queue.put('SOCclose_connectionEOCstop_clientEOP')
+#         if hasattr(self, 'hdf5_handler'):
+#             self.hdf5_handler.close()
+#         if ENABLE_NETWORK:
+# #            for i in self.command_relay_server.get_debug_info():
+# #                print i
+#             self.command_relay_server.shutdown_servers()            
+#             time.sleep(2.0) #Enough time to close network connections    
+        sys.exit(0)
+
 
 ################### Old stuff #######################
 class Gui(QtGui.QWidget):
@@ -149,9 +165,7 @@ class Gui(QtGui.QWidget):
         self.command_relay_server = command_relay_server
         self.init_network()
         self.init_files()
-        self.console_text = ''
-        self.stage_position = numpy.zeros(3)
-        self.stage_origin = numpy.zeros(3)
+        self.console_text = ''        
         self.mes_timeout = 3.0
         self.z_stack = {}
         #=== Init GUI ===
@@ -175,11 +189,32 @@ class Gui(QtGui.QWidget):
         if ENABLE_NETWORK:
             #TODO client shall respond to echo messages in the background
             self.stim_connection = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.visexpman_in_queue, self.visexpman_out_queue)
-            
+
+    def init_context_file(self):
+        context_file_path = os.path.join(self.config.CONTEXT_PATH, self.config.CONTEXT_NAME)
+        self.context_hdf5 = hdf5io.Hdf5io(context_file_path , config = self.config)
+        self.context_hdf5.load('stage_origin')
+        self.context_hdf5.load('stage_position')
+        if hasattr(self.context_hdf5, 'stage_origin') and hasattr(self.context_hdf5, 'stage_position'):
+            self.stage_origin = self.context_hdf5.stage_origin
+            self.stage_position = self.context_hdf5.stage_position
+        else:
+            self.stage_position = numpy.zeros(3)
+            self.stage_origin = numpy.zeros(3)
+            self.context_hdf5.stage_origin = self.stage_origin
+            self.context_hdf5.stage_position = self.stage_position
+            self.save_context()
+
+    def save_context(self):
+        self.context_hdf5.stage_origin = self.stage_origin
+        self.context_hdf5.stage_position = self.stage_position
+        self.context_hdf5.save('stage_origin')
+        self.context_hdf5.save('stage_position')
+                        
     def init_files(self):
+        self.init_context_file()        
         
         #create hdf5io
-        #TODO: File name generation shall depend on config class
         pass
         
 #============================== Create GUI items ==============================#
@@ -222,12 +257,12 @@ class Gui(QtGui.QWidget):
         layout1.addWidget(self.mouse_birth_date_label)
         self.mouse_birth_date = QtGui.QDateEdit(self)
         layout1.addWidget(self.mouse_birth_date)
-        self.mouse_birth_date.setDisplayFormat(date_format)
+#         self.mouse_birth_date.setDisplayFormat(date_format)
 
         self.gcamp_injection_date_label = QtGui.QLabel('GCAMP injection date',  self)
         layout1.addWidget(self.gcamp_injection_date_label)
         self.gcamp_injection_date = QtGui.QDateEdit(self)
-        self.gcamp_injection_date.setDisplayFormat(date_format)
+#         self.gcamp_injection_date.setDisplayFormat(date_format)
         layout1.addWidget(self.gcamp_injection_date)     
         
         self.ear_punch_l_label = QtGui.QLabel('Ear punch L',  self)
@@ -322,8 +357,6 @@ class Gui(QtGui.QWidget):
             self.parameter_files['rc_scan_points'] = utils.generate_filename(os.path.join(self.config.MES_DATA_PATH, 'rc_scan_points.mat'), insert_timestamp = True)
         else:            
             pass
-            #TODO: assign reference filenames
-
     
 #============================== MES ==============================#
     def mes_control_gui(self):        
@@ -501,6 +534,7 @@ class Gui(QtGui.QWidget):
 
     def set_stage_origin(self):
         self.stage_origin = self.stage_position
+        self.save_context()
         self.visexpman_out_queue.put('SOCstageEOCoriginEOP')
 
     def read_stage(self):
@@ -521,6 +555,7 @@ class Gui(QtGui.QWidget):
                     self.stage_position = numpy.array(map(float, position.split(',')))
                     self.printc('abs: ' + str(self.stage_position))
                     self.printc('rel: ' + str(self.stage_position - self.stage_origin))
+        self.save_context()
 
 
     def move_stage(self):
@@ -748,10 +783,12 @@ class Gui(QtGui.QWidget):
     def closeEvent(self, e):
         e.accept()
         self.printc('Wait till server is closed')
+        self.save_context()
         self.mes_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
         self.visexpman_out_queue.put('SOCclose_connectionEOCstop_clientEOP')
         if hasattr(self, 'hdf5_handler'):
             self.hdf5_handler.close()
+        self.context_hdf5.close()
         if ENABLE_NETWORK:
 #            for i in self.command_relay_server.get_debug_info():
 #                print i
@@ -774,6 +811,8 @@ class GuiConfig(configuration.VisionExperimentConfig):
         EXPERIMENT_DATA_PATH = data_folder
         MES_DATA_PATH = os.path.join(v_drive_folder, 'data')        
         MES_DATA_FOLDER = 'V:\\data'
+        CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
+        CONTEXT_NAME = 'gui.hdf5'
         self.COMMAND_RELAY_SERVER['ENABLE'] = ENABLE_NETWORK
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'#'172.27.26.1'#'172.27.25.220'
 #        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 60.0
@@ -799,8 +838,5 @@ def run_gui():
 
 if __name__ == '__main__':
 #    m = Main()
-#    m.start()
+#    m.start()    
     run_gui()
-    
-    
-#TODO: send commands to visexpman

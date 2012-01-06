@@ -11,14 +11,14 @@ class AnimalParametersGroupBox(QtGui.QGroupBox):
         self.create_layout()
 
     def create_widgets(self):
-        date_format = QtCore.QString('dd-mm-yyyy')
+#         date_format = QtCore.QString('dd.mm.yyyy')
         ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])                
         self.mouse_birth_date_label = QtGui.QLabel('Mouse birth date',  self)        
         self.mouse_birth_date = QtGui.QDateEdit(self)
-        self.mouse_birth_date.setDisplayFormat(date_format)
+#         self.mouse_birth_date.setDisplayFormat(date_format)
         self.gcamp_injection_date_label = QtGui.QLabel('GCAMP injection date',  self)
         self.gcamp_injection_date = QtGui.QDateEdit(self)
-        self.gcamp_injection_date.setDisplayFormat(date_format)
+#         self.gcamp_injection_date.setDisplayFormat(date_format)
         self.ear_punch_l_label = QtGui.QLabel('Ear punch L',  self)
         self.ear_punch_l = QtGui.QComboBox(self)
         self.ear_punch_l.addItems(ear_punch_items)

@@ -154,6 +154,58 @@ class MBP(VisionExperimentConfig):
         VisionExperimentConfig._create_parameters_from_locals(self, locals())
         #VisionExperimentConfig._set_parameters_from_locals(self, locals())
         
+class WinDev(VisionExperimentConfig):
+    '''
+    Windows development machine
+    '''
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'MovingDotConfig'
+        
+        #=== paths/data handling ===
+        if os.name == 'nt':            
+            v_drive_data_folder = 'V:\\data'
+        else:            
+            v_drive_data_folder = '/home/zoltan/visexp/data'
+        LOG_PATH = os.path.join(v_drive_data_folder, 'log')
+        EXPERIMENT_LOG_PATH = LOG_PATH        
+        EXPERIMENT_DATA_PATH = v_drive_data_folder
+        MES_DATA_FOLDER = 'V:\\data'
+        ARCHIVE_FORMAT = 'hdf5'
+        
+        #=== screen ===
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+        COORDINATE_SYSTEM='ulcorner'
+        ENABLE_FRAME_CAPTURE = False
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0        
+        
+        #=== experiment specific ===
+        IMAGE_PROJECTED_ON_RETINA = False
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
+        SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
+        degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
+        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
+        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
+        
+        #=== Network ===
+        ENABLE_UDP = False
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.25.220'
+        
+        #=== hardware ===
+        ENABLE_PARALLEL_PORT = False
+        ACQUISITION_TRIGGER_PIN = 2
+        FRAME_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PULSE_WIDTH = 1e-3        
+        
+        #=== Others ===
+        
+        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
+                                    'next': {'key': 'n', 'domain': ['running experiment']},}
+        
+        
+        self._create_parameters_from_locals(locals())
+        
 class VS3DUS(VisionExperimentConfig):
     '''
     Visual stimulation machine of 3D microscope setup
@@ -179,7 +231,6 @@ class VS3DUS(VisionExperimentConfig):
         #=== screen ===
         FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800, 600])
-#        SCREEN_RESOLUTION = utils.rc([768, 1024])
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
@@ -194,9 +245,7 @@ class VS3DUS(VisionExperimentConfig):
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         
         #=== Network ===
-        ENABLE_UDP = False     
-#        self.VISEXPMAN_GUI['ENABLE'] = True
-#        self.VISEXPMAN_MES['ENABLE'] = True
+        ENABLE_UDP = False
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
         
         #=== hardware ===
@@ -243,7 +292,7 @@ class VS3DUS(VisionExperimentConfig):
                                                 'ND50': 6, 
                                                 }]
                                                 
-        #=== LED controller ===
+        #=== DAQ ===
         DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -268,7 +317,6 @@ class VS3DUS(VisionExperimentConfig):
 class GratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'GratingExperiment'
-#        self.pre_runnable = 'TestPre'
         self._create_parameters_from_locals(locals())
 
 class GratingExperiment(experiment.Experiment):

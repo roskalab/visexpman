@@ -1,4 +1,4 @@
-#TODO: ENABLE_UDP ahsll be replaced with udp config dictionary (similar to mes interface)
+#TODO: ENABLE_UDP shall be replaced with udp config dictionary (similar to mes interface)
 import sys
 import visexpman
 import threading
@@ -28,7 +28,6 @@ class VisExpRunner(object):
     '''
     def __init__(self, user, config_class):
         self.state = 'init'
-        #TODO: from users.user folder remove all presentinator*.py files
         #== Find and instantiate machine configuration ==        
         try:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()

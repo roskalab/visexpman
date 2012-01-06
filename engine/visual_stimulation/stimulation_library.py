@@ -648,9 +648,9 @@ class Stimulations(command_handler.CommandHandler):
             show_grating(duration = 3.0, profile = 'saw', velocity = 100, white_bar_width = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
         """        
         if white_bar_width == -1:
-            bar_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
+            bar_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE
         else:
-            bar_width = white_bar_width * self.config.SCREEN_PIXEL_TO_UM_SCALE
+            bar_width = white_bar_width * self.config.SCREEN_UM_TO_PIXEL_SCALE
         #== Logging ==
         self.log_on_flip_message_initial = 'show_grating(' + str(duration)+ ', ' + str(profile) + ', ' + str(white_bar_width) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
         self.log_on_flip_message_continous = 'show_grating'
@@ -664,22 +664,22 @@ class Stimulations(command_handler.CommandHandler):
             pass
             #TODO:
                 
-        pos_transformed = utils.rc_multiply_with_constant(pos, self.config.SCREEN_PIXEL_TO_UM_SCALE)        
+        pos_transformed = utils.rc_multiply_with_constant(pos, self.config.SCREEN_UM_TO_PIXEL_SCALE)
             
         pos_adjusted = []
         pos_adjusted.append(pos_transformed['col'])
         pos_adjusted.append(pos_transformed['row'])
         
         if display_area['col'] == 0:
-            screen_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
+            screen_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE
         else:
-            screen_width = display_area['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
+            screen_width = display_area['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE
         display_area_adjusted = []
-        display_area_adjusted.append(display_area['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
-        display_area_adjusted.append(display_area['row'] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
+        display_area_adjusted.append(display_area['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        display_area_adjusted.append(display_area['row'] * self.config.SCREEN_UM_TO_PIXEL_SCALE)
         display_area_adjusted = numpy.array(display_area_adjusted)
         
-        pixel_velocity = -velocity * self.config.SCREEN_PIXEL_TO_UM_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / screen_width        
+        pixel_velocity = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / screen_width        
         
         #If grating are to be shown on fullscreen, modify display area so that no ungrated parts are on the screen considering rotation
         if display_area_adjusted[0] == 0:            

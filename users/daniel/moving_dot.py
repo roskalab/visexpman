@@ -59,7 +59,7 @@ class MovingDot(experiment.Experiment):
         experiment.Experiment.__init__(self, machine_config, caller, experiment_config)
         self.prepare()
 
-    def run(self):
+    def run(self):        
         self.show_fullscreen(color = 0.0)
         experiment_start_time = int(time.time())
         number_of_fragments = len(self.row_col)
@@ -122,7 +122,7 @@ class MovingDot(experiment.Experiment):
                             data_to_hdf5['generated_data'] = helper_data
                             #Saving source code of experiment
                             for path in self.caller.visexpman_module_paths:
-                                if 'moving_dot.py' in path:#TODO: __file__
+                                if __file__ in path:
                                     data_to_hdf5['experiment_source'] = utils.file_to_binary_array(path)
                                     break
                             utils.save_config(fragment_hdf5, self.machine_config, self.experiment_config)

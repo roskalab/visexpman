@@ -31,11 +31,12 @@ class VerySimpleExperimentTestConfig(VisionExperimentConfig):
 class VerySimpleExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'VerySimpleExperiment'
+        COLOR = [1.0, [0.0, 1.0]]
         self._create_parameters_from_locals(locals())
 
 class VerySimpleExperiment(experiment.Experiment):
     def run(self):
-        self.show_fullscreen(duration = 0.0, color = 1.0)
+        self.show_fullscreen(duration = 0.0, color = self.experiment_config.COLOR)
         
 #== Hdf5 archiving ==
 
@@ -203,14 +204,6 @@ class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
         
         DAQ_CONFIG = [
                     {
-#                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
-#                     'DAQ_TIMEOUT' : 1.0,
-#                     'AO_SAMPLE_RATE' : 100,
-#                     'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
-#                     'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',
-#                     'MAX_VOLTAGE' : 5.0,
-#                     'MIN_VOLTAGE' : 0.0,
-#                     'DURATION_OF_AI_READ' : 1.0,
                     'ENABLE' : False
                     }
                     ]
@@ -265,17 +258,18 @@ class FrameRateTestConfig(VisionExperimentConfig):
         SCREEN_RESOLUTION = utils.cr([800, 600])
 
         COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'zip'
+        ARCHIVE_FORMAT = 'zip'        
         self._create_parameters_from_locals(locals())
 
 class FrameRateExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'FrameRateExperiment'        
+        DURATION = [10.0, [1.0, 100.0]]
         self._create_parameters_from_locals(locals())
 
 class FrameRateExperiment(experiment.Experiment):
     def run(self):
-        duration = 10.0        
+        duration = self.experiment_config.DURATION
         self.t0 = time.time()
         self.show_grating(duration = duration, velocity = 500.0, white_bar_width = 200)
         self.t1 = time.time()
@@ -327,7 +321,7 @@ class VisualStimulationsUlCornerTestConfig(VisionExperimentConfig):
 
 class VisualStimulationsExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.runnable = 'VisualStimulationsExperiment'
+        self.runnable = 'VisualStimulationsExperiment'        
         self._create_parameters_from_locals(locals())
 
 class VisualStimulationsExperiment(experiment.Experiment):
@@ -438,5 +432,3 @@ class StageExperiment(experiment.Experiment):
         movement_vector = numpy.array([10000.0,1000.0,10.0])
         self.result1 = self.stage.move(movement_vector)
         self.result2 = self.stage.move(-movement_vector)
-        
-#TODO: test for referencing experiment config in stimulus

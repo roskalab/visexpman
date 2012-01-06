@@ -232,7 +232,7 @@ class DataHandler():
             self.hdf5_handler.save('source_code')
             self.hdf5_handler.module_versions = self.module_versions
             self.hdf5_handler.save('module_versions')
-            self.hdf5_handler.experiment_log = utils.string_to_binary_array(self.experiment_log_to_string(self.caller.experiment_control.log.log_messages))#TODO: numpy array of strings
+            self.hdf5_handler.experiment_log = utils.string_to_binary_array(self.experiment_log_to_string(self.caller.experiment_control.log.log_messages))
             self.hdf5_handler.save('experiment_log')
             utils.save_config(self.hdf5_handler, self.config, self.caller.selected_experiment_config)
             self.hdf5_handler.close()
