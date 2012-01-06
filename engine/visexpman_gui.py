@@ -358,6 +358,10 @@ class Gui(QtGui.QWidget):
         layout1.addWidget(self.select_z_stack_mat)
         self.select_z_stack_mat.addItems(QtCore.QStringList(utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter ='z_stack')[-1]) )
         self.connect(self.select_z_stack_mat, QtCore.SIGNAL('activated(int)'), self.update_z_stack_list)
+        
+        self.select_z_stack_channel = QtGui.QComboBox(self)
+        layout1.addWidget(self.select_z_stack_channel)
+        self.select_z_stack_channel.addItems(QtCore.QStringList(['pmtUGraw', 'pmtURraw']))
 
         layout1.addStretch(int(0.2 * self.config.GUI_SIZE['col']))
         self.mes_box1.setLayout(layout1)
@@ -368,13 +372,13 @@ class Gui(QtGui.QWidget):
         self.update_combo_box_file_list(self.select_z_stack_mat, 'z_stack')
         
     def acquire_z_stack(self):
-        self.z_stack, results = self.mes_interface.acquire_z_stack(self.mes_timeout)
+        self.z_stack, results = self.mes_interface.acquire_z_stack(self.mes_timeout,channel = str(self.select_z_stack_channel.currentText()))
         self.printc((results, self.z_stack))
 #        results = None
 #        self.z_stack = mes_interface.read_z_stack('/home/zoltan/visexp/data/z_stack_00005.mat')
-        zstop = self.z_stack['origin']['depth']
-        zstart = zstop + self.z_stack['size']['depth']
-        rel_position = self.stage_position - self.stage_origin        
+        zstart = self.z_stack['origin']['depth']
+        zstop = zstart + self.z_stack['size']['depth']
+        rel_position = self.stage_position - self.stage_origin
         shutil.move(self.z_stack['mat_path'], self.z_stack['mat_path'].replace('z_stack_', 'z_stack_{0}_{1}_{2}_{3}_' .format(rel_position[0], rel_position[1], zstart, zstop)))
 
         

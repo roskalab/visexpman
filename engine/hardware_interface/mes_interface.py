@@ -31,20 +31,19 @@ def read_z_stack(mes_file_or_stream, channel = 'pmtUGraw'):
         data = matlabfile.MatData(mes_file_or_stream).get_field('DATA')
     else:
         data = mes_file_or_stream.get_field('DATA')
-    n_frames = data[0].shape[0]
+    n_frames = data[0].shape[0]    
     n_average = int(data[0][0]['Average'][0][0][0])
     frames = []
     for i in range(n_frames-1, -1, -1):  # MES takes zstacks from the bottom, we treat zstacks starting from the cortex surface
         frame = matlab_image2numpy(data[0][i]['IMAGE'][0])
         channel_name = str(data[0][i]['Channel'][0][0])
         if channel_name == channel:
-            frames.append(frame)
-        
+            frames.append(frame)    
     z_stack_data = numpy.array(frames)#.transpose()
     depth_step = data[0][0]['D3Step'][0][0]#TODO: use getfield
     col_origin = data[0][0]['WidthOrigin'][0][0]
     row_origin = data[0][0]['HeightOrigin'][0][0]
-    depth_origin = data[0][0]['D3Origin'][0][0]
+    depth_origin = data[0][0]['Zlevel'][0][0]
     col_step = data[0][0]['WidthStep'][0][0]
     row_step = data[0][0]['HeightStep'][0][0]
     z_stack = {}
