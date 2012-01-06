@@ -89,7 +89,7 @@ class VisExpRunner(object):
         self.command_handler =  command_handler.CommandHandler(self.config, self)
         self.loop_state = 'running' #This state variable is necessary to end the main loop of the program from the command handler
         #create list of imported python modules
-        module_info = utils.imported_modules()
+        module_info = utils.imported_modules()        
         self.visexpman_module_paths  = module_info[1]
         self.stage_origin = numpy.zeros(3)
         if not utils.is_substring_in_list(self.visexpman_module_paths,'visexp_runner.py'):
@@ -691,7 +691,8 @@ class testVisexpRunner(unittest.TestCase):
 #         print utils.is_in_list(namelist, '__init__.py') 
 #         print str(namelist).find('log_' + experiment_name + '_'+ utils.date_string()) != -1
         if utils.is_in_list(namelist, 'module_versions.txt') and utils.is_in_list(namelist, 'visexpman/engine/visexp_runner.py')\
-        and utils.is_in_list(namelist, 'visexpman/engine/__init__.py') and utils.is_in_list(namelist, 'visexpman/__init__.py') and str(namelist).find('log_' + experiment_name + '_'+ utils.date_string()) != -1:
+        and utils.is_in_list(namelist, 'visexpman/engine/__init__.py') and utils.is_in_list(namelist, 'visexpman/__init__.py')\
+         and utils.is_in_list(namelist, 'visexpA/__init__.py') and str(namelist).find('log_' + experiment_name + '_'+ utils.date_string()) != -1:
             return True
         else:
             return False

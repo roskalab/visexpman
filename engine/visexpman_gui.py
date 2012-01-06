@@ -36,7 +36,10 @@ import tempfile
 import Image
 import numpy
 import shutil
-import visexpA.engine.dataprocessors.signal as signal
+try:
+    import visexpA.engine.dataprocessors.signal as signal
+except:
+    pass
 
 ################### Main widget #######################
 class VisionExperimentGui(QtGui.QWidget):

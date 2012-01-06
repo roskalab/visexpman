@@ -92,7 +92,10 @@ def read_rc_scan(mes_file_or_stream, frame_i):
     pass
     return masked_line, roi,  line, mask, x, y, z
         
-def get_objective_position(mat_file):        
+def get_objective_position(mat_file):
+    '''
+    Reads relative Z position
+    '''
     m = matlabfile.MatData(mat_file)
     data = m.get_field('DATA')
     n_frames = data[0].shape[0]
