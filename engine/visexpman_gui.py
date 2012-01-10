@@ -6,6 +6,9 @@
 #TODO: string parsing: re
 #TODO: string to binary array: numpy.loadtext, loadfile or struct.struct
 import sys
+ENABLE_NETWORK = not 'dev' in sys.argv[1]
+SEARCH_SUBFOLDERS = True
+
 import time
 import socket
 import PyQt4.Qt as Qt
@@ -13,9 +16,11 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.visual_stimulation.configuration as configuration
+import visexpman.engine.visual_stimulation.gui as gui
 import visexpman.engine.hardware_interface.network_interface as network_interface
 import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpman.engine.generic.utils as utils
+import visexpman.engine.generic.geometry as geometry
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import Queue
 import os.path
@@ -30,367 +35,276 @@ import visexpA.engine.datahandlers.matlabfile as matlabfile
 import tempfile
 import Image
 import numpy
+import shutil
+try:
+    import visexpA.engine.dataprocessors.signal as signal
+except:
+    pass
 
-class Gui(Qt.QMainWindow):
+################### Main widget #######################
+class VisionExperimentGui(QtGui.QWidget):
+    def __init__(self, config, command_relay_server = None):
+        self.config = config
+        self.command_relay_server = command_relay_server
+        self.console_text = ''
+        QtGui.QWidget.__init__(self)
+        self.setWindowTitle('Vision Experiment Manager GUI')        
+        self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
+        self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])        
+        self.create_gui()
+        self.create_layout()
+        self.connect_signals()
+        self.show()
+
+    def create_gui(self):
+        self.new_mouse_widget = gui.NewMouseWidget(self, self.config)
+        self.registered_mouse_widget = gui.RegisteredMouseWidget(self, self.config)
+        self.debug_widget = gui.DebugWidget(self, self.config)
+        self.realignment_tab = QtGui.QTabWidget(self)
+        self.realignment_tab.addTab(self.new_mouse_widget, 'New mouse')
+        self.realignment_tab.addTab(self.registered_mouse_widget, 'Registered mouse')
+        self.realignment_tab.addTab(self.debug_widget, 'Debug')
+        self.standard_io_widget = gui.StandardIOWidget(self, self.config)
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.realignment_tab, 0, 0, 1, 1)
+        self.layout.addWidget(self.standard_io_widget, 1, 0, 1, 1)
+        self.layout.setRowStretch(3, 3)
+        self.layout.setColumnStretch(3, 3)
+        self.setLayout(self.layout)
+
+
+    ####### Signals/functions ###############
+    def connect_signals(self):
+        self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
+        self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
+        self.connect(self.new_mouse_widget.mouse_file_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)        
+
+    def acquire_z_stack(self):
+        pass
+
+    def save_animal_parameters(self):
+        '''
+        Saves the following parameters of a mouse:
+        - birth date
+        - gcamp injection date
+        - anesthesia protocol
+        - ear punch infos
+        - strain
+        - user comments
+
+        The hdf5 file is closed.
+        '''        
+        mouse_birth_date = self.new_mouse_widget.animal_parameters_groupbox.mouse_birth_date.date()
+        mouse_birth_date = '{0}-{1}-{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
+        gcamp_injection_date = self.new_mouse_widget.animal_parameters_groupbox.gcamp_injection_date.date()
+        gcamp_injection_date = '{0}-{1}-{2}'.format(gcamp_injection_date.day(),  gcamp_injection_date.month(),  gcamp_injection_date.year())                
+
+        animal_parameters = {
+            'mouse_birth_date' : mouse_birth_date,
+            'gcamp_injection_date' : gcamp_injection_date,
+            'anesthesia_protocol' : str(self.new_mouse_widget.animal_parameters_groupbox.anesthesia_protocol.currentText()),
+            'ear_punch_l' : str(self.new_mouse_widget.animal_parameters_groupbox.ear_punch_l.currentText()), 
+            'ear_punch_r' : str(self.new_mouse_widget.animal_parameters_groupbox.ear_punch_r.currentText()),
+            'strain' : str(self.new_mouse_widget.animal_parameters_groupbox.mouse_strain.currentText()),
+            'comments' : str(self.new_mouse_widget.animal_parameters_groupbox.comments.currentText()),
+        }        
+        name = '{0}_{1}_{2}_{3}_{4}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
+                                         animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'])
+
+        mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'mouse_{0}.hdf5'\
+                                            .format(name, int(time.time())))
+        self.hdf5_handler = hdf5io.Hdf5io(mouse_file_path)
+        variable_name = 'animal_parameters_{0}'.format(int(time.time()))
+        setattr(self.hdf5_handler,  variable_name, animal_parameters)
+        self.hdf5_handler.save(variable_name)
+        hdf5_id = 'gui_' + str(int(time.time()))
+        setattr(self.hdf5_handler, hdf5_id, 0)
+        self.hdf5_handler.save(hdf5_id)
+        self.printc('Animal parameters saved')
+        self.hdf5_handler.close()
+
+    def execute_python(self):
+        exec(str(self.scanc()))
+
+    def clear_console(self):
+        self.console_text  = ''
+        self.standard_io_widget.text_out.setPlainText(self.console_text)
+
+    ####### Helpers ###############
+    def printc(self, text):
+        if not isinstance(text, str):
+            text = str(text)
+        self.console_text  += text + '\n'
+        self.standard_io_widget.text_out.setPlainText(self.console_text)
+        self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
+
+    def scanc(self):
+        return str(self.standard_io_widget.text_in.toPlainText())
+
+    def closeEvent(self, e):
+        e.accept()
+        self.printc('Wait till server is closed')
+#         self.mes_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
+#         self.visexpman_out_queue.put('SOCclose_connectionEOCstop_clientEOP')
+#         if hasattr(self, 'hdf5_handler'):
+#             self.hdf5_handler.close()
+#         if ENABLE_NETWORK:
+# #            for i in self.command_relay_server.get_debug_info():
+# #                print i
+#             self.command_relay_server.shutdown_servers()            
+#             time.sleep(2.0) #Enough time to close network connections    
+        sys.exit(0)
+
+
+################### Old stuff #######################
+class Gui(QtGui.QWidget):
     def __init__(self, config, command_relay_server):
         self.config = config
         self.command_relay_server = command_relay_server
         self.init_network()
-        self.init_files()       
-        
+        self.init_files()
+        self.console_text = ''        
+        self.mes_timeout = 3.0
+        self.z_stack = {}
         #=== Init GUI ===
-        Qt.QMainWindow.__init__(self)
+        QtGui.QWidget.__init__(self)
         self.setWindowTitle('Vision Experiment Manager GUI')        
         self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
         self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
         self.create_user_interface()
         self.show()
-        
+        self.printc('init done')
+
     def init_network(self):
         self.mes_command_queue = Queue.Queue()
         self.mes_response_queue = Queue.Queue()
-        self.mes_connection = network_interface.start_client(self.config, 'GUI', 'GUI_MES', self.mes_response_queue, self.mes_command_queue)
-        
+        if ENABLE_NETWORK:
+            self.mes_connection = network_interface.start_client(self.config, 'GUI', 'GUI_MES', self.mes_response_queue, self.mes_command_queue)
+        self.mes_interface = mes_interface.MesInterface(self.config, self.mes_connection)
+
         self.visexpman_out_queue = Queue.Queue()
         self.visexpman_in_queue = Queue.Queue()
-        self.stim_connection = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.visexpman_in_queue, self.visexpman_out_queue)        
+        if ENABLE_NETWORK:
+            #TODO client shall respond to echo messages in the background
+            self.stim_connection = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.visexpman_in_queue, self.visexpman_out_queue)
+
+    def init_context_file(self):
+        pass
+        # create folder if not exists
+        self.context_file_path = os.path.join(self.config.CONTEXT_PATH, self.config.CONTEXT_NAME)
+        context_hdf5 = hdf5io.Hdf5io(self.context_file_path)
+        context_hdf5.load('stage_origin')
+        context_hdf5.load('stage_position')
+        if hasattr(context_hdf5, 'stage_position') and hasattr(context_hdf5, 'stage_origin') :
+            self.stage_origin = context_hdf5.stage_origin
+            self.stage_position = context_hdf5.stage_position
+        else:
+            self.stage_position = numpy.zeros(3)
+            self.stage_origin = numpy.zeros(3)
+        context_hdf5.close()
         
-    def create_user_interface(self):
-        self.panel_size = utils.cr((150, 35))
-        self.wide_panel_size = utils.cr((300, 35))
-        self.image_size = utils.cr((300, 300))
-        self.experiment_identification_gui(50)
-        self.mes_control(50 + 4 * self.panel_size['row'])
-        self.visexpman_control(50 + 7.5 * self.panel_size['row'])
-        self.realignment_gui(50 + 10 * self.panel_size['row'])
-        self.visexpa_control(50 + 20 * self.panel_size['row'])
-        
-        
-    def experiment_identification_gui(self, row):
-        
-        #== Parameters of gui items ==
-        title = {'title' : '---------------------    Experiment identification    ---------------------', 'size' : utils.cr((self.config.GUI_SIZE['col'], 40)),  'position' : utils.cr((0, row))}
-        date_format = QtCore.QString('dd-mm-yyyy')
-        mouse_birth_date = {'size' : self.panel_size,  'position' : utils.cr((0, row + 1.1 * self.panel_size['row']))}
-        gcamp_injection_date = {'size' : self.panel_size,  'position' : utils.cr((2.1*self.panel_size['col'],  row + 1.1 * self.panel_size['row']))}
-        anesthesia_protocol = {'size' : self.panel_size,  'position' : utils.cr((4.1*self.panel_size['col'], row + 1.1 * self.panel_size['row']))}
-        anesthesia_protocol_items = QtCore.QStringList(['isoflCP 1.0', 'isoflCP 0.5', 'isoflCP 1.5'])        
-        ear_punch_l = {'size' : self.panel_size,  'position' : utils.cr((0, row + 2.1 * self.panel_size['row']))}
-        ear_punch_r = {'size' : self.panel_size,  'position' : utils.cr((2.1*self.panel_size['col'], row + 2.1 * self.panel_size['row']))}
-        ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])               
-        mouse_strain = {'size' : self.panel_size,  'position' : utils.cr((4.1*self.panel_size['col'], row + 2.1 * self.panel_size['row']))}
-        mouse_strain_items = QtCore.QStringList(['bl6', 'chat', 'chatdtr'])
-        generate_animal_parameters = {'size' : self.panel_size,  'position' : utils.cr((0, row + 3.1 * self.panel_size['row']))}
-        
-        animal_parameters = {'size' : utils.cr((self.config.GUI_SIZE['col'] - self.panel_size['col'], 40)),  'position' : utils.cr((1.1 * self.panel_size['col'], row + 3.1 * self.panel_size['row']))}       
-        
-        #== Create gui items ==
-        self.experiment_identification_title = QtGui.QLabel(title['title'],  self)
-        self.experiment_identification_title.resize(title['size']['col'],  title['size']['row'])
-        self.experiment_identification_title.move(title['position']['col'],  title['position']['row'])
-        self.experiment_identification_title.setAlignment(QtCore.Qt.AlignHCenter)
-        
-        self.generate_animal_parameters_button = QtGui.QPushButton('Save animal parameters',  self)
-        self.generate_animal_parameters_button.resize(generate_animal_parameters['size']['col'],  generate_animal_parameters['size']['row'])
-        self.generate_animal_parameters_button.move(generate_animal_parameters['position']['col'],  generate_animal_parameters['position']['row'])
-        self.connect(self.generate_animal_parameters_button, QtCore.SIGNAL('clicked()'),  self.generate_animal_parameters)
-        
-        self.mouse_birth_date = QtGui.QDateEdit(self)
-        self.mouse_birth_date.setDisplayFormat(date_format)
-        self.mouse_birth_date.resize(mouse_birth_date['size']['col'],  mouse_birth_date['size']['row'])
-        self.mouse_birth_date.move(mouse_birth_date['position']['col'] + mouse_birth_date['size']['col'],  mouse_birth_date['position']['row'])
+    def save_context(self):
+        pass
+        context_hdf5 = hdf5io.Hdf5io(self.context_file_path)
+        context_hdf5.stage_origin = self.stage_origin
+        context_hdf5.stage_position = self.stage_position
+        context_hdf5.save('stage_origin',overwrite = True)
+        context_hdf5.save('stage_position', overwrite = True)
+        context_hdf5.close()
+
+    def init_files(self):
+        self.init_context_file()        
+
+        #create hdf5io
+        pass
+
+#============================== Create GUI items ==============================#
+    def create_user_interface(self):        
+        self.layout = QtGui.QVBoxLayout()
+        self.animal_parameters_gui()
+        self.mes_control_gui()
+        self.experiment_control_gui()
+        self.realignment_gui()
+        self.visexpa_control_gui()
+        self.text_io_gui()
+#        self.layout.addStretch(10)
+
+        self.setLayout(self.layout)
+
+#============================== Animal parameters ==============================#
+
+    def animal_parameters_gui(self):
+        self.animal_parameters_box1 = QtGui.QGroupBox ('Animal parameters', self)
+        self.layout.addWidget(self.animal_parameters_box1)
+        self.animal_parameters_box2 = QtGui.QGroupBox ('', self)
+        self.layout.addWidget(self.animal_parameters_box2)
+        layout1 = QtGui.QHBoxLayout()        
+        layout2 = QtGui.QHBoxLayout()
+        date_format = QtCore.QString('dd-MM-yyyy')
+        ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])
+
+        self.save_animal_parameters_button = QtGui.QPushButton('Save animal parameters',  self)
+        layout2.addWidget(self.save_animal_parameters_button)        
+        self.connect(self.save_animal_parameters_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)
+
+        self.select_reference_experiment_label = QtGui.QLabel('Select reference experiment',  self)
+        layout2.addWidget(self.select_reference_experiment_label)
+        self.select_reference_experiment = QtGui.QComboBox(self)
+        layout2.addWidget(self.select_reference_experiment)      
+        self.select_reference_experiment.addItems(utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter = 'gui')[-1])
+        self.connect(self.select_reference_experiment, QtCore.SIGNAL('activated(int)'), self.update_experiment_file_list)
+
         self.mouse_birth_date_label = QtGui.QLabel('Mouse birth date',  self)
-        self.mouse_birth_date_label.resize(mouse_birth_date['size']['col'],  mouse_birth_date['size']['row'])
-        self.mouse_birth_date_label.move(mouse_birth_date['position']['col'],  mouse_birth_date['position']['row'])
-        
+        layout1.addWidget(self.mouse_birth_date_label)
+        self.mouse_birth_date = QtGui.QDateEdit(self)
+        layout1.addWidget(self.mouse_birth_date)
+        self.mouse_birth_date.setDisplayFormat(date_format)
+
+        self.gcamp_injection_date_label = QtGui.QLabel('GCAMP injection date',  self)
+        layout1.addWidget(self.gcamp_injection_date_label)
         self.gcamp_injection_date = QtGui.QDateEdit(self)
         self.gcamp_injection_date.setDisplayFormat(date_format)
-        self.gcamp_injection_date.resize(gcamp_injection_date['size']['col'],  gcamp_injection_date['size']['row'])
-        self.gcamp_injection_date.move(gcamp_injection_date['position']['col'] + gcamp_injection_date['size']['col'],  gcamp_injection_date['position']['row'])
-        self.gcamp_injection_date_label = QtGui.QLabel('GCAMP injection date',  self)
-        self.gcamp_injection_date_label.resize(gcamp_injection_date['size']['col'],  gcamp_injection_date['size']['row'])
-        self.gcamp_injection_date_label.move(gcamp_injection_date['position']['col'],  gcamp_injection_date['position']['row'])
-        
-        self.ear_punch_l = QtGui.QComboBox(self)
-        self.ear_punch_l.resize(ear_punch_l['size']['col'],  ear_punch_l['size']['row'])
-        self.ear_punch_l.move(ear_punch_l['position']['col'] + ear_punch_l['size']['col'],  ear_punch_l['position']['row'])
+        layout1.addWidget(self.gcamp_injection_date)     
+
         self.ear_punch_l_label = QtGui.QLabel('Ear punch L',  self)
-        self.ear_punch_l_label.resize(ear_punch_l['size']['col'],  ear_punch_l['size']['row'])
-        self.ear_punch_l_label.move(ear_punch_l['position']['col'],  ear_punch_l['position']['row'])
+        layout1.addWidget(self.ear_punch_l_label)     
+        self.ear_punch_l = QtGui.QComboBox(self)        
         self.ear_punch_l.addItems(ear_punch_items)
-        
-        self.ear_punch_r = QtGui.QComboBox(self)
-        self.ear_punch_r.resize(ear_punch_r['size']['col'],  ear_punch_r['size']['row'])
-        self.ear_punch_r.move(ear_punch_r['position']['col'] + ear_punch_r['size']['col'],  ear_punch_r['position']['row'])
+        layout1.addWidget(self.ear_punch_l)             
+
         self.ear_punch_r_label = QtGui.QLabel('Ear punch R',  self)
-        self.ear_punch_r_label.resize(ear_punch_r['size']['col'],  ear_punch_r['size']['row'])
-        self.ear_punch_r_label.move(ear_punch_r['position']['col'],  ear_punch_r['position']['row'])
+        layout1.addWidget(self.ear_punch_r_label)     
+        self.ear_punch_r = QtGui.QComboBox(self)                
         self.ear_punch_r.addItems(ear_punch_items)
-        
-        self.anesthesia_protocol = QtGui.QComboBox(self)
-        self.anesthesia_protocol.resize(anesthesia_protocol['size']['col'],  anesthesia_protocol['size']['row'])
-        self.anesthesia_protocol.move(anesthesia_protocol['position']['col'] + anesthesia_protocol['size']['col'],  anesthesia_protocol['position']['row'])
+        layout1.addWidget(self.ear_punch_r)     
+
         self.anesthesia_protocol_label = QtGui.QLabel('Anesthesia protocol',  self)
-        self.anesthesia_protocol_label.resize(anesthesia_protocol['size']['col'],  anesthesia_protocol['size']['row'])
-        self.anesthesia_protocol_label.move(anesthesia_protocol['position']['col'],  anesthesia_protocol['position']['row'])
-        self.anesthesia_protocol.addItems(anesthesia_protocol_items)
-                
-        self.mouse_strain = QtGui.QComboBox(self)
-        self.mouse_strain.resize(mouse_strain['size']['col'],  mouse_strain['size']['row'])
-        self.mouse_strain.move(mouse_strain['position']['col'] + mouse_strain['size']['col'],  mouse_strain['position']['row'])
+        layout1.addWidget(self.anesthesia_protocol_label)
+        self.anesthesia_protocol = QtGui.QComboBox(self)        
+        self.anesthesia_protocol.addItems(QtCore.QStringList(['isoflCP 1.0', 'isoflCP 0.5', 'isoflCP 1.5']))
+        layout1.addWidget(self.anesthesia_protocol)
+
         self.mouse_strain_label = QtGui.QLabel('Mouse strain',  self)
-        self.mouse_strain_label.resize(mouse_strain['size']['col'],  mouse_strain['size']['row'])
-        self.mouse_strain_label.move(mouse_strain['position']['col'],  mouse_strain['position']['row'])
-        self.mouse_strain.addItems(mouse_strain_items)
-        
-        self.animal_parameters = QtGui.QLabel('',  self)
-        self.animal_parameters.resize(animal_parameters['size']['col'],  animal_parameters['size']['row'])
-        self.animal_parameters.move(animal_parameters['position']['col'],  animal_parameters['position']['row'])    
-    
-    def mes_control(self, row):
-        '''
-        
-        '''
-        #== Params ==#
-        title = {'title' : '---------------------    MES    ---------------------', 'size' : utils.cr((self.config.GUI_SIZE['col'], 40)),  'position' : utils.cr((0, row))}
-        acquire_camera_image = {'size' : self.panel_size,  'position' : utils.cr((0,  row + 1.1 *  self.panel_size['row']))}
-        acquire_z_stack = {'size' : self.panel_size,  'position' : utils.cr((self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
-        single_two_photon_recording = {'size' : self.panel_size,  'position' : utils.cr((2*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
-        two_photon_recording = {'size' : self.panel_size,  'position' : utils.cr((3*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
-        rc_scan = {'size' : self.panel_size,  'position' : utils.cr((4*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
-        echo = {'size' : self.panel_size, 'position' : utils.cr((5*self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
-        previous_settings = {'size' : self.panel_size, 'position' : utils.cr((0,  row + 2.1 *  self.panel_size['row']))}
-                
-        #== gui items ==#        
-        self.mes_title = QtGui.QLabel(title['title'],  self)
-        self.mes_title.resize(title['size']['col'],  title['size']['row'])
-        self.mes_title.move(title['position']['col'],  title['position']['row'])
-        self.mes_title.setAlignment(QtCore.Qt.AlignHCenter)
-        
-        self.acquire_camera_image_button = QtGui.QPushButton('Acquire camera image',  self)
-        self.acquire_camera_image_button.resize(acquire_camera_image['size']['col'],  acquire_camera_image['size']['row'])
-        self.acquire_camera_image_button.move(acquire_camera_image['position']['col'],  acquire_camera_image['position']['row'])
-        self.connect(self.acquire_camera_image_button, QtCore.SIGNAL('clicked()'),  self.acquire_camera_image)
-        
-        self.acquire_z_stack_button = QtGui.QPushButton('Acquire z stack',  self)
-        self.acquire_z_stack_button.resize(acquire_z_stack['size']['col'],  acquire_z_stack['size']['row'])
-        self.acquire_z_stack_button.move(acquire_z_stack['position']['col'],  acquire_z_stack['position']['row'])
-        self.connect(self.acquire_z_stack_button, QtCore.SIGNAL('clicked()'),  self.acquire_z_stack)
-        
-        self.two_photon_recording_button = QtGui.QPushButton('Two photon record',  self)
-        self.two_photon_recording_button.resize(two_photon_recording['size']['col'],  two_photon_recording['size']['row'])
-        self.two_photon_recording_button.move(two_photon_recording['position']['col'],  two_photon_recording['position']['row'])
-        self.connect(self.two_photon_recording_button, QtCore.SIGNAL('clicked()'),  self.two_photon_recording)
-        
-        self.single_photon_recording_button = QtGui.QPushButton('Single two photon',  self)
-        self.single_photon_recording_button.resize(single_two_photon_recording['size']['col'],  single_two_photon_recording['size']['row'])
-        self.single_photon_recording_button.move(single_two_photon_recording['position']['col'],  single_two_photon_recording['position']['row'])
-        self.connect(self.single_photon_recording_button, QtCore.SIGNAL('clicked()'),  self.single_two_photon_recording)
-        
-        self.rc_scan_button = QtGui.QPushButton('RC scan',  self)
-        self.rc_scan_button.resize(rc_scan['size']['col'],  rc_scan['size']['row'])
-        self.rc_scan_button.move(rc_scan['position']['col'],  rc_scan['position']['row'])
-        self.connect(self.rc_scan_button, QtCore.SIGNAL('clicked()'),  self.rc_scan)
-        
-        self.echo_button = QtGui.QPushButton('Echo MES', self)
-        self.echo_button.resize(echo['size']['col'], echo['size']['row'])
-        self.echo_button.move(echo['position']['col'], echo['position']['row'])
-        self.connect(self.echo_button, QtCore.SIGNAL('clicked()'), self.echo)
-        
-        self.previous_settings_checkbox = QtGui.QCheckBox(self)        
-        self.previous_settings_checkbox.move(previous_settings['size']['col'] + previous_settings['position']['col'], previous_settings['position']['row'])
-        self.previous_settings_label = QtGui.QLabel('Use previous settings', self)
-        self.previous_settings_label.resize(previous_settings['size']['col'], previous_settings['size']['row'])
-        self.previous_settings_label.move(previous_settings['position']['col'], previous_settings['position']['row'])
-        self.connect(self.previous_settings_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.update_mes_command_parameter_file_names)
-        
-        
-    def visexpman_control(self, row):
-        #== Params ==
-        title = {'title' : '---------------------    Visexpman    ---------------------', 'size' : utils.cr((self.config.GUI_SIZE['col'], 40)),  'position' : utils.cr((0, row))}
-        execute_experiment = {'size' : self.panel_size,  'position' : utils.cr((0,  row + 1.1 *  self.panel_size['row']))}
-        experiment_config = {'size' : self.panel_size,  'position' : utils.cr((self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
-        
-        #== Gui items ==
-        self.visexpman_title = QtGui.QLabel(title['title'],  self)
-        self.visexpman_title.resize(title['size']['col'],  title['size']['row'])
-        self.visexpman_title.move(title['position']['col'],  title['position']['row'])
-        self.visexpman_title.setAlignment(QtCore.Qt.AlignHCenter)
-        
-        self.execute_experiment_button = QtGui.QPushButton('Execute experiment',  self)
-        self.execute_experiment_button.resize(execute_experiment['size']['col'],  execute_experiment['size']['row'])
-        self.execute_experiment_button.move(execute_experiment['position']['col'],  execute_experiment['position']['row'])
-        self.connect(self.execute_experiment_button, QtCore.SIGNAL('clicked()'),  self.execute_experiment)
-        
-        self.experiment_config_input = QtGui.QTextEdit(self)
-        self.experiment_config_input.resize(experiment_config['size']['col'],  experiment_config['size']['row'])
-        self.experiment_config_input.move(experiment_config['position']['col'],  experiment_config['position']['row'])
-        
-    def visexpa_control(self, row):
-        #== Params ==
-        title = {'title' : '---------------------    VisexpA    ---------------------', 'size' : utils.cr((self.config.GUI_SIZE['col'], 40)),  'position' : utils.cr((0, row))}
-        execute_experiment = {'size' : self.panel_size,  'position' : utils.cr((0,  row + 1.1 *  self.panel_size['row']))}
-        experiment_config = {'size' : self.panel_size,  'position' : utils.cr((self.panel_size['col'],  row + 1.1 *  self.panel_size['row']))}
-        
-        #== Gui items ==
-        self.visexpa_title = QtGui.QLabel(title['title'],  self)
-        self.visexpa_title.resize(title['size']['col'],  title['size']['row'])
-        self.visexpa_title.move(title['position']['col'],  title['position']['row'])
-        self.visexpa_title.setAlignment(QtCore.Qt.AlignHCenter)
-        
-        
-    def realignment_gui(self, row):
-        title = {'title' : '---------------------    Realignment    ---------------------', 'size' : utils.cr((self.config.GUI_SIZE['col'], 40)),  'position' : utils.cr((0, row))}
-        realign = {'size' : self.panel_size,  'position' : utils.cr((0,  row + 1.1 *  self.panel_size['row']))}
-        realignment_method = {'size' : self.panel_size,  'position' : utils.cr((0, row + 2.1 * self.panel_size['row']))}
-        realignment_method_items = QtCore.QStringList(['z stack', 'none', 'two photon frame'])
-        required_translation = {'size' : self.panel_size,  'position' : utils.cr((0, row + 3.1 * self.panel_size['row']))}
-        filter = 'single_two_photon'
-        filter = 'acquire_z_stack'
-        select_reference_mat = {'size' : self.wide_panel_size,  'position' : utils.cr((self.wide_panel_size['col'], row + 1.1 * self.wide_panel_size['row']))}
-        select_reference_mat_items = QtCore.QStringList(utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter = filter)[-1])
-        select_acquired_mat = {'size' : self.wide_panel_size,  'position' : utils.cr((self.wide_panel_size['col'] + self.image_size['col'], row + 1.1 * self.wide_panel_size['row']))}
-        select_acquired_mat_items = QtCore.QStringList(utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter = filter)[-1])
-                
-        reference_image = {'size' : self.image_size,  'position' : utils.cr((self.wide_panel_size['col'], row + 2.1 * self.wide_panel_size['row']))}
-        acquired_image = {'size' : self.image_size,  'position' : utils.cr((self.wide_panel_size['col'] + self.image_size['col'] , row + 2.1 * self.wide_panel_size['row']))}
-        
-        #== Gui items ==
-        self.visexpa_title = QtGui.QLabel(title['title'],  self)
-        self.visexpa_title.resize(title['size']['col'],  title['size']['row'])
-        self.visexpa_title.move(title['position']['col'],  title['position']['row'])
-        self.visexpa_title.setAlignment(QtCore.Qt.AlignHCenter)
-        
-        self.realign_button = QtGui.QPushButton('Realign',  self)
-        self.realign_button.resize(realign['size']['col'],  realign['size']['row'])
-        self.realign_button.move(realign['position']['col'],  realign['position']['row'])
-        self.connect(self.realign_button, QtCore.SIGNAL('clicked()'),  self.realign)
-        
-        self.realignment_method = QtGui.QComboBox(self)
-        self.realignment_method.resize(realignment_method['size']['col'],  realignment_method['size']['row'])
-        self.realignment_method.move(realignment_method['position']['col'],  realignment_method['position']['row'])
-        self.realignment_method.addItems(realignment_method_items)
-        
-        self.required_translation_label = QtGui.QLabel('unknown',  self)
-        self.required_translation_label.resize(2*required_translation['size']['col'],  required_translation['size']['row'])
-        self.required_translation_label.move(required_translation['position']['col'],  required_translation['position']['row'])
-        
-        self.select_reference_mat = QtGui.QComboBox(self)
-        self.select_reference_mat.resize(select_reference_mat['size']['col'],  select_reference_mat['size']['row'])
-        self.select_reference_mat.move(select_reference_mat['position']['col'] + 0.0*select_reference_mat['size']['col'],  select_reference_mat['position']['row'])
-        self.select_reference_mat.addItems(select_reference_mat_items)
-        
-        self.select_acquired_mat = QtGui.QComboBox(self)
-        self.select_acquired_mat.resize(select_acquired_mat['size']['col'],  select_acquired_mat['size']['row'])
-        self.select_acquired_mat.move(select_acquired_mat['position']['col'] + 0.0*select_acquired_mat['size']['col'],  select_acquired_mat['position']['row'])
-        self.select_acquired_mat.addItems(select_acquired_mat_items)
-        
-        self.reference_image_label = QtGui.QLabel('',self)
-        self.reference_image_label.resize(reference_image['size']['col'],  reference_image['size']['row'])
-        self.reference_image_label.move(reference_image['position']['col'],  reference_image['position']['row'])
-        
-        self.acquired_image_label = QtGui.QLabel('',self)
-        self.acquired_image_label.resize(acquired_image['size']['col'],  acquired_image['size']['row'])
-        self.acquired_image_label.move(acquired_image['position']['col'],  acquired_image['position']['row'])
-        
-    def init_files(self):   
-        
-        #create hdf5io
-        #TODO: File name generation shall depend on config class
+        layout1.addWidget(self.mouse_strain_label)
+        self.mouse_strain = QtGui.QComboBox(self)      
+        layout1.addWidget(self.mouse_strain)
+        self.mouse_strain.addItems(QtCore.QStringList(['bl6', 'chat', 'chatdtr']))
+
+        layout2.addStretch(int(0.25 * self.config.GUI_SIZE['col']))                
+        self.animal_parameters_box1.setLayout(layout1)
+        self.animal_parameters_box2.setLayout(layout2)
+
+    def save_animal_parameters(self):
         self.hdf5_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'gui_MovingDot_{0}.hdf5'.format(int(time.time())))
         self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self)
 
-    def update_mes_command_parameter_file_names(self):
-        self.parameter_files = {}
-        self.parameter_files['acquire_camera_image'] = os.path.join(self.config.MAT_PATH, 'acquire_camera_image_parameters.mat').replace('/', '\\')
-        self.parameter_files['acquire_z_stack'] = os.path.join(self.config.MAT_PATH, 'acquire_z_stack_parameters.mat')
-        self.parameter_files['line_scan'] = os.path.join(self.config.MAT_PATH, 'line_scan_parameters.mat').replace('/', '\\')
-        self.parameter_files['single_two_photon'] = os.path.join(self.config.MAT_PATH, 'single_two_photon_parameters.mat').replace('/', '\\')
-        self.parameter_files['rc_scan'] = os.path.join(self.config.MAT_PATH, 'rc_scan_parameters.mat')
-        for k, v in self.parameter_files.items():
-            if self.previous_settings_checkbox.checkState() == 0:
-                self.parameter_files[k] = utils.generate_filename(v)
-            else:
-                latest = utils.find_latest(v)
-                if latest != '':
-                    self.parameter_files[k] = latest
-                else:
-                    self.parameter_files[k] = utils.generate_filename(v)
-
-#==== Function called via signals ====
-
-#== Realignment ==
-#    def select_reference_mat(self):
-#        file_name_dialog = QtGui.QFileDialog(self)
-#        self.realignment_reference_image_path = file_name_dialog.getOpenFileName()
-#        self.select_reference_image_label.setText(self.realignment_reference_image_path)
-#        if '.mat' in self.realignment_reference_image_path:
-#            self.update_realignment_images()
-
-    def realign(self):
-        
-        if self.realignment_method.currentText() == 'two photon frame':
-            #THIS BRANCH IS OBSOLETE
-            acquired_image_path = tempfile.mktemp() + '.bmp'
-            reference_image_path = tempfile.mktemp() + '.bmp'
-            #Read image from mat files:
-            reference_image_np_array = mes_interface.image_from_mes_mat(str(self.select_reference_mat.currentText()), reference_image_path)
-            acquired_image_np_array = mes_interface.image_from_mes_mat(str(self.select_acquired_mat.currentText()), acquired_image_path)
-            #Display images
-            self.update_realignment_images(reference_image_path, acquired_image_path)
-            translation = itk_image_registration.register(reference_image_np_array, acquired_image_np_array, transform_type='CenteredRigid2D')[0]
-        
-            message = 'Translation [X,Y in pixel]: {0}, {1}, Angle [rad] {2}'.format(
-                                                                                                        numpy.round(translation[-2],0), 
-                                                                                                        numpy.round(translation[-1],0),
-                                                                                                        numpy.round(translation[0],3),
-                                                                                                        )
-        elif self.realignment_method.currentText() == 'z stack':
-            #Read image from mat files:
-            acquired_z_stack_path = str(self.select_acquired_mat.currentText())            
-            reference_image_np_array = mes_interface.image_from_mes_mat(str(self.select_reference_mat.currentText()), z_stack = True)
-            acquired_image_np_array = mes_interface.image_from_mes_mat(acquired_z_stack_path, z_stack = True)
-            st = time.time()
-#            translation = itk_versor_rigid_registration.register(reference_image_np_array, acquired_image_np_array,calc_difference = False)[0]
-            translation = itk_versor_rigid_registration.register(reference_image_np_array, acquired_image_np_array, metric = 'MattesMutual', multiresolution=True, calc_difference = False)[0]
-            print time.time()-st
-            message = '{0}'.format(numpy.round(translation,2))
-            print message
-        self.required_translation_label.setText(message)
-        #Save to hdf5
-        timestamp = str(int(time.time()))
-        hdf5_id = 'realignment_' + timestamp
-        realignment_hdf5_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, hdf5_id + '.hdf5')
-        realignment_hdf5_handler = hdf5io.Hdf5io(realignment_hdf5_path , config = self.config, caller = self)
-        #Save hdf5 id
-        setattr(realignment_hdf5_handler, hdf5_id, 0)
-        #save position
-        stagexyz = [0,0,0]#placeholder for command querying current stage position
-        utils.save_position(realignment_hdf5_handler, stagexyz, mes_interface.get_objective_position(acquired_z_stack_path))
-        realignment_hdf5_handler.z_stack_mat = utils.file_to_binary_array(acquired_z_stack_path)
-        realignment_hdf5_handler.z_stack = acquired_image_np_array        
-        realignment_hdf5_handler.translation = numpy.array(translation)
-        realignment_hdf5_handler.save('z_stack_mat')
-        realignment_hdf5_handler.save('z_stack')
-        realignment_hdf5_handler.save('translation')
-        realignment_hdf5_handler.close()
-        
-    def update_realignment_images(self, reference_image, acquired_image):
-        self.reference_image_label.setPixmap(QtGui.QPixmap(reference_image))
-        self.acquired_image_label.setPixmap(QtGui.QPixmap(acquired_image))
-#== Visesxpman ==
-    def execute_experiment(self):
-        command = 'SOCexecute_experimentEOC{0}EOP'.format(self.experiment_config_input.toPlainText())
-        self.visexpman_out_queue.put(command)
-        print command
-        
-#== General ==
-    def generate_animal_parameters(self):
         mouse_birth_date = self.mouse_birth_date.date()
         mouse_birth_date = '{0}{1}20{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
         gcamp_injection_date = self.gcamp_injection_date.date()
         gcamp_injection_date = '{0}{1}20{2}'.format(gcamp_injection_date.day(),  gcamp_injection_date.month(),  gcamp_injection_date.year())        
-        
+
         #undefined variables
         stagex = 'tbd'
         stagey = 'tbd'
@@ -429,79 +343,511 @@ class Gui(Qt.QMainWindow):
         hdf5_id = 'gui_' + str(int(time.time()))
         setattr(self.hdf5_handler, hdf5_id, 0)
         self.hdf5_handler.save(hdf5_id)
-        self.animal_parameters.setText(animal_parameters_text)        
-#== MES ==        
-    def acquire_camera_image(self):
-        self.update_mes_command_parameter_file_names()
-        self.mes_command_queue.put('SOCacquire_camera_imageEOC{0}EOP' .format(self.parameter_files['acquire_camera_image']))
-        
+        self.printc('Animal parameters saved')    
+
+    def update_experiment_file_list(self):
+        self.update_combo_box_file_list(self.select_reference_experiment, 'gui')
+
+    def update_mes_command_parameter_file_names(self):
+        if self.reference_settings_checkbox.checkState() == 0 or not hasattr(self, 'parameter_files'): 
+            #Issue: sometimes (in virtual box) files created by other computers cannot be seen by the software (on M drive)
+            self.parameter_files = {}
+            self.parameter_files['acquire_camera_image'] = utils.generate_filename(os.path.join(self.config.MES_DATA_PATH, 'acquire_camera_image_parameters.mat'), insert_timestamp = True)
+            self.parameter_files['acquire_z_stack'] = utils.generate_filename(os.path.join(self.config.MES_DATA_PATH, 'acquire_z_stack_parameters.mat'), insert_timestamp = True)
+            self.parameter_files['line_scan'] = utils.generate_filename(os.path.join(self.config.MES_DATA_PATH, 'line_scan_parameters.mat'), insert_timestamp = True)
+            self.parameter_files['single_two_photon'] = utils.generate_filename(os.path.join(self.config.MES_DATA_PATH, 'single_two_photon_parameters.mat'), insert_timestamp = True)
+            self.parameter_files['rc_scan'] = utils.generate_filename(os.path.join(self.config.MES_DATA_PATH, 'rc_scan_parameters.mat'), insert_timestamp = True)
+            self.parameter_files['rc_scan_points'] = utils.generate_filename(os.path.join(self.config.MES_DATA_PATH, 'rc_scan_points.mat'), insert_timestamp = True)
+        else:            
+            pass
+
+#============================== MES ==============================#
+    def mes_control_gui(self):        
+        self.mes_box1 = QtGui.QGroupBox ('MES', self)
+        self.layout.addWidget(self.mes_box1)
+        layout1 = QtGui.QHBoxLayout()       
+
+        self.acquire_z_stack_button = QtGui.QPushButton('Acquire z stack',  self)
+        layout1.addWidget(self.acquire_z_stack_button)
+        self.connect(self.acquire_z_stack_button, QtCore.SIGNAL('clicked()'),  self.acquire_z_stack)
+
+        self.line_scan_button = QtGui.QPushButton('Line scan',  self) 
+        layout1.addWidget(self.line_scan_button)
+        self.connect(self.line_scan_button, QtCore.SIGNAL('clicked()'),  self.line_scan)
+
+        self.rc_scan_button = QtGui.QPushButton('RC scan',  self)
+        layout1.addWidget(self.rc_scan_button)
+        self.connect(self.rc_scan_button, QtCore.SIGNAL('clicked()'),  self.rc_scan)
+
+        self.rc_set_points_button = QtGui.QPushButton('Set trajectory',  self)
+        layout1.addWidget(self.rc_set_points_button)
+        self.connect(self.rc_set_points_button, QtCore.SIGNAL('clicked()'),  self.rc_set_trajectory)
+
+        self.echo_button = QtGui.QPushButton('Echo MES', self)
+        layout1.addWidget(self.echo_button)
+        self.connect(self.echo_button, QtCore.SIGNAL('clicked()'), self.echo)
+
+        self.reference_settings_label = QtGui.QLabel('Use reference settings', self)
+        layout1.addWidget(self.reference_settings_label)
+        self.reference_settings_checkbox = QtGui.QCheckBox(self)
+        layout1.addWidget(self.reference_settings_checkbox)
+        self.connect(self.reference_settings_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.update_mes_command_parameter_file_names)
+
+        self.select_z_stack_mat = QtGui.QComboBox(self)
+        layout1.addWidget(self.select_z_stack_mat)
+        self.select_z_stack_mat.addItems(QtCore.QStringList(utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter ='z_stack')[-1]) )
+        self.connect(self.select_z_stack_mat, QtCore.SIGNAL('activated(int)'), self.update_z_stack_list)
+
+        self.select_z_stack_channel = QtGui.QComboBox(self)
+        layout1.addWidget(self.select_z_stack_channel)
+        self.select_z_stack_channel.addItems(QtCore.QStringList(['pmtUGraw', 'pmtURraw']))
+
+        layout1.addStretch(int(0.2 * self.config.GUI_SIZE['col']))
+        self.mes_box1.setLayout(layout1)
+
+    def update_z_stack_list(self, index):
+        self.update_combo_box_file_list(self.select_acquired_mat, 'z_stack')
+        self.update_combo_box_file_list(self.select_reference_mat, 'z_stack')   
+        self.update_combo_box_file_list(self.select_z_stack_mat, 'z_stack')
+
     def acquire_z_stack(self):
-        self.update_mes_command_parameter_file_names()
-        self.mes_command_queue.put('SOCacquire_z_stackEOC{0}EOP' .format(self.parameter_files['acquire_z_stack']))
-        
-    def two_photon_recording(self):
-        self.update_mes_command_parameter_file_names()
-        self.mes_command_queue.put('SOCacquire_line_scanEOC{0}EOP'.format(self.parameter_files['line_scan']))
-        
-    def single_two_photon_recording(self):
-        self.update_mes_command_parameter_file_names()
-        self.mes_command_queue.put('SOCacquire_xy_imageEOC{0}EOP'.format(self.parameter_files['single_two_photon']))
+        self.z_stack, results = self.mes_interface.acquire_z_stack(self.mes_timeout,channel = str(self.select_z_stack_channel.currentText()))
+        self.printc((results, self.z_stack))
+#        results = None
+#        self.z_stack = mes_interface.read_z_stack('/home/zoltan/visexp/data/z_stack_00005.mat')
+        zstart = self.z_stack['origin']['depth']
+        zstop = zstart + self.z_stack['size']['depth']
+        rel_position = self.stage_position - self.stage_origin
+        shutil.move(self.z_stack['mat_path'], self.z_stack['mat_path'].replace('z_stack_', 'z_stack_{0}_{1}_{2}_{3}_' .format(rel_position[0], rel_position[1], zstart, zstop)))
+
 
     def rc_scan(self):
-        self.update_mes_command_parameter_file_names()
-        self.mes_command_queue.put('SOCrc_scanEOC{0}EOP'.format(self.parameter_files['rc_scan']))
-        
+#        self.z_stack = mes_interface.read_z_stack(str(self.select_z_stack_mat.currentText()), channel = 'pmtUGraw')
+#        self.cell_centers = self.generate_trajectory(self.z_stack)
+#        self.printc(self.mes_interface.set_trajectory(self.trajectory, timeout = self.mes_timeout))
+        self.scanned_trajectory, result = self.mes_interface.rc_scan(self.cell_centers, timeout = self.mes_timeout)
+        self.printc((result, self.scanned_trajectory))
+
+    def rc_set_trajectory(self):
+#        self.z_stack = mes_interface.z_stack_from_mes_file(str(self.select_z_stack_mat.currentText()))
+#        points = self.generate_trajectory(self.z_stack)
+        self.printc(self.mes_interface.set_trajectory(self.centroids, timeout = self.mes_timeout))
+
+    def line_scan(self):
+        result = self.mes_interface.start_line_scan(timeout = 10.0)
+        self.printc(result)
+#        result, parameter_file = self.mes_interface.prepare_line_scan(10.0)
+#        self.printc((result, parameter_file))
+#        result = self.mes_interface.start_line_scan(parameter_file = parameter_file, timeout = 10.0)
+#        self.printc(result)
+#        if result[0]:
+#            result = self.mes_interface.wait_for_line_scan_complete(15.0)
+#            self.printc(result)
+#            if result:
+#                result = self.mes_interface.wait_for_line_scan_save_complete(15.0)
+#                self.printc(result)
+#            else:
+#                self.printc('scan completition failed')
+#        else:
+#            self.printc('line scan not started')
+
     def echo(self):
         self.mes_command_queue.put('SOCechoEOCguiEOP')
+        self.visexpman_out_queue.put('SOCechoEOCguiEOP')
+
+#============================== Visexpman ==============================#
+
+    def experiment_control_gui(self):       
+        self.experiment_control_box = QtGui.QGroupBox ('Experiment control', self)
+        self.layout.addWidget(self.experiment_control_box)
+        layout = QtGui.QHBoxLayout()
+
+        self.select_experiment = QtGui.QComboBox(self)      
+        layout.addWidget(self.select_experiment)
+        self.select_experiment.addItems(QtCore.QStringList(['moving_dot', 'grating']))
+
+        self.execute_experiment_button = QtGui.QPushButton('Execute experiment',  self)
+        layout.addWidget(self.execute_experiment_button)
+        self.connect(self.execute_experiment_button, QtCore.SIGNAL('clicked()'),  self.execute_experiment)        
         
-#== Others ==        
+        self.abort_experiment_button = QtGui.QPushButton('Abort experiment',  self)
+        layout.addWidget(self.abort_experiment_button)
+        self.connect(self.abort_experiment_button, QtCore.SIGNAL('clicked()'),  self.abort_experiment)
+        layout.addStretch(int(0.6 * self.config.GUI_SIZE['col']))
+
+        self.experiment_control_box.setLayout(layout)
+
+
+    def execute_experiment(self):
+        command = 'SOCexecute_experimentEOC{0}EOP'.format(self.experiment_config_input.toPlainText())
+        self.visexpman_out_queue.put(command)
+        self.printc(command)
+        
+    def abort_experiment(self):
+        command = 'SOCabort_experimentEOCguiEOP'
+        self.visexpman_out_queue.put(command)
+        self.printc(command)
+
+#============================== Analysis ==============================#
+    def visexpa_control_gui(self):
+        pass
+
+#============================== Realignment ==============================#
+    def realignment_gui(self):
+        self.realignment_box = QtGui.QGroupBox ('Realign', self)
+        self.layout.addWidget(self.realignment_box)
+        self.realignment_box1 = QtGui.QGroupBox ('', self)
+        self.layout.addWidget(self.realignment_box1)
+        file_list = utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter ='z_stack')[-1]
+        file_list = QtCore.QStringList(file_list)
+        layout = QtGui.QHBoxLayout()
+        layout1 = QtGui.QHBoxLayout()
+
+        self.realign_button = QtGui.QPushButton('Realign',  self)        
+        self.connect(self.realign_button, QtCore.SIGNAL('clicked()'),  self.realign)
+        layout.addWidget(self.realign_button)
+
+        self.select_reference_mat = QtGui.QComboBox(self)
+        layout.addWidget(self.select_reference_mat)    
+        self.select_reference_mat.addItems(file_list)
+        self.connect(self.select_reference_mat, QtCore.SIGNAL('activated(int)'), self.update_z_stack_list)
+
+        self.select_acquired_mat = QtGui.QComboBox(self)
+        layout.addWidget(self.select_acquired_mat)   
+        self.select_acquired_mat.addItems(file_list)
+        self.connect(self.select_acquired_mat, QtCore.SIGNAL('activated(int)'), self.update_z_stack_list) 
+
+        layout.addStretch(int(0.2 * self.config.GUI_SIZE['col']))
+
+        self.read_stage_button = QtGui.QPushButton('Read stage',  self)        
+        self.connect(self.read_stage_button, QtCore.SIGNAL('clicked()'),  self.read_stage)
+        layout1.addWidget(self.read_stage_button) 
+
+        self.move_stage_button = QtGui.QPushButton('Move stage',  self)
+        self.connect(self.move_stage_button, QtCore.SIGNAL('clicked()'),  self.move_stage)
+        layout1.addWidget(self.move_stage_button)
+
+        self.set_stage_origin_button = QtGui.QPushButton('Set stage origin',  self)
+        self.connect(self.set_stage_origin_button, QtCore.SIGNAL('clicked()'),  self.set_stage_origin)
+        layout1.addWidget(self.set_stage_origin_button)
+
+        self.select_cortical_region = QtGui.QComboBox(self)
+        layout1.addWidget(self.select_cortical_region)
+        self.select_cortical_region.addItems(QtCore.QStringList(['this list will be updated from hdf5']))
+
+        self.add_cortical_region_button = QtGui.QPushButton('Add cortical region',  self)
+        self.connect(self.add_cortical_region_button, QtCore.SIGNAL('clicked()'),  self.add_cortical_region)
+        layout1.addWidget(self.add_cortical_region_button)
+
+        layout1.addStretch(int(0.5 * self.config.GUI_SIZE['col']))
+
+        self.realignment_box.setLayout(layout)
+        self.realignment_box1.setLayout(layout1)
+
+    def set_stage_origin(self):
+        self.stage_origin = self.stage_position
+        self.save_context()
+        self.visexpman_out_queue.put('SOCstageEOCoriginEOP')
+
+    def read_stage(self):
+        utils.empty_queue(self.visexpman_in_queue)
+        self.visexpman_out_queue.put('SOCstageEOCreadEOP')
+        self.current_position = {}
+        self.current_position['x'] = 0
+        self.current_position['y'] = 0
+        self.current_position['z_stage'] = 0
+        self.current_position['z'] = 0
+        self.current_position['rot axis x'] = 0
+        self.current_position['rot axis y'] = 0
+        if utils.wait_data_appear_in_queue(self.visexpman_in_queue, 10.0):
+            while not self.visexpman_in_queue.empty():
+                response = self.visexpman_in_queue.get()            
+                if 'SOCstageEOC' in response:
+                    position = response.split('EOC')[-1].replace('EOP', '')
+                    self.stage_position = numpy.array(map(float, position.split(',')))
+                    self.printc('abs: ' + str(self.stage_position))
+                    self.printc('rel: ' + str(self.stage_position - self.stage_origin))
+                    self.save_context()
+
+
+    def move_stage(self):
+        movement = self.scanc().split(',')
+        self.visexpman_out_queue.put('SOCstageEOCset,{0},{1},{2}EOP'.format(movement[0], movement[1], movement[2]))
+        self.printc('moves to {0}'.format(movement))
+
+    def add_cortical_region(self):
+        #Current stage position is saved to hdf5 as cortical scanning region, text input is added as name of region
+        scanning_region_name = self.scanc()
+        if len(scanning_region_name) == 0:
+            self.printc('Region name is not provided')
+            return
+        if not hasattr(self, 'current_position'):
+            self.printc('Stage position is unknown')
+            return
+        if not hasattr(self, 'hdf5_handler'):
+            self.printc('Experiment file does not exist')
+            return
+        scanning_region_name += '_' + str(int(time.time()))
+        setattr(self.hdf5_handler, scanning_region_name, self.current_position)
+        self.hdf5_handler.save(scanning_region_name)
+
+    def realign(self):
+        #Read image from mat files:
+        acquired_z_stack_path = str(self.select_acquired_mat.currentText())        
+        reference_image_np_array = mes_interface.image_from_mes_mat(str(self.select_reference_mat.currentText()), z_stack = True)
+        acquired_image_np_array = mes_interface.image_from_mes_mat(acquired_z_stack_path, z_stack = True)
+        st = time.time()
+        metric = 'MattesMutual'
+        metric = 'MeanSquares'
+        result = itk_versor_rigid_registration.register(reference_image_np_array, acquired_image_np_array,metric= metric, multiresolution=True, calc_difference = True, debug = True)
+        from visexpA.engine.datadisplay.imaged import imshow
+        path,name = os.path.split(acquired_z_stack_path)
+        outdir = os.path.join(path,'debug')
+        if not os.path.exists(outdir):
+            os.mkdir(outdir)
+        out = result[1].copy()
+        diff = result[2].copy()
+        translation = result[0]
+        del result
+        for i1 in range(out.shape[0]):
+            imshow(numpy.c_[reference_image_np_array[i1], acquired_image_np_array[i1], out[i1,:,:],diff[i1,:,:]],save=os.path.join(outdir,'realign'+str(i1)+'.png'))
+
+        self.printc (translation)
+        self.printc (time.time()-st)
+        versor = translation[:3]
+        angle, axis = geometry.versor2angle_axis(versor) 
+        angle = angle * 180.0/numpy.pi
+        message = 'translation {0}   angle {1}, axis {2}'.format(numpy.round(translation[3:],2),angle, axis)
+        print message
+        self.required_translation_label.setText(message)
+        #Save to hdf5
+        timestamp = str(int(time.time()))
+        hdf5_id = 'realignment_' + timestamp
+        self.realignment_hdf5_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, hdf5_id + '.hdf5')
+        self.realignment_hdf5_handler = hdf5io.Hdf5io(realignment_hdf5_path , config = self.config, caller = self)
+        #Save hdf5 id
+        setattr(realignment_hdf5_handler, hdf5_id, 0)
+        #save position
+        stagexyz = [0,0,0]#placeholder for command querying current stage position
+        utils.save_position(self.realignment_hdf5_handler, stagexyz, mes_interface.get_objective_position(acquired_z_stack_path))
+        self.realignment_hdf5_handler.z_stack_mat = utils.file_to_binary_array(acquired_z_stack_path)
+        self.realignment_hdf5_handler.z_stack = acquired_image_np_array        
+        self.realignment_hdf5_handler.translation = {'translation' : numpy.array(translation[:3]), 'angle' : angle ,'axis' : axis}
+        self.realignment_hdf5_handler.save('z_stack_mat')
+        self.realignment_hdf5_handler.save('z_stack')
+        self.realignment_hdf5_handler.save('translation')
+        self.realignment_hdf5_handler.close()
+
+#============================== Debug, network, helpers ==============================#
+    def text_io_gui(self):            
+        self.text_io_box = QtGui.QGroupBox ('Console', self)
+        self.layout.addWidget(self.text_io_box)        
+        layout = QtGui.QHBoxLayout()
+        self.text_o = QtGui.QTextEdit(self)
+        layout.addWidget(self.text_o, stretch = 500)
+        self.text_o.setPlainText('')
+        self.text_o.setReadOnly(True)
+        self.text_o.ensureCursorVisible()
+        self.text_o.setCursorWidth(5)
+
+        self.text_i = QtGui.QTextEdit(self)
+        self.text_i.setToolTip('self.printc()')
+        layout.addWidget(self.text_i, stretch = 0) 
+
+        self.text_button_box = QtGui.QGroupBox ('', self)
+        layout.addWidget(self.text_button_box, alignment = QtCore.Qt.AlignTop) 
+        sublayout = QtGui.QVBoxLayout()
+
+        self.execute_python_button = QtGui.QPushButton('Execute python code',  self)
+        sublayout.addWidget(self.execute_python_button, alignment = QtCore.Qt.AlignTop)        
+        self.connect(self.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
+
+        self.clear_consol_button = QtGui.QPushButton('Clear consol',  self)
+        sublayout.addWidget(self.clear_consol_button, alignment = QtCore.Qt.AlignTop)        
+        self.connect(self.clear_consol_button, QtCore.SIGNAL('clicked()'),  self.clear_consol)
+
+        self.text_button_box.setLayout(sublayout)
+
+        self.network_gui()
+        layout.addWidget(self.network_box, alignment = QtCore.Qt.AlignTop) 
+
+        self.text_io_box.setLayout(layout)       
+
+    def network_gui(self):
+        self.network_box = QtGui.QGroupBox ('Network', self)
+#        self.layout.addWidget(self.network_box)
+        layout = QtGui.QVBoxLayout()
+
+        self.network_connection_status_button = QtGui.QPushButton('Read network connection status',  self)
+        layout.addWidget(self.network_connection_status_button)        
+        self.connect(self.network_connection_status_button, QtCore.SIGNAL('clicked()'),  self.network_connection_status)
+
+        self.server_debug_info_button = QtGui.QPushButton('Read server debug info',  self)
+        layout.addWidget(self.server_debug_info_button)        
+        self.connect(self.server_debug_info_button, QtCore.SIGNAL('clicked()'),  self.get_server_debug_info)
+
+        self.select_connection_list = QtGui.QComboBox(self)
+        layout.addWidget(self.select_connection_list)
+        self.select_connection_list.addItems(QtCore.QStringList(['','mes', 'stimulation', 'analysis']))
+
+        self.send_command_button = QtGui.QPushButton('Send command',  self)
+        layout.addWidget(self.send_command_button)
+        self.connect(self.send_command_button, QtCore.SIGNAL('clicked()'),  self.send_command)
+
+        layout.addStretch(int(0.5 * self.config.GUI_SIZE['col']))
+
+        self.network_box.setLayout(layout)
+
+    def send_command(self):
+        connection_name = str(self.select_connection_list.currentText())
+        message = str(self.text_i.toPlainText())
+        connection_name_to_queue = {}
+        connection_name_to_queue['mes'] = self.mes_command_queue
+        connection_name_to_queue['stimulation'] = self.visexpman_out_queue
+        connection_name_to_queue['analysis'] = None
+        connection_name_to_queue[connection_name].put(message)
+
+    def network_connection_status(self):
+        connection_info = str(self.command_relay_server.get_connection_status()).replace(',', '\n')
+        self.printc(connection_info)
+        self.printc('\n')
+
+    def get_server_debug_info(self):
+        self.printc(str(self.command_relay_server.get_debug_info()).replace('],', ']\n'))
+        self.printc('\n')
+
+    def execute_python(self):
+        exec(str(self.scanc()))
+
+    def clear_consol(self):
+        self.console_text  = ''
+        self.text_o.setPlainText(self.console_text)  
+
+
+
+#== Realignment ==
+#    def select_reference_mat(self):
+#        file_name_dialog = QtGui.QFileDialog(self)
+#        self.realignment_reference_image_path = file_name_dialog.getOpenFileName()
+#        self.select_reference_image_label.setText(self.realignment_reference_image_path)
+#        if '.mat' in self.realignment_reference_image_path:
+#            self.update_realignment_images()
+
+#============================== Others ==============================#
+
+    def printc(self, text):
+        if not isinstance(text, str):
+            text = str(text)
+        self.console_text  += text + '\n'
+        self.text_o.setPlainText(self.console_text)
+        self.text_o.moveCursor(QtGui.QTextCursor.End)
+
+    def scanc(self):
+        return str(self.text_i.toPlainText())
+#        
+    def generate_trajectory(self, z_stack):
+        #Find cell centers
+        dim_order = [0, 1, 2]
+        centroids = signal.regmax(z_stack['data'],dim_order)
+        #convert from record array to normal array, so that it could be shifted and scaled, when RC array operators are ready,. this wont be necessary anymore
+        centroids = numpy.array([centroids['row'], centroids['col'], centroids['depth']], dtype = numpy.float64).transpose()
+        #Scale to um
+        centroids *=  utils.nd(z_stack['scale'])
+        #Move with MES system origo
+        centroids += utils.nd(z_stack['origin'])
+        #Convert back to recordarray
+        centroid_dtype = [('row', numpy.float64), ('col', numpy.float64), ('depth', numpy.float64)]
+        centroids_tuple = []
+        for centroid in centroids:
+            centroids_tuple.append((centroid[0], centroid[1], centroid[2]))
+        trajectory = numpy.array(centroids_tuple, dtype = centroid_dtype)
+        return trajectory
+
+    def update_combo_box_file_list(self, widget, filter):
+        current_value = widget.currentText()
+        file_list = utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter = filter)[-1]
+        current_index = file_list.index(current_value)
+        items_list = QtCore.QStringList(file_list)
+        widget.clear()
+        widget.addItems(QtCore.QStringList(file_list))
+        widget.setCurrentIndex(current_index)
+        return file_list
+
+    def get_win_path_of_parameter_file(self,file):        
+        #Obsolete
+        return self.parameter_files[file].replace(self.config.MES_DATA_PATH, self.config.MES_DATA_FOLDER).replace('/','\\')
+
+    def update_realignment_images(self, reference_image, acquired_image):
+        #Obsolete
+        self.reference_image_label.setPixmap(QtGui.QPixmap(reference_image))
+        self.acquired_image_label.setPixmap(QtGui.QPixmap(acquired_image))
+
+    def printc(self, text):
+        if not isinstance(text, str):
+            text = str(text)
+        self.console_text  += text + '\n'
+        self.text_o.setPlainText(self.console_text)
+        self.text_o.moveCursor(QtGui.QTextCursor.End)
+
+    def scanc(self):
+        return str(self.text_i.toPlainText())
+
     def closeEvent(self, e):
         e.accept()
-        self.mes_command_queue.put('SOCclose_connectionEOCEOP')
-        self.visexpman_out_queue.put('SOCclose_connectionEOCEOP')
-        self.hdf5_handler.close()
-        for i in self.command_relay_server.get_debug_info():
-            print i
-        time.sleep(1.0) #Enough time to close connection with MES
-#        self.mes_server.terminate()
+        self.printc('Wait till server is closed')
+        self.save_context()
+        self.mes_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
+        self.visexpman_out_queue.put('SOCclose_connectionEOCstop_clientEOP')
+        if hasattr(self, 'hdf5_handler'):
+            self.hdf5_handler.close()
+        if ENABLE_NETWORK:
+#            for i in self.command_relay_server.get_debug_info():
+#                print i
+            self.command_relay_server.shutdown_servers()            
+            time.sleep(2.0) #Enough time to close network connections    
         sys.exit(0)
-        
+
 class GuiConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
         COORDINATE_SYSTEM='center'
+
         if self.OS == 'win':
-            m_drive_folder = 'M:\\Zoltan\\visexpman'
-        elif self.OS == 'linux':
-            m_drive_folder = '/home/zoltan/mdrive/Zoltan/visexpman'
-            if not os.path.exists(m_drive_folder):
-                m_drive_folder = '/media/sf_M_DRIVE/Zoltan/visexpman'
-        data_folder = os.path.join(m_drive_folder, 'data')
-        TEST_DATA_PATH = os.path.join(m_drive_folder, 'test_data')
-        LOG_PATH = data_folder
-        EXPERIMENT_LOG_PATH = data_folder
-        MAT_PATH= data_folder
-        EXPERIMENT_DATA_PATH = data_folder        
-        
+            v_drive_folder = 'V:\\'
+        elif self.OS == 'linux':                        
+            v_drive_folder = '/home/zoltan/visexp'
+        data_folder = os.path.join(v_drive_folder, 'data')
+        #TEST_DATA_PATH = os.path.join(data_folder, 'test')
+        LOG_PATH = os.path.join(data_folder, 'log')
+        EXPERIMENT_LOG_PATH = data_folder        
+        EXPERIMENT_DATA_PATH = data_folder
+        MES_DATA_PATH = os.path.join(v_drive_folder, 'data')        
+        MES_DATA_FOLDER = 'V:\\data'
+        CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
+        CONTEXT_NAME = 'gui.hdf5'
+        self.COMMAND_RELAY_SERVER['ENABLE'] = ENABLE_NETWORK
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'#'172.27.26.1'#'172.27.25.220'
+#        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 60.0
+
         #== GUI specific ==
         GUI_POSITION = utils.cr((10, 10))
-        GUI_SIZE = utils.cr((1024, 768))
+        GUI_SIZE = utils.cr((1200, 800))
         self._create_parameters_from_locals(locals())
-        
-class Main(threading.Thread):
-    def run(self):
-        run_gui()
 
 def run_gui():
-    config = GuiConfig()    
-    cr = network_interface.CommandRelayServer(config)
+    config = GuiConfig()
+    if ENABLE_NETWORK:
+        cr = network_interface.CommandRelayServer(config)
+    else:
+        cr = None
     app = Qt.QApplication(sys.argv)
-    gui = Gui(config, cr)
+    if 'dev' in sys.argv[1]:
+        gui2 = VisionExperimentGui(config, cr)
+    else:
+        gui = Gui(config, cr)
+
     app.exec_()
-    
+
 if __name__ == '__main__':
 #    m = Main()
-#    m.start()
+#    m.start()    
     run_gui()
-    
-    
-#TODO: send commands to visexpman

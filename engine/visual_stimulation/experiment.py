@@ -4,6 +4,7 @@ import visexpman
 from visexpman.engine.generic.configuration import Config
 from visexpman.engine.generic import utils
 import stimulation_library
+import inspect
 
 class ExperimentConfig(Config):
     def __init__(self, machine_config, caller):
@@ -20,38 +21,58 @@ class ExperimentConfig(Config):
             if hasattr(self, 'pre_runnable'):
                 self.pre_runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.visual_stimulation.experiment.PreExperiment)[0][1](self.machine_config, self.caller, self) # instantiates the code that will run the pre experiment code
 
-    def run(self):
+    def run(self, fragment_id = 0):
         if self.runnable == None:
             raise ValueError('Specified stimulus class is not instantiated.')
         else:
-            self.runnable.run()
+            function_args = inspect.getargspec(self.runnable.run)
+            if 'fragment_id' in function_args.args:
+                self.runnable.run(fragment_id = fragment_id)
+            else:
+                self.runnable.run()
         self.runnable.cleanup()
         
     def post_experiment(self):
         self.runnable.post_experiment()
         
+    def pre_first_fragment(self):
+        self.runnable.pre_first_fragment()
+        
     def set_experiment_control_context(self):
         self.runnable.set_experiment_control_context()
 
 class Experiment(stimulation_library.Stimulations):
+    '''
+    The usage of experiment fragments assumes the existence of number_of_fragments variable
+    '''
     def __init__(self, machine_config, caller, experiment_config):
         self.experiment_config = experiment_config
         self.machine_config = machine_config
         self.caller = caller
         stimulation_library.Stimulations.__init__(self, self.machine_config, self.caller)
         self.caller.log.info('init experiment %s'%(utils.class_name(self)))
-            
+        self.fragment_data ={}
+        self.prepare()
+        if self.machine_config.MEASUREMENT_PLATFORM == 'mes':
+            if not hasattr(self, 'fragment_durations') and hasattr(self, 'stimulus_duration'):
+                self.fragment_durations = [self.stimulus_duration]
+                
     def set_experiment_control_context(self):
         '''
         This function ensures that the hardware related calls are available from the experiment/run method
         '''
         self.devices = self.caller.experiment_control.devices
+        self.printl = self.caller.experiment_control.printl
+        self.start_time = self.caller.experiment_control.start_time
         self.parallel_port = self.devices.parallel_port        
         self.filterwheels = self.devices.filterwheels
-        self.stage = self.devices.stage        
+        self.stage = self.devices.stage
         self.mes_command = self.caller.mes_command_queue
         self.mes_response = self.caller.mes_response_queue
         self.mes_interface = self.caller.experiment_control.devices.mes_interface
+        self.to_gui = self.caller.to_gui_queue
+        self.from_gui = self.caller.from_gui_queue
+        self.gui_connection = self.caller.gui_connection
         self.zip = self.caller.experiment_control.data_handler.archive
         if self.machine_config.ARCHIVE_FORMAT == 'hdf5':
             self.hdf5 = self.caller.experiment_control.data_handler.hdf5_handler
@@ -62,8 +83,27 @@ class Experiment(stimulation_library.Stimulations):
         self.command_buffer = ''
         self.abort = False
         self.experiment_name = self.__class__.__name__
+        
+    def prepare(self):
+        '''
+        Compulsory outputs for mes experiments:
+            self.stimulus_duration
+            For fragmented experiments:
+            self.number_of_fragments
+            self.fragment_durations - list of fragment stim times in sec
+            
+        '''
+        pass
+        
+    def pre_first_fragment(self):
+        '''
+        Called before run if experiment is fragmented
+        '''
 
-    def run(self):
+    def run(self, fragment_id = 0):
+        '''
+        fragment_id: experiment can be split up to measurement fragments.
+        '''    
         pass
 
     def cleanup(self):
@@ -77,6 +117,20 @@ class Experiment(stimulation_library.Stimulations):
         Instructions can be put here that are intended to execute after the whole experiment procedure, when all the logfiles are flushed
         '''
         pass
+        
+    ################# helpers ############################
+#     def printl(self, message):
+#         '''
+#         Helper function that can be called during experiment. The message is sent to:
+#         -standard output
+#         -gui
+#         -experiment log
+#         '''
+#         print message
+#         self.to_gui.put(str(message))
+#         if hasattr(self, 'log'):
+#             self.log.info(str(message))
+        
 
 class PreExperiment(Experiment):
     '''

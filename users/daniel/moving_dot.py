@@ -22,6 +22,7 @@ import pickle
 import copy
 import visexpA.engine.datahandlers.matlabfile as matlab_mat
 import shutil
+import os
 
 class MovingDotConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
@@ -29,9 +30,8 @@ class MovingDotConfig(experiment.ExperimentConfig):
         #parameter with range: list[0] - value, list[0] - range
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty        
-        self.DIAMETER_UM = [200]
-        self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees
-#         self.ANGLES = [0] # degrees
+        self.DIAMETER_UM = [300]
+        self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees        
         self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
@@ -41,10 +41,27 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'
 #         self.pre_runnable = 'MovingDotPre'
-        self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
-        MES_PARAMETER_PATH = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, 'mes_parameter_sets', 'line_scan_parameters.mat')
+        self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
         self._create_parameters_from_locals(locals())
-#         experiment.ExperimentConfig.__init__(self) # needs to be called so that runnable is instantiated and other checks are done
+
+class ShortMovingDotConfig(experiment.ExperimentConfig):
+    def _create_application_parameters(self):
+        #place for experiment parameters
+        #parameter with range: list[0] - value, list[0] - range
+        #path parameter: parameter name contains '_PATH'
+        #string list: list[0] - empty        
+        self.DIAMETER_UM = [300]        
+        self.ANGLES = [0] # degrees
+        self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
+        self.AMPLITUDE = 0.5
+        self.REPEATS = 1
+        self.PDURATION = 0
+        self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+        self.NDOTS = 1
+        self.RANDOMIZE = 1
+        self.runnable = 'MovingDot'
+        self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
+        self._create_parameters_from_locals(locals())
 
 class MovingDotPre(experiment.PreExperiment):    
     def run(self):
@@ -55,94 +72,148 @@ class MovingDotPre(experiment.PreExperiment):
 
 class MovingDot(experiment.Experiment):
     def __init__(self, machine_config, caller, experiment_config):
-        experiment.Experiment.__init__(self, machine_config, caller, experiment_config)
-        self.prepare()
+        experiment.Experiment.__init__(self, machine_config, caller, experiment_config)        
         
-    def run(self):
+    def pre_first_fragment(self):
+        self.show_fullscreen(color = 0.0)
+    
+    def run(self, fragment_id):    
+        self.show_dots([self.diameter_pix*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE]*len(self.row_col[fragment_id]), self.row_col[fragment_id], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+        self.show_fullscreen(color = 0.0)
+        self.fragment_data ={}
+        if hasattr(self, 'show_line_order'):
+            self.fragment_data['shown_line_order'] = self.shown_line_order[fragment_id]
+        if hasattr(self,'shown_directions'):
+            self.fragment_data['shown_directions']= self.shown_directions[fragment_id]
+            
+    def cleanup(self):
+        #add experiment identifier node to experiment hdf5
+        experiment_identifier = '{0}_{1}'.format(self.experiment_name, self.start_time)
+        self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
+        setattr(self.hdf5, experiment_identifier, {'id': None})
+        self.hdf5.save(experiment_identifier)
+
+    def run1(self):        
         self.show_fullscreen(color = 0.0)
         experiment_start_time = int(time.time())
         number_of_fragments = len(self.row_col)
-        for di in range(len(self.row_col)):
-            print 'Fragment {0}/{1}'.format(di + 1, len(self.row_col))
-            #Generate file name
-            mes_fragment_name = '{0}_{1}_{2}'.format(self.experiment_name, experiment_start_time, di)
-            print mes_fragment_name
-            fragment_mat_path = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, ('fragment_{0}.mat'.format(mes_fragment_name)))
-            fragment_hdf5_path = fragment_mat_path.replace('.mat', '.hdf5')
-            #Create mes parameter file
-            stimulus_duration = float(len(self.row_col[di]) / self.experiment_config.NDOTS)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-            self.mes_interface.set_scan_time(stimulus_duration + 3, self.experiment_config.MES_PARAMETER_PATH, fragment_mat_path)
-            #Start recording analog signals
-            ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
-            ai.start_daq_activity()
-            self.log.info('ai recording started')
-            #empty queue
-            while not self.mes_response.empty():
-            	self.mes_response.get()
-            #start two photon recording
-            self.mes_interface.start_line_scan(fragment_mat_path)
-            print 'visual stimulation starts'
-            time.sleep(1.0)
-            #Show visual stimulus
-            self.show_dots([self.diameter_pix]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
-            self.show_fullscreen(color = 0.0)
-            
-            self.mes_interface.wait_for_line_scan_complete()
-            #Stop acquiring analog signals
-            ai.finish_daq_activity()
-            ai.release_instrument()
-            self.log.info('ai recording finished')
-            
-            self.mes_interface.wait_for_data_save_complete()
-            time.sleep(1.0)#Make sure that file operations are complete
-            #Save
-            fragment_hdf5 = hdf5io.Hdf5io(fragment_hdf5_path , config = self.machine_config, caller = self.caller)
-            if not hasattr(ai, 'ai_data'):
-                ai.ai_data = numpy.zeros(2)
-
-            data_to_hdf5 = {
-                            'sync_data' : ai.ai_data,
-                            'mes_data': utils.file_to_binary_array(fragment_mat_path),
-                            'number_of_fragments' : number_of_fragments,
-                            'actual_fragment' : di,
-                            }
-            helper_data ={}
-            if hasattr(self, 'show_line_order'):
-            	helper_data['shown_line_order'] = self.shown_line_order[di]
-            if hasattr(self,'shown_directions'):
-                helper_data['shown_directions']= self.shown_directions[di]
-            data_to_hdf5['generated_data'] = helper_data
-            #Saving source code of experiment
-            for path in self.caller.visexpman_module_paths:
-                if 'moving_dot.py' in path:
-                    data_to_hdf5['experiment_source'] = utils.file_to_binary_array(path)
-                    break
-            utils.save_config(fragment_hdf5, self.machine_config, self.experiment_config)
-            utils.save_position(fragment_hdf5, self.stage.read_position(),mes_interface.get_objective_position(fragment_mat_path))
-            fragment_hdf5.machine_config = copy.deepcopy(self.machine_config.get_all_parameters())
-            fragment_hdf5.experiment_config = self.experiment_config.get_all_parameters()
-            setattr(fragment_hdf5, mes_fragment_name, data_to_hdf5)
-            fragment_hdf5.save(mes_fragment_name)
-            fragment_hdf5.close()
-            #move/delete mat file
-            self.log.info('measurement data saved to hdf5: {0}'.format(fragment_hdf5_path))
-            
-            #Notify VisexpA, data files are ready
-            if self.command_buffer.find('stop') != -1:
-                self.command_buffer.replace('stop', '')
-                print 'stop'
-        experiment_identifier = '{0}_{1}'.format(self.experiment_name, experiment_start_time)        
-        self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_RESULT_PATH, experiment_identifier + '.hdf5')
-        setattr(self.hdf5, experiment_identifier, {'id': None})
-        self.hdf5.save(experiment_identifier)
-        print 'moving dot complete'
-        
+        ######################## Prepare line scan parameter file ###############################
+        self.printl('create parameter file')
+        parameter_file_prepare_success, parameter_file = self.mes_interface.prepare_line_scan(scan_time = 1.0)
+        if parameter_file_prepare_success:
+            for di in range(number_of_fragments):
+                ######################## Prepare fragment ###############################
+                #Generate file name
+                mes_fragment_name = '{0}_{1}_{2}'.format(self.experiment_name, experiment_start_time, di)
+                self.printl('Fragment {0}/{1}, name: {2}'.format(di + 1, len(self.row_col), mes_fragment_name))
+                fragment_mat_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, ('fragment_{0}.mat'.format(mes_fragment_name)))
+                fragment_hdf5_path = fragment_mat_path.replace('.mat', '.hdf5')
+                #Create mes parameter file
+                stimulus_duration = float(len(self.row_col[di]) / self.experiment_config.NDOTS)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+                mes_interface.set_line_scan_time(stimulus_duration + 3.0, parameter_file, fragment_mat_path)
+                ######################## Start mesurement ###############################
+                #Start recording analog signals
+                ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
+                ai.start_daq_activity()
+                self.log.info('ai recording started')
+                #empty queue
+                while not self.mes_response.empty():
+                    self.mes_response.get()
+                #start two photon recording
+                line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(parameter_file = fragment_mat_path)
+                if line_scan_start_success:
+                    time.sleep(1.0)
+                    self.printl('visual stimulation started')
+                    ######################## Start visual stimulation ###############################
+                    self.show_dots([self.diameter_pix*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE]*len(self.row_col[di]), self.row_col[di], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+                    self.show_fullscreen(color = 0.0)
+                    line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(0.5 * stimulus_duration)
+                    ######################## Finish fragment ###############################
+                    if line_scan_complete_success:
+                        #Stop acquiring analog signals
+                        ai.finish_daq_activity()
+                        ai.release_instrument()
+                        self.printl('ai recording finished, waiting for data save complete')
+                        line_scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(stimulus_duration)
+                        ######################## Save data ###############################
+                        if line_scan_data_save_success:
+                            self.printl('Saving measurement data to hdf5')
+                            #Save
+                            fragment_hdf5 = hdf5io.Hdf5io(fragment_hdf5_path , config = self.machine_config, caller = self.caller)
+                            if not hasattr(ai, 'ai_data'):
+                                ai.ai_data = numpy.zeros(2)                            
+                            data_to_hdf5 = {
+                                            'sync_data' : ai.ai_data,
+                                            'mes_data': utils.file_to_binary_array(fragment_mat_path),
+                                            'number_of_fragments' : number_of_fragments,
+                                            'actual_fragment' : di,
+                                            }
+                            helper_data ={}
+                            if hasattr(self, 'show_line_order'):
+                                helper_data['shown_line_order'] = self.shown_line_order[di]
+                            if hasattr(self,'shown_directions'):
+                                helper_data['shown_directions']= self.shown_directions[di]
+                            data_to_hdf5['generated_data'] = helper_data
+                            #Saving source code of experiment
+                            for path in self.caller.visexpman_module_paths:
+                                if __file__ in path:
+                                    data_to_hdf5['experiment_source'] = utils.file_to_binary_array(path)
+                                    break
+                            utils.save_config(fragment_hdf5, self.machine_config, self.experiment_config)
+                            time.sleep(5.0) #Wait for file ready
+                            stage_position = self.stage.read_position() - self.caller.stage_origin
+                            objective_position = mes_interface.get_objective_position(fragment_mat_path)[0]
+                            utils.save_position(fragment_hdf5, stage_position, objective_position)
+                            fragment_hdf5.machine_config = copy.deepcopy(self.machine_config.get_all_parameters())
+                            fragment_hdf5.experiment_config = self.experiment_config.get_all_parameters()
+                            setattr(fragment_hdf5, mes_fragment_name, data_to_hdf5)
+                            fragment_hdf5.save(mes_fragment_name)
+                            fragment_hdf5.close()
+                            #Rename fragment hdf5 so that coorinates are included
+                            shutil.move(fragment_hdf5_path, fragment_hdf5_path.replace('fragment_',  'fragment_{0}_{1}_{2}_'.format(stage_position[0], stage_position[1], objective_position)))
+                           #move/delete mat file
+                            self.printl('measurement data saved to hdf5: {0}'.format(fragment_hdf5_path))                            
+                           #Notify VisexpA, data files are ready
+                            if self.command_buffer.find('stop') != -1:
+                                self.command_buffer.replace('stop', '')
+                                self.printl('user stopped experiment')
+                        else:
+                            reason = 'line scan data save ERROR'
+                            self.printl(reason)                            
+                    else:
+                        reason = 'line scan complete ERROR'
+                        self.printl(reason)                        
+                else:
+                    reason = 'line scan start ERROR'
+                    self.printl(reason)                    
+            #add experiment identifier node to experiment hdf5
+            experiment_identifier = '{0}_{1}'.format(self.experiment_name, experiment_start_time)
+            self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
+            setattr(self.hdf5, experiment_identifier, {'id': None})
+            self.hdf5.save(experiment_identifier)
+            #Try to set back line scan time to initial 2 sec
+            self.printl('set back line scan time to 2s')
+            mes_interface.set_line_scan_time(2.0, parameter_file, parameter_file)
+            line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(timeout = 5.0, parameter_file = parameter_file)
+            if not line_scan_start_success:
+                self.printl('setting line scan time to 2 s was not successful')
+            else:
+                line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(5.0)
+                if line_scan_complete_success:
+                    line_scan_save_complete_success =  self.mes_interface.wait_for_line_scan_save_complete(5.0)
+                    if line_scan_save_complete_success:
+                        os.remove(parameter_file) #Parameter file is not used any more
+        else:
+            self.printl( 'Parameter file NOT created')
+        self.printl('moving dot complete')
+    
     def post_experiment(self):
-        try:
-            shutil.move(self.hdf5.filename, self.experiment_hdf5_path)
-        except:
-            print self.hdf5.filename, self.experiment_hdf5_path
-            print 'not copied for some reason'
+        if hasattr(self, 'experiment_hdf5_path'):
+            try:
+                shutil.move(self.hdf5.filename, self.experiment_hdf5_path)
+            except:
+                print self.hdf5.filename, self.experiment_hdf5_path
+                self.printl('NOT copied for some reason')
         
     def prepare(self):
         # we want at least 2 repetitions in the same recording, but the best is to
@@ -152,9 +223,9 @@ class MovingDot(experiment.Experiment):
         permlist = getpermlist(allangles0.shape[0], self.experiment_config.RANDOMIZE)
         allangles = allangles0[permlist]
 
-        diameter_pix = utils.retina2screen(self.experiment_config.DIAMETER_UM,machine_config=self.experiment_config.machine_config,option='pixels')
+        diameter_pix = self.experiment_config.DIAMETER_UM[0]*self.experiment_config.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         self.diameter_pix = diameter_pix
-        speed_pix = utils.retina2screen(self.experiment_config.SPEED,machine_config=self.experiment_config.machine_config,option='pixels')
+        speed_pix = self.experiment_config.SPEED[0]*self.experiment_config.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         gridstep_pix = numpy.floor(self.experiment_config.GRIDSTEP*diameter_pix)
         movestep_pix = speed_pix/self.experiment_config.machine_config.SCREEN_EXPECTED_FRAME_RATE
         h=self.experiment_config.machine_config.SCREEN_RESOLUTION['row']#monitor.resolution.height
@@ -173,18 +244,18 @@ class MovingDot(experiment.Experiment):
         longest_line_dur = max([diag_line_maxlength, (w+diameter_pix*2)])/speed_pix/self.experiment_config.NDOTS # vertical direction has no chance to be longer than diagonal
         if longest_line_dur > self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION: #check if allowed block duration can accomodate the longest line
             raise ValueError('The longest trajectory cannot be shown within the time interval set as MAXIMUM RECORDING DURATION')
-        line_len={'ver0': (w+(diameter_pix*2))*numpy.ones((1,vlines_c.shape[0])),  # add 2*line_lenght to trajectory length, because the dot has to completely run in/out to/of the screen in both directions
-                        'hor0' : (h+(diameter_pix*2))*numpy.ones((1,hlines_c.shape[0]))}
+        line_len={'hor0': (w+(diameter_pix*2))*numpy.ones((1,hlines_c.shape[0])),  # add 2*line_length to trajectory length, because the dot has to completely run in/out to/of the screen in both directions
+                        'ver0' : (h+(diameter_pix*2))*numpy.ones((1,vlines_c.shape[0]))}
         ver_dur = 2*line_len['ver0'].sum()/speed_pix/self.experiment_config.NDOTS #2 vertical directions are to be shown
         hor_dur = 2*line_len['hor0'].sum()/speed_pix/self.experiment_config.NDOTS
         total_dur = (self.experiment_config.PDURATION*8+diag_dur+ver_dur+hor_dur)*self.experiment_config.REPEATS
-        nblocks = numpy.ceil(total_dur/self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION)[0]
+        nblocks = numpy.ceil(total_dur/self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION)#[0]
         # hard limit: a block in which all directions are shown the grid must not be sparser than 3*dot size. Reason: we assume dotsize
         # corresponds to excitatory receptive field size. We assume excitatiory receptive field is surrounded by inhibitory fields with same width.
          # here we divide the grid into multiple recording blocks if necessary
-        if nblocks*gridstep_pix > diameter_pix*3:
+        if 0:#nblocks*gridstep_pix > diameter_pix*3:
             self.caller.log.info('Stimulation has to be split into blocks. The number of blocks is too high meaning that the visual field would be covered too sparsely in a block \
-                if we wanted to present all angles in every block. We shall multiple lines in a block but not all angles.')
+                if we wanted to present all angles in every block. We shall show multiple lines in a block but not all angles.')
             self.angles_broken_to_multi_block( w, h, diameter_pix, speed_pix,gridstep_pix, movestep_pix,  hlines_r, hlines_c, vlines_r, vlines_c,   angleset, allangles)
         else:
             vr_all= dict();vc_all=dict()
@@ -193,6 +264,10 @@ class MovingDot(experiment.Experiment):
             vr_all[(0, 180,)] = [hlines_r[b::nblocks, :] for b in range(int(nblocks))]
             vc_all[(0, 180,)]= [hlines_c[b::nblocks, :] for b in range(int(nblocks))]
             self.allangles_in_a_block(diameter_pix,gridstep_pix,movestep_pix,w, h, nblocks,  vr_all, vc_all, angleset, allangles, total_dur)
+        self.number_of_fragments = len(self.row_col)
+        self.fragment_durations = []
+        for fragment_duration in range(self.number_of_fragments):
+            self.fragment_durations.append(float(len(self.row_col[fragment_duration]) / self.experiment_config.NDOTS)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
             
     def angles_broken_to_multi_block(self, w, h, diameter_pix, speed_pix,gridstep_pix, movestep_pix,  hlines_r, hlines_c, vlines_r, vlines_c,   angleset, allangles):
         '''In a block the maximum possible lines from the same direction is put. Direction is shuffled till all lines to be shown are put into blocks.
@@ -368,7 +443,7 @@ class MovingDot(experiment.Experiment):
                     coords = []
                     for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[cai][b][n][:,f])
-                    self.row_col[-1].extend(coords)
+                    self.row_col[-1].extend([c*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE for c in coords])
                 self.shown_directions[-1].append((allangles[a1], sum(len(s1) for s1 in self.row_col[-1]))) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
                 self.line_end[-1].append(arow_col[cai][b][0].shape[1])
             self.row_col[-1]=utils.rc(numpy.array(self.row_col[-1]))
@@ -487,23 +562,7 @@ def generate_filename(args):
         fn = radii+'_[0]_[0]_[1]_[2]_[4]_[5]_[6]_[7]_[8]_[9]'.format(l2s(res, '-','1.0f'),  l2s(gridstep_factor,'-',  '1.2f'),
                             l2s(enforce_complete_dots,'-',  '1.0f'), l2s(sec_per_block), l2s(iniduration), l2s(frames_per_sec, '', '1.2f'), l2s(ONOFFratio, '-', '1.2f'),  
                             l2s(white_area_variation_factor, '', '1.2f'), l2s(bglevel),l2s(bi))
-        return fn
-        
-class MovingDotTestConfig(experiment.ExperimentConfig):
-    def _create_application_parameters(self):  
-    	self.MAX_FRAGMENT_TIME = 120.0
-        self.DIAMETER_UM = [200]
-        self.ANGLES = [0, 90, 180, 270] # degrees
-        self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
-        self.AMPLITUDE = 0.5
-        self.REPEATS = 2
-        self.PDURATION = 0
-        self.GRIDSTEP = 1.0/1 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
-        self.NDOTS = 1
-        self.RANDOMIZE = 1
-        self.runnable = 'MovingDot'
-        self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
-        self._create_parameters_from_locals(locals())
+        return fn       
         
 #RZ: send_tcpip_sequence and run_stimulation methods are probably obsolete:
 def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):    

@@ -105,20 +105,24 @@ class Stimulations(command_handler.CommandHandler):
         else:
             frame_rate_warning = ''
         if self.experiment_control_dependent:
-            # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place            
-            self.elapsed_time = self.flip_time -  self.caller.experiment_control.start_time
-            self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
+            # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
+            if hasattr(self.caller.experiment_control, 'start_time'):
+                self.elapsed_time = self.flip_time -  self.caller.experiment_control.start_time
+                self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
         if trigger:
             self._frame_trigger_pulse()
             
         #Keyboard commands
         command = self.screen.experiment_user_interface_handler() #Here only commands with running experiment domain are considered
-        if command != None:
+        if command != None:            
             self.command_buffer += self.parse(command)
             if self.command_buffer.find('abort_experiment') != -1:
                 self.command_buffer = self.command_buffer.replace('abort_experiment', '')
                 self.caller.experiment_control.log.info('Abort pressed')
                 self.abort = True
+                
+        if utils.is_abort_experiment_in_queue(self.caller.from_gui_queue):
+            self.abort = True
 
     def _frame_trigger_pulse(self):
         '''
@@ -364,7 +368,7 @@ class Stimulations(command_handler.CommandHandler):
 #            if self.stimulation_control.abort_stimulus():
 #                break
 
-    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0):
+    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
     
@@ -383,8 +387,8 @@ class Stimulations(command_handler.CommandHandler):
             size_pixel = size                
         else:
             raise RuntimeError('Parameter size is provided in an unsupported format')
-        size_pixel = utils.rc_multiply_with_constant(size_pixel, self.config.SCREEN_PIXEL_TO_UM_SCALE)        
-        pos_pixel = utils.rc_multiply_with_constant(pos, self.config.SCREEN_PIXEL_TO_UM_SCALE)        
+        size_pixel = utils.rc_multiply_with_constant(size_pixel, self.config.SCREEN_UM_TO_PIXEL_SCALE)        
+        pos_pixel = utils.rc_multiply_with_constant(pos, self.config.SCREEN_UM_TO_PIXEL_SCALE)        
         #Calculate vertices
         points_per_round = 360
         if shape == 'circle' or shape == '' or shape == 'o' or shape == 'c':
@@ -417,7 +421,7 @@ class Stimulations(command_handler.CommandHandler):
         first_flip = False
         stop_stimulus = False
         start_time = time.time()
-        for frame_i in range(n_frames):
+        for frame_i in range(n_frames):            
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if shape_type != 'annulus':
                 glDrawArrays(GL_POLYGON,  0, n_vertices)
@@ -436,7 +440,7 @@ class Stimulations(command_handler.CommandHandler):
                     stop_stimulus = True
                     self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
                 else:
-                    self.log_on_flip_message = self.log_on_flip_message_continous
+                    self.log_on_flip_message = self.log_on_flip_message_continous            
             if frame_i == 0:
                 self._flip(trigger = True)
             else:
@@ -648,9 +652,9 @@ class Stimulations(command_handler.CommandHandler):
             show_grating(duration = 3.0, profile = 'saw', velocity = 100, white_bar_width = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
         """        
         if white_bar_width == -1:
-            bar_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
+            bar_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE
         else:
-            bar_width = white_bar_width * self.config.SCREEN_PIXEL_TO_UM_SCALE
+            bar_width = white_bar_width * self.config.SCREEN_UM_TO_PIXEL_SCALE
         #== Logging ==
         self.log_on_flip_message_initial = 'show_grating(' + str(duration)+ ', ' + str(profile) + ', ' + str(white_bar_width) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
         self.log_on_flip_message_continous = 'show_grating'
@@ -662,42 +666,43 @@ class Stimulations(command_handler.CommandHandler):
             orientation_rad *= -1
         if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'down':
             pass
-            #TODO:
-                
-        pos_transformed = utils.rc_multiply_with_constant(pos, self.config.SCREEN_PIXEL_TO_UM_SCALE)        
             
+        pos_transformed = utils.rc_multiply_with_constant(pos, self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        
         pos_adjusted = []
         pos_adjusted.append(pos_transformed['col'])
         pos_adjusted.append(pos_transformed['row'])
+        if display_area['col'] == 0 and display_area['row'] == 0 and self.config.COORDINATE_SYSTEM == 'ulcorner':
+            pos_adjusted[0] += 0.5 * self.config.SCREEN_RESOLUTION['col']
+            pos_adjusted[1] += 0.5 * self.config.SCREEN_RESOLUTION['row']            
         
         if display_area['col'] == 0:
-            screen_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
+            screen_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE
         else:
-            screen_width = display_area['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE
+            screen_width = display_area['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE
         display_area_adjusted = []
-        display_area_adjusted.append(display_area['col'] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
-        display_area_adjusted.append(display_area['row'] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
+        display_area_adjusted.append(display_area['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        display_area_adjusted.append(display_area['row'] * self.config.SCREEN_UM_TO_PIXEL_SCALE)
         display_area_adjusted = numpy.array(display_area_adjusted)
         
-        pixel_velocity = -velocity * self.config.SCREEN_PIXEL_TO_UM_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / screen_width        
+        pixel_velocity = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / screen_width        
         
         #If grating are to be shown on fullscreen, modify display area so that no ungrated parts are on the screen considering rotation
         if display_area_adjusted[0] == 0:            
             display_area_adjusted[0] = self.config.SCREEN_RESOLUTION['col'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['row'] * abs(math.sin(orientation_rad))
             screen_width = self.config.SCREEN_RESOLUTION['col']
-        if display_area_adjusted[1] == 0:            
-            display_area_adjusted[1] = self.config.SCREEN_RESOLUTION['row'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['col'] * abs(math.sin(orientation_rad))
-            
+        if display_area_adjusted[1] == 0:
+            display_area_adjusted[1] = self.config.SCREEN_RESOLUTION['row'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['col'] * abs(math.sin(orientation_rad))        
         #calculate vertices of display area
-        #angles between diagonals            
+        #angles between diagonals
         alpha = numpy.arctan(display_area_adjusted[0]/display_area_adjusted[1])
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
-        angles = angles - orientation_rad        
+        angles = angles - orientation_rad
         diagonal = numpy.sqrt((display_area_adjusted **2).sum())
-        vertices = 0.5 * diagonal * numpy.array([numpy.sin(angles), numpy.cos(angles)])        
+        vertices = 0.5 * diagonal * numpy.array([numpy.sin(angles), numpy.cos(angles)])
         vertices = vertices.transpose()
-        vertices = vertices + numpy.array(pos_adjusted)            
-        glEnableClientState(GL_VERTEX_ARRAY)        
+        vertices = vertices + numpy.array([pos_adjusted])
+        glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         #== Generate grating profile        
         if isinstance(profile, str):
@@ -723,7 +728,7 @@ class Stimulations(command_handler.CommandHandler):
                 color_offset_adjusted.append(color_offset_i)
 
         #calculate grating profile period from spatial frequency
-        period = bar_width * (1.0 + duty_cycle)
+        period = int(bar_width * (1.0 + duty_cycle))
         #modify profile length so that the profile will contain integer number of repetitions
         repetitions = numpy.ceil(display_area_adjusted[0]/period)
         profile_length = period * repetitions
@@ -731,6 +736,7 @@ class Stimulations(command_handler.CommandHandler):
         profile_length = int(profile_length)
 
         waveform_duty_cycle = 1.0 - 1.0 / (1.0 + duty_cycle)
+#         print profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle
         stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle)
         stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], profile_length, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, waveform_duty_cycle)
         stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], profile_length, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, waveform_duty_cycle)

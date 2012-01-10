@@ -1,6 +1,8 @@
+#TODO: rename to stage_control
 import numpy
 import instrument
 import visexpman.engine.generic.configuration
+import visexpman.engine.generic.utils as utils
 import os
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
@@ -8,8 +10,7 @@ try:
     import serial
 except:
     pass
-    
-    
+
 import unittest
 import time
 
@@ -59,7 +60,7 @@ class AllegraStage(StageControl):
             if self.config.STAGE[self.id]['enable']:
                 #Disable joystick
                 self.execute_command('joff')
-                new_position_ustep = numpy.array(new_position) * self.config.STAGE[self.id]['um_per_ustep']
+                new_position_ustep = numpy.array(new_position) / self.config.STAGE[self.id]['um_per_ustep']
                 self.read_position()
                 if relative:
                     self.required_position = self.position_ustep + numpy.array(new_position_ustep)
@@ -150,9 +151,25 @@ class AllegraStage(StageControl):
             move_time = speed_up_time + float(movement - movement_speed_up) / speed
         return move_time
         
-                                                            
+def stage_calibration(side_usteps, folder):
+    import visexpA.engine.dataprocessors.itk_versor_rigid_registration as itk_versor_rigid_registration
+    import Image
+    import visexpA.engine.dataprocessors.signal as signal
+    frames = utils.listdir_fullpath(folder)
+    frames.sort()
+    print frames
+    for i in range(len(frames)):
+        f2 = numpy.array(Image.open(frames[i]))[:, :, 1]
+        
+#        f2 = f2.reshape(1, f2.shape[0], f2.shape[1])
+#        dim_order = [0, 1]
+#        points = signal.regmax(f2,dim_order)
+#        print points
+        
+
+
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
-    def _create_application_parameters(self):           
+    def _create_application_parameters(self):
         
         motor_serial_port = {
                                     'port' :  unit_test_runner.TEST_stage_com_port,
@@ -228,5 +245,6 @@ class TestAllegraStage(unittest.TestCase):
 
         
 if __name__ == "__main__":
-    unittest.main()
+#    unittest.main()
+    stage_calibration(1, '/home/zoltan/visexp/debug/stage/cut/0')
 	

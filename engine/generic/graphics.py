@@ -100,7 +100,8 @@ class Screen(object):
             self.screen = pygame.display.set_mode((self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), flags)
 #            glxext_arb.glXSwapIntervalSGI(0)
             #Hide mouse cursor
-            pygame.mouse.set_visible(not self.config.FULLSCREEN)            
+            pygame.mouse.set_visible(not self.config.FULLSCREEN)
+            self.clock = pygame.time.Clock()
 #        elif self.window_type == 'pyglet':
 #            if self.config.FULLSCREEN:
 #                self.screen = pyglet.window.Window(fullscreen = self.config.FULLSCREEN, 
@@ -177,7 +178,9 @@ class Screen(object):
 #                    time.sleep(self.wait_time_left)
                     
         if window_type == 'pygame':
-            count = ctypes.c_uint()
+            if self.config.OS == 'linux':
+                self.clock.tick(self.config.SCREEN_EXPECTED_FRAME_RATE)
+#            count = ctypes.c_uint()
 #            glxext_arb.glXGetVideoSyncSGI(ctypes.byref(count))
 #            glxext_arb.glXWaitVideoSyncSGI(0, 0, ctypes.byref(count))
             
@@ -279,7 +282,7 @@ class Screen(object):
         row_index = 0
         for i in range(len(text)):
             if text_style == GLUT_BITMAP_TIMES_ROMAN_24:
-                spacing = 12
+                spacing = 14
             elif text_style == GLUT_BITMAP_TIMES_ROMAN_10:
                 spacing = 8
             elif text_style == GLUT_BITMAP_9_BY_15:

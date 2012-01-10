@@ -18,7 +18,18 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         '''
         By overdefining this function, the application/user etc specific parameters can be definced here:
-            self.PAR_p =              
+            self.PAR_p =   
+            
+            parameters that the user need to define: (This is a way to force users to create their configs carefully
+            EXPERIMENT_CONFIG = 'TestExperimentConfig'
+            LOG_PATH = '/media/Common/visexpman_data'
+            EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
+            EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
+            CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
+            
+            
+            MEASUREMENT_PLATFORM = 'mes', 'elphys', 'mea'
+           
         '''        
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
         
@@ -28,15 +39,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #ranges
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
-        PIN_RANGE = [0,  7]
-        
-        #parameters that the user need to define: (This is a way to force users to create their configs carefully
-#        EXPERIMENT_CONFIG = 'TestExperimentConfig'
-#        LOG_PATH = '/media/Common/visexpman_data'
-#        EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
-#        BASE_PATH= '/media/Common/visexpman_data' THIS MIGHT BE ELIMINATED
-#        EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
-#        CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
+        PIN_RANGE = [0,  7]        
+        MEASUREMENT_PLATFORM = ['undefined', ['mes', 'elphys', 'mea', 'undefined']]
 
         ARCHIVE_FORMAT = ['undefined', ['hdf5', 'zip', 'undefined']]
         
@@ -75,7 +79,11 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #naming: server - client
         self.BASE_PORT = 10000
         COMMAND_RELAY_SERVER  = {
-        'RELAY_SERVER_IP' : 'localhost', 
+        'RELAY_SERVER_IP' : '172.27.25.220',
+        'ENABLE' : False,
+        'TIMEOUT':6.0,
+#        'RELAY_SERVER_IP' : '172.27.26.1', 
+#        'RELAY_SERVER_IP' : 'localhost', 
         'CONNECTION_MATRIX':
             {
             'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
@@ -231,11 +239,13 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         else:
             raise ValueError('No coordinate system selected in config,  nor explicit settings for origo and axes was given.')
             
+        self.SCREEN_CENTER_p = visexpman.engine.generic.parameter.Parameter(utils.rc((0,0)))
         #== Cooridnate system type dependencies ==
         if self.COORDINATE_SYSTEM == 'ulcorner':
             self.MENU_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MENU_POSITION_p.v, utils.cr((1.0, 1.0)))
             self.MESSAGE_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MESSAGE_POSITION_p.v, utils.cr((1.0, 1.0)))
-            
+            self.SCREEN_CENTER_p.v = utils.rc((0.5 * self.SCREEN_RESOLUTION['row'], 0.5 * self.SCREEN_RESOLUTION['col']))
+        
     def _merge_commands(self, command_list, user_command_list):        
         commands = dict(command_list.items() + user_command_list.items())
         for user_command_name in user_command_list.keys():

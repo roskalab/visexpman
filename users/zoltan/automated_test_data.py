@@ -1,4 +1,4 @@
-#== For automated tests ==
+####### For automated tests #######
 import visexpman
 from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
@@ -13,7 +13,8 @@ import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 #== Very simple experiment ==
 class VerySimpleExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -31,16 +32,18 @@ class VerySimpleExperimentTestConfig(VisionExperimentConfig):
 class VerySimpleExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'VerySimpleExperiment'
+        COLOR = [1.0, [0.0, 1.0]]
         self._create_parameters_from_locals(locals())
 
 class VerySimpleExperiment(experiment.Experiment):
     def run(self):
-        self.show_fullscreen(duration = 0.0, color = 1.0)
+        self.show_fullscreen(duration = 0.0, color = self.experiment_config.COLOR)
         
 #== Hdf5 archiving ==
 
 class Hdf5TestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -57,7 +60,8 @@ class Hdf5TestConfig(VisionExperimentConfig):
 
 #== Abortable experiment ==
 class AbortableExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'AbortableExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -84,7 +88,8 @@ class AbortableExperiment(experiment.Experiment):
 
 #== User command experiment ==
 class UserCommandExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'UserCommandExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -117,7 +122,8 @@ class UserCommandExperiment(experiment.Experiment):
             
 #== External Hardware controlling experiment ==
 class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -184,7 +190,8 @@ class TestExternalHardwareExperiment(experiment.Experiment):
 
 #== Disabled hardware ==
 class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'TestExternalHardwareExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -203,14 +210,6 @@ class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
         
         DAQ_CONFIG = [
                     {
-#                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
-#                     'DAQ_TIMEOUT' : 1.0,
-#                     'AO_SAMPLE_RATE' : 100,
-#                     'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
-#                     'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',
-#                     'MAX_VOLTAGE' : 5.0,
-#                     'MIN_VOLTAGE' : 0.0,
-#                     'DURATION_OF_AI_READ' : 1.0,
                     'ENABLE' : False
                     }
                     ]
@@ -221,7 +220,8 @@ class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
         
 #== Test pre experiment ==
 class PreExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'PreExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -253,7 +253,8 @@ class PreExperiment(experiment.Experiment):
 
 #== Test frame rate ==
 class FrameRateTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'FrameRateExperimentConfig'        
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -265,23 +266,30 @@ class FrameRateTestConfig(VisionExperimentConfig):
         SCREEN_RESOLUTION = utils.cr([800, 600])
 
         COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'zip'
+        ARCHIVE_FORMAT = 'zip'        
         self._create_parameters_from_locals(locals())
 
 class FrameRateExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'FrameRateExperiment'        
+        DURATION = [10.0, [1.0, 100.0]]
         self._create_parameters_from_locals(locals())
 
 class FrameRateExperiment(experiment.Experiment):
     def run(self):
+        duration = self.experiment_config.DURATION
         self.t0 = time.time()
-        self.show_grating(duration = 10.0, velocity = 500.0, white_bar_width = 200)
+        self.show_grating(duration = duration, velocity = 500.0, white_bar_width = 200)
         self.t1 = time.time()
+        self.frame_rate = (self.t1 - self.t0) / duration * self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        print self.frame_rate
+        self.log.info('Frame rate: ' + str(self.frame_rate))
+        
 
 #== Test visual stimulations ==
 class VisualStimulationsTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -301,7 +309,8 @@ class VisualStimulationsTestConfig(VisionExperimentConfig):
         self._create_parameters_from_locals(locals())
         
 class VisualStimulationsUlCornerTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -322,7 +331,7 @@ class VisualStimulationsUlCornerTestConfig(VisionExperimentConfig):
 
 class VisualStimulationsExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.runnable = 'VisualStimulationsExperiment'
+        self.runnable = 'VisualStimulationsExperiment'        
         self._create_parameters_from_locals(locals())
 
 class VisualStimulationsExperiment(experiment.Experiment):
@@ -380,7 +389,7 @@ class VisualStimulationsExperiment(experiment.Experiment):
         color = numpy.array([[[1.0,  1.0,  0.0], [1.0,  0.0,  0.0], [0.0,  0.0,  1.0]], [[1.0,  1.0,  0.0], [1.0,  0.0,  0.0], [0.0,  0.0,  1.0]]])
         self.show_dots(dot_sizes, dot_positions, ndots, duration = 2.0/self.config.SCREEN_EXPECTED_FRAME_RATE, color = color)
         #Test show_shape
-        self.show_shape(size = 200.0, pos = utils.cr((-50, 100)))        
+        self.show_shape(size = 200.0, pos = utils.cr((-50, 100)))
         self.show_shape(shape = 'circle', color = 200, duration = 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, size = utils.cr((100.0, 200.0)))
         self.show_shape(shape = 'r', size = 100.0, background_color = (1.0, 0.0, 0.0))        
         self.show_shape(shape = 'a', size = 100.0, background_color = 120, ring_size = 10.0) 
@@ -391,7 +400,8 @@ class VisualStimulationsExperiment(experiment.Experiment):
 
 #== Stage test experiment ==
 class StageExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'StageExperimentConfig'        
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -433,5 +443,3 @@ class StageExperiment(experiment.Experiment):
         movement_vector = numpy.array([10000.0,1000.0,10.0])
         self.result1 = self.stage.move(movement_vector)
         self.result2 = self.stage.move(-movement_vector)
-        
-#TODO: test for referencing experiment config in stimulus

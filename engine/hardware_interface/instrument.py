@@ -268,28 +268,22 @@ class Filterwheel(Instrument):
                 pass
             
 class testConfig(visexpman.engine.generic.configuration.Config):
-    def _create_application_parameters(self):
-        if os.name == 'nt':
-            port = 'COM4'
-        else:
-            port = '/dev/ttyUSB0'
-            EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
+    def _create_application_parameters(self):        
             
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        TEST_DATA_PATH = unit_test_runner.TEST_working_folder
         ENABLE_FILTERWHEEL = unit_test_runner.TEST_filterwheel_enable
         ENABLE_PARALLEL_PORT = True
         ENABLE_SHUTTER = True
         FILTERWHEEL_SERIAL_PORT = [{
-                                    'port' :  port,
+                                    'port' :  unit_test_runner.TEST_com_port,
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
-                                    }, ]                                
-                                    
+                                    }, ]                                    
         FILTERWHEEL_SETTLING_TIME = [2.0,  [0,  20]]
-
-        FILTERWHEEL_VALID_POSITIONS = [[1, 6],  [[0, 0],  [100, 100]]]
-        
+        FILTERWHEEL_VALID_POSITIONS = [[1, 6],  [[0, 0],  [100, 100]]]        
         FILTERWHEEL_FILTERS = [{
                                                 'ND0': 1, 
                                                 'ND10': 2, 
@@ -297,25 +291,16 @@ class testConfig(visexpman.engine.generic.configuration.Config):
                                                 'ND30': 4, 
                                                 'ND40': 5, 
                                                 'ND50': 6, 
-                                                }]
-                                                
+                                                }]                                                
         SHUTTER_SERIAL_PORT = [{
-                                    'port' :  port,
+                                    'port' :  'TBD',
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
-                                    }] 
-                                    
-        SHUTTER_COMMUNICATION = 'serial_port'
-        
-        SHUTTER_PIN = [2, [0, 7]]
-        
-        if os.name == 'nt':
-            TEST_DATA_PATH = 'c:\\_del'
-        elif os.name == 'posix':
-            TEST_DATA_PATH = '/media/Common/visexpman_data/test'
-        
+                                    }]                                     
+        SHUTTER_COMMUNICATION = 'serial_port'        
+        SHUTTER_PIN = [2, [0, 7]]        
         self._create_parameters_from_locals(locals())
         
 class testLogClass():
@@ -329,7 +314,7 @@ class testLogClass():
         self.log.setLevel(logging.INFO)
         self.log.info('instrument test')
    
-class TestInstruments(unittest.TestCase):
+class TestParallelPort(unittest.TestCase):
     def setUp(self):
         self.state = 'experiment running'
         self.config = testConfig()
@@ -376,7 +361,14 @@ class TestInstruments(unittest.TestCase):
         self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
         p.release_instrument()        
 
-#== Filterwheel ==    
+class TestFilterwheel(unittest.TestCase):
+    def setUp(self):
+        self.state = 'experiment running'
+        self.config = testConfig()
+        self.experiment_control = testLogClass(self.config, self)
+        
+    def tearDown(self):
+        self.experiment_control.handler.flush()
 #test constructor
     def test_05_filterwheel_communication_port_open(self):        
         fw = Filterwheel(self.config, self)        
