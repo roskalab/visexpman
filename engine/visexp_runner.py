@@ -317,8 +317,8 @@ class testVisexpRunner(unittest.TestCase):
                 log.find('Experiment complete') != -1, 
                 log.find('Command handler: experiment executed') != -1, 
                 zipfile.is_zipfile(v.experiment_control.data_handler.zip_file_path),
-                experiment_log.find('Abort pressed') != -1, 
-                self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', ''))), 
+                experiment_log.find('Abort pressed') != -1,
+                self.check_zip_file(v.experiment_control.data_handler.zip_file_path, config_name.replace('TestConfig', ''))),
                 (True, True, True, True, True, True, True, True, True, True))
 
     def test_10_user_command_in_experiment(self):
@@ -514,6 +514,7 @@ class testVisexpRunner(unittest.TestCase):
                 ),
                 (True, True, True, True, True, True, True, True, True, True, True))
     #TODO: test case for um_to_pixel_scale parameter
+    #TODO full screeen grating test with ulcorner coord system
     
     def test_16_hdf5io_archiving(self):
         '''
@@ -552,11 +553,8 @@ class testVisexpRunner(unittest.TestCase):
     def test_17_presentinator_interface(self):
         mylog_path = os.path.join(unit_test_runner.TEST_working_folder, 'mylog.txt')
         experiment_source = utils.read_text_file(os.path.join(os.path.dirname(visexpman.__file__), 'users', 'templateuser', 'presentinator_experiment.py'))
-        experiment_source = experiment_source.replace('self.duration = 1.0',  'self.duration = 0.0')
-        if os.name == 'nt':
-            experiment1_source = experiment_source
-        else:
-            experiment1_source = experiment_source.replace('self.experiment_log_copy_path = \'\'',  'self.experiment_log_copy_path = \'' + mylog_path + '\'')
+        experiment_source = experiment_source.replace('self.duration = 1.0',  'self.duration = 0.0')        
+        experiment1_source = experiment_source.replace('self.experiment_log_copy_path = \'\'',  'self.experiment_log_copy_path = \'' + mylog_path + '\'')
         experiment2_source = experiment1_source.replace('self.color = 1.0',  'self.color = 0.5')
         commands = [
                     [0.01,'SOCexecute_experimentEOC' + experiment1_source + 'EOP'], 
@@ -619,7 +617,7 @@ class testVisexpRunner(unittest.TestCase):
                             experiment_log.find('stage move') != -1
                             ),
                             (True, True, True, True, True, True, True, True, True, True, True, True))
-                            
+                        
     def test_19_frame_rate(self):
         '''       
         
@@ -642,7 +640,7 @@ class testVisexpRunner(unittest.TestCase):
         if unit_test_runner.TEST_os == 'posix':
             frame_rate_tolerance = 30.0
         else:
-            frame_rate_tolerance = 0.01
+            frame_rate_tolerance = 0.2
         log = utils.read_text_file(v.logfile_path)
         experiment_log = utils.read_text_file(v.experiment_control.logfile_path)
         #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files        
@@ -660,7 +658,7 @@ class testVisexpRunner(unittest.TestCase):
                         (True, True, True, True, True, True, True, True, True, True))
         
     
-#== Test helpers ==
+##### Test helpers #####
     def check_application_log(self, log):
         if log.find('Visexpman started') != -1 and\
         log.find('Visexpman initialized') != -1 and\

@@ -162,18 +162,19 @@ class WinDev(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MovingDotConfig'
         
         #=== paths/data handling ===
-        if os.name == 'nt':            
+        if os.name == 'nt':
             v_drive_data_folder = 'V:\\data'
-        else:            
+        else:
             v_drive_data_folder = '/home/zoltan/visexp/data'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
         MES_DATA_FOLDER = 'V:\\data'
+        CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         ARCHIVE_FORMAT = 'hdf5'
         
         #=== screen ===
-        FULLSCREEN = False
+        FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
@@ -185,24 +186,90 @@ class WinDev(VisionExperimentConfig):
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
-        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
-        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
+        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
+#         SCREEN_UM_TO_PIXEL_SCALE = 0.5
+        MAXIMUM_RECORDING_DURATION = [30, [0, 10000]] #100
+        MEASUREMENT_PLATFORM = 'mes'
         
         #=== Network ===
         ENABLE_UDP = False
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.25.220'
-        
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
         #=== hardware ===
-        ENABLE_PARALLEL_PORT = False
+        ENABLE_PARALLEL_PORT = not True
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PULSE_WIDTH = 1e-3        
+        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        
+        #=== stage ===
+        motor_serial_port = {
+                                    'port' :  'COM1',
+                                    'baudrate' : 19200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }
+                                    
+        STAGE = [{'serial_port' : motor_serial_port,
+                 'enable': True,
+                 'speed': 400,
+                 'acceleration' : 200,
+                 'move_timeout' : 45.0,
+                 'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
+                 }]
+                 
+        #=== Filterwheel ===
+        
+        ENABLE_FILTERWHEEL = False
+        
+        FILTERWHEEL_SERIAL_PORT = [{
+                                    'port' :  unit_test_runner.TEST_com_port,
+                                    'baudrate' : 115200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }]
+                                    
+        FILTERWHEEL_FILTERS = [{
+                                                'ND0': 1, 
+                                                'ND10': 2, 
+                                                'ND20': 3, 
+                                                'ND30': 4, 
+                                                'ND40': 5, 
+                                                'ND50': 6, 
+                                                }]
+                                                
+        #=== DAQ ===
+        DAQ_CONFIG = [
+                    {
+                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 5000,
+                    'AI_CHANNEL' : 'Dev1/ai0:2',
+                    'MAX_VOLTAGE' : 5.0,
+                    'MIN_VOLTAGE' : -5.0,
+                    'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
+                    'ENABLE' : not False
+                    },
+                    {
+                    'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 1000,
+                    'AO_CHANNEL' : 'Dev1/ao0',
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : 0.0,
+                    
+                    'ENABLE' : True
+                    }
+                    ]
         
         #=== Others ===
         
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
         
+                                    
+                                    
+                                    
         
         self._create_parameters_from_locals(locals())
         
@@ -214,13 +281,9 @@ class VS3DUS(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MovingDotConfig'
         
         #=== paths/data handling ===
-        if os.name == 'nt':
-            m_drive_data_folder = 'M:\\Zoltan\\visexpman\\data'
-            g_drive_data_folder = 'G:\\User\\Zoltan\\visexpdata'
+        if os.name == 'nt':            
             v_drive_data_folder = 'V:\\data'
-        else:
-            m_drive_data_folder = '/media/Common/visexpman_data/test'
-            g_drive_data_folder = '/media/Common/visexpman_data/test'
+        else:            
             v_drive_data_folder = '/home/zoltan/visexp/data'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
@@ -241,8 +304,9 @@ class VS3DUS(VisionExperimentConfig):
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
-        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
+        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
+        MEASUREMENT_PLATFORM = 'mes'
         
         #=== Network ===
         ENABLE_UDP = False
@@ -298,11 +362,21 @@ class VS3DUS(VisionExperimentConfig):
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
                     'SAMPLE_RATE' : 5000,
-                    'AI_CHANNEL' : 'Dev1/ai0:1',
+                    'AI_CHANNEL' : 'Dev1/ai0:2',
                     'MAX_VOLTAGE' : 5.0,
                     'MIN_VOLTAGE' : -5.0,
                     'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
                     'ENABLE' : not False
+                    },
+                    {
+                    'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 1000,
+                    'AO_CHANNEL' : 'Dev1/ao0',
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : 0.0,
+                    
+                    'ENABLE' : True
                     }
                     ]
         
@@ -312,62 +386,7 @@ class VS3DUS(VisionExperimentConfig):
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
         
         
-        self._create_parameters_from_locals(locals())
-        
-class GratingConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.runnable = 'GratingExperiment'
-        self._create_parameters_from_locals(locals())
-
-class GratingExperiment(experiment.Experiment):
-    def run(self):
-        orientation = [0,45,90]
-        ai = daq_instrument.AnalogIO(self.machine_config, self.caller)
-        ai.start_daq_activity() 
-        for i in range(len(orientation)):
-            self.mes_command.put('SOCacquire_line_scanEOCc:\\temp\\test\\line_scan_data{0}.matEOP'.format(i))
-            self.show_grating(duration =9.0, profile = 'sqr', orientation = orientation[i], velocity = 500.0, white_bar_width = 100)
-            
-        ai.finish_daq_activity()
-        ai.release_instrument()
-            
-        #Save 
-        if not hasattr(ai, 'ai_data'):
-            ai.ai_data = numpy.zeros(2)
-        path = utils.generate_filename(os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, 'ai_data.txt'))
-        numpy.savetxt(path, ai.ai_data)            
-        data_to_hdf5 = {'sync_data' : ai.ai_data}
-#         setattr(self.hdf5, mes_fragment_name, data_to_hdf5)
-#         self.hdf5.save(mes_fragment_name)
-
-class PixelSizeCalibrationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.runnable = 'PixelSizeCalibration'
-        self._create_parameters_from_locals(locals())
-
-class PixelSizeCalibration(experiment.Experiment):
-    '''
-    Helps pixel size calibration by showing 50 and 20 um circles
-    '''
-    def run(self):
-        pattern = 0
-        self.add_text('Circle at 100,100 um, diameter is 20 um.', color = (1.0,  0.0,  0.0), position = utils.cr((10.0, 30.0)))        
-        while True:
-            if pattern == 0:
-                self.change_text(0, text = 'Circle at 100,100 um, diameter is 20 um.\n\nPress \'n\' to switch, \'s\' to stop.')
-                self.show_shape(shape = 'circle', size = 20.0, pos = utils.cr((100, 100)))
-            elif pattern == 1:
-                self.change_text(0, text = 'Circle at 50,50 um, diameter is 50 um.\n\nPress \'n\' to switch, \'s\' to stop.')
-                self.show_shape(shape = 'circle', size = 50.0, pos = utils.cr((50, 50)))
-            else:
-                pass
-            if 'stop' in self.command_buffer:
-                break
-            elif 'next' in self.command_buffer:
-                pattern += 1
-                if pattern == 2:
-                    pattern = 0
-                self.command_buffer = ''
+        self._create_parameters_from_locals(locals())        
                     
 if __name__ == "__main__":
     

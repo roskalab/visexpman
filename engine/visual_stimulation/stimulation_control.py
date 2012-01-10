@@ -10,6 +10,7 @@
 import sys
 import time
 import numpy
+import inspect
 
 import logging
 from visexpman.engine.generic import utils    
@@ -55,8 +56,10 @@ class ExperimentControl():
     def __init__(self, config, caller, experiment_source = ''):
         self.config = config
         self.caller = caller
+        self.from_gui_queue = self.caller.from_gui_queue
         self.devices = Devices(config, caller)
         self.data_handler = DataHandler(config, caller)
+        self.start_time = 0
         #saving experiment source to a temporary file in the user's folder
         self.experiment_source = experiment_source
         self.experiment_source_path = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user, 'presentinator_experiment' + str(self.caller.command_handler.experiment_counter) + '.py')
@@ -86,6 +89,9 @@ class ExperimentControl():
         self.devices.mes_interface.log = self.log #Probably this is not the nicest solution
 
     def prepare_experiment_run(self):
+        '''
+        Run context of the experiment is prepared
+        '''
         #(Re)instantiate selected experiment config        
         self.caller.selected_experiment_config = self.caller.experiment_config_list[int(self.caller.command_handler.selected_experiment_config_index)][1](self.config, self.caller)        
         #init experiment logging
@@ -94,7 +100,127 @@ class ExperimentControl():
         self.data_handler.prepare_archive()
         #Set experiment control context in selected experiment configuration
         self.caller.selected_experiment_config.set_experiment_control_context()
-
+        self.selected_experiment = self.caller.selected_experiment_config.runnable
+        self.selected_experiment_config = self.caller.selected_experiment_config
+        
+    def start_fragment(self, fragment_id):
+        '''
+        
+        '''
+        if self.config.MEASUREMENT_PLATFORM == 'mes':
+            if not hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations'):
+                return True
+            #Generate file name
+            self.mes_fragment_name = '{0}_{1}_{2}'.format(self.selected_experiment.experiment_name, int(self.start_time), fragment_id)
+            self.printl('Fragment {0}/{1}, name: {2}'.format(fragment_id + 1, self.number_of_fragments, self.mes_fragment_name))
+            self.fragment_mat_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, ('fragment_{0}.mat'.format(self.mes_fragment_name)))
+            self.fragment_hdf5_path = self.fragment_mat_path.replace('.mat', '.hdf5')
+            #Create mes parameter file            
+            mes_recording_time = self.selected_experiment.fragment_durations[fragment_id]            
+            mes_interface.set_line_scan_time(mes_recording_time + 3.0, self.parameter_file, self.fragment_mat_path)
+            ######################## Start mesurement ###############################
+            #Start recording analog signals            
+            self.devices.ai = daq_instrument.AnalogIO(self.config, self.caller)
+            self.devices.ai.start_daq_activity()
+            self.log.info('ai recording started')
+            #empty queue
+            while not self.caller.mes_response_queue.empty():
+                self.caller.mes_response_queue.get()
+            #start two photon recording
+            line_scan_start_success, line_scan_path = self.devices.mes_interface.start_line_scan(parameter_file = self.fragment_mat_path)
+            if line_scan_start_success:
+                time.sleep(1.0)
+            else:
+                self.printl('line scan start ERROR')
+            return line_scan_start_success           
+        elif self.config.MEASUREMENT_PLATFORM == 'elphys':
+            #Set acquisition trigger pin to high
+            self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
+            return True
+            
+    def finish_fragment(self, fragment_id):
+        if self.config.MEASUREMENT_PLATFORM == 'mes':
+            if not hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations'):
+                return
+            timeout = self.selected_experiment.fragment_durations[fragment_id]            
+            if timeout < 10.0:
+                timeout = 10.0
+            if not utils.is_abort_experiment_in_queue(self.from_gui_queue):
+                line_scan_complete_success =  self.devices.mes_interface.wait_for_line_scan_complete(timeout)
+            else:
+                line_scan_complete_success =  False
+            ######################## Finish fragment ###############################
+            if line_scan_complete_success:
+                #Stop acquiring analog signals
+                self.devices.ai.finish_daq_activity()                
+                self.printl('ai recording finished, waiting for data save complete')
+                if not utils.is_abort_experiment_in_queue(self.from_gui_queue):
+                    line_scan_data_save_success = self.devices.mes_interface.wait_for_line_scan_save_complete(timeout)
+                else:
+                    line_scan_data_save_success = False
+                ######################## Save data ###############################
+                if line_scan_data_save_success and not utils.is_abort_experiment_in_queue(self.from_gui_queue):
+                    self.printl('Saving measurement data to hdf5')
+                    #Save
+                    fragment_hdf5 = hdf5io.Hdf5io(self.fragment_hdf5_path , config = self.config, caller = self.caller)
+                    if not hasattr(self.devices.ai, 'ai_data'):
+                        self.devices.ai.ai_data = numpy.zeros(2)
+                    data_to_hdf5 = {
+                                    'sync_data' : self.devices.ai.ai_data,
+                                    'mes_data': utils.file_to_binary_array(self.fragment_mat_path),                                    
+                                    'actual_fragment' : fragment_id,
+                                    }
+                    if hasattr(self.selected_experiment, 'number_of_fragments'):
+                        data_to_hdf5['number_of_fragments'] = self.selected_experiment.number_of_fragments
+                    data_to_hdf5['generated_data'] = self.selected_experiment.fragment_data
+                    #Saving source code of experiment
+                    for path in self.caller.visexpman_module_paths:
+                        if __file__ in path:
+                            data_to_hdf5['experiment_source'] = utils.file_to_binary_array(path)
+                            break
+                    utils.save_config(fragment_hdf5, self.config, self.selected_experiment_config)
+                    time.sleep(5.0) #Wait for file ready
+                    stage_position = self.devices.stage.read_position() - self.caller.stage_origin
+                    objective_position = mes_interface.get_objective_position(self.fragment_mat_path)[0]
+                    utils.save_position(fragment_hdf5, stage_position, objective_position)                    
+                    setattr(fragment_hdf5, self.mes_fragment_name, data_to_hdf5)
+                    fragment_hdf5.save(self.mes_fragment_name)
+                    fragment_hdf5.close()
+                    #Rename fragment hdf5 so that coorinates are included
+                    shutil.move(self.fragment_hdf5_path, self.fragment_hdf5_path.replace('fragment_',  'fragment_{0}_{1}_{2}_'.format(stage_position[0], stage_position[1], objective_position)))
+                    #move/delete mat file
+                    self.printl('measurement data saved to hdf5: {0}'.format(self.fragment_hdf5_path))
+                else:
+                    self.printl('line scan data save ERROR')
+            else:
+                self.printl('line scan complete ERROR')
+            self.devices.ai.release_instrument()
+        
+        elif self.config.MEASUREMENT_PLATFORM == 'elphys':
+            #Clear acquisition trigger pin
+            self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
+            
+    def set_mes_t4_back(self):
+        result = True
+        if self.config.MEASUREMENT_PLATFORM == 'mes' and hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations'):
+            #Set back line scan time to initial 2 sec
+            result = False
+            self.printl('set back line scan time to 2s')
+            mes_interface.set_line_scan_time(2.0, self.parameter_file, self.parameter_file)
+            line_scan_start_success, line_scan_path = self.devices.mes_interface.start_line_scan(timeout = 5.0, parameter_file = self.parameter_file)
+            if not line_scan_start_success:
+                self.printl('setting line scan time to 2 s was NOT successful')
+            else:
+                line_scan_complete_success =  self.devices.mes_interface.wait_for_line_scan_complete(5.0)
+                if line_scan_complete_success:
+                    line_scan_save_complete_success =  self.devices.mes_interface.wait_for_line_scan_save_complete(5.0)
+                    if line_scan_save_complete_success:
+                        result = True
+                        os.remove(self.parameter_file) #Parameter file is not used any more
+            if not result:
+                self.printl('Set t4 back to 2000 ms manually')
+        return result
+    
     def run_experiment(self):
         if hasattr(self.caller, 'selected_experiment_config') and hasattr(self.caller.selected_experiment_config, 'run'):
             self.prepare_experiment_run()
@@ -106,12 +232,29 @@ class ExperimentControl():
             self.log.info('Experiment started at {0}'.format(utils.datetime_string()))
             #Change visexprunner state
             self.caller.state = 'experiment running'
-            #Set acquisition trigger pin to high
-            self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
-            #Run experiment
-            self.caller.selected_experiment_config.run()
-            #Clear acquisition trigger pin
-            self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
+            self.fragmented_experiment = hasattr(self.caller.selected_experiment_config.runnable, 'number_of_fragments') and\
+                    hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations')
+            if self.fragmented_experiment:
+                self.number_of_fragments = len(self.caller.selected_experiment_config.runnable.fragment_durations)
+            else:
+                self.number_of_fragments = 1
+            self.caller.selected_experiment_config.pre_first_fragment()            
+            if self.config.MEASUREMENT_PLATFORM == 'mes' and hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations'):
+                self.printl('create mes parameter file')
+                parameter_file_prepare_success, self.parameter_file = self.devices.mes_interface.prepare_line_scan(scan_time = 1.0)
+            else:
+                parameter_file_prepare_success = True
+            if parameter_file_prepare_success:
+                for fragment_id in range(self.number_of_fragments):
+                    if utils.is_abort_experiment_in_queue(self.from_gui_queue, False):
+                        break
+                    elif self.start_fragment(fragment_id):
+                        #Run stimulation
+                        self.caller.selected_experiment_config.run(fragment_id)
+                        self.finish_fragment(fragment_id)
+                self.set_mes_t4_back()
+            else:
+                self.printl( 'Parameter file NOT created')
             #Change visexprunner state to ready
             self.caller.state = 'ready'
             #Send message to screen, log experiment completition
@@ -136,6 +279,18 @@ class ExperimentControl():
         self.caller.selected_experiment_config.post_experiment()
         self.caller.log.info('Experiment sequence finished')
         
+    def printl(self, message):
+        '''
+        Helper function that can be called during experiment. The message is sent to:
+        -standard output
+        -gui
+        -experiment log
+        '''
+        print message
+        self.caller.to_gui_queue.put(str(message))
+        if hasattr(self, 'log'):
+            self.log.info(str(message))
+        
 class Devices():
     '''
     This class encapsulates all the operations need to access (external) hardware: parallel port, shutter, filterwheel...
@@ -152,9 +307,10 @@ class Devices():
             self.number_of_filterwheels = 2
         for id in range(self.number_of_filterwheels):
             self.filterwheels.append(instrument.Filterwheel(config, caller, id =id))
-        self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
+        self.led_controller = daq_instrument.AnalogPulse(self.config, self.caller, id = 1)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
+        self.ai = None        
         self.stage = motor_control.AllegraStage(self.config, self.caller)
-        self.mes_interface = mes_interface.MesInterface(self.config, self.caller.mes_connection, self.caller.screen_and_keyboard)
+        self.mes_interface = mes_interface.MesInterface(self.config, self.caller.mes_connection, self.caller.screen_and_keyboard, self.caller.from_gui_queue)
 
     def close(self):
         self.parallel_port.release_instrument()
@@ -162,7 +318,8 @@ class Devices():
             for filterwheel in self.filterwheels:
                 filterwheel.release_instrument()
         if hasattr(self, 'led_controller'):
-            self.led_controller.release_instrument()
+            if hasattr(self.led_controller,  'release_instrument'):
+                self.led_controller.release_instrument()
         if hasattr(self, 'stage'):
             self.stage.release_instrument()
             
@@ -301,6 +458,7 @@ class testExternalHardware(unittest.TestCase):
         self.state = 'ready'
         self.mes_command_queue = Queue.Queue()
         self.mes_response_queue = Queue.Queue()
+        self.from_gui_queue = Queue.Queue()
         self.mes_connection = None
         self.screen_and_keyboard = None
         self.config = TestConfig()

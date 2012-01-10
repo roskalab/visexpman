@@ -1,4 +1,12 @@
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
+import numpy
+mes = numpy.loadtxt('/home/zoltan/visexp/debug/mes1.txt')
+visexp = numpy.loadtxt('/home/zoltan/visexp/debug/visexp.txt')
+plt.figure(1)
+plt.plot(mes)
+plt.plot(visexp)
+plt.show()
+
 #import visexpman.engine.hardware_interface.mes_interface as mes_interface
 ##16 - one roi
 ##20 two roi
@@ -29,20 +37,20 @@
 #ax.set_zlabel('z')
 #
 #plt.show()
-
-import numpy
-import visexpA.engine.datahandlers.hdf5io as hdf5io
-p = '/home/zoltan/d1.hdf5'
-h1 = hdf5io.Hdf5io(p)
-h1.a=numpy.ones(3)
-h1.save('a')
-h1.close()
-h2 = hdf5io.Hdf5io(p)
-h2.load('a')
-h2.a = numpy.ones(3)*2
-h2.save('a')
-h2.close()
-h3 = hdf5io.Hdf5io(p)
-h3.load('a')
-print h3.a
-h3.close()
+#
+#import numpy
+#import visexpA.engine.datahandlers.hdf5io as hdf5io
+#p = '/home/zoltan/d1.hdf5'
+#h1 = hdf5io.Hdf5io(p)
+#h1.a=numpy.ones(3)
+#h1.save('a')
+#h1.close()
+#h2 = hdf5io.Hdf5io(p)
+#h2.load('a')
+#h2.a = numpy.ones(3)*2
+#h2.save('a')
+#h2.close()
+#h3 = hdf5io.Hdf5io(p)
+#h3.load('a')
+#print h3.a
+#h3.close()

@@ -105,9 +105,10 @@ class Stimulations(command_handler.CommandHandler):
         else:
             frame_rate_warning = ''
         if self.experiment_control_dependent:
-            # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place            
-            self.elapsed_time = self.flip_time -  self.caller.experiment_control.start_time
-            self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
+            # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
+            if hasattr(self.caller.experiment_control, 'start_time'):
+                self.elapsed_time = self.flip_time -  self.caller.experiment_control.start_time
+                self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
         if trigger:
             self._frame_trigger_pulse()
             
@@ -119,6 +120,9 @@ class Stimulations(command_handler.CommandHandler):
                 self.command_buffer = self.command_buffer.replace('abort_experiment', '')
                 self.caller.experiment_control.log.info('Abort pressed')
                 self.abort = True
+                
+        if utils.is_abort_experiment_in_queue(self.caller.from_gui_queue):
+            self.abort = True
 
     def _frame_trigger_pulse(self):
         '''
@@ -662,13 +666,15 @@ class Stimulations(command_handler.CommandHandler):
             orientation_rad *= -1
         if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'down':
             pass
-            #TODO:
-                
-        pos_transformed = utils.rc_multiply_with_constant(pos, self.config.SCREEN_UM_TO_PIXEL_SCALE)
             
+        pos_transformed = utils.rc_multiply_with_constant(pos, self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        
         pos_adjusted = []
         pos_adjusted.append(pos_transformed['col'])
         pos_adjusted.append(pos_transformed['row'])
+        if display_area['col'] == 0 and display_area['row'] == 0 and self.config.COORDINATE_SYSTEM == 'ulcorner':
+            pos_adjusted[0] += 0.5 * self.config.SCREEN_RESOLUTION['col']
+            pos_adjusted[1] += 0.5 * self.config.SCREEN_RESOLUTION['row']            
         
         if display_area['col'] == 0:
             screen_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE
@@ -685,9 +691,8 @@ class Stimulations(command_handler.CommandHandler):
         if display_area_adjusted[0] == 0:            
             display_area_adjusted[0] = self.config.SCREEN_RESOLUTION['col'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['row'] * abs(math.sin(orientation_rad))
             screen_width = self.config.SCREEN_RESOLUTION['col']
-        if display_area_adjusted[1] == 0:            
-            display_area_adjusted[1] = self.config.SCREEN_RESOLUTION['row'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['col'] * abs(math.sin(orientation_rad))
-            
+        if display_area_adjusted[1] == 0:
+            display_area_adjusted[1] = self.config.SCREEN_RESOLUTION['row'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['col'] * abs(math.sin(orientation_rad))        
         #calculate vertices of display area
         #angles between diagonals
         alpha = numpy.arctan(display_area_adjusted[0]/display_area_adjusted[1])
@@ -723,7 +728,7 @@ class Stimulations(command_handler.CommandHandler):
                 color_offset_adjusted.append(color_offset_i)
 
         #calculate grating profile period from spatial frequency
-        period = bar_width * (1.0 + duty_cycle)
+        period = int(bar_width * (1.0 + duty_cycle))
         #modify profile length so that the profile will contain integer number of repetitions
         repetitions = numpy.ceil(display_area_adjusted[0]/period)
         profile_length = period * repetitions
@@ -731,6 +736,7 @@ class Stimulations(command_handler.CommandHandler):
         profile_length = int(profile_length)
 
         waveform_duty_cycle = 1.0 - 1.0 / (1.0 + duty_cycle)
+#         print profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle
         stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle)
         stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], profile_length, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, waveform_duty_cycle)
         stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], profile_length, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, waveform_duty_cycle)

@@ -36,8 +36,12 @@ class AnalogIO(instrument.Instrument):
     '''
     
     def init_instrument(self):
-        if hasattr(self.config,  'DAQ_CONFIG'):            
-            self.daq_config = self.config.DAQ_CONFIG[self.id]
+        if hasattr(self.config,  'DAQ_CONFIG'):
+            try:
+                self.daq_config = self.config.DAQ_CONFIG[self.id]
+            except IndexError:
+                daq_config = {'ENABLE': False}
+                self.daq_config = daq_config
         else:
             #Ensure that experiments referencing AnalogIO class will run without errors on machines where DAQ_CONFIG is not defined or daqmx driver is not available
             daq_config = {'ENABLE': False}

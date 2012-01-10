@@ -1,4 +1,4 @@
-#== For automated tests ==
+####### For automated tests #######
 import visexpman
 from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
@@ -13,7 +13,8 @@ import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 #== Very simple experiment ==
 class VerySimpleExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -41,7 +42,8 @@ class VerySimpleExperiment(experiment.Experiment):
 #== Hdf5 archiving ==
 
 class Hdf5TestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -58,7 +60,8 @@ class Hdf5TestConfig(VisionExperimentConfig):
 
 #== Abortable experiment ==
 class AbortableExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'AbortableExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -85,7 +88,8 @@ class AbortableExperiment(experiment.Experiment):
 
 #== User command experiment ==
 class UserCommandExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'UserCommandExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -118,7 +122,8 @@ class UserCommandExperiment(experiment.Experiment):
             
 #== External Hardware controlling experiment ==
 class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -185,7 +190,8 @@ class TestExternalHardwareExperiment(experiment.Experiment):
 
 #== Disabled hardware ==
 class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'TestExternalHardwareExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -214,7 +220,8 @@ class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
         
 #== Test pre experiment ==
 class PreExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'PreExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -246,7 +253,8 @@ class PreExperiment(experiment.Experiment):
 
 #== Test frame rate ==
 class FrameRateTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'FrameRateExperimentConfig'        
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -280,7 +288,8 @@ class FrameRateExperiment(experiment.Experiment):
 
 #== Test visual stimulations ==
 class VisualStimulationsTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -300,7 +309,8 @@ class VisualStimulationsTestConfig(VisionExperimentConfig):
         self._create_parameters_from_locals(locals())
         
 class VisualStimulationsUlCornerTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
@@ -390,7 +400,8 @@ class VisualStimulationsExperiment(experiment.Experiment):
 
 #== Stage test experiment ==
 class StageExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
+        MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'StageExperimentConfig'        
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder

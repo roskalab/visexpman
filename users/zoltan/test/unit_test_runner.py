@@ -50,9 +50,11 @@ TEST_pixel_difference_threshold = 50.0
 if TEST_os == 'nt':
     TEST_reference_frames_folder = 'v:\\data\\test\\frames_win'
     TEST_reference_mat_file = 'v:\\data\\test\\mes\\line_scan_parameters.mat'
+    TEST_reference_z_stack_file = 'v:\\data\\test\\mes\\z_stack_ref.mat'
 elif TEST_os == 'posix':
     TEST_reference_frames_folder = '/home/zoltan/visexp/data/test/frames'
     TEST_reference_mat_file = '/home/zoltan/visexp/data/test/mes/line_scan_parameters.mat'
+    TEST_reference_z_stack_file = '/home/zoltan/visexp/data/test/mes/z_stack_ref.mat'
 elif TEST_os == 'osx':
     TEST_reference_frames_folder = '/Users/rz/visexpman/data/test_data/reference_frames_osx'
 
@@ -141,6 +143,8 @@ class unitTestRunner():
                'enable' : True},
                {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
                'enable' : True},
+               {'test_class_path' : 'visexpman.engine.generic.timing.TestTiming',
+               'enable' : True},               
                ]
 
     def fetch_test_methods(self, test_class):
@@ -197,16 +201,17 @@ class unitTestRunner():
         all_files  = []
         directories = []
 
-        #TODO: not tested
-        for root, dirs, files in os.walk(TEST_working_folder):                        
-            for file in files:
-                path = root + os.sep + file
-                if os.stat(path).st_mtime > unit_test_start_time and not 'test_archive' in path:
-                    os.remove(path)
-            for dir in dirs:
-                path = root + os.sep + dir
-                if os.stat(path).st_mtime > unit_test_start_time:
-                    shutil.rmtree(path)       
+        if TEST_delete_files:
+            #TODO: not tested
+            for root, dirs, files in os.walk(TEST_working_folder):
+                for file in files:
+                    path = root + os.sep + file
+                    if os.stat(path).st_mtime > unit_test_start_time and not 'test_archive' in path:
+                        os.remove(path)
+                for dir in dirs:
+                    path = root + os.sep + dir
+                    if os.stat(path).st_mtime > unit_test_start_time:
+                        shutil.rmtree(path)
 
     def save_source_and_results(self):
         test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(TEST_working_folder, 'test_archive.zip'))

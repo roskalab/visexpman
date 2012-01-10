@@ -115,7 +115,7 @@ class VisionExperimentGui(QtGui.QWidget):
 
         mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'mouse_{0}.hdf5'\
                                             .format(name, int(time.time())))
-        self.hdf5_handler = hdf5io.Hdf5io(mouse_file_path , config = self.config, caller = self)
+        self.hdf5_handler = hdf5io.Hdf5io(mouse_file_path)
         variable_name = 'animal_parameters_{0}'.format(int(time.time()))
         setattr(self.hdf5_handler,  variable_name, animal_parameters)
         self.hdf5_handler.save(variable_name)
@@ -192,6 +192,7 @@ class Gui(QtGui.QWidget):
 
     def init_context_file(self):
         pass
+        # create folder if not exists
         self.context_file_path = os.path.join(self.config.CONTEXT_PATH, self.config.CONTEXT_NAME)
         context_hdf5 = hdf5io.Hdf5io(self.context_file_path)
         context_hdf5.load('stage_origin')
@@ -241,7 +242,7 @@ class Gui(QtGui.QWidget):
         self.layout.addWidget(self.animal_parameters_box2)
         layout1 = QtGui.QHBoxLayout()        
         layout2 = QtGui.QHBoxLayout()
-        date_format = QtCore.QString('dd-mm-yyyy')
+        date_format = QtCore.QString('dd-MM-yyyy')
         ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])
 
         self.save_animal_parameters_button = QtGui.QPushButton('Save animal parameters',  self)
@@ -259,12 +260,12 @@ class Gui(QtGui.QWidget):
         layout1.addWidget(self.mouse_birth_date_label)
         self.mouse_birth_date = QtGui.QDateEdit(self)
         layout1.addWidget(self.mouse_birth_date)
-#         self.mouse_birth_date.setDisplayFormat(date_format)
+        self.mouse_birth_date.setDisplayFormat(date_format)
 
         self.gcamp_injection_date_label = QtGui.QLabel('GCAMP injection date',  self)
         layout1.addWidget(self.gcamp_injection_date_label)
         self.gcamp_injection_date = QtGui.QDateEdit(self)
-#         self.gcamp_injection_date.setDisplayFormat(date_format)
+        self.gcamp_injection_date.setDisplayFormat(date_format)
         layout1.addWidget(self.gcamp_injection_date)     
 
         self.ear_punch_l_label = QtGui.QLabel('Ear punch L',  self)
@@ -468,6 +469,10 @@ class Gui(QtGui.QWidget):
         self.execute_experiment_button = QtGui.QPushButton('Execute experiment',  self)
         layout.addWidget(self.execute_experiment_button)
         self.connect(self.execute_experiment_button, QtCore.SIGNAL('clicked()'),  self.execute_experiment)        
+        
+        self.abort_experiment_button = QtGui.QPushButton('Abort experiment',  self)
+        layout.addWidget(self.abort_experiment_button)
+        self.connect(self.abort_experiment_button, QtCore.SIGNAL('clicked()'),  self.abort_experiment)
         layout.addStretch(int(0.6 * self.config.GUI_SIZE['col']))
 
         self.experiment_control_box.setLayout(layout)
@@ -475,6 +480,11 @@ class Gui(QtGui.QWidget):
 
     def execute_experiment(self):
         command = 'SOCexecute_experimentEOC{0}EOP'.format(self.experiment_config_input.toPlainText())
+        self.visexpman_out_queue.put(command)
+        self.printc(command)
+        
+    def abort_experiment(self):
+        command = 'SOCabort_experimentEOCguiEOP'
         self.visexpman_out_queue.put(command)
         self.printc(command)
 

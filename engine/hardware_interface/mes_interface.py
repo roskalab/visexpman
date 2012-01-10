@@ -138,7 +138,7 @@ class MesInterface(object):
         5. acquire_line_scan, saveOK is received when saving data is complete
     '''
     #TODO: handle situations when interface is disabled
-    def __init__(self, config, connection = None, keyboard_handler = None, log = None):
+    def __init__(self, config, connection = None, keyboard_handler = None, log = None, from_gui_queue = None):
         self.config = config
         self.connection = connection
         if hasattr(self.connection, 'queue_out'):
@@ -151,7 +151,8 @@ class MesInterface(object):
             self.response_queue = None
         self.keyboard_handler = keyboard_handler
         self.log = log
-        self.stop = False       
+        self.stop = False
+        self.from_gui_queue = from_gui_queue
 
     ################# Z stack #########################
     def acquire_z_stack(self, timeout = -1, channel = 'pmtUGraw', test_mat_file = None):
@@ -305,11 +306,12 @@ class MesInterface(object):
         Waiting is aborted by the following events:
             -timeout
             -stop keyboard command, if keyboard_handler is present
-        '''        
+        '''
         result = network_interface.wait_for_response(self.response_queue, 
                                                      expected_responses, 
                                                      timeout = timeout, 
-                                                     keyboard_handler = self.keyboard_handler)
+                                                     keyboard_handler = self.keyboard_handler,
+                                                     from_gui_queue = self.from_gui_queue)
         if result:
             self._log_info('MES responded with ' + str(expected_responses))
         else:
@@ -391,7 +393,7 @@ class MESTestConfig(visexpman.engine.generic.configuration.Config):
 class TestMesDataHandlers(unittest.TestCase):
     
     def test_01_read_z_stack(self):
-        path = '/home/zoltan/visexp/data/z_stack_ref.mat'
+        path = unit_test_runner.TEST_reference_z_stack_file
         read_z_stack(path, channel = 'pmtURraw')
 
 class TestMesInterfaceEmulated(unittest.TestCase):

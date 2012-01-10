@@ -7,10 +7,7 @@ import os
 
 class PresentinatorExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        if os.name == 'nt':
-            self.experiment_log_copy_path = 'c:\\temp\\test\\mylog.txt'
-        else:
-            self.experiment_log_copy_path = ''
+        self.experiment_log_copy_path = ''
         self.color = 1.0
         self.duration = 1.0
         self.runnable = 'PresentinatorExperiment'
@@ -21,7 +18,6 @@ class PresentinatorExperiment(experiment.Experiment):
         self.show_fullscreen(duration = self.experiment_config.duration, color = self.experiment_config.color)               
         
     def cleanup(self):
-        
         try:
             shutil.copyfile(self.logfile_path, self.experiment_config.experiment_log_copy_path)
         except:

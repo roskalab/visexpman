@@ -349,7 +349,7 @@ def start_client(config, client_name, connection_name, queue_in, queue_out):
 
 #============= Helpers ====================#
 
-def check_response(queue, expected_responses, keyboard_handler):    
+def check_response(queue, expected_responses, keyboard_handler, from_gui_queue):    
     result = False
     data_back_to_queue = []
     while not queue.empty():
@@ -366,9 +366,11 @@ def check_response(queue, expected_responses, keyboard_handler):
         if isinstance(key_pressed, str):
             if 'stop' in key_pressed:
                 result = True
+    if utils.is_abort_experiment_in_queue(from_gui_queue):
+        result = True
     return result
 
-def wait_for_response(queue, expected_responses, timeout = -1, keyboard_handler = None):
+def wait_for_response(queue, expected_responses, timeout = -1, keyboard_handler = None, from_gui_queue = None):
     '''
     Wait for response from a remote peer by checking the response queue.
     expected_responses: can be either a list of string or a string. If any of these patterns are detected, the response is assumed to arrive
@@ -378,7 +380,7 @@ def wait_for_response(queue, expected_responses, timeout = -1, keyboard_handler 
     if not isinstance(expected_responses, list):  
         expected_responses = [expected_responses]
     t = utils.Timeout(timeout)
-    return t.wait_timeout(check_response, queue, expected_responses, keyboard_handler)
+    return t.wait_timeout(check_response, queue, expected_responses, keyboard_handler, from_gui_queue)
 
 ####################################### Unit tests #################################################xx
 

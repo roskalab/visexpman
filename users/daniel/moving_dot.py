@@ -31,8 +31,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty        
         self.DIAMETER_UM = [300]
-        self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees
-#         self.ANGLES = [0] # degrees
+        self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees        
         self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
@@ -42,10 +41,27 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'
 #         self.pre_runnable = 'MovingDotPre'
-        self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
-        #MES_PARAMETER_PATH = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, 'parameter', 'line_scan_parameters.mat')
+        self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
         self._create_parameters_from_locals(locals())
-#         experiment.ExperimentConfig.__init__(self) # needs to be called so that runnable is instantiated and other checks are done
+
+class ShortMovingDotConfig(experiment.ExperimentConfig):
+    def _create_application_parameters(self):
+        #place for experiment parameters
+        #parameter with range: list[0] - value, list[0] - range
+        #path parameter: parameter name contains '_PATH'
+        #string list: list[0] - empty        
+        self.DIAMETER_UM = [300]        
+        self.ANGLES = [0] # degrees
+        self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
+        self.AMPLITUDE = 0.5
+        self.REPEATS = 1
+        self.PDURATION = 0
+        self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+        self.NDOTS = 1
+        self.RANDOMIZE = 1
+        self.runnable = 'MovingDot'
+        self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
+        self._create_parameters_from_locals(locals())
 
 class MovingDotPre(experiment.PreExperiment):    
     def run(self):
@@ -56,10 +72,28 @@ class MovingDotPre(experiment.PreExperiment):
 
 class MovingDot(experiment.Experiment):
     def __init__(self, machine_config, caller, experiment_config):
-        experiment.Experiment.__init__(self, machine_config, caller, experiment_config)
-        self.prepare()
+        experiment.Experiment.__init__(self, machine_config, caller, experiment_config)        
+        
+    def pre_first_fragment(self):
+        self.show_fullscreen(color = 0.0)
+    
+    def run(self, fragment_id):    
+        self.show_dots([self.diameter_pix*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE]*len(self.row_col[fragment_id]), self.row_col[fragment_id], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+        self.show_fullscreen(color = 0.0)
+        self.fragment_data ={}
+        if hasattr(self, 'show_line_order'):
+            self.fragment_data['shown_line_order'] = self.shown_line_order[fragment_id]
+        if hasattr(self,'shown_directions'):
+            self.fragment_data['shown_directions']= self.shown_directions[fragment_id]
+            
+    def cleanup(self):
+        #add experiment identifier node to experiment hdf5
+        experiment_identifier = '{0}_{1}'.format(self.experiment_name, self.start_time)
+        self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
+        setattr(self.hdf5, experiment_identifier, {'id': None})
+        self.hdf5.save(experiment_identifier)
 
-    def run(self):        
+    def run1(self):        
         self.show_fullscreen(color = 0.0)
         experiment_start_time = int(time.time())
         number_of_fragments = len(self.row_col)
@@ -152,7 +186,8 @@ class MovingDot(experiment.Experiment):
                 else:
                     reason = 'line scan start ERROR'
                     self.printl(reason)                    
-            experiment_identifier = '{0}_{1}'.format(self.experiment_name, experiment_start_time)        
+            #add experiment identifier node to experiment hdf5
+            experiment_identifier = '{0}_{1}'.format(self.experiment_name, experiment_start_time)
             self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
             setattr(self.hdf5, experiment_identifier, {'id': None})
             self.hdf5.save(experiment_identifier)
@@ -229,6 +264,10 @@ class MovingDot(experiment.Experiment):
             vr_all[(0, 180,)] = [hlines_r[b::nblocks, :] for b in range(int(nblocks))]
             vc_all[(0, 180,)]= [hlines_c[b::nblocks, :] for b in range(int(nblocks))]
             self.allangles_in_a_block(diameter_pix,gridstep_pix,movestep_pix,w, h, nblocks,  vr_all, vc_all, angleset, allangles, total_dur)
+        self.number_of_fragments = len(self.row_col)
+        self.fragment_durations = []
+        for fragment_duration in range(self.number_of_fragments):
+            self.fragment_durations.append(float(len(self.row_col[fragment_duration]) / self.experiment_config.NDOTS)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
             
     def angles_broken_to_multi_block(self, w, h, diameter_pix, speed_pix,gridstep_pix, movestep_pix,  hlines_r, hlines_c, vlines_r, vlines_c,   angleset, allangles):
         '''In a block the maximum possible lines from the same direction is put. Direction is shuffled till all lines to be shown are put into blocks.
@@ -523,23 +562,7 @@ def generate_filename(args):
         fn = radii+'_[0]_[0]_[1]_[2]_[4]_[5]_[6]_[7]_[8]_[9]'.format(l2s(res, '-','1.0f'),  l2s(gridstep_factor,'-',  '1.2f'),
                             l2s(enforce_complete_dots,'-',  '1.0f'), l2s(sec_per_block), l2s(iniduration), l2s(frames_per_sec, '', '1.2f'), l2s(ONOFFratio, '-', '1.2f'),  
                             l2s(white_area_variation_factor, '', '1.2f'), l2s(bglevel),l2s(bi))
-        return fn
-        
-class MovingDotTestConfig(experiment.ExperimentConfig):
-    def _create_application_parameters(self):  
-    	self.MAX_FRAGMENT_TIME = 120.0
-        self.DIAMETER_UM = [200]
-        self.ANGLES = [0, 90, 180, 270] # degrees
-        self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
-        self.AMPLITUDE = 0.5
-        self.REPEATS = 2
-        self.PDURATION = 0
-        self.GRIDSTEP = 1.0/1 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
-        self.NDOTS = 1
-        self.RANDOMIZE = 1
-        self.runnable = 'MovingDot'
-        self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']
-        self._create_parameters_from_locals(locals())
+        return fn       
         
 #RZ: send_tcpip_sequence and run_stimulation methods are probably obsolete:
 def send_tcpip_sequence(vs_runner, messages, parameters,  pause_before):    

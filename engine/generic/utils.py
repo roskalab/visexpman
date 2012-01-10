@@ -831,6 +831,13 @@ class Timeout(object):
             time.sleep(self.sleep_period)
         return result
         
+##### Queue #########
+def empty_queue(queue):
+    results = []
+    while not queue.empty():
+        results.append(queue.get())
+    return results
+    
 def wait_data_appear_in_queue(queue, timeout):
     '''
     Waits till the empty queue receives an item considering timeout
@@ -838,8 +845,24 @@ def wait_data_appear_in_queue(queue, timeout):
     t = Timeout(timeout)
     return t.wait_timeout(_is_queue_not_empty, queue)
 
+def is_abort_experiment_in_queue(queue, keep_in_queue = True):
+    result = False
+    if hasattr(queue, 'empty'):
+        queue_content = []
+        while not queue.empty():
+            command = queue.get()
+            if 'abort_experiment' in command:
+                result = True
+                if keep_in_queue:
+                    queue_content.append(command)
+            else:
+                queue_content.append(command)
+        for queue_content_item in queue_content:
+            queue.put(queue_content_item)
+    return result
+    
 def _is_queue_not_empty(queue):
-    return not queue.empty()        
+    return not queue.empty()
     
 #== Signals ==
 def interpolate_waveform(waveform, ratio):    
@@ -967,11 +990,6 @@ def save_position(hdf5, stagexyz, objective_z = None):
     hdf5.save('position')
 
 #== Others ==
-def empty_queue(queue):
-    results = []
-    while not queue.empty():
-        results.append(queue.get())
-    return results
 def file_to_binary_array(path):
     if os.path.exists(path):
         return numpy.fromfile(path, dtype = numpy.uint8)        
