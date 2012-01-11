@@ -139,7 +139,6 @@ class GratingPreExperiment(experiment.PreExperiment):
                             orientation = self.experiment_config.ORIENTATIONS[0], 
                             velocity = 0, white_bar_width = self.experiment_config.WHITE_BAR_WIDTHS[0],
                             duty_cycle = self.experiment_config.DUTY_CYCLES[0], part_of_drawing_sequence = True)
-        
 
 class PixelSizeCalibrationConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -176,8 +175,14 @@ class LedStimulationConfig(experiment.ExperimentConfig):
         self.NUMBER_OF_FLASHES = 9.0
         self.FLASH_DURATION = 500e-3
         self.FLASH_AMPLITUDE = 10.0 #10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 2.0
         self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
+        
+class LedPre(experiment.PreExperiment):
+    def run(self):
+        self.show_fullscreen(color = 0.0, duration = 0.0)
                 
 class LedStimulation(experiment.Experiment):
     '''
@@ -191,6 +196,7 @@ class LedStimulation(experiment.Experiment):
     
     def run(self, fragment_id):
         self.show_fullscreen(color = 0.0, duration = 0.0)
+        time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
         number_of_flashes_in_fragment = self.fragment_repeats[fragment_id]
         fragment_duration = self.fragment_durations[fragment_id]
         offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)        

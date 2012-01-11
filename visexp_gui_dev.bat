@@ -1,2 +1,2 @@
-python engine\visexpman_gui.py exp
+python engine\visexpman_gui.py dev
 pause

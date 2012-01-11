@@ -40,7 +40,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.NDOTS = 1
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'
-#         self.pre_runnable = 'MovingDotPre'
+        self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
         self._create_parameters_from_locals(locals())
 
@@ -63,12 +63,9 @@ class ShortMovingDotConfig(experiment.ExperimentConfig):
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
         self._create_parameters_from_locals(locals())
 
-class MovingDotPre(experiment.PreExperiment):    
+class MovingDotPre(experiment.PreExperiment):
     def run(self):
-        #calls to stimulation library
-        print 'pre running'
-        time.sleep(0.2)
-        pass
+        self.show_fullscreen(color = 0.0, duration = 0.0)
 
 class MovingDot(experiment.Experiment):
     def __init__(self, machine_config, caller, experiment_config):
