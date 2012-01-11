@@ -25,19 +25,9 @@ class Stimulations(command_handler.CommandHandler):
         self.caller = caller
         self.experiment_control_dependent = experiment_control_dependent
         self.screen = caller.screen_and_keyboard
-#        self.stimulation_control = stimulation_control
-#        self.parallel = parallel        
-        
-        #self.image = psychopy.visual.SimpleImageStim(self.screen,  image = self.config.DEFAULT_IMAGE_PATH)         
-        #self.shape = psychopy.visual.ShapeStim(self.screen)
-        #self.inner_circle = psychopy.visual.ShapeStim(self.screen)
-        
-        #self.checkerboard = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
         self.grating_texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.grating_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
-        #self.image_list = psychopy.visual.PatchStim(self.screen,  tex = default_texture)
-#        self.backgroundColor = utils.convert_color(self.config.BACKGROUND_COLOR)        
         
         self.delayed_frame_counter = 0 #counts how many frames were delayed
         self.log_on_flip_message = ''
@@ -49,12 +39,7 @@ class Stimulations(command_handler.CommandHandler):
         self.command_buffer = ''
         #Abort command received signalling
         self.abort = False        
-        
-        #self.test_message = psychopy.visual.TextStim(self.screen,  text = '',  pos = (0, 0),  color = self.config.TEXT_COLOR,  height = self.config.TEXT_SIZE)        
-        
-#        if self.config.ENABLE_PARALLEL_PORT:
-#            import parallel
-#            self.bitmask = 0
+
         
     #Helper functions for showing stimulus
 #    def _show_stimulus(self,  duration, stimulus, flip = True):
@@ -89,7 +74,7 @@ class Stimulations(command_handler.CommandHandler):
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
         """        
-        current_texture_state =glGetBooleanv(GL_TEXTURE_2D)
+        current_texture_state = glGetBooleanv(GL_TEXTURE_2D)
         if current_texture_state:
             glDisable(GL_TEXTURE_2D)
         self._show_text()
@@ -128,7 +113,7 @@ class Stimulations(command_handler.CommandHandler):
         '''
         Generates frame trigger pulses
         '''
-        if self.experiment_control_dependent:
+        if self.experiment_control_dependent and hasattr(self, 'parallel_port'):
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
             time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
@@ -621,7 +606,7 @@ class Stimulations(command_handler.CommandHandler):
 #                
 #        self._show_stimulus(duration,  self.ring,  flip)
                     
-    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0):
+    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0, part_of_drawing_sequence = False):
         """
         This stimulation shows grating with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -677,15 +662,13 @@ class Stimulations(command_handler.CommandHandler):
             pos_adjusted[1] += 0.5 * self.config.SCREEN_RESOLUTION['row']            
         
         if display_area['col'] == 0:
-            screen_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE
+            screen_width = self.config.SCREEN_RESOLUTION['col']
         else:
-            screen_width = display_area['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE
+            screen_width = display_area['col']
         display_area_adjusted = []
         display_area_adjusted.append(display_area['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE)
         display_area_adjusted.append(display_area['row'] * self.config.SCREEN_UM_TO_PIXEL_SCALE)
-        display_area_adjusted = numpy.array(display_area_adjusted)
-        
-        pixel_velocity = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / screen_width        
+        display_area_adjusted = numpy.array(display_area_adjusted)        
         
         #If grating are to be shown on fullscreen, modify display area so that no ungrated parts are on the screen considering rotation
         if display_area_adjusted[0] == 0:            
@@ -734,15 +717,15 @@ class Stimulations(command_handler.CommandHandler):
         profile_length = period * repetitions
         cut_off_ratio = display_area_adjusted[0]/profile_length
         profile_length = int(profile_length)
-
-        waveform_duty_cycle = 1.0 - 1.0 / (1.0 + duty_cycle)
-#         print profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle
+        waveform_duty_cycle = 1.0 / (1.0 + duty_cycle)
         stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle)
         stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], profile_length, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, waveform_duty_cycle)
         stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], profile_length, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, waveform_duty_cycle)
         stimulus_profile = numpy.array([[stimulus_profile_r],  [stimulus_profile_g],  [stimulus_profile_b]])
-        stimulus_profile = stimulus_profile.transpose()        
+        stimulus_profile = stimulus_profile.transpose()
         
+        ######### Calculate texture phase shift per frame value ######
+        pixel_velocity = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / float(stimulus_profile.shape[0])
         #== Generate texture  
         texture = stimulus_profile
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
@@ -768,10 +751,13 @@ class Stimulations(command_handler.CommandHandler):
             number_of_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         start_time = time.time()
         stop_stimulus = False
+#         pixel_velocity= -1.5/stimulus_profile.shape[0]
+#         number_of_frames = int(numpy.sqrt(800**2+600**2)/1.5)
         for i in range(number_of_frames):
-            phase = pixel_velocity * i
+            phase = pixel_velocity * i            
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            if not part_of_drawing_sequence:
+                glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
             #Make sure that at the first flip the parameters of the function call are logged
@@ -779,14 +765,9 @@ class Stimulations(command_handler.CommandHandler):
                 self.log_on_flip_message = self.log_on_flip_message_initial
                 first_flip = True
             else:
-                #If running of stimulus lasts longer than duration, abort it, unless duration is less than 1 sec. In this case
-                #it is assumed that the number of displayable  frames are more important than the duration
-                if time.time() - start_time > duration and duration >=1.0:
-#                    stop_stimulus = True#TODO This functionality shall be completely removed
-                    self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
-                else:
-                    self.log_on_flip_message = self.log_on_flip_message_continous
-            self._flip(trigger = True)
+                self.log_on_flip_message = self.log_on_flip_message_continous
+            if not part_of_drawing_sequence:
+                self._flip(trigger = True)
             if self.abort:
                 self.abort = False
                 break

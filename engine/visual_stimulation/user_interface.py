@@ -80,7 +80,7 @@ class VisexpmanScreen(graphics.Screen):
         '''
         
         #TODO: when ENABLE_TEXT = False, screen has to be cleared to background color, self.clear_screen_to_background()
-        if self.config.ENABLE_TEXT:# and not self.hide_menu:#TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command
+        if self.config.ENABLE_TEXT:# and not self.hide_menu:#TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command     
             self._show_menu()
             self._show_message(self.message, flip = flip)
 

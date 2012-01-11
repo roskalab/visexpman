@@ -101,6 +101,7 @@ class VisExpRunner(object):
             while self.loop_state == 'running':
                 self.screen_and_keyboard.clear_screen_to_background()
                 self.screen_and_keyboard.display_bullseye()
+                self.screen_and_keyboard.refresh_non_experiment_screen(flip = False)
                 if hasattr(self.selected_experiment_config, 'pre_runnable') and self.selected_experiment_config.pre_runnable is not None:
                     self.selected_experiment_config.pre_runnable.run()
                 self.screen_and_keyboard.user_interface_handler()

@@ -159,7 +159,7 @@ class WinDev(VisionExperimentConfig):
     Windows development machine
     '''
     def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'MovingDotConfig'
+        EXPERIMENT_CONFIG = 'GratingConfig'
         
         #=== paths/data handling ===
         if os.name == 'nt':
@@ -187,9 +187,10 @@ class WinDev(VisionExperimentConfig):
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
-#         SCREEN_UM_TO_PIXEL_SCALE = 0.5
-        MAXIMUM_RECORDING_DURATION = [30, [0, 10000]] #100
+#         SCREEN_UM_TO_PIXEL_SCALE = 1.0
+        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         MEASUREMENT_PLATFORM = 'mes'
+#         MEASUREMENT_PLATFORM = 'elphys'
         
         #=== Network ===
         ENABLE_UDP = False
@@ -278,8 +279,7 @@ class VS3DUS(VisionExperimentConfig):
     Visual stimulation machine of 3D microscope setup
     '''
     def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'MovingDotConfig'
-        
+        EXPERIMENT_CONFIG = 'GratingConfig'        
         #=== paths/data handling ===
         if os.name == 'nt':            
             v_drive_data_folder = 'V:\\data'
@@ -290,7 +290,6 @@ class VS3DUS(VisionExperimentConfig):
         EXPERIMENT_DATA_PATH = v_drive_data_folder
         MES_DATA_FOLDER = 'V:\\data'
         ARCHIVE_FORMAT = 'hdf5'
-        
         #=== screen ===
         FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800, 600])

@@ -40,7 +40,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         PIN_RANGE = [0,  7]        
-        MEASUREMENT_PLATFORM = ['undefined', ['mes', 'elphys', 'mea', 'undefined']]
+        MEASUREMENT_PLATFORM = ['undefined', ['mes', 'elphys', 'mea', 'standalone', 'undefined']]
 
         ARCHIVE_FORMAT = ['undefined', ['hdf5', 'zip', 'undefined']]
         

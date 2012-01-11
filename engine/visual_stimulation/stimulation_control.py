@@ -1,4 +1,4 @@
-#TODO: Calibration/test experiments:
+0#TODO: Calibration/test experiments:
 #1. Default visual stimulations/examples for safestart config
 #2. Setup testing, check frame rate, visual pattern capabilities, etc
 #3. Projector calibration
@@ -107,14 +107,14 @@ class ExperimentControl():
         '''
         
         '''
-        if self.config.MEASUREMENT_PLATFORM == 'mes':
-            if not hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations'):
+        if not hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations'):
                 return True
-            #Generate file name
-            self.mes_fragment_name = '{0}_{1}_{2}'.format(self.selected_experiment.experiment_name, int(self.start_time), fragment_id)
-            self.printl('Fragment {0}/{1}, name: {2}'.format(fragment_id + 1, self.number_of_fragments, self.mes_fragment_name))
-            self.fragment_mat_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, ('fragment_{0}.mat'.format(self.mes_fragment_name)))
-            self.fragment_hdf5_path = self.fragment_mat_path.replace('.mat', '.hdf5')
+        #Generate file name
+        self.fragment_name = '{0}_{1}_{2}'.format(self.selected_experiment.experiment_name, int(self.start_time), fragment_id)
+        self.printl('Fragment {0}/{1}, name: {2}'.format(fragment_id + 1, self.number_of_fragments, self.fragment_name))
+        self.fragment_mat_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, ('fragment_{0}.mat'.format(self.fragment_name)))
+        self.fragment_hdf5_path = self.fragment_mat_path.replace('.mat', '.hdf5')
+        if self.config.MEASUREMENT_PLATFORM == 'mes':
             #Create mes parameter file            
             mes_recording_time = self.selected_experiment.fragment_durations[fragment_id]            
             mes_interface.set_line_scan_time(mes_recording_time + 3.0, self.parameter_file, self.fragment_mat_path)
@@ -136,6 +136,8 @@ class ExperimentControl():
         elif self.config.MEASUREMENT_PLATFORM == 'elphys':
             #Set acquisition trigger pin to high
             self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
+            return True
+        elif self.config.MEASUREMENT_PLATFORM == 'standalone':
             return True
             
     def finish_fragment(self, fragment_id):
@@ -183,8 +185,8 @@ class ExperimentControl():
                     stage_position = self.devices.stage.read_position() - self.caller.stage_origin
                     objective_position = mes_interface.get_objective_position(self.fragment_mat_path)[0]
                     utils.save_position(fragment_hdf5, stage_position, objective_position)                    
-                    setattr(fragment_hdf5, self.mes_fragment_name, data_to_hdf5)
-                    fragment_hdf5.save(self.mes_fragment_name)
+                    setattr(fragment_hdf5, self.fragment_name, data_to_hdf5)
+                    fragment_hdf5.save(self.fragment_name)
                     fragment_hdf5.close()
                     #Rename fragment hdf5 so that coorinates are included
                     shutil.move(self.fragment_hdf5_path, self.fragment_hdf5_path.replace('fragment_',  'fragment_{0}_{1}_{2}_'.format(stage_position[0], stage_position[1], objective_position)))
@@ -199,6 +201,8 @@ class ExperimentControl():
         elif self.config.MEASUREMENT_PLATFORM == 'elphys':
             #Clear acquisition trigger pin
             self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
+        elif self.config.MEASUREMENT_PLATFORM == 'standalone':
+            return True
             
     def set_mes_t4_back(self):
         result = True
@@ -276,7 +280,13 @@ class ExperimentControl():
         if hasattr(self.caller, 'mes_command_queue'):
             while not self.caller.mes_command_queue.empty():
                 print self.caller.mes_command_queue.get()
-        self.caller.selected_experiment_config.post_experiment()
+        #Rename hdf5 file to user provided name (experiment.experiment_hdf5_path) !!!! THIS IS SPECIFIC FOR HDF5
+        if hasattr(self.caller.selected_experiment_config.runnable, 'experiment_hdf5_path'):
+            try:
+                shutil.move(self.data_handler.hdf5_handler.filename, self.caller.selected_experiment_config.runnable.experiment_hdf5_path)
+            except:
+                print self.data_handler.hdf5_handler.filename, self.caller.selected_experiment_config.runnable.experiment_hdf5_path
+                self.printl('NOT renamed for some reason')
         self.caller.log.info('Experiment sequence finished')
         
     def printl(self, message):
