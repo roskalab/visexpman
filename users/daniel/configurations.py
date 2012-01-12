@@ -160,6 +160,7 @@ class WinDev(VisionExperimentConfig):
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'GratingConfig'
+#         EXPERIMENT_CONFIG = 'LedStimulationConfig'
         
         #=== paths/data handling ===
         if os.name == 'nt':

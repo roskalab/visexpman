@@ -28,7 +28,7 @@ class VisExpRunner(object):
     '''
     def __init__(self, user, config_class):
         self.state = 'init'
-        #== Find and instantiate machine configuration ==        
+        #== Find and instantiate machine configuration ==
         try:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.visual_stimulation.configuration.VisionExperimentConfig)[0][1]()
         except IndexError:
@@ -58,7 +58,7 @@ class VisExpRunner(object):
         self.command_queue = Queue.Queue()
         self.screen_and_keyboard = user_interface.ScreenAndKeyboardHandler(self.config, self, self.command_queue)
         #Select and instantiate stimulus as specified in machine config, This is necessary to ensure that pre-experiment will run immediately after startup        
-        if len(self.experiment_config_list) > 0:
+        if len(self.experiment_config_list) > 0:            
             self.selected_experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self)
         #Start udp listener if not in test mode
         if self.config.ENABLE_UDP and unit_test_runner.TEST_enable_network:

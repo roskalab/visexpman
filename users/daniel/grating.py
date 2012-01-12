@@ -182,7 +182,7 @@ class LedStimulationConfig(experiment.ExperimentConfig):
         
 class LedPre(experiment.PreExperiment):
     def run(self):
-        self.show_fullscreen(color = 0.0, duration = 0.0)
+        self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
                 
 class LedStimulation(experiment.Experiment):
     '''

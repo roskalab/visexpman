@@ -93,7 +93,7 @@ class ExperimentControl():
         Run context of the experiment is prepared
         '''
         #(Re)instantiate selected experiment config        
-        self.caller.selected_experiment_config = self.caller.experiment_config_list[int(self.caller.command_handler.selected_experiment_config_index)][1](self.config, self.caller)        
+        self.caller.selected_experiment_config = self.caller.experiment_config_list[int(self.caller.command_handler.selected_experiment_config_index)][1](self.config, self.caller)
         #init experiment logging
         self.init_experiment_logging()
         #Create archive files so that user can save data during the experiment

@@ -65,7 +65,7 @@ class ShortMovingDotConfig(experiment.ExperimentConfig):
 
 class MovingDotPre(experiment.PreExperiment):
     def run(self):
-        self.show_fullscreen(color = 0.0, duration = 0.0)
+        self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
 
 class MovingDot(experiment.Experiment):
     def __init__(self, machine_config, caller, experiment_config):

@@ -54,6 +54,7 @@ class CommandHandler(object):
         Selects experiment config based on keyboard command and instantiates the experiment config class
         '''
         self.selected_experiment_config_index = int(par)
+        self.caller.selected_experiment_config = self.caller.experiment_config_list[int(self.caller.command_handler.selected_experiment_config_index)][1](self.config, self.caller)
         return 'selected experiment: ' + str(par) + ' '
 
     def execute_experiment(self, par):        
