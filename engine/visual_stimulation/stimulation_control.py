@@ -176,10 +176,9 @@ class ExperimentControl():
                         data_to_hdf5['number_of_fragments'] = self.selected_experiment.number_of_fragments
                     data_to_hdf5['generated_data'] = self.selected_experiment.fragment_data
                     #Saving source code of experiment
-                    for path in self.caller.visexpman_module_paths:
-                        if __file__ in path:
-                            data_to_hdf5['experiment_source'] = utils.file_to_binary_array(path)
-                            break
+                    experiment_source_file_path = inspect.getfile(self.selected_experiment.__class__).replace('.pyc', '.py')
+                    data_to_hdf5['experiment_source'] = utils.file_to_binary_array(experiment_source_file_path)
+                    
                     utils.save_config(fragment_hdf5, self.config, self.selected_experiment_config)
                     time.sleep(5.0) #Wait for file ready
                     stage_position = self.devices.stage.read_position() - self.caller.stage_origin
