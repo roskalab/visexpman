@@ -419,7 +419,7 @@ class Gui(QtGui.QWidget):
         zstart = self.z_stack['origin']['depth']
         zstop = zstart + self.z_stack['size']['depth']
         rel_position = self.stage_position - self.stage_origin
-        shutil.move(self.z_stack['mat_path'], self.z_stack['mat_path'].replace('z_stack_', 'z_stack_{0}_{1}_{2}_{3}_' .format(rel_position[0], rel_position[1], zstart, zstop)))
+        shutil.move(self.z_stack['mat_path'], self.z_stack['mat_path'].replace('z_stack_', 'z_stack_{0:.1f}_{1:.1f}_{2}_{3}_' .format(rel_position[0], rel_position[1], zstart, zstop)))
 
 
     def rc_scan(self):

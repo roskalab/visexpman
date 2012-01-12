@@ -13,7 +13,7 @@ import numpy
 import inspect
 
 import logging
-from visexpman.engine.generic import utils    
+from visexpman.engine.generic import utils
 import visexpman
 import unittest
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
@@ -26,6 +26,7 @@ import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.hardware_interface.motor_control as motor_control
 import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpA.engine.datahandlers.hdf5io as hdf5io
+import visexpA.engine.datahandlers.importers as importers
 
 import os
 import logging
@@ -102,6 +103,7 @@ class ExperimentControl():
         self.caller.selected_experiment_config.set_experiment_control_context()
         self.selected_experiment = self.caller.selected_experiment_config.runnable
         self.selected_experiment_config = self.caller.selected_experiment_config
+        self.experiment_result_files = []
         
     def start_fragment(self, fragment_id):
         '''
@@ -165,6 +167,7 @@ class ExperimentControl():
                     self.printl('Saving measurement data to hdf5')
                     #Save
                     fragment_hdf5 = hdf5io.Hdf5io(self.fragment_hdf5_path , config = self.config, caller = self.caller)
+                    self.experiment_result_files.append(self.fragment_hdf5_path)
                     if not hasattr(self.devices.ai, 'ai_data'):
                         self.devices.ai.ai_data = numpy.zeros(2)
                     data_to_hdf5 = {
@@ -188,7 +191,7 @@ class ExperimentControl():
                     fragment_hdf5.save(self.fragment_name)
                     fragment_hdf5.close()
                     #Rename fragment hdf5 so that coorinates are included
-                    shutil.move(self.fragment_hdf5_path, self.fragment_hdf5_path.replace('fragment_',  'fragment_{0}_{1}_{2}_'.format(stage_position[0], stage_position[1], objective_position)))
+                    shutil.move(self.fragment_hdf5_path, self.fragment_hdf5_path.replace('fragment_',  'fragment_{0:.1f}_{1:.1f}_{2}_'.format(stage_position[0], stage_position[1], objective_position)))
                     #move/delete mat file
                     self.printl('measurement data saved to hdf5: {0}'.format(self.fragment_hdf5_path))
                 else:
@@ -280,13 +283,37 @@ class ExperimentControl():
             while not self.caller.mes_command_queue.empty():
                 print self.caller.mes_command_queue.get()
         #Rename hdf5 file to user provided name (experiment.experiment_hdf5_path) !!!! THIS IS SPECIFIC FOR HDF5
+        experiment_data_file = self.data_handler.hdf5_handler.filename
         if hasattr(self.caller.selected_experiment_config.runnable, 'experiment_hdf5_path'):
             try:
                 shutil.move(self.data_handler.hdf5_handler.filename, self.caller.selected_experiment_config.runnable.experiment_hdf5_path)
+                experiment_data_file = self.caller.selected_experiment_config.runnable.experiment_hdf5_path
             except:
                 print self.data_handler.hdf5_handler.filename, self.caller.selected_experiment_config.runnable.experiment_hdf5_path
                 self.printl('NOT renamed for some reason')
+        self.experiment_result_files.append(experiment_data_file)
         self.caller.log.info('Experiment sequence finished')
+        #Check fragment data
+#         self.check_experiment_data()
+        
+    def check_experiment_data(self):
+        print self.experiment_result_files
+        if self.config.MEASUREMENT_PLATFORM == 'mes' :
+            for experiment_result_file in self.experiment_result_files:
+                if 'fragment' in experiment_result_file:
+                    pass
+#                    try:
+#                        fragment_data = importers.MESExtractor(experiment_result_file)
+#                        res = fragment_data.parse()
+#                    except:
+#                        import traceback
+#                        traceback_info = traceback.format_exc()            
+#                        self.caller.log.info(traceback_info)
+#                        print traceback_info
+        elif self.config.MEASUREMENT_PLATFORM == 'elphys':
+            pass
+        elif self.config.MEASUREMENT_PLATFORM == 'standalone':
+            pass
         
     def printl(self, message):
         '''
@@ -386,6 +413,7 @@ class DataHandler():
         if self.config.ARCHIVE_FORMAT == 'zip':
             self.archive.write(self.caller.experiment_control.logfile_path, self.caller.experiment_control.logfile_path.replace(os.path.dirname(self.caller.experiment_control.logfile_path), ''))
         self.archive.close()
+        #TODO: replace this with utils.file_to_binary_array()
         f = open(self.zip_file_path, 'rb')
         archive_binary = f.read(os.path.getsize(self.zip_file_path))
         f.close()

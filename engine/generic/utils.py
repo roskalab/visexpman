@@ -701,22 +701,34 @@ def parsefilename(filename, regexdict):
             regexdict[k] = None # this pattern was not found
     return regexdict
 
-def filtered_file_list(folder_name,  filter, fullpath = False):
+def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False):
     files = os.listdir(folder_name)
     filtered_files = []
     for file in files:
         if isinstance(filter,  list) or isinstance(filter,  tuple):
             found  = False
-            for filter_item in filter:                
-                if file.find(filter_item) != -1:
-                    found = True
+            for filter_item in filter:
+                if inverted_filter:
+                    if filter_item not in file:
+                        found = True
+                else:
+                    if filter_item in file:
+                        found = True
             if found:
                 if fullpath:
                     filtered_files.append(os.path.join(folder_name, file))
                 else:
                     filtered_files.append(file)
         elif isinstance(filter,  str):
-            if file.find(filter) != -1:
+            found = False
+            if inverted_filter:
+                if filter not in file:
+                    found = True
+            else:
+                if filter in file:
+                    found = True                    
+                    
+            if found:
                 if fullpath:
                     filtered_files.append(os.path.join(folder_name, file))
                 else:

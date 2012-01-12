@@ -1,11 +1,8 @@
-import matplotlib.pyplot as plt
-import numpy
-mes = numpy.loadtxt('/home/zoltan/visexp/debug/mes1.txt')
-visexp = numpy.loadtxt('/home/zoltan/visexp/debug/visexp.txt')
-plt.figure(1)
-plt.plot(mes)
-plt.plot(visexp)
-plt.show()
+import visexpA.engine.datahandlers.importers as importers
+
+fragment_data = importers.MESExtractor('/home/zoltan/visexp/debug/fragment_2.hdf5')
+res = fragment_data.parse()
+pass
 
 #import visexpman.engine.hardware_interface.mes_interface as mes_interface
 ##16 - one roi
