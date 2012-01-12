@@ -40,7 +40,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.NDOTS = 1
         self.RANDOMIZE = 1
         self.runnable = 'MovingDot'
-#         self.pre_runnable = 'MovingDotPre'
+        self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
         self._create_parameters_from_locals(locals())
 
@@ -63,12 +63,9 @@ class ShortMovingDotConfig(experiment.ExperimentConfig):
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
         self._create_parameters_from_locals(locals())
 
-class MovingDotPre(experiment.PreExperiment):    
+class MovingDotPre(experiment.PreExperiment):
     def run(self):
-        #calls to stimulation library
-        print 'pre running'
-        time.sleep(0.2)
-        pass
+        self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
 
 class MovingDot(experiment.Experiment):
     def __init__(self, machine_config, caller, experiment_config):
@@ -88,12 +85,12 @@ class MovingDot(experiment.Experiment):
             
     def cleanup(self):
         #add experiment identifier node to experiment hdf5
-        experiment_identifier = '{0}_{1}'.format(self.experiment_name, self.start_time)
+        experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.caller.experiment_control.start_time))
         self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
         setattr(self.hdf5, experiment_identifier, {'id': None})
         self.hdf5.save(experiment_identifier)
 
-    def run1(self):        
+    def run_obsolete(self):        
         self.show_fullscreen(color = 0.0)
         experiment_start_time = int(time.time())
         number_of_fragments = len(self.row_col)
@@ -206,14 +203,6 @@ class MovingDot(experiment.Experiment):
         else:
             self.printl( 'Parameter file NOT created')
         self.printl('moving dot complete')
-    
-    def post_experiment(self):
-        if hasattr(self, 'experiment_hdf5_path'):
-            try:
-                shutil.move(self.hdf5.filename, self.experiment_hdf5_path)
-            except:
-                print self.hdf5.filename, self.experiment_hdf5_path
-                self.printl('NOT copied for some reason')
         
     def prepare(self):
         # we want at least 2 repetitions in the same recording, but the best is to

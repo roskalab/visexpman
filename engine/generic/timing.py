@@ -5,6 +5,8 @@ def schedule_fragments(period_time, repeats, maximum_duration):
     '''
     Calculates fragment durations
     '''
+    if period_time > maximum_duration:
+        raise RuntimeError('period time cannot be longer than maximum duration')
     required_time = period_time * repeats
     if required_time <= maximum_duration:
         fragment_durations = [required_time]

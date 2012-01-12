@@ -105,6 +105,7 @@ class VisionExperimentGui(QtGui.QWidget):
             'mouse_birth_date' : mouse_birth_date,
             'gcamp_injection_date' : gcamp_injection_date,
             'anesthesia_protocol' : str(self.new_mouse_widget.animal_parameters_groupbox.anesthesia_protocol.currentText()),
+            'gender' : str(self.new_mouse_widget.animal_parameters_groupbox.gender.currentText()),
             'ear_punch_l' : str(self.new_mouse_widget.animal_parameters_groupbox.ear_punch_l.currentText()), 
             'ear_punch_r' : str(self.new_mouse_widget.animal_parameters_groupbox.ear_punch_r.currentText()),
             'strain' : str(self.new_mouse_widget.animal_parameters_groupbox.mouse_strain.currentText()),
@@ -822,8 +823,11 @@ class GuiConfig(configuration.VisionExperimentConfig):
         EXPERIMENT_DATA_PATH = data_folder
         MES_DATA_PATH = os.path.join(v_drive_folder, 'data')        
         MES_DATA_FOLDER = 'V:\\data'
-        CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
-        CONTEXT_NAME = 'gui.hdf5'
+        CONTEXT_PATH = os.path.join(v_drive_folder, 'context')        
+        if 'dev' in sys.argv[1] or 'development' in self.PACKAGE_PATH:
+            CONTEXT_NAME = 'gui_dev.hdf5'
+        else:
+            CONTEXT_NAME = 'gui.hdf5'
         self.COMMAND_RELAY_SERVER['ENABLE'] = ENABLE_NETWORK
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'#'172.27.26.1'#'172.27.25.220'
 #        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 60.0
