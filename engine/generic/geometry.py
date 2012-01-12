@@ -425,6 +425,12 @@ def rotate_vector(vector, angle):
     return numpy.squeeze(numpy.asarray((rotation_matrix_x * rotation_matrix_y * rotation_matrix_z * vector_matrix).transpose()))
 
 ### Daniel's methods, no tests yet
+
+def plane(params, coords):
+    c0, c1, c2 = params
+    x, y,z = coords
+    #return c0*x + c1*y + c2*z  = c3#)
+    
 def polygon2filled(polygon, color=None):
     '''Converts a polygon object into a list of coordinates of the entire polyon
     '''

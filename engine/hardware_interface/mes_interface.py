@@ -16,48 +16,6 @@ import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import os
 import shutil
 
-def read_z_stack(mes_file_or_stream, channel = 'pmtUGraw'):
-    '''
-    Extract the following form a mes file containing a Z stack:
-    -z stack data as a 3D array where the dimensions are: row, col, depth
-    -mes system origin [um]
-    -step size [um/pixel]
-    -z stack size [um; row, col, depth]
-    '''
-    #TODO: reverse z stack over z axis
-    #TODO data in row col depth format
-    if not hasattr(mes_file_or_stream, 'raw_mat') and not hasattr(mes_file_or_stream, 'get_field'):
-        data = matlabfile.MatData(mes_file_or_stream).get_field('DATA')
-    else:
-        data = mes_file_or_stream.get_field('DATA')
-    n_frames = data[0].shape[0]    
-    n_average = int(data[0][0]['Average'][0][0][0])
-    frames = []
-    for i in range(n_frames-1, -1, -1):  # MES takes zstacks from the bottom, we treat zstacks starting from the cortex surface
-        frame = matlab_image2numpy(data[0][i]['IMAGE'][0])
-        channel_name = str(data[0][i]['Channel'][0][0])
-        if channel_name == channel:
-            frames.append(frame)    
-    z_stack_data = numpy.array(frames)#.transpose()
-    depth_step = data[0][0]['D3Step'][0][0]#TODO: use getfield
-    col_origin = data[0][0]['WidthOrigin'][0][0]
-    row_origin = data[0][0]['HeightOrigin'][0][0]
-    depth_origin = data[0][0]['Zlevel'][0][0]
-    col_step = data[0][0]['WidthStep'][0][0]
-    row_step = data[0][0]['HeightStep'][0][0]
-    z_stack = {}
-    z_stack['data'] = z_stack_data
-    z_stack['origin'] = utils.rcd(numpy.array([row_origin, col_origin, depth_origin]))
-    z_stack['scale'] = utils.rcd(numpy.array([row_step, col_step, depth_step]))
-    z_stack['size'] = utils.rcd(utils.nd(z_stack['scale']) * (numpy.array(z_stack_data.transpose().shape) -1)) #NOTE: here x and y size might be mixed up because of the dimensions of z_stack_data
-    z_stack['mat_path'] = mes_file_or_stream
-    return z_stack
-    
-def matlab_image2numpy(data):
-    ''' Converts a numpy array containing data as matlab image in the format: col,row, origin at bottom left
-    to a numpy image in the native format: row,col, origin at top left'''
-    return numpy.rollaxis(data, 1, 0)[::-1] 
-
 
 def generate_scan_points_mat(points, mat_file):
     '''
@@ -177,7 +135,7 @@ class MesInterface(object):
             z_stack = {}
             if isinstance(z_stack_path, str):
                 if os.path.exists(z_stack_path):            
-                    z_stack = read_z_stack(z_stack_path, channel = channel)                    
+                    z_stack = matlabfile.read_z_stack(z_stack_path, channel = channel)                    
             return z_stack, results
         else:
             return {}, results
@@ -390,12 +348,6 @@ class MESTestConfig(visexpman.engine.generic.configuration.Config):
         LOG_PATH = unit_test_runner.TEST_working_folder
         self._create_parameters_from_locals(locals())
         
-class TestMesDataHandlers(unittest.TestCase):
-    
-    def test_01_read_z_stack(self):
-        path = unit_test_runner.TEST_reference_z_stack_file
-        read_z_stack(path, channel = 'pmtURraw')
-
 class TestMesInterfaceEmulated(unittest.TestCase):
     
     def tearDown(self):
