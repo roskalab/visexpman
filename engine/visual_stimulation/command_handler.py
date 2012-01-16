@@ -111,8 +111,8 @@ class CommandHandler(object):
                 reached = stage.move(new_position)
                 position = stage.read_position()
                 self.caller.to_gui_queue.put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
-            stage.release_instrument()            
-        return str(position)
+            stage.release_instrument()
+        return str(par) + ' ' + str(position)
         
     def hide_menu(self, par):
         self.caller.screen_and_keyboard.hide_menu = not self.caller.screen_and_keyboard.hide_menu

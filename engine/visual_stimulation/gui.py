@@ -40,6 +40,7 @@ class AnimalParametersGroupBox(QtGui.QGroupBox):
         self.comments = QtGui.QComboBox(self)
         self.comments.setEditable(True)
         self.comments.setToolTip('Add comment')
+        self.new_mouse_file_button = QtGui.QPushButton('Create new mouse file',  self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -58,34 +59,9 @@ class AnimalParametersGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.anesthesia_protocol_label, 4, 0)
         self.layout.addWidget(self.anesthesia_protocol, 4, 1)
         self.layout.addWidget(self.comments, 5, 0, 1, 3)
+        self.layout.addWidget(self.new_mouse_file_button, 6, 0, 1, 2)
         self.layout.setColumnStretch(7, 0)
-        self.setLayout(self.layout)
-        
-class MouseFileGroupBox(QtGui.QGroupBox):
-    '''
-    The mouse file contains the parameters of the mouse and the scanning regions
-    '''
-    def __init__(self, parent, config):
-        self.config = config
-        QtGui.QGroupBox.__init__(self, 'mouse file', parent)                    
-        self.create_widgets()
-        self.create_layout()
-        
-    def create_widgets(self):        
-        self.new_mouse_file_button = QtGui.QPushButton('Create new mouse file',  self)
-#        self.redefine_mouse_file_button = QtGui.QPushButton('Redefine mouse file',  self)
-#        self.select_mouse_file_label = QtGui.QLabel('Mouse file',  self)
-#        self.select_mouse_file = QtGui.QComboBox(self)
-#        self.select_mouse_file.addItems(utils.find_files_and_folders(self.config.EXPERIMENT_DATA_PATH, filter = 'gui')[-1])
-#        self.select_mouse_file.setEditable(True)
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.new_mouse_file_button, 0, 0, 1, 2)
-#        self.layout.addWidget(self.redefine_mouse_file_button, 0, 2, 1, 2)
-#        self.layout.addWidget(self.select_mouse_file_label, 1, 0)
-#        self.layout.addWidget(self.select_mouse_file, 1, 1, 1, 3)
-        self.setLayout(self.layout)
+        self.setLayout(self.layout)       
         
 class MasterPositionGroupBox(QtGui.QGroupBox):
     def __init__(self, parent):        
@@ -152,14 +128,12 @@ class NewMouseWidget(QtGui.QWidget):
         
     def create_widgets(self):
         self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
-        self.mouse_file_groupbox = MouseFileGroupBox(self, self.config)
         self.master_position_groupbox = MasterPositionGroupBox(self)
         self.new_scan_region_groupbox = NewScanRegion(self, ['moving_dot', 'grating'])        
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.animal_parameters_groupbox, 0, 0, 1, 2)
-        self.layout.addWidget(self.mouse_file_groupbox, 0, 2, 1, 2)
+        self.layout.addWidget(self.animal_parameters_groupbox, 0, 0, 1, 2)        
         self.layout.addWidget(self.master_position_groupbox, 2, 0, 1, 3)
         self.layout.addWidget(self.new_scan_region_groupbox, 3, 0, 1, 3)        
 #        self.layout.setRowStretch(3, 300)
@@ -268,18 +242,22 @@ class DebugWidget(QtGui.QWidget):
         #Stimulation/experiment control related
         self.experiment_name = QtGui.QComboBox(self)
         self.experiment_name.setEditable(True)
-        self.experiment_name.addItems(QtCore.QStringList(['moving_dot', 'grating']))
+        self.experiment_name.addItems(QtCore.QStringList(['moving_dot', 'grating', 'led stimulation']))
         self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
         self.stop_experiment_button = QtGui.QPushButton('Stop experiment',  self)
         #Stage related
+        self.set_stage_origin_button = QtGui.QPushButton('set stage origin', self)
         self.read_stage_button = QtGui.QPushButton('read stage', self)
         self.move_stage_button = QtGui.QPushButton('move stage', self)        
         #Network related
-        self.network_connection_status_button = QtGui.QPushButton('Read network connection status',  self)
-        self.server_debug_info_button = QtGui.QPushButton('Read server debug info',  self)        
+        self.show_connected_clients_button = QtGui.QPushButton('Show connected clients',  self)
+        self.show_network_messages_button = QtGui.QPushButton('Show network messages',  self)
         self.select_connection_list = QtGui.QComboBox(self)        
         self.select_connection_list.addItems(QtCore.QStringList(['','mes', 'stimulation', 'analysis']))
         self.send_command_button = QtGui.QPushButton('Send command',  self)
+        
+        #Development
+        self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -290,13 +268,14 @@ class DebugWidget(QtGui.QWidget):
         self.layout.addWidget(self.experiment_name, 1, 0, 1, 1)
         self.layout.addWidget(self.start_experiment_button, 1, 1, 1, 1)
         self.layout.addWidget(self.stop_experiment_button, 1, 2, 1, 1)
-        self.layout.addWidget(self.read_stage_button, 2, 0, 1, 1)
-        self.layout.addWidget(self.move_stage_button, 2, 1, 1, 1)
-        self.layout.addWidget(self.network_connection_status_button, 3, 0, 1, 1)
-        self.layout.addWidget(self.server_debug_info_button, 3, 1, 1, 1)
+        self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
+        self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
+        self.layout.addWidget(self.move_stage_button, 2, 2, 1, 1)
+        self.layout.addWidget(self.show_connected_clients_button, 3, 0, 1, 1)
+        self.layout.addWidget(self.show_network_messages_button, 3, 1, 1, 1)
         self.layout.addWidget(self.select_connection_list, 3, 2, 1, 1)
         self.layout.addWidget(self.send_command_button, 3, 3, 1, 1)
-        
+        self.layout.addWidget(self.animal_parameters_groupbox, 4, 0, 4, 4)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)

@@ -6,7 +6,7 @@
 #TODO: string parsing: re
 #TODO: string to binary array: numpy.loadtext, loadfile or struct.struct
 import sys
-ENABLE_NETWORK = not 'dev' in sys.argv[1]
+ENABLE_NETWORK = True#not 'dev' in sys.argv[1]
 SEARCH_SUBFOLDERS = True
 
 import time
@@ -54,6 +54,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.create_gui()
         self.create_layout()
         self.connect_signals()
+        self.init_network()
+        self.init_context_file()
         self.show()
 
     def create_gui(self):
@@ -64,6 +66,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.realignment_tab.addTab(self.new_mouse_widget, 'New mouse')
         self.realignment_tab.addTab(self.registered_mouse_widget, 'Registered mouse')
         self.realignment_tab.addTab(self.debug_widget, 'Debug')
+        self.realignment_tab.setCurrentIndex(2)
         self.standard_io_widget = gui.StandardIOWidget(self, self.config)
 
     def create_layout(self):
@@ -71,18 +74,62 @@ class VisionExperimentGui(QtGui.QWidget):
         self.layout.addWidget(self.realignment_tab, 0, 0, 1, 1)
         self.layout.addWidget(self.standard_io_widget, 1, 0, 1, 1)
         self.layout.setRowStretch(3, 3)
-        self.layout.setColumnStretch(3, 3)
+        self.layout.setColumnStretch(2, 1)
         self.setLayout(self.layout)
 
-
+    ############ Network, context, non-gui stuff ################
+    def init_network(self):
+        self.mes_command_queue = Queue.Queue()
+        self.mes_response_queue = Queue.Queue()
+        self.mes_connection = network_interface.start_client(self.config, 'GUI', 'GUI_MES', self.mes_response_queue, self.mes_command_queue)
+        self.mes_interface = mes_interface.MesInterface(self.config, self.mes_connection)
+        self.visexpman_out_queue = Queue.Queue()
+        self.visexpman_in_queue = Queue.Queue()        
+        self.stim_connection = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.visexpman_in_queue, self.visexpman_out_queue)
+            
+    def init_context_file(self):
+        pass
+        # create folder if not exists
+        self.context_file_path = os.path.join(self.config.CONTEXT_PATH, self.config.CONTEXT_NAME)
+        context_hdf5 = hdf5io.Hdf5io(self.context_file_path)
+        context_hdf5.load('stage_origin')
+        context_hdf5.load('stage_position')
+        if hasattr(context_hdf5, 'stage_position') and hasattr(context_hdf5, 'stage_origin') :
+            self.stage_origin = context_hdf5.stage_origin
+            self.stage_position = context_hdf5.stage_position
+        else:
+            self.stage_position = numpy.zeros(3)
+            self.stage_origin = numpy.zeros(3)
+        context_hdf5.close()
+        self.stage_position_valid = False
+        
     ####### Signals/functions ###############
     def connect_signals(self):
         self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
-        self.connect(self.new_mouse_widget.mouse_file_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)        
-
+        self.connect(self.new_mouse_widget.animal_parameters_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)
+        self.connect(self.debug_widget.animal_parameters_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)
+        self.connect(self.debug_widget.show_connected_clients_button, QtCore.SIGNAL('clicked()'),  self.show_connected_clients)
+        self.connect(self.debug_widget.show_network_messages_button, QtCore.SIGNAL('clicked()'),  self.show_network_messages)
+        self.connect(self.debug_widget.z_stack_button, QtCore.SIGNAL('clicked()'),  self.acquire_z_stack)
+        self.connect(self.debug_widget.stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.stop_experiment)
+        self.connect(self.debug_widget.start_experiment_button, QtCore.SIGNAL('clicked()'),  self.start_experiment)
+        self.connect(self.debug_widget.set_stage_origin_button, QtCore.SIGNAL('clicked()'),  self.set_stage_origin)
+        self.connect(self.debug_widget.read_stage_button, QtCore.SIGNAL('clicked()'),  self.read_stage)
+        self.connect(self.debug_widget.move_stage_button, QtCore.SIGNAL('clicked()'),  self.move_stage)
+    
     def acquire_z_stack(self):
-        pass
+        self.z_stack, results = self.mes_interface.acquire_z_stack(self.config.MES_TIMEOUT)
+        
+    def stop_experiment(self):
+        command = 'SOCabort_experimentEOCguiEOP'
+        self.visexpman_out_queue.put(command)
+        self.printc(command)
+        
+    def start_experiment(self):
+        command = 'SOCexecute_experimentEOCguiEOP'
+        self.visexpman_out_queue.put(command)
+        self.printc(command)
 
     def save_animal_parameters(self):
         '''
@@ -95,21 +142,25 @@ class VisionExperimentGui(QtGui.QWidget):
         - user comments
 
         The hdf5 file is closed.
-        '''        
-        mouse_birth_date = self.new_mouse_widget.animal_parameters_groupbox.mouse_birth_date.date()
+        '''
+        if self.realignment_tab.currentIndex() == 2:
+            widget = self.debug_widget
+        else:
+            widget = self.new_mouse_widget        
+        mouse_birth_date = widget.animal_parameters_groupbox.mouse_birth_date.date()
         mouse_birth_date = '{0}-{1}-{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
-        gcamp_injection_date = self.new_mouse_widget.animal_parameters_groupbox.gcamp_injection_date.date()
+        gcamp_injection_date = widget.animal_parameters_groupbox.gcamp_injection_date.date()
         gcamp_injection_date = '{0}-{1}-{2}'.format(gcamp_injection_date.day(),  gcamp_injection_date.month(),  gcamp_injection_date.year())                
 
         animal_parameters = {
             'mouse_birth_date' : mouse_birth_date,
             'gcamp_injection_date' : gcamp_injection_date,
-            'anesthesia_protocol' : str(self.new_mouse_widget.animal_parameters_groupbox.anesthesia_protocol.currentText()),
-            'gender' : str(self.new_mouse_widget.animal_parameters_groupbox.gender.currentText()),
-            'ear_punch_l' : str(self.new_mouse_widget.animal_parameters_groupbox.ear_punch_l.currentText()), 
-            'ear_punch_r' : str(self.new_mouse_widget.animal_parameters_groupbox.ear_punch_r.currentText()),
-            'strain' : str(self.new_mouse_widget.animal_parameters_groupbox.mouse_strain.currentText()),
-            'comments' : str(self.new_mouse_widget.animal_parameters_groupbox.comments.currentText()),
+            'anesthesia_protocol' : str(widget.animal_parameters_groupbox.anesthesia_protocol.currentText()),
+            'gender' : str(widget.animal_parameters_groupbox.gender.currentText()),
+            'ear_punch_l' : str(widget.animal_parameters_groupbox.ear_punch_l.currentText()), 
+            'ear_punch_r' : str(widget.animal_parameters_groupbox.ear_punch_r.currentText()),
+            'strain' : str(widget.animal_parameters_groupbox.mouse_strain.currentText()),
+            'comments' : str(widget.animal_parameters_groupbox.comments.currentText()),
         }        
         name = '{0}_{1}_{2}_{3}_{4}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
                                          animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'])
@@ -125,6 +176,33 @@ class VisionExperimentGui(QtGui.QWidget):
         self.hdf5_handler.save(hdf5_id)
         self.printc('Animal parameters saved')
         self.hdf5_handler.close()
+        
+    def set_stage_origin(self):
+        if not self.stage_position_valid:
+            self.read_stage()
+            self.stage_position_valid = True
+        self.stage_origin = self.stage_position
+        self.save_context()
+        self.visexpman_out_queue.put('SOCstageEOCoriginEOP')
+
+    def read_stage(self):
+        utils.empty_queue(self.visexpman_in_queue)
+        self.visexpman_out_queue.put('SOCstageEOCreadEOP')
+        if utils.wait_data_appear_in_queue(self.visexpman_in_queue, 10.0):
+            while not self.visexpman_in_queue.empty():
+                response = self.visexpman_in_queue.get()            
+                if 'SOCstageEOC' in response:
+                    position = response.split('EOC')[-1].replace('EOP', '')
+                    self.stage_position = numpy.array(map(float, position.split(',')))
+                    self.printc('abs: ' + str(self.stage_position))
+                    self.printc('rel: ' + str(self.stage_position - self.stage_origin))
+                    self.save_context()
+
+
+    def move_stage(self):
+        movement = self.scanc().split(',')
+        self.visexpman_out_queue.put('SOCstageEOCset,{0},{1},{2}EOP'.format(movement[0], movement[1], movement[2]))
+        self.printc('moves to {0}'.format(movement))
 
     def execute_python(self):
         exec(str(self.scanc()))
@@ -134,6 +212,31 @@ class VisionExperimentGui(QtGui.QWidget):
         self.standard_io_widget.text_out.setPlainText(self.console_text)
 
     ####### Helpers ###############
+    def show_connected_clients(self):
+        connection_status = self.command_relay_server.get_connection_status()
+        connected = []
+        for k, v in connection_status.items():
+            if v:
+                connected.append(k)
+        connected.sort()
+        connected = str(connected).replace('[','').replace(']', '').replace('\'','').replace(',','\n')
+        self.printc(connected)
+        self.printc('\n')
+
+    def show_network_messages(self):
+        if hasattr(self, 'network_messages'):
+            for info in self.command_relay_server.get_debug_info():
+                self.network_messages.append(info)
+        else:
+            self.network_messages = self.command_relay_server.get_debug_info()
+        for network_message in self.network_messages:
+            endpoint_name = network_message[1].split(' ')
+            endpoint_name = (endpoint_name[1] + '/' + endpoint_name[3]).replace(',','')
+            message = network_message[1].split('port')[1].split(': ', 1)[1]
+            displayable_message = network_message[0] + ' ' + endpoint_name + '>> ' + message
+            self.printc(displayable_message)
+        self.printc('\n')
+            
     def printc(self, text):
         if not isinstance(text, str):
             text = str(text)
@@ -147,15 +250,11 @@ class VisionExperimentGui(QtGui.QWidget):
     def closeEvent(self, e):
         e.accept()
         self.printc('Wait till server is closed')
-#         self.mes_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
-#         self.visexpman_out_queue.put('SOCclose_connectionEOCstop_clientEOP')
-#         if hasattr(self, 'hdf5_handler'):
-#             self.hdf5_handler.close()
-#         if ENABLE_NETWORK:
-# #            for i in self.command_relay_server.get_debug_info():
-# #                print i
-#             self.command_relay_server.shutdown_servers()            
-#             time.sleep(2.0) #Enough time to close network connections    
+        self.mes_command_queue.put('SOCclose_connectionEOCstop_clientEOP')
+        self.visexpman_out_queue.put('SOCclose_connectionEOCstop_clientEOP')
+        if ENABLE_NETWORK:
+            self.command_relay_server.shutdown_servers()            
+            time.sleep(2.0) #Enough time to close network connections    
         sys.exit(0)
 
 
@@ -205,6 +304,7 @@ class Gui(QtGui.QWidget):
             self.stage_position = numpy.zeros(3)
             self.stage_origin = numpy.zeros(3)
         context_hdf5.close()
+        self.stage_position_valid = False
         
     def save_context(self):
         pass
@@ -546,6 +646,9 @@ class Gui(QtGui.QWidget):
         self.realignment_box1.setLayout(layout1)
 
     def set_stage_origin(self):
+        if not self.stage_position_valid:
+            self.read_stage()
+            self.stage_position_valid = True
         self.stage_origin = self.stage_position
         self.save_context()
         self.visexpman_out_queue.put('SOCstageEOCoriginEOP')
@@ -816,25 +919,29 @@ class GuiConfig(configuration.VisionExperimentConfig):
             v_drive_folder = 'V:\\'
         elif self.OS == 'linux':                        
             v_drive_folder = '/home/zoltan/visexp'
-        data_folder = os.path.join(v_drive_folder, 'data')
-        #TEST_DATA_PATH = os.path.join(data_folder, 'test')
-        LOG_PATH = os.path.join(data_folder, 'log')
-        EXPERIMENT_LOG_PATH = data_folder        
-        EXPERIMENT_DATA_PATH = data_folder
-        MES_DATA_PATH = os.path.join(v_drive_folder, 'data')        
-        MES_DATA_FOLDER = 'V:\\data'
-        CONTEXT_PATH = os.path.join(v_drive_folder, 'context')        
-        if 'dev' in sys.argv[1] or 'development' in self.PACKAGE_PATH:
+            
+        if 'dev' in sys.argv[1] or 'development' in self.PACKAGE_PATH:            
             CONTEXT_NAME = 'gui_dev.hdf5'
+            data_folder = os.path.join(v_drive_folder, 'debug', 'data')
+            MES_DATA_FOLDER = 'V:\\debug\\data'
+            MES_DATA_PATH = os.path.join(v_drive_folder, 'debug', 'data')            
         else:
             CONTEXT_NAME = 'gui.hdf5'
+            data_folder = os.path.join(v_drive_folder, 'data')
+            MES_DATA_FOLDER = 'V:\\data'
+            MES_DATA_PATH = os.path.join(v_drive_folder, 'data')
+        self.MES_TIMEOUT = 5.0
+        LOG_PATH = os.path.join(data_folder, 'log')
+        EXPERIMENT_LOG_PATH = data_folder
+        EXPERIMENT_DATA_PATH = data_folder
+        CONTEXT_PATH = os.path.join(v_drive_folder, 'context')        
         self.COMMAND_RELAY_SERVER['ENABLE'] = ENABLE_NETWORK
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'#'172.27.26.1'#'172.27.25.220'
 #        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 60.0
 
         #== GUI specific ==
         GUI_POSITION = utils.cr((10, 10))
-        GUI_SIZE = utils.cr((1200, 800))
+        GUI_SIZE = utils.cr((1000, 700))
         self._create_parameters_from_locals(locals())
 
 def run_gui():

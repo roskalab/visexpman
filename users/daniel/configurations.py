@@ -12,17 +12,8 @@ import time
 class PPRLConfig(VisionExperimentConfig):
     
     def _set_user_parameters(self):
-        RUN_MODE = 'single experiment'
-#        RUN_MODE = 'user interface'
-        EXPERIMENT = self.STIMULATION_FOLDER_PATH + os.sep + 'gratings_stimulus.py'
-        EXPERIMENT = self.STIMULATION_FOLDER_PATH + os.sep + 'increasing_spot_stimulus.py'
         EXPERIMENT = 'MultipleDotTest'
         EXPERIMENT_CONFIG = 'DotsExperimentConfig'
-        PRE_EXPERIMENT = 'Pre'
-        ENABLE_PRE_EXPERIMENT = True
-#        EXPERIMENT = 'ShapeTest'
-#        SINGLE_EXPERIMENT = 'GratingMaskTest'
-#        SINGLE_EXPERIMENT = 'DrumStimTest'
         LOG_PATH = '/var/log/'
         EXPERIMENT_DATA_PATH = '../../../presentinator/data'
         CAPTURE_PATH = '../../../presentinator/data/capture'
@@ -161,16 +152,17 @@ class WinDev(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'GratingConfig'
 #         EXPERIMENT_CONFIG = 'LedStimulationConfig'
+        EXPERIMENT_CONFIG = 'MovingDotConfig'
         
         #=== paths/data handling ===
         if os.name == 'nt':
-            v_drive_data_folder = 'V:\\data'
+            v_drive_data_folder = 'V:\\debug\\data'
         else:
-            v_drive_data_folder = '/home/zoltan/visexp/data'
+            v_drive_data_folder = '/home/zoltan/visexp/debug/data'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
-        MES_DATA_FOLDER = 'V:\\data'
+        MES_DATA_FOLDER = 'V:\\debug\\data'
         CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         ARCHIVE_FORMAT = 'hdf5'
         
@@ -191,12 +183,12 @@ class WinDev(VisionExperimentConfig):
 #         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         MEASUREMENT_PLATFORM = 'mes'
-        MEASUREMENT_PLATFORM = 'elphys'
+#         MEASUREMENT_PLATFORM = 'elphys'
         
         #=== Network ===
         ENABLE_UDP = False
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.25.220'
+#         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.25.220'
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2

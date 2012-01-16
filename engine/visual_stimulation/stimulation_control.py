@@ -35,6 +35,7 @@ import os.path
 import shutil
 import tempfile
 import copy
+import gc
 
 #For unittest:
 import visexpman.engine.generic.configuration as configuration
@@ -189,6 +190,12 @@ class ExperimentControl():
                     utils.save_position(fragment_hdf5, stage_position, objective_position)                    
                     setattr(fragment_hdf5, self.fragment_name, data_to_hdf5)
                     fragment_hdf5.save(self.fragment_name)
+                    #Here the saved data will be checked and preprocessed
+                    mes_extractor = importers.MESExtractor(fragment_hdf5)
+                    data_class, stimulus_class, sync_signal, stimpar = mes_extractor.parse()
+                    #### New variables in hdf5: 'data_class','stimulus_class','sync_signal','stimpar'
+                    
+                                        
                     fragment_hdf5.close()
                     #Rename fragment hdf5 so that coorinates are included
                     shutil.move(self.fragment_hdf5_path, self.fragment_hdf5_path.replace('fragment_',  'fragment_{0:.1f}_{1:.1f}_{2}_'.format(stage_position[0], stage_position[1], objective_position)))
@@ -293,6 +300,7 @@ class ExperimentControl():
                 self.printl('NOT renamed for some reason')
         self.experiment_result_files.append(experiment_data_file)
         self.caller.log.info('Experiment sequence finished')
+        gc.collect()
         #Check fragment data
 #         self.check_experiment_data()
         
