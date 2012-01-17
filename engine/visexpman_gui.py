@@ -56,8 +56,9 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_signals()
         self.init_network()
         self.init_context_file()
+        self.update_gui_items()
         self.show()
-
+        
     def create_gui(self):
         self.new_mouse_widget = gui.NewMouseWidget(self, self.config)
         self.registered_mouse_widget = gui.RegisteredMouseWidget(self, self.config)
@@ -88,7 +89,6 @@ class VisionExperimentGui(QtGui.QWidget):
         self.stim_connection = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.visexpman_in_queue, self.visexpman_out_queue)
             
     def init_context_file(self):
-        pass
         # create folder if not exists
         self.context_file_path = os.path.join(self.config.CONTEXT_PATH, self.config.CONTEXT_NAME)
         context_hdf5 = hdf5io.Hdf5io(self.context_file_path)
@@ -166,16 +166,24 @@ class VisionExperimentGui(QtGui.QWidget):
                                          animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'])
 
         mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'mouse_{0}.hdf5'\
-                                            .format(name, int(time.time())))
-        self.hdf5_handler = hdf5io.Hdf5io(mouse_file_path)
-        variable_name = 'animal_parameters_{0}'.format(int(time.time()))
-        setattr(self.hdf5_handler,  variable_name, animal_parameters)
-        self.hdf5_handler.save(variable_name)
-        hdf5_id = 'gui_' + str(int(time.time()))
-        setattr(self.hdf5_handler, hdf5_id, 0)
-        self.hdf5_handler.save(hdf5_id)
-        self.printc('Animal parameters saved')
-        self.hdf5_handler.close()
+                                            .format(name))
+        
+        if os.path.exists(mouse_file_path):
+            self.printc('Animal parameter file already exists')
+        else:        
+            self.hdf5_handler = hdf5io.Hdf5io(mouse_file_path)
+            variable_name = 'animal_parameters_{0}'.format(int(time.time()))        
+            setattr(self.hdf5_handler,  variable_name, animal_parameters)
+            self.hdf5_handler.save(variable_name)
+            self.printc('Animal parameters saved')
+            self.hdf5_handler.close()
+            
+    def update_gui_items(self):
+        '''
+        Update comboboxes with file lists
+        '''
+        mouse_files = utils.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
+        self.debug_widget.master_position_groupbox.select_mouse_file.addItems(QtCore.QStringList(mouse_files))
         
     def set_stage_origin(self):
         if not self.stage_position_valid:
@@ -184,6 +192,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.stage_origin = self.stage_position
         self.save_context()
         self.visexpman_out_queue.put('SOCstageEOCoriginEOP')
+        self.origin_set = True
 
     def read_stage(self):
         utils.empty_queue(self.visexpman_in_queue)
@@ -196,8 +205,7 @@ class VisionExperimentGui(QtGui.QWidget):
                     self.stage_position = numpy.array(map(float, position.split(',')))
                     self.printc('abs: ' + str(self.stage_position))
                     self.printc('rel: ' + str(self.stage_position - self.stage_origin))
-                    self.save_context()
-
+                    self.save_context()       
 
     def move_stage(self):
         movement = self.scanc().split(',')
@@ -439,8 +447,9 @@ class Gui(QtGui.QWidget):
             'ear_punch_l' : str(self.ear_punch_l.currentText()), 
             'ear_punch_r' : str(self.ear_punch_r.currentText()),
         }
-        self.hdf5_handler.animal_parameters = animal_parameters
-        self.hdf5_handler.save('animal_parameters')
+        animal_parameters_varname = 'animal_parameters_' + str(int(time.time()))
+        setattr(self.hdf5_handler, animal_parameters_varname, animal_parameters)
+        self.hdf5_handler.save(animal_parameters_varname)
         hdf5_id = 'gui_' + str(int(time.time()))
         setattr(self.hdf5_handler, hdf5_id, 0)
         self.hdf5_handler.save(hdf5_id)

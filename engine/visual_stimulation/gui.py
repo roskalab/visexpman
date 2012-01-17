@@ -258,6 +258,7 @@ class DebugWidget(QtGui.QWidget):
         
         #Development
         self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
+        self.master_position_groupbox = MasterPositionGroupBox(self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -276,8 +277,34 @@ class DebugWidget(QtGui.QWidget):
         self.layout.addWidget(self.select_connection_list, 3, 2, 1, 1)
         self.layout.addWidget(self.send_command_button, 3, 3, 1, 1)
         self.layout.addWidget(self.animal_parameters_groupbox, 4, 0, 4, 4)
+        self.layout.addWidget(self.master_position_groupbox, 4, 5, 3, 4)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
+        self.setLayout(self.layout)
+        
+class MasterPositionGroupBox(QtGui.QGroupBox):
+    def __init__(self, parent):        
+        QtGui.QGroupBox.__init__(self, 'Master position', parent)
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        self.select_mouse_file_label = QtGui.QLabel('Select mouse file', self)
+        self.select_mouse_file = QtGui.QComboBox(self)
+        self.register_button = QtGui.QPushButton('Register',  self)
+        self.suggested_translation = QtGui.QComboBox(self)
+        self.move_to_master_position_button = QtGui.QPushButton('Move to  master position',  self)
+        self.save_master_position_button = QtGui.QPushButton('Save master position',  self)
+        
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.select_mouse_file_label, 0, 0, 1, 1)
+        self.layout.addWidget(self.select_mouse_file, 0, 1, 1, 2)
+        self.layout.addWidget(self.register_button, 1, 0, 1, 1)
+        self.layout.addWidget(self.suggested_translation, 1, 1, 1, 2)        
+        self.layout.addWidget(self.move_to_master_position_button, 2, 1, 1, 1)
+        self.layout.addWidget(self.save_master_position_button, 2, 0, 1, 1)
         self.setLayout(self.layout)
         
 class StandardIOWidget(QtGui.QWidget):

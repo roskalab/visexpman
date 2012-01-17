@@ -27,6 +27,7 @@ import visexpman.engine.hardware_interface.motor_control as motor_control
 import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 import visexpA.engine.datahandlers.importers as importers
+from visexpA.users.zoltan import data_rescue
 
 import os
 import logging
@@ -36,6 +37,7 @@ import shutil
 import tempfile
 import copy
 import gc
+import hashlib
 
 #For unittest:
 import visexpman.engine.generic.configuration as configuration
@@ -171,9 +173,11 @@ class ExperimentControl():
                     self.experiment_result_files.append(self.fragment_hdf5_path)
                     if not hasattr(self.devices.ai, 'ai_data'):
                         self.devices.ai.ai_data = numpy.zeros(2)
+                    mes_data = utils.file_to_binary_array(self.fragment_mat_path)
                     data_to_hdf5 = {
                                     'sync_data' : self.devices.ai.ai_data,
-                                    'mes_data': utils.file_to_binary_array(self.fragment_mat_path),                                    
+                                    'mes_data': mes_data, 
+                                    'mes_data_hash' : hashlib.sha1(mes_data).hexdigest(), 
                                     'actual_fragment' : fragment_id,
                                     }
                     if hasattr(self.selected_experiment, 'number_of_fragments'):
@@ -193,10 +197,11 @@ class ExperimentControl():
                     #Here the saved data will be checked and preprocessed
                     mes_extractor = importers.MESExtractor(fragment_hdf5)
                     data_class, stimulus_class, sync_signal, stimpar = mes_extractor.parse()
-                    #### New variables in hdf5: 'data_class','stimulus_class','sync_signal','stimpar'
-                    
-                                        
+                    #TODO check content of variables in hdf5: 'data_class','stimulus_class','sync_signal','stimpar'                    
                     fragment_hdf5.close()
+                    result, messages = data_rescue.check_fragment(self.fragment_hdf5_path, ['data_class','stimulus_class','sync_signal','stimpar' ])
+                    if not result:
+                        self.printl('incorrect fragment file: ' + str(messages))
                     #Rename fragment hdf5 so that coorinates are included
                     shutil.move(self.fragment_hdf5_path, self.fragment_hdf5_path.replace('fragment_',  'fragment_{0:.1f}_{1:.1f}_{2}_'.format(stage_position[0], stage_position[1], objective_position)))
                     #move/delete mat file
@@ -260,6 +265,7 @@ class ExperimentControl():
             if parameter_file_prepare_success:
                 for fragment_id in range(self.number_of_fragments):
                     if utils.is_abort_experiment_in_queue(self.from_gui_queue, False):
+                        self.printl('experiment aborted')
                         break
                     elif self.start_fragment(fragment_id):
                         #Run stimulation

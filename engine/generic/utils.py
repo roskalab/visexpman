@@ -701,8 +701,9 @@ def parsefilename(filename, regexdict):
             regexdict[k] = None # this pattern was not found
     return regexdict
 
-def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False):
-    files = os.listdir(folder_name)
+#TODO: pass filter condition
+def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False):    
+    files = os.listdir(folder_name)    
     filtered_files = []
     for file in files:
         if isinstance(filter,  list) or isinstance(filter,  tuple):
@@ -998,7 +999,7 @@ def save_position(hdf5, stagexyz, objective_z = None):
         objective_z_to_save = objective_z[0]
     else:
         objective_z_to_save = objective_z
-    hdf5.position = numpy.array([(0, stagexyz[0], stagexyz[1], stagexyz[2], objective_z_to_save)], [('um',numpy.float64), ('x',numpy.float64),('y',numpy.float64),('z',numpy.float64), ('z_stage',numpy.float64)])
+    hdf5.position = numpy.array([(0, stagexyz[0], stagexyz[1], stagexyz[2], objective_z_to_save)], [('um',numpy.float64), ('x',numpy.float64),('y',numpy.float64),('z_stage',numpy.float64), ('z',numpy.float64)])
     hdf5.save('position')
 
 #== Others ==
