@@ -184,6 +184,7 @@ class WinDev(VisionExperimentConfig):
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         MEASUREMENT_PLATFORM = 'mes'
 #         MEASUREMENT_PLATFORM = 'elphys'
+        RECORD_SIGNALS_DURING_EXPERIMENT = True
         
         #=== Network ===
         ENABLE_UDP = False
@@ -300,6 +301,7 @@ class VS3DUS(VisionExperimentConfig):
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         MEASUREMENT_PLATFORM = 'mes'
+        RECORD_SIGNALS_DURING_EXPERIMENT = True
         
         #=== Network ===
         ENABLE_UDP = False

@@ -15,6 +15,7 @@ import Queue
 import socket
 import logging
 import os
+import traceback
 import random
 import zipfile
 import numpy
@@ -95,8 +96,8 @@ class VisExpRunner(object):
             self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))
         self.module_versions = utils.module_versions(module_info[0])
         self.log.info('Visexpman initialized')
-        for i in range(30):
-            self.command_queue.put('SOCexecute_experimentEOCEOP')
+#        for i in range(30):
+#            self.command_queue.put('SOCexecute_experimentEOCEOP')
 
     def run_loop(self):
         try:
@@ -114,14 +115,14 @@ class VisExpRunner(object):
                 #To avoid race condition
                 time.sleep(0.1)
         except:
-            import traceback
-            traceback_info = traceback.format_exc()            
+            traceback_info = traceback.format_exc()
             self.log.info(traceback_info)
             print traceback_info
         self.close()
         #Finish log
         self.log.info('Visexpman quit')
         self.log.flush()
+        
             
     def close(self):
         if unit_test_runner.TEST_enable_network and False:

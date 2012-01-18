@@ -164,15 +164,19 @@ class AnalogIO(instrument.Instrument):
             if self.enable_ai:
                 self.analog_input.StartTask()
 
-    def finish_daq_activity(self):
+    def finish_daq_activity(self, abort = False):
         if os.name == 'nt' and self.daq_config['ENABLE']:
             if self.enable_ai:
+                if abort:
+                    samples_to_read = 10 * self.number_of_ai_channels
+                else:
+                    samples_to_read = self.number_of_ai_samples * self.number_of_ai_channels
                 try:
                     self.analog_input.ReadAnalogF64(self.number_of_ai_samples,
                                                 self.daq_config['DAQ_TIMEOUT'],
                                                 DAQmxConstants.DAQmx_Val_GroupByChannel,
                                                 self.ai_data,
-                                                self.number_of_ai_samples * self.number_of_ai_channels,
+                                                samples_to_read,
                                                 DAQmxTypes.byref(self.read),
                                                 None)
                 except PyDAQmx.DAQError:
@@ -180,7 +184,7 @@ class AnalogIO(instrument.Instrument):
                 
                 #Make sure that all the acquisitions are completed                
 #                 self.analog_input.WaitUntilTaskDone(self.daq_config['DAQ_TIMEOUT'])
-            if self.enable_ao:
+            if self.enable_ao and not abort:
                 self.analog_output.WaitUntilTaskDone(self.daq_config['DAQ_TIMEOUT'])
             if self.enable_ao:
                 self.analog_output.StopTask()
@@ -188,7 +192,8 @@ class AnalogIO(instrument.Instrument):
                 self.analog_input.StopTask()
                 self.ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
                 self.ai_raw_data = self.ai_data
-                self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()
+                self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()               
+    
 
     def start_instrument(self):
         if os.name == 'nt' and self.daq_config['ENABLE']:

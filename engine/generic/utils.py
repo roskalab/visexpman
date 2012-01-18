@@ -531,7 +531,8 @@ version_paths = {
     'weakref' : 'standard', 
     'sip': 'SIP_VERSION_STR', 
     'Helpers' : 'version', 
-    'copy' : 'standard'
+    'copy' : 'standard', 
+    'tables': '__version__'
     
     }    
     

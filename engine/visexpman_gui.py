@@ -36,6 +36,7 @@ import tempfile
 import Image
 import numpy
 import shutil
+import visexpman.engine.generic.log as log
 try:
     import visexpA.engine.dataprocessors.signal as signal
 except:
@@ -55,7 +56,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.create_layout()
         self.connect_signals()
         self.init_network()
-        self.init_context_file()
+        self.init_files()
         self.update_gui_items()
         self.show()
         
@@ -88,7 +89,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.visexpman_in_queue = Queue.Queue()        
         self.stim_connection = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.visexpman_in_queue, self.visexpman_out_queue)
             
-    def init_context_file(self):
+    def init_files(self):
+        self.log = log.Log('gui log', utils.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt'))) 
         # create folder if not exists
         self.context_file_path = os.path.join(self.config.CONTEXT_PATH, self.config.CONTEXT_NAME)
         context_hdf5 = hdf5io.Hdf5io(self.context_file_path)
@@ -102,6 +104,14 @@ class VisionExperimentGui(QtGui.QWidget):
             self.stage_origin = numpy.zeros(3)
         context_hdf5.close()
         self.stage_position_valid = False
+        
+    def save_context(self):        
+        context_hdf5 = hdf5io.Hdf5io(self.context_file_path)
+        context_hdf5.stage_origin = self.stage_origin
+        context_hdf5.stage_position = self.stage_position
+        context_hdf5.save('stage_origin',overwrite = True)
+        context_hdf5.save('stage_position', overwrite = True)
+        context_hdf5.close()
         
     ####### Signals/functions ###############
     def connect_signals(self):
@@ -251,6 +261,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.console_text  += text + '\n'
         self.standard_io_widget.text_out.setPlainText(self.console_text)
         self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
+        self.log.info(text)
 
     def scanc(self):
         return str(self.standard_io_widget.text_in.toPlainText())
@@ -410,9 +421,9 @@ class Gui(QtGui.QWidget):
         self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self)
 
         mouse_birth_date = self.mouse_birth_date.date()
-        mouse_birth_date = '{0}{1}20{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
+        mouse_birth_date = '{0}{1}{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
         gcamp_injection_date = self.gcamp_injection_date.date()
-        gcamp_injection_date = '{0}{1}20{2}'.format(gcamp_injection_date.day(),  gcamp_injection_date.month(),  gcamp_injection_date.year())        
+        gcamp_injection_date = '{0}{1}{2}'.format(gcamp_injection_date.day(),  gcamp_injection_date.month(),  gcamp_injection_date.year())        
 
         #undefined variables
         stagex = 'tbd'

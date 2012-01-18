@@ -28,6 +28,7 @@ import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 import visexpA.engine.datahandlers.importers as importers
 from visexpA.users.zoltan import data_rescue
+import scipy.io
 
 import os
 import logging
@@ -36,7 +37,6 @@ import os.path
 import shutil
 import tempfile
 import copy
-import gc
 import hashlib
 
 #For unittest:
@@ -112,7 +112,7 @@ class ExperimentControl():
         '''
         
         '''
-        if not hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations'):
+        if not hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations') and self.config.MEASUREMENT_PLATFORM == 'mes':
                 return True
         #Generate file name
         self.fragment_name = '{0}_{1}_{2}'.format(self.selected_experiment.experiment_name, int(self.start_time), fragment_id)
@@ -127,7 +127,7 @@ class ExperimentControl():
             #Start recording analog signals            
             self.devices.ai = daq_instrument.AnalogIO(self.config, self.caller)
             self.devices.ai.start_daq_activity()
-            self.log.info('ai recording started')
+            self.printl('ai recording started')
             #empty queue
             while not self.caller.mes_response_queue.empty():
                 self.caller.mes_response_queue.get()
@@ -139,6 +139,10 @@ class ExperimentControl():
                 self.printl('line scan start ERROR')
             return line_scan_start_success           
         elif self.config.MEASUREMENT_PLATFORM == 'elphys':
+            #Start recording analog signals            
+            self.devices.ai = daq_instrument.AnalogIO(self.config, self.caller)
+            self.devices.ai.start_daq_activity()
+            self.printl('ai recording started')
             #Set acquisition trigger pin to high
             self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             return True
@@ -159,7 +163,7 @@ class ExperimentControl():
             ######################## Finish fragment ###############################
             if line_scan_complete_success:
                 #Stop acquiring analog signals
-                self.devices.ai.finish_daq_activity()                
+                self.devices.ai.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.from_gui_queue))                
                 self.printl('ai recording finished, waiting for data save complete')
                 if not utils.is_abort_experiment_in_queue(self.from_gui_queue):
                     line_scan_data_save_success = self.devices.mes_interface.wait_for_line_scan_save_complete(timeout)
@@ -196,15 +200,16 @@ class ExperimentControl():
                     fragment_hdf5.save(self.fragment_name)
                     #Here the saved data will be checked and preprocessed
                     mes_extractor = importers.MESExtractor(fragment_hdf5)
-                    data_class, stimulus_class, sync_signal, stimpar = mes_extractor.parse()
+#                    data_class, stimulus_class, sync_signal, stimpar = mes_extractor.parse()
                     #TODO check content of variables in hdf5: 'data_class','stimulus_class','sync_signal','stimpar'                    
                     fragment_hdf5.close()
+                    #Rename fragment hdf5 so that coorinates are included
+                    original_fragment_path = self.fragment_hdf5_path
+                    self.fragment_hdf5_path = self.fragment_hdf5_path.replace('fragment_',  'fragment_{0:.1f}_{1:.1f}_{2}_'.format(stage_position[0], stage_position[1], objective_position))
+                    shutil.move(original_fragment_path, self.fragment_hdf5_path)
                     result, messages = data_rescue.check_fragment(self.fragment_hdf5_path, ['data_class','stimulus_class','sync_signal','stimpar' ])
                     if not result:
-                        self.printl('incorrect fragment file: ' + str(messages))
-                    #Rename fragment hdf5 so that coorinates are included
-                    shutil.move(self.fragment_hdf5_path, self.fragment_hdf5_path.replace('fragment_',  'fragment_{0:.1f}_{1:.1f}_{2}_'.format(stage_position[0], stage_position[1], objective_position)))
-                    #move/delete mat file
+                        self.printl('incorrect fragment file: ' + str(messages))                    
                     self.printl('measurement data saved to hdf5: {0}'.format(self.fragment_hdf5_path))
                 else:
                     self.printl('line scan data save ERROR')
@@ -215,6 +220,11 @@ class ExperimentControl():
         elif self.config.MEASUREMENT_PLATFORM == 'elphys':
             #Clear acquisition trigger pin
             self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
+            #Stop acquiring analog signals
+            self.devices.ai.finish_daq_activity()
+            self.printl('ai recording finished, waiting for data save complete')
+            self.data_handler.ai_data = self.devices.ai.ai_data
+            self.devices.ai.release_instrument()
         elif self.config.MEASUREMENT_PLATFORM == 'standalone':
             return True
             
@@ -265,7 +275,7 @@ class ExperimentControl():
             if parameter_file_prepare_success:
                 for fragment_id in range(self.number_of_fragments):
                     if utils.is_abort_experiment_in_queue(self.from_gui_queue, False):
-                        self.printl('experiment aborted')
+                        self.printl('experiment aborted',  software_log = True)
                         break
                     elif self.start_fragment(fragment_id):
                         #Run stimulation
@@ -296,7 +306,8 @@ class ExperimentControl():
             while not self.caller.mes_command_queue.empty():
                 print self.caller.mes_command_queue.get()
         #Rename hdf5 file to user provided name (experiment.experiment_hdf5_path) !!!! THIS IS SPECIFIC FOR HDF5
-        experiment_data_file = self.data_handler.hdf5_handler.filename
+        if hasattr(self.data_handler,  'hdf5_handler'):
+            experiment_data_file = self.data_handler.hdf5_handler.filename
         if hasattr(self.caller.selected_experiment_config.runnable, 'experiment_hdf5_path'):
             try:
                 shutil.move(self.data_handler.hdf5_handler.filename, self.caller.selected_experiment_config.runnable.experiment_hdf5_path)
@@ -304,11 +315,8 @@ class ExperimentControl():
             except:
                 print self.data_handler.hdf5_handler.filename, self.caller.selected_experiment_config.runnable.experiment_hdf5_path
                 self.printl('NOT renamed for some reason')
-        self.experiment_result_files.append(experiment_data_file)
-        self.caller.log.info('Experiment sequence finished')
-        gc.collect()
-        #Check fragment data
-#         self.check_experiment_data()
+            self.experiment_result_files.append(experiment_data_file)
+        self.printl('Experiment complete')
         
     def check_experiment_data(self):
         print self.experiment_result_files
@@ -329,7 +337,7 @@ class ExperimentControl():
         elif self.config.MEASUREMENT_PLATFORM == 'standalone':
             pass
         
-    def printl(self, message):
+    def printl(self, message,  software_log = False, experiment_log = True):
         '''
         Helper function that can be called during experiment. The message is sent to:
         -standard output
@@ -338,7 +346,9 @@ class ExperimentControl():
         '''
         print message
         self.caller.to_gui_queue.put(str(message))
-        if hasattr(self, 'log'):
+        if software_log:
+            self.caller.log.info(message)
+        if hasattr(self, 'log') and experiment_log:
             self.log.info(str(message))
         
 class Devices():
@@ -395,6 +405,9 @@ class DataHandler():
             self.zip_file_path = tempfile.mktemp()
             self.hdf5_path = experiment_file_name(self.caller.selected_experiment_config, self.config.EXPERIMENT_DATA_PATH, 'hdf5')
             self.hdf5_handler = hdf5io.Hdf5io(self.hdf5_path , config = self.config, caller = self.caller)
+        elif self.config.ARCHIVE_FORMAT == 'mat':
+            self.zip_file_path = tempfile.mktemp()
+            self.mat_path = experiment_file_name(self.caller.selected_experiment_config, self.config.EXPERIMENT_DATA_PATH, 'mat')
         else:
             raise RuntimeError('Unknown archive format, check configuration!')
         #Create zip file
@@ -404,8 +417,6 @@ class DataHandler():
         '''
         Archives the called python modules within visexpman package and the versions of all the called packages
         '''
-        #TODO: archiving to mat file
-        
         #save module version data to file
         module_versions_file_path = os.path.join(os.path.dirname(tempfile.mktemp()),'module_versions.txt')
         f = open(module_versions_file_path, 'wt')
@@ -444,6 +455,14 @@ class DataHandler():
             self.hdf5_handler.save('experiment_log')
             utils.save_config(self.hdf5_handler, self.config, self.caller.selected_experiment_config)
             self.hdf5_handler.close()
+        elif self.config.ARCHIVE_FORMAT == 'mat':
+            mat_to_save = {}
+            mat_to_save['ai'] = self.ai_data
+            mat_to_save['source_code'] = self.archive_binary_in_bytes
+            mat_to_save['module_versions'] = self.module_versions
+            mat_to_save['experiment_log'] = self.experiment_log_to_string(self.caller.experiment_control.log.log_messages)
+            scipy.io.savemat(self.mat_path, mat_to_save, oned_as = 'row', long_field_names=True)
+            
         #Restoring it to zip file: utils.numpy_array_to_file(archive_binary_in_bytes, '/media/Common/test.zip')
 
     def experiment_log_to_string(self, log):

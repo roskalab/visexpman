@@ -141,7 +141,7 @@ class CommandHandler(object):
         '''
         Incoming string stream is parsed into commands depending on software state. When stimulation is running, incoming string is discarded
         '''        
-        result  = None        
+        result  = None
         if len(command_buffer) > 6: #SOC + EOC + 1 character is at least present in a command
             cmd = command_extract.findall(command_buffer)
             command_buffer_newline_replaced = command_buffer.replace('\n',  '<newline>')

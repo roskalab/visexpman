@@ -1,7 +1,18 @@
 import visexpA.engine.datahandlers.importers as importers
+import visexpA.engine.datahandlers.hdf5io as hdf5io
+import os
 
-fragment_data = importers.MESExtractor('/home/zoltan/visexp/debug/fragment_2.hdf5')
+if os.name == 'nt':
+    path = 'v:\\debug\\data\\fragment_MovingDot_1326914934_0.hdf5'
+else:
+    path = '/home/zoltan/visexp/debug/data/fragment_MovingDot_1326914934_0.hdf5'
+
+hdf5_handler = hdf5io.Hdf5io(path)
+print hdf5_handler.find_variable_in_h5f('mes_data')
+fragment_data = importers.MESExtractor(hdf5_handler)
 res = fragment_data.parse()
+hdf5_handler.close()
+print res
 pass
 
 #import visexpman.engine.hardware_interface.mes_interface as mes_interface

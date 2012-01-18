@@ -106,9 +106,9 @@ class unitTestRunner():
                {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
                'enable' : TEST_mes},
                {'test_class_path' : 'visexpman.engine.visexp_runner.testVisexpRunner',
-               'enable' : True},
+               'enable' : True, 'run_only' : []},
                {'test_class_path' : 'visexpman.engine.visexp_runner.testFindoutConfig',
-               'enable' : True}, 
+               'enable' : True, 'run_only' : []}, 
                {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
@@ -138,8 +138,6 @@ class unitTestRunner():
                {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesDataHandlers',
                'enable' : True},
                {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
                'enable' : True},
@@ -183,8 +181,15 @@ class unitTestRunner():
             if test_config['enable']:
                 test_class = self.reference_to_test_class(test_config['test_class_path'])
                 test_methods = self.fetch_test_methods(test_class)
-                for test_method in test_methods:
-                    test_suite.addTest(test_class(test_method))
+                for test_method in test_methods:                    
+                    if test_config.has_key('run_only'):
+                        for item in test_config['run_only']:                            
+                            if '_{0}_'.format(item) in test_method:
+                                test_suite.addTest(test_class(test_method))
+                        if len(test_config['run_only']) == 0:
+                            test_suite.addTest(test_class(test_method))
+                    else:
+                        test_suite.addTest(test_class(test_method))
         #Run tests
         unittest.TextTestRunner(f, verbosity=2).run(test_suite)
         #Save tested source files        

@@ -42,7 +42,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         PIN_RANGE = [0,  7]        
         MEASUREMENT_PLATFORM = ['undefined', ['mes', 'elphys', 'mea', 'standalone', 'undefined']]
 
-        ARCHIVE_FORMAT = ['undefined', ['hdf5', 'zip', 'undefined']]
+        ARCHIVE_FORMAT = ['undefined', ['hdf5', 'zip',  'mat', 'undefined']]
         
         #display parameters:
         SCREEN_RESOLUTION = utils.rc([600, 800])        

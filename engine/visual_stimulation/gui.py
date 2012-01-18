@@ -293,6 +293,7 @@ class MasterPositionGroupBox(QtGui.QGroupBox):
         self.select_mouse_file = QtGui.QComboBox(self)
         self.register_button = QtGui.QPushButton('Register',  self)
         self.suggested_translation = QtGui.QComboBox(self)
+        self.suggested_translation.setEditable(True)
         self.move_to_master_position_button = QtGui.QPushButton('Move to  master position',  self)
         self.save_master_position_button = QtGui.QPushButton('Save master position',  self)
         

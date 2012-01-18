@@ -42,8 +42,8 @@ class Log(object):
         for item in self.log_messages:
             full_log += item + '\n'
         self.log.info(full_log)
-        self.handler.flush()
         self.log_messages = []
+        self.handler.flush()
         
     def queue(self, queue, name = None):
         '''

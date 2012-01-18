@@ -15,7 +15,7 @@ class GratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing        
         self.NUMBER_OF_MARCHING_PHASES = 4
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 10
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
         self.MARCH_TIME = 1.0#3.0
         self.GRATING_STAND_TIME = 1.0#1.0        
         #Grating parameters
@@ -199,10 +199,14 @@ class LedStimulation(experiment.Experiment):
         time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
         number_of_flashes_in_fragment = self.fragment_repeats[fragment_id]
         fragment_duration = self.fragment_durations[fragment_id]
-        offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)        
+        offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)
         self.devices.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
         self.devices.led_controller.start()
-        time.sleep(fragment_duration)
+        for i in range(int(numpy.ceil(fragment_duration))):
+            if utils.is_abort_experiment_in_queue(self.from_gui):
+                break
+            else:
+                time.sleep(1.0)
         
     def cleanup(self):
         #add experiment identifier node to experiment hdf5
