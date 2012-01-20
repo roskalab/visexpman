@@ -20,8 +20,7 @@ DISPLAY_MESSAGE = False
 class SockServer(SocketServer.TCPServer):
     def __init__(self, address, queue_in, queue_out, name, log_queue, timeout):
         SocketServer.TCPServer.__init__(self, address, None)
-        #TODO: self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.allow_reuse_address  = True
+        self.allow_reuse_address = True
         self.queue_in = queue_in
         self.queue_out = queue_out
         self.log_queue = log_queue

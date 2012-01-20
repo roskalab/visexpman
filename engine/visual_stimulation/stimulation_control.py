@@ -29,6 +29,7 @@ import visexpA.engine.datahandlers.hdf5io as hdf5io
 import visexpA.engine.datahandlers.importers as importers
 from visexpA.users.zoltan import data_rescue
 import scipy.io
+from visexpman.engine.visual_stimulation import experiment_data
 
 import os
 import logging
@@ -191,11 +192,11 @@ class ExperimentControl():
                     experiment_source_file_path = inspect.getfile(self.selected_experiment.__class__).replace('.pyc', '.py')
                     data_to_hdf5['experiment_source'] = utils.file_to_binary_array(experiment_source_file_path)
                     
-                    utils.save_config(fragment_hdf5, self.config, self.selected_experiment_config)
+                    experiment_data.save_config(fragment_hdf5, self.config, self.selected_experiment_config)
                     time.sleep(5.0) #Wait for file ready
                     stage_position = self.devices.stage.read_position() - self.caller.stage_origin
                     objective_position = mes_interface.get_objective_position(self.fragment_mat_path)[0]
-                    utils.save_position(fragment_hdf5, stage_position, objective_position)                    
+                    experiment_data.save_position(fragment_hdf5, stage_position, objective_position)                    
                     setattr(fragment_hdf5, self.fragment_name, data_to_hdf5)
                     fragment_hdf5.save(self.fragment_name)
                     #Here the saved data will be checked and preprocessed
@@ -234,6 +235,7 @@ class ExperimentControl():
             #Set back line scan time to initial 2 sec
             result = False
             self.printl('set back line scan time to 2s')
+            time.sleep(0.5)
             mes_interface.set_line_scan_time(2.0, self.parameter_file, self.parameter_file)
             line_scan_start_success, line_scan_path = self.devices.mes_interface.start_line_scan(timeout = 5.0, parameter_file = self.parameter_file)
             if not line_scan_start_success:
@@ -453,7 +455,7 @@ class DataHandler():
             self.hdf5_handler.save('module_versions')
             self.hdf5_handler.experiment_log = utils.string_to_binary_array(self.experiment_log_to_string(self.caller.experiment_control.log.log_messages))
             self.hdf5_handler.save('experiment_log')
-            utils.save_config(self.hdf5_handler, self.config, self.caller.selected_experiment_config)
+            experiment_data.save_config(self.hdf5_handler, self.config, self.caller.selected_experiment_config)
             self.hdf5_handler.close()
         elif self.config.ARCHIVE_FORMAT == 'mat':
             mat_to_save = {}

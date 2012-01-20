@@ -31,7 +31,8 @@ class ManipulationExperimentConfig(experiment.ExperimentConfig):
         self.flash_color = 'blue'
         self.delay_after_flash = 0 #s min 5 sec       
         #general stimulus parameters
-        self.spot_size = 200.0 #50-1000 um           
+        self.spot_size = [200.0, 100, 1111] #50-1000 um      
+        
         self.background_color = self.MID_GREY       
         #spot stimulus parameters
         self.on_time = 2.0 #s
@@ -75,52 +76,53 @@ class ManipulationExperiment(experiment.Experiment):
         if self.experiment_config.stimulation_protocol == 'both':
             repetitions = 2
         else:
-            repetitions = 1
+            repetitions = 1        
         
-        for i in range(repetitions):            
-            #Here starts the stimulus
-            if self.experiment_config.stimulation_type == 'spots':
-                number_of_periods = int(round(self.experiment_config.stimulation_length / float(self.experiment_config.on_time + self.experiment_config.off_time), 0))
-                for period in range(number_of_periods):
-                    self.show_shape(shape = 'o',  duration = self.experiment_config.on_time,  color = self.experiment_config.spot_contrast, 
-                                        background_color = self.experiment_config.background_color,  size = self.experiment_config.spot_size)
-                    self.show_fullscreen(duration = self.experiment_config.on_time, color =  self.experiment_config.background_color)
-                    #Break the loop
-                    if self.command_buffer.find('stop') != -1:  
-                        self.command_buffer = ''                     
-                        stop = True
-                        break
-            elif self.experiment_config.stimulation_type == 'grating':
-                screen_width = self.machine_config.SCREEN_RESOLUTION['col'] / self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
-                white_bar_width = screen_width/(2*self.experiment_config.spatial_frequency * 360.0)                 
-                velocity = self.experiment_config.temporal_frequency * 2 * white_bar_width
-                self.show_grating(duration = 2.0,  profile = 'sin',  white_bar_width = white_bar_width,   
-                                  display_area = self.experiment_config.grating_size,  orientation = self.experiment_config.grating_angle,  
-                                  velocity = 0,  color_contrast = self.experiment_config.grating_contrast, color_offset = self.experiment_config.grating_mid_contrast)
-                self.show_grating(duration = self.experiment_config.stimulation_length,  profile = 'sin',  white_bar_width = white_bar_width,   
-                                  display_area = self.experiment_config.grating_size,  orientation = self.experiment_config.grating_angle,  
-                                  velocity = velocity,  color_contrast = self.experiment_config.grating_contrast, color_offset = self.experiment_config.grating_mid_contrast)
-            elif self.experiment_config.stimulation_type == 'flicker':
-                contrasts = utils.generate_waveform('sin', self.machine_config.SCREEN_EXPECTED_FRAME_RATE * self.experiment_config.stimulation_length,
-                        self.machine_config.SCREEN_EXPECTED_FRAME_RATE / self.experiment_config.flicker_frequency,
-                        self.experiment_config.flicker_contrast,  self.experiment_config.flicker_mid_contrast)
-                if self.experiment_config.flicker_background_waveform == 'square':
-                    backgrounds = utils.generate_waveform('sqr',  len(contrasts), 
-                        self.machine_config.SCREEN_EXPECTED_FRAME_RATE / self.experiment_config.flicker_background_frequency,
-                        -(self.experiment_config.flicker_background_max_contrast-self.experiment_config.flicker_background_min_contrast),
-                         (self.experiment_config.flicker_background_max_contrast + self.experiment_config.flicker_background_min_contrast)/2)                
-                for j in range(len(contrasts)):
-                    if self.experiment_config.flicker_background:
-                        background = backgrounds[j]
-                    else:
-                        background = self.experiment_config.background_color
-                    self.show_shape(shape = 'o',  color = contrasts[j], 
-                                        background_color = background,  size = self.experiment_config.spot_size)
-                    #Break the loop
-                    if self.command_buffer.find('stop') != -1:  
-                        self.command_buffer = ''                     
-                        stop = True
-                        break
+        for spot_size in  self.experiment_config.spot_size:
+            for i in range(repetitions):            
+                #Here starts the stimulus
+                if self.experiment_config.stimulation_type == 'spots':
+                    number_of_periods = int(round(self.experiment_config.stimulation_length / float(self.experiment_config.on_time + self.experiment_config.off_time), 0))
+                    for period in range(number_of_periods):
+                        self.show_shape(shape = 'o',  duration = self.experiment_config.on_time,  color = self.experiment_config.spot_contrast, 
+                                            background_color = self.experiment_config.background_color,  size = spot_size)
+                        self.show_fullscreen(duration = self.experiment_config.on_time, color =  self.experiment_config.background_color)
+                        #Break the loop
+                        if self.command_buffer.find('stop') != -1:  
+                            self.command_buffer = ''                     
+                            stop = True
+                            break
+                elif self.experiment_config.stimulation_type == 'grating':
+                    screen_width = self.machine_config.SCREEN_RESOLUTION['col'] / self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
+                    white_bar_width = screen_width/(2*self.experiment_config.spatial_frequency * 360.0)                 
+                    velocity = self.experiment_config.temporal_frequency * 2 * white_bar_width
+                    self.show_grating(duration = 2.0,  profile = 'sin',  white_bar_width = white_bar_width,   
+                                      display_area = self.experiment_config.grating_size,  orientation = self.experiment_config.grating_angle,  
+                                      velocity = 0,  color_contrast = self.experiment_config.grating_contrast, color_offset = self.experiment_config.grating_mid_contrast)
+                    self.show_grating(duration = self.experiment_config.stimulation_length,  profile = 'sin',  white_bar_width = white_bar_width,   
+                                      display_area = self.experiment_config.grating_size,  orientation = self.experiment_config.grating_angle,  
+                                      velocity = velocity,  color_contrast = self.experiment_config.grating_contrast, color_offset = self.experiment_config.grating_mid_contrast)
+                elif self.experiment_config.stimulation_type == 'flicker':
+                    contrasts = utils.generate_waveform('sin', self.machine_config.SCREEN_EXPECTED_FRAME_RATE * self.experiment_config.stimulation_length,
+                            self.machine_config.SCREEN_EXPECTED_FRAME_RATE / self.experiment_config.flicker_frequency,
+                            self.experiment_config.flicker_contrast,  self.experiment_config.flicker_mid_contrast)
+                    if self.experiment_config.flicker_background_waveform == 'square':
+                        backgrounds = utils.generate_waveform('sqr',  len(contrasts), 
+                            self.machine_config.SCREEN_EXPECTED_FRAME_RATE / self.experiment_config.flicker_background_frequency,
+                            -(self.experiment_config.flicker_background_max_contrast-self.experiment_config.flicker_background_min_contrast),
+                             (self.experiment_config.flicker_background_max_contrast + self.experiment_config.flicker_background_min_contrast)/2)                
+                    for j in range(len(contrasts)):
+                        if self.experiment_config.flicker_background:
+                            background = backgrounds[j]
+                        else:
+                            background = self.experiment_config.background_color
+                        self.show_shape(shape = 'o',  color = contrasts[j], 
+                                            background_color = background,  size = self.experiment_config.spot_size)
+                        #Break the loop
+                        if self.command_buffer.find('stop') != -1:  
+                            self.command_buffer = ''                     
+                            stop = True
+                            break
             
             if stop:
                 break

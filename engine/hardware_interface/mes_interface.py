@@ -76,7 +76,7 @@ def set_line_scan_time(scan_time, reference_path, target_path):
     scan_time: in ms
     reference_path: reference mat file that will be used as a template
     target_path: 
-    '''
+    '''    
     m = matlabfile.MatData(reference_path, target_path)
     ts = m.get_field(m.name2path('ts'))[0][0][0][0]
     ts = numpy.array([ts[0],ts[1],ts[2],numpy.round(float(1000*scan_time), 0)], dtype = numpy.float64)
@@ -111,6 +111,33 @@ class MesInterface(object):
         self.log = log
         self.stop = False
         self.from_gui_queue = from_gui_queue
+        
+    ################# Single two photon frame###############
+    
+    def acquire_two_photon_image(self, timeout = -1, parameter_file = None):
+        if parameter_file == None:
+            #generate a mes parameter file name, that does not exits
+            two_photon_image_path, two_photon_image_path_on_mes = self._generate_mes_file_paths('two_photon_image.mat')
+        else:
+            two_photon_image_path = parameter_file
+            two_photon_image_path_on_mes = utils.convert_path_to_remote_machine_path(two_photon_image_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS != 'win'))
+        utils.empty_queue(self.response_queue)
+        result = False
+        image = numpy.zeros((2, 2))
+        if self.connection.connected_to_remote_client():
+            self.command_queue.put('SOCacquire_xy_imageEOC{0}EOP' .format(two_photon_image_path_on_mes))
+            if network_interface.wait_for_response(self.response_queue, ['SOCacquire_xy_imageEOCOKEOP', 'SOCacquire_xy_imageEOCUSEOP'], timeout = timeout):
+                if os.path.exists(two_photon_image_path):
+                    time.sleep(0.2)
+                    try:
+                        image = matlabfile.read_two_photon_image(two_photon_image_path)
+                        result = True
+                    except AssertionError:
+                        #Wait till file is available
+                        time.sleep(1.0)
+                        image = matlabfile.read_two_photon_image(two_photon_image_path)
+                        result = True
+        return image, result
 
     ################# Z stack #########################
     def acquire_z_stack(self, timeout = -1, channel = 'pmtUGraw', test_mat_file = None):

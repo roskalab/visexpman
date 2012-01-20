@@ -112,7 +112,7 @@ class AllegraStage(StageControl):
             if self.config.STAGE[self.id]['enable']:
                 self.serial_port.flushInput()
                 self.execute_command('rx\nry\nrz')
-                time.sleep(0.5)
+                time.sleep(0.2) #used to be 0.5 s
                 response = self.serial_port.read(100)
                 position = []
                 for line in response.replace('\r','').split('\n'):
@@ -122,7 +122,11 @@ class AllegraStage(StageControl):
                         except ValueError:
                             raise RuntimeError('No valid response from motion controller ' + line)
                 self.position_ustep = numpy.array(position)
-                self.position = self.position_ustep * self.config.STAGE[self.id]['um_per_ustep']
+                try:
+                    self.position = self.position_ustep * self.config.STAGE[self.id]['um_per_ustep']
+                except ValueError:
+                    print 'position in ustep: {0}' .format(self.position_ustep)
+                    
             else:
                 self.position = numpy.zeros(3, dtype = float)
             return self.position #in um
@@ -130,9 +134,9 @@ class AllegraStage(StageControl):
                                          
     def reset_controller(self):
         self.serial_port.setRTS(True)
-        time.sleep(20e-3) #Min 10 ms
+        time.sleep(20e-3) #Min 20 ms
         self.serial_port.setRTS(False)
-        time.sleep(0.5)
+        time.sleep(0.2) #used to be 0.5 s
         
     def execute_command(self, command, print_response = False):
         commands = command.split('\n')

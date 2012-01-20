@@ -983,26 +983,15 @@ def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0
         else:
             value = 0
         wave.append(value)    
-    return wave            
-    
-#== Saving data to hdf5 ==
-def save_config(hdf5, machine_config, experiment_config = None):
-    hdf5.machine_config = copy.deepcopy(machine_config.get_all_parameters()) #The deepcopy is necessary to avoid conflict between daqmx and hdf5io
-    hdf5.save('machine_config')
-    hdf5.experiment_config = experiment_config.get_all_parameters()
-    hdf5.save('experiment_config')
-    
-def save_position(hdf5, stagexyz, objective_z = None):
-    '''
-    z is the objective's position, since this is more frequently used than z_stage.
-    '''
+    return wave    
+
+def pack_position(stagexyz, objective_z = None):
     if isinstance(objective_z, numpy.ndarray):
         objective_z_to_save = objective_z[0]
     else:
         objective_z_to_save = objective_z
-    hdf5.position = numpy.array([(0, stagexyz[0], stagexyz[1], stagexyz[2], objective_z_to_save)], [('um',numpy.float64), ('x',numpy.float64),('y',numpy.float64),('z_stage',numpy.float64), ('z',numpy.float64)])
-    hdf5.save('position')
-
+    return numpy.array([(0, stagexyz[0], stagexyz[1], stagexyz[2], objective_z_to_save)], [('um',numpy.float64), ('x',numpy.float64),('y',numpy.float64),('z_stage',numpy.float64), ('z',numpy.float64)])
+    
 #== Others ==
 def file_to_binary_array(path):
     if os.path.exists(path):

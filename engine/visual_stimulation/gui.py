@@ -1,7 +1,9 @@
+import time
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import visexpman.engine.generic.utils as utils
+import numpy
 
 ################### New mouse widget #######################
 class AnimalParametersGroupBox(QtGui.QGroupBox):
@@ -63,28 +65,28 @@ class AnimalParametersGroupBox(QtGui.QGroupBox):
         self.layout.setColumnStretch(7, 0)
         self.setLayout(self.layout)       
         
-class MasterPositionGroupBox(QtGui.QGroupBox):
-    def __init__(self, parent):        
-        QtGui.QGroupBox.__init__(self, 'Master position', parent)
-        self.create_widgets()
-        self.create_layout()
-        
-    def create_widgets(self):
-        self.z_stack_button = QtGui.QPushButton('Create Z stack',  self)
-        self.calculate_brain_surface_angle_button = QtGui.QPushButton('Calculate angle of brain surface',  self)
-        self.brain_surface_angle_display = QtGui.QComboBox(self)
-        self.brain_surface_angle_display.setEditable(True)
-        self.rotate_mouse_button = QtGui.QPushButton('Rotate mouse',  self)
-        self.save_master_position_button = QtGui.QPushButton('Save master position',  self)        
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.z_stack_button, 0, 1)
-        self.layout.addWidget(self.calculate_brain_surface_angle_button, 0, 2)
-        self.layout.addWidget(self.brain_surface_angle_display, 0, 3, 1, 1)
-        self.layout.addWidget(self.rotate_mouse_button, 0, 4)
-        self.layout.addWidget(self.save_master_position_button, 0, 5)
-        self.setLayout(self.layout)
+#class MasterPositionGroupBox(QtGui.QGroupBox):
+#    def __init__(self, parent):        
+#        QtGui.QGroupBox.__init__(self, 'Master position', parent)
+#        self.create_widgets()
+#        self.create_layout()
+#        
+#    def create_widgets(self):
+#        self.z_stack_button = QtGui.QPushButton('Create Z stack',  self)
+#        self.calculate_brain_surface_angle_button = QtGui.QPushButton('Calculate angle of brain surface',  self)
+#        self.brain_surface_angle_display = QtGui.QComboBox(self)
+#        self.brain_surface_angle_display.setEditable(True)
+#        self.rotate_mouse_button = QtGui.QPushButton('Rotate mouse',  self)
+#        self.save_master_position_button = QtGui.QPushButton('Save master position',  self)        
+#        
+#    def create_layout(self):
+#        self.layout = QtGui.QGridLayout()
+#        self.layout.addWidget(self.z_stack_button, 0, 1)
+#        self.layout.addWidget(self.calculate_brain_surface_angle_button, 0, 2)
+#        self.layout.addWidget(self.brain_surface_angle_display, 0, 3, 1, 1)
+#        self.layout.addWidget(self.rotate_mouse_button, 0, 4)
+#        self.layout.addWidget(self.save_master_position_button, 0, 5)
+#        self.setLayout(self.layout)
         
 class NewScanRegion(QtGui.QGroupBox):
     def __init__(self, parent, experiment_names):
@@ -283,29 +285,40 @@ class DebugWidget(QtGui.QWidget):
         self.setLayout(self.layout)
         
 class MasterPositionGroupBox(QtGui.QGroupBox):
-    def __init__(self, parent):        
+    def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, 'Master position', parent)
         self.create_widgets()
         self.create_layout()
         
     def create_widgets(self):
+        self.get_two_photon_image_button = QtGui.QPushButton('Get two photon image',  self)
+        self.use_master_position_scan_settings_label = QtGui.QLabel('Use master position\'s scan settings', self)
+        self.use_master_position_scan_settings_checkbox = QtGui.QCheckBox(self)
         self.select_mouse_file_label = QtGui.QLabel('Select mouse file', self)
         self.select_mouse_file = QtGui.QComboBox(self)
+#        self.select_master_position_label = QtGui.QLabel('Select master position', self)
+#        self.select_master_position = QtGui.QComboBox(self)        
         self.register_button = QtGui.QPushButton('Register',  self)
         self.suggested_translation = QtGui.QComboBox(self)
         self.suggested_translation.setEditable(True)
         self.move_to_master_position_button = QtGui.QPushButton('Move to  master position',  self)
         self.save_master_position_button = QtGui.QPushButton('Save master position',  self)
         
-        
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.select_mouse_file_label, 0, 0, 1, 1)
-        self.layout.addWidget(self.select_mouse_file, 0, 1, 1, 2)
-        self.layout.addWidget(self.register_button, 1, 0, 1, 1)
-        self.layout.addWidget(self.suggested_translation, 1, 1, 1, 2)        
-        self.layout.addWidget(self.move_to_master_position_button, 2, 1, 1, 1)
-        self.layout.addWidget(self.save_master_position_button, 2, 0, 1, 1)
+        self.layout.addWidget(self.get_two_photon_image_button, 0, 0, 1, 1)
+        self.layout.addWidget(self.use_master_position_scan_settings_label, 0, 1, 1, 1)
+        self.layout.addWidget(self.use_master_position_scan_settings_checkbox, 0, 2, 1, 1)
+        self.layout.addWidget(self.select_mouse_file_label, 1, 0, 1, 1)
+        self.layout.addWidget(self.select_mouse_file, 1, 1, 1, 2)
+#        self.layout.addWidget(self.select_master_position_label, 2, 0, 1, 1)
+#        self.layout.addWidget(self.select_master_position, 2, 1, 1, 2)        
+        self.layout.addWidget(self.register_button, 4, 0, 1, 1)
+        self.layout.addWidget(self.suggested_translation, 4, 1, 1, 2)        
+        self.layout.addWidget(self.move_to_master_position_button, 5, 1, 1, 1)
+        self.layout.addWidget(self.save_master_position_button, 5, 0, 1, 1)
+        self.layout.setRowStretch(10, 10)
+        self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
         
 class StandardIOWidget(QtGui.QWidget):
@@ -337,6 +350,36 @@ class StandardIOWidget(QtGui.QWidget):
         self.layout.setRowStretch(300, 300)
         self.layout.setColumnStretch(0, 100)
         self.setLayout(self.layout)
+        
+class Poller(QtCore.QThread):
+    def __init__(self, parent):
+        self.parent = parent
+        self.config = self.parent.config
+        QtCore.QThread.__init__(self)
+        self.abort = False
+        self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
+        self.parent.connect(self, QtCore.SIGNAL('update_gui'),  self.parent.update_gui_items)
+    
+    def abort_poller(self):
+        self.abort = True
+
+    def printc(self, text):
+        self.emit(QtCore.SIGNAL('printc'), text)
+        
+    def run(self):
+        self.printc('poller starts')
+        last_time = time.time()
+        while not self.abort:
+            now = time.time()
+            elapsed_time = now - last_time
+            if elapsed_time > self.config.GUI_REFRESH_PERIOD:
+                last_time = now
+                self.periodic()
+            time.sleep(1e-2)
+        self.printc('poller stopped')
+        
+    def periodic(self):
+        self.emit(QtCore.SIGNAL('update_gui'))
         
 if __name__ == '__main__':
     pass

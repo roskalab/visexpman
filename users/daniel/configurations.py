@@ -202,7 +202,7 @@ class WinDev(VisionExperimentConfig):
                                     'baudrate' : 19200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    'bytesize' : serial.EIGHTBITS,                    
                                     }
                                     
         STAGE = [{'serial_port' : motor_serial_port,
@@ -358,8 +358,8 @@ class VS3DUS(VisionExperimentConfig):
                     'DAQ_TIMEOUT' : 3.0,
                     'SAMPLE_RATE' : 5000,
                     'AI_CHANNEL' : 'Dev1/ai0:2',
-                    'MAX_VOLTAGE' : 5.0,
-                    'MIN_VOLTAGE' : -5.0,
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
                     'ENABLE' : True
                     },

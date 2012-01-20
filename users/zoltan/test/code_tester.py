@@ -1,14 +1,31 @@
 import visexpA.engine.datahandlers.importers as importers
 import visexpA.engine.datahandlers.hdf5io as hdf5io
+import visexpA.engine.datahandlers.matlabfile as matlabfile
+from visexpman.engine.hardware_interface import mes_interface
 import os
+import os.path
+import numpy
+import Image
+#
+#path = '/home/zoltan/visexp/debug/data/line_scan_parameters_00004.mat'
+#path1 = '/home/zoltan/visexp/debug/data/test.mat'
+#mes_interface.set_line_scan_time(100.0, path, path1)
 
-if os.name == 'nt':
-    path = 'v:\\debug\\data\\fragment_MovingDot_1326914934_0.hdf5'
-else:
-    path = '/home/zoltan/visexp/debug/data/fragment_MovingDot_1326914934_0.hdf5'
+#path = '/home/zoltan/visexp/debug/data/mouse_bl6_1-1-2012_1-1-2012_0_0.hdf5'
+#print os.path.exists(path)
+#h = hdf5io.Hdf5io(path)
+#print h.findvar('master_posi1tion')
+#h.load('master_position')
+#print h.master_position
+#h.close()
+#pass
+
+#if os.name == 'nt':
+#    path = 'v:\\debug\\data\\fragment_MovingDot_1326914934_0.hdf5'
+#else:
+path = '/home/zoltan/visexp/debug/data/fragment_-2819.2_-5279.0_-83.94_MovingDot_1327080475_2.hdf5'
 
 hdf5_handler = hdf5io.Hdf5io(path)
-print hdf5_handler.find_variable_in_h5f('mes_data')
 fragment_data = importers.MESExtractor(hdf5_handler)
 res = fragment_data.parse()
 hdf5_handler.close()
@@ -46,19 +63,4 @@ pass
 #
 #plt.show()
 #
-#import numpy
-#import visexpA.engine.datahandlers.hdf5io as hdf5io
-#p = '/home/zoltan/d1.hdf5'
-#h1 = hdf5io.Hdf5io(p)
-#h1.a=numpy.ones(3)
-#h1.save('a')
-#h1.close()
-#h2 = hdf5io.Hdf5io(p)
-#h2.load('a')
-#h2.a = numpy.ones(3)*2
-#h2.save('a')
-#h2.close()
-#h3 = hdf5io.Hdf5io(p)
-#h3.load('a')
-#print h3.a
-#h3.close()
+
