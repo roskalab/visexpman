@@ -3,11 +3,18 @@ from visexpman.engine.generic import utils
 import copy
 
 #== Saving/loading data to hdf5 ==
-def save_config(hdf5, machine_config, experiment_config = None):
-    hdf5.machine_config = copy.deepcopy(machine_config.get_all_parameters()) #The deepcopy is necessary to avoid conflict between daqmx and hdf5io
-    hdf5.save('machine_config')
-    hdf5.experiment_config = experiment_config.get_all_parameters()
-    hdf5.save('experiment_config')
+def save_config(file_handle, machine_config, experiment_config = None):
+    if hasattr(file_handle, 'save'):
+        file_handle.machine_config = copy.deepcopy(machine_config.get_all_parameters()) #The deepcopy is necessary to avoid conflict between daqmx and hdf5io
+        file_handle.save('machine_config')
+        file_handle.experiment_config = experiment_config.get_all_parameters()
+        file_handle.save('experiment_config')
+    elif file_handle == None:
+        config = {}
+        config['machine_config'] = copy.deepcopy(machine_config.get_all_parameters())
+        config['experiment_config'] = experiment_config.get_all_parameters()
+        return config
+        
     
 def save_position(hdf5, stagexyz, objective_z = None):
     '''

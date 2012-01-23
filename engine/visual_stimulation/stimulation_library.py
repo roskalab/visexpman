@@ -14,6 +14,7 @@ import visexpman.engine.generic.parametric_control
 import visexpman.users.zoltan.test.stimulus_library_test_data
 from visexpman.engine.generic import utils
 import command_handler
+import inspect
 
 class Stimulations(command_handler.CommandHandler):
     """
@@ -83,6 +84,7 @@ class Stimulations(command_handler.CommandHandler):
             
         self.screen.flip()
         self.flip_time = time.time()
+        self.caller.experiment_control.frame_counter += 1
         frame_rate_deviation = abs(self.screen.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if frame_rate_deviation > self.config.FRAME_DELAY_TOLERANCE:
             self.delayed_frame_counter += 1
@@ -108,6 +110,28 @@ class Stimulations(command_handler.CommandHandler):
                 
         if utils.is_abort_experiment_in_queue(self.caller.from_gui_queue):
             self.abort = True
+            
+    def _save_stimulus_frame_info(self, caller_function_info):
+        '''
+        Saves:
+        -frame counter
+        -elapsed time
+        -stimulus function's name
+        -parameters of stimulus
+        '''
+        if hasattr(self, 'elapsed_time') and hasattr(self.caller.experiment_control, 'frame_counter') and\
+                hasattr( self.caller.experiment_control, 'stimulus_frame_info'):
+            args, _, _, values = inspect.getargvalues(caller_function_info)
+            caller_name =inspect.getframeinfo(caller_function_info)[2]
+            frame_info = {}            
+            frame_info['counter'] = self.caller.experiment_control.frame_counter
+            frame_info['elapsed_time'] = self.elapsed_time
+            frame_info['stimulus_type'] = caller_name
+            frame_info['parameters'] = {}            
+            for arg in args:
+                if arg != 'self':
+                    frame_info['parameters'][arg] = values[arg]
+            self.caller.experiment_control.stimulus_frame_info.append(frame_info)
 
     def _frame_trigger_pulse(self):
         '''
@@ -176,7 +200,7 @@ class Stimulations(command_handler.CommandHandler):
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
-        
+        self._save_stimulus_frame_info(inspect.currentframe())
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
@@ -216,6 +240,7 @@ class Stimulations(command_handler.CommandHandler):
                     
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
+        self._save_stimulus_frame_info(inspect.currentframe())
                 
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, flip = True):
         '''
@@ -361,6 +386,7 @@ class Stimulations(command_handler.CommandHandler):
         #Generate log messages
         self.log_on_flip_message_initial = 'show_shape(' + str(shape)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color)  + ', ' + str(background_color)  + ', ' + str(orientation)  + ', ' + str(size)  + ', ' + str(ring_size) + ')'
         self.log_on_flip_message_continous = 'show_shape'        
+        self._save_stimulus_frame_info(inspect.currentframe())
         #Calculate number of frames
         n_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         if n_frames == 0:
@@ -440,6 +466,7 @@ class Stimulations(command_handler.CommandHandler):
         #Restore original background color
         if background_color != None:            
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
+        self._save_stimulus_frame_info(inspect.currentframe())
         
 #                    
 #    def show_checkerboard(self,   n_checkers,  duration = 0.0,  pos = (0,  0),  color = [],  box_size = (0, 0), flip = True):
@@ -643,7 +670,8 @@ class Stimulations(command_handler.CommandHandler):
         #== Logging ==
         self.log_on_flip_message_initial = 'show_grating(' + str(duration)+ ', ' + str(profile) + ', ' + str(white_bar_width) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
         self.log_on_flip_message_continous = 'show_grating'
-        first_flip = False        
+        first_flip = False
+        self._save_stimulus_frame_info(inspect.currentframe())
         
         #== Prepare ==
         orientation_rad = orientation * math.pi / 180.0
@@ -777,6 +805,7 @@ class Stimulations(command_handler.CommandHandler):
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
+        self._save_stimulus_frame_info(inspect.currentframe())
                     
     def show_dots(self,  dot_diameters, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0)):
         '''
@@ -796,6 +825,7 @@ class Stimulations(command_handler.CommandHandler):
         self.log_on_flip_message_initial = 'show_dots(' + str(duration)+ ', ' + str(dot_diameters) +', ' + str(dot_positions) +')'
         self.log_on_flip_message_continous = 'show_dots'
         first_flip = False
+        self._save_stimulus_frame_info(inspect.currentframe())
         radius = 1.0
         vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
         n_frames = len(dot_positions) / ndots
@@ -851,6 +881,7 @@ class Stimulations(command_handler.CommandHandler):
                 break
                 
         glDisableClientState(GL_VERTEX_ARRAY)
+        self._save_stimulus_frame_info(inspect.currentframe())
         
 
 if __name__ == "__main__":

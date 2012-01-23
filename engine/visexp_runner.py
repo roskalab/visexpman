@@ -136,14 +136,8 @@ class VisExpRunner(object):
             
     def _init_logging(self):
         #set up logging
-        self.logfile_path = utils.generate_filename(self.config.LOG_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')
+        self.logfile_path = utils.generate_filename(self.config.LOG_PATH + os.sep + 'log_' + self.config.__class__.__name__ + '_'+  utils.date_string() + '.txt')
         self.log = log.Log('visexpman log ' +  str(time.time()), self.logfile_path, write_mode = 'user control')
-#        self.log = logging.getLogger('visexpman log ' +  str(time.time()))
-#        self.handler = logging.FileHandler(self.logfile_path)
-#        formatter = logging.Formatter('%(asctime)s %(message)s')
-#        self.handler.setFormatter(formatter)
-#        self.log.addHandler(self.handler)
-#        self.log.setLevel(logging.INFO)   
 
 def find_out_config():
     '''

@@ -189,6 +189,7 @@ class WinDev(VisionExperimentConfig):
         #=== Network ===
         ENABLE_UDP = False
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
 #         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.25.220'
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
@@ -241,8 +242,8 @@ class WinDev(VisionExperimentConfig):
                     'DAQ_TIMEOUT' : 3.0,
                     'SAMPLE_RATE' : 5000,
                     'AI_CHANNEL' : 'Dev1/ai0:2',
-                    'MAX_VOLTAGE' : 5.0,
-                    'MIN_VOLTAGE' : -5.0,
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
                     'ENABLE' : True
                     },
@@ -306,6 +307,7 @@ class VS3DUS(VisionExperimentConfig):
         #=== Network ===
         ENABLE_UDP = False
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
 #        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.25.220'
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True

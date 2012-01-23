@@ -343,7 +343,8 @@ def start_client(config, client_name, connection_name, queue_in, queue_out):
                           config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'][connection_name][client_name]['PORT'], 
                           config.COMMAND_RELAY_SERVER['TIMEOUT'], 
                           client_name)
-    client.start()
+    if config.COMMAND_RELAY_SERVER['CLIENTS_ENABLE']:
+        client.start()
     return client
 
 #============= Helpers ====================#

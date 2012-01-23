@@ -215,17 +215,16 @@ class LedStimulation(experiment.Experiment):
         setattr(self.hdf5, experiment_identifier, {'id': None})
         self.hdf5.save(experiment_identifier)
 
-# class GratingTest(experiment.ExperimentConfig):
-#     def _create_parameters(self):        
-#         self.runnable = 'GratingTestE'
-#         self._create_parameters_from_locals(locals())
-#         
-#         
-# class GratingTestE(experiment.Experiment):
-#     
-#     def run(self, fragment_id):
-#         self.show_grating(duration = numpy.sqrt(800**2+600**2)/200.0, 
-#                             orientation = 45, 
-#                             velocity = 200.0, 
-#                             white_bar_width = 300,
-#                             duty_cycle = 2.0)
+class Dummy(experiment.ExperimentConfig):
+    def _create_parameters(self):     
+        self.runnable = 'DummyExp'
+        self._create_parameters_from_locals(locals())
+        
+class DummyExp(experiment.Experiment):
+    
+    def prepare(self):
+        self.fragment_durations = [1.0]
+        self.number_of_fragments = len(self.fragment_durations)
+
+    def run(self, fragment_id):
+        pass

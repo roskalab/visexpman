@@ -1072,6 +1072,7 @@ class GuiConfig(configuration.VisionExperimentConfig):
         self.GUI_REFRESH_PERIOD = 2.0
         self.COMMAND_RELAY_SERVER['ENABLE'] = ENABLE_NETWORK
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'#'172.27.26.1'#'172.27.25.220'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = ENABLE_NETWORK
 #        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 60.0
         DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
     

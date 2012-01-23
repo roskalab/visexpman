@@ -2,6 +2,7 @@ import visexpA.engine.datahandlers.importers as importers
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 import visexpA.engine.datahandlers.matlabfile as matlabfile
 from visexpman.engine.hardware_interface import mes_interface
+from visexpman.engine.generic import utils
 import os
 import os.path
 import numpy
@@ -23,14 +24,18 @@ import Image
 #if os.name == 'nt':
 #    path = 'v:\\debug\\data\\fragment_MovingDot_1326914934_0.hdf5'
 #else:
-path = '/home/zoltan/visexp/debug/data/fragment_-2819.2_-5279.0_-83.94_MovingDot_1327080475_2.hdf5'
-
-hdf5_handler = hdf5io.Hdf5io(path)
-fragment_data = importers.MESExtractor(hdf5_handler)
-res = fragment_data.parse()
-hdf5_handler.close()
-print res
-pass
+#path = '/home/zoltan/visexp/debug/data/fragment_-2819.2_-5279.0_-83.94_MovingDot_1327080475_2.hdf5'
+#path = '/home/zoltan/visexp/debug/data/test.hdf5'
+#path1 = utils.generate_filename(path)
+#import shutil
+#shutil.copy(path, path1)
+#
+#hdf5_handler = hdf5io.Hdf5io(path1)
+#fragment_data = importers.MESExtractor(hdf5_handler)
+#res = fragment_data.parse()
+#hdf5_handler.close()
+#print res
+#pass
 
 #import visexpman.engine.hardware_interface.mes_interface as mes_interface
 ##16 - one roi

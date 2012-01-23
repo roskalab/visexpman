@@ -42,7 +42,7 @@ class Debug(VisionExperimentConfig):
         FRAME_TRIGGER_PIN = 0
         
         #=== network ===
-        SERVER_IP = ''
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         ENABLE_UDP = True
   
         #=== Filterwheel ===
@@ -55,7 +55,7 @@ class Debug(VisionExperimentConfig):
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
                     'SAMPLE_RATE' : 10000,
-                    'AI_CHANNEL' : 'Dev2/ai0:2',
+                    'AI_CHANNEL' : 'Dev2/ai1:2',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 300.0,
@@ -117,20 +117,20 @@ class AEPHVS(VisionExperimentConfig):
         FRAME_TRIGGER_PIN = 0
         
         #=== network ===
-        SERVER_IP = ''
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         ENABLE_UDP = True
   
         #=== Filterwheel ===
         
         ENABLE_FILTERWHEEL = False
         
-        #=== LED controller ===
+        #=== EphysData and stimulus Framerate recorder and LED controller ===
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
                     'SAMPLE_RATE' : 10000,
-                    'AI_CHANNEL' : 'Dev2/ai0:2',
+                    'AI_CHANNEL' : 'Dev2/ai1:2',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 300.0,

@@ -266,7 +266,9 @@ class MesInterface(object):
         #Acquire line scan if MES is connected
         if self.connection.connected_to_remote_client():
             self.command_queue.put('SOCacquire_line_scanEOC{0}EOP' .format(line_scan_path_on_mes))
-            result = network_interface.wait_for_response(self.response_queue, 'SOCacquire_line_scanEOCstartedEOP', timeout = timeout, keyboard_handler = self.keyboard_handler)
+            result = network_interface.wait_for_response(self.response_queue, 'SOCacquire_line_scanEOCstartedEOP', timeout = timeout, 
+                                                         keyboard_handler = self.keyboard_handler, 
+                                                         from_gui_queue = self.from_gui_queue)
             if result:
                 self._log_info('line scan started')
             else:

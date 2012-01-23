@@ -28,9 +28,9 @@ import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 import visexpA.engine.datahandlers.importers as importers
 from visexpA.users.zoltan import data_rescue
-import scipy.io
+import scipy.io#????
 from visexpman.engine.visual_stimulation import experiment_data
-
+import gc
 import os
 import logging
 import zipfile
@@ -65,6 +65,9 @@ class ExperimentControl():
         self.devices = Devices(config, caller)
         self.data_handler = DataHandler(config, caller)
         self.start_time = 0
+        self.frame_counter = 0
+        self.stimulus_frame_info = []
+        self.stimulus_frame_info_pointer = 0
         #saving experiment source to a temporary file in the user's folder
         self.experiment_source = experiment_source
         self.experiment_source_path = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user, 'presentinator_experiment' + str(self.caller.command_handler.experiment_counter) + '.py')
@@ -97,6 +100,9 @@ class ExperimentControl():
         '''
         Run context of the experiment is prepared
         '''
+        self.frame_counter = 0
+        self.stimulus_frame_info = []
+        self.stimulus_frame_info_pointer = 0
         #(Re)instantiate selected experiment config        
         self.caller.selected_experiment_config = self.caller.experiment_config_list[int(self.caller.command_handler.selected_experiment_config_index)][1](self.config, self.caller)
         #init experiment logging
@@ -133,7 +139,7 @@ class ExperimentControl():
             while not self.caller.mes_response_queue.empty():
                 self.caller.mes_response_queue.get()
             #start two photon recording
-            line_scan_start_success, line_scan_path = self.devices.mes_interface.start_line_scan(parameter_file = self.fragment_mat_path)
+            line_scan_start_success, line_scan_path = self.devices.mes_interface.start_line_scan(parameter_file = self.fragment_mat_path, timeout = -1 )
             if line_scan_start_success:
                 time.sleep(1.0)
             else:
@@ -151,6 +157,7 @@ class ExperimentControl():
             return True
             
     def finish_fragment(self, fragment_id):
+        gc.collect()
         if self.config.MEASUREMENT_PLATFORM == 'mes':
             if not hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations'):
                 return
@@ -174,7 +181,7 @@ class ExperimentControl():
                 if line_scan_data_save_success and not utils.is_abort_experiment_in_queue(self.from_gui_queue):
                     self.printl('Saving measurement data to hdf5')
                     #Save
-                    fragment_hdf5 = hdf5io.Hdf5io(self.fragment_hdf5_path , config = self.config, caller = self.caller)
+                    fragment_hdf5 = hdf5io.Hdf5io(self.fragment_hdf5_path)
                     self.experiment_result_files.append(self.fragment_hdf5_path)
                     if not hasattr(self.devices.ai, 'ai_data'):
                         self.devices.ai.ai_data = numpy.zeros(2)
@@ -182,16 +189,19 @@ class ExperimentControl():
                     data_to_hdf5 = {
                                     'sync_data' : self.devices.ai.ai_data,
                                     'mes_data': mes_data, 
-                                    'mes_data_hash' : hashlib.sha1(mes_data).hexdigest(), 
+                                    'mes_data_hash' : hashlib.sha1(mes_data).hexdigest(),
+                                    'current_fragment' : fragment_id, #deprecated
                                     'actual_fragment' : fragment_id,
                                     }
+                    fragment_hdf5.stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:]
+                    fragment_hdf5.save('stimulus_frame_info')
+                    self.stimulus_frame_info_pointer += len(self.stimulus_frame_info)
                     if hasattr(self.selected_experiment, 'number_of_fragments'):
                         data_to_hdf5['number_of_fragments'] = self.selected_experiment.number_of_fragments
                     data_to_hdf5['generated_data'] = self.selected_experiment.fragment_data
                     #Saving source code of experiment
                     experiment_source_file_path = inspect.getfile(self.selected_experiment.__class__).replace('.pyc', '.py')
                     data_to_hdf5['experiment_source'] = utils.file_to_binary_array(experiment_source_file_path)
-                    
                     experiment_data.save_config(fragment_hdf5, self.config, self.selected_experiment_config)
                     time.sleep(5.0) #Wait for file ready
                     stage_position = self.devices.stage.read_position() - self.caller.stage_origin
@@ -200,9 +210,9 @@ class ExperimentControl():
                     setattr(fragment_hdf5, self.fragment_name, data_to_hdf5)
                     fragment_hdf5.save(self.fragment_name)
                     #Here the saved data will be checked and preprocessed
+                    self.printl('Prepare data for analysis')
                     mes_extractor = importers.MESExtractor(fragment_hdf5)
-#                    data_class, stimulus_class, sync_signal, stimpar = mes_extractor.parse()
-                    #TODO check content of variables in hdf5: 'data_class','stimulus_class','sync_signal','stimpar'                    
+                    data_class, stimulus_class, mes_name = mes_extractor.parse()
                     fragment_hdf5.close()
                     #Rename fragment hdf5 so that coorinates are included
                     original_fragment_path = self.fragment_hdf5_path
@@ -299,7 +309,10 @@ class ExperimentControl():
         self.log.flush()
         self.caller.log.flush()
         self.devices.close()
-        self.data_handler.archive_software_environment()
+        self.data_handler.archive_software_environment(experiment_config = self.caller.selected_experiment_config, experiment_log = self.logfile_path,  stimulus_frame_info = self.stimulus_frame_info)
+        self.frame_counter = 0
+        self.stimulus_frame_info = []
+        self.stimulus_frame_info_pointer = 0
         #remove temporary experiment file
         if len(self.experiment_source)>0 and self.config.ENABLE_UDP:
             os.remove(self.experiment_source_path)
@@ -385,7 +398,7 @@ class Devices():
         if hasattr(self, 'stage'):
             self.stage.release_instrument()
             
-class DataHandler():
+class DataHandler(object):
     '''
     Responsible for the following:
     1. Collect into zip file all the experiment related files: source code, experiment log, list of version of python modules
@@ -415,7 +428,7 @@ class DataHandler():
         #Create zip file
         self.archive = zipfile.ZipFile(self.zip_file_path, "w")
         
-    def archive_software_environment(self):
+    def archive_software_environment(self, experiment_config = None, stimulus_frame_info = None, experiment_log = ''):
         '''
         Archives the called python modules within visexpman package and the versions of all the called packages
         '''
@@ -440,20 +453,14 @@ class DataHandler():
         if self.config.ARCHIVE_FORMAT == 'zip':
             self.archive.write(self.caller.experiment_control.logfile_path, self.caller.experiment_control.logfile_path.replace(os.path.dirname(self.caller.experiment_control.logfile_path), ''))
         self.archive.close()
-        #TODO: replace this with utils.file_to_binary_array()
-        f = open(self.zip_file_path, 'rb')
-        archive_binary = f.read(os.path.getsize(self.zip_file_path))
-        f.close()
-        self.archive_binary_in_bytes = []
-        for byte in list(archive_binary):
-            self.archive_binary_in_bytes.append(ord(byte))
+        self.archive_binary_in_bytes = utils.file_to_binary_array(self.zip_file_path)
         self.archive_binary_in_bytes = numpy.array(self.archive_binary_in_bytes, dtype = numpy.uint8)
         if self.config.ARCHIVE_FORMAT == 'hdf5':
             self.hdf5_handler.source_code = self.archive_binary_in_bytes
             self.hdf5_handler.save('source_code')
             self.hdf5_handler.module_versions = self.module_versions
             self.hdf5_handler.save('module_versions')
-            self.hdf5_handler.experiment_log = utils.string_to_binary_array(self.experiment_log_to_string(self.caller.experiment_control.log.log_messages))
+            self.hdf5_handler.experiment_log = utils.file_to_binary_array(experiment_log)
             self.hdf5_handler.save('experiment_log')
             experiment_data.save_config(self.hdf5_handler, self.config, self.caller.selected_experiment_config)
             self.hdf5_handler.close()
@@ -461,8 +468,10 @@ class DataHandler():
             mat_to_save = {}
             mat_to_save['ai'] = self.ai_data
             mat_to_save['source_code'] = self.archive_binary_in_bytes
-            mat_to_save['module_versions'] = self.module_versions
-            mat_to_save['experiment_log'] = self.experiment_log_to_string(self.caller.experiment_control.log.log_messages)
+            mat_to_save['module_versions'] = self.module_versions            
+            mat_to_save['experiment_log'] = utils.read_text_file(experiment_log)
+            mat_to_save['config'] = experiment_data.save_config(None, self.config, experiment_config)
+            mat_to_save['stimulus_frame_info'] = stimulus_frame_info
             scipy.io.savemat(self.mat_path, mat_to_save, oned_as = 'row', long_field_names=True)
             
         #Restoring it to zip file: utils.numpy_array_to_file(archive_binary_in_bytes, '/media/Common/test.zip')
