@@ -18,9 +18,9 @@ class ManipulationExperimentConfig(experiment.ExperimentConfig):
         self.experiment_log_copy_path = 'G:\\User\\Antonia\\data\\<filename>'
         self.local_experiment_log_copy = 'C:\\temp\\AntoniaStim\\'
         MAX_LED_VOLTAGE = [3.0, [0.0, 20.0]]
-        self.MID_GREY = 165.0/255.0
-        self.STIMULATION_TYPE = 'spots'#flicker, grating, spots        
-        self.STIMULATION_LENGTH = 12.0 #s   
+        self.MID_GREY = 162.0/255.0
+        self.STIMULATION_TYPE = 'grating'#flicker, grating, spots        
+        self.STIMULATION_LENGTH = 8.0 #s   
         self.PAUSE_BETWEEN_MANIPULATION_AND_CONTROL = 10.0 #s
         self.STIMULATION_PROTOCOL = 'control' #control, manipulation, both
         self.PRE_EXPERIMENT_DELAY = 1.0 #important for trigger of electrophys computer?
@@ -48,16 +48,17 @@ class ManipulationExperimentConfig(experiment.ExperimentConfig):
         self.FLICKER_BACKGROUND_FREQUENCY = 1.0/10.0 #Hz
         self.FLICKER_BACKGROUND_WAVEFORM = 'square' #steps (not implemented), square
         #grating parameters
-        self.SPATIAL_FREQUENCY = [0.0398] #[0.0013,  0.0025,  0.004,  0.01,  0.02,  0.0398,  0.0794,  0.156]  # TFtuning(0.039)
+        self.SPATIAL_FREQUENCY = [0.156] #[0.0013,  0.0025,  0.004,  0.01,  0.02,  0.0398,  0.0794,  0.156]  # TFtuning(0.039)
         random.shuffle(self.SPATIAL_FREQUENCY)      
         self.TEMPORAL_FREQUENCY = [1] # [0.15,  0.2475,  0.4085,  0.6742,  1.1126,  1.8361,  3.03,  5.0] # SFtuning(1)
         random.shuffle(self.TEMPORAL_FREQUENCY) 
-        self.GRATING_CONTRAST = 1
-        self.GRATING_MID_CONTRAST = self.MID_GREY
+        self.GRATING_CONTRAST = [0.1,  0.2, 0.8]#[0.1,  0.2,  0.3,  0.4,  0.5,  0.6,  0.7,  0.8,  0.9,  1]
+        self.GRATING_MID_CONTRAST_VALUES =  [109.0/255.0,  134.0/255.0,  144.0/255.0,  154.0/255.0,  162.0/255.0,  167.0/255.0,  174.0/255.0,  182.0/255.0,  198.0/255.0] #10% -90%, 50% is mid grey value
+        self.GRATING_MID_CONTRAST = [self.GRATING_MID_CONTRAST_VALUES[0]] #,  self.GRATING_MID_CONTRAST_VALUES[8]] # 0:10%, 8:90% 4:self.MID_GREY
         self.GRATING_ANGLE = 135.0 #degrees
         self.GRATING_SIZE = utils.cr((0, 0))
-        self.GRATING_OFFSET = 2.0 #grating presented without movement
-        self.GRATING_PAUSE = 2.0 #background presentation between gratings
+        self.GRATING_OFFSET = 1.0 #grating presented without movement
+        self.GRATING_PAUSE = 1.0 #background presentation between gratings
         
         self.runnable = 'ManipulationExperiment'        
         self._create_parameters_from_locals(locals())
@@ -103,13 +104,15 @@ class ManipulationExperiment(experiment.Experiment):
                     for temporal_frequency in self.experiment_config.TEMPORAL_FREQUENCY:
                         white_bar_width = screen_width/(2 * spatial_frequency * 360.0)                 
                         velocity = temporal_frequency * 2 * white_bar_width
-                        self.show_grating(duration = self.experiment_config.GRATING_OFFSET,  profile = 'sin',  white_bar_width = white_bar_width,   
+                        for grating_mid_contrast in self.experiment_config.GRATING_MID_CONTRAST:
+                            for grating_contrast in self.experiment_config.GRATING_CONTRAST:
+                                self.show_grating(duration = self.experiment_config.GRATING_OFFSET,  profile = 'sin',  white_bar_width = white_bar_width,   
                                   display_area = self.experiment_config.GRATING_SIZE,  orientation = self.experiment_config.GRATING_ANGLE,  
-                                  velocity = 0,  color_contrast = self.experiment_config.GRATING_CONTRAST, color_offset = self.experiment_config.GRATING_MID_CONTRAST)
-                        self.show_grating(duration = (self.experiment_config.stimulation_length - len(self.experiment_config.SPATIAL_FREQUENCY) * len(self.experiment_config.TEMPORAL_FREQUENCY) * self.experiment_config.GRATING_OFFSET * self.experiment_config.GRATING_PAUSE) / (len(self.experiment_config.SPATIAL_FREQUENCY) * len(self.experiment_config.TEMPORAL_FREQUENCY)) ,  profile = 'sin',  white_bar_width = white_bar_width,   
+                                  velocity = 0,  color_contrast = grating_contrast, color_offset = grating_mid_contrast)
+                                self.show_grating(duration = (self.experiment_config.STIMULATION_LENGTH - len(self.experiment_config.SPATIAL_FREQUENCY) * len(self.experiment_config.TEMPORAL_FREQUENCY) * self.experiment_config.GRATING_OFFSET * self.experiment_config.GRATING_PAUSE) / (len(self.experiment_config.SPATIAL_FREQUENCY) * len(self.experiment_config.TEMPORAL_FREQUENCY)) ,  profile = 'sin',  white_bar_width = white_bar_width,   
                                   display_area = self.experiment_config.GRATING_SIZE,  orientation = self.experiment_config.GRATING_ANGLE,  
-                                  velocity = velocity,  color_contrast = self.experiment_config.GRATING_CONTRAST, color_offset = self.experiment_config.GRATING_MID_CONTRAST)  
-                        self.show_fullscreen(duration = self.experiment_config.GRATING_PAUSE, color =  self.experiment_config.BACKGROUND_COLOR)     
+                                  velocity = velocity,  color_contrast = grating_contrast, color_offset = grating_mid_contrast)  
+                                self.show_fullscreen(duration = self.experiment_config.GRATING_PAUSE, color =  self.experiment_config.BACKGROUND_COLOR)     
             elif self.experiment_config.STIMULATION_TYPE == 'flicker':
                 contrasts = utils.generate_waveform('sin', self.machine_config.SCREEN_EXPECTED_FRAME_RATE * self.experiment_config.STIMULATION_LENGTH,
                         self.machine_config.SCREEN_EXPECTED_FRAME_RATE / self.experiment_config.FLICKER_FREQUENCY,

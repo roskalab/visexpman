@@ -71,7 +71,7 @@ class Stimulations(command_handler.CommandHandler):
 ##                if self.stimulation_control.abort_stimulus():                    
 ##                    break        
     
-    def _flip(self,  trigger = False,  saveFrame = False):
+    def _flip(self,  trigger = False,  saveFrame = False, count = True):
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
         """        
@@ -84,7 +84,8 @@ class Stimulations(command_handler.CommandHandler):
             
         self.screen.flip()
         self.flip_time = time.time()
-        self.caller.experiment_control.frame_counter += 1
+        if count:
+            self.caller.experiment_control.frame_counter += 1
         frame_rate_deviation = abs(self.screen.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if frame_rate_deviation > self.config.FRAME_DELAY_TOLERANCE:
             self.delayed_frame_counter += 1
@@ -199,11 +200,12 @@ class Stimulations(command_handler.CommandHandler):
 
     #== Various visual patterns ==
     
-    def show_fullscreen(self, duration = 0.0,  color = None, flip = True):
+    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True):
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
-        self._save_stimulus_frame_info(inspect.currentframe())
+        if count:
+            self._save_stimulus_frame_info(inspect.currentframe())
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
@@ -214,7 +216,7 @@ class Stimulations(command_handler.CommandHandler):
         if duration == 0.0:
             self.log_on_flip_message = self.log_on_flip_message_initial
             if flip:
-                self._flip(trigger = True)
+                self._flip(trigger = True, count = count)
         elif duration == -1.0:
             i = 0
             while not self.abort:
@@ -225,7 +227,7 @@ class Stimulations(command_handler.CommandHandler):
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
-                    self._flip(trigger = True)
+                    self._flip(trigger = True, count = count)
                 i += 1
         else:
             for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
@@ -243,7 +245,8 @@ class Stimulations(command_handler.CommandHandler):
                     
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        if count:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, flip = True):
         '''
