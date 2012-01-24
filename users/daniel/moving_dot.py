@@ -319,7 +319,7 @@ class MovingDot(experiment.Experiment):
                     for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[cai][b][n][:,f])
                     self.row_col[-1].extend([c*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE for c in coords])
-                self.shown_directions[-1].append((allangles[a1], sum(len(s1) for s1 in self.row_col[-1]))) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
+                self.shown_directions[-1].append((allangles[a1], len(self.row_col[-1]))) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
                 self.line_end[-1].append(arow_col[cai][b][0].shape[1])
             self.row_col[-1]=utils.rc(numpy.array(self.row_col[-1]))
         pass
