@@ -106,7 +106,7 @@ class RC3DWindowsConfig(VisionExperimentConfig):
 class MBP(VisionExperimentConfig):
     def _set_user_parameters(self):        
         RUN_MODE = 'single experiment'
-        EXPERIMENT_CONFIG = 'MovingDotTestConfig'
+        EXPERIMENT_CONFIG = 'MovingDotConfig'
         LOG_PATH = '/Users/hd/Documents/DataBase'
         EXPERIMENT_LOG_PATH = LOG_PATH
         BASE_PATH='/Users/hd/Documents/DataBase'
@@ -117,7 +117,7 @@ class MBP(VisionExperimentConfig):
         EXPERIMENT_DATA_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
         ENABLE_PARALLEL_PORT = False
         ENABLE_UDP = False
-        SCREEN_RESOLUTION = utils.rc([768,   1024])
+        SCREEN_RESOLUTION = utils.rc([600,   800])
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
