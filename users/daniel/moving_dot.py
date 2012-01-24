@@ -72,13 +72,14 @@ class MovingDot(experiment.Experiment):
         experiment.Experiment.__init__(self, machine_config, caller, experiment_config)        
         
     def pre_first_fragment(self):
-        self.show_fullscreen(color = 0.0)
+        pass
+#        self.show_fullscreen(color = 0.0)
     
     def run(self, fragment_id):    
         self.show_dots([self.diameter_pix*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE]*len(self.row_col[fragment_id]), self.row_col[fragment_id], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
         self.show_fullscreen(color = 0.0)
         self.fragment_data ={}
-        if hasattr(self, 'show_line_order'):
+        if hasattr(self, 'shown_line_order'):
             self.fragment_data['shown_line_order'] = self.shown_line_order[fragment_id]
         if hasattr(self,'shown_directions'):
             self.fragment_data['shown_directions']= self.shown_directions[fragment_id]

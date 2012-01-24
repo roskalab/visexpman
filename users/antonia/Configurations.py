@@ -16,9 +16,9 @@ class Debug(VisionExperimentConfig):
         RECORD_SIGNALS_DURING_EXPERIMENT = True
         #=== paths/data handling ===
         if os.name == 'nt':
-            v_drive_data_folder = 'V:\\debug\\data'
+            v_drive_data_folder = 'V:\\data\\debug'
         else:
-            v_drive_data_folder = '/home/zoltan/visexp/debug/data'
+            v_drive_data_folder = '/home/zoltan/visexp/data/debug'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = v_drive_data_folder
@@ -50,6 +50,7 @@ class Debug(VisionExperimentConfig):
         ENABLE_FILTERWHEEL = False
         
         #=== LED controller ===
+        SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -125,6 +126,7 @@ class AEPHVS(VisionExperimentConfig):
         ENABLE_FILTERWHEEL = False
         
         #=== EphysData and stimulus Framerate recorder and LED controller ===
+        SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'

@@ -349,6 +349,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 self.network_messages.append(info)
         else:
             self.network_messages = self.command_relay_server.get_debug_info()
+        self.network_messages = self.network_messages[-500:] #limit the number of displayed messages
         for network_message in self.network_messages:
             endpoint_name = network_message[1].split(' ')
             endpoint_name = (endpoint_name[1] + '/' + endpoint_name[3]).replace(',','')

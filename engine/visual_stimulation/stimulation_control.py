@@ -186,16 +186,23 @@ class ExperimentControl():
                     if not hasattr(self.devices.ai, 'ai_data'):
                         self.devices.ai.ai_data = numpy.zeros(2)
                     mes_data = utils.file_to_binary_array(self.fragment_mat_path)
+                    stimulus_frame_info_with_data_series_index, rising_edges_indexes =\
+                                experiment_data.preprocess_stimulus_sync(self.devices.ai.ai_data[:, self.config.SYNC_CHANNEL_INDEX], stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:])
+                    stimulus_frame_info = {}#self.stimulus_frame_info
+                    if stimulus_frame_info_with_data_series_index != None:
+                        for i in range(0, len(stimulus_frame_info_with_data_series_index)):
+                            stimulus_frame_info['index_'+str(i)] = self.stimulus_frame_info[i]
                     data_to_hdf5 = {
                                     'sync_data' : self.devices.ai.ai_data,
                                     'mes_data': mes_data, 
                                     'mes_data_hash' : hashlib.sha1(mes_data).hexdigest(),
                                     'current_fragment' : fragment_id, #deprecated
                                     'actual_fragment' : fragment_id,
+                                    'stimulus_frame_info' : stimulus_frame_info,                                    
+                                    'rising_edges_indexes' : rising_edges_indexes
                                     }
-                    fragment_hdf5.stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:]
-                    fragment_hdf5.save('stimulus_frame_info')
-                    self.stimulus_frame_info_pointer += len(self.stimulus_frame_info)
+                    self.stimulus_frame_info_pointer = len(self.stimulus_frame_info)
+                    self.frame_counter = 0 #shall be reset if fragmented experiment is run, because sync signal recording is restarted at each fragment
                     if hasattr(self.selected_experiment, 'number_of_fragments'):
                         data_to_hdf5['number_of_fragments'] = self.selected_experiment.number_of_fragments
                     data_to_hdf5['generated_data'] = self.selected_experiment.fragment_data
@@ -203,7 +210,7 @@ class ExperimentControl():
                     experiment_source_file_path = inspect.getfile(self.selected_experiment.__class__).replace('.pyc', '.py')
                     data_to_hdf5['experiment_source'] = utils.file_to_binary_array(experiment_source_file_path)
                     experiment_data.save_config(fragment_hdf5, self.config, self.selected_experiment_config)
-                    time.sleep(5.0) #Wait for file ready
+                    time.sleep(2.0) #Wait for file ready DO WE ACTUALLY NEED THIS DELAY????
                     stage_position = self.devices.stage.read_position() - self.caller.stage_origin
                     objective_position = mes_interface.get_objective_position(self.fragment_mat_path)[0]
                     experiment_data.save_position(fragment_hdf5, stage_position, objective_position)                    
@@ -268,7 +275,6 @@ class ExperimentControl():
             self.caller.screen_and_keyboard.message += '\nexperiment started'
             self.caller.log.info('Started experiment: ' + utils.class_name(self.caller.selected_experiment_config.runnable))
             self.start_time = time.time()
-#            self.log.info('{0:2.3f}\tExperiment started at {1}'.format(time.time()-self.start_time, utils.datetime_string()))
             self.log.info('Experiment started at {0}'.format(utils.datetime_string()))
             #Change visexprunner state
             self.caller.state = 'experiment running'
@@ -465,13 +471,16 @@ class DataHandler(object):
             experiment_data.save_config(self.hdf5_handler, self.config, self.caller.selected_experiment_config)
             self.hdf5_handler.close()
         elif self.config.ARCHIVE_FORMAT == 'mat':
+            stimulus_frame_info_with_data_series_index, rising_edges_indexes =\
+                    experiment_data.preprocess_stimulus_sync(self.ai_data[:, self.config.SYNC_CHANNEL_INDEX], stimulus_frame_info = stimulus_frame_info)
             mat_to_save = {}
             mat_to_save['ai'] = self.ai_data
             mat_to_save['source_code'] = self.archive_binary_in_bytes
             mat_to_save['module_versions'] = self.module_versions            
             mat_to_save['experiment_log'] = utils.read_text_file(experiment_log)
             mat_to_save['config'] = experiment_data.save_config(None, self.config, experiment_config)
-            mat_to_save['stimulus_frame_info'] = stimulus_frame_info
+            mat_to_save['rising_edges_indexes'] = rising_edges_indexes
+            mat_to_save['stimulus_frame_info'] = stimulus_frame_info_with_data_series_index
             scipy.io.savemat(self.mat_path, mat_to_save, oned_as = 'row', long_field_names=True)
             
         #Restoring it to zip file: utils.numpy_array_to_file(archive_binary_in_bytes, '/media/Common/test.zip')

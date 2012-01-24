@@ -168,6 +168,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_SHUTTER = False
         
         LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
+        SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         
 #                 DAQ_CONFIG = [[
 #         {

@@ -111,7 +111,7 @@ class Stimulations(command_handler.CommandHandler):
         if utils.is_abort_experiment_in_queue(self.caller.from_gui_queue):
             self.abort = True
             
-    def _save_stimulus_frame_info(self, caller_function_info):
+    def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
         '''
         Saves:
         -frame counter
@@ -123,10 +123,13 @@ class Stimulations(command_handler.CommandHandler):
                 hasattr( self.caller.experiment_control, 'stimulus_frame_info'):
             args, _, _, values = inspect.getargvalues(caller_function_info)
             caller_name =inspect.getframeinfo(caller_function_info)[2]
-            frame_info = {}            
+            frame_info = {}
             frame_info['counter'] = self.caller.experiment_control.frame_counter
+            if is_last:
+                frame_info['counter']  -= 1
             frame_info['elapsed_time'] = self.elapsed_time
             frame_info['stimulus_type'] = caller_name
+            frame_info['is_last'] = is_last
             frame_info['parameters'] = {}            
             for arg in args:
                 if arg != 'self':
@@ -240,7 +243,7 @@ class Stimulations(command_handler.CommandHandler):
                     
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
-        self._save_stimulus_frame_info(inspect.currentframe())
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, flip = True):
         '''
@@ -451,22 +454,18 @@ class Stimulations(command_handler.CommandHandler):
                     stop_stimulus = True
                     self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
                 else:
-                    self.log_on_flip_message = self.log_on_flip_message_continous            
-            if frame_i == 0:
-                self._flip(trigger = True)
-            else:
-                self._flip(trigger = False)
+                    self.log_on_flip_message = self.log_on_flip_message_continous
+            self._flip(trigger = True)
             if self.abort:
                 self.abort = False
                 break
             if stop_stimulus:                
                 break
-                
         glDisableClientState(GL_VERTEX_ARRAY)        
         #Restore original background color
         if background_color != None:            
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
-        self._save_stimulus_frame_info(inspect.currentframe())
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
 #                    
 #    def show_checkerboard(self,   n_checkers,  duration = 0.0,  pos = (0,  0),  color = [],  box_size = (0, 0), flip = True):
@@ -805,7 +804,7 @@ class Stimulations(command_handler.CommandHandler):
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
-        self._save_stimulus_frame_info(inspect.currentframe())
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                     
     def show_dots(self,  dot_diameters, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0)):
         '''
@@ -871,17 +870,14 @@ class Stimulations(command_handler.CommandHandler):
                     self.log_on_flip_message = self.log_on_flip_message_initial
                     first_flip = True
                 else:
-                    self.log_on_flip_message = self.log_on_flip_message_continous
-                if i == 0:
-                    self._flip(trigger = True)
-                else:
-                    self._flip(trigger = False)
+                    self.log_on_flip_message = self.log_on_flip_message_continous                
+                self._flip(trigger = True)                
             if self.abort:
                 self.abort = False
                 break
                 
         glDisableClientState(GL_VERTEX_ARRAY)
-        self._save_stimulus_frame_info(inspect.currentframe())
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
 
 if __name__ == "__main__":

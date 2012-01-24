@@ -156,13 +156,13 @@ class WinDev(VisionExperimentConfig):
         
         #=== paths/data handling ===
         if os.name == 'nt':
-            v_drive_data_folder = 'V:\\debug\\data'
+            v_drive_data_folder = 'V:\\data'
         else:
-            v_drive_data_folder = '/home/zoltan/visexp/debug/data'
+            v_drive_data_folder = '/home/zoltan/visexp/data/debug'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
-        MES_DATA_FOLDER = 'V:\\debug\\data'
+        MES_DATA_FOLDER = 'V:\\data'
         CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         ARCHIVE_FORMAT = 'hdf5'
         
@@ -236,6 +236,7 @@ class WinDev(VisionExperimentConfig):
                                                 }]
                                                 
         #=== DAQ ===
+        SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -284,7 +285,7 @@ class VS3DUS(VisionExperimentConfig):
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
-        MES_DATA_FOLDER = 'V:\\data'
+        MES_DATA_FOLDER = 'V:\\data\\debug'
         ARCHIVE_FORMAT = 'hdf5'
         #=== screen ===
         FULLSCREEN = True
@@ -354,6 +355,7 @@ class VS3DUS(VisionExperimentConfig):
                                                 }]
                                                 
         #=== DAQ ===
+        SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'

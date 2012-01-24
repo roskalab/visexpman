@@ -161,7 +161,7 @@ class Config(object):
     def get_all_parameters(self):
     #TODO: test case for this function
         class_variables = dir(self)
-        parameter_names = [class_variable for class_variable in class_variables if class_variable.isupper()] 
+        parameter_names = [class_variable for class_variable in class_variables if class_variable.isupper() or 'user' == class_variable]        
         all_parameters = {}
         for parameter_name in parameter_names:
             all_parameters[parameter_name] = getattr(self,  parameter_name)
