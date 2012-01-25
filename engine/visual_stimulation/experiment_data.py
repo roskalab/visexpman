@@ -3,7 +3,7 @@ from visexpman.engine.generic import utils
 import copy
 import numpy
 import scipy.io
-
+import cPickle as pickle
 ############### Preprocess measurement data ####################
 def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None):
     #Find out high and low voltage levels
@@ -36,16 +36,29 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None):
 #################### Saving/loading data to hdf5 ####################
 def save_config(file_handle, machine_config, experiment_config = None):
     if hasattr(file_handle, 'save'):
-        file_handle.machine_config = copy.deepcopy(machine_config.get_all_parameters()) #The deepcopy is necessary to avoid conflict between daqmx and hdf5io
-        file_handle.save('machine_config')
+        file_handle.machine_config = copy.deepcopy(machine_config.get_all_parameters()) #The deepcopy is necessary to avoid conflict between daqmx and hdf5io        
         file_handle.experiment_config = experiment_config.get_all_parameters()
-        file_handle.save('experiment_config')
+        #pickle configs
+        file_handle.machine_config_pickled = pickle_config(machine_config)
+        file_handle.experiment_config_pickled = pickle_config(experiment_config)
+        file_handle.save(['experiment_config', 'machine_config', 'experiment_config_pickled', 'machine_config_pickled'])
     elif file_handle == None:
         config = {}
         config['machine_config'] = copy.deepcopy(machine_config.get_all_parameters())
         config['experiment_config'] = experiment_config.get_all_parameters()
         return config
         
+def pickle_config(config):
+    config_modified = copy.copy(config)
+    if hasattr(config_modified, 'caller'):
+        config_modified.caller = None
+    if hasattr(config_modified, 'machine_config'):
+        config_modified.machine_config = None
+    if hasattr(config_modified, 'runnable'):
+        config_modified.runnable = config_modified.runnable.__class__.__name__
+    if hasattr(config_modified, 'pre_runnable'):
+        config_modified.pre_runnable = config_modified.pre_runnable.__class__.__name__
+    return utils.string_to_binary_array(pickle.dumps(config_modified))
     
 def save_position(hdf5, stagexyz, objective_z = None):
     '''

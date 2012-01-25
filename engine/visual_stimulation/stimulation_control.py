@@ -188,7 +188,7 @@ class ExperimentControl():
                     fragment_hdf5 = hdf5io.Hdf5io(self.fragment_hdf5_path)
                     self.experiment_result_files.append(self.fragment_hdf5_path)
                     if not hasattr(self.devices.ai, 'ai_data'):
-                        self.devices.ai.ai_data = numpy.zeros(2)
+                        self.devices.ai.ai_data = numpy.zeros((2, 2))
                     mes_data = utils.file_to_binary_array(self.fragment_mat_path)
                     stimulus_frame_info_with_data_series_index, rising_edges_indexes =\
                                 experiment_data.preprocess_stimulus_sync(self.devices.ai.ai_data[:, self.config.SYNC_CHANNEL_INDEX], stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:])

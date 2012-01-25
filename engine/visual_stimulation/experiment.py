@@ -1,3 +1,4 @@
+import sys
 import logging
 import os
 import visexpman
@@ -162,10 +163,11 @@ class MachineConfig(configuration.VisionExperimentConfig):
         copy_parameters = ['COORDINATE_SYSTEM']
         for k, v in self.machine_config_dict.items():
             if k in copy_parameters:
-                setattr(self, k, v)        
+                setattr(self, k, v)
         if not hasattr(self, 'user'):
             self.user = self.default_user
         self._create_parameters_from_locals(locals())
+        pass
         
 def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = None,  experiment_source = None,  machine_config_dict = None, user = None):
     if fragment_hdf5_handler != None and experiment_source == None and machine_config_dict == None:
@@ -176,5 +178,5 @@ def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = No
     experiment_module = __import__('experiment_module')
     experiment_config = getattr(experiment_module, experiment_config_name)(machine_config = machine_config, caller = None)
     return experiment_config
-    
+    a = experiment_module.MovingDot(machine_config, None, experiment_config)
         

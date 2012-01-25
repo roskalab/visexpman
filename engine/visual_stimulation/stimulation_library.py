@@ -25,7 +25,8 @@ class Stimulations(command_handler.CommandHandler):
         self.config = config
         self.caller = caller
         self.experiment_control_dependent = experiment_control_dependent
-        self.screen = caller.screen_and_keyboard
+        if hasattr(caller,  'screen_and_keyboard'):
+            self.screen = caller.screen_and_keyboard
         self.grating_texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.grating_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
