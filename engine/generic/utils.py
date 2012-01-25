@@ -761,6 +761,13 @@ def find_latest(path):
                 latest_date = file_date
                 latest_file = file
     return latest_file
+     
+def find_content_in_folder(content, folder_name, file_filter):
+    found_in_files = []
+    for file in filtered_file_list(folder_name,  file_filter, fullpath = True):
+        if content in read_text_file(file):
+            found_in_files.append(file)
+    return found_in_files
     
     
 def generate_filename(path, insert_timestamp = False):

@@ -274,7 +274,7 @@ class MesInterface(object):
         return result, line_scan_path
 
     def wait_for_line_scan_complete(self, timeout = -1):        
-        return self._wait_for_mes_response(timeout, ['SOCacquire_line_scanEOCOKEOP', 'SOCacquire_line_scanEOCUSEOP'])
+        return self._wait_for_mes_response(timeout, ['SOCacquire_line_scanEOCOKEOP'])
 
     def wait_for_line_scan_save_complete(self, timeout = -1):
         return self._wait_for_mes_response(timeout, 'SOCacquire_line_scanEOCsaveOKEOP')    

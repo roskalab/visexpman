@@ -5,13 +5,17 @@ from visexpman.engine.generic.configuration import Config
 from visexpman.engine.generic import utils
 import stimulation_library
 import inspect
+import visexpA.engine.datahandlers.hdf5io as hdf5io
+from visexpman.engine.generic import introspect
+from visexpman.engine.visual_stimulation import configuration
 
 class ExperimentConfig(Config):
     def __init__(self, machine_config, caller):
         self.caller = caller
         self.machine_config = machine_config
-        Config.__init__(self, machine_config)        
-        self.create_runnable() # needs to be called so that runnable is instantiated and other checks are done        
+        Config.__init__(self, machine_config)
+        if machine_config != None and caller != None:
+            self.create_runnable() # needs to be called so that runnable is instantiated and other checks are done        
 
     def create_runnable(self):
         if self.runnable == None:
@@ -53,7 +57,8 @@ class Experiment(stimulation_library.Stimulations):
         self.machine_config = machine_config
         self.caller = caller
         stimulation_library.Stimulations.__init__(self, self.machine_config, self.caller)
-        self.caller.log.info('init experiment %s'%(utils.class_name(self)))
+        if hasattr(self.caller, 'log'):
+            self.caller.log.info('init experiment %s'%(utils.class_name(self)))
         self.fragment_data ={}
         self.prepare()
         if self.machine_config.MEASUREMENT_PLATFORM == 'mes':
@@ -143,3 +148,33 @@ class PreExperiment(Experiment):
     #TODO: Overlay menu on pre experiment visual stimulus so that the text is blended to the graphical pattern
     #Preexperiment can be a static image, that is always drawn when the non-experiment screen is redrawn.
     #Alternatively while preexperiment runs, keyboard handler&command handler shall be called.
+
+
+######################### Restore experiment config from measurement data #########################
+
+class MachineConfig(configuration.VisionExperimentConfig):
+    def __init__(self, machine_config_dict, default_user = None):
+        self.machine_config_dict = machine_config_dict
+        self.default_user = default_user
+        configuration.VisionExperimentConfig.__init__(self)
+        
+    def _set_user_parameters(self):
+        copy_parameters = ['COORDINATE_SYSTEM']
+        for k, v in self.machine_config_dict.items():
+            if k in copy_parameters:
+                setattr(self, k, v)        
+        if not hasattr(self, 'user'):
+            self.user = self.default_user
+        self._create_parameters_from_locals(locals())
+        
+def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = None,  experiment_source = None,  machine_config_dict = None, user = None):
+    if fragment_hdf5_handler != None and experiment_source == None and machine_config_dict == None:
+        experiment_source = fragment_hdf5_handler.findvar('experiment_source').tostring()
+        machine_config_dict = fragment_hdf5_handler.findvar('machine_config')
+    machine_config = MachineConfig(machine_config_dict, default_user = user)
+    introspect.import_code(experiment_source,'experiment_module',add_to_sys_modules=1)
+    experiment_module = __import__('experiment_module')
+    experiment_config = getattr(experiment_module, experiment_config_name)(machine_config = machine_config, caller = None)
+    return experiment_config
+    
+        

@@ -278,6 +278,7 @@ class ExperimentControl():
     
     def run_experiment(self):
         if hasattr(self.caller, 'selected_experiment_config') and hasattr(self.caller.selected_experiment_config, 'run'):
+            self.abort = False
             self.prepare_experiment_run()
             #Message to screen, log experiment start
             self.caller.screen_and_keyboard.message += '\nexperiment started'
@@ -292,25 +293,19 @@ class ExperimentControl():
                 self.number_of_fragments = len(self.caller.selected_experiment_config.runnable.fragment_durations)
             else:
                 self.number_of_fragments = 1
-            self.caller.selected_experiment_config.pre_first_fragment()            
-#            if self.config.MEASUREMENT_PLATFORM == 'mes' and hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations'):
-#                self.printl('create mes parameter file')
-#                parameter_file_prepare_success, self.parameter_file = self.devices.mes_interface.prepare_line_scan(scan_time = 1.0)
-#            else:
-#                parameter_file_prepare_success = True
-#            if parameter_file_prepare_success or True:
-            if True:
-                for fragment_id in range(self.number_of_fragments):
-                    if utils.is_abort_experiment_in_queue(self.from_gui_queue, False):
-                        self.printl('experiment aborted',  software_log = True)
-                        break
-                    elif self.start_fragment(fragment_id):
-                        #Run stimulation
-                        self.caller.selected_experiment_config.run(fragment_id)
-                        self.finish_fragment(fragment_id)
-#                self.set_mes_t4_back()
-            else:
-                self.printl( 'Parameter file NOT created')
+            self.caller.selected_experiment_config.pre_first_fragment()
+            for fragment_id in range(self.number_of_fragments):
+                if utils.is_abort_experiment_in_queue(self.from_gui_queue, False):
+                    self.printl('experiment aborted',  software_log = True)
+                    self.abort = True
+                    break
+                elif self.start_fragment(fragment_id):
+                    #Run stimulation
+                    self.caller.selected_experiment_config.run(fragment_id)
+                    self.finish_fragment(fragment_id)
+            if utils.is_abort_experiment_in_queue(self.from_gui_queue, False):
+                    self.printl('experiment aborted',  software_log = True)
+                    self.abort = True
             #Change visexprunner state to ready
             self.caller.state = 'ready'
             #Send message to screen, log experiment completition
