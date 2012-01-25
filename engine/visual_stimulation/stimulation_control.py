@@ -69,10 +69,11 @@ class ExperimentControl():
         self.stimulus_frame_info = []
         self.stimulus_frame_info_pointer = 0
         #saving experiment source to a temporary file in the user's folder
-        self.experiment_source = experiment_source.replace('(experiment.ExperimentConfig)', '{0}(experiment.ExperimentConfig)'.format(int(time.time()))) #avoid name conflict
+        self.experiment_source = experiment_source
         self.experiment_source_path = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user, 'presentinator_experiment' + str(self.caller.command_handler.experiment_counter) + '.py')
         self.experiment_source_module = os.path.split(self.experiment_source_path)[-1].replace('.py', '')
         if len(self.experiment_source)>0 and self.config.ENABLE_UDP:
+            self.experiment_source = self.experiment_source.replace('(experiment.ExperimentConfig)', '{0}(experiment.ExperimentConfig)'.format(int(time.time()))) #avoid name conflict
             f = open(self.experiment_source_path, 'wt')
             f.write(self.experiment_source)
             f.close()
@@ -214,7 +215,7 @@ class ExperimentControl():
                     experiment_data.save_config(fragment_hdf5, self.config, self.selected_experiment_config)
                     time.sleep(2.0) #Wait for file ready DO WE ACTUALLY NEED THIS DELAY????
                     stage_position = self.devices.stage.read_position() - self.caller.stage_origin
-                    objective_position = mes_interface.get_objective_position(self.fragment_mat_path)[0]
+                    objective_position = mes_interface.get_objective_position(self.fragment_mat_path, log = self.log)[0]
                     experiment_data.save_position(fragment_hdf5, stage_position, objective_position)                    
                     setattr(fragment_hdf5, self.fragment_name, data_to_hdf5)
                     fragment_hdf5.save(self.fragment_name)
@@ -241,10 +242,15 @@ class ExperimentControl():
             #Clear acquisition trigger pin
             self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             #Stop acquiring analog signals
-            self.devices.ai.finish_daq_activity()
+            if hasattr(self.devices, 'ai'):
+                self.devices.ai.finish_daq_activity()
             self.printl('ai recording finished, waiting for data save complete')
-            self.data_handler.ai_data = self.devices.ai.ai_data
-            self.devices.ai.release_instrument()
+            if hasattr(self.devices, 'ai'):
+                if hasattr(self.devices.ai, 'ai_data'):
+                    self.data_handler.ai_data = self.devices.ai.ai_data
+                else:
+                    self.data_handler.ai_data = numpy.zeros(2)
+                self.devices.ai.release_instrument()
         elif self.config.MEASUREMENT_PLATFORM == 'standalone':
             return True
             
