@@ -136,7 +136,7 @@ class MBP(VisionExperimentConfig):
         
         SEGMENT_DURATION = 2
         
-        MAXIMUM_RECORDING_DURATION = [90, [0, 10000]] #seconds
+        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #seconds
         ARCHIVE_FORMAT = 'hdf5'
         COORDINATE_SYSTEM='ulcorner'
             
