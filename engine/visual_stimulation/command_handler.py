@@ -16,7 +16,7 @@ class CommandHandler(object):
     '''
     Responsible for interpreting incoming commands and calling the necessary functions
     '''
-    def __init__(self, config, caller):
+    def __init__(self, config, caller = None):
         '''
         TBD
         '''        
@@ -24,9 +24,10 @@ class CommandHandler(object):
         self.caller = caller
         self.config = config
         #Initialize slected experiment config index
-        for i in range(len(self.caller.experiment_config_list)):
-            if self.caller.experiment_config_list[i][1].__name__ == self.config.EXPERIMENT_CONFIG:
-                self.selected_experiment_config_index = i
+        if hasattr(self.caller, 'experiment_config_list'):
+            for i in range(len(self.caller.experiment_config_list)):
+                if self.caller.experiment_config_list[i][1].__name__ == self.config.EXPERIMENT_CONFIG:
+                    self.selected_experiment_config_index = i
         #Experiment counter will be used to identify each experiment (logging,....)
         self.experiment_counter = 0
         
@@ -134,7 +135,8 @@ class CommandHandler(object):
         return 'set_measurement_id'
 
     def quit(self, par):
-        self.caller.loop_state = 'end loop'
+        if hasattr(self.caller, 'loop_state'):
+            self.caller.loop_state = 'end loop'
         return 'quit'
 
     def parse(self,  command_buffer,  state = 'unspecified'):
@@ -145,7 +147,7 @@ class CommandHandler(object):
         if len(command_buffer) > 6: #SOC + EOC + 1 character is at least present in a command
             cmd = command_extract.findall(command_buffer)
             command_buffer_newline_replaced = command_buffer.replace('\n',  '<newline>')
-            par = parameter_extract.findall(command_buffer_newline_replaced) #par is not at the beginning of the buffer             
+            par = parameter_extract.findall(command_buffer_newline_replaced) #par is not at the beginning of the buffer
             if len(par)>0:
                 par = [par[0].replace('<newline>',  '\n')]
             if len(par)>0:
@@ -158,7 +160,8 @@ class CommandHandler(object):
                     result = cmd[0]
             else:
                 result = ''
-            self.caller.log.info('Command handler: ' + result)
+            if hasattr(self.caller, 'log'):
+                self.caller.log.info('Command handler: ' + result)
         return result
 
 class CommandSender(QtCore.QThread):

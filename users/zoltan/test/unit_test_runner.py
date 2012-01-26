@@ -34,7 +34,7 @@ for arg in sys.argv:
         TEST_parallel_port = True
     elif arg == '-fw':
         TEST_filterwheel = True
-    elif arg == '-del':
+    elif arg == '-del': #Yet not working
         TEST_delete_files = True
 
 TEST_os = os.name
@@ -97,7 +97,7 @@ def generate_filename(path):
             raise RuntimeError('Filename cannot be generated')
     return testable_path
 
-class unitTestRunner():
+class UnitTestRunner():
     '''
     This class is responsible for maintaining a list of implemented and ready to run unit tests. Test methods are aggregated and executed with unittest's TextTestRunner class.
     '''
@@ -142,7 +142,9 @@ class unitTestRunner():
                {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
                'enable' : True},
                {'test_class_path' : 'visexpman.engine.generic.timing.TestTiming',
-               'enable' : True},               
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.generic.command_parser.TestAnalysisCommandHandler',
+               'enable' : True},
                ]
 
     def fetch_test_methods(self, test_class):
@@ -232,6 +234,6 @@ class unitTestRunner():
         source_zip.close()
 
 if __name__ == "__main__":
-    utr = unitTestRunner()
+    utr = UnitTestRunner()
     utr.run()
 

@@ -96,7 +96,7 @@ class VisExpRunner(object):
             self.visexpman_module_paths.append(os.path.join(self.config.PACKAGE_PATH, 'engine', 'visexp_runner.py'))
         self.module_versions = utils.module_versions(module_info[0])
         self.log.info('Visexpman initialized')
-        for i in range(60):
+        for i in range(0):
             self.command_queue.put('SOCexecute_experimentEOCEOP')
 
     def run_loop(self):

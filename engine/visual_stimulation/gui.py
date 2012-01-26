@@ -230,9 +230,15 @@ class DebugWidget(QtGui.QWidget):
     def __init__(self, parent, config):
         QtGui.QWidget.__init__(self, parent)
         self.config = config
+        #generate connection name list
+        self.connection_names = ['']
+        for k, v in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
+            if 'GUI' in k:
+                self.connection_names.append(k.replace('GUI', '').replace('_', '').lower())
         self.create_widgets()
         self.create_layout()
         self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
+        
         
     def create_widgets(self):
         #MES related
@@ -255,7 +261,7 @@ class DebugWidget(QtGui.QWidget):
         self.show_connected_clients_button = QtGui.QPushButton('Show connected clients',  self)
         self.show_network_messages_button = QtGui.QPushButton('Show network messages',  self)
         self.select_connection_list = QtGui.QComboBox(self)        
-        self.select_connection_list.addItems(QtCore.QStringList(['','mes', 'stimulation', 'analysis']))
+        self.select_connection_list.addItems(QtCore.QStringList(self.connection_names))
         self.send_command_button = QtGui.QPushButton('Send command',  self)
         
         #Development

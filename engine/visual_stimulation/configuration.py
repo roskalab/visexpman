@@ -13,7 +13,6 @@ import tempfile
 import unittest
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
-#TODO: make  naming of *ENABLE* like parameters consistent: ENABLE*
 class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         '''
@@ -83,15 +82,13 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         'ENABLE' : False,
         'CLIENTS_ENABLE': False, 
         'TIMEOUT':6.0,
-#        'RELAY_SERVER_IP' : '172.27.26.1', 
-#        'RELAY_SERVER_IP' : 'localhost', 
         'CONNECTION_MATRIX':
             {
             'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
             'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
-            'GUI_ANAL'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANAL' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
-            'STIM_ANAL'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'ANAL' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}}, 
+            'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
+            'STIM_ANALYSIS'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}}, 
             }
         }
         #TODO: probably IP addresses are not necessary here

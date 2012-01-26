@@ -12,6 +12,7 @@ import unittest
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import tempfile
 import copy
+import select
 
 #== Computer graphics colors ==
 def convert_color(color):
@@ -1059,6 +1060,14 @@ def string_to_array(string):
     for byte in list(string):
         array.append(ord(byte))
     return numpy.array(array)
+    
+def enter_hit():
+    i,o,e = select.select([sys.stdin],[],[],0.0001)
+    for s in i:
+        if s == sys.stdin:
+            input = sys.stdin.readline()
+            return True
+    return False
 
 class TestUtils(unittest.TestCase):
     def setUp(self):

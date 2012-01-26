@@ -122,7 +122,7 @@ class Stimulations(command_handler.CommandHandler):
         -parameters of stimulus
         '''
         if hasattr(self, 'elapsed_time') and hasattr(self.caller.experiment_control, 'frame_counter') and\
-                hasattr( self.caller.experiment_control, 'stimulus_frame_info'):
+                hasattr(self.caller.experiment_control, 'stimulus_frame_info'):
             args, _, _, values = inspect.getargvalues(caller_function_info)
             caller_name =inspect.getframeinfo(caller_function_info)[2]
             frame_info = {}
@@ -132,7 +132,7 @@ class Stimulations(command_handler.CommandHandler):
             frame_info['elapsed_time'] = self.elapsed_time
             frame_info['stimulus_type'] = caller_name
             frame_info['is_last'] = is_last
-            frame_info['parameters'] = {}            
+            frame_info['parameters'] = {}
             for arg in args:
                 if arg != 'self':
                     frame_info['parameters'][arg] = values[arg]

@@ -12,7 +12,6 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None):
         low_voltage_level = 0.5 * (bin_edges[0] + bin_edges[1])
         high_voltage_level = 0.5 * (bin_edges[-1] + bin_edges[-2])
     else:
-#        raise RuntimeError('Sync signal is not binary')
         print 'Sync signal is not binary'
         return None, None
     threshold = 0.5 * (low_voltage_level + high_voltage_level)

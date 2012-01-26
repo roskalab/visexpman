@@ -214,9 +214,11 @@ class ExperimentControl():
                     data_to_hdf5['experiment_source'] = utils.file_to_binary_array(experiment_source_file_path)
                     experiment_data.save_config(fragment_hdf5, self.config, self.selected_experiment_config)
                     time.sleep(2.0) #Wait for file ready DO WE ACTUALLY NEED THIS DELAY????
-                    stage_position = self.devices.stage.read_position() - self.caller.stage_origin
-                    objective_position = mes_interface.get_objective_position(self.fragment_mat_path, log = self.log)[0]
-                    experiment_data.save_position(fragment_hdf5, stage_position, objective_position)                    
+                    #read stage and objective position
+                    if fragment_id == 0:
+                        self.stage_position = self.devices.stage.read_position() - self.caller.stage_origin
+                        self.objective_position = mes_interface.get_objective_position(self.fragment_mat_path, log = self.log)[0]
+                    experiment_data.save_position(fragment_hdf5, self.stage_position, self.objective_position)                    
                     setattr(fragment_hdf5, self.fragment_name, data_to_hdf5)
                     fragment_hdf5.save(self.fragment_name)
                     #Here the saved data will be checked and preprocessed
@@ -226,7 +228,7 @@ class ExperimentControl():
                     fragment_hdf5.close()
                     #Rename fragment hdf5 so that coorinates are included
                     original_fragment_path = self.fragment_hdf5_path
-                    self.fragment_hdf5_path = self.fragment_hdf5_path.replace('fragment_',  'fragment_{0:.1f}_{1:.1f}_{2}_'.format(stage_position[0], stage_position[1], objective_position))
+                    self.fragment_hdf5_path = self.fragment_hdf5_path.replace('fragment_',  'fragment_{0:.1f}_{1:.1f}_{2}_'.format(self.stage_position[0], self.stage_position[1], self.objective_position))
                     shutil.move(original_fragment_path, self.fragment_hdf5_path)
                     result, messages = data_rescue.check_fragment(self.fragment_hdf5_path, ['data_class','stimulus_class','sync_signal','stimpar' ])
                     if not result:

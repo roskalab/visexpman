@@ -156,15 +156,25 @@ class Debug(VisionExperimentConfig):
 #        EXPERIMENT_CONFIG = 'Dummy'
         
         #=== paths/data handling ===
+        use_drive = 'v'
+        
         if os.name == 'nt':
-            v_drive_data_folder = 'V:\\data'
+            if use_drive == 'g':
+                drive_data_folder = 'g:\\User\\Zoltan\\data'
+            elif use_drive =='v':
+                drive_data_folder = 'V:\\data'
         else:
-            v_drive_data_folder = '/home/zoltan/visexp/data'
-        LOG_PATH = os.path.join(v_drive_data_folder, 'log')
+            drive_data_folder = '/home/zoltan/visexp/data'        
+            
+        LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
-        EXPERIMENT_DATA_PATH = v_drive_data_folder
-        MES_DATA_FOLDER = 'V:\\data'
-        CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
+        EXPERIMENT_DATA_PATH = drive_data_folder
+        if use_drive == 'g':
+            MES_DATA_FOLDER = 'g:\\User\\Zoltan\\data'
+        elif use_drive =='v':
+            MES_DATA_FOLDER = 'V:\\data'
+        
+        CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
         ARCHIVE_FORMAT = 'hdf5'
         
         #=== screen ===
