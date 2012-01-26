@@ -325,7 +325,7 @@ class QueuedClient(QtCore.QThread):
         return result
             
     def connected_to_remote_client(self, timeout = 1.5):
-        '''
+        '''connected_to_remote_client
         Sends an echo message to the remote client and waits for the response. If it does not arrive within the timout provided, it is assumed that the remote client is not connected
         '''
         #TODO: testcase is missing for this function
@@ -392,6 +392,7 @@ class QueuedServerTestConfig(visexpman.engine.generic.configuration.Config):
         COMMAND_RELAY_SERVER  = {
         'RELAY_SERVER_IP' : 'localhost', 
         'ENABLE' : True, 
+        'CLIENTS_ENABLE' : True, 
         'TIMEOUT':10.0, 
         'CONNECTION_MATRIX':
             {

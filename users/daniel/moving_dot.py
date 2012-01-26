@@ -72,8 +72,7 @@ class MovingDot(experiment.Experiment):
         experiment.Experiment.__init__(self, machine_config, caller, experiment_config)        
         
     def pre_first_fragment(self):
-        pass
-#        self.show_fullscreen(color = 0.0)
+        self.show_fullscreen(color = 0.0)
     
     def run(self, fragment_id):    
         self.show_dots([self.diameter_pix*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE]*len(self.row_col[fragment_id]), self.row_col[fragment_id], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
@@ -144,6 +143,7 @@ class MovingDot(experiment.Experiment):
         self.fragment_durations = []
         for fragment_duration in range(self.number_of_fragments):
             self.fragment_durations.append(float(len(self.row_col[fragment_duration]) / self.experiment_config.NDOTS)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+#        print self.shown_directions
             
     def angles_broken_to_multi_block(self, w, h, diameter_pix, speed_pix,gridstep_pix, movestep_pix,  hlines_r, hlines_c, vlines_r, vlines_c,   angleset, allangles):
         '''In a block the maximum possible lines from the same direction is put. Direction is shuffled till all lines to be shown are put into blocks.

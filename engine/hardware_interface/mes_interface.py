@@ -37,7 +37,7 @@ def read_rc_scan(mes_file_or_stream, frame_i):
         data = matlabfile.MatData(mes_file_or_stream).get_field('DATA')
     else:
         data = mes_file_or_stream.get_field('DATA')
-        
+
 #    frame_i = 0
     line = data[0][0]['IMAGE'][0].transpose()[frame_i]
     roi = data[0][0]['roi'][0].transpose()[frame_i]
@@ -48,12 +48,12 @@ def read_rc_scan(mes_file_or_stream, frame_i):
     masked_line = line * mask
     pass
     return masked_line, roi,  line, mask, x, y, z
-        
-def get_objective_position(mat_file):
+
+def get_objective_position(mat_file, log = None):
     '''
     Reads relative Z position
     '''
-    m = matlabfile.MatData(mat_file)
+    m = matlabfile.MatData(mat_file, log = log)
     data = m.get_field('DATA')
     n_frames = data[0].shape[0]
     if n_frames <= 2: #For some reason sometimes two data units reside in the mat file
@@ -65,12 +65,12 @@ def get_objective_position(mat_file):
             data.append(data_set[0][i][0][0][0])
         data = numpy.array(data)
     return data
-        
+
 def set_mes_mesaurement_save_flag(mat_file, flag):
     m = matlabfile.MatData(reference_path, target_path)
     m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
     m.flush()   
-        
+
 def set_line_scan_time(scan_time, reference_path, target_path):
     '''
     scan_time: in ms
@@ -81,7 +81,7 @@ def set_line_scan_time(scan_time, reference_path, target_path):
     ts = m.get_field(m.name2path('ts'))[0][0][0][0]
     ts = numpy.array([ts[0],ts[1],ts[2],numpy.round(float(1000*scan_time), 0)], dtype = numpy.float64)
     m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
-    
+
 def get_line_scan_time(path):
     m = matlabfile.MatData(path)
     return m.get_field(m.name2path('ts'))[0][0][0][0][-1]
@@ -111,9 +111,9 @@ class MesInterface(object):
         self.log = log
         self.stop = False
         self.from_gui_queue = from_gui_queue
-        
+
     ################# Single two photon frame###############
-    
+
     def acquire_two_photon_image(self, timeout = -1, parameter_file = None):
         if parameter_file == None:
             #generate a mes parameter file name, that does not exits
@@ -198,7 +198,7 @@ class MesInterface(object):
         utils.empty_queue(self.response_queue)
         self.command_queue.put('SOCset_pointsEOC{0}EOP' .format(points_mat_on_mes))
         return network_interface.wait_for_response(self.response_queue, 'SOCset_pointsEOCpoints_setEOP', timeout = timeout)
-        
+
     def rc_runnability_test(self, points, timeout = -1):
         points_mat, points_mat_on_mes = self._generate_mes_file_paths('rc_points.mat')
         generate_scan_points_mat(points, points_mat)
@@ -209,16 +209,16 @@ class MesInterface(object):
     def points_to_rc_line(self, timeout = -1):
         self.command_queue.put('SOCpoints2RClineEOCEOP')
         return network_interface.wait_for_response(self.response_queue, 'SOCpoints2RClineEOCdoneEOP', timeout = timeout)
-        
+
     def trajectory_runnability_test(self, timeout = -1):
         pass
-        
+
     def get_rc_range(self, timeout = -1):
         '''
         MES returns the range as follows: xmin, xmax, ymin, ymax, z range
-        
+
         Not tested yet
-        
+
         '''
         self.command_queue.put('SOCget_rangeEOCEOP')
         result = network_interface.wait_for_response(self.response_queue, 'SOCget_rangeEOC', timeout = timeout)[0]
@@ -229,62 +229,56 @@ class MesInterface(object):
             mes_scan_range['row'] = map(float, result[2:4])
             mes_scan_range['depth'] = map(float, result[4])
         return mes_scan_range
-        
+
     #######################  Line scan ######################=#    
-            
-    
-    def prepare_line_scan(self, scan_time, template_parameter_file = None):
-        '''
-        '''        
-        result = False, None
-        if template_parameter_file == None:
-            #Get parameters from MES by requesting a short line scan
-            query_parameters_result, modified_parameter_file = self.start_line_scan(timeout = 2.0)            
-            if query_parameters_result:
-                query_parameters_response_result = self.wait_for_line_scan_complete(10.0)                
-                if query_parameters_response_result:                    
-                    query_parameters_response_result = self.wait_for_line_scan_save_complete(10.0)                    
-                    if query_parameters_response_result:
-                        #prepare parameter file
-                        set_line_scan_time(scan_time, modified_parameter_file, modified_parameter_file)
-                        result = True, modified_parameter_file                    
-        else:
-            parameter_file = utils.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'line_scan_parameters.mat'))
-            set_line_scan_time(scan_time, template_parameter_file, parameter_file)
-            result = True, parameter_file
-        return result
-        
-    def start_line_scan(self, timeout = -1, parameter_file = None):
+
+    def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
         if parameter_file == None:
             #generate a mes parameter file name, that does not exits
             line_scan_path, line_scan_path_on_mes = self._generate_mes_file_paths('line_scan_parameters.mat')
         else:
             line_scan_path = parameter_file
             line_scan_path_on_mes = utils.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS != 'win'))
-        #previously sent garbage is removed from queue
-        utils.empty_queue(self.response_queue)        
+        utils.empty_queue(self.response_queue)
         #Acquire line scan if MES is connected
         if self.connection.connected_to_remote_client():
-            self.command_queue.put('SOCacquire_line_scanEOC{0}EOP' .format(line_scan_path_on_mes))
-            result = network_interface.wait_for_response(self.response_queue, 'SOCacquire_line_scanEOCstartedEOP', timeout = timeout, 
+            self.command_queue.put('SOCacquire_line_scan_templateEOC{0}EOP' .format(line_scan_path_on_mes))
+            result = network_interface.wait_for_response(self.response_queue, 'SOCacquire_line_scan_templateEOCsaveOKEOP', timeout = timeout, 
                                                          keyboard_handler = self.keyboard_handler, 
                                                          from_gui_queue = self.from_gui_queue)
-            if result:
-                self._log_info('line scan started')
-            else:
-                self._log_info('line scan not started')
         else:
             self._log_info('mes not connected')
             result = False
+        return result, line_scan_path, line_scan_path_on_mes
+
+    def start_line_scan(self, timeout = -1, parameter_file = None, scan_time = None):
+        result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
+        if scan_time != None and result:
+            set_line_scan_time(scan_time, line_scan_path, line_scan_path)
+        if result:
+            #previously sent garbage is removed from queue
+            utils.empty_queue(self.response_queue)        
+            #Acquire line scan if MES is connected            
+            if self.connection.connected_to_remote_client():
+                self.command_queue.put('SOCacquire_line_scanEOC{0}EOP' .format(line_scan_path_on_mes))
+                result = network_interface.wait_for_response(self.response_queue, 'SOCacquire_line_scanEOCstartedEOP', timeout = timeout, 
+                                                             keyboard_handler = self.keyboard_handler, 
+                                                             from_gui_queue = self.from_gui_queue)
+                if result:
+                    self._log_info('line scan started')
+                else:
+                    self._log_info('line scan not started')
+            else:
+                self._log_info('mes not connected')
+                result = False        
         return result, line_scan_path
-        
+
     def wait_for_line_scan_complete(self, timeout = -1):        
-        return self._wait_for_mes_response(timeout, ['SOCacquire_line_scanEOCOKEOP', 'SOCacquire_line_scanEOCUSEOP'])
-        
-        
+        return self._wait_for_mes_response(timeout, ['SOCacquire_line_scanEOCOKEOP'])
+
     def wait_for_line_scan_save_complete(self, timeout = -1):
         return self._wait_for_mes_response(timeout, 'SOCacquire_line_scanEOCsaveOKEOP')    
-    
+
 ####################### Private functions ########################
 
     def _wait_for_mes_response(self, timeout, expected_responses):
@@ -304,11 +298,11 @@ class MesInterface(object):
         else:
             self._log_info('No MES response')
         return result
-        
+
     def _log_info(self, message):
         if self.log != None:
             self.log.info(message)
-        
+
     def _generate_mes_file_paths(self, filename):
         path = utils.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename))
         path_on_mes = utils.convert_path_to_remote_machine_path(path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
@@ -327,30 +321,30 @@ class MesEmulator(QtCore.QThread):
         self.queue_in = queue_in
         self.queue_out = queue_out
         self.acquire_line_scan_received = False
-        
+
     def run(self):        
         while True:            
             if not self.queue_in.empty():
                 message = self.queue_in.get()                
                 command = re.findall('SOC(.+)EOC', message)
                 parameter = re.findall('EOC(.+)EOP', message)                
-                if 'acquire_line_scan' in message:
+                if 'acquire_line_scan_template' in message:
                     self.acquire_line_scan_received = True
                     for response in self.response_pattern:
                         time.sleep(response['delay'])
                         self.queue_out.put(response['response'])
                 elif 'echo' in command:
                     self.queue_out.put(message)
-            time.sleep(0.1)        
-        
-                
-            
+            time.sleep(0.05)
+
+
+
 class MESTestConfig(visexpman.engine.generic.configuration.Config):
     def __init__(self, baseport = None, mes_data_to_new_folder = False):
         self.baseport = baseport
         self.mes_data_to_new_folder = mes_data_to_new_folder
         visexpman.engine.generic.configuration.Config.__init__(self)
-        
+
     def _create_application_parameters(self):
         if self.baseport == None:
             import random
@@ -360,6 +354,7 @@ class MESTestConfig(visexpman.engine.generic.configuration.Config):
         COMMAND_RELAY_SERVER  = {
         'RELAY_SERVER_IP' : 'localhost', 
         'ENABLE' : True, 
+        'CLIENTS_ENABLE' : True, 
         'TIMEOUT':10.0, 
         'CONNECTION_MATRIX':
             {
@@ -372,13 +367,13 @@ class MESTestConfig(visexpman.engine.generic.configuration.Config):
                 os.mkdir(EXPERIMENT_DATA_PATH)
         else:
             EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
-        
+
         MES_DATA_FOLDER = EXPERIMENT_DATA_PATH.replace('/home/zoltan/visexp', 'V:').replace('/', '\\')
         LOG_PATH = unit_test_runner.TEST_working_folder
         self._create_parameters_from_locals(locals())
-        
+
 class TestMesInterfaceEmulated(unittest.TestCase):
-    
+
     def tearDown(self):
         self.user_to_client.put('SOCclose_connectionEOCstop_clientEOP')
         if hasattr(self, 'mes_queue_out'):
@@ -386,7 +381,7 @@ class TestMesInterfaceEmulated(unittest.TestCase):
         if hasattr(self, 'server'):
             self.server.shutdown_servers()     
         time.sleep(1.0)
-        
+
     def setUp(self):
         self.config = MESTestConfig()       
         self.user_to_client = Queue.Queue()
@@ -398,11 +393,11 @@ class TestMesInterfaceEmulated(unittest.TestCase):
             self.mes_to_client = Queue.Queue()
             self.client_to_mes = Queue.Queue()
             self.mes_client = network_interface.start_client(self.config, 'MES', 'USER_MES', self.client_to_mes, self.mes_to_client)
-    
+
     def test_01_line_scan_mes_not_connected(self):   
         result = self.mes_interface.start_line_scan(2.0)
         self.assertEqual((result[0], os.path.exists(result[1])), (False, False))
-        
+
     def test_02_line_scan_start_fails(self):
         '''
         Connection test should pass but mes will not respond with 'line scan started'
@@ -417,24 +412,27 @@ class TestMesInterfaceEmulated(unittest.TestCase):
         '''
         Line scan started without error
         '''
-        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}]
+        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scan_templateEOCsaveOKEOP'}, 
+                                {'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}]
         mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
         mes_emulator.start()
         result = self.mes_interface.start_line_scan(1.0)        
         self.assertEqual((result[0], mes_emulator.acquire_line_scan_received), (True, True))
-        
+
     def test_04_line_scan_started_timeout(self):
         '''
         Line scan started but later than the timeout given in start_line_scan
         '''
-        response_pattern = [{'delay':1.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}]
+        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scan_templateEOCsaveOKEOP'}, 
+                            {'delay':2.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}]
         mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
         mes_emulator.start()
         result = self.mes_interface.start_line_scan(1.0)
         self.assertEqual((result[0], mes_emulator.acquire_line_scan_received), (False, True))
-        
+
     def test_05_line_scan_and_data_save_completed(self):
-        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}, 
+        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scan_templateEOCsaveOKEOP'}, 
+                            {'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}, 
                             {'delay':0.1, 'response':'SOCacquire_line_scanEOCOKEOP'}, 
                             {'delay':0.1, 'response':'SOCacquire_line_scanEOCsaveOKEOP'}
                             ]
@@ -445,18 +443,20 @@ class TestMesInterfaceEmulated(unittest.TestCase):
         result_save_ok = self.mes_interface.wait_for_line_scan_save_complete(1.0)
         self.assertEqual((result_line_scan_started[0], result_scan_ok, result_save_ok, mes_emulator.acquire_line_scan_received), 
                          (True, True, True, True))
-                         
+
     def test_06_line_scan_save_ok_delayed(self):
         '''
         saveOK arrives later than timeout
         '''
-        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}, 
+        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scan_templateEOCsaveOKEOP'}, 
+                            {'delay':0.1, 'response':'SOCechoEOCdumyEOP'},
+                            {'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}, 
                             {'delay':0.1, 'response':'SOCacquire_line_scanEOCOKEOP'}, 
                             {'delay':3.1, 'response':'SOCacquire_line_scanEOCsaveOKEOP'}
                             ]
         mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
         mes_emulator.start()
-        result_line_scan_started = self.mes_interface.start_line_scan(0.5)
+        result_line_scan_started = self.mes_interface.start_line_scan(1.0)
         result_scan_ok = self.mes_interface.wait_for_line_scan_complete(0.5)
         result_save_ok = self.mes_interface.wait_for_line_scan_save_complete(0.5)
         time.sleep(4.0)
@@ -466,68 +466,46 @@ class TestMesInterfaceEmulated(unittest.TestCase):
                          (True, True, False, True, True))                        
 
 class TestMesInterface(unittest.TestCase):
-    
+
     def tearDown(self):
         self.user_to_client.put('SOCclose_connectionEOCstop_clientEOP')
         if hasattr(self, 'server'):
             self.server.shutdown_servers()     
         time.sleep(0.5)
-        
+
     def setUp(self):
-        self.config = MESTestConfig(mes_data_to_new_folder = True, baseport = 10000)
+        self.config = MESTestConfig(mes_data_to_new_folder = not True, baseport = 10000)
         self.user_to_client = Queue.Queue()
         self.client_to_user = Queue.Queue()
         self.user_client = network_interface.start_client(self.config, 'USER', 'USER_MES', self.client_to_user, self.user_to_client)
         self.mes_interface = MesInterface(self.config, connection = self.user_client)        
         self.server = network_interface.CommandRelayServer(self.config)
-        
-        
+
+
     def test_all_functions(self):
         '''
         1. line scan with mes settings
         2. line scan with user scan time
         '''
-        
-        scan_time_reference1 = 10.0
-        scan_time_reference2 = 4.0
+
+        scan_time_reference1 = 4.0
+        scan_time_reference2 = 5.0
         raw_input('1. In MES software, server address shall be set to this machine\'s ip\n\
-                   2. Connect MES to gui\n\
-                   3. Make sure that t4 parameter is 2000 ms\n\
-                   4. Press ENTER')
-    
-        #Creating parameter file and setting scan time to a user value
-        parameter_file_prepare_success, parameter_file = self.mes_interface.prepare_line_scan(scan_time = scan_time_reference1)        
-        if parameter_file_prepare_success:
-            user_line_scan_file = utils.generate_filename(os.path.join(os.path.split(parameter_file)[0], 'user_line_scan.mat'))
-            shutil.copy(parameter_file, user_line_scan_file)
-            #Start line scan by using prepared parameter file
-            line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(parameter_file = user_line_scan_file)
-            if line_scan_start_success:
-                line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(2 * scan_time_reference1)
-                if line_scan_complete_success:
-                    line_scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(scan_time_reference1)
-        
-        result1 = self._line_scan_test_result(scan_time_reference1, line_scan_start_success, line_scan_path, user_line_scan_file, line_scan_complete_success, line_scan_data_save_success)        
-        #Start line scan by using all the parameters set in mes
-        raw_input('Set t4 to {0} ms and press ENTER'.format(int(1000*scan_time_reference2)))
-        user_line_scan_file = utils.generate_filename(os.path.join(os.path.split(parameter_file)[0], 'user_line_scan.mat'))
-        line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(parameter_file = user_line_scan_file)
+                2. Connect MES to gui\n\
+                3. Press ENTER')
+
+        line_scan_complete_success = False
+        line_scan_data_save_success = False
+        user_line_scan_file = utils.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'user_line_scan.mat'))        
+        line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(parameter_file = user_line_scan_file, scan_time = scan_time_reference1, timeout = 2 * scan_time_reference1)
         if line_scan_start_success:
-            line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(2 * scan_time_reference2)
+            line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(2 * scan_time_reference1)
             if line_scan_complete_success:
-                line_scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(scan_time_reference2)                    
-        result2 = self._line_scan_test_result(scan_time_reference2, line_scan_start_success, line_scan_path, user_line_scan_file, line_scan_complete_success, line_scan_data_save_success)
-        #set back t4 to 2000 ms
-        set_back_success = False
-        set_line_scan_time(2.0, parameter_file, parameter_file)
-        line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(timeout = 5.0, parameter_file = parameter_file)
-        if line_scan_start_success:
-            line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(5.0)
-            if line_scan_complete_success:
-                set_back_success =  self.mes_interface.wait_for_line_scan_save_complete(5.0)
-        self.assertEqual((parameter_file_prepare_success, result1, result2,set_back_success), (True, True, True, True))            
-        
-    def _line_scan_test_result(self, expected_scan_time, line_scan_start_success = None, line_scan_path = None, user_line_scan_file = None, line_scan_complete_success = None, 
+                line_scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(scan_time_reference1)
+        result1 = self._line_scan_result(scan_time_reference1, line_scan_start_success, line_scan_path, user_line_scan_file, line_scan_complete_success, line_scan_data_save_success)
+        self.assertEqual((line_scan_start_success, line_scan_complete_success, line_scan_data_save_success, get_line_scan_time(user_line_scan_file)) , (True, True, True, 1000 * scan_time_reference1))
+
+    def _line_scan_result(self, expected_scan_time, line_scan_start_success = None, line_scan_path = None, user_line_scan_file = None, line_scan_complete_success = None, 
                                     line_scan_data_save_success = None):
         result = False
         if line_scan_start_success == None or line_scan_path == None or user_line_scan_file == None or line_scan_complete_success == None or line_scan_data_save_success == None:
@@ -536,11 +514,11 @@ class TestMesInterface(unittest.TestCase):
             if 1000 * expected_scan_time == get_line_scan_time(user_line_scan_file) and 1000 * expected_scan_time == get_line_scan_time(line_scan_path):
                 result = True
         return result
-            
-            
-        
-        
-    
+
+
+
+
+
 if __name__ == "__main__":
     unittest.main()
 #    mat_file = '/media/sf_M_DRIVE/Zoltan/visexpman/data/0_X-820381_Y-252527_Z+57516/acquire_z_stack_parameters_MovingDot_1321687013_0.mat'

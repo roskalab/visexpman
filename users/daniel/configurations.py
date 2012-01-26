@@ -145,7 +145,7 @@ class MBP(VisionExperimentConfig):
         VisionExperimentConfig._create_parameters_from_locals(self, locals())
         #VisionExperimentConfig._set_parameters_from_locals(self, locals())
         
-class WinDev(VisionExperimentConfig):
+class Debug(VisionExperimentConfig):
     '''
     Windows development machine
     '''
@@ -153,12 +153,13 @@ class WinDev(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'GratingConfig'
 #         EXPERIMENT_CONFIG = 'LedStimulationConfig'
         EXPERIMENT_CONFIG = 'MovingDotConfig'
+#        EXPERIMENT_CONFIG = 'Dummy'
         
         #=== paths/data handling ===
         if os.name == 'nt':
             v_drive_data_folder = 'V:\\data'
         else:
-            v_drive_data_folder = '/home/zoltan/visexp/data/debug'
+            v_drive_data_folder = '/home/zoltan/visexp/data'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
@@ -192,7 +193,7 @@ class WinDev(VisionExperimentConfig):
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
 #         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.25.220'
         #=== hardware ===
-        ENABLE_PARALLEL_PORT = True
+        ENABLE_PARALLEL_PORT = (self.OS == 'win')
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
@@ -207,7 +208,7 @@ class WinDev(VisionExperimentConfig):
                                     }
                                     
         STAGE = [{'serial_port' : motor_serial_port,
-                 'enable': True,
+                 'enable': (self.OS == 'win'),
                  'speed': 400,
                  'acceleration' : 200,
                  'move_timeout' : 45.0,
@@ -246,7 +247,7 @@ class WinDev(VisionExperimentConfig):
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
-                    'ENABLE' : True
+                    'ENABLE' : (self.OS == 'win')
                     },
                     {
                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
@@ -256,7 +257,7 @@ class WinDev(VisionExperimentConfig):
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : 0.0,
                     
-                    'ENABLE' : True
+                    'ENABLE' : (self.OS == 'win')
                     }
                     ]
         

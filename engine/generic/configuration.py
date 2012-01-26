@@ -133,9 +133,10 @@ class Config(object):
     def set(self,  parameter_name,  new_value):
         '''
         Change value of a parameter in config. Perhaps this function shall be disabled so that parameters could not be modified in runtime or outside the class definition.
-        '''
-        getattr(getattr(self,  parameter_name + '_p'),  'set')(new_value)
+        '''        
+        getattr(getattr(self,  parameter_name + '_p'),  'set')(new_value) 
         setattr(self,  parameter_name,  new_value)
+        
 
     def _create_parameter_aliases(self):
         '''

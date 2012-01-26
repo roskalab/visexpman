@@ -73,6 +73,7 @@ class ExperimentControl():
         self.experiment_source_path = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user, 'presentinator_experiment' + str(self.caller.command_handler.experiment_counter) + '.py')
         self.experiment_source_module = os.path.split(self.experiment_source_path)[-1].replace('.py', '')
         if len(self.experiment_source)>0 and self.config.ENABLE_UDP:
+            self.experiment_source = self.experiment_source.replace('(experiment.ExperimentConfig)', '{0}(experiment.ExperimentConfig)'.format(int(time.time()))) #avoid name conflict
             f = open(self.experiment_source_path, 'wt')
             f.write(self.experiment_source)
             f.close()
@@ -129,9 +130,10 @@ class ExperimentControl():
         if self.config.MEASUREMENT_PLATFORM == 'mes':
             #Create mes parameter file            
             mes_recording_time = self.selected_experiment.fragment_durations[fragment_id]            
-            mes_interface.set_line_scan_time(mes_recording_time + 3.0, self.parameter_file, self.fragment_mat_path)
+#            mes_interface.set_line_scan_time(mes_recording_time + 3.0, self.parameter_file, self.fragment_mat_path)
             ######################## Start mesurement ###############################
-            #Start recording analog signals            
+            self.frame_counter = 0 #shall be reset if fragmented experiment is run, because sync signal recording is restarted at each fragment
+            #Start recording analog signals
             self.devices.ai = daq_instrument.AnalogIO(self.config, self.caller)
             self.devices.ai.start_daq_activity()
             self.printl('ai recording started')
@@ -139,7 +141,9 @@ class ExperimentControl():
             while not self.caller.mes_response_queue.empty():
                 self.caller.mes_response_queue.get()
             #start two photon recording
-            line_scan_start_success, line_scan_path = self.devices.mes_interface.start_line_scan(parameter_file = self.fragment_mat_path, timeout = -1 )
+            line_scan_start_success, line_scan_path = self.devices.mes_interface.start_line_scan(scan_time = mes_recording_time + 3.0, 
+                                                                                                 parameter_file = self.fragment_mat_path, 
+                                                                                                 timeout = 10.0)
             if line_scan_start_success:
                 time.sleep(1.0)
             else:
@@ -184,11 +188,11 @@ class ExperimentControl():
                     fragment_hdf5 = hdf5io.Hdf5io(self.fragment_hdf5_path)
                     self.experiment_result_files.append(self.fragment_hdf5_path)
                     if not hasattr(self.devices.ai, 'ai_data'):
-                        self.devices.ai.ai_data = numpy.zeros(2)
+                        self.devices.ai.ai_data = numpy.zeros((2, 2))
                     mes_data = utils.file_to_binary_array(self.fragment_mat_path)
                     stimulus_frame_info_with_data_series_index, rising_edges_indexes =\
                                 experiment_data.preprocess_stimulus_sync(self.devices.ai.ai_data[:, self.config.SYNC_CHANNEL_INDEX], stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:])
-                    stimulus_frame_info = {}#self.stimulus_frame_info
+                    stimulus_frame_info = {}
                     if stimulus_frame_info_with_data_series_index != None:
                         for i in range(0, len(stimulus_frame_info_with_data_series_index)):
                             stimulus_frame_info['index_'+str(i)] = self.stimulus_frame_info[i]
@@ -202,7 +206,6 @@ class ExperimentControl():
                                     'rising_edges_indexes' : rising_edges_indexes
                                     }
                     self.stimulus_frame_info_pointer = len(self.stimulus_frame_info)
-                    self.frame_counter = 0 #shall be reset if fragmented experiment is run, because sync signal recording is restarted at each fragment
                     if hasattr(self.selected_experiment, 'number_of_fragments'):
                         data_to_hdf5['number_of_fragments'] = self.selected_experiment.number_of_fragments
                     data_to_hdf5['generated_data'] = self.selected_experiment.fragment_data
@@ -212,7 +215,7 @@ class ExperimentControl():
                     experiment_data.save_config(fragment_hdf5, self.config, self.selected_experiment_config)
                     time.sleep(2.0) #Wait for file ready DO WE ACTUALLY NEED THIS DELAY????
                     stage_position = self.devices.stage.read_position() - self.caller.stage_origin
-                    objective_position = mes_interface.get_objective_position(self.fragment_mat_path)[0]
+                    objective_position = mes_interface.get_objective_position(self.fragment_mat_path, log = self.log)[0]
                     experiment_data.save_position(fragment_hdf5, stage_position, objective_position)                    
                     setattr(fragment_hdf5, self.fragment_name, data_to_hdf5)
                     fragment_hdf5.save(self.fragment_name)
@@ -239,10 +242,15 @@ class ExperimentControl():
             #Clear acquisition trigger pin
             self.devices.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             #Stop acquiring analog signals
-            self.devices.ai.finish_daq_activity()
+            if hasattr(self.devices, 'ai'):
+                self.devices.ai.finish_daq_activity()
             self.printl('ai recording finished, waiting for data save complete')
-            self.data_handler.ai_data = self.devices.ai.ai_data
-            self.devices.ai.release_instrument()
+            if hasattr(self.devices, 'ai'):
+                if hasattr(self.devices.ai, 'ai_data'):
+                    self.data_handler.ai_data = self.devices.ai.ai_data
+                else:
+                    self.data_handler.ai_data = numpy.zeros(2)
+                self.devices.ai.release_instrument()
         elif self.config.MEASUREMENT_PLATFORM == 'standalone':
             return True
             
@@ -270,6 +278,7 @@ class ExperimentControl():
     
     def run_experiment(self):
         if hasattr(self.caller, 'selected_experiment_config') and hasattr(self.caller.selected_experiment_config, 'run'):
+            self.abort = False
             self.prepare_experiment_run()
             #Message to screen, log experiment start
             self.caller.screen_and_keyboard.message += '\nexperiment started'
@@ -284,24 +293,19 @@ class ExperimentControl():
                 self.number_of_fragments = len(self.caller.selected_experiment_config.runnable.fragment_durations)
             else:
                 self.number_of_fragments = 1
-            self.caller.selected_experiment_config.pre_first_fragment()            
-            if self.config.MEASUREMENT_PLATFORM == 'mes' and hasattr(self.caller.selected_experiment_config.runnable, 'fragment_durations'):
-                self.printl('create mes parameter file')
-                parameter_file_prepare_success, self.parameter_file = self.devices.mes_interface.prepare_line_scan(scan_time = 1.0)
-            else:
-                parameter_file_prepare_success = True
-            if parameter_file_prepare_success:
-                for fragment_id in range(self.number_of_fragments):
-                    if utils.is_abort_experiment_in_queue(self.from_gui_queue, False):
-                        self.printl('experiment aborted',  software_log = True)
-                        break
-                    elif self.start_fragment(fragment_id):
-                        #Run stimulation
-                        self.caller.selected_experiment_config.run(fragment_id)
-                        self.finish_fragment(fragment_id)
-                self.set_mes_t4_back()
-            else:
-                self.printl( 'Parameter file NOT created')
+            self.caller.selected_experiment_config.pre_first_fragment()
+            for fragment_id in range(self.number_of_fragments):
+                if utils.is_abort_experiment_in_queue(self.from_gui_queue, False):
+                    self.printl('experiment aborted',  software_log = True)
+                    self.abort = True
+                    break
+                elif self.start_fragment(fragment_id):
+                    #Run stimulation
+                    self.caller.selected_experiment_config.run(fragment_id)
+                    self.finish_fragment(fragment_id)
+            if utils.is_abort_experiment_in_queue(self.from_gui_queue, False):
+                    self.printl('experiment aborted',  software_log = True)
+                    self.abort = True
             #Change visexprunner state to ready
             self.caller.state = 'ready'
             #Send message to screen, log experiment completition
