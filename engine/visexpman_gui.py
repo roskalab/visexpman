@@ -21,6 +21,7 @@ import visexpman.engine.visual_stimulation.gui as gui
 import visexpman.engine.hardware_interface.network_interface as network_interface
 import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpman.engine.generic.utils as utils
+import visexpman.engine.generic as generic
 import visexpman.engine.generic.geometry as geometry
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import Queue
@@ -44,6 +45,8 @@ try:
 except:
     pass
 import traceback
+import re
+parameter_extract = re.compile('EOC(.+)EOP')
 
 ################### Main widget #######################
 class VisionExperimentGui(QtGui.QWidget):
@@ -54,16 +57,16 @@ class VisionExperimentGui(QtGui.QWidget):
         self.poller = gui.Poller(self)
         self.poller.start()
         QtGui.QWidget.__init__(self)
-        self.setWindowTitle('Vision Experiment Manager GUI')        
+        self.setWindowTitle('Vision Experiment Manager GUI')
         self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
-        self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])        
+        self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
         self.create_gui()
         self.create_layout()
         self.connect_signals()
         self.init_network()
         self.init_files()
         self.update_gui_items()
-        self.show()        
+        self.show()
         
     def create_gui(self):
         self.new_mouse_widget = gui.NewMouseWidget(self, self.config)
@@ -124,17 +127,26 @@ class VisionExperimentGui(QtGui.QWidget):
         else:
             self.stage_position = numpy.zeros(3)
             self.stage_origin = numpy.zeros(3)
+        self.two_photon_image = context_hdf5.findvar('two_photon_image')
+        if hasattr(self.two_photon_image, 'has_key'):
+            if self.two_photon_image.has_key(self.config.DEFAULT_PMT_CHANNEL):
+                self.show_image(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0, self.two_photon_image['scale'])
         context_hdf5.close()
         self.stage_position_valid = False
         self.mouse_files = []
         self.selected_mouse_file = ''
+        self.scan_regions = {}
         
     def save_context(self):        
         context_hdf5 = hdf5io.Hdf5io(self.context_file_path)
         context_hdf5.stage_origin = self.stage_origin
-        context_hdf5.stage_position = self.stage_position
+        context_hdf5.stage_position = self.stage_position        
         context_hdf5.save('stage_origin',overwrite = True)
         context_hdf5.save('stage_position', overwrite = True)
+        if hasattr(self,  'two_photon_image'):
+            context_hdf5.two_photon_image = self.two_photon_image
+            context_hdf5.save('two_photon_image', overwrite = True)
+        
         context_hdf5.close()
         
     ####### Signals/functions ###############
@@ -151,12 +163,105 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.set_stage_origin_button, QtCore.SIGNAL('clicked()'),  self.set_stage_origin)
         self.connect(self.debug_widget.read_stage_button, QtCore.SIGNAL('clicked()'),  self.read_stage)
         self.connect(self.debug_widget.move_stage_button, QtCore.SIGNAL('clicked()'),  self.move_stage)
-        self.connect(self.debug_widget.master_position_groupbox.get_two_photon_image_button, QtCore.SIGNAL('clicked()'),  self.acquire_two_photon_image)
-        self.connect(self.debug_widget.master_position_groupbox.save_master_position_button, QtCore.SIGNAL('clicked()'),  self.save_master_position)
+        self.connect(self.debug_widget.scan_region_groupbox.get_two_photon_image_button, QtCore.SIGNAL('clicked()'),  self.acquire_two_photon_image)
         self.connect(self.debug_widget.send_command_button, QtCore.SIGNAL('clicked()'),  self.send_command)
-        
-        
+        self.connect(self.debug_widget.save_two_photon_image_button, QtCore.SIGNAL('clicked()'),  self.save_two_photon_image)
+        self.connect(self.debug_widget.move_stage_to_origin_button, QtCore.SIGNAL('clicked()'),  self.move_stage_to_origin)
+        self.connect(self.debug_widget.scan_region_groupbox.add_button, QtCore.SIGNAL('clicked()'),  self.add_scan_region)
+        self.connect(self.debug_widget.scan_region_groupbox.remove_button, QtCore.SIGNAL('clicked()'),  self.remove_scan_region)
+        self.connect(self.debug_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged()'),  self.update_gui_items)
+        self.connect(self.debug_widget.scan_region_groupbox.realign_button, QtCore.SIGNAL('clicked()'),  self.realign_region)
+        self.connect(self.debug_widget.scan_region_groupbox.move_to_button, QtCore.SIGNAL('clicked()'),  self.move_to_region)
+        self.connect(self.debug_widget.scan_region_groupbox.register_button, QtCore.SIGNAL('clicked()'),  self.register)
+        self.connect(self.debug_widget.set_objective_button, QtCore.SIGNAL('clicked()'),  self.set_objective)
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
+        
+    def set_objective(self):
+        if self.mes_interface.set_objective(float(self.scanc()), self.config.MES_TIMEOUT):
+            self.printc('objective is set to {0} um'.format(self.scanc()))
+        
+    def add_scan_region(self, widget = None):
+        if widget == None:
+            widget = self.debug_widget
+        if self.read_stage() and hasattr(self, 'two_photon_image'):
+            #Prepare data
+            region_name = str(widget.scan_region_groupbox.scan_regions_combobox.currentText())
+            if region_name != '':
+                scan_region_info = {}
+                scan_region_info['image'] = self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL]
+                scan_region_info['scale'] = self.two_photon_image['scale']
+                scan_region_info['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.two_photon_image['objective_relative_position'])
+                scan_region_info['mes_parameters']  = utils.file_to_binary_array(self.two_photon_image['path'].tostring())
+                #save to mouse file
+                mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(widget.scan_region_groupbox.select_mouse_file.currentText()))
+                if os.path.exists(mouse_file_path) and '.hdf5' in mouse_file_path:
+                    hdf5_handler = hdf5io.Hdf5io(mouse_file_path)
+                    scan_regions = hdf5_handler.findvar('scan_regions')
+                    if scan_regions == None:
+                        scan_regions = {}
+                    scan_regions[region_name] = scan_region_info
+                    hdf5_handler.scan_regions = scan_regions
+                    hdf5_handler.save('scan_regions', overwrite = True)
+                    hdf5_handler.close()
+                    self.printc('Scan region saved')
+                else:
+                    self.printc('mouse file not found')
+                    
+    def remove_scan_region(self):
+        selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
+        selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+        hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file))
+        scan_regions = hdf5_handler.findvar('scan_regions')
+        if scan_regions.has_key(selected_region):
+            del scan_regions[selected_region]
+        hdf5_handler.scan_regions = scan_regions
+        hdf5_handler.save('scan_regions', overwrite = True)
+        hdf5_handler.close()
+        
+    def save_two_photon_image(self):
+        hdf5_handler = hdf5io.Hdf5io(utils.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'two_photon_image.hdf5')))
+        hdf5_handler.two_photon_image = self.two_photon_image
+        hdf5_handler.stage_position = self.stage_position
+        hdf5_handler.save(['two_photon_image', 'stage_position'])
+        hdf5_handler.close()
+
+    def register(self):
+#        self.printc((self.image_display[0].scale['row'], self.image_display[1].scale['row']))
+#        self.printc((self.image_display[0].image.shape, self.image_display[1].image.shape))
+#        if self.image_display[0].scale['row'] != self.image_display[1].scale['row']:
+#            rescaled_image = generic.rescale_numpy_array_image(self.image_display[0].image, self.image_display[0].scale['row'] / self.image_display[1].scale['row'])
+#        else:
+        rescaled_image = self.image_display[0].image
+#        self.printc(rescaled_image.shape)
+        image_hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.CONTEXT_PATH, 'image.hdf5'))
+        image_hdf5_handler.f1 = rescaled_image
+        image_hdf5_handler.f2 = self.image_display[1].image
+        image_hdf5_handler.save(['f1', 'f2'], overwrite = True)
+        image_hdf5_handler.close()
+        arguments = ''
+        utils.empty_queue(self.queues['analysis']['in'])
+        self.queues['analysis']['out'].put('SOCregisterEOC' + arguments + 'EOP')
+        if utils.wait_data_appear_in_queue(self.queues['analysis']['in'], self.config.MAX_REGISTRATION_TIME):
+            while not self.queues['analysis']['in'].empty():
+                response = self.queues['analysis']['in'].get()
+                if 'register' in response:
+                    self.registration_result = self.parse_list_response(response) #rotation in angle, center or rotation, translation
+                    self.suggested_translation = utils.cr(utils.nd(self.two_photon_image['scale']) * self.registration_result[-2:]*numpy.array([-1, 1]))
+                    self.printc(self.registration_result[-2:])
+                    self.printc(self.suggested_translation)
+        else:
+            self.printc('no response')
+                
+    def realign_region(self):
+        self.move_stage_relative(-numpy.round(numpy.array([self.suggested_translation['col'], self.suggested_translation['row'], 0.0]), 2))
+        self.suggested_translation = utils.cr((0, 0)) #To avoid unnecessary movements if realign button is pressed twice
+        
+    def move_to_region(self):
+        selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+        current_relative_position = self.stage_position - self.stage_origin
+        target_relative_position = numpy.array([self.scan_regions[selected_region]['position']['x'][0], self.scan_regions[selected_region]['position']['y'][0], current_relative_position[-1]])
+        movement = target_relative_position - current_relative_position
+        self.move_stage_relative(movement)
     
     def acquire_z_stack(self):
         try:
@@ -167,44 +272,24 @@ class VisionExperimentGui(QtGui.QWidget):
             
     def acquire_two_photon_image(self):
         try:
-            if self.debug_widget.master_position_groupbox.use_master_position_scan_settings_checkbox.checkState() == 0:
+            if self.debug_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() == 0:
                 self.two_photon_image,  result = self.mes_interface.acquire_two_photon_image(self.config.MES_TIMEOUT)
             else:
                 #Load scan settings from parameter file
-                parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'master_position_parameters.mat')
-                self.master_position['mes_parameters'].tofile(parameter_file_path)
+                parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'scan_region_parameters.mat')
+                selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
+                selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+                scan_regions = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file), 'scan_regions')
+                scan_regions[selected_region]['mes_parameters'].tofile(parameter_file_path)
                 self.two_photon_image,  result = self.mes_interface.acquire_two_photon_image(self.config.MES_TIMEOUT, parameter_file = parameter_file_path)
             if result:
-                self.show_image(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0)
+                self.show_image(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0, self.two_photon_image['scale'])
+                self.save_context()
             else:
                 self.printc('No image acquired')
         except:
             self.printc(traceback.format_exc())
             
-    def save_master_position(self, widget = None):
-        if widget == None:
-            widget = self.debug_widget
-        if self.read_stage() and hasattr(self, 'two_photon_image'):
-            #Prepare data
-            node_name = 'master_position'
-            master_position_info = {}            
-            master_position_info['image'] = self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL]
-            master_position_info['scale'] = self.two_photon_image['scale']
-            master_position_info['position'] = utils.pack_position(self.stage_position, self.two_photon_image['objective_relative_position'])
-            master_position_info['mes_parameters']  = utils.file_to_binary_array(self.two_photon_image['path'])
-            #save to mouse file
-            mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(widget.master_position_groupbox.select_mouse_file.currentText()))
-            if os.path.exists(mouse_file_path) and '.hdf5' in mouse_file_path:
-                hdf5_handler = hdf5io.Hdf5io(mouse_file_path)
-                setattr(hdf5_handler, node_name, master_position_info)
-                hdf5_handler.save(node_name, overwrite = True)
-                hdf5_handler.close()
-                self.printc('Master position saved')
-            else:
-                self.printc('mouse file not found')
-#            self.printc(master_position_info)
-        
-        
     def stop_experiment(self):
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
@@ -269,14 +354,27 @@ class VisionExperimentGui(QtGui.QWidget):
         new_mouse_files = utils.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
         if self.mouse_files != new_mouse_files:
             self.mouse_files = new_mouse_files
-            self.update_combo_box_list(self.debug_widget.master_position_groupbox.select_mouse_file, self.mouse_files)
+            self.update_combo_box_list(self.debug_widget.scan_region_groupbox.select_mouse_file, self.mouse_files)
         
-        selected_mouse_file  = str(self.debug_widget.master_position_groupbox.select_mouse_file.currentText())
-        if self.selected_mouse_file != selected_mouse_file:
-            self.master_position = experiment_data.read_master_position(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file))
-            if self.master_position.has_key('image'):
-                self.show_image(self.master_position['image'], 1)
-        
+        selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
+        scan_regions = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file), 'scan_regions')
+        #is new region added?
+        if scan_regions.keys() != self.scan_regions.keys():
+            self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, scan_regions.keys())
+        self.scan_regions = scan_regions
+        #Display image of selected region
+        selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+        if hasattr(self.scan_regions, 'has_key'):
+            if self.scan_regions.has_key(selected_region):
+                self.show_image(self.scan_regions[selected_region]['image'], 1, self.scan_regions[selected_region]['scale'])
+        #Display coordinates of selected region
+        if self.scan_regions.has_key(selected_region):
+            self.debug_widget.scan_region_groupbox.region_position.setText(\
+                                                                           '{0:.2f}, {1:.2f}, {2:.2f}' \
+                                                                           .format(self.scan_regions[selected_region]['position']['x'][0], 
+                                                                                   self.scan_regions[selected_region]['position']['y'][0], 
+                                                                                   self.scan_regions[selected_region]['position']['z'][0]))
+
     def set_stage_origin(self):
         if not self.stage_position_valid:
             self.read_stage(display_coords = False)
@@ -296,21 +394,21 @@ class VisionExperimentGui(QtGui.QWidget):
         result = False
         utils.empty_queue(self.queues['stim']['in'])
         self.queues['stim']['out'].put('SOCstageEOCreadEOP')
-        if utils.wait_data_appear_in_queue(self.queues['stim']['in'], 10.0):
+        if utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.STAGE_TIMEOUT):
             while not self.queues['stim']['in'].empty():
                 response = self.queues['stim']['in'].get()            
                 if 'SOCstageEOC' in response:
-                    position = response.split('EOC')[-1].replace('EOP', '')
-                    self.stage_position = numpy.array(map(float, position.split(',')))
+                    self.stage_position = self.parse_list_response(response)
                     if display_coords:
                         self.printc('abs: ' + str(self.stage_position))
                         self.printc('rel: ' + str(self.stage_position - self.stage_origin))
                     self.save_context()
+                    self.debug_widget.current_position_label.setText('rel: {0}' .format(self.stage_position - self.stage_origin))
                     result = True
         else:
             self.printc('stage is not accessible')
         return result
-
+    
     def move_stage(self):
         movement = self.scanc().split(',')
         if len(movement) == 2:
@@ -318,14 +416,24 @@ class VisionExperimentGui(QtGui.QWidget):
         elif len(movement) != 3:
             self.printc('invalid coordinates')
             return
+        self.move_stage_relative(movement)
+
+    def move_stage_relative(self, movement):
         utils.empty_queue(self.queues['stim']['in'])
         self.queues['stim']['out'].put('SOCstageEOCset,{0},{1},{2}EOP'.format(movement[0], movement[1], movement[2]))
-        self.printc('moves to {0}'.format(movement))
-        if utils.wait_data_appear_in_queue(self.queues['stim']['in'], 10.0):
+        self.printc('movement {0}'.format(movement))
+        if utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.STAGE_TIMEOUT):
             while not self.queues['stim']['in'].empty():
-                response = self.queues['stim']['in'].get()            
+                response = self.queues['stim']['in'].get()
                 if 'SOCstageEOC' in response:
-                    self.read_stage()
+                    self.stage_position = self.parse_list_response(response)
+                    self.save_context()
+                    self.debug_widget.current_position_label.setText('rel: {0}' .format(self.stage_position - self.stage_origin))
+                    self.printc('abs: ' + str(self.stage_position))
+                    self.printc('rel: ' + str(self.stage_position - self.stage_origin))
+                    
+    def move_stage_to_origin(self):
+        pass
 
     def execute_python(self):
         try:
@@ -339,8 +447,13 @@ class VisionExperimentGui(QtGui.QWidget):
 
     ####### Helpers ###############
     
-    def show_image(self, image, channel):        
+    def parse_list_response(self, response):
+        return numpy.array(map(float,parameter_extract.findall( response)[0].split(',')))
+    
+    def show_image(self, image, channel, scale):
         self.image_display[channel].setPixmap(imaged.array_to_qpixmap(image, self.config.IMAGE_SIZE))
+        self.image_display[channel].image = image
+        self.image_display[channel].scale = scale
         
     def send_command(self):
         connection = str(self.debug_widget.select_connection_list.currentText())
@@ -426,6 +539,7 @@ class GuiConfig(configuration.VisionExperimentConfig):
             MES_DATA_FOLDER = 'V:\\data'
             MES_DATA_PATH = os.path.join(v_drive_folder, 'data')
         self.MES_TIMEOUT = 5.0
+        self.MAX_REGISTRATION_TIME = 30.0
         LOG_PATH = os.path.join(data_folder, 'log')
         EXPERIMENT_LOG_PATH = data_folder
         EXPERIMENT_DATA_PATH = data_folder
@@ -436,7 +550,7 @@ class GuiConfig(configuration.VisionExperimentConfig):
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = ENABLE_NETWORK
 #        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 60.0
         DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
-    
+        self.STAGE_TIMEOUT = 30.0
 
         #== GUI specific ==
         GUI_POSITION = utils.cr((10, 10))

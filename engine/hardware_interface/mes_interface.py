@@ -86,6 +86,7 @@ def get_line_scan_time(path):
     m = matlabfile.MatData(path)
     return m.get_field(m.name2path('ts'))[0][0][0][0][-1]
 
+
 class MesInterface(object):
     '''
     Protocol:
@@ -111,7 +112,30 @@ class MesInterface(object):
         self.log = log
         self.stop = False
         self.from_gui_queue = from_gui_queue
+        
+    ################# Objective ###############
+    
+    def read_objective_position(self, timeout = -1):
+        result, line_scan_path, line_scan_path_on_mes = self.get_line_scan_parameters(timeout = timeout)
+        if result:
+            return True, get_objective_position(line_scan_path)[0]
+        else:
+            return False,  None
 
+    def set_objective(self, position, timeout = -1):
+        parameter_path, parameter_path_on_mes = self._generate_mes_file_paths('set_objective.mat')
+        #Generate parameter file
+        data_to_mes_mat = {}
+        data_to_mes_mat['DATA'] = {}
+        data_to_mes_mat['DATA']['z_relative'] = numpy.array([position], dtype = numpy.float64)[0]
+        scipy.io.savemat(parameter_path, data_to_mes_mat, oned_as = 'column') 
+        result = False
+        if self.connection.connected_to_remote_client():
+            self.command_queue.put('SOCsetZ_relativeEOC{0}EOP' .format(parameter_path_on_mes))
+            if network_interface.wait_for_response(self.response_queue, ['SOCsetZ_relativeEOCcommandsentEOP'], timeout = timeout):
+                result = True
+        return result
+            
     ################# Single two photon frame###############
 
     def acquire_two_photon_image(self, timeout = -1, parameter_file = None):

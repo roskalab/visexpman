@@ -74,3 +74,6 @@ def read_master_position(path):
         hdf5_handler.close()
         return master_position
 
+#def map_from_regions    
+    
+    

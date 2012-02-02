@@ -219,7 +219,7 @@ class Debug(VisionExperimentConfig):
                                     
         STAGE = [{'serial_port' : motor_serial_port,
                  'enable': (self.OS == 'win'),
-                 'speed': 400,
+                 'speed': 800,
                  'acceleration' : 200,
                  'move_timeout' : 45.0,
                  'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
@@ -338,8 +338,8 @@ class VS3DUS(VisionExperimentConfig):
                                     
         STAGE = [{'serial_port' : motor_serial_port,
                  'enable': True,
-                 'speed': 400,
-                 'acceleration' : 200,
+                 'speed': 2000,
+                 'acceleration' : 1000,
                  'move_timeout' : 45.0,
                  'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]

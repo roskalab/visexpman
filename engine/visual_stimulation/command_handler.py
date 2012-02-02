@@ -9,6 +9,7 @@ import stimulation_control as experiment_control
 import experiment
 import visexpman.engine.hardware_interface.instrument as instrument
 import visexpman.engine.hardware_interface.motor_control as motor_control
+import traceback
 command_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
 parameter_extract = re.compile('EOC(.+)EOP') # an optional parameter string follows EOC terminated by EOP. In case of binary data EOC and EOP should be escaped.
 #TODO: at experiment start reload all modules so that user could edit them during runtime
@@ -99,21 +100,25 @@ class CommandHandler(object):
             command: SOCstageEOCset,y,zEOP
             response: SOCstageEOC<status>,x,y,zEOP, <status> = OK, error
         '''
-        
-        if 'read' in par or 'set' in par or 'origin' in par:
-            stage = motor_control.AllegraStage(self.config, self.caller)
-            position = stage.read_position()
-            self.caller.to_gui_queue.put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
-            if 'origin' in par:
-                self.caller.stage_origin = position                
-            if 'set' in par:
-                new_position = par.split(',')[1:]
-                new_position = numpy.array([float(new_position[0]), float(new_position[1]), float(new_position[2])])
-                reached = stage.move(new_position)
+        try:
+            st = time.time()
+            if 'read' in par or 'set' in par or 'origin' in par:
+                stage = motor_control.AllegraStage(self.config, self.caller)
                 position = stage.read_position()
-                self.caller.to_gui_queue.put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
-            stage.release_instrument()
-        return str(par) + ' ' + str(position)
+                if 'set' not in par:
+                    self.caller.to_gui_queue.put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
+                if 'origin' in par:
+                    self.caller.stage_origin = position                
+                if 'set' in par:
+                    new_position = par.split(',')[1:]
+                    new_position = numpy.array([float(new_position[0]), float(new_position[1]), float(new_position[2])])
+                    reached = stage.move(new_position)
+                    position = stage.position
+                    self.caller.to_gui_queue.put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
+                stage.release_instrument()
+            return str(par) + ' ' + str(position) + '\n' + str(time.time() - st) + ' ' + str(stage.command_counter )
+        except:
+            return str(traceback.format_exc())
         
     def hide_menu(self, par):
         self.caller.screen_and_keyboard.hide_menu = not self.caller.screen_and_keyboard.hide_menu
