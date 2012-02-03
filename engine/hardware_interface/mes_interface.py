@@ -118,7 +118,9 @@ class MesInterface(object):
     def read_objective_position(self, timeout = -1):
         result, line_scan_path, line_scan_path_on_mes = self.get_line_scan_parameters(timeout = timeout)
         if result:
-            return True, get_objective_position(line_scan_path)[0]
+            objective_position = get_objective_position(line_scan_path)[0]
+            os.remove(line_scan_path)
+            return True, objective_position
         else:
             return False,  None
 
@@ -134,6 +136,7 @@ class MesInterface(object):
             self.command_queue.put('SOCsetZ_relativeEOC{0}EOP' .format(parameter_path_on_mes))
             if network_interface.wait_for_response(self.response_queue, ['SOCsetZ_relativeEOCcommandsentEOP'], timeout = timeout):
                 result = True
+                os.remove(parameter_path)
         return result
             
     ################# Single two photon frame###############
@@ -276,7 +279,13 @@ class MesInterface(object):
         return result, line_scan_path, line_scan_path_on_mes
 
     def start_line_scan(self, timeout = -1, parameter_file = None, scan_time = None):
-        result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
+        if parameter_file == None:
+            result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
+        else:#This branch is not tested yet
+            result = True
+            line_scan_path = parameter_file
+            line_scan_path_on_mes =  utils.convert_path_to_remote_machine_path(parameter_file, self.config.MES_DATA_FOLDER,  remote_win_path = True)
+            
         if scan_time != None and result:
             set_line_scan_time(scan_time, line_scan_path, line_scan_path)
         if result:

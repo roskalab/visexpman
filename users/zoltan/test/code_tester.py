@@ -14,6 +14,11 @@ from visexpman.engine.visual_stimulation import experiment_data
 from visexpman.users.daniel import moving_dot, configurations
 import pp
 
+######### Side folded frame ###############
+
+matlabfile.read_vertical_scan('/home/zoltan/visexp/data/line_scan_parameters_00011.mat')
+pass
+
 
 #### celery ##########
 
@@ -89,30 +94,30 @@ import pp
 
 
 
-import pp
-
-def func1(a, b):
-    res = 0
-    for i in range(1000000):
-        res +=a.sum()+b
-    return res
-
-##job_server = pp.Server(ncpus = 0, ppservers = ('172.27.35.197:60000', '172.27.25.220:60000'), secret = 'retina')
-##job_server = pp.Server(ppservers = ('172.27.35.197', '172.27.25.196', '172.27.25.220'))
-job_server = pp.Server(ncpus = 0, ppservers = ('rzws.fmi.ch', 'Fu238D-DDF19D.fmi.ch', 'f434l-fcc382.fmi.ch' ))
-##job_server = pp.Server( ppservers = ('*', ))
-##import logging
-##path = '/home/zoltan/visexp/debug/txt.txt'
-##handler = logging.FileHandler(path)
-##formatter = logging.Formatter('%(message)s')
-##handler.setFormatter(formatter)
-##job_server.logger.addHandler(handler)
-##job_server.logger.setLevel(logging.INFO)
-job_server.wait()
-f = []
-for i in range(100):
-    a = numpy.ones(i)
-    f.append(job_server.submit(func1, (a, i)))
-for ff in f:
-    print ff()
-job_server.print_stats()
+#import pp
+#
+#def func1(a, b):
+#    res = 0
+#    for i in range(1000000):
+#        res +=a.sum()+b
+#    return res
+#
+###job_server = pp.Server(ncpus = 0, ppservers = ('172.27.35.197:60000', '172.27.25.220:60000'), secret = 'retina')
+###job_server = pp.Server(ppservers = ('172.27.35.197', '172.27.25.196', '172.27.25.220'))
+#job_server = pp.Server(ncpus = 0, ppservers = ('rzws.fmi.ch', 'Fu238D-DDF19D.fmi.ch', 'f434l-fcc382.fmi.ch' ))
+###job_server = pp.Server( ppservers = ('*', ))
+###import logging
+###path = '/home/zoltan/visexp/debug/txt.txt'
+###handler = logging.FileHandler(path)
+###formatter = logging.Formatter('%(message)s')
+###handler.setFormatter(formatter)
+###job_server.logger.addHandler(handler)
+###job_server.logger.setLevel(logging.INFO)
+#job_server.wait()
+#f = []
+#for i in range(100):
+#    a = numpy.ones(i)
+#    f.append(job_server.submit(func1, (a, i)))
+#for ff in f:
+#    print ff()
+#job_server.print_stats()

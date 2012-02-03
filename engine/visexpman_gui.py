@@ -78,7 +78,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.realignment_tab.addTab(self.debug_widget, 'Debug')
         self.realignment_tab.setCurrentIndex(2)
         self.image_display = []
-        for i in range(2):
+        for i in range(4):
             self.image_display.append(QtGui.QLabel())
         blank_image = 128*numpy.ones((self.config.IMAGE_SIZE['col'], self.config.IMAGE_SIZE['row']), dtype = numpy.uint8)
         for image in self.image_display:
@@ -91,7 +91,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.layout.addWidget(self.realignment_tab, 0, 0, 1, 1)
         self.layout.addWidget(self.standard_io_widget, 1, 0, 1, 1)
         for i in range(len(self.image_display)):
-            self.layout.addWidget(self.image_display[i], 0, 2 + i*2, 1, 1)
+            self.layout.addWidget(self.image_display[i], i/2, 2 + (i%2)*2, 1, 1)
         self.layout.setRowStretch(3, 3)
         self.layout.setColumnStretch(2, 1)
         self.setLayout(self.layout)
@@ -131,6 +131,9 @@ class VisionExperimentGui(QtGui.QWidget):
         if hasattr(self.two_photon_image, 'has_key'):
             if self.two_photon_image.has_key(self.config.DEFAULT_PMT_CHANNEL):
                 self.show_image(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0, self.two_photon_image['scale'])
+        self.vertical_scan = context_hdf5.findvar('vertical_scan')
+        if hasattr(self.vertical_scan, 'has_key'):
+            self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scale'])
         context_hdf5.close()
         self.stage_position_valid = False
         self.mouse_files = []
@@ -146,6 +149,9 @@ class VisionExperimentGui(QtGui.QWidget):
         if hasattr(self,  'two_photon_image'):
             context_hdf5.two_photon_image = self.two_photon_image
             context_hdf5.save('two_photon_image', overwrite = True)
+        if hasattr(self, 'vertical_scan'):
+            context_hdf5.vertical_scan = self.vertical_scan
+            context_hdf5.save('vertical_scan', overwrite = True)
         
         context_hdf5.close()
         
@@ -163,49 +169,115 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.set_stage_origin_button, QtCore.SIGNAL('clicked()'),  self.set_stage_origin)
         self.connect(self.debug_widget.read_stage_button, QtCore.SIGNAL('clicked()'),  self.read_stage)
         self.connect(self.debug_widget.move_stage_button, QtCore.SIGNAL('clicked()'),  self.move_stage)
-        self.connect(self.debug_widget.scan_region_groupbox.get_two_photon_image_button, QtCore.SIGNAL('clicked()'),  self.acquire_two_photon_image)
         self.connect(self.debug_widget.send_command_button, QtCore.SIGNAL('clicked()'),  self.send_command)
         self.connect(self.debug_widget.save_two_photon_image_button, QtCore.SIGNAL('clicked()'),  self.save_two_photon_image)
         self.connect(self.debug_widget.move_stage_to_origin_button, QtCore.SIGNAL('clicked()'),  self.move_stage_to_origin)
+        self.connect(self.debug_widget.scan_region_groupbox.get_two_photon_image_button, QtCore.SIGNAL('clicked()'),  self.acquire_two_photon_image)
+        self.connect(self.debug_widget.scan_region_groupbox.snap_brain_surface_button, QtCore.SIGNAL('clicked()'),  self.snap_brain_surface)
         self.connect(self.debug_widget.scan_region_groupbox.add_button, QtCore.SIGNAL('clicked()'),  self.add_scan_region)
         self.connect(self.debug_widget.scan_region_groupbox.remove_button, QtCore.SIGNAL('clicked()'),  self.remove_scan_region)
         self.connect(self.debug_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged()'),  self.update_gui_items)
         self.connect(self.debug_widget.scan_region_groupbox.realign_button, QtCore.SIGNAL('clicked()'),  self.realign_region)
         self.connect(self.debug_widget.scan_region_groupbox.move_to_button, QtCore.SIGNAL('clicked()'),  self.move_to_region)
         self.connect(self.debug_widget.scan_region_groupbox.register_button, QtCore.SIGNAL('clicked()'),  self.register)
+        
+        self.connect(self.debug_widget.scan_region_groupbox.vertical_scan_button, QtCore.SIGNAL('clicked()'),  self.acquire_vertical_scan)        
+        
         self.connect(self.debug_widget.set_objective_button, QtCore.SIGNAL('clicked()'),  self.set_objective)
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
         
+    def acquire_vertical_scan(self):
+        '''
+        User have to figure out what is the correct scan time
+        '''
+        if self.debug_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() == 0:
+                result, line_scan_path = self.mes_interface.start_line_scan(timeout = self.config.MES_TIMEOUT)
+        else:
+            #Load scan settings from parameter file
+            parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'scan_region_parameters.mat')
+            selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
+            selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+            scan_regions = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file), 'scan_regions')
+            scan_regions[selected_region]['vertical_section']['mes_parameters'].tofile(parameter_file_path)
+            result, line_scan_path = self.mes_interface.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file_path)
+        if result:
+            result = self.mes_interface.wait_for_line_scan_complete(timeout = self.config.MES_TIMEOUT)
+            if result:
+                result = self.mes_interface.wait_for_line_scan_save_complete(timeout = self.config.MES_TIMEOUT)
+                if result:
+                    self.vertical_scan = matlabfile.read_vertical_scan(line_scan_path)
+                    #rescale image so that it could be displayed
+                    self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scale'])
+                    self.save_context()
+                else:
+                    self.printc('data not saved')
+            else:
+                self.printc('scan complete with error')
+        else:
+            self.printc('scan did not start')
+
     def set_objective(self):
-        if self.mes_interface.set_objective(float(self.scanc()), self.config.MES_TIMEOUT):
-            self.printc('objective is set to {0} um'.format(self.scanc()))
-        
+        position = float(self.scanc())
+        if self.mes_interface.set_objective(position, self.config.MES_TIMEOUT):
+            self.debug_widget.objective_position_label.setText(str(position))
+            self.printc('objective is set to {0} um'.format(position))
+
     def add_scan_region(self, widget = None):
+        '''
+        The following data are saved:
+        -two photon image of the brain surface
+        -mes parameter file of two photon acquisition so that later the very same image could be taken to help realignment
+        -objective positon where the data acquisition shall take place. This is below the brain surface
+        -stage position. If master position is saved, the current position is set to origin. The origin of stimulation software is also 
+        '''
         if widget == None:
             widget = self.debug_widget
-        if self.read_stage() and hasattr(self, 'two_photon_image'):
-            #Prepare data
-            region_name = str(widget.scan_region_groupbox.scan_regions_combobox.currentText())
-            if region_name != '':
-                scan_region_info = {}
-                scan_region_info['image'] = self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL]
-                scan_region_info['scale'] = self.two_photon_image['scale']
-                scan_region_info['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.two_photon_image['objective_relative_position'])
-                scan_region_info['mes_parameters']  = utils.file_to_binary_array(self.two_photon_image['path'].tostring())
-                #save to mouse file
-                mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(widget.scan_region_groupbox.select_mouse_file.currentText()))
-                if os.path.exists(mouse_file_path) and '.hdf5' in mouse_file_path:
-                    hdf5_handler = hdf5io.Hdf5io(mouse_file_path)
-                    scan_regions = hdf5_handler.findvar('scan_regions')
-                    if scan_regions == None:
-                        scan_regions = {}
-                    scan_regions[region_name] = scan_region_info
-                    hdf5_handler.scan_regions = scan_regions
-                    hdf5_handler.save('scan_regions', overwrite = True)
-                    hdf5_handler.close()
-                    self.printc('Scan region saved')
+        result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
+        if self.read_stage() and result:
+            if hasattr(self, 'brain_surface_image'):
+                if hasattr(self, 'vertical_scan'):
+                    mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(widget.scan_region_groupbox.select_mouse_file.currentText()))
+                    if os.path.exists(mouse_file_path) and '.hdf5' in mouse_file_path:
+                        #Read scan regions
+                        hdf5_handler = hdf5io.Hdf5io(mouse_file_path)
+                        hdf5_handler.scan_regions = hdf5_handler.findvar('scan_regions')
+                        if hdf5_handler.scan_regions == None:
+                            hdf5_handler.scan_regions = {}
+                        region_name = str(widget.scan_region_groupbox.scan_regions_combobox.currentText())
+                        #Data to be saved regardless it is a master position or not:
+                        scan_region = {}
+                        scan_region['brain_surface'] = {}
+                        scan_region['brain_surface']['image'] = self.brain_surface_image[self.config.DEFAULT_PMT_CHANNEL]
+                        scan_region['brain_surface']['scale'] = self.brain_surface_image['scale']
+                        scan_region['brain_surface']['origin'] = self.brain_surface_image['origin']
+                        scan_region['brain_surface']['mes_parameters']  = utils.file_to_binary_array(self.brain_surface_image['path'].tostring())
+                        #Vertical section
+                        scan_region['vertical_section'] = self.vertical_scan
+                        scan_region['vertical_section']['mes_parameters'] = utils.file_to_binary_array(self.vertical_scan['path'].tostring())
+                        if region_name == 'master':
+                           if not self.set_stage_origin():
+                                self.printc('Setting origin did not succeed')
+                                hdf5_handler.close()
+                                return
+                        if region_name == 'master' or hdf5_handler.scan_regions.has_key('master'):
+                            scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
+                        else:
+                            self.printc('Master position has to be defined')
+                            hdf5_handler.close()
+                            return
+                        #Save new scan region to hdf5 file
+                        hdf5_handler.scan_regions[region_name] = scan_region
+                        hdf5_handler.save('scan_regions', overwrite = True)
+                        hdf5_handler.close()
+                        self.printc('Scan region saved')
+                    else:
+                        self.printc('mouse file not found')
                 else:
-                    self.printc('mouse file not found')
+                    self.printc('No vertical scan is available')
+            else:
+                self.printc('No brain surface image is acquired')
+        else:
+            self.printc('Stage or objective position is not available')
                     
     def remove_scan_region(self):
         selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
@@ -251,17 +323,21 @@ class VisionExperimentGui(QtGui.QWidget):
                     self.printc(self.suggested_translation)
         else:
             self.printc('no response')
-                
+
     def realign_region(self):
         self.move_stage_relative(-numpy.round(numpy.array([self.suggested_translation['col'], self.suggested_translation['row'], 0.0]), 2))
         self.suggested_translation = utils.cr((0, 0)) #To avoid unnecessary movements if realign button is pressed twice
         
     def move_to_region(self):
         selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
-        current_relative_position = self.stage_position - self.stage_origin
-        target_relative_position = numpy.array([self.scan_regions[selected_region]['position']['x'][0], self.scan_regions[selected_region]['position']['y'][0], current_relative_position[-1]])
-        movement = target_relative_position - current_relative_position
-        self.move_stage_relative(movement)
+        if self.scan_regions.has_key('master') and self.scan_regions.has_key(selected_region):
+            current_relative_position = self.stage_position - self.stage_origin
+            master_position = numpy.array([self.scan_regions['master']['position']['x'][0], self.scan_regions['master']['position']['y'][0], current_relative_position[-1]])
+            target_relative_position = numpy.array([self.scan_regions[selected_region]['position']['x'][0], self.scan_regions[selected_region]['position']['y'][0], current_relative_position[-1]])
+            movement = target_relative_position - current_relative_position
+            self.move_stage_relative(movement)
+        else:
+            self.printc('Master position is not defined')
     
     def acquire_z_stack(self):
         try:
@@ -269,6 +345,10 @@ class VisionExperimentGui(QtGui.QWidget):
             self.printc((self.z_stack, results))
         except:
             self.printc(traceback.format_exc())
+            
+    def snap_brain_surface(self):
+        self.acquire_two_photon_image()
+        self.brain_surface_image = self.two_photon_image
             
     def acquire_two_photon_image(self):
         try:
@@ -280,7 +360,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
                 selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
                 scan_regions = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file), 'scan_regions')
-                scan_regions[selected_region]['mes_parameters'].tofile(parameter_file_path)
+                scan_regions[selected_region]['brain_surface']['mes_parameters'].tofile(parameter_file_path)
                 self.two_photon_image,  result = self.mes_interface.acquire_two_photon_image(self.config.MES_TIMEOUT, parameter_file = parameter_file_path)
             if result:
                 self.show_image(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0, self.two_photon_image['scale'])
@@ -358,6 +438,8 @@ class VisionExperimentGui(QtGui.QWidget):
         
         selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
         scan_regions = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file), 'scan_regions')
+        if scan_regions == None:
+            scan_regions = {}
         #is new region added?
         if scan_regions.keys() != self.scan_regions.keys():
             self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, scan_regions.keys())
@@ -366,7 +448,16 @@ class VisionExperimentGui(QtGui.QWidget):
         selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
         if hasattr(self.scan_regions, 'has_key'):
             if self.scan_regions.has_key(selected_region):
-                self.show_image(self.scan_regions[selected_region]['image'], 1, self.scan_regions[selected_region]['scale'])
+                #convert line info from um to pixel
+                line = numpy.array([\
+                                    self.scan_regions[selected_region]['vertical_section']['p1']['col'] - self.scan_regions[selected_region]['brain_surface']['origin']['col'],\
+                                    -(self.scan_regions[selected_region]['vertical_section']['p1']['row'] - self.scan_regions[selected_region]['brain_surface']['origin']['row']),\
+                                    self.scan_regions[selected_region]['vertical_section']['p2']['col'] - self.scan_regions[selected_region]['brain_surface']['origin']['col'],\
+                                    -(self.scan_regions[selected_region]['vertical_section']['p2']['row'] - self.scan_regions[selected_region]['brain_surface']['origin']['row'])])
+                line /= self.scan_regions[selected_region]['brain_surface']['scale']['row']
+                line = line.tolist()
+                self.show_image(self.scan_regions[selected_region]['brain_surface']['image'], 1, self.scan_regions[selected_region]['brain_surface']['scale'], line = line)
+                self.show_image(self.scan_regions[selected_region]['vertical_section']['scaled_image'], 3, self.scan_regions[selected_region]['vertical_section']['scale'])
         #Display coordinates of selected region
         if self.scan_regions.has_key(selected_region):
             self.debug_widget.scan_region_groupbox.region_position.setText(\
@@ -376,6 +467,7 @@ class VisionExperimentGui(QtGui.QWidget):
                                                                                    self.scan_regions[selected_region]['position']['z'][0]))
 
     def set_stage_origin(self):
+        result = False
         if not self.stage_position_valid:
             self.read_stage(display_coords = False)
             self.stage_position_valid = True
@@ -388,7 +480,9 @@ class VisionExperimentGui(QtGui.QWidget):
                 response = self.queues['stim']['in'].get()            
                 if 'SOCstageEOC' in response:
                     self.printc('origin set')
+                    result = True
         self.origin_set = True
+        return result
 
     def read_stage(self, display_coords = True):
         result = False
@@ -403,7 +497,7 @@ class VisionExperimentGui(QtGui.QWidget):
                         self.printc('abs: ' + str(self.stage_position))
                         self.printc('rel: ' + str(self.stage_position - self.stage_origin))
                     self.save_context()
-                    self.debug_widget.current_position_label.setText('rel: {0}' .format(self.stage_position - self.stage_origin))
+                    self.debug_widget.current_position_label.setText('rel: {0}' .format(numpy.round(self.stage_position - self.stage_origin, 2)))
                     result = True
         else:
             self.printc('stage is not accessible')
@@ -419,6 +513,10 @@ class VisionExperimentGui(QtGui.QWidget):
         self.move_stage_relative(movement)
 
     def move_stage_relative(self, movement):
+        if hasattr(self, 'brain_surface_image'): #to avoid saving false data at saving regions
+            del self.brain_surface_image
+        if hasattr(self, 'vertical_scan'):
+            del self.vertical_scan
         utils.empty_queue(self.queues['stim']['in'])
         self.queues['stim']['out'].put('SOCstageEOCset,{0},{1},{2}EOP'.format(movement[0], movement[1], movement[2]))
         self.printc('movement {0}'.format(movement))
@@ -428,7 +526,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 if 'SOCstageEOC' in response:
                     self.stage_position = self.parse_list_response(response)
                     self.save_context()
-                    self.debug_widget.current_position_label.setText('rel: {0}' .format(self.stage_position - self.stage_origin))
+                    self.debug_widget.current_position_label.setText('rel: {0}' .format(numpy.round(self.stage_position - self.stage_origin, 2)))
                     self.printc('abs: ' + str(self.stage_position))
                     self.printc('rel: ' + str(self.stage_position - self.stage_origin))
                     
@@ -450,9 +548,13 @@ class VisionExperimentGui(QtGui.QWidget):
     def parse_list_response(self, response):
         return numpy.array(map(float,parameter_extract.findall( response)[0].split(',')))
     
-    def show_image(self, image, channel, scale):
-        self.image_display[channel].setPixmap(imaged.array_to_qpixmap(image, self.config.IMAGE_SIZE))
-        self.image_display[channel].image = image
+    def show_image(self, image, channel, scale, line = None):
+        if line != None:
+            image_with_line = generic.draw_line_numpy_array(image, line)
+        else:
+            image_with_line = image
+        self.image_display[channel].setPixmap(imaged.array_to_qpixmap(image_with_line, self.config.IMAGE_SIZE))
+        self.image_display[channel].image = image_with_line
         self.image_display[channel].scale = scale
         
     def send_command(self):
