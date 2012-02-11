@@ -75,6 +75,45 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sort = False,
         dirs = [item[:item.rfind('.')] for item in dirs]
     return dirs
 
+def array2string(inarray):
+    if inarray.ndim == 2:
+        a = ["%.3g "*inarray.shape[1] % tuple(x) for x in inarray]
+    elif inarray.ndim == 1:
+        a = [str(x) for x in inarray]
+    return numpy.array(a)
+
+def get_recent_file(flist, ref_date = None, mode = 'earlier', interval=numpy.Inf):
+    '''
+    Checks the date of each file in the list and returns the most recent one.
+    If ref_date is provided then returns the file closest in time. If interval is set then only returns files
+    that were created within time limit from ref_date.
+    '''
+    if len(flist) == 0:
+        raise StandardError("Empty list provided")
+    lastmod_date = []
+    for f in range(len(flist)):
+        stats = os.stat(flist[f])
+        lastmod_date.append(time.localtime(stats[8]))
+    if ref_date is None:
+        lm = lastmod_date.index(max(lastmod_date))
+    else:
+        datediff = numpy.asarray([time.mktime(ref_date) - time.mktime(fdate) for fdate in lastmod_date])
+        try:
+            if mode=='earlier': #get the file created before the ref_date
+                valids = numpy.where(numpy.logical_and(datediff>=0,  datediff<interval))[0]
+                lm = valids[numpy.where(datediff[valids]==min(datediff[valids]))[0]]
+            elif mode == 'later':
+                valids = numpy.where(numpy.logical_and(datediff<=0,  datediff>-1*interval))[0]
+                lm = valids[numpy.where(datediff[valids]==max(datediff[valids]))[0]]
+            elif mode == 'closest': #earlier or later does not matter, closest in time
+                lm = numpy.where(numpy.logical_and(abs(datediff) == min(abs(datediff)), abs(datediff) < abs(interval)))[0]
+        except:
+            lm = []#raise IOError("No file found that matches the creation date limit")
+    if len(lm)>1:
+        raise ValueError('More than one file matches time criterium. Files created at exactly same times?')
+    elif len(lm)==1: 
+        lm=lm[0]
+    return numpy.array(flist)[lm], numpy.array(lastmod_date)[lm]
 
 class TestUtils(unittest.TestCase):
     def setUp(self):

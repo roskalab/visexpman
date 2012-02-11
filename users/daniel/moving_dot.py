@@ -1,12 +1,6 @@
 '''calculates positions of n dots moving in 8 directions through the screen'''
 import visexpman
 import os.path
-try:
-    import Helpers
-    from Helpers import normalize,  imshow
-except:
-    pass
-#from MultiLinePlot import WXPlot as WP
 import Image
 import numpy
 from visexpman.engine.visual_stimulation import experiment
