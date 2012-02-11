@@ -995,7 +995,10 @@ def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0
 
 def pack_position(stagexyz, objective_z = None):
     if isinstance(objective_z, numpy.ndarray):
-        objective_z_to_save = objective_z[0]
+        if objective_z.shape == ():
+            objective_z_to_save = objective_z
+        else:
+            objective_z_to_save = objective_z[0]
     else:
         objective_z_to_save = objective_z
     return numpy.array([(0, stagexyz[0], stagexyz[1], stagexyz[2], objective_z_to_save)], [('um',numpy.float64), ('x',numpy.float64),('y',numpy.float64),('z_stage',numpy.float64), ('z',numpy.float64)])

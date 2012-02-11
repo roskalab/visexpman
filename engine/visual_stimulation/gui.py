@@ -256,7 +256,9 @@ class DebugWidget(QtGui.QWidget):
         #Stage related
         self.set_stage_origin_button = QtGui.QPushButton('set stage origin', self)
         self.read_stage_button = QtGui.QPushButton('read stage', self)
-        self.move_stage_button = QtGui.QPushButton('move stage', self)        
+        self.move_stage_button = QtGui.QPushButton('move stage', self)
+        self.move_stage_to_origin_button = QtGui.QPushButton('move to origin', self)
+        self.current_position_label = QtGui.QLabel('', self)
         #Network related
         self.show_connected_clients_button = QtGui.QPushButton('Show connected clients',  self)
         self.show_network_messages_button = QtGui.QPushButton('Show network messages',  self)
@@ -266,7 +268,11 @@ class DebugWidget(QtGui.QWidget):
         
         #Development
         self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
-        self.master_position_groupbox = MasterPositionGroupBox(self)
+        self.scan_region_groupbox = ScanRegionGroupBox(self)
+        self.set_objective_button = QtGui.QPushButton('set objective', self)
+        self.objective_position_label = QtGui.QLabel('', self)
+        #Helpers
+        self.save_two_photon_image_button = QtGui.QPushButton('Save two photon image',  self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -280,12 +286,19 @@ class DebugWidget(QtGui.QWidget):
         self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
         self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
         self.layout.addWidget(self.move_stage_button, 2, 2, 1, 1)
+        self.layout.addWidget(self.move_stage_to_origin_button, 2, 3, 1, 1)
+        self.layout.addWidget(self.current_position_label, 2, 4, 1, 3)
+        self.layout.addWidget(self.set_objective_button, 2, 7, 1, 1)
+        self.layout.addWidget(self.objective_position_label, 2, 8, 1, 1)
         self.layout.addWidget(self.show_connected_clients_button, 3, 0, 1, 1)
         self.layout.addWidget(self.show_network_messages_button, 3, 1, 1, 1)
         self.layout.addWidget(self.select_connection_list, 3, 2, 1, 1)
         self.layout.addWidget(self.send_command_button, 3, 3, 1, 1)
         self.layout.addWidget(self.animal_parameters_groupbox, 4, 0, 4, 4)
-        self.layout.addWidget(self.master_position_groupbox, 4, 5, 3, 4)
+        self.layout.addWidget(self.scan_region_groupbox, 4, 5, 3, 4)
+        
+        self.layout.addWidget(self.save_two_photon_image_button, 8, 0, 1, 1)
+        
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -301,12 +314,8 @@ class MasterPositionGroupBox(QtGui.QGroupBox):
         self.use_master_position_scan_settings_label = QtGui.QLabel('Use master position\'s scan settings', self)
         self.use_master_position_scan_settings_checkbox = QtGui.QCheckBox(self)
         self.select_mouse_file_label = QtGui.QLabel('Select mouse file', self)
-        self.select_mouse_file = QtGui.QComboBox(self)
-#        self.select_master_position_label = QtGui.QLabel('Select master position', self)
-#        self.select_master_position = QtGui.QComboBox(self)        
+        self.select_mouse_file = QtGui.QComboBox(self)      
         self.register_button = QtGui.QPushButton('Register',  self)
-        self.suggested_translation = QtGui.QComboBox(self)
-        self.suggested_translation.setEditable(True)
         self.move_to_master_position_button = QtGui.QPushButton('Move to  master position',  self)
         self.save_master_position_button = QtGui.QPushButton('Save master position',  self)
         
@@ -316,17 +325,70 @@ class MasterPositionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.use_master_position_scan_settings_label, 0, 1, 1, 1)
         self.layout.addWidget(self.use_master_position_scan_settings_checkbox, 0, 2, 1, 1)
         self.layout.addWidget(self.select_mouse_file_label, 1, 0, 1, 1)
-        self.layout.addWidget(self.select_mouse_file, 1, 1, 1, 2)
-#        self.layout.addWidget(self.select_master_position_label, 2, 0, 1, 1)
-#        self.layout.addWidget(self.select_master_position, 2, 1, 1, 2)        
+        self.layout.addWidget(self.select_mouse_file, 1, 1, 1, 2)      
         self.layout.addWidget(self.register_button, 4, 0, 1, 1)
-        self.layout.addWidget(self.suggested_translation, 4, 1, 1, 2)        
         self.layout.addWidget(self.move_to_master_position_button, 5, 1, 1, 1)
         self.layout.addWidget(self.save_master_position_button, 5, 0, 1, 1)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
+
+class ScanRegionGroupBox(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, 'Scan regions', parent)
+        self.create_widgets()
+        self.create_layout()
+
+    def create_widgets(self):
+        self.select_mouse_file_label = QtGui.QLabel('Select mouse file', self)
+        self.select_mouse_file = QtGui.QComboBox(self)
+        self.get_two_photon_image_button = QtGui.QPushButton('Get two photon image',  self)
+        self.use_saved_scan_settings_label = QtGui.QLabel('Use saved scan settings', self)
+        self.use_saved_scan_settings_settings_checkbox = QtGui.QCheckBox(self)
+        self.snap_brain_surface_button = QtGui.QPushButton('Snap brain surface',  self)
         
+        self.add_button = QtGui.QPushButton('Add',  self)
+        self.scan_regions_combobox = QtGui.QComboBox(self)
+        self.scan_regions_combobox.setEditable(True)
+        self.remove_button = QtGui.QPushButton('Remove',  self)
+        
+        self.move_to_button = QtGui.QPushButton('Move to',  self)
+        self.region_position = QtGui.QLabel('',  self)
+        self.register_button = QtGui.QPushButton('Register',  self)
+        self.realign_button = QtGui.QPushButton('Realign',  self)
+
+        #Vertical alignment
+        self.vertical_scan_button = QtGui.QPushButton('Vertical scan',  self)
+        self.move_to_focus_button = QtGui.QPushButton('Focus',  self)
+        self.move_to_brain_surface_button = QtGui.QPushButton('Brain surface',  self)
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        
+        self.layout.addWidget(self.select_mouse_file_label, 0, 0, 1, 1)
+        self.layout.addWidget(self.select_mouse_file, 0, 1, 1, 3)
+        self.layout.addWidget(self.use_saved_scan_settings_label, 1, 1, 1, 1)
+        self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 1, 2, 1, 1)
+        
+        self.layout.addWidget(self.get_two_photon_image_button, 2, 0, 1, 1)
+        self.layout.addWidget(self.snap_brain_surface_button, 2, 3, 1, 1)
+        
+        self.layout.addWidget(self.add_button, 3, 0, 1, 1)
+        self.layout.addWidget(self.scan_regions_combobox, 3, 1, 1, 2)
+        self.layout.addWidget(self.remove_button, 3, 3, 1, 1)
+        self.layout.addWidget(self.move_to_button, 4, 1, 1, 1)
+        self.layout.addWidget(self.region_position, 4, 2, 1, 2)
+        self.layout.addWidget(self.register_button, 5, 0, 1, 1)
+        self.layout.addWidget(self.realign_button, 5, 1, 1, 1)
+        
+        self.layout.addWidget(self.vertical_scan_button, 6, 0, 1, 1)
+        self.layout.addWidget(self.move_to_focus_button, 7, 0, 1, 1)
+        self.layout.addWidget(self.move_to_brain_surface_button, 7, 1, 1, 1)
+
+        self.layout.setRowStretch(10, 10)
+        self.layout.setColumnStretch(10, 10)
+        self.setLayout(self.layout)
+
 class StandardIOWidget(QtGui.QWidget):
     def __init__(self, parent, config):
         QtGui.QWidget.__init__(self, parent)

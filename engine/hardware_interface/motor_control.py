@@ -46,6 +46,7 @@ class AllegraStage(StageControl):
     def init_instrument(self):
         if hasattr(self.config, 'STAGE'):
             if self.config.STAGE[self.id]['enable']:
+                self.command_counter = 0
                 self.acceleration = self.config.STAGE[self.id]['acceleration']
                 self.speed = self.config.STAGE[self.id]['speed']
                 self.reset_controller()
@@ -68,6 +69,7 @@ class AllegraStage(StageControl):
                 else:
                     self.required_position = numpy.array(new_position_ustep)
                     movement = self.required_position - self.position_ustep
+                moved_axes = []
                 for axis in range(3):
                     if acceleration == None:
                         accel = self.acceleration
@@ -81,24 +83,34 @@ class AllegraStage(StageControl):
                         mode = 'r'
                     else:
                         mode = 'a'
-                    command = 'vel{0} {2}\nacc{0} {3}\npos{0} {1}\nmov{4}{0}' .format(chr(120+axis), str(int(new_position_ustep[axis])), int(spd), int(accel), mode)
-                    self.execute_command(command)                            
+                    if not (mode == 'r' and new_position_ustep[axis] == 0): #if no rel movement is required on this axis, than command is not issued
+                        command = 'vel{0} {2}\nacc{0} {3}\npos{0} {1}\nmov{4}{0}' .format(chr(120+axis), str(int(new_position_ustep[axis])), int(spd), int(accel), mode)
+                        self.execute_command(command, wait_after_command = False)
+                        moved_axes.append(chr(120 + axis))
                 move_timeout = self.config.STAGE[self.id]['move_timeout']
                 self.movement = movement
                 start_of_wait = time.time()
+                response = ''
                 while True:
-                    try:
-                        self.read_position()
-                        if (abs(self.required_position - self.position_ustep)).sum() == 0:
-                            reached = True
-                            break
-                    except RuntimeError:
-                        pass
+                    response += self.serial_port.read(10)
+                    #check for X stopping, Done Y like responses
+                    reached = True
+                    for moved_axis in moved_axes:
+                        keywords = [moved_axis + ' stopping', 'done ' + moved_axis]
+                        keyword_in_response = False
+                        for keyword in keywords:
+                            if keyword in response.lower():
+                                keyword_in_response = True
+                        if not keyword_in_response:
+                            reached = False
+                    if reached:
+                        break
                     if time.time() - start_of_wait > move_timeout:
                         #Log: no reponse from stage                    
                         break
-                self.movement_time = time.time() - start_of_wait                    
-                #reenable joystick            
+                self.read_position()
+                self.movement_time = time.time() - start_of_wait
+                #reenable joystick
                 self.execute_command('jon')
                 #log
                 if hasattr(self.caller, 'experiment_control'):
@@ -112,15 +124,18 @@ class AllegraStage(StageControl):
             if self.config.STAGE[self.id]['enable']:
                 self.serial_port.flushInput()
                 self.execute_command('rx\nry\nrz')
-                time.sleep(0.2) #used to be 0.5 s
+                time.sleep(0.5) #used to be 0.5 s
                 response = self.serial_port.read(100)
                 position = []
                 for line in response.replace('\r','').split('\n'):
                     if len(line) > 0:
                         try:
-                            position.append(int(line[1:]))
+                            if 'Stopping' not in line and 'Done' not in line:
+                                position.append(int(line[1:]))
                         except ValueError:
+                            print response
                             raise RuntimeError('No valid response from motion controller ' + line)
+                            
                 self.position_ustep = numpy.array(position)
                 try:
                     self.position = self.position_ustep * self.config.STAGE[self.id]['um_per_ustep']
@@ -136,15 +151,17 @@ class AllegraStage(StageControl):
         self.serial_port.setRTS(True)
         time.sleep(20e-3) #Min 20 ms
         self.serial_port.setRTS(False)
-        time.sleep(0.2) #used to be 0.5 s
+        time.sleep(0.5) #used to be 0.5 s
         
-    def execute_command(self, command, print_response = False):
+    def execute_command(self, command, print_response = False, wait_after_command = True):
         commands = command.split('\n')
         response = ''
         for cmd in commands:
             if len(cmd) > 0:
                 self.serial_port.write(cmd + '\n')
-                time.sleep(100e-3) #Takes 100 ms to complete the command
+                if wait_after_command:
+                    time.sleep(100e-3) #Takes 100 ms to complete the command
+                self.command_counter += 1
 
     def calculate_move_time(self, movement, speed, acceleration):
         speed_up_time = speed / float(acceleration)

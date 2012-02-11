@@ -11,6 +11,7 @@ import sys
 import time
 import numpy
 import inspect
+import re
 
 import logging
 from visexpman.engine.generic import utils
@@ -44,6 +45,7 @@ import hashlib
 import visexpman.engine.generic.configuration as configuration
 import serial
 import visexpman.engine.generic.log as log
+experiment_name_extract = re.compile('class (.+)(experiment.Experiment)')
  
 def experiment_file_name(experiment_config, folder, extension, name = ''):
     experiment_class_name = str(experiment_config.runnable.__class__).split('.users.')[-1].split('.')[-1].replace('\'', '').replace('>','')
@@ -73,7 +75,11 @@ class ExperimentControl():
         self.experiment_source_path = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user, 'presentinator_experiment' + str(self.caller.command_handler.experiment_counter) + '.py')
         self.experiment_source_module = os.path.split(self.experiment_source_path)[-1].replace('.py', '')
         if len(self.experiment_source)>0 and self.config.ENABLE_UDP:
-            self.experiment_source = self.experiment_source.replace('(experiment.ExperimentConfig)', '{0}(experiment.ExperimentConfig)'.format(int(time.time()))) #avoid name conflict
+            #To avoid name confilct between experiment configs and experiments in the user's folder, these classes are renamed in the network loaded experiment module
+            now = int(time.time())
+            self.experiment_source = self.experiment_source.replace('(experiment.ExperimentConfig)', '{0}(experiment.ExperimentConfig)'.format(now))
+            experiment_name =experiment_name_extract.findall(self.experiment_source)[0]
+            self.experiment_source = self.experiment_source.replace(experiment_name, experiment_name+str(now))
             f = open(self.experiment_source_path, 'wt')
             f.write(self.experiment_source)
             f.close()

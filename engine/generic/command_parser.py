@@ -20,9 +20,9 @@ class CommandParser(object):
         self.queue_out = queue_out
         self.log = log
         self.function_call_list = []
-        self.display_message  = ''
     
     def parse(self):
+        display_message  = ''
         #gather messages from queues and parse them to function call format
         for queue in self.queue_in:
             while not queue.empty():
@@ -53,15 +53,18 @@ class CommandParser(object):
             if hasattr(self, function['method']):
                 try:
                     self.result = getattr(self, function['method'])(*function['arguments'], **function['keyword_arguments'])
+                    if hasattr(self.log, 'info'):
+                        self.log.info(function)
                 except:
                     traceback_info = traceback.format_exc()
                     if hasattr(self.log, 'info'):
                         self.log.info(traceback_info)
-                    self.display_message = traceback_info
+                    display_message = traceback_info
+        self.function_call_list = []
         if hasattr(self, 'result'):            
-            return self.result, self.display_message
+            return self.result, display_message
         else:
-            return False, self.display_message
+            return False, display_message
         
 class TestCommandParser(CommandParser):
     def test0(self):
