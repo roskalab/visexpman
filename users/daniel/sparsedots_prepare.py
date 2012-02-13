@@ -1,11 +1,8 @@
 from visexpman.engine.generic import utils
 import numpy
 from scipy.ndimage.morphology import binary_erosion,  binary_dilation
-try:
-    import Helpers
-    from Helpers import normalize, l2s,  imshow
-except:
-    pass
+#    import Helpers
+   # from Helpers import normalize, l2s,  imshow
 #from MultiLinePlot import WXPlot as WP
 from numpy.random import shuffle as nshuffle
 from numpy.random import random_integers
