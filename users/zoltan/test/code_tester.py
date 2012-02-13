@@ -8,16 +8,22 @@ import os.path
 import numpy
 import Image
 from visexpman.engine.generic import introspect
-from visexpman.engine.visual_stimulation import configuration
-from visexpman.engine.visual_stimulation import experiment
-from visexpman.engine.visual_stimulation import experiment_data
 from visexpman.users.daniel import moving_dot, configurations
 import pp
+import random
+
+############### Test network share ################
+
+h = hdf5io.Hdf5io('v:\\debug\\rtest2.hdf5')
+for i in range(5):
+    setattr(h, 'data'+str(i), numpy.random.rand(10000, 1000))
+    h.save('data'+str(i), overwrite = True)
+h.close()
 
 ######### Side folded frame ###############
 
-matlabfile.read_vertical_scan('/home/zoltan/visexp/data/line_scan_parameters_00011.mat')
-pass
+#matlabfile.read_vertical_scan('/home/zoltan/visexp/data/line_scan_parameters_00011.mat')
+#pass
 
 
 #### celery ##########

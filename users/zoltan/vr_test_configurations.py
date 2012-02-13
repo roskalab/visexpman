@@ -1,6 +1,6 @@
-from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
+from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
-import visexpman.engine.visual_stimulation.experiment as experiment
+import visexpman.engine.vision_experiment.experiment as experiment
 import time
 import numpy
 

@@ -1,7 +1,7 @@
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
-import visexpman.engine.visual_stimulation.experiment as experiment
+from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
+import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.generic.timing as timing
@@ -81,12 +81,12 @@ class GratingExperiment(experiment.Experiment):
         for fragment_repeats in self.fragment_repeats:
             self.fragmented_stimulus_units.append(self.stimulus_units[segment_pointer:segment_pointer + int(fragment_repeats)])
             segment_pointer += int(fragment_repeats)
-        self.fragment_data = {}
+        self.experiment_specific_data = {}
 
-    def run(self, fragment_id):
+    def run(self, fragment_id = 0):
         frame_counter = 0
         segment_counter = 0
-        self.fragment_data['segment_info'] = {}        
+        self.experiment_specific_data['segment_info'] = {}        
         for stimulus_unit in self.fragmented_stimulus_units[fragment_id]:
             for orientaion in self.experiment_config.ORIENTATIONS:
                 #Show marching grating
@@ -123,12 +123,12 @@ class GratingExperiment(experiment.Experiment):
                 segment_info['standing_last_frame'] = frame_counter-1
                 segment_id = 'segment_{0:3.0f}' .format(segment_counter)
                 segment_id = segment_id.replace(' ', '0')
-                self.fragment_data['segment_info'][segment_id] = segment_info
+                self.experiment_specific_data['segment_info'][segment_id] = segment_info
                 segment_counter += 1
 
     def cleanup(self):
         #add experiment identifier node to experiment hdf5
-        experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.caller.experiment_control.start_time))
+        experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.experiment_control.start_time))
         self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
         setattr(self.hdf5, experiment_identifier, {'id': None})
         self.hdf5.save(experiment_identifier)
@@ -149,6 +149,10 @@ class PixelSizeCalibration(experiment.Experiment):
     '''
     Helps pixel size calibration by showing 50 and 20 um circles
     '''
+    def prepare(self):
+        self.fragment_durations = [1.0]
+        self.number_of_fragments = len(self.fragment_durations)
+
     def run(self):
         pattern = 0
         self.add_text('Circle at 100,100 um, diameter is 20 um.', color = (1.0,  0.0,  0.0), position = utils.cr((10.0, 30.0)))        
@@ -210,7 +214,7 @@ class LedStimulation(experiment.Experiment):
         
     def cleanup(self):
         #add experiment identifier node to experiment hdf5
-        experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.caller.experiment_control.start_time))
+        experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.experiment_control.start_time))
         self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
         setattr(self.hdf5, experiment_identifier, {'id': None})
         self.hdf5.save(experiment_identifier)

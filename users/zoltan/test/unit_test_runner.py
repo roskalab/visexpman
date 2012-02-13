@@ -77,7 +77,7 @@ elif TEST_os == 'osx':
     TEST_com_port = ''
     TEST_working_folder = '/Users/rz/visexpman/data/test'
     TEST_valid_file = '/Users/rz/test_stimulus.py'
-    TEST_invalid_file = '/Users'
+    TEST_invalid_file = '/Users/unit_test_runner.py'
     TEST_stage_com_port = ''
 
 TEST_daq_device = 'Dev1'
@@ -105,46 +105,44 @@ class UnitTestRunner():
         self.test_configs = [
                {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
                'enable' : TEST_mes},
-               {'test_class_path' : 'visexpman.engine.visexp_runner.testVisexpRunner',
-               'enable' : True, 'run_only' : []},
-               {'test_class_path' : 'visexpman.engine.visexp_runner.testFindoutConfig',
-               'enable' : True, 'run_only' : []}, 
-               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.generic.utils.TestUtils',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
-               'enable' : not True}, #Not part of visexpman application
-               {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestParallelPort',
-               'enable' : TEST_parallel_port},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestFilterwheel',
-               'enable' : TEST_filterwheel},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
-               'enable' : TEST_daq},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestQueuedServer',
-               'enable' : True},               
-               {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testExternalHardware',
-               'enable' : TEST_parallel_port and TEST_filterwheel },
-               {'test_class_path' : 'visexpman.engine.visual_stimulation.stimulation_control.testDataHandler',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
-               'enable' : TEST_stage},
-               {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
-               'enable' : True, 'run_only' : []},
-               {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.generic.timing.TestTiming',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.generic.command_parser.TestAnalysisCommandHandler',
-               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.vision_experiment.TestVisionExperimentRunner',
+               'enable' : True, 'run_only' : ['09']},
+#               {'test_class_path' : 'visexpman.engine.visexp_runner.TestFindoutConfig',
+#               'enable' : True, 'run_only' : []}, 
+#               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.generic.utils.TestUtils',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
+#               'enable' : not True}, #Not part of visexpman application
+#               {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestParallelPort',
+#               'enable' : TEST_parallel_port},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestFilterwheel',
+#               'enable' : TEST_filterwheel},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
+#               'enable' : TEST_daq},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestQueuedServer',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
+#               'enable' : TEST_stage},
+#               {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
+#               'enable' : True, 'run_only' : []},
+#               {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.generic.timing.TestTiming',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.generic.command_parser.TestAnalysisCommandHandler',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.generic.TestLUT',
+#               'enable' : not True},
                ]
 
     def fetch_test_methods(self, test_class):
@@ -162,7 +160,7 @@ class UnitTestRunner():
         Returns a reference to the test class given in string format
         '''
         test_class_name = test_class_path.split('.')[-1]
-        module_path = test_class_path.replace('.' + test_class_name, '')        
+        module_path = test_class_path.replace('.' + test_class_name, '')
         __import__(module_path)
         return getattr(sys.modules[module_path], test_class_name)
 

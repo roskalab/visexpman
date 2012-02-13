@@ -9,11 +9,11 @@ except:
 #from MultiLinePlot import WXPlot as WP
 import Image
 import numpy
-from visexpman.engine.visual_stimulation import experiment
+from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import utils
 #from visexpman.engine.visual_stimulation import stimulation_library as stl
 #import visexpman.engine.generic.configuration
-import visexpman.engine.visual_stimulation.command_handler as command_handler
+import visexpman.engine.vision_experiment.command_handler as command_handler
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import time
@@ -68,24 +68,24 @@ class MovingDotPre(experiment.PreExperiment):
         self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
 
 class MovingDot(experiment.Experiment):
-    def __init__(self, machine_config, caller, experiment_config):
-        experiment.Experiment.__init__(self, machine_config, caller, experiment_config)        
+    def __init__(self, machine_config, experiment_config, queues, connections, application_log):
+        experiment.Experiment.__init__(self, machine_config, experiment_config, queues, connections, application_log)
         
     def pre_first_fragment(self):
         self.show_fullscreen(color = 0.0)
     
-    def run(self, fragment_id):    
+    def run(self, fragment_id = 0):    
         self.show_dots([self.diameter_pix*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE]*len(self.row_col[fragment_id]), self.row_col[fragment_id], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
         self.show_fullscreen(color = 0.0)
-        self.fragment_data ={}
+        self.experiment_specific_data ={}
         if hasattr(self, 'shown_line_order'):
-            self.fragment_data['shown_line_order'] = self.shown_line_order[fragment_id]
+            self.experiment_specific_data['shown_line_order'] = self.shown_line_order[fragment_id]
         if hasattr(self,'shown_directions'):
-            self.fragment_data['shown_directions']= self.shown_directions[fragment_id]
+            self.experiment_specific_data['shown_directions']= self.shown_directions[fragment_id]
             
     def cleanup(self):
         #add experiment identifier node to experiment hdf5
-        experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.caller.experiment_control.start_time))
+        experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.experiment_control.start_time))
         self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
         setattr(self.hdf5, experiment_identifier, {'id': None})
         self.hdf5.save(experiment_identifier)
@@ -129,7 +129,7 @@ class MovingDot(experiment.Experiment):
         # corresponds to excitatory receptive field size. We assume excitatiory receptive field is surrounded by inhibitory fields with same width.
          # here we divide the grid into multiple recording blocks if necessary
         if 0:#nblocks*gridstep_pix > diameter_pix*3:
-            self.caller.log.info('Stimulation has to be split into blocks. The number of blocks is too high meaning that the visual field would be covered too sparsely in a block \
+            self.log.info('Stimulation has to be split into blocks. The number of blocks is too high meaning that the visual field would be covered too sparsely in a block \
                 if we wanted to present all angles in every block. We shall show multiple lines in a block but not all angles.')
             self.angles_broken_to_multi_block( w, h, diameter_pix, speed_pix,gridstep_pix, movestep_pix,  hlines_r, hlines_c, vlines_r, vlines_c,   angleset, allangles)
         else:

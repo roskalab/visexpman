@@ -163,6 +163,9 @@ class AnalogIO(instrument.Instrument):
                 self.analog_output.StartTask()
             if self.enable_ai:
                 self.analog_input.StartTask()
+            return True
+        else:
+            return False
 
     def finish_daq_activity(self, abort = False):
         if os.name == 'nt' and self.daq_config['ENABLE']:
@@ -192,7 +195,10 @@ class AnalogIO(instrument.Instrument):
                 self.analog_input.StopTask()
                 self.ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
                 self.ai_raw_data = self.ai_data
-                self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()               
+                self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()
+            return True
+        else:
+            return False
     
 
     def start_instrument(self):
@@ -268,7 +274,7 @@ class AnalogPulse(AnalogIO):
         self.state_machine('stop')
         
     def release_instrument(self):
-        self.log_during_experiment('Instrument released')
+        self.log_during_experiment('Daq instrument released')
         self.state_machine('release_instrument')        
             
     def state_machine(self, command, parameters = None):

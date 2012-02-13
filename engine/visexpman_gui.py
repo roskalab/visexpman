@@ -16,11 +16,12 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 import visexpman.engine.generic.utils as utils
-import visexpman.engine.visual_stimulation.configuration as configuration
-import visexpman.engine.visual_stimulation.gui as gui
+import visexpman.engine.vision_experiment.configuration as configuration
+import visexpman.engine.vision_experiment.gui as gui
 import visexpman.engine.hardware_interface.network_interface as network_interface
 import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpman.engine.generic.utils as utils
+from visexpman.engine.generic import file
 import visexpman.engine.generic as generic
 import visexpman.engine.generic.geometry as geometry
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
@@ -104,7 +105,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.queues['mes']['out'] = Queue.Queue()
         self.queues['mes']['in'] = Queue.Queue()
         self.connections['mes'] = network_interface.start_client(self.config, 'GUI', 'GUI_MES', self.queues['mes']['in'], self.queues['mes']['out'])
-        self.mes_interface = mes_interface.MesInterface(self.config, self.connections['mes'])
+        self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections)
         self.queues['stim'] = {}
         self.queues['stim']['out'] = Queue.Queue()
         self.queues['stim']['in'] = Queue.Queue()
@@ -115,7 +116,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
             
     def init_files(self):
-        self.log = log.Log('gui log', utils.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt'))) 
+        self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt'))) 
         # create folder if not exists
         self.context_file_path = os.path.join(self.config.CONTEXT_PATH, self.config.CONTEXT_NAME)
         context_hdf5 = hdf5io.Hdf5io(self.context_file_path)
@@ -191,7 +192,7 @@ class VisionExperimentGui(QtGui.QWidget):
         User have to figure out what is the correct scan time
         '''
         if self.debug_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() == 0:
-                result, line_scan_path = self.mes_interface.start_line_scan(timeout = self.config.MES_TIMEOUT)
+            result, line_scan_path = self.mes_interface.start_line_scan(timeout = self.config.MES_TIMEOUT)
         else:
             #Load scan settings from parameter file
             parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'scan_region_parameters.mat')
@@ -252,8 +253,9 @@ class VisionExperimentGui(QtGui.QWidget):
                         scan_region['brain_surface']['origin'] = self.brain_surface_image['origin']
                         scan_region['brain_surface']['mes_parameters']  = utils.file_to_binary_array(self.brain_surface_image['path'].tostring())
                         #Vertical section
-                        scan_region['vertical_section'] = self.vertical_scan
-                        scan_region['vertical_section']['mes_parameters'] = utils.file_to_binary_array(self.vertical_scan['path'].tostring())
+                        if self.vertical_scan !=  None:
+                            scan_region['vertical_section'] = self.vertical_scan
+                            scan_region['vertical_section']['mes_parameters'] = utils.file_to_binary_array(self.vertical_scan['path'].tostring())
                         if region_name == 'master':
                            if not self.set_stage_origin():
                                 self.printc('Setting origin did not succeed')
@@ -291,7 +293,7 @@ class VisionExperimentGui(QtGui.QWidget):
         hdf5_handler.close()
         
     def save_two_photon_image(self):
-        hdf5_handler = hdf5io.Hdf5io(utils.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'two_photon_image.hdf5')))
+        hdf5_handler = hdf5io.Hdf5io(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'two_photon_image.hdf5')))
         hdf5_handler.two_photon_image = self.two_photon_image
         hdf5_handler.stage_position = self.stage_position
         hdf5_handler.save(['two_photon_image', 'stage_position'])
@@ -431,7 +433,7 @@ class VisionExperimentGui(QtGui.QWidget):
         '''
         Update comboboxes with file lists
         '''
-        new_mouse_files = utils.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
+        new_mouse_files = file.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
         if self.mouse_files != new_mouse_files:
             self.mouse_files = new_mouse_files
             self.update_combo_box_list(self.debug_widget.scan_region_groupbox.select_mouse_file, self.mouse_files)
@@ -448,16 +450,19 @@ class VisionExperimentGui(QtGui.QWidget):
         selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
         if hasattr(self.scan_regions, 'has_key'):
             if self.scan_regions.has_key(selected_region):
-                #convert line info from um to pixel
-                line = numpy.array([\
+                line = None
+                if self.scan_regions[selected_region].has_key('vertical_section'):
+                    #convert line info from um to pixel
+                    line = numpy.array([\
                                     self.scan_regions[selected_region]['vertical_section']['p1']['col'] - self.scan_regions[selected_region]['brain_surface']['origin']['col'],\
                                     -(self.scan_regions[selected_region]['vertical_section']['p1']['row'] - self.scan_regions[selected_region]['brain_surface']['origin']['row']),\
                                     self.scan_regions[selected_region]['vertical_section']['p2']['col'] - self.scan_regions[selected_region]['brain_surface']['origin']['col'],\
                                     -(self.scan_regions[selected_region]['vertical_section']['p2']['row'] - self.scan_regions[selected_region]['brain_surface']['origin']['row'])])
-                line /= self.scan_regions[selected_region]['brain_surface']['scale']['row']
-                line = line.tolist()
+                    line /= self.scan_regions[selected_region]['brain_surface']['scale']['row']
+                    line = line.tolist()
+                    
+                    self.show_image(self.scan_regions[selected_region]['vertical_section']['scaled_image'], 3, self.scan_regions[selected_region]['vertical_section']['scale'])
                 self.show_image(self.scan_regions[selected_region]['brain_surface']['image'], 1, self.scan_regions[selected_region]['brain_surface']['scale'], line = line)
-                self.show_image(self.scan_regions[selected_region]['vertical_section']['scaled_image'], 3, self.scan_regions[selected_region]['vertical_section']['scale'])
         #Display coordinates of selected region
         if self.scan_regions.has_key(selected_region):
             self.debug_widget.scan_region_groupbox.region_position.setText(\
@@ -632,8 +637,8 @@ class GuiConfig(configuration.VisionExperimentConfig):
             
         if 'dev' in sys.argv[1] or 'development' in self.PACKAGE_PATH:            
             CONTEXT_NAME = 'gui_dev.hdf5'
-            data_folder = os.path.join(v_drive_folder, 'data')
-            MES_DATA_FOLDER = 'V:\\data'
+            data_folder = os.path.join(v_drive_folder, 'debug', 'data')
+            MES_DATA_FOLDER = 'V:\\debug\\data'
             MES_DATA_PATH = os.path.join(v_drive_folder, 'data')            
         else:
             CONTEXT_NAME = 'gui.hdf5'

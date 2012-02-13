@@ -1,6 +1,6 @@
-from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
+from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.generic import utils
-import visexpman.engine.visual_stimulation.experiment as experiment
+import visexpman.engine.vision_experiment.experiment as experiment
 import os
 import tempfile
 
@@ -19,7 +19,7 @@ class DefaultExperiment(experiment.Experiment):
     def run(self):
         pass
         
-class SafestartConfig(VisionExperimentConfig):    
+class SafestartConfig(configuration.VisionExperimentConfig):    
     def _set_user_parameters(self):
         EXPERIMENT_CONFIG = 'DefaultExperimentConfig'
         COORDINATE_SYSTEM = 'center'        

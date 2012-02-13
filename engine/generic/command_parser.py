@@ -12,7 +12,7 @@ class CommandParser(object):
     The handlers for user commands are implemented as methods in a subclass of CommandParser. 
     Functions expecting nonkeyword, keyword and mixed arguments are supported
     '''
-    def __init__(self, queue_in, queue_out, log = None):
+    def __init__(self, queue_in, queue_out, log = None, failsafe = True):
         if hasattr(queue_in, 'get'):
             self.queue_in = [queue_in]
         elif hasattr(queue_in, 'index'):
@@ -20,15 +20,17 @@ class CommandParser(object):
         self.queue_out = queue_out
         self.log = log
         self.function_call_list = []
+        self.failsafe = failsafe
     
     def parse(self):
         display_message  = ''
         #gather messages from queues and parse them to function call format
         for queue in self.queue_in:
             while not queue.empty():
-                self.message = queue.get()
-                method = method_extract.findall(self.message)
-                arguments = parameter_extract.findall(self.message.replace('\n',  '<newline>'))
+                message = queue.get()
+                display_message += '\n' + message
+                method = method_extract.findall(message)
+                arguments = parameter_extract.findall(message.replace('\n',  '<newline>'))
                 if len(method) > 0:
                     function_call = {'method' : method[0] }
                     if len(arguments) > 0:
@@ -49,22 +51,26 @@ class CommandParser(object):
                     function_call['keyword_arguments'] = keyword_arguments
                     self.function_call_list.append(function_call)
         #call functions
+        self.function_call_results = []
         for function in self.function_call_list:
             if hasattr(self, function['method']):
-                try:
-                    self.result = getattr(self, function['method'])(*function['arguments'], **function['keyword_arguments'])
-                    if hasattr(self.log, 'info'):
-                        self.log.info(function)
-                except:
-                    traceback_info = traceback.format_exc()
-                    if hasattr(self.log, 'info'):
-                        self.log.info(traceback_info)
-                    display_message = traceback_info
+                if self.failsafe:
+                    try:
+                        self.function_call_results.append(getattr(self, function['method'])(*function['arguments'], **function['keyword_arguments']))
+                    except:
+                        traceback_info = traceback.format_exc()
+                        if hasattr(self.log, 'info'):
+                            self.log.info(traceback_info)
+                        display_message += '\n' + traceback_info
+                else:
+                    self.function_call_results.append(getattr(self, function['method'])(*function['arguments'], **function['keyword_arguments']))
+                if hasattr(self.log, 'info'):
+                    self.log.info(function)
         self.function_call_list = []
-        if hasattr(self, 'result'):            
-            return self.result, display_message
+        if len(self.function_call_results) > 0:            
+            return self.function_call_results
         else:
-            return False, display_message
+            return [display_message]
         
 class TestCommandParser(CommandParser):
     def test0(self):
@@ -98,55 +104,55 @@ class TestAnalysisCommandHandler(unittest.TestCase):
         self.queue_in.put('SOCtest0EOCEOP')
         cp = TestCommandParser(self.queue_in, self.queue_out)
         cp.parse()
-        self.assertEqual((hasattr(cp, 'test0'), cp.result), (True, 0))
+        self.assertEqual((hasattr(cp, 'test0'), cp.function_call_results[0]), (True, 0))
         
     def test_02_one_arg(self):
         self.queue_in.put('SOCtest1EOC1EOP')
         cp = TestCommandParser(self.queue_in, self.queue_out)
         cp.parse()
-        self.assertEqual((cp.test1, cp.result), (1, 1))
+        self.assertEqual((cp.test1, cp.function_call_results[0]), (1, 1))
         
     def test_03_two_arg(self):
         self.queue_in.put('SOCtest2EOC1,okEOP')
         cp = TestCommandParser(self.queue_in, self.queue_out)
         cp.parse()
-        self.assertEqual((cp.arg1, cp.arg2, cp.result), (1, 'ok', 2))
+        self.assertEqual((cp.arg1, cp.arg2, cp.function_call_results[0]), (1, 'ok', 2))
         
     def test_04_args_to_function_expects_no_args(self):
         self.queue_in.put('SOCtest0EOC1,okEOP')
         cp = TestCommandParser(self.queue_in, self.queue_out)
         cp.parse()
-        self.assertEqual((hasattr(cp, 'arg1'), hasattr(cp, 'arg2'), hasattr(cp, 'result')), (False, False, False))
+        self.assertEqual((hasattr(cp, 'arg1'), hasattr(cp, 'arg2'), len(cp.function_call_results)), (False, False, 0))
         
     def test_05_no_args_to_function_that_expects(self):
         self.queue_in.put('SOCtest2EOCEOP')
         cp = TestCommandParser(self.queue_in, self.queue_out)
         cp.parse()
-        self.assertEqual((hasattr(cp, 'arg1'), hasattr(cp, 'arg2'), hasattr(cp, 'result')), (False, False, False))
+        self.assertEqual((hasattr(cp, 'arg1'), hasattr(cp, 'arg2'), len(cp.function_call_results)), (False, False, 0))
         
     def test_05_function_expects_keywords(self):
         self.queue_in.put('SOCtest_keywordEOC1,par2=2EOP')
         cp = TestCommandParser(self.queue_in, self.queue_out)
         cp.parse()
-        self.assertEqual((cp.par1, cp.par2, cp.result), ('1', '2', 'kw'))
+        self.assertEqual((cp.par1, cp.par2, cp.function_call_results[0]), ('1', '2', 'kw'))
         
     def test_06_function_expects_keywords(self):
         self.queue_in.put('SOCtest_keywordEOC1EOP')
         cp = TestCommandParser(self.queue_in, self.queue_out)
         cp.parse()
-        self.assertEqual((cp.par1, cp.par2, cp.result), ('1', 3, 'kw'))
+        self.assertEqual((cp.par1, cp.par2, cp.function_call_results[0]), ('1', 3, 'kw'))
         
     def test_07_function_expects_only_keywords_no_arg(self):
         self.queue_in.put('SOCtest_keyword_onlyEOCEOP')
         cp = TestCommandParser(self.queue_in, self.queue_out)
         cp.parse()
-        self.assertEqual((cp.par, cp.result), (0, 'kw_only'))
+        self.assertEqual((cp.par, cp.function_call_results[0]), (0, 'kw_only'))
 
     def test_07_function_expects_only_keywords(self):
         self.queue_in.put('SOCtest_keyword_onlyEOCpar=1EOP')
         cp = TestCommandParser(self.queue_in, self.queue_out)
         cp.parse()
-        self.assertEqual((cp.par, cp.result), ('1', 'kw_only'))
+        self.assertEqual((cp.par, cp.function_call_results[0]), ('1', 'kw_only'))
 
 if __name__=='__main__':
     unittest.main()

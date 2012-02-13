@@ -1,5 +1,5 @@
 import numpy
-import visexpman.engine.visual_stimulation.experiment as experiment
+import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.generic.configuration
 import visexpman.engine.generic.utils
 

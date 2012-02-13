@@ -2,10 +2,11 @@
 
 import pygame
 import socket
-#import threading
 import time
 #import os#?
-import visexpman.engine.generic.utils as utils
+from visexpman.engine.generic import utils
+from visexpman.engine.generic import colors
+
 import visexpman.engine.generic.graphics as graphics
 from OpenGL.GL import *#?
 from OpenGL.GLUT import *
@@ -17,20 +18,18 @@ def experiment_choices(experiment_list):
     '''
     return '\n'.join([str(i)+' '+experiment_list[i][1].__name__ for i in range(len(experiment_list))])
 
-class VisexpmanScreen(graphics.Screen):
+class VisionExperimentScreen(graphics.Screen):
     '''
     graphics.Screen is amended with vision experiment specific features: menu&message displaying
     '''    
-    def __init__(self, config, command_handler, experiment_config_list):
-        self.command_handler = command_handler
-        self.experiment_config_list = experiment_config_list
-        graphics.Screen.__init__(self, config, graphics_mode = 'external')
+    def __init__(self):
+        graphics.Screen.__init__(self, self.config, graphics_mode = 'external')
         self.clear_screen()
         #== Initialize displaying text ==
         self.text_style = GLUT_BITMAP_8_BY_13
         self.menu_position = utils.cr(( int(self.config.MENU_POSITION['col'] * self.config.SCREEN_RESOLUTION['col']), int(self.config.MENU_POSITION['row'] * self.config.SCREEN_RESOLUTION['row'])))
         self.message_position = utils.cr(( int(self.config.MESSAGE_POSITION['col'] * self.config.SCREEN_RESOLUTION['col']), int(self.config.MESSAGE_POSITION['row'] * self.config.SCREEN_RESOLUTION['row'])))
-        self.message = 'no message'
+        self.message_to_screen = ['no message']
         self.hide_menu = False
         self.show_bullseye = False
         #== Update text to screen ==
@@ -38,8 +37,8 @@ class VisexpmanScreen(graphics.Screen):
         
     def clear_screen_to_background(self):
         color = self.config.BACKGROUND_COLOR
-        if self.command_handler.presentinator_interface['command'] == 'color':
-            color = color.convert_color(self.command_handler.presentinator_interface['color'])
+        if hasattr(self, 'user_background_color'):
+            color = colors.convert_color(self.user_background_color)
         graphics.Screen.clear_screen(self, color = color)
         
     def display_bullseye(self):
@@ -55,7 +54,9 @@ class VisexpmanScreen(graphics.Screen):
          - possible keyboard commands
          - available experiment configurations
         '''
-        self.menu_text = self.config.MENU_TEXT + experiment_choices(self.experiment_config_list) + '\nSelected experiment config: ' + self.experiment_config_list[int(self.command_handler.selected_experiment_config_index)][1].__name__
+        self.menu_text = self.config.MENU_TEXT + experiment_choices(self.experiment_config_list) + '\nSelected experiment config: '
+        if len(self.experiment_config_list) > 0:
+            self.menu_text += self.experiment_config_list[int(self.selected_experiment_config_index)][1].__name__
         self.render_text(self.menu_text, color = self.config.TEXT_COLOR, position = self.menu_position, text_style = self.text_style)
         if flip:
             self.flip()
@@ -65,12 +66,15 @@ class VisexpmanScreen(graphics.Screen):
         Display messages coming from command handler
         '''
         #count number of message rows and limit their number
-        lines = message.split('\n')
+        lines = ''
+        for line in message:
+            if len(line) > 0:
+                lines += line + '\n'
+        lines = lines.split('\n')
         lines = lines[-self.config.NUMBER_OF_MESSAGE_ROWS:]
         limited_message = ''
         for line in lines:
             limited_message += line + '\n'
-        
         self.render_text(limited_message, color = self.config.TEXT_COLOR, position = self.message_position, text_style = self.text_style)
         if flip:
             self.flip()
@@ -83,24 +87,30 @@ class VisexpmanScreen(graphics.Screen):
         #TODO: when ENABLE_TEXT = False, screen has to be cleared to background color, self.clear_screen_to_background()
         if self.config.ENABLE_TEXT:# and not self.hide_menu:#TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command     
             self._show_menu()
-            self._show_message(self.message, flip = flip)
+            self._show_message(self.message_to_screen, flip = flip)
 
     def run_preexperiment(self):
         pass
 
-class ScreenAndKeyboardHandler(VisexpmanScreen):
+class ScreenAndKeyboardHandler(VisionExperimentScreen):
     '''
     VisexpmanScreen is amended with keyboard handling
     '''
-    def __init__(self, config,  command_handler, experiment_config_list, keyboard_command_queue):
-        VisexpmanScreen.__init__(self, config,  command_handler, experiment_config_list)
-        self.keyboard_command_queue = keyboard_command_queue
-        self.experiment_config_shortcuts = ['{0}'.format(i) for i in range(len(self.experiment_config_list))]#stimulus_file_shortcut
+    def __init__(self):
+        VisionExperimentScreen.__init__(self)
         self.command_domain = 'keyboard'
+        self.load_keyboard_commands()
+            
+    def load_keyboard_commands(self):        
         self.keyboard_commands = copy.deepcopy(self.config.COMMANDS)
         self.separator = '@'
-        for shortcut in self.experiment_config_shortcuts:
-            self.keyboard_commands['select_experiment' + self.separator + shortcut] = {'key': shortcut, 'domain' : [self.command_domain]}
+        if hasattr(self, 'experiment_config_list'):
+            self.experiment_config_shortcuts = ['{0}'.format(i) for i in range(len(self.experiment_config_list))]#stimulus_file_shortcut
+            for shortcut in self.experiment_config_shortcuts:
+                self.keyboard_commands['select_experiment' + self.separator + shortcut] = {'key': shortcut, 'domain' : [self.command_domain]}
+        else:
+            self.experiment_config_shortcuts = []
+        
 
     def _check_keyboard(self):
         '''

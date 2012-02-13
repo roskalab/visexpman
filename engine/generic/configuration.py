@@ -166,12 +166,18 @@ class Config(object):
         all_parameters = {}
         for parameter_name in parameter_names:
             all_parameters[parameter_name] = getattr(self,  parameter_name)
-            #If a list contains dicitonary items, convert them to a dict of dict. hdf5io module cannot handle this type of data
-            if isinstance(getattr(self,  parameter_name), list):
+            if hasattr(all_parameters[parameter_name], 'keys'):
+                if all_parameters[parameter_name] == {}:
+                    all_parameters[parameter_name] = 0
+            elif all_parameters[parameter_name] == None:
+                all_parameters[parameter_name] = 0
+            #If a list contains dictionary items, convert them to a dict of dict. hdf5io module cannot handle this type of data
+            elif isinstance(getattr(self,  parameter_name), list):
                 if isinstance(getattr(self,  parameter_name)[0], dict):
                     d = {}
                     for i in range(len(getattr(self,  parameter_name))):
-                        d['index_'+str(i)] = getattr(self,  parameter_name)[i]
+                        parameter_value = getattr(self,  parameter_name)[i]
+                        d['index_'+str(i)] = parameter_value
                     all_parameters[parameter_name] = d
         return all_parameters
         

@@ -1,18 +1,18 @@
 import time
 import os.path
-window_type = 'pygame'
+
 #window_type = 'pyglet'
 import numpy
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
-if window_type == 'pygame':
-    import pygame
+import pygame
 #elif window_type == 'pyglet':
 #    import pyglet
 import Image
-import visexpman.engine.generic.utils as utils
+from visexpman.engine.generic import utils
+from visexpman.engine.generic import file
 
 DISPLAY_FRAME_RATE = False
 DISPLAY_FRAME_DELAY = False
@@ -58,7 +58,6 @@ class Screen(object):
         
         Future: GAMMA, TEXT_COLOR
         """
-        self.window_type = window_type
         self.config = configuration
         self.mode = graphics_mode
         self.position = [0.0, 0.0, 0.0]
@@ -69,13 +68,7 @@ class Screen(object):
         self.position_step = 10.0
         self.angle_step = 10.0
         self.scale_step = 0.05
-        self.flip_time = time.time()
-        self.flip_time_previous = self.flip_time
-        self.frame_rate = 0.0
-        self.wait_time_left = 0.0
-        self.elapsed_time = 0.0
-        #frame wait time calculation
-        self.frame_wait_time = self.config.FRAME_WAIT_FACTOR * 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE - self.config.FLIP_EXECUTION_TIME        
+        self.init_flip_variables()
         glutInit()
         #create screen using parameters in config
         self.create_screen()        
@@ -89,19 +82,30 @@ class Screen(object):
         
         self.initialization()
         
+    def init_flip_variables(self):
+        self.flip_time = time.time()
+        self.flip_time_previous = self.flip_time
+        self.frame_rate = 0.0
+        self.wait_time_left = 0.0
+        self.elapsed_time = 0.0
+        #frame wait time calculation
+        self.frame_wait_time = self.config.FRAME_WAIT_FACTOR * 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE - self.config.FLIP_EXECUTION_TIME        
+
+        if self.config.OS == 'linux':
+            self.clock = pygame.time.Clock()
+        
     def create_screen(self):
         '''
         Create pygame screen using SCREEN_RESOLUTION and FULLSCREEN parameters
         '''
-        if self.window_type == 'pygame':
-            flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
-            if self.config.FULLSCREEN:            
-                flags = flags | pygame.FULLSCREEN
-            self.screen = pygame.display.set_mode((self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), flags)
+        flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
+        if self.config.FULLSCREEN:            
+            flags = flags | pygame.FULLSCREEN
+        self.screen = pygame.display.set_mode((self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), flags)
 #            glxext_arb.glXSwapIntervalSGI(0)
-            #Hide mouse cursor
-            pygame.mouse.set_visible(not self.config.FULLSCREEN)
-            self.clock = pygame.time.Clock()
+        #Hide mouse cursor
+        pygame.mouse.set_visible(not self.config.FULLSCREEN)
+        self.clock = pygame.time.Clock()
 #        elif self.window_type == 'pyglet':
 #            if self.config.FULLSCREEN:
 #                self.screen = pyglet.window.Window(fullscreen = self.config.FULLSCREEN, 
@@ -112,10 +116,7 @@ class Screen(object):
 #            self.screen.set_mouse_visible(False)
         
     def close_screen(self):
-        if self.window_type == 'pygame':
-            pygame.quit()
-#        elif self.window_type == 'pyglet':
-#            self.screen.close()
+        pygame.quit()
         
     def __del__(self):        
         self.close_screen()
@@ -177,9 +178,9 @@ class Screen(object):
 #                if self.wait_time_left > 0.0:
 #                    time.sleep(self.wait_time_left)
                     
-        if window_type == 'pygame':
-            if self.config.OS == 'linux':
-                self.clock.tick(self.config.SCREEN_EXPECTED_FRAME_RATE)
+        
+        if self.config.OS == 'linux':
+            self.clock.tick(self.config.SCREEN_EXPECTED_FRAME_RATE)
 #            count = ctypes.c_uint()
 #            glxext_arb.glXGetVideoSyncSGI(ctypes.byref(count))
 #            glxext_arb.glXWaitVideoSyncSGI(0, 0, ctypes.byref(count))
@@ -191,7 +192,7 @@ class Screen(object):
 #            self.prev = count.value
             
 #            glxext_arb.glXWaitVideoSyncSGI(2, (count.value+1)%2, ctypes.byref(count))
-            pygame.display.flip()            
+        pygame.display.flip()            
 
 #        elif window_type == 'pyglet':
 #            self.screen.flip()
@@ -209,7 +210,7 @@ class Screen(object):
             if abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE) > 1.0:
                 print abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if self.config.ENABLE_FRAME_CAPTURE:
-            self.save_frame(utils.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.bmp')))
+            self.save_frame(file.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.bmp')))
         
         
     def scale_screen(self):
@@ -436,7 +437,7 @@ class Screen(object):
         
     def user_keyboard_handler(self, key_pressed):
         pass
-        
+
 if __name__ == "__main__": 
     pass
     

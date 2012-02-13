@@ -112,10 +112,7 @@ class AllegraStage(StageControl):
                 self.movement_time = time.time() - start_of_wait
                 #reenable joystick
                 self.execute_command('jon')
-                #log
-                if hasattr(self.caller, 'experiment_control'):
-                    if hasattr(self.caller.experiment_control, 'log'):
-                        self.log_during_experiment('stage move: {0}' .format(new_position))
+                self.log_during_experiment('stage move: {0}' .format(new_position))
                     
         return reached
 

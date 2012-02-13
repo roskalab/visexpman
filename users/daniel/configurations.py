@@ -1,7 +1,7 @@
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
-import visexpman.engine.visual_stimulation.experiment as experiment
+from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
+import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.generic.utils as utils
 import os
@@ -137,7 +137,7 @@ class MBP(VisionExperimentConfig):
         SEGMENT_DURATION = 2
         
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #seconds
-        ARCHIVE_FORMAT = 'hdf5'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
         COORDINATE_SYSTEM='ulcorner'
             
         ACQUISITION_TRIGGER_PIN = 2
@@ -145,14 +145,16 @@ class MBP(VisionExperimentConfig):
         VisionExperimentConfig._create_parameters_from_locals(self, locals())
         #VisionExperimentConfig._set_parameters_from_locals(self, locals())
         
-class Debug(VisionExperimentConfig):
+class DebugOnLaptop(VisionExperimentConfig):
     '''
     Windows development machine
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'GratingConfig'
+#        EXPERIMENT_CONFIG = 'PixelSizeCalibrationConfig'
 #         EXPERIMENT_CONFIG = 'LedStimulationConfig'
         EXPERIMENT_CONFIG = 'MovingDotConfig'
+#        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
 #        EXPERIMENT_CONFIG = 'Dummy'
         
         #=== paths/data handling ===
@@ -162,7 +164,7 @@ class Debug(VisionExperimentConfig):
             if use_drive == 'g':
                 drive_data_folder = 'g:\\User\\Zoltan\\data'
             elif use_drive =='v':
-                drive_data_folder = 'V:\\data'
+                drive_data_folder = 'V:\\debug\\data'
         else:
             drive_data_folder = '/home/zoltan/visexp/data'        
             
@@ -172,10 +174,121 @@ class Debug(VisionExperimentConfig):
         if use_drive == 'g':
             MES_DATA_FOLDER = 'g:\\User\\Zoltan\\data'
         elif use_drive =='v':
-            MES_DATA_FOLDER = 'V:\\data'
+            MES_DATA_FOLDER = 'V:\\debug\\data'
         
         CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
-        ARCHIVE_FORMAT = 'hdf5'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        
+        #=== screen ===
+        FULLSCREEN = not True
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+        COORDINATE_SYSTEM='ulcorner'
+        ENABLE_FRAME_CAPTURE = False
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0        
+        
+        #=== experiment specific ===
+        IMAGE_PROJECTED_ON_RETINA = False
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
+        SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
+        degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
+        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
+        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
+        MES_TIMEOUT = 10.0
+        PLATFORM = 'mes'
+        
+        #=== Network ===
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
+        #=== hardware ===
+        ENABLE_PARALLEL_PORT = False
+        ACQUISITION_TRIGGER_PIN = 2
+        FRAME_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        
+        #=== stage ===
+        motor_serial_port = {
+                                    'port' :  'COM1',
+                                    'baudrate' : 19200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                    
+                                    }
+                                    
+        STAGE = [{'serial_port' : motor_serial_port,
+                 'enable': False,
+                 'speed': 800,
+                 'acceleration' : 200,
+                 'move_timeout' : 45.0,
+                 'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
+                 }]
+                 
+                                                
+        #=== DAQ ===
+        SYNC_CHANNEL_INDEX = 1
+        DAQ_CONFIG = [
+                    {
+                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 5000,
+                    'AI_CHANNEL' : 'Dev1/ai0:2',
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : -10.0,
+                    'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
+                    'ENABLE' : False
+                    },
+                    {
+                    'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 1000,
+                    'AO_CHANNEL' : 'Dev1/ao0',
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : 0.0,
+                    
+                    'ENABLE' : False
+                    }
+                    ]
+        
+        #=== Others ===
+        
+        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
+                                    'next': {'key': 'n', 'domain': ['running experiment']},}
+        
+        self._create_parameters_from_locals(locals())
+        
+class Debug(VisionExperimentConfig):
+    '''
+    Windows development machine
+    '''
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'GratingConfig'
+#        EXPERIMENT_CONFIG = 'PixelSizeCalibrationConfig'
+#         EXPERIMENT_CONFIG = 'LedStimulationConfig'
+        EXPERIMENT_CONFIG = 'MovingDotConfig'
+#        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
+#        EXPERIMENT_CONFIG = 'Dummy'
+        
+        #=== paths/data handling ===
+        use_drive = 'v'
+        
+        if os.name == 'nt':
+            if use_drive == 'g':
+                drive_data_folder = 'g:\\User\\Zoltan\\data'
+            elif use_drive =='v':
+                drive_data_folder = 'V:\\debug\\data'
+        else:
+            drive_data_folder = '/home/zoltan/visexp/data'        
+            
+        LOG_PATH = os.path.join(drive_data_folder, 'log')
+        EXPERIMENT_LOG_PATH = LOG_PATH        
+        EXPERIMENT_DATA_PATH = drive_data_folder
+        if use_drive == 'g':
+            MES_DATA_FOLDER = 'g:\\User\\Zoltan\\data'
+        elif use_drive =='v':
+            MES_DATA_FOLDER = 'V:\\debug\\data'
+        
+        CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
         
         #=== screen ===
         FULLSCREEN = not True
@@ -193,9 +306,10 @@ class Debug(VisionExperimentConfig):
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
 #         SCREEN_UM_TO_PIXEL_SCALE = 1.0
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
-        MEASUREMENT_PLATFORM = 'mes'
-#         MEASUREMENT_PLATFORM = 'elphys'
-        RECORD_SIGNALS_DURING_EXPERIMENT = True
+        MES_TIMEOUT = 10.0
+        PLATFORM = 'mes'
+#        PLATFORM = 'elphys'
+#        PLATFORM = 'standalone'
         
         #=== Network ===
         ENABLE_UDP = False
@@ -297,7 +411,7 @@ class VS3DUS(VisionExperimentConfig):
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
         MES_DATA_FOLDER = 'V:\\data\\debug'
-        ARCHIVE_FORMAT = 'hdf5'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
         #=== screen ===
         FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800, 600])
@@ -313,8 +427,8 @@ class VS3DUS(VisionExperimentConfig):
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
-        MEASUREMENT_PLATFORM = 'mes'
-        RECORD_SIGNALS_DURING_EXPERIMENT = True
+        MES_TIMEOUT = 10.0
+        PLATFORM = 'mes'
         
         #=== Network ===
         ENABLE_UDP = False

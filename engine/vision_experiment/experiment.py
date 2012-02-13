@@ -8,14 +8,14 @@ import stimulation_library
 import inspect
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 from visexpman.engine.generic import introspect
-from visexpman.engine.visual_stimulation import configuration
+from visexpman.engine.vision_experiment import configuration
 
 class ExperimentConfig(Config):
-    def __init__(self, machine_config, screen_and_keyboard, experiment_control, connections):
-        self.screen_and_keyboard = screen_and_keyboard
+    def __init__(self, machine_config, queues, connections, application_log):
         self.machine_config = machine_config
+        self.queues = queues
         self.connections = connections
-        self.experiment_control = experiment_control
+        self.application_log = application_log
         Config.__init__(self, machine_config)
         if machine_config != None:
             self.create_runnable() # needs to be called so that runnable is instantiated and other checks are done        
@@ -23,13 +23,13 @@ class ExperimentConfig(Config):
     def create_runnable(self):
         if self.runnable == None:
             raise ValueError('You must specify the class which will run the experiment')
-        else:            
-            self.runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = self.runnable,  required_ancestors = visexpman.engine.visual_stimulation.experiment.Experiment)[0][1]\
-            (self.machine_config, self, self.machine_config, self.screen_and_keyboard, self.experiment_control, self.connections) # instantiates the code that will run the actual stimulation           
+        else:
+            self.runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = self.runnable,  required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment)[0][1]\
+            (self.machine_config, self, self.queues, self.connections, self.application_log) # instantiates the code that will run the actual stimulation
             if hasattr(self, 'pre_runnable'):
-                for pre_experiment_class in  utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.visual_stimulation.experiment.PreExperiment):
+                for pre_experiment_class in  utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.PreExperiment):
                     if pre_experiment_class[1].__name__ == self.pre_runnable:
-                        self.pre_runnable = pre_experiment_class[1](self.machine_config, self, self.machine_config, self.screen_and_keyboard, self.experiment_control, self.connections) # instantiates the code that will run the pre experiment code
+                        self.pre_runnable = pre_experiment_class[1](self.machine_config, self, self.queues, self.connections, self.application_log) # instantiates the code that will run the pre experiment code
                         break
 
     def run(self, fragment_id = 0):
@@ -55,48 +55,18 @@ class ExperimentConfig(Config):
 class Experiment(stimulation_library.Stimulations):
     '''
     The usage of experiment fragments assumes the existence of number_of_fragments variable
+    The floowing variable is saved to the output file: self.experiment_specific_data
     '''
-    def __init__(self, machine_config, experiment_config, screen_and_keyboard, experiment_control, connections):
+    def __init__(self, machine_config, experiment_config, queues, connections, application_log):
         self.experiment_config = experiment_config
         self.machine_config = machine_config
+        self.queues = queues
         self.connections = connections
-        self.experiment_control = experiment_control
-        stimulation_library.Stimulations.__init__(self, self.machine_config, screen_and_keyboard, experiment_control, gui_connection)
-        if hasattr(self.experiment_control, 'log'):
-            self.experiment_control.log.info('init experiment %s'%(utils.class_name(self)))
-        self.fragment_data ={}
-        self.prepare()
-        if self.machine_config.MEASUREMENT_PLATFORM == 'mes':
-            if not hasattr(self, 'fragment_durations') and hasattr(self, 'stimulus_duration'):
-                self.fragment_durations = [self.stimulus_duration]
-                
-    def set_experiment_control_context(self):
-        '''
-        This function ensures that the hardware related calls are available from the experiment/run method
-        '''
-        self.devices = self.experiment_control.devices
-        self.printl = self.experiment_control.printl
-        self.start_time = self.experiment_control.start_time
-        self.parallel_port = self.devices.parallel_port        
-        self.filterwheels = self.devices.filterwheels
-        self.stage = self.devices.stage
-        self.mes_command = self.connections['mes'].queue_out
-        self.mes_response = self.connections['mes'].queue_in
-        self.mes_interface = self.experiment_control.devices.mes_interface
-        self.to_gui = self.connections['gui'].queue_out
-        self.from_gui = self.connections['gui'].queue_out
-        self.gui_connection = self.connections['gui']
-        self.zip = self.experiment_control.data_handler.archive
-        if self.machine_config.ARCHIVE_FORMAT == 'hdf5':
-            self.hdf5 = self.experiment_control.data_handler.hdf5_handler
-        if hasattr(self.devices, 'led_controller'): #This hasattr checking is unnecessary
-            self.led_controller = self.devices.led_controller
-        self.log = self.experiment_control.log
-        self.logfile_path = self.experiment_control.logfile_path
-        self.command_buffer = ''
-        self.abort = False
         self.experiment_name = self.__class__.__name__
-        
+        self.experiment_config_name = self.experiment_config.__class__.__name__
+        self.prepare()
+        stimulation_library.Stimulations.__init__(self, self.machine_config, application_log)
+
     def prepare(self):
         '''
         Compulsory outputs for mes experiments:

@@ -2,77 +2,52 @@ import os.path
 import os
 import numpy
 import math
-
 import time
 import Image
+import inspect
+import re
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
-import visexpman.engine.generic.parametric_control
-import visexpman.users.zoltan.test.stimulus_library_test_data
-from visexpman.engine.generic import utils
 import command_handler
-import inspect
+import experiment_control
+from visexpman.engine.generic import graphics #Not used
+from visexpman.engine.generic import utils
+from visexpman.engine.generic import colors
+from visexpman.engine.vision_experiment import screen
 
-class Stimulations(command_handler.CommandHandler):
+command_extract = re.compile('SOC(.+)EOC')
+
+class Stimulations(experiment_control.ExperimentControl, screen.ScreenAndKeyboardHandler):
     """
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
     """
-    def __init__(self,  config,  screen_and_keyboard, experiment_control, gui_connection = None,  experiment_control_dependent = True):
+    def __init__(self,  config,  application_log, experiment_control_dependent = True):
         self.config = config
-        self.experiment_control = experiment_control
+        #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
+        self.init_flip_variables()
+        self.load_keyboard_commands() #this is necessary for accepting keyboard commands during experiment
+        self.abort = False
+        
+        experiment_control.ExperimentControl.__init__(self, config, application_log)
+        
         self.experiment_control_dependent = experiment_control_dependent
-        self.screen = screen_and_keyboard
-        self.gui_connection = gui_connection
-        self.from_gui_queue = gui_connection.queue_in
         self.grating_texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.grating_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         
         self.delayed_frame_counter = 0 #counts how many frames were delayed
         self.log_on_flip_message = ''
-        self.elapsed_time = 0.0
+        self.elapsed_time = 0
         
         self.text_on_stimulus = []
         
         #Command buffer for keyboard commands during experiment
         self.command_buffer = ''
-        #Abort command received signalling
-        self.abort = False        
 
-        
-    #Helper functions for showing stimulus
-#    def _show_stimulus(self,  duration, stimulus, flip = True):
-#        """
-#        This function shows the stimulus on the display for the required time. 
-#        TBD        
-#        
-#        """        
-#        if duration == 0.0:            
-#            if isinstance(stimulus, list):
-#                for stimulus_item in stimulus:                    
-#                    stimulus_item.draw()
-#            else:
-#                stimulus.draw()
-#            if flip == True:
-#                self._flip(trigger = True)
-#        else:
-#            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):
-#                if isinstance(stimulus, list):
-#                    for stimulus_item in stimulus:
-#                        stimulus_item.draw()
-#                else:
-#                    stimulus.draw()
-#                if i == 0:
-#                    self._flip(trigger = True)
-#                else:
-#                    self._flip(trigger = False)
-##                if self.stimulation_control.abort_stimulus():                    
-##                    break        
-    
     def _flip(self,  trigger = False,  saveFrame = False, count = True):
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
@@ -84,11 +59,11 @@ class Stimulations(command_handler.CommandHandler):
         if current_texture_state:
             glEnable(GL_TEXTURE_2D)
             
-        self.screen.flip()
+        self.flip()
         self.flip_time = time.time()
-        if count:
-            self.experiment_control.frame_counter += 1
-        frame_rate_deviation = abs(self.screen.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
+        if count and hasattr(self, 'frame_counter'):
+            self.frame_counter += 1
+        frame_rate_deviation = abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if frame_rate_deviation > self.config.FRAME_DELAY_TOLERANCE:
             self.delayed_frame_counter += 1
             frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
@@ -96,22 +71,19 @@ class Stimulations(command_handler.CommandHandler):
             frame_rate_warning = ''
         if self.experiment_control_dependent:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
-            if hasattr(self.experiment_control, 'start_time'):
-                self.elapsed_time = self.flip_time -  self.experiment_control.start_time
-                self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
+            if hasattr(self, 'start_time'):
+                self.elapsed_time = self.flip_time -  self.start_time
+                self.log.info('%2.2f\t%s'%(self.frame_rate,self.log_on_flip_message + frame_rate_warning))       
         if trigger:
             self._frame_trigger_pulse()
             
         #Keyboard commands
-        command = self.screen.experiment_user_interface_handler() #Here only commands with running experiment domain are considered
-        if command != None:            
-            self.command_buffer += self.parse(command)
-            if self.command_buffer.find('abort_experiment') != -1:
-                self.command_buffer = self.command_buffer.replace('abort_experiment', '')
-                self.experiment_control.log.info('Abort pressed')
-                self.abort = True
-                
-        if utils.is_abort_experiment_in_queue(self.from_gui_queue):
+        command = self.experiment_user_interface_handler() #Here only commands with running experiment domain are considered
+        if command != None:
+            self.command_buffer += command_extract.findall(command)[0]
+        if 'abort_experiment' in self.command_buffer or utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
+            self.command_buffer = self.command_buffer.replace('abort_experiment', '')
+            self.printl('Abort pressed', application_log = True)
             self.abort = True
             
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
@@ -122,12 +94,12 @@ class Stimulations(command_handler.CommandHandler):
         -stimulus function's name
         -parameters of stimulus
         '''
-        if hasattr(self, 'elapsed_time') and hasattr(self.experiment_control, 'frame_counter') and\
-                hasattr(self.experiment_control, 'stimulus_frame_info'):
+        if hasattr(self, 'elapsed_time') and hasattr(self, 'frame_counter') and\
+                hasattr(self, 'stimulus_frame_info'):
             args, _, _, values = inspect.getargvalues(caller_function_info)
             caller_name =inspect.getframeinfo(caller_function_info)[2]
             frame_info = {}
-            frame_info['counter'] = self.experiment_control.frame_counter
+            frame_info['counter'] = self.frame_counter
             if is_last:
                 frame_info['counter']  -= 1
             frame_info['elapsed_time'] = self.elapsed_time
@@ -137,7 +109,7 @@ class Stimulations(command_handler.CommandHandler):
             for arg in args:
                 if arg != 'self':
                     frame_info['parameters'][arg] = values[arg]
-            self.experiment_control.stimulus_frame_info.append(frame_info)
+            self.stimulus_frame_info.append(frame_info)
 
     def _frame_trigger_pulse(self):
         '''
@@ -155,21 +127,21 @@ class Stimulations(command_handler.CommandHandler):
         if self.config.ENABLE_TEXT:
             for text_config in self.text_on_stimulus:
                 if text_config['enable']:
-                    self.screen.render_text(text_config['text'], color = text_config['color'], position = text_config['position'],  text_style = text_config['text_style'])
+                    self.render_text(text_config['text'], color = text_config['color'], position = text_config['position'],  text_style = text_config['text_style'])
     
     #== Public, helper functions ==
     def set_background(self,  color):
         '''
         Set background color. Call this when a visual pattern should have a different background color than config.BACKGROUND_COLOR
         '''
-        color_to_set = color.convert_color(color)
+        color_to_set = colors.convert_color(color)
         glClearColor(color_to_set[0], color_to_set[1], color_to_set[2], 0.0)
         
     def add_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = GLUT_BITMAP_TIMES_ROMAN_24):
         '''
         Adds text to text list
         '''
-        text_config = {'enable' : True, 'text' : text, 'color' : color.convert_color(color), 'position' : position, 'text_style' : text_style}
+        text_config = {'enable' : True, 'text' : text, 'color' : colors.convert_color(color), 'position' : position, 'text_style' : text_style}
         self.text_on_stimulus.append(text_config)
         
     def change_text(self, id, enable = None, text = None, color = None, position = None,  text_style = None):
@@ -182,7 +154,7 @@ class Stimulations(command_handler.CommandHandler):
         if text != None:
             text_config['text'] = text
         if color != None:
-            text_config['color'] = color.convert_color(color)
+            text_config['color'] = colors.convert_color(color)
         if position != None:
             text_config['position'] = position
         if text_style != None:
@@ -211,10 +183,10 @@ class Stimulations(command_handler.CommandHandler):
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
-            color_to_set = color.convert_color(color)
+            color_to_set = colors.convert_color(color)
         self.log_on_flip_message_initial = 'show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')'
         self.log_on_flip_message_continous = 'show_fullscreen'
-        self.screen.clear_screen(color = color_to_set)
+        self.clear_screen(color = color_to_set)
         if duration == 0.0:
             self.log_on_flip_message = self.log_on_flip_message_initial
             if flip:
@@ -225,7 +197,7 @@ class Stimulations(command_handler.CommandHandler):
                 if i == 0:
                     self.log_on_flip_message = self.log_on_flip_message_initial
                 elif i == 1:
-                    self.screen.clear_screen(color = color_to_set)
+                    self.clear_screen(color = color_to_set)
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
@@ -236,7 +208,7 @@ class Stimulations(command_handler.CommandHandler):
                 if i == 0:
                     self.log_on_flip_message = self.log_on_flip_message_initial
                 elif i == 1:
-                    self.screen.clear_screen(color = color_to_set)
+                    self.clear_screen(color = color_to_set)
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
@@ -277,7 +249,7 @@ class Stimulations(command_handler.CommandHandler):
                 start_position = (10,10)
                 show_image('directory_path',  0.0,  start_position,  formula)             
         '''
-        self.screen.render_imagefile(path, position = position)
+        self.render_imagefile(path, position = position)
         if duration == 0.0:
             if flip:
                 self._flip(trigger = True)        
@@ -427,13 +399,13 @@ class Stimulations(command_handler.CommandHandler):
         n_vertices = vertices.shape[0]
 
         #Set color
-        glColor3fv(color.convert_color(color))
+        glColor3fv(colors.convert_color(color))
         if background_color != None:
             background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
-            converted_background_color = color.convert_color(background_color)
+            converted_background_color = colors.convert_color(background_color)
             glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
         else:
-            converted_background_color = color.convert_color(self.config.BACKGROUND_COLOR)        
+            converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR)        
         
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
@@ -446,9 +418,9 @@ class Stimulations(command_handler.CommandHandler):
                 glDrawArrays(GL_POLYGON,  0, n_vertices)
             else:
                 n = int(n_vertices/2)                
-                glColor3fv(color.convert_color(converted_background_color))
+                glColor3fv(colors.convert_color(converted_background_color))
                 glDrawArrays(GL_POLYGON,  n, n)
-                glColor3fv(color.convert_color(color))
+                glColor3fv(colors.convert_color(color))
                 glDrawArrays(GL_POLYGON,  0, n)
             #Make sure that at the first flip the parameters of the function call are logged
             if not first_flip:

@@ -10,8 +10,9 @@ import os.path
 import sys
 import SocketServer
 import random
-import visexpman.engine.generic.utils as utils
-import visexpman.engine.generic.log as log
+from visexpman.engine.generic import utils
+from visexpman.engine.generic import log
+from visexpman.engine.generic import file
 import traceback
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
@@ -49,7 +50,7 @@ class SockServer(SocketServer.TCPServer):
                 request.settimeout(0.01)
                 self.printl('Client: ' + str(client_address))
                 request.send('connected')
-                self.connected = True            
+                self.connected = True
                 connection_close_request = False
                 while True:
                     # self.request is the TCP socket connected to the client
@@ -88,6 +89,7 @@ class SockServer(SocketServer.TCPServer):
                                 self.queue_in.put(data)
                         if now - self.last_receive_time > self.connection_timeout and self.keepalive:
                             connection_close_request = True
+                            self.printl('Connection timeout')
                     else:
                         out = self.queue_out.get()
                         try:
@@ -127,7 +129,7 @@ class CommandRelayServer(object):
     def __init__(self, config):
         self.config = config        
         if self.config.COMMAND_RELAY_SERVER['ENABLE']:
-            self.log = log.Log('server log', utils.generate_filename(os.path.join(self.config.LOG_PATH, 'server_log.txt')), timestamp = 'no') 
+            self.log = log.Log('server log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'server_log.txt')), timestamp = 'no') 
             self._generate_queues()
             self._create_servers()
             self._start_servers()
@@ -236,7 +238,7 @@ class QueuedClient(QtCore.QThread):
         out = ''
         while True:
             connection_close_request = False
-            try:                
+            try:
                 self.connection = socket.create_connection((self.server_address, self.port))
                 self.printl(self.connection.getpeername())                
                 self.queue_in.put('connected to server')
@@ -283,11 +285,13 @@ class QueuedClient(QtCore.QThread):
                                     except:
                                         pass
                                 elif 'close_connection' in data:
+                                    self.printl('Close requested')
                                     connection_close_request = True                                
                                 if len(data)>0:                                    
                                     self.queue_in.put(data)
                                 self.last_message_time = time.time()
                             if time.time() - self.last_message_time > self.no_message_timeout:
+                                self.printl('Connection timeout')
                                 connection_close_request = True
                         if connection_close_request:
                             break

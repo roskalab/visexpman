@@ -1,21 +1,23 @@
-####### For automated tests #######
-import visexpman
-from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
-from visexpman.engine.generic import utils
-import visexpman.engine.visual_stimulation.experiment as experiment
+####### Configurations, experiment configurations and experiments for automated tests #######
 import time
 import numpy
 import random
 import os
 import os.path
 import serial
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
-#== Very simple experiment ==
-class VerySimpleExperimentTestConfig(VisionExperimentConfig):
+import visexpman
+from visexpman.engine.vision_experiment import configuration
+from visexpman.engine.generic import utils
+from visexpman.engine.generic import file
+from visexpman.engine.vision_experiment import experiment
+
+from visexpman.users.zoltan.test import unit_test_runner
+
+class StandaloneConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
-        MEASUREMENT_PLATFORM = 'elphys'
-        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
+        PLATFORM = 'standalone'
+        EXPERIMENT_CONFIG = 'StandaloneExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
@@ -26,159 +28,52 @@ class VerySimpleExperimentTestConfig(VisionExperimentConfig):
         SCREEN_RESOLUTION = utils.cr([800, 600])
 
         COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'zip'
-        self._create_parameters_from_locals(locals())
-
-class VerySimpleExperimentConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.runnable = 'VerySimpleExperiment'
-        COLOR = [1.0, [0.0, 1.0]]
-        self._create_parameters_from_locals(locals())
-
-class VerySimpleExperiment(experiment.Experiment):
-    def run(self):
-        self.show_fullscreen(duration = 0.0, color = self.experiment_config.COLOR)
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
         
-#== Hdf5 archiving ==
-
-class Hdf5TestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):
-        MEASUREMENT_PLATFORM = 'elphys'
-        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
-        #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        #Disabled hardware
+                #Hardware configuration
+        ENABLE_PARALLEL_PORT = False
+        ENABLE_FILTERWHEEL = False
+        ENABLE_MES = False
         
-        #screen
-        FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.cr([800, 600])
-
-        COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'hdf5'
-        self._create_parameters_from_locals(locals())
-
-#== Abortable experiment ==
-class AbortableExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):
-        MEASUREMENT_PLATFORM = 'elphys'
-        EXPERIMENT_CONFIG = 'AbortableExperimentConfig'
-        #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
-        
-        #screen
-        FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.cr([800, 600])
-
-        COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'zip'
-        self._create_parameters_from_locals(locals())
-
-class AbortableExperimentConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.runnable = 'AbortableExperiment'
-        self._create_parameters_from_locals(locals())
-
-class AbortableExperiment(experiment.Experiment):
-    def run(self):
-        self.add_text('press \'a\'\n', color = (1.0,  0.0,  0.0), position = utils.cr((0.0,0.0)))
-        self.show_fullscreen(duration = -1.0, color = 1.0)
-
-#== User command experiment ==
-class UserCommandExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):
-        MEASUREMENT_PLATFORM = 'elphys'
-        EXPERIMENT_CONFIG = 'UserCommandExperimentConfig'
-        #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
-        
-        #screen
-        FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.cr([800, 600])
-
-        COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'zip'
+        DAQ_CONFIG = [
+                    {
+                    'ENABLE' : False
+                    }
+                    ]
         
         USER_EXPERIMENT_COMMANDS = {'user_command': {'key': 'u', 'domain': ['running experiment']}, }
         
         self._create_parameters_from_locals(locals())
 
-class UserCommandExperimentConfig(experiment.ExperimentConfig):
+class StandaloneExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.runnable = 'UserCommandExperiment'
+        self.runnable = 'StandaloneExperiment'
+        self.pre_runnable = 'PrePreExperiment'
+        DURATION = [10.0, [1.0, 100.0]]
         self._create_parameters_from_locals(locals())
 
-class UserCommandExperiment(experiment.Experiment):
+class PrePreExperiment(experiment.PreExperiment):
+    def run(self):
+        self.show_fullscreen(duration = 0.0, color = [0.4, 0.2, 0.1], flip = False)
+        self.application_log.info('Pre experiment log')
+
+class StandaloneExperiment(experiment.Experiment):
     def run(self):
         self.add_text('press \'u\' then \'a\'\n', color = (1.0,  0.0,  0.0), position = utils.cr((0.0,0.0)))
         self.show_fullscreen(duration = -1.0, color = 1.0)
-        if self.command_buffer.find('user_command') != -1:
+        if 'user_command' in self.command_buffer:
             self.command_buffer.replace('user_command', '')
             self.log.info('%2.3f\tUser note'%self.elapsed_time)
-            
-#== External Hardware controlling experiment ==
-class TestExternalHardwareExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):
-        MEASUREMENT_PLATFORM = 'elphys'
-        EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'
-        #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder       
-        
-        #screen
-        FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.cr([800, 600])
-
-        #Hardware configuration
-        ENABLE_PARALLEL_PORT = True
-        ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 2
-        ENABLE_FILTERWHEEL = unit_test_runner.TEST_filterwheel_enable
-        FILTERWHEEL_SERIAL_PORT = [{
-                                    'port' :  unit_test_runner.TEST_com_port,
-                                    'baudrate' : 115200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,
-                                    }]
-
-        DAQ_CONFIG = [
-                    {
-                    'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
-                    'DAQ_TIMEOUT' : 1.0,
-                    'AO_SAMPLE_RATE' : 100,
-                    'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
-                    'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',
-                    'MAX_VOLTAGE' : 5.0,
-                    'MIN_VOLTAGE' : 0.0,
-                    'DURATION_OF_AI_READ' : 1.0,
-                    'ENABLE' : True
-                    }
-                    ]
-
-        COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'zip'
-        self._create_parameters_from_locals(locals())
-
-class TestExternalHardwareExperimentConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.runnable = 'TestExternalHardwareExperiment'
-        self._create_parameters_from_locals(locals())
-
-class TestExternalHardwareExperiment(experiment.Experiment):
-    def run(self):
-        self.show_fullscreen(duration = 0.0, color = 0.5)
+        self.abort = False
+        self.change_text(0, text = 'Tests continue')
+        self.show_fullscreen(duration = 0.0, color = 0.0)
+        #Using external hardware
         self.parallel_port.set_data_bit(1, 1)
         self.parallel_port.set_data_bit(1, 0)
         filter = int(5 * random.Random().random()) + 1
         time.sleep(0.2)
         self.filterwheels[0].set(filter)
-        
         #generate pulses        
         offsets = [0, 0.2, 0.5]
         pulse_widths = [0.1,  0.1,  0.1]
@@ -186,97 +81,8 @@ class TestExternalHardwareExperiment(experiment.Experiment):
         duration = 1.0
         self.led_controller.set([[offsets, pulse_widths, amplitudes], [offsets, pulse_widths, amplitudes]], duration)
         self.led_controller.start()
-        self.led_controller.release_instrument()        
-
-#== Disabled hardware ==
-class DisabledlHardwareExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):
-        MEASUREMENT_PLATFORM = 'elphys'
-        EXPERIMENT_CONFIG = 'TestExternalHardwareExperimentConfig'
-        #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
-        
-        #screen
-        FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.cr([800, 600])
-        
-        #Hardware configuration
-        ENABLE_PARALLEL_PORT = False
-        ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 2
-        ENABLE_FILTERWHEEL = False
-        
-        DAQ_CONFIG = [
-                    {
-                    'ENABLE' : False
-                    }
-                    ]
-
-        COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'zip'
-        self._create_parameters_from_locals(locals())
-        
-#== Test pre experiment ==
-class PreExperimentTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):
-        MEASUREMENT_PLATFORM = 'elphys'
-        EXPERIMENT_CONFIG = 'PreExperimentConfig'
-        #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder     
-        
-        #screen
-        FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.cr([800, 600])
-
-        COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'zip'
-        self._create_parameters_from_locals(locals())
-
-class PreExperimentConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.runnable = 'PreExperiment'
-        self.pre_runnable = 'PrePreExperiment'
-        self._create_parameters_from_locals(locals())
-
-class PrePreExperiment(experiment.PreExperiment):
-    def run(self):        
-        self.show_fullscreen(duration = 0.0, color = 1.0, flip = False)
-        self.caller.log.info('Pre experiment log')
-
-class PreExperiment(experiment.Experiment):
-    def run(self):
-        self.show_fullscreen(duration = 0.0, color = 0.5)
-
-#== Test frame rate ==
-class FrameRateTestConfig(VisionExperimentConfig):
-    def _set_user_parameters(self):
-        MEASUREMENT_PLATFORM = 'elphys'
-        EXPERIMENT_CONFIG = 'FrameRateExperimentConfig'        
-        #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
-        
-        #screen
-        FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.cr([800, 600])
-
-        COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'zip'        
-        self._create_parameters_from_locals(locals())
-
-class FrameRateExperimentConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.runnable = 'FrameRateExperiment'        
-        DURATION = [10.0, [1.0, 100.0]]
-        self._create_parameters_from_locals(locals())
-
-class FrameRateExperiment(experiment.Experiment):
-    def run(self):
+        self.led_controller.release_instrument()
+        #Test frame rate
         duration = self.experiment_config.DURATION
         self.t0 = time.time()
         self.show_grating(duration = duration, velocity = 500.0, white_bar_width = 200)
@@ -284,18 +90,123 @@ class FrameRateExperiment(experiment.Experiment):
         self.frame_rate = (self.t1 - self.t0) / duration * self.machine_config.SCREEN_EXPECTED_FRAME_RATE
         print self.frame_rate
         self.log.info('Frame rate: ' + str(self.frame_rate))
+
+class TestMesPlatformConfig(configuration.VisionExperimentConfig):
+    '''
+    Windows development machine
+    '''
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'MesPlatformExperimentC'
+        PLATFORM = 'mes'
+        #=== paths/data handling ===
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder        
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        MES_DATA_FOLDER = EXPERIMENT_DATA_PATH.replace('/home/zoltan/visexp', 'V:').replace('/', '\\')
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        #=== screen ===
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+        COORDINATE_SYSTEM='ulcorner'
+        ENABLE_FRAME_CAPTURE = False
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0
+        #=== experiment specific ===
+        SCREEN_UM_TO_PIXEL_SCALE = 0.3
+        MAXIMUM_RECORDING_DURATION = [10, [0, 10000]] #100
+        MES_TIMEOUT = 10.0
+        #=== Network ===
+        ENABLE_UDP = False
+        self.BASE_PORT = 10000
+        COMMAND_RELAY_SERVER  = {
+        'RELAY_SERVER_IP' : 'localhost', 
+        'ENABLE' : True, 
+        'CLIENTS_ENABLE' : True, 
+        'TIMEOUT':10.0, 
+        'CONNECTION_MATRIX':
+            {
+            'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
+            'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
+            }
+        }
+        
+        
+        
+        #=== hardware ===
+        ENABLE_PARALLEL_PORT = (self.OS == 'win')
+        ACQUISITION_TRIGGER_PIN = 2
+        FRAME_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        #=== stage ===
+        motor_serial_port = {
+                                    'port' :  'COM1',
+                                    'baudrate' : 19200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                    
+                                    }
+                                    
+        STAGE = [{'serial_port' : motor_serial_port,
+                 'enable': (self.OS == 'win'),
+                 'speed': 800,
+                 'acceleration' : 200,
+                 'move_timeout' : 45.0,
+                 'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
+                 }]
+
+        #=== DAQ ===
+        SYNC_CHANNEL_INDEX = 1
+        DAQ_CONFIG = [
+                    {
+                    'ANALOG_CONFIG' : 'ai',
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 5000,
+                    'AI_CHANNEL' : 'Dev1/ai0:2',
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : -10.0,
+                    'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
+                    'ENABLE' : (self.OS == 'win')
+                    },
+                    {
+                    'ANALOG_CONFIG' : 'ao',
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 1000,
+                    'AO_CHANNEL' : 'Dev1/ao0',
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : 0.0,
+                    'ENABLE' : (self.OS == 'win')
+                    }
+                    ]
+        self._create_parameters_from_locals(locals())        
+
+
+class MesPlatformExperimentC(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'MesPlatformExperiment'
+        self._create_parameters_from_locals(locals())
+
+class MesPlatformExperiment(experiment.Experiment):
+    def prepare(self):
+        self.number_of_fragments = 2
+        self.fragment_durations = [3.0] * self.number_of_fragments
+        
+    def pre_first_fragment(self):
+        self.show_fullscreen(color = 0.0)
+        
+    def run(self, fragment_id = 0):
+        self.show_fullscreen(duration = self.fragment_durations[fragment_id], color = fragment_id * 0.2 + 0.2)
         
 
 #== Test visual stimulations ==
-class VisualStimulationsTestConfig(VisionExperimentConfig):
+class VisualStimulationsTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
-        MEASUREMENT_PLATFORM = 'elphys'
+        PLATFORM = 'standalone'
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
-        CAPTURE_PATH = utils.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
+        CAPTURE_PATH = file.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
         os.mkdir(CAPTURE_PATH)
         
         #screen
@@ -305,18 +216,18 @@ class VisualStimulationsTestConfig(VisionExperimentConfig):
         SCREEN_EXPECTED_FRAME_RATE = 60.0
 
         COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'zip'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
         self._create_parameters_from_locals(locals())
         
-class VisualStimulationsUlCornerTestConfig(VisionExperimentConfig):
+class VisualStimulationsUlCornerTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
-        MEASUREMENT_PLATFORM = 'elphys'
+        PLATFORM = 'standalone'
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder       
-        CAPTURE_PATH = utils.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
+        CAPTURE_PATH = file.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
         os.mkdir(CAPTURE_PATH)
         
         #screen
@@ -326,7 +237,29 @@ class VisualStimulationsUlCornerTestConfig(VisionExperimentConfig):
         SCREEN_EXPECTED_FRAME_RATE = 60.0
 
         COORDINATE_SYSTEM='ulcorner'
-        ARCHIVE_FORMAT = 'zip'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self._create_parameters_from_locals(locals())
+        
+class VisualStimulationsScaledTestConfig(configuration.VisionExperimentConfig):
+    def _set_user_parameters(self):
+        PLATFORM = 'standalone'
+        EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
+        #paths
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder       
+        CAPTURE_PATH = file.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
+        os.mkdir(CAPTURE_PATH)
+        
+        #screen
+        ENABLE_FRAME_CAPTURE = True
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_UM_TO_PIXEL_SCALE = 2.0
+
+        COORDINATE_SYSTEM='ulcorner'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
         self._create_parameters_from_locals(locals())
 
 class VisualStimulationsExperimentConfig(experiment.ExperimentConfig):
@@ -335,23 +268,23 @@ class VisualStimulationsExperimentConfig(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
 
 class VisualStimulationsExperiment(experiment.Experiment):
-    def run(self):        
+    def run(self):
         #== Test show_fullscreen ==
         self.show_fullscreen(color = 1.0)
         self.show_fullscreen()
         self.show_fullscreen(duration = 0.0, color = 255)
         self.show_fullscreen(duration = 0.0, color = (1.0, 1.0, 1.0))
-        self.show_fullscreen(flip = False)
+        self.show_fullscreen(flip = False) #0004
         #== Test text on stimulus ==
         self.add_text('TEST', color = (1.0,  0.0,  0.0), position = utils.cr((100.0, 100.0)))
         self.change_text(0, text = 'TEST1')
         self.add_text('TEST2', color = 0.5, position = utils.cr((100.0, 200.0)))
-        self.show_fullscreen(duration = 0.0, color = (1.0, 1.0, 1.0))
+        self.show_fullscreen(duration = 0.0, color = (1.0, 1.0, 1.0)) #0005
         self.disable_text(0)
         self.disable_text(1)        
         #== Test show_grating ==
         self.show_grating()
-        self.show_grating(white_bar_width = 200)
+        self.show_grating(white_bar_width = 200)  #0007
         self.show_grating(duration =0.0, profile = 'sqr', orientation = 0, velocity = 0.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0)
         self.show_grating(duration =0.0, profile = 'sqr', orientation = 45, velocity = 50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0, duty_cycle = 2.0)
         self.show_grating(duration =0.0, profile = 'sqr', orientation = 90, velocity = 50.0, white_bar_width = 100, display_area =  utils.cr((0, 0)), pos = utils.cr((0, 0)), color_contrast = 1.0, color_offset = 0.5)
@@ -399,7 +332,7 @@ class VisualStimulationsExperiment(experiment.Experiment):
         self.show_shape(shape = 'a', size = utils.rc((100.0, 200)), ring_size = 10.0)        
 
 #== Stage test experiment ==
-class StageExperimentTestConfig(VisionExperimentConfig):
+class StageExperimentTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
         MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'StageExperimentConfig'        
@@ -429,7 +362,7 @@ class StageExperimentTestConfig(VisionExperimentConfig):
                  }]
 
         COORDINATE_SYSTEM='center'
-        ARCHIVE_FORMAT = 'zip'
+        EXPERIMENT_FILE_FORMAT = 'zip'
         self._create_parameters_from_locals(locals())
 
 class StageExperimentConfig(experiment.ExperimentConfig):

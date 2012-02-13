@@ -78,14 +78,14 @@ class CommandHandler(object):
         self.presentinator_interface['color'] = int(par)
         return 'color'
         
-    def filterwheel(self, par):        
+    def filterwheel(self, par):
         if len(par) != 2:
             raise RuntimeError('Invalid filter id and position')
         filterwheel_id = int(par[0])
         filter = int(par[1])
 #        #Here comes an init-set-close sequence
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):            
-            filterwheel = instrument.Filterwheel(self.config, self.caller, id = filterwheel_id)
+            filterwheel = instrument.Filterwheel(self.config, id = filterwheel_id)
             filterwheel.set(filter)
             if os.name == 'nt':
                 filterwheel.release_instrument()
@@ -129,15 +129,11 @@ class CommandHandler(object):
 
     def abort_experiment(self, par):
         return 'abort_experiment'
-        
+
     def echo(self, par):
         self.caller.mes_command_queue.put('SOCechoEOCvisexpmanEOP')
         self.caller.to_gui_queue.put('SOCechoEOCvisexpmanEOP')
         return 'echo'
-        
-    def set_measurement_id(self, par): #temporary, this command will be sent by GUI
-        self.caller.mes_command_queue.put('SOCsetIDEOCvalami{0}EOP'.format(time.time()))
-        return 'set_measurement_id'
 
     def quit(self, par):
         if hasattr(self.caller, 'loop_state'):
@@ -147,7 +143,7 @@ class CommandHandler(object):
     def parse(self,  command_buffer,  state = 'unspecified'):
         '''
         Incoming string stream is parsed into commands depending on software state. When stimulation is running, incoming string is discarded
-        '''        
+        '''
         result  = None
         if len(command_buffer) > 6: #SOC + EOC + 1 character is at least present in a command
             cmd = command_extract.findall(command_buffer)

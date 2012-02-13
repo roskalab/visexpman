@@ -1,6 +1,6 @@
-from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
+from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.generic import utils
-import visexpman.engine.visual_stimulation.experiment as experiment
+import visexpman.engine.vision_experiment.experiment as experiment
 import time
 import numpy
 import serial
@@ -10,7 +10,85 @@ import os
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
-class VS3DUS(VisionExperimentConfig):
+class Debug(configuration.VisionExperimentConfig):
+    '''
+    Visual stimulation machine of 3D microscope setup
+    '''
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'MESExperimentConfig'
+        
+        #=== paths/data handling ===
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        CAPTURE_PATH = os.path.join(unit_test_runner.TEST_working_folder,'Capture')
+        
+        ARCHIVE_FORMAT = 'hdf5'
+        
+        #=== screen ===
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+        COORDINATE_SYSTEM='center'
+        ENABLE_FRAME_CAPTURE = False
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0        
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+        if not os.path.exists(CAPTURE_PATH) and ENABLE_FRAME_CAPTURE:
+            os.mkdir(CAPTURE_PATH)
+
+        #=== Network ===
+        ENABLE_UDP = False        
+        
+        #=== hardware ===
+        ENABLE_PARALLEL_PORT = True
+        ACQUISITION_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PIN = 2
+        
+        #=== stage ===
+        motor_serial_port = {
+                                    'port' :  unit_test_runner.TEST_stage_com_port,
+                                    'baudrate' : 19200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }
+                                    
+        STAGE = [[{'serial_port' : motor_serial_port,
+                 'enable': self.OS == 'win',
+                 'speed': 1000000,
+                 'acceleration' : 1000000,
+                 'move_timeout' : 45.0,
+                 'um_per_ustep' : numpy.ones(3, dtype = numpy.float)
+                 }]]
+                 
+        #=== Filterwheel ===
+        
+        ENABLE_FILTERWHEEL = False
+        
+                                                
+        #=== LED controller ===
+        DAQ_CONFIG = [
+                    {
+                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 1.0,
+                    'AI_SAMPLE_RATE' : 1000,                    
+                    'AI_CHANNEL' : 'Dev1/ai0:1',
+                    'MAX_VOLTAGE' : 5.0,
+                    'MIN_VOLTAGE' : 0.0,
+                    'DURATION_OF_AI_READ' : 1.0,
+                    'ENABLE' :  self.OS == 'win'
+                    }
+                    ]
+        
+        #=== Others ===
+        
+        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
+        
+        
+        self._create_parameters_from_locals(locals())
+
+
+class VS3DUS(configuration.VisionExperimentConfig):
     '''
     Visual stimulation machine of 3D microscope setup
     '''
@@ -108,7 +186,7 @@ class VS3DUS(VisionExperimentConfig):
         
         self._create_parameters_from_locals(locals())
 
-class AEPHVS(VisionExperimentConfig):
+class AEPHVS(configuration.VisionExperimentConfig):
     '''
     Antona's Electrophisology visual stimulation
     '''
