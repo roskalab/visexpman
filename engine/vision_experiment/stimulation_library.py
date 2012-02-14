@@ -20,7 +20,7 @@ from visexpman.engine.vision_experiment import screen
 
 command_extract = re.compile('SOC(.+)EOC')
 
-class Stimulations(experiment_control.ExperimentControl, screen.ScreenAndKeyboardHandler):
+class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyboardHandler):
     """
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
@@ -28,8 +28,9 @@ class Stimulations(experiment_control.ExperimentControl, screen.ScreenAndKeyboar
     def __init__(self,  config,  application_log, experiment_control_dependent = True):
         self.config = config
         #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
-        self.init_flip_variables()
-        self.load_keyboard_commands() #this is necessary for accepting keyboard commands during experiment
+        self.screen = graphics.Screen(config, init_mode = 'no_screen')
+#        self.init_flip_variables()
+#        self.load_keyboard_commands(self) #this is necessary for accepting keyboard commands during experiment
         self.abort = False
         
         experiment_control.ExperimentControl.__init__(self, config, application_log)
@@ -59,11 +60,11 @@ class Stimulations(experiment_control.ExperimentControl, screen.ScreenAndKeyboar
         if current_texture_state:
             glEnable(GL_TEXTURE_2D)
             
-        self.flip()
+        self.screen.flip()
         self.flip_time = time.time()
         if count and hasattr(self, 'frame_counter'):
             self.frame_counter += 1
-        frame_rate_deviation = abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
+        frame_rate_deviation = abs(self.screen.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if frame_rate_deviation > self.config.FRAME_DELAY_TOLERANCE:
             self.delayed_frame_counter += 1
             frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
@@ -73,14 +74,16 @@ class Stimulations(experiment_control.ExperimentControl, screen.ScreenAndKeyboar
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
             if hasattr(self, 'start_time'):
                 self.elapsed_time = self.flip_time -  self.start_time
-                self.log.info('%2.2f\t%s'%(self.frame_rate,self.log_on_flip_message + frame_rate_warning))       
+                self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
         if trigger:
             self._frame_trigger_pulse()
-            
-        #Keyboard commands
-        command = self.experiment_user_interface_handler() #Here only commands with running experiment domain are considered
+        
+        command = screen.check_keyboard() #Here only commands with running experiment domain are considered
         if command != None:
-            self.command_buffer += command_extract.findall(command)[0]
+            for k, v in self.config.COMMANDS.items():
+                if v['key'] == command and 'running experiment' in v['domain']:
+                    self.command_buffer += k
+                    break
         if 'abort_experiment' in self.command_buffer or utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
             self.command_buffer = self.command_buffer.replace('abort_experiment', '')
             self.printl('Abort pressed', application_log = True)
@@ -127,7 +130,7 @@ class Stimulations(experiment_control.ExperimentControl, screen.ScreenAndKeyboar
         if self.config.ENABLE_TEXT:
             for text_config in self.text_on_stimulus:
                 if text_config['enable']:
-                    self.render_text(text_config['text'], color = text_config['color'], position = text_config['position'],  text_style = text_config['text_style'])
+                    self.screen.render_text(text_config['text'], color = text_config['color'], position = text_config['position'],  text_style = text_config['text_style'])
     
     #== Public, helper functions ==
     def set_background(self,  color):
@@ -186,7 +189,7 @@ class Stimulations(experiment_control.ExperimentControl, screen.ScreenAndKeyboar
             color_to_set = colors.convert_color(color)
         self.log_on_flip_message_initial = 'show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')'
         self.log_on_flip_message_continous = 'show_fullscreen'
-        self.clear_screen(color = color_to_set)
+        self.screen.clear_screen(color = color_to_set)
         if duration == 0.0:
             self.log_on_flip_message = self.log_on_flip_message_initial
             if flip:
@@ -197,7 +200,7 @@ class Stimulations(experiment_control.ExperimentControl, screen.ScreenAndKeyboar
                 if i == 0:
                     self.log_on_flip_message = self.log_on_flip_message_initial
                 elif i == 1:
-                    self.clear_screen(color = color_to_set)
+                    self.screen.clear_screen(color = color_to_set)
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
@@ -208,7 +211,7 @@ class Stimulations(experiment_control.ExperimentControl, screen.ScreenAndKeyboar
                 if i == 0:
                     self.log_on_flip_message = self.log_on_flip_message_initial
                 elif i == 1:
-                    self.clear_screen(color = color_to_set)
+                    self.screen.clear_screen(color = color_to_set)
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
@@ -249,7 +252,7 @@ class Stimulations(experiment_control.ExperimentControl, screen.ScreenAndKeyboar
                 start_position = (10,10)
                 show_image('directory_path',  0.0,  start_position,  formula)             
         '''
-        self.render_imagefile(path, position = position)
+        self.screen.render_imagefile(path, position = position)
         if duration == 0.0:
             if flip:
                 self._flip(trigger = True)        

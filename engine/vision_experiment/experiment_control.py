@@ -75,6 +75,7 @@ class ExperimentControl(object):
         self._finish_experiment()
         #Send message to screen, log experiment completition
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'
+        self.application_log.flush()
         return message_to_screen
 
     def _prepare_experiment(self):
@@ -97,7 +98,6 @@ class ExperimentControl(object):
         #Update logdata to files
         self.log.info('Experiment finished at {0}' .format(utils.datetime_string()))
         self.log.flush()
-        self.application_log.flush()
         
 
 ########## Fragment related ############

@@ -152,7 +152,7 @@ class DebugOnLaptop(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'GratingConfig'
         EXPERIMENT_CONFIG = 'MovingDotConfig'
-        
+#        EXPERIMENT_CONFIG = 'Dummy'
         #=== paths/data handling ===
         use_drive = 'v'
         
@@ -162,7 +162,7 @@ class DebugOnLaptop(VisionExperimentConfig):
             elif use_drive =='v':
                 drive_data_folder = 'V:\\debug\\data'
         else:
-            drive_data_folder = '/home/zoltan/visexp/data'        
+            drive_data_folder = '/home/zoltan/visexp/debug/data'        
             
         LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
@@ -191,11 +191,11 @@ class DebugOnLaptop(VisionExperimentConfig):
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         MES_TIMEOUT = 10.0
-        PLATFORM = 'mes'
+        PLATFORM = 'standalone'
         
         #=== Network ===
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
-        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
         #=== hardware ===
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = 2
