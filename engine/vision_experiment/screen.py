@@ -39,9 +39,9 @@ class VisionExperimentScreen(graphics.Screen):
         color = self.config.BACKGROUND_COLOR
         if hasattr(self, 'user_background_color'):
             color = colors.convert_color(self.user_background_color)
-        graphics.Screen.clear_screen(self, color = color)
+        self.clear_screen(color = color)
         
-    def display_bullseye(self):
+    def _display_bullseye(self):
         if self.show_bullseye:
             #TODO: bullseye size
             #TODO: consider coordinate system type
@@ -85,6 +85,7 @@ class VisionExperimentScreen(graphics.Screen):
         '''
         
         #TODO: when ENABLE_TEXT = False, screen has to be cleared to background color, self.clear_screen_to_background()
+        self._display_bullseye()
         if self.config.ENABLE_TEXT:# and not self.hide_menu:#TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command     
             self._show_menu()
             self._show_message(self.message_to_screen, flip = flip)
@@ -111,17 +112,6 @@ class ScreenAndKeyboardHandler(VisionExperimentScreen):
         else:
             self.experiment_config_shortcuts = []
         
-
-    def _check_keyboard(self):
-        '''
-        Get pressed key
-        '''        
-        for event in pygame.event.get():
-            if event.type == pygame.KEYDOWN:
-                key_pressed = pygame.key.name(event.key)                
-                return key_pressed
-        return
-
     def _parse_keyboard_command(self, key_pressed, domain):
         '''
         If pressed key valid, generate command string.
@@ -138,20 +128,15 @@ class ScreenAndKeyboardHandler(VisionExperimentScreen):
         if command != None:
             command = 'SOC' + command + 'EOC'
             if parameter != None:
-                command += parameter + 'EOP'        
+                command += parameter + 'EOP'
         return command
         
     def keyboard_handler(self, domain):
         '''
         Registers pressed key and generates command string for command handler.
         '''
-        return self._parse_keyboard_command(self._check_keyboard(),  domain)
+        return self._parse_keyboard_command(check_keyboard(),  domain)
         
-    def experiment_user_interface_handler(self):
-        '''
-        Keyboard commands accepted during running experiment are handled here
-        '''        
-        return self.keyboard_handler('running experiment')
 
     def user_interface_handler(self):
         '''
@@ -162,6 +147,16 @@ class ScreenAndKeyboardHandler(VisionExperimentScreen):
         #Send command to queue
         if command != None:
             self.keyboard_command_queue.put(command)
-        
+
+def check_keyboard():
+    '''
+    Get pressed key
+    '''        
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            key_pressed = pygame.key.name(event.key)                
+            return key_pressed
+    return
+    
 if __name__ == "__main__":
     pass

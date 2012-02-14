@@ -30,7 +30,7 @@ class Screen(object):
     - Helper functions: display text, image
     - 
     """
-    def __init__(self, configuration, graphics_mode = 'single_frame'):
+    def __init__(self, configuration, graphics_mode = 'single_frame', init_mode = 'create_screen'):
         """
         The following actions are performed:
         (- Calculates pixel scaling parameters based on coordinate system type)
@@ -58,6 +58,7 @@ class Screen(object):
         
         Future: GAMMA, TEXT_COLOR
         """
+        self.init_mode = init_mode
         self.config = configuration
         self.mode = graphics_mode
         self.position = [0.0, 0.0, 0.0]
@@ -69,16 +70,17 @@ class Screen(object):
         self.angle_step = 10.0
         self.scale_step = 0.05
         self.init_flip_variables()
-        glutInit()
-        #create screen using parameters in config
-        self.create_screen()        
+        if self.init_mode == 'create_screen':
+            glutInit()
+            #create screen using parameters in config
+            self.create_screen()        
         #setting background color to clear color
-        glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
-        glEnable(GL_DEPTH_TEST)        
+            glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
+            glEnable(GL_DEPTH_TEST)        
+            
+            self.scale_screen()
         
         self.image_texture_id = glGenTextures(1)
-        
-        self.scale_screen()
         
         self.initialization()
         
@@ -118,8 +120,9 @@ class Screen(object):
     def close_screen(self):
         pygame.quit()
         
-    def __del__(self):        
-        self.close_screen()
+    def __del__(self):
+        if self.init_mode == 'create_screen':
+            self.close_screen()
         
     def run(self):
         """
@@ -192,7 +195,7 @@ class Screen(object):
 #            self.prev = count.value
             
 #            glxext_arb.glXWaitVideoSyncSGI(2, (count.value+1)%2, ctypes.byref(count))
-        pygame.display.flip()            
+        pygame.display.flip()
 
 #        elif window_type == 'pyglet':
 #            self.screen.flip()
@@ -206,7 +209,7 @@ class Screen(object):
         
         if DISPLAY_FRAME_RATE:
             print self.frame_rate
-        if DISPLAY_FRAME_DELAY:            
+        if DISPLAY_FRAME_DELAY:
             if abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE) > 1.0:
                 print abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if self.config.ENABLE_FRAME_CAPTURE:
