@@ -69,9 +69,7 @@ class Experiment(stimulation_library.Stimulations):
 
     def prepare(self):
         '''
-        Compulsory outputs for mes experiments:
-            self.stimulus_duration
-            For fragmented experiments:
+        Compulsory outputs for fragmented mes experiments:
             self.number_of_fragments
             self.fragment_durations - list of fragment stim times in sec
             

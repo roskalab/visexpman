@@ -151,11 +151,7 @@ class DebugOnLaptop(VisionExperimentConfig):
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'GratingConfig'
-#        EXPERIMENT_CONFIG = 'PixelSizeCalibrationConfig'
-#         EXPERIMENT_CONFIG = 'LedStimulationConfig'
         EXPERIMENT_CONFIG = 'MovingDotConfig'
-#        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
-#        EXPERIMENT_CONFIG = 'Dummy'
         
         #=== paths/data handling ===
         use_drive = 'v'
@@ -267,7 +263,7 @@ class Debug(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MovingDotConfig'
 #        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
 #        EXPERIMENT_CONFIG = 'Dummy'
-        
+        RUN_MES_EXTRACTOR = False
         #=== paths/data handling ===
         use_drive = 'v'
         
@@ -275,9 +271,9 @@ class Debug(VisionExperimentConfig):
             if use_drive == 'g':
                 drive_data_folder = 'g:\\User\\Zoltan\\data'
             elif use_drive =='v':
-                drive_data_folder = 'V:\\debug\\data'
+                drive_data_folder = 'V:\\experiment_data'
         else:
-            drive_data_folder = '/home/zoltan/visexp/data'        
+            drive_data_folder = '/home/zoltan/visexp/experiment_data'        
             
         LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
@@ -285,7 +281,7 @@ class Debug(VisionExperimentConfig):
         if use_drive == 'g':
             MES_DATA_FOLDER = 'g:\\User\\Zoltan\\data'
         elif use_drive =='v':
-            MES_DATA_FOLDER = 'V:\\debug\\data'
+            MES_DATA_FOLDER = 'V:\\experiment_data'
         
         CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
@@ -296,26 +292,23 @@ class Debug(VisionExperimentConfig):
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
+        SCREEN_MAX_FRAME_RATE = 60.0
         
         #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
-        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
-#         SCREEN_UM_TO_PIXEL_SCALE = 1.0
+        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
-        MES_TIMEOUT = 10.0
+        MES_TIMEOUT = 15.0
         PLATFORM = 'mes'
-#        PLATFORM = 'elphys'
 #        PLATFORM = 'standalone'
         
         #=== Network ===
         ENABLE_UDP = False
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
-#         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.25.220'
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (self.OS == 'win')
         ACQUISITION_TRIGGER_PIN = 2
@@ -338,28 +331,7 @@ class Debug(VisionExperimentConfig):
                  'move_timeout' : 45.0,
                  'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]
-                 
-        #=== Filterwheel ===
-        
-        ENABLE_FILTERWHEEL = False
-        
-        FILTERWHEEL_SERIAL_PORT = [{
-                                    'port' :  unit_test_runner.TEST_com_port,
-                                    'baudrate' : 115200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    }]
-                                    
-        FILTERWHEEL_FILTERS = [{
-                                                'ND0': 1, 
-                                                'ND10': 2, 
-                                                'ND20': 3, 
-                                                'ND30': 4, 
-                                                'ND40': 5, 
-                                                'ND50': 6, 
-                                                }]
-                                                
+
         #=== DAQ ===
         SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
@@ -386,14 +358,9 @@ class Debug(VisionExperimentConfig):
                     ]
         
         #=== Others ===
-        
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
-        
-                                    
-                                    
-                                    
-        
+
         self._create_parameters_from_locals(locals())
         
 class VS3DUS(VisionExperimentConfig):
@@ -401,16 +368,18 @@ class VS3DUS(VisionExperimentConfig):
     Visual stimulation machine of 3D microscope setup
     '''
     def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'GratingConfig'        
+        EXPERIMENT_CONFIG = 'MovingDotConfig'    
+        MES_TIMEOUT = 15.0
+        RUN_MES_EXTRACTOR = False
         #=== paths/data handling ===
         if os.name == 'nt':            
-            v_drive_data_folder = 'V:\\data'
+            v_drive_data_folder = 'V:\\experiment_data'
         else:            
-            v_drive_data_folder = '/home/zoltan/visexp/data'
+            v_drive_data_folder = '/home/zoltan/visexp/experiment_data'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
-        MES_DATA_FOLDER = 'V:\\data\\debug'
+        MES_DATA_FOLDER = 'V:\\experiment_data'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         #=== screen ===
         FULLSCREEN = True
@@ -418,8 +387,7 @@ class VS3DUS(VisionExperimentConfig):
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
-        
+        SCREEN_MAX_FRAME_RATE = 60.0
         #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
@@ -429,18 +397,14 @@ class VS3DUS(VisionExperimentConfig):
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         MES_TIMEOUT = 10.0
         PLATFORM = 'mes'
-        
         #=== Network ===
-        ENABLE_UDP = False
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
-#        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.25.220'
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
-        
         #=== stage ===
         motor_serial_port = {
                                     'port' :  'COM1',
@@ -449,7 +413,6 @@ class VS3DUS(VisionExperimentConfig):
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
                                     }
-                                    
         STAGE = [{'serial_port' : motor_serial_port,
                  'enable': True,
                  'speed': 2000,
@@ -457,28 +420,6 @@ class VS3DUS(VisionExperimentConfig):
                  'move_timeout' : 45.0,
                  'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]
-                 
-        #=== Filterwheel ===
-        
-        ENABLE_FILTERWHEEL = False
-        
-        FILTERWHEEL_SERIAL_PORT = [{
-                                    'port' :  unit_test_runner.TEST_com_port,
-                                    'baudrate' : 115200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    }]
-                                    
-        FILTERWHEEL_FILTERS = [{
-                                                'ND0': 1, 
-                                                'ND10': 2, 
-                                                'ND20': 3, 
-                                                'ND30': 4, 
-                                                'ND40': 5, 
-                                                'ND50': 6, 
-                                                }]
-                                                
         #=== DAQ ===
         SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
@@ -499,21 +440,14 @@ class VS3DUS(VisionExperimentConfig):
                     'AO_CHANNEL' : 'Dev1/ao0',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : 0.0,
-                    
                     'ENABLE' : True
                     }
                     ]
-        
         #=== Others ===
-        
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
-        
-        
         self._create_parameters_from_locals(locals())        
-                    
+
 if __name__ == "__main__":
-    
-    c = UbuntuDeveloperConfig()
-    c.print_parameters() 
+    pass
     

@@ -15,6 +15,7 @@ import numpy
 import re
 import visexpman
 import visexpman.engine.vision_experiment
+from visexpman.engine.vision_experiment import command_handler
 
 def find_out_config():
     '''
@@ -88,5 +89,14 @@ class TestFindoutConfig(unittest.TestCase):
         self.assertRaises(RuntimeError,  find_out_config)
 
 if __name__ == "__main__":
+    commands = []
+    for i in range(0):
+        if i == 0:
+            commands.append([0.0, 'SOCexecute_experimentEOCEOP'])
+        else:
+            commands.append([430.0, 'SOCexecute_experimentEOCEOP'])
     v = visexpman.engine.vision_experiment.VisionExperimentRunner(*find_out_config())
+    cs = command_handler.CommandSender(v.config, v, commands)
+    cs.start()
     v.run_loop()
+    cs.close()

@@ -198,16 +198,16 @@ class LedStimulation(experiment.Experiment):
         self.fragment_durations, self.fragment_repeats = timing.schedule_fragments(self.period_time, self.experiment_config.NUMBER_OF_FLASHES, self.machine_config.MAXIMUM_RECORDING_DURATION)
         self.number_of_fragments = len(self.fragment_durations)
     
-    def run(self, fragment_id):
+    def run(self, fragment_id = 0):
         self.show_fullscreen(color = 0.0, duration = 0.0)
         time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
         number_of_flashes_in_fragment = self.fragment_repeats[fragment_id]
         fragment_duration = self.fragment_durations[fragment_id]
         offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)
-        self.devices.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
-        self.devices.led_controller.start()
+        self.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
+        self.led_controller.start()
         for i in range(int(numpy.ceil(fragment_duration))):
-            if utils.is_abort_experiment_in_queue(self.from_gui):
+            if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
                 break
             else:
                 time.sleep(1.0)
@@ -230,5 +230,5 @@ class DummyExp(experiment.Experiment):
         self.fragment_durations = [1.0]
         self.number_of_fragments = len(self.fragment_durations)
 
-    def run(self, fragment_id):
+    def run(self, fragment_id=0):
         pass

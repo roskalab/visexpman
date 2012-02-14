@@ -13,12 +13,34 @@ import pp
 import random
 
 ############### Test network share ################
+if os.name == 'nt':
+    import win32process
+    import win32api
+    
+##### os/memory######
+class WinProcesses:
+    def __init__(self):
+        pass
 
-h = hdf5io.Hdf5io('v:\\debug\\rtest2.hdf5')
-for i in range(5):
-    setattr(h, 'data'+str(i), numpy.random.rand(10000, 1000))
-    h.save('data'+str(i), overwrite = True)
-h.close()
+    def listprocesses(self):
+        for process in self.proclist():
+            try:
+                han = win32api.OpenProcess(0x20000, 0, process)
+                print self.meminfo(han)
+            except:
+                print "Couldn't get process %s" % (process,)
+            
+    
+    def proclist(self):
+        return win32process.EnumProcesses()
+
+    def meminfo(self, handle):
+        return win32process.GetProcessMemoryInfo(handle)
+        
+if __name__=="__main__":
+    processes = WinProcesses()
+    test = processes.listprocesses()
+    print test
 
 ######### Side folded frame ###############
 

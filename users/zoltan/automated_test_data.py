@@ -190,9 +190,6 @@ class MesPlatformExperiment(experiment.Experiment):
         self.number_of_fragments = 2
         self.fragment_durations = [3.0] * self.number_of_fragments
         
-    def pre_first_fragment(self):
-        self.show_fullscreen(color = 0.0)
-        
     def run(self, fragment_id = 0):
         self.show_fullscreen(duration = self.fragment_durations[fragment_id], color = fragment_id * 0.2 + 0.2)
         

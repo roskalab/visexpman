@@ -12,6 +12,9 @@ import unittest
 import tempfile
 import copy
 import select
+if os.name == 'nt':
+    import win32process
+    import win32api
 
 import file
 
@@ -501,6 +504,24 @@ def imported_modules():
     visexpman_modules.sort()
     return module_names, visexpman_modules
     
+def system_memory():
+    if os.name == 'nt':
+        try:
+            import wmi
+            comp = wmi.WMI()
+            physical_memory = 0
+            for i in comp.Win32_ComputerSystem():
+                physical_memory = i.TotalPhysicalMemory
+            free_memory = 0
+            for os_ in comp.Win32_OperatingSystem():
+                free_memory = os_.FreePhysicalMemory
+            return physical_memory, free_memory
+        except:
+            return 0, 0
+    else:
+        return 0, 0
+    
+    
 def module_versions(modules):    
     module_version = ''
     module_version_dict = {}
@@ -845,6 +866,9 @@ def enter_hit():
             input = sys.stdin.readline()
             return True
     return False
+    
+
+
 
 class TestUtils(unittest.TestCase):
     def setUp(self):

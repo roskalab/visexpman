@@ -104,7 +104,15 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             self.experiment_config = None#TODO: instantiate class from string
         context = {}
         context['stage_origin'] = self.stage_origin
-        return self.experiment_config.runnable.run_experiment(context)
+        result = self.experiment_config.runnable.run_experiment(context)
+#        import gc, pprint
+#        gc.set_debug(gc.DEBUG_SAVEALL)
+#        self.log.info(gc.get_count())
+#        self.log.info(gc.collect())
+#        self.log.info(gc.garbage)
+#        self.log.flush()
+#        pprint.pprint(gc.garbage)
+        return result
         
 class CommandSender(QtCore.QThread):
     def __init__(self, config, caller, commands):

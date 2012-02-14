@@ -271,6 +271,8 @@ class MesInterface(object):
             self.queues['mes']['out'].put('SOCacquire_line_scan_templateEOC{0}EOP' .format(line_scan_path_on_mes))
             result = network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_line_scan_templateEOCsaveOKEOP', timeout = timeout, 
                                                          from_gui_queue = self.from_gui_queue)
+            if not result:
+                self._log_info('acquiring line scan template was not successful')
         else:
             self._log_info('mes not connected')
             result = False

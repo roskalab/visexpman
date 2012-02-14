@@ -634,17 +634,20 @@ class GuiConfig(configuration.VisionExperimentConfig):
             v_drive_folder = 'V:\\'
         elif self.OS == 'linux':                        
             v_drive_folder = '/home/zoltan/visexp'
-            
-        if 'dev' in sys.argv[1] or 'development' in self.PACKAGE_PATH:            
+        if len(sys.argv) >1:
+            arg = sys.argv[1]
+        else:
+            arg = ''
+        if 'dev' in arg or 'development' in self.PACKAGE_PATH:
             CONTEXT_NAME = 'gui_dev.hdf5'
             data_folder = os.path.join(v_drive_folder, 'debug', 'data')
             MES_DATA_FOLDER = 'V:\\debug\\data'
-            MES_DATA_PATH = os.path.join(v_drive_folder, 'data')            
+            MES_DATA_PATH = os.path.join(v_drive_folder, 'debug', 'data')            
         else:
             CONTEXT_NAME = 'gui.hdf5'
-            data_folder = os.path.join(v_drive_folder, 'data')
-            MES_DATA_FOLDER = 'V:\\data'
-            MES_DATA_PATH = os.path.join(v_drive_folder, 'data')
+            data_folder = os.path.join(v_drive_folder, 'experiment_data')
+            MES_DATA_FOLDER = 'V:\\experiment_data'
+            MES_DATA_PATH = os.path.join(v_drive_folder, 'experiment_data')
         self.MES_TIMEOUT = 5.0
         self.MAX_REGISTRATION_TIME = 30.0
         LOG_PATH = os.path.join(data_folder, 'log')
@@ -672,11 +675,7 @@ def run_gui():
     else:
         cr = None
     app = Qt.QApplication(sys.argv)
-    if 'dev' in sys.argv[1]:
-        gui2 = VisionExperimentGui(config, cr)
-    else:
-        gui = Gui(config, cr)
-
+    gui2 = VisionExperimentGui(config, cr)
     app.exec_()
 
 if __name__ == '__main__':
