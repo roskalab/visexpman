@@ -88,7 +88,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self.command_buffer = self.command_buffer.replace('abort_experiment', '')
             self.printl('Abort pressed', application_log = True)
             self.abort = True
-            
+
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
         '''
         Saves:
@@ -212,6 +212,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     self.log_on_flip_message = self.log_on_flip_message_initial
                 elif i == 1:
                     self.screen.clear_screen(color = color_to_set)
+                    self.log_on_flip_message = self.log_on_flip_message_continous
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
@@ -364,11 +365,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
     def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
-    
-        '''        
+        '''
         #Generate log messages
         self.log_on_flip_message_initial = 'show_shape(' + str(shape)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color)  + ', ' + str(background_color)  + ', ' + str(orientation)  + ', ' + str(size)  + ', ' + str(ring_size) + ')'
-        self.log_on_flip_message_continous = 'show_shape'        
+        self.log_on_flip_message_continous = 'show_shape'
         self._save_stimulus_frame_info(inspect.currentframe())
         #Calculate number of frames
         n_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
@@ -385,7 +385,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         pos_pixel = utils.rc_multiply_with_constant(pos, self.config.SCREEN_UM_TO_PIXEL_SCALE)        
         #Calculate vertices
         points_per_round = 360
-        if shape == 'circle' or shape == '' or shape == 'o' or shape == 'c':
+        if shape == 'circle' or shape == '' or shape == 'o' or shape == 'c' or shape =='spot':
             shape_type = 'circle'
             vertices = utils.calculate_circle_vertices([size_pixel['col'],  size_pixel['row']],  resolution = points_per_round / 360.0)#resolution is vertex per degree
         elif shape == 'rect' or shape == 'rectangle' or shape == 'r' or shape == '||':

@@ -16,7 +16,7 @@ class Debug(configuration.VisionExperimentConfig):
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'MESExperimentConfig'
-        
+
         #=== paths/data handling ===
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder

@@ -11,21 +11,24 @@ from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
 
 class ExperimentConfig(Config):
-    def __init__(self, machine_config, queues, connections, application_log):
+    def __init__(self, machine_config, queues, connections, application_log, experiment_class = None, source_code = None):
         self.machine_config = machine_config
         self.queues = queues
         self.connections = connections
         self.application_log = application_log
         Config.__init__(self, machine_config)
         if machine_config != None:
-            self.create_runnable() # needs to be called so that runnable is instantiated and other checks are done        
+            self.create_runnable(experiment_class, source_code) # needs to be called so that runnable is instantiated and other checks are done        
 
-    def create_runnable(self):
+    def create_runnable(self, experiment_class, source_code):
         if self.runnable == None:
             raise ValueError('You must specify the class which will run the experiment')
         else:
-            self.runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = self.runnable,  required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment)[0][1]\
-            (self.machine_config, self, self.queues, self.connections, self.application_log) # instantiates the code that will run the actual stimulation
+            if experiment_class == None and source_code == None:
+                self.runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = self.runnable,  required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment)[0][1]\
+                    (self.machine_config, self, self.queues, self.connections, self.application_log) # instantiates the code that will run the actual stimulation
+            else:
+                self.runnable = experiment_class(self.machine_config, self, self.queues, self.connections, self.application_log, source_code)
             if hasattr(self, 'pre_runnable'):
                 for pre_experiment_class in  utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.PreExperiment):
                     if pre_experiment_class[1].__name__ == self.pre_runnable:
@@ -57,12 +60,14 @@ class Experiment(stimulation_library.Stimulations):
     The usage of experiment fragments assumes the existence of number_of_fragments variable
     The floowing variable is saved to the output file: self.experiment_specific_data
     '''
-    def __init__(self, machine_config, experiment_config, queues, connections, application_log):
+    def __init__(self, machine_config, experiment_config, queues, connections, application_log, source_code = None):
         self.experiment_config = experiment_config
         self.machine_config = machine_config
         self.queues = queues
         self.connections = connections
-        self.experiment_name = self.__class__.__name__
+        if source_code != None:
+            self.source_code = source_code
+        self.experiment_name = self.__class__.__name__.split('_')[0]
         self.experiment_config_name = self.experiment_config.__class__.__name__
         self.prepare()
         stimulation_library.Stimulations.__init__(self, self.machine_config, application_log)

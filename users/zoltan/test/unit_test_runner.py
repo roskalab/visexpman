@@ -106,7 +106,7 @@ class UnitTestRunner():
                {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
                'enable' : TEST_mes},
                {'test_class_path' : 'visexpman.engine.vision_experiment.TestVisionExperimentRunner',
-               'enable' : True, 'run_only' : ['09']},
+               'enable' : True, 'run_only' : ['10']},
 #               {'test_class_path' : 'visexpman.engine.visexp_runner.TestFindoutConfig',
 #               'enable' : True, 'run_only' : []}, 
 #               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',

@@ -19,7 +19,7 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None):
         high_voltage_level = 0.5 * (bin_edges[-1] + bin_edges[-2])
     else:
         print 'Sync signal is not binary'
-        return 0, 0
+        return stimulus_frame_info, 0
     threshold = 0.5 * (low_voltage_level + high_voltage_level)
     #detect sync signal rising edges
     binary_sync = numpy.where(sync_signal < threshold, 0, 1)

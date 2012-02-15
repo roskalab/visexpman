@@ -42,8 +42,7 @@ class Config(object):
         def _create_parameters(self):
             PAR1 = 
             PAR = 
-            self._create_parameters_from_locals(locals())            
-        
+            self._create_parameters_from_locals(locals())
         '''
         self.machine_config = machine_config
         if generic_parameters:

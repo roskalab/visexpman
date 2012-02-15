@@ -380,6 +380,40 @@ class TestVisionExperimentRunner(unittest.TestCase):
         
         unit test runner command line switches: pp, daq
         '''
+        experiment_source = file.read_text_file(os.path.join(os.path.split(visexpman.__file__)[0], 'users', 'zoltan', 'test', 'elphys_test_experiment.py'))
+        experiment_source = experiment_source.replace('\n', '<newline>')
+        experiment_source = experiment_source.replace(',', '<comma>')
+        experiment_source = experiment_source.replace('=', '<equal>')
+        
+        commands = [
+                    [0.02,'SOCexecute_experimentEOCsource_code={0}EOP'.format(experiment_source)],
+                    [0.01,'SOCquitEOC'], 
+                    ]
+        config_name = 'TestElphysPlatformConfig'
+        v = VisionExperimentRunner('zoltan', config_name)
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+       #Read logs
+        log = file.read_text_file(v.logfile_path)
+        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
+        self.assertEqual(
+                        (self.check_application_log(v), 
+                        self.check_experiment_log(v), 
+                        'show_fullscreen(' in experiment_log,
+                        v.experiment_config.runnable.fragment_check_result, 
+                        v.config.__class__, 
+                        v.config.user,
+                        'ElphysPlatformExpConfig' in v.experiment_config.__class__.__name__, 
+                        v.experiment_config.runnable.frame_counter, 
+                        ),
+                        (True, True, True, True, 
+                        visexpman.users.zoltan.automated_test_data.TestElphysPlatformConfig,
+                       'zoltan',
+                       True, 
+                       int(v.experiment_config.runnable.fragment_durations[0] * v.config.SCREEN_EXPECTED_FRAME_RATE), 
+                        ))
         
     
     ############## Helpers #################
@@ -391,13 +425,13 @@ class TestVisionExperimentRunner(unittest.TestCase):
         else:
             result = False
         if experiment_run:
-            if not (vision_experiment_runner.experiment_config.runnable.experiment_name + ' experiment started at' in log and 'Experiment finished at ' in log):
+            if not (vision_experiment_runner.experiment_config.runnable.experiment_name in log and 'started at' in log and 'Experiment finished at ' in log):
                 result = False
         return result
             
     def check_experiment_log(self, vision_experiment_runner):
         log = file.read_text_file(vision_experiment_runner.experiment_config.runnable.filenames['experiment_log'])
-        if vision_experiment_runner.experiment_config.runnable.experiment_name + ' experiment started at' in log and 'Experiment finished at ' in log:
+        if vision_experiment_runner.experiment_config.runnable.experiment_name in log and 'started at' in log and 'Experiment finished at ' in log:
             result = True
         else:
             result = False

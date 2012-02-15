@@ -129,9 +129,6 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
             }
         }
-        
-        
-        
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (self.OS == 'win')
         ACQUISITION_TRIGGER_PIN = 2
@@ -145,7 +142,6 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                    
                                     }
-                                    
         STAGE = [{'serial_port' : motor_serial_port,
                  'enable': (self.OS == 'win'),
                  'speed': 800,
@@ -153,7 +149,6 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
                  'move_timeout' : 45.0,
                  'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]
-
         #=== DAQ ===
         SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
@@ -177,8 +172,7 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
                     'ENABLE' : (self.OS == 'win')
                     }
                     ]
-        self._create_parameters_from_locals(locals())        
-
+        self._create_parameters_from_locals(locals())
 
 class MesPlatformExperimentC(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -189,10 +183,75 @@ class MesPlatformExperiment(experiment.Experiment):
     def prepare(self):
         self.number_of_fragments = 2
         self.fragment_durations = [3.0] * self.number_of_fragments
-        
+
     def run(self, fragment_id = 0):
         self.show_fullscreen(duration = self.fragment_durations[fragment_id], color = fragment_id * 0.2 + 0.2)
-        
+
+class TestElphysPlatformConfig(configuration.VisionExperimentConfig):
+    '''
+    Windows development machine
+    '''
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'ElphysPlatformExperimentCDummy'
+        PLATFORM = 'elphys'
+        #=== paths/data handling ===
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder        
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_FILE_FORMAT = 'mat'
+        #=== screen ===
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+        COORDINATE_SYSTEM='center'
+        ENABLE_FRAME_CAPTURE = False
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0
+        #=== experiment specific ===
+        SCREEN_UM_TO_PIXEL_SCALE = 0.3
+        MAXIMUM_RECORDING_DURATION = [10, [0, 10000]] #100
+        #=== Network ===
+        ENABLE_UDP = False
+        #=== hardware ===
+        ENABLE_PARALLEL_PORT = (self.OS == 'win')
+        ACQUISITION_TRIGGER_PIN = 2
+        FRAME_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        #=== DAQ ===
+        SYNC_CHANNEL_INDEX = 1
+        DAQ_CONFIG = [
+                    {
+                    'ANALOG_CONFIG' : 'ai',
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 5000,
+                    'AI_CHANNEL' : 'Dev1/ai0:2',
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : -10.0,
+                    'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
+                    'ENABLE' : (self.OS == 'win')
+                    },
+                    {
+                    'ANALOG_CONFIG' : 'ao',
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 1000,
+                    'AO_CHANNEL' : 'Dev1/ao0',
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : 0.0,
+                    'ENABLE' : (self.OS == 'win')
+                    }
+                    ]
+        self._create_parameters_from_locals(locals())
+
+class ElphysPlatformExperimentCDummy(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'ElphysPlatformExperimentDummy'
+        self._create_parameters_from_locals(locals())
+
+class ElphysPlatformExperimentDummy(experiment.Experiment):
+    def prepare(self):
+        pass
+
+    def run(self, fragment_id = 0):
+        pass
 
 #== Test visual stimulations ==
 class VisualStimulationsTestConfig(configuration.VisionExperimentConfig):

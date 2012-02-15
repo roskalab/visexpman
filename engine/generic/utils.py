@@ -312,9 +312,10 @@ def calculate_trajectory(start_point,  end_point,  spatial_resolution,  curve = 
     distance = rc_distance(start_point,  end_point)
     number_of_steps = int(round(distance / spatial_resolution, 0))
     step_size = distance / number_of_steps    
+    number_of_steps += 1
     if curve == 'linear':
         direction = rc_add(end_point, start_point, operation = '-')
-        angle = numpy.arctan(float(direction['row'])/float(direction['col']))
+        angle = numpy.arctan2(float(direction['row']), float(direction['col']))
         trajectory = []
         step_vector = cr((numpy.cos(angle) * step_size, numpy.sin(angle) * step_size))
         for step in range(number_of_steps):

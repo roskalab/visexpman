@@ -3,15 +3,21 @@ import Queue
 import os
 import numpy
 import traceback
+import re
 
 import PyQt4.QtCore as QtCore
 
+from visexpman.engine.generic import introspect
 from visexpman.engine.generic import command_parser
 from visexpman.engine.vision_experiment import screen
 from visexpman.engine.generic import utils
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.hardware_interface import stage_control
+from visexpA.engine.datahandlers import hdf5io
 
+find_experiment_class_name = re.compile('class (.+)\(experiment.Experiment\)')
+find_experiment_config_class_name = re.compile('class (.+)\(experiment.ExperimentConfig\)')
+                                                                            
 
 class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandler):
     def __init__(self):
@@ -23,6 +29,13 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         command_parser.CommandParser.__init__(self, queue_in, queue_out, log = self.log, failsafe = False)
         screen.ScreenAndKeyboardHandler.__init__(self)
         self.stage_origin = numpy.zeros(3)
+        if hasattr(self.config, 'CONTEXT_PATH'):
+            try:
+                self.stage_origin = hdf5io.read_item(self.config.CONTEXT_PATH, 'stage_origin')
+            except:
+                self.log.info('Context file cannot be opened')
+            if self.stage_origin == None:
+                self.stage_origin = numpy.zeros(3)
         
 ###### Commands ######    
     def quit(self):
@@ -101,7 +114,21 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         if source_code == '':
             self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log)
         else:
-            self.experiment_config = None#TODO: instantiate class from string
+            loadable_source_code = source_code.replace('<newline>', '\n')
+            loadable_source_code = loadable_source_code.replace('<comma>', ',')
+            loadable_source_code = loadable_source_code.replace('<equal>', '=')
+            experiment_class_name = find_experiment_class_name.findall(loadable_source_code)[0]
+            experiment_config_class_name = find_experiment_config_class_name.findall(loadable_source_code)[0]
+            #rename classes
+            tag = '_' + str(int(time.time()))
+            loadable_source_code = loadable_source_code.replace(experiment_class_name, experiment_class_name+tag)
+            loadable_source_code = loadable_source_code.replace(experiment_config_class_name, experiment_config_class_name+tag)
+            
+            introspect.import_code(loadable_source_code,'experiment_module',add_to_sys_modules=1)
+            experiment_module = __import__('experiment_module')
+            self.experiment_config = getattr(experiment_module, experiment_config_class_name+tag)(self.config, self.queues, \
+                                                                                                  self.connections, self.log, getattr(experiment_module,experiment_class_name+tag), loadable_source_code)
+            
         context = {}
         context['stage_origin'] = self.stage_origin
         result = self.experiment_config.runnable.run_experiment(context)

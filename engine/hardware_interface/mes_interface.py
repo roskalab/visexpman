@@ -291,7 +291,8 @@ class MesInterface(object):
             line_scan_path_on_mes =  file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
             result = True
         elif os.path.exists(parameter_file):
-            line_scan_path = file.generate_filename(os.path.join(self.config.MES_DATA_FOLDER, 'line_scan.mat'))
+            line_scan_path = parameter_file
+            line_scan_path_on_mes = file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
             result = True
         else:
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
@@ -351,7 +352,7 @@ class MesInterface(object):
 
 ############# Unit tests ##########################
 class MesEmulator(QtCore.QThread):    
-    def __init__(self, response_pattern, queue_in, queue_out):        
+    def __init__(self, response_pattern, queue_in, queue_out, start_message = 'acquire_line_scan_template'):        
         '''
         response_pattern:
         -['delay:  ,
@@ -362,14 +363,15 @@ class MesEmulator(QtCore.QThread):
         self.queue_in = queue_in
         self.queue_out = queue_out
         self.acquire_line_scan_received = False
+        self.start_message = start_message
 
     def run(self):        
         while True:            
             if not self.queue_in.empty():
-                message = self.queue_in.get()                
+                message = self.queue_in.get()
                 command = re.findall('SOC(.+)EOC', message)
                 parameter = re.findall('EOC(.+)EOP', message)                
-                if 'acquire_line_scan_template' in message:
+                if self.start_message in message:
                     self.acquire_line_scan_received = True
                     for response in self.response_pattern:
                         time.sleep(response['delay'])
@@ -410,6 +412,7 @@ class MESTestConfig(visexpman.engine.generic.configuration.Config):
             EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
 
         MES_DATA_FOLDER = EXPERIMENT_DATA_PATH.replace('/home/zoltan/visexp', 'V:').replace('/', '\\')
+        self.MES_TIMEOUT = 10.0
         LOG_PATH = unit_test_runner.TEST_working_folder
         self._create_parameters_from_locals(locals())
 
@@ -424,6 +427,7 @@ class TestMesInterfaceEmulated(unittest.TestCase):
         time.sleep(1.0)
 
     def setUp(self):
+        self.parameter_path = os.path.join(unit_test_runner.TEST_working_folder, 'test.mat')
         self.config = MESTestConfig()       
         self.user_to_client = Queue.Queue()
         self.client_to_user = Queue.Queue()
@@ -453,40 +457,37 @@ class TestMesInterfaceEmulated(unittest.TestCase):
         response_pattern = []
         mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
         mes_emulator.start()
-        result = self.mes_interface.start_line_scan(1.0)
+        result = self.mes_interface.start_line_scan(scan_time = 1.0, parameter_file = self.parameter_path, timeout = 2.0)
         self.assertEqual((result[0], mes_emulator.acquire_line_scan_received), (False, True))
 
     def test_03_line_scan_started(self):
         '''
         Line scan started without error
         '''
-        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scan_templateEOCsaveOKEOP'}, 
-                                {'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}]
-        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
+        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}]
+        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client, 'acquire_line_scan')
         mes_emulator.start()
-        result = self.mes_interface.start_line_scan(1.0)        
+        result = self.mes_interface.start_line_scan(timeout = 2.0)
         self.assertEqual((result[0], mes_emulator.acquire_line_scan_received), (True, True))
 
     def test_04_line_scan_started_timeout(self):
         '''
         Line scan started but later than the timeout given in start_line_scan
         '''
-        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scan_templateEOCsaveOKEOP'}, 
-                            {'delay':2.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}]
-        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
+        response_pattern = [{'delay':2.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}]
+        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client, 'acquire_line_scan')
         mes_emulator.start()
-        result = self.mes_interface.start_line_scan(1.0)
+        result = self.mes_interface.start_line_scan(timeout = 1.0)
         self.assertEqual((result[0], mes_emulator.acquire_line_scan_received), (False, True))
 
     def test_05_line_scan_and_data_save_completed(self):
-        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scan_templateEOCsaveOKEOP'}, 
-                            {'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}, 
+        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}, 
                             {'delay':0.1, 'response':'SOCacquire_line_scanEOCOKEOP'}, 
                             {'delay':0.1, 'response':'SOCacquire_line_scanEOCsaveOKEOP'}
                             ]
-        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
+        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client, 'acquire_line_scan')
         mes_emulator.start()
-        result_line_scan_started = self.mes_interface.start_line_scan(1.0)
+        result_line_scan_started = self.mes_interface.start_line_scan(timeout = 1.0)
         result_scan_ok = self.mes_interface.wait_for_line_scan_complete(1.0)
         result_save_ok = self.mes_interface.wait_for_line_scan_save_complete(1.0)
         self.assertEqual((result_line_scan_started[0], result_scan_ok, result_save_ok, mes_emulator.acquire_line_scan_received), 
@@ -496,15 +497,14 @@ class TestMesInterfaceEmulated(unittest.TestCase):
         '''
         saveOK arrives later than timeout
         '''
-        response_pattern = [{'delay':0.1, 'response':'SOCacquire_line_scan_templateEOCsaveOKEOP'}, 
-                            {'delay':0.1, 'response':'SOCechoEOCdumyEOP'},
+        response_pattern = [{'delay':0.1, 'response':'SOCechoEOCdumyEOP'},
                             {'delay':0.1, 'response':'SOCacquire_line_scanEOCstartedEOP'}, 
                             {'delay':0.1, 'response':'SOCacquire_line_scanEOCOKEOP'}, 
                             {'delay':3.1, 'response':'SOCacquire_line_scanEOCsaveOKEOP'}
                             ]
-        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client)
+        mes_emulator = MesEmulator(response_pattern, self.client_to_mes, self.mes_to_client, 'acquire_line_scan')
         mes_emulator.start()
-        result_line_scan_started = self.mes_interface.start_line_scan(1.0)
+        result_line_scan_started = self.mes_interface.start_line_scan(timeout = 1.0)
         result_scan_ok = self.mes_interface.wait_for_line_scan_complete(0.5)
         result_save_ok = self.mes_interface.wait_for_line_scan_save_complete(0.5)
         time.sleep(4.0)

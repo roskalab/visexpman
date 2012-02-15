@@ -262,7 +262,7 @@ class Debug(VisionExperimentConfig):
 #         EXPERIMENT_CONFIG = 'LedStimulationConfig'
         EXPERIMENT_CONFIG = 'MovingDotConfig'
 #        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
-#        EXPERIMENT_CONFIG = 'Dummy'
+        EXPERIMENT_CONFIG = 'Dummy'
         RUN_MES_EXTRACTOR = False
         #=== paths/data handling ===
         use_drive = 'v'
@@ -271,9 +271,11 @@ class Debug(VisionExperimentConfig):
             if use_drive == 'g':
                 drive_data_folder = 'g:\\User\\Zoltan\\data'
             elif use_drive =='v':
-                drive_data_folder = 'V:\\experiment_data'
+                drive_data_folder = 'V:\\debug\\data'
+            CONTEXT_PATH = 'v:\\context\\gui_dev.hdf5'
         else:
-            drive_data_folder = '/home/zoltan/visexp/experiment_data'        
+            drive_data_folder = '/home/zoltan/visexp/debug/data'        
+            CONTEXT_PATH = '/home/zoltan/visexp/context/gui_dev.hdf5'
             
         LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
@@ -281,7 +283,8 @@ class Debug(VisionExperimentConfig):
         if use_drive == 'g':
             MES_DATA_FOLDER = 'g:\\User\\Zoltan\\data'
         elif use_drive =='v':
-            MES_DATA_FOLDER = 'V:\\experiment_data'
+            MES_DATA_FOLDER = 'V:\\debug\\data'
+        
         
         CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
@@ -300,7 +303,7 @@ class Debug(VisionExperimentConfig):
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
-        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
+        MAXIMUM_RECORDING_DURATION = [96, [0, 10000]] #100
         MES_TIMEOUT = 15.0
         PLATFORM = 'mes'
 #        PLATFORM = 'standalone'
@@ -374,8 +377,10 @@ class VS3DUS(VisionExperimentConfig):
         #=== paths/data handling ===
         if os.name == 'nt':            
             v_drive_data_folder = 'V:\\experiment_data'
+            CONTEXT_PATH = 'v:\\context\\gui.hdf5'
         else:            
             v_drive_data_folder = '/home/zoltan/visexp/experiment_data'
+            CONTEXT_PATH = '/home/zoltan/visexp/context/gui.hdf5'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder

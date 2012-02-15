@@ -127,14 +127,17 @@ def find_content_in_folder(content, folder_name, file_filter):
     return found_in_files
     
     
-def generate_filename(path, insert_timestamp = False):
+def generate_filename(path, insert_timestamp = False, last_tag = ''):
     '''
     Inserts index into filename resulting unique name.
-    '''    
+    '''
     index = 0
     number_of_digits = 5
     while True:
-        testable_path = path.replace('.',  '_%5i.'%index).replace(' ', '0')
+        if last_tag != '':
+            testable_path = path.replace('.',  '_%5i_%s.'%(index, last_tag)).replace(' ', '0')
+        else:
+            testable_path = path.replace('.',  '_%5i.'%index).replace(' ', '0')
         if not os.path.isfile(testable_path):
             break
         index = index + 1

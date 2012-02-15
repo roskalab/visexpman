@@ -1,8 +1,8 @@
 import os
 import serial
 from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.visual_stimulation.configuration import VisionExperimentConfig
-import visexpman.engine.visual_stimulation.experiment as experiment
+from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
+import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.generic.utils as utils
 
@@ -11,19 +11,18 @@ class Debug(VisionExperimentConfig):
     Antona's Electrophisology visual stimulation
     '''
     def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'ManipulationExperimentConfig'
-        MEASUREMENT_PLATFORM = 'elphys'
-        RECORD_SIGNALS_DURING_EXPERIMENT = True
+        EXPERIMENT_CONFIG = 'RandomShapeParameters'
+        PLATFORM = 'elphys'
+        EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===
         if os.name == 'nt':
-            v_drive_data_folder = 'V:\\data\\debug'
+            v_drive_data_folder = 'V:\\debug\\data'
         else:
-            v_drive_data_folder = '/home/zoltan/visexp/data/debug'
+            v_drive_data_folder = '/home/zoltan/visexp/debug/data'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = v_drive_data_folder
         ARCHIVE_PATH = v_drive_data_folder
-        ARCHIVE_FORMAT = 'mat'
         CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         
         #=== screen ===
@@ -37,13 +36,13 @@ class Debug(VisionExperimentConfig):
         SCREEN_UM_TO_PIXEL_SCALE = 1.5
         
         #=== hardware ===
-        ENABLE_PARALLEL_PORT = True
+        ENABLE_PARALLEL_PORT =  (self.OS == 'win')
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        ENABLE_UDP = True
+        ENABLE_UDP = not True
   
         #=== Filterwheel ===
         
@@ -60,7 +59,7 @@ class Debug(VisionExperimentConfig):
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 300.0,
-                    'ENABLE' : True
+                    'ENABLE' :  (self.OS == 'win')
                     },
                     {
                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
@@ -70,26 +69,21 @@ class Debug(VisionExperimentConfig):
                     'MAX_VOLTAGE' : 3.0,
                     'MIN_VOLTAGE' : 0.0,
                     'DURATION_OF_AI_READ' : 1.0,
-                    'ENABLE' : True
+                    'ENABLE' :  (self.OS == 'win')
                     },
-                    
                     ]
-        
         #=== Others ===
-        
-        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }        
-        
+        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
         self._create_parameters_from_locals(locals())
 
-        
 class AEPHVS(VisionExperimentConfig):
     '''
     Antona's Electrophisology visual stimulation
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'ManipulationExperimentConfig'
-        MEASUREMENT_PLATFORM = 'elphys'
-        RECORD_SIGNALS_DURING_EXPERIMENT = True
+        PLATFORM = 'elphys'
+        EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===
         if os.name == 'nt':
             v_drive_data_folder = 'c:\\Data'
@@ -99,7 +93,6 @@ class AEPHVS(VisionExperimentConfig):
         EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = v_drive_data_folder
         ARCHIVE_PATH = v_drive_data_folder
-        ARCHIVE_FORMAT = 'mat'
         CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         
         #=== screen ===
@@ -148,13 +141,9 @@ class AEPHVS(VisionExperimentConfig):
                     'DURATION_OF_AI_READ' : 1.0,
                     'ENABLE' : True
                     },
-                    
                     ]
-        
         #=== Others ===
-        
-        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }        
-        
+        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
         self._create_parameters_from_locals(locals())
 
 if __name__ == "__main__":    

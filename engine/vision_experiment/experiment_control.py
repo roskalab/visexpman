@@ -209,7 +209,6 @@ class ExperimentControl(object):
         self.stage.release_instrument()
         
     ############### File handling ##################
-    
     def prepare_files(self):
         self._generate_filenames()
         self._create_files()
@@ -236,7 +235,7 @@ class ExperimentControl(object):
         self.fragment_names = []
         for fragment_id in range(self.number_of_fragments):
             if self.config.EXPERIMENT_FILE_FORMAT == 'mat':
-                fragment_name = 'fragment_{0}_{1}' .format(self.experiment_name, fragment_id)
+                fragment_name = 'fragment_{0}' .format(self.experiment_name)
             elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
                 fragment_name = 'fragment_{0}_{1}_{2}' .format(self.experiment_name, self.timestamp, fragment_id)
             fragment_filename = os.path.join(self.config.EXPERIMENT_DATA_PATH, '{0}.{1}' .format(fragment_name, self.config.EXPERIMENT_FILE_FORMAT))
@@ -246,7 +245,7 @@ class ExperimentControl(object):
                     'fragment_{0:.1f}_{1:.1f}_{2}_'.format(self.stage_position[0], self.stage_position[1], self.objective_position))
                 self.filenames['mes_fragments'].append(fragment_filename.replace('hdf5', 'mat'))
             elif self.config.EXPERIMENT_FILE_FORMAT == 'mat' and self.config.PLATFORM == 'elphys':
-                fragment_filename = file.generate_filename(fragment_filename)
+                fragment_filename = file.generate_filename(fragment_filename, last_tag = str(fragment_id))
             local_fragment_file_name = os.path.join(tempfile.mkdtemp(), os.path.split(fragment_filename)[-1])
             self.filenames['local_fragments'].append(local_fragment_file_name)
             self.filenames['fragments'].append(fragment_filename )
@@ -267,7 +266,6 @@ class ExperimentControl(object):
             file.generate_filename(os.path.join(self.config.EXPERIMENT_LOG_PATH, 'log_{0}_{1}.txt' .format(self.experiment_name, date)))
         self.log = log.Log('experiment log' + uuid.uuid4().hex, self.filenames['experiment_log'], write_mode = 'user control', timestamp = 'elapsed_time')
 
-
     ########## Fragment data ############
     def _prepare_fragment_data(self, fragment_id):
         if hasattr(self.analog_input, 'ai_data'):
@@ -279,10 +277,12 @@ class ExperimentControl(object):
                             experiment_data.preprocess_stimulus_sync(\
                             analog_input_data[:, self.config.SYNC_CHANNEL_INDEX], 
                             stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:])
-
         if not hasattr(self, 'experiment_specific_data'):
                 self.experiment_specific_data = 0
-        
+        if hasattr(self, 'source_code'):
+            experiment_source = self.source_code
+        else:
+            experiment_source = utils.file_to_binary_array(inspect.getfile(self.__class__).replace('.pyc', '.py'))
         data_to_file = {
                                     'sync_data' : analog_input_data, 
                                     'current_fragment' : fragment_id, #deprecated
@@ -290,9 +290,8 @@ class ExperimentControl(object):
                                     'rising_edges_indexes' : rising_edges_indexes, 
                                     'number_of_fragments' : self.number_of_fragments, 
                                     'generated_data' : self.experiment_specific_data, 
-                                    'experiment_source' : utils.file_to_binary_array(inspect.getfile(self.__class__).replace('.pyc', '.py')), 
+                                    'experiment_source' : experiment_source, 
                                     }
-            
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             #This conversion is necessary because hdf5io cannot handle lists
             stimulus_frame_info = {}
@@ -327,9 +326,12 @@ class ExperimentControl(object):
                 experiment_data.save_position(self.fragment_files[fragment_id], self.stage_position, self.objective_position)
             setattr(self.fragment_files[fragment_id], self.fragment_names[fragment_id], data_to_file)
             self.fragment_files[fragment_id].save(self.fragment_names[fragment_id])
-            time.sleep(1.0 + 0.05 * self.fragment_durations[fragment_id])#Wait till data is written to disk
+            if hasattr(self, 'fragment_durations'):
+                time.sleep(1.0 + 0.05 * self.fragment_durations[fragment_id])#Wait till data is written to disk
+            else:
+                time.sleep(1.0)
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
-            self.fragment_data[self.filenames['fragments'][fragment_id]] = data_to_file
+            self.fragment_data[self.filenames['local_fragments'][fragment_id]] = data_to_file
         del data_to_file
         self.printl('Measurement data saved to: {0}'.format(self.filenames['fragments'][fragment_id]))
 
@@ -356,15 +358,12 @@ class ExperimentControl(object):
             for fragment_file in self.filenames['local_fragments']:
                     if hasattr(self.config, 'RUN_MES_EXTRACTOR'):
                         if self.config.RUN_MES_EXTRACTOR:
-                            mem_overall_before, mem_free_before = utils.system_memory()
                             mes_extractor = importers.MESExtractor(fragment_file)
                             try:
                                 data_class, stimulus_class, mes_name = mes_extractor.parse()#TODO: The return values need to be checked
                                 time.sleep(1.0) #Wait till file write is ready
                             except MemoryError:
                                 self.printl('mesextractor parsing was not successful for {0}' .format(fragment_file))
-                            mem_overall, mem_free = utils.system_memory()
-                            self.printl('Memory before: {0}, after {1}, overall: {2}'.format(mem_free_before, mem_free, mem_overall))
                     try:
                         result, self.fragment_error_messages = experiment_data.check_fragment(fragment_file, self.config)
                     except:
