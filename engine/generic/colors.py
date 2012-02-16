@@ -3,7 +3,7 @@
 import numpy
 
 #== Computer graphics colors ==
-def convert_color(color):
+def convert_color(color, config = None):
     '''
     Any color format (rgb, greyscale, 8 bit grayscale) is converted to visexpman rgb format
     '''    
@@ -13,6 +13,8 @@ def convert_color(color):
         converted_color = [color/255.0, color/255.0, color/255.0]
     else:
         converted_color = color
+    if hasattr(config, 'GAMMA_CORRECTION'):
+        converted_color =config.GAMMA_CORRECTION(converted_color).tolist()
     return converted_color
 
 def convert_color_from_pp(color_pp):

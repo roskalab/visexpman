@@ -6,7 +6,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
 from visexpman.engine.generic import utils
-
+from visexpA.engine.datadisplay import imaged
 
 ################### New mouse widget #######################
 class AnimalParametersGroupBox(QtGui.QGroupBox):
@@ -65,31 +65,8 @@ class AnimalParametersGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.anesthesia_protocol, 4, 1)
         self.layout.addWidget(self.comments, 5, 0, 1, 3)
         self.layout.addWidget(self.new_mouse_file_button, 6, 0, 1, 2)
-        self.layout.setColumnStretch(7, 0)
-        self.setLayout(self.layout)       
-        
-#class MasterPositionGroupBox(QtGui.QGroupBox):
-#    def __init__(self, parent):        
-#        QtGui.QGroupBox.__init__(self, 'Master position', parent)
-#        self.create_widgets()
-#        self.create_layout()
-#        
-#    def create_widgets(self):
-#        self.z_stack_button = QtGui.QPushButton('Create Z stack',  self)
-#        self.calculate_brain_surface_angle_button = QtGui.QPushButton('Calculate angle of brain surface',  self)
-#        self.brain_surface_angle_display = QtGui.QComboBox(self)
-#        self.brain_surface_angle_display.setEditable(True)
-#        self.rotate_mouse_button = QtGui.QPushButton('Rotate mouse',  self)
-#        self.save_master_position_button = QtGui.QPushButton('Save master position',  self)        
-#        
-#    def create_layout(self):
-#        self.layout = QtGui.QGridLayout()
-#        self.layout.addWidget(self.z_stack_button, 0, 1)
-#        self.layout.addWidget(self.calculate_brain_surface_angle_button, 0, 2)
-#        self.layout.addWidget(self.brain_surface_angle_display, 0, 3, 1, 1)
-#        self.layout.addWidget(self.rotate_mouse_button, 0, 4)
-#        self.layout.addWidget(self.save_master_position_button, 0, 5)
-#        self.setLayout(self.layout)
+        self.layout.setColumnStretch(3, 0)
+        self.setLayout(self.layout)
         
 class NewScanRegion(QtGui.QGroupBox):
     def __init__(self, parent, experiment_names):
@@ -122,51 +99,8 @@ class NewScanRegion(QtGui.QGroupBox):
         self.layout.addWidget(self.save_experiment_results_button, 1, 3)
         self.layout.addWidget(self.save_region_info_button, 2, 0)
         self.setLayout(self.layout)
-        
-class NewMouseWidget(QtGui.QWidget):
-    def __init__(self, parent, config):
-        QtGui.QWidget.__init__(self, parent)
-        self.config = config
-        self.create_widgets()
-        self.create_layout()
-        self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
-        
-    def create_widgets(self):
-        self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
-        self.master_position_groupbox = MasterPositionGroupBox(self)
-        self.new_scan_region_groupbox = NewScanRegion(self, ['moving_dot', 'grating'])        
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.animal_parameters_groupbox, 0, 0, 1, 2)        
-        self.layout.addWidget(self.master_position_groupbox, 2, 0, 1, 3)
-        self.layout.addWidget(self.new_scan_region_groupbox, 3, 0, 1, 3)        
-#        self.layout.setRowStretch(3, 300)
-        self.setLayout(self.layout)
 
 ################### Registered mouse widget #######################
-class FindMasterPositionGroupBox(QtGui.QGroupBox):
-    def __init__(self, parent):        
-        QtGui.QGroupBox.__init__(self, 'Find master position', parent)
-        self.create_widgets()
-        self.create_layout()
-        
-    def create_widgets(self):
-        self.z_stack_button = QtGui.QPushButton('Create Z stack',  self)        
-        self.calculate_position_offset_button = QtGui.QPushButton('Calculate position offset',  self)
-        self.position_offset_display = QtGui.QComboBox(self)
-        self.position_offset_display.setEditable(True)
-        self.move_mouse_button = QtGui.QPushButton('Move mouse',  self)
-        self.save_master_position_button = QtGui.QPushButton('Save master position',  self)        
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.z_stack_button, 0, 1)
-        self.layout.addWidget(self.calculate_position_offset_button, 0, 2)
-        self.layout.addWidget(self.position_offset_display, 0, 3, 1, 1)
-        self.layout.addWidget(self.move_mouse_button, 0, 4)
-        self.layout.addWidget(self.save_master_position_button, 0, 5)
-        self.setLayout(self.layout)
        
 class FindScanRegion(QtGui.QGroupBox):
     def __init__(self, parent, experiment_names):
@@ -203,27 +137,49 @@ class FindScanRegion(QtGui.QGroupBox):
         self.layout.addWidget(self.stop_experiment_button, 2, 2)
         self.layout.addWidget(self.save_experiment_results_button, 2, 3)       
         self.setLayout(self.layout)
-       
-class RegisteredMouseWidget(QtGui.QWidget):
+        
+################### Image display #######################
+class RegionsImagesWidget(QtGui.QWidget):
     def __init__(self, parent, config):
         QtGui.QWidget.__init__(self, parent)
         self.config = config
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
+        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
         
     def create_widgets(self):
-        self.select_mouse_file_label = QtGui.QLabel('Select mouse file', self)
-        self.select_mouse_file = QtGui.QComboBox(self)
-        self.find_master_position_groupbox = FindMasterPositionGroupBox(self)
-        self.find_scan_region = FindScanRegion(self, ['moving_dot', 'grating'])
+        self.image_display = []
+        for i in range(4):
+            self.image_display.append(QtGui.QLabel())
+        blank_image = 128*numpy.ones((self.config.IMAGE_SIZE['col'], self.config.IMAGE_SIZE['row']), dtype = numpy.uint8)
+        for image in self.image_display:
+            image.setPixmap(imaged.array_to_qpixmap(blank_image))
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.select_mouse_file_label, 0, 0, 1, 1)
-        self.layout.addWidget(self.select_mouse_file, 0, 1, 1, 1)
-        self.layout.addWidget(self.find_master_position_groupbox, 1, 0, 1, 2)
-        self.layout.addWidget(self.find_scan_region, 2, 0, 1, 3)
+        for i in range(len(self.image_display)):
+            self.layout.addWidget(self.image_display[i], i/2, (i%2)*2, 1, 1)
+        
+        self.layout.setRowStretch(3, 3)
+        self.layout.setColumnStretch(3, 3)
+        self.setLayout(self.layout)
+        
+class OverviewWidget(QtGui.QWidget):
+    def __init__(self, parent, config):
+        QtGui.QWidget.__init__(self, parent)
+        self.config = config
+        self.create_widgets()
+        self.create_layout()
+        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
+        
+    def create_widgets(self):
+        self.image_display = QtGui.QLabel()
+        blank_image = 128*numpy.ones((self.config.OVERVIEW_IMAGE_SIZE['col'], self.config.OVERVIEW_IMAGE_SIZE['row']), dtype = numpy.uint8)
+        self.image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.image_display, 0, 0, 1, 1)
         self.layout.setRowStretch(3, 3)
         self.layout.setColumnStretch(3, 3)
         self.setLayout(self.layout)
@@ -240,8 +196,7 @@ class DebugWidget(QtGui.QWidget):
                 self.connection_names.append(k.replace('GUI', '').replace('_', '').lower())
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
-        
+        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
         
     def create_widgets(self):
         #MES related
@@ -268,7 +223,6 @@ class DebugWidget(QtGui.QWidget):
         self.select_connection_list = QtGui.QComboBox(self)        
         self.select_connection_list.addItems(QtCore.QStringList(self.connection_names))
         self.send_command_button = QtGui.QPushButton('Send command',  self)
-        
         #Development
         self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
@@ -305,36 +259,6 @@ class DebugWidget(QtGui.QWidget):
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
-        
-class MasterPositionGroupBox(QtGui.QGroupBox):
-    def __init__(self, parent):
-        QtGui.QGroupBox.__init__(self, 'Master position', parent)
-        self.create_widgets()
-        self.create_layout()
-        
-    def create_widgets(self):
-        self.get_two_photon_image_button = QtGui.QPushButton('Get two photon image',  self)
-        self.use_master_position_scan_settings_label = QtGui.QLabel('Use master position\'s scan settings', self)
-        self.use_master_position_scan_settings_checkbox = QtGui.QCheckBox(self)
-        self.select_mouse_file_label = QtGui.QLabel('Select mouse file', self)
-        self.select_mouse_file = QtGui.QComboBox(self)      
-        self.register_button = QtGui.QPushButton('Register',  self)
-        self.move_to_master_position_button = QtGui.QPushButton('Move to  master position',  self)
-        self.save_master_position_button = QtGui.QPushButton('Save master position',  self)
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.get_two_photon_image_button, 0, 0, 1, 1)
-        self.layout.addWidget(self.use_master_position_scan_settings_label, 0, 1, 1, 1)
-        self.layout.addWidget(self.use_master_position_scan_settings_checkbox, 0, 2, 1, 1)
-        self.layout.addWidget(self.select_mouse_file_label, 1, 0, 1, 1)
-        self.layout.addWidget(self.select_mouse_file, 1, 1, 1, 2)      
-        self.layout.addWidget(self.register_button, 4, 0, 1, 1)
-        self.layout.addWidget(self.move_to_master_position_button, 5, 1, 1, 1)
-        self.layout.addWidget(self.save_master_position_button, 5, 0, 1, 1)
-        self.layout.setRowStretch(10, 10)
-        self.layout.setColumnStretch(10, 10)
-        self.setLayout(self.layout)
 
 class ScanRegionGroupBox(QtGui.QGroupBox):
     def __init__(self, parent):
@@ -345,6 +269,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
     def create_widgets(self):
         self.select_mouse_file_label = QtGui.QLabel('Select mouse file', self)
         self.select_mouse_file = QtGui.QComboBox(self)
+        self.animal_parameters_label = QtGui.QLabel('', self)
         self.get_two_photon_image_button = QtGui.QPushButton('Get two photon image',  self)
         self.use_saved_scan_settings_label = QtGui.QLabel('Use saved scan settings', self)
         self.use_saved_scan_settings_settings_checkbox = QtGui.QCheckBox(self)
@@ -359,35 +284,26 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.region_position = QtGui.QLabel('',  self)
         self.register_button = QtGui.QPushButton('Register',  self)
         self.realign_button = QtGui.QPushButton('Realign',  self)
-
         #Vertical alignment
         self.vertical_scan_button = QtGui.QPushButton('Vertical scan',  self)
-        self.move_to_focus_button = QtGui.QPushButton('Focus',  self)
-        self.move_to_brain_surface_button = QtGui.QPushButton('Brain surface',  self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        
         self.layout.addWidget(self.select_mouse_file_label, 0, 0, 1, 1)
         self.layout.addWidget(self.select_mouse_file, 0, 1, 1, 3)
-        self.layout.addWidget(self.use_saved_scan_settings_label, 1, 1, 1, 1)
-        self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 1, 2, 1, 1)
-        
-        self.layout.addWidget(self.get_two_photon_image_button, 2, 0, 1, 1)
-        self.layout.addWidget(self.snap_brain_surface_button, 2, 3, 1, 1)
-        
-        self.layout.addWidget(self.add_button, 3, 0, 1, 1)
-        self.layout.addWidget(self.scan_regions_combobox, 3, 1, 1, 2)
-        self.layout.addWidget(self.remove_button, 3, 3, 1, 1)
-        self.layout.addWidget(self.move_to_button, 4, 1, 1, 1)
-        self.layout.addWidget(self.region_position, 4, 2, 1, 2)
-        self.layout.addWidget(self.register_button, 5, 0, 1, 1)
-        self.layout.addWidget(self.realign_button, 5, 1, 1, 1)
-        
-        self.layout.addWidget(self.vertical_scan_button, 6, 0, 1, 1)
-        self.layout.addWidget(self.move_to_focus_button, 7, 0, 1, 1)
-        self.layout.addWidget(self.move_to_brain_surface_button, 7, 1, 1, 1)
-
+        self.layout.addWidget(self.animal_parameters_label, 1, 0, 1, 4)
+        self.layout.addWidget(self.use_saved_scan_settings_label, 2, 1, 1, 1)
+        self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 2, 2, 1, 1)
+        self.layout.addWidget(self.get_two_photon_image_button, 3, 0, 1, 1)
+        self.layout.addWidget(self.snap_brain_surface_button, 3, 3, 1, 1)
+        self.layout.addWidget(self.add_button, 4, 0, 1, 1)
+        self.layout.addWidget(self.scan_regions_combobox, 4, 1, 1, 2)
+        self.layout.addWidget(self.remove_button, 4, 3, 1, 1)
+        self.layout.addWidget(self.move_to_button, 5, 1, 1, 1)
+        self.layout.addWidget(self.region_position, 5, 2, 1, 2)
+        self.layout.addWidget(self.register_button, 6, 0, 1, 1)
+        self.layout.addWidget(self.realign_button, 6, 1, 1, 1)
+        self.layout.addWidget(self.vertical_scan_button, 7, 0, 1, 1)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -398,7 +314,7 @@ class StandardIOWidget(QtGui.QWidget):
         self.config = config
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.GUI_SIZE['col'], 0.5*self.config.GUI_SIZE['row'])
+        self.resize(self.config.TAB_SIZE['col'], 0.5*self.config.TAB_SIZE['row'])
         
     def create_widgets(self):
         self.text_out = QtGui.QTextEdit(self)

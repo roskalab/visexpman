@@ -43,4 +43,8 @@ class MovingShapeExperiment(experiment.Experiment):
                             background_color = self.experiment_config.SHAPE_BACKGROUND,
                             orientation = self.experiment_config.DIRECTIONS[i], 
                             size = self.experiment_config.SHAPE_SIZE)
-            self.show_fullscreen(duration = self.experiment_config.PAUSE_BETWEEN_DIRECTIONS,  color = self.experiment_config.SHAPE_BACKGROUND),
+                if self.abort:
+                    break
+            self.show_fullscreen(duration = self.experiment_config.PAUSE_BETWEEN_DIRECTIONS,  color = self.experiment_config.SHAPE_BACKGROUND)
+            if self.abort:
+                break

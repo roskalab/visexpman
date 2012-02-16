@@ -8,7 +8,10 @@ import hashlib
 import string
 
 from visexpman.engine.generic import utils
-from  visexpA.engine.datahandlers import hdf5io
+from visexpman.engine import generic
+from visexpA.engine.datahandlers import hdf5io
+from visexpA.engine.dataprocessors import generic as gen
+
 
 ############### Preprocess measurement data ####################
 def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None):
@@ -75,15 +78,7 @@ def save_position(hdf5, stagexyz, objective_z = None):
     '''
     hdf5.position = utils.pack_position(stagexyz, objective_z)
     hdf5.save('position')
-    
-def read_master_position(path):
-        hdf5_handler = hdf5io.Hdf5io(path)
-        master_position = {}
-        if hdf5_handler.findvar('master_position') != None:
-            master_position = hdf5_handler.master_position
-        hdf5_handler.close()
-        return master_position
-        
+
 def check_fragment(path, config):
     messages = []
     result = True
@@ -155,17 +150,62 @@ def check_fragment(path, config):
         fragment_handle.close()
     return result, messages
     
-class TestDataHandler(unittest.TestCase):
-    def setUp(self):
-        module_info = utils.imported_modules()
-        self.visexpman_module_paths  = module_info[1]
-        self.module_versions = utils.module_versions(module_info[0])
-        from visexpman.users.zoltan import automated_test_data
-        self.config = automated_test_data.VerySimpleExperimentTestConfig()
-        self.dh = DataHandler(self.config, self)
+def merge_brain_regions(scan_regions, region_on_top = None):
+    #gather images, scales and positions
+    regions = []
+    scales = []
+    region_on_top_index = 0
+    index = 0
+    for k, v in scan_regions.items():
+        region = {}
+        region['image'] = v['brain_surface']['image']
+        scale = v['brain_surface']['scale'].real #um/pixel
+        region['scale'] = scale
+        region['position'] = utils.cr((v['position']['x'], v['position']['y']))
+        regions.append(region)
+        scales.append(scale)
+        if region_on_top == k:
+            region_on_top_index = index
+        index += 1
+    #put preferred one to the last position
+    pushed = regions[-1]
+    regions[-1] = regions[region_on_top_index]
+    regions[region_on_top_index] = pushed
+    #convert images to same scale
+    common_scale = min(scales)
+    image_bounds = []
+    for i in range(len(regions)):
+        scale = regions[i]['scale'] / common_scale
+        regions[i]['image'] = generic.rescale_numpy_array_image(regions[i]['image'], utils.rc((scale, scale)))
+        regions[i]['position'] = utils.rc_multiply(regions[i]['position'], utils.rc((1/common_scale, 1/common_scale)))
+        regions[i]['position'] = utils.rc((int(regions[i]['position']['row']), int(regions[i]['position']['col'])))
+        image_extent = utils.cr(regions[i]['image'].shape)
+        image_bounds.append([regions[i]['position']['row'] + image_extent['row'], regions[i]['position']['col'] + image_extent['col']])
+        image_bounds.append([regions[i]['position']['row'], regions[i]['position']['col'] + image_extent['col']])
+        image_bounds.append([regions[i]['position']['row'] + image_extent['row'], regions[i]['position']['col']])
+        image_bounds.append([regions[i]['position']['row'], regions[i]['position']['col']])
+    #find out image_size 
+    image_bounds = numpy.array(image_bounds)
+    row_min = image_bounds[:,0].min()
+    row_max = image_bounds[:,0].max()
+    col_min = image_bounds[:,1].min()
+    col_max = image_bounds[:,1].max()
+    image_size = (int(col_max - col_min), int(row_max - row_min))
+    offset = (int(-col_min), int(-row_min))
+    #create image
+    image = numpy.zeros(image_size, dtype = numpy.uint8)
+    for region in regions:
+        image[region['position']['col'] + offset[0]:region['position']['col'] + offset[0] + region['image'].shape[0], \
+              region['position']['row'] + offset[1]:region['position']['row'] + offset[1] + region['image'].shape[1]] = region['image'] 
+    return image, common_scale
 
-    def test_01_DataHandler_contructor(self):
-        pass
-
-    def tearDown(self):
-        pass
+if __name__=='__main__':
+    import Image
+    im, c = merge_brain_regions(hdf5io.read_item('/home/zoltan/visexp/debug/data/mouse_chatdtr_14-9-2011_26-1-2012_0_0.hdf5', 'scan_regions'), 'master')
+    im = Image.fromarray(im)
+    im.save('/home/zoltan/visexp/debug/data/p.png')
+    
+    
+    
+    
+    

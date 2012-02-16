@@ -90,14 +90,14 @@ class TestFindoutConfig(unittest.TestCase):
 
 if __name__ == "__main__":
     commands = []
-    for i in range(1):
+    for i in range(0):
         if i == 0:
             commands.append([0.0, 'SOCexecute_experimentEOCEOP'])
         else:
             commands.append([40.0, 'SOCexecute_experimentEOCEOP'])
-    commands.append([0.0, 'SOCquitEOCEOP'])
+#    commands.append([0.0, 'SOCquitEOCEOP'])
     v = visexpman.engine.vision_experiment.VisionExperimentRunner(*find_out_config())
-    cs = command_handler.CommandSender(v.config, v, commands)
-    cs.start()
+#    cs = command_handler.CommandSender(v.config, v, commands)
+#    cs.start()
     v.run_loop()
-    cs.close()
+#    cs.close()

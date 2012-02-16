@@ -45,4 +45,9 @@ class RandomShapeExperiment(experiment.Experiment):
                             color = self.experiment_config.SHAPE_COLOR, 
                             background_color = self.experiment_config.SHAPE_BACKGROUND,
                             size = self.experiment_config.SHAPE_SIZE)
-            self.show_fullscreen(duration = self.experiment_config.PAUSE,  color = self.experiment_config.SHAPE_BACKGROUND),
+            if self.abort:
+                break
+            self.show_fullscreen(duration = self.experiment_config.PAUSE,  color = self.experiment_config.SHAPE_BACKGROUND)
+            if self.abort:
+                break
+                

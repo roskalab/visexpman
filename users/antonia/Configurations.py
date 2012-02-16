@@ -1,3 +1,4 @@
+import numpy
 import os
 import serial
 from visexpman.engine.generic.parameter import Parameter
@@ -5,7 +6,7 @@ from visexpman.engine.vision_experiment.configuration import VisionExperimentCon
 import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.generic.utils as utils
-
+import scipy.interpolate
 class Debug(VisionExperimentConfig):
     '''
     Antona's Electrophisology visual stimulation
@@ -42,12 +43,10 @@ class Debug(VisionExperimentConfig):
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        ENABLE_UDP = not True
+        ENABLE_UDP = (self.OS == 'win')
   
         #=== Filterwheel ===
-        
         ENABLE_FILTERWHEEL = False
-        
         #=== LED controller ===
         SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
@@ -74,6 +73,35 @@ class Debug(VisionExperimentConfig):
                     ]
         #=== Others ===
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
+        self.GAMMA_CORRECTION = numpy.array([
+                                            [0, 12.5], 
+                                            [10, 27], 
+                                            [20, 55], 
+                                            [30, 83], 
+                                            [40, 109], 
+                                            [50, 256], 
+                                            [60, 351], 
+                                            [70, 490], 
+                                            [80, 646], 
+                                            [90, 826], 
+                                            [100, 950], 
+                                            [110, 1088], 
+                                            [120, 1245], 
+                                            [130, 1340], 
+                                            [140, 4590], 
+                                            [150, 6528], 
+                                            [160, 8390], 
+                                            [170, 11530], 
+                                            [180, 14170], 
+                                            [190, 16400], 
+                                            [200, 17680], 
+                                            [210, 18790], 
+                                            [220, 19160], 
+                                            [230, 19250], 
+                                            [240, 19250], 
+                                            [255, 19260], 
+                                            ])
+
         self._create_parameters_from_locals(locals())
 
 class AEPHVS(VisionExperimentConfig):

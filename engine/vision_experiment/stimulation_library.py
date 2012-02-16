@@ -137,14 +137,14 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         '''
         Set background color. Call this when a visual pattern should have a different background color than config.BACKGROUND_COLOR
         '''
-        color_to_set = colors.convert_color(color)
+        color_to_set = colors.convert_color(color, self.config)
         glClearColor(color_to_set[0], color_to_set[1], color_to_set[2], 0.0)
         
     def add_text(self, text, color = (1.0,  1.0,  1.0), position = utils.rc((0.0, 0.0)),  text_style = GLUT_BITMAP_TIMES_ROMAN_24):
         '''
         Adds text to text list
         '''
-        text_config = {'enable' : True, 'text' : text, 'color' : colors.convert_color(color), 'position' : position, 'text_style' : text_style}
+        text_config = {'enable' : True, 'text' : text, 'color' : colors.convert_color(color, self.config), 'position' : position, 'text_style' : text_style}
         self.text_on_stimulus.append(text_config)
         
     def change_text(self, id, enable = None, text = None, color = None, position = None,  text_style = None):
@@ -157,7 +157,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if text != None:
             text_config['text'] = text
         if color != None:
-            text_config['color'] = colors.convert_color(color)
+            text_config['color'] = colors.convert_color(color, self.config)
         if position != None:
             text_config['position'] = position
         if text_style != None:
@@ -186,7 +186,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
-            color_to_set = colors.convert_color(color)
+            color_to_set = colors.convert_color(color, self.config)
         self.log_on_flip_message_initial = 'show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')'
         self.log_on_flip_message_continous = 'show_fullscreen'
         self.screen.clear_screen(color = color_to_set)
@@ -218,7 +218,6 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 if flip:
                     self._flip(trigger = True)
                 if self.abort:
-                    self.abort = False
                     break
                     
         #set background color to the original value
@@ -262,7 +261,6 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 if flip:
                     self._flip(trigger = True)
                 if self.abort:
-                    self.abort = False
                     break
         
 #        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
@@ -402,13 +400,13 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         n_vertices = vertices.shape[0]
 
         #Set color
-        glColor3fv(colors.convert_color(color))
+        glColor3fv(colors.convert_color(color, self.config))
         if background_color != None:
             background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
-            converted_background_color = colors.convert_color(background_color)
+            converted_background_color = colors.convert_color(background_color, self.config)
             glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
         else:
-            converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR)        
+            converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)        
         
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
@@ -421,9 +419,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 glDrawArrays(GL_POLYGON,  0, n_vertices)
             else:
                 n = int(n_vertices/2)                
-                glColor3fv(colors.convert_color(converted_background_color))
+                glColor3fv(colors.convert_color(converted_background_color, self.config))
                 glDrawArrays(GL_POLYGON,  n, n)
-                glColor3fv(colors.convert_color(color))
+                glColor3fv(colors.convert_color(color, self.config))
                 glDrawArrays(GL_POLYGON,  0, n)
             #Make sure that at the first flip the parameters of the function call are logged
             if not first_flip:
@@ -437,7 +435,6 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     self.log_on_flip_message = self.log_on_flip_message_continous
             self._flip(trigger = True)
             if self.abort:
-                self.abort = False
                 break
             if stop_stimulus:                
                 break
@@ -730,6 +727,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], profile_length, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, waveform_duty_cycle)
         stimulus_profile = numpy.array([[stimulus_profile_r],  [stimulus_profile_g],  [stimulus_profile_b]])
         stimulus_profile = stimulus_profile.transpose()
+        if hasattr(self.config, 'GAMMA_CORRECTION'):
+            stimulus_profile = self.config.GAMMA_CORRECTION(stimulus_profile)
         
         ######### Calculate texture phase shift per frame value ######
         pixel_velocity = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / float(stimulus_profile.shape[0])
@@ -757,7 +756,6 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         else:
             number_of_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         start_time = time.time()
-        stop_stimulus = False
 #         pixel_velocity= -1.5/stimulus_profile.shape[0]
 #         number_of_frames = int(numpy.sqrt(800**2+600**2)/1.5)
         for i in range(number_of_frames):
@@ -776,9 +774,6 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             if not part_of_drawing_sequence:
                 self._flip(trigger = True)
             if self.abort:
-                self.abort = False
-                break
-            if stop_stimulus:                
                 break
                     
         glDisable(GL_TEXTURE_2D)
@@ -838,11 +833,11 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             for i in range(n_frames_per_pattern):
                 for dot_i in range(ndots):
                     if isinstance(color[0],  list):
-                        glColor3fv(color[frame_i][dot_i])
+                        glColor3fv(colors.convert_color(color[frame_i][dot_i], self.config))
                     elif isinstance(color[0], numpy.ndarray):
-                        glColor3fv(color[frame_i][dot_i].tolist())
+                        glColor3fv(colors.convert_color(color[frame_i][dot_i].tolist(), self.config))
                     else:
-                        glColor3fv(color)
+                        glColor3fv(colors.convert_color(color, self.config))
                     glDrawArrays(GL_POLYGON,  dot_i * n_vertices, n_vertices)
                     
                 #Make sure that at the first flip the parameters of the function call are logged
@@ -853,7 +848,6 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     self.log_on_flip_message = self.log_on_flip_message_continous                
                 self._flip(trigger = True)                
             if self.abort:
-                self.abort = False
                 break
                 
         glDisableClientState(GL_VERTEX_ARRAY)

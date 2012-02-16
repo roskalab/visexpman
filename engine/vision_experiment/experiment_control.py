@@ -372,7 +372,8 @@ class ExperimentControl(object):
                     if not result:
                         self.fragment_check_result = result
                         self.printl('Incorrect fragment file: ' + str(self.fragment_error_messages))
-            for fid in range(self.number_of_fragments):
+        for fid in range(self.number_of_fragments):
+            if os.path.exists(self.filenames['local_fragments'][fid]):
                 shutil.copy(self.filenames['local_fragments'][fid], self.filenames['fragments'][fid])
 
     def _pack_software_environment(self):

@@ -43,7 +43,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             self.loop_state = 'end loop'
         return 'quit'
         
-    def bullseye(self):
+    def bullseye(self,  size = 0):
         self.show_bullseye = not self.show_bullseye
         return 'bullseye'
 
@@ -63,15 +63,15 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         result = network_interface.wait_for_response(self.queues['mes']['in'], ['SOCechoEOCvisexpmanEOP'], timeout = self.config.MES_TIMEOUT)
         return 'echo ' + str(result)
         
-    def filterwheel(self, filterwheel_id, filter_position):
+    def filterwheel(self, filterwheel_id = 1, filter_position = 1):
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):            
             filterwheel = instrument.Filterwheel(self.config, id = filterwheel_id)
             filterwheel.set(filter_position)
             if os.name == 'nt':
                 filterwheel.release_instrument()
-        return 'filterwheel ' + par
+        return 'filterwheel ' + str(filterwheel_id) + ',  ' +str(filter_position)
         
-    def stage(self,par):
+    def stage(self,par, new_x = 0, new_y = 0, new_z = 0):
         '''
         read stage:
             command: SOCstageEOCreadEOP
@@ -90,8 +90,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                 if 'origin' in par:
                     self.stage_origin = position                
                 if 'set' in par:
-                    new_position = par.split(',')[1:]
-                    new_position = numpy.array([float(new_position[0]), float(new_position[1]), float(new_position[2])])
+                    new_position = numpy.array([float(new_x), float(new_y), float(new_z)])
                     reached = stage.move(new_position)
                     position = stage.position
                     self.queues['gui']['out'].put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
