@@ -145,6 +145,20 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         self.log = log.Log('visexpman log ' +  str(time.time()), self.logfile_path, write_mode = 'user control')
 
 class TestVisionExperimentRunner(unittest.TestCase):
+
+    def setUp(self):
+        if '_09_' in self._testMethodName and unit_test_runner.TEST_mes:
+            from visexpman.users.zoltan.automated_test_data import TestMesPlatformConfig
+            self.server_config = TestMesPlatformConfig()
+            self.server = network_interface.CommandRelayServer(self.server_config)
+
+    def tearDown(self):
+        if '_09_' in self._testMethodName and unit_test_runner.TEST_mes:
+            raw_input('1. In MES software close connections\n\
+                 2. Press ENTER')
+            if hasattr(self, 'server'):
+                self.server.shutdown_servers()
+                
     #== Test cases for VisexpRunner's constructor ==    
     def test_01_VisexpRunner_SafestartConfig(self):        
         self.v1 = VisionExperimentRunner('default', 'SafestartConfig')
@@ -311,19 +325,6 @@ class TestVisionExperimentRunner(unittest.TestCase):
                        True, 
                        True, 
                         ))
-                        
-    def setUp(self):
-        if '_09_' in self._testMethodName:
-            from visexpman.users.zoltan.automated_test_data import TestMesPlatformConfig
-            self.server_config = TestMesPlatformConfig()
-            self.server = network_interface.CommandRelayServer(self.server_config)
-
-    def tearDown(self):
-        if '_09_' in self._testMethodName:
-            raw_input('1. In MES software close connections\n\
-                 2. Press ENTER')
-            if hasattr(self, 'server'):
-                self.server.shutdown_servers()
 
     def test_09_mes_platform(self):
         '''
@@ -337,37 +338,38 @@ class TestVisionExperimentRunner(unittest.TestCase):
         
         unit test runner command line switches: pp, mes (real/emulated mes), daq, stage
         '''
-        raw_input('1. In MES software, server address shall be set to this machine\'s ip\n\
-                2. Connect MES to stim\n\
-                3. Press ENTER')
-        
-        commands = [
-                    [0.02,'SOCexecute_experimentEOC'],
-                    [0.01,'SOCquitEOC'], 
-                    ]
-        config_name = 'TestMesPlatformConfig'
-        v = VisionExperimentRunner('zoltan', config_name)
-        cs = command_handler.CommandSender(v.config, v, commands)
-        cs.start()
-        v.run_loop()
-        cs.close()
-       #Read logs
-        log = file.read_text_file(v.logfile_path)
-        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
-        self.assertEqual(
-                        (self.check_application_log(v), 
-                        self.check_experiment_log(v), 
-                        'show_fullscreen(' in experiment_log,
-                        v.experiment_config.runnable.fragment_check_result, 
-                        v.config.__class__, 
-                        v.config.user,
-                        v.experiment_config.__class__, 
-                        ),
-                        (True, True, True, True, 
-                        visexpman.users.zoltan.automated_test_data.TestMesPlatformConfig,
-                       'zoltan',
-                       visexpman.users.zoltan.automated_test_data.MesPlatformExperimentC, 
-                        ))
+        if unit_test_runner.TEST_mes:
+            raw_input('1. In MES software, server address shall be set to this machine\'s ip\n\
+                    2. Connect MES to stim\n\
+                    3. Press ENTER')
+            
+            commands = [
+                        [0.02,'SOCexecute_experimentEOC'],
+                        [0.01,'SOCquitEOC'], 
+                        ]
+            config_name = 'TestMesPlatformConfig'
+            v = VisionExperimentRunner('zoltan', config_name)
+            cs = command_handler.CommandSender(v.config, v, commands)
+            cs.start()
+            v.run_loop()
+            cs.close()
+           #Read logs
+            log = file.read_text_file(v.logfile_path)
+            experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
+            self.assertEqual(
+                            (self.check_application_log(v), 
+                            self.check_experiment_log(v), 
+                            'show_fullscreen(' in experiment_log,
+                            v.experiment_config.runnable.fragment_check_result, 
+                            v.config.__class__, 
+                            v.config.user,
+                            v.experiment_config.__class__, 
+                            ),
+                            (True, True, True, True, 
+                            visexpman.users.zoltan.automated_test_data.TestMesPlatformConfig,
+                           'zoltan',
+                           visexpman.users.zoltan.automated_test_data.MesPlatformExperimentC, 
+                            ))
 
     def test_10_elphys_platform(self):
         '''
@@ -479,9 +481,9 @@ class TestVisionExperimentRunner(unittest.TestCase):
                 'show_grating(0.0, tri, 20, (100, 100), 350, 90.0, 0.0, 0.5, 0.25, (100, 0))', 
                 'show_grating(0.0, saw, 50, (200, 100), 0, 0.0, 0.0, 1.0, 0.5, (300, 250))', 
                 'show_grating(0.0333333333333, sqr, 40, (0, 0), 0, 0.0, 2400.0, 1.0, 0.5, (0, 0))',
-                'show_dots(0.0, [100, 100], [array((0, 0),',  
-                'show_dots(0.0, [100, 100, 10], [array((0, 0),', 
-                'show_dots(0.0, [100, 100, 10], [array((0, 0), ', 
+                'show_dots(0.0, [100, 100], [(0, 0)',  
+                'show_dots(0.0, [100, 100, 10], [(0, 0)', 
+                'show_dots(0.0, [100, 100, 10], [(0, 0) ', 
                 'show_dots(0.0333333333333, [200 200 200  20  20  20], [(0, 0) (200, 0) (200, 200) (0, 0) (200, 0) (100, 100)])', 
                 'show_shape(, 0.0, (-50, 100), [1.0, 1.0, 1.0], None, 0.0, 200.0, 1.0)', 
                 'show_shape(circle, 0.0333333333333, (0, 0), 200, None, 0.0, (100.0, 200.0), 1.0)', 

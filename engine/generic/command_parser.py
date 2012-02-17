@@ -95,7 +95,7 @@ class TestCommandParser(CommandParser):
         self.par = par
         return 'kw_only'
 
-class TestAnalysisCommandHandler(unittest.TestCase):
+class TestCommandHandler(unittest.TestCase):
     def setUp(self):
         self.queue_in = Queue.Queue()
         self.queue_out = Queue.Queue()

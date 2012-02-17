@@ -112,6 +112,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             for arg in args:
                 if arg != 'self':
                     frame_info['parameters'][arg] = values[arg]
+#                    if caller_name == 'show_dots':
+#                        if isinstancevalues[arg]
             self.stimulus_frame_info.append(frame_info)
 
     def _frame_trigger_pulse(self):

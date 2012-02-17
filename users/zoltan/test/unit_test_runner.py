@@ -106,7 +106,7 @@ class UnitTestRunner():
                {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
                'enable' : TEST_mes},
                {'test_class_path' : 'visexpman.engine.vision_experiment.TestVisionExperimentRunner',
-               'enable' : True, 'run_only' : ['10']},
+               'enable' : True, 'run_only' : []},
 #               {'test_class_path' : 'visexpman.engine.visexp_runner.TestFindoutConfig',
 #               'enable' : True, 'run_only' : []}, 
 #               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
@@ -117,7 +117,7 @@ class UnitTestRunner():
 #               'enable' : True},
 #               {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
 #               'enable' : not True}, #Not part of visexpman application
-#               {'test_class_path' : 'visexpman.engine.visual_stimulation.configuration.testApplicationConfiguration',
+#               {'test_class_path' : 'visexpman.engine.vision_experiment.configuration.testApplicationConfiguration',
 #               'enable' : True},
 #               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestParallelPort',
 #               'enable' : TEST_parallel_port},
@@ -139,10 +139,8 @@ class UnitTestRunner():
 #               'enable' : True},
 #               {'test_class_path' : 'visexpman.engine.generic.timing.TestTiming',
 #               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.command_parser.TestAnalysisCommandHandler',
+#               {'test_class_path' : 'visexpman.engine.generic.command_parser.TestCommandHandler',
 #               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.TestLUT',
-#               'enable' : not True},
                ]
 
     def fetch_test_methods(self, test_class):

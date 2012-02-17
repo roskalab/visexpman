@@ -55,10 +55,14 @@ class ExperimentControl(object):
         self._prepare_experiment()
         message = '{0}/{1} started at {2}' .format(self.experiment_name, self.experiment_config_name, utils.datetime_string())
         message_to_screen += self.printl(message,  application_log = True) + '\n'
+        self.finished_fragment_index = 0
         for fragment_id in range(self.number_of_fragments):
             if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
                 message_to_screen += self.printl('Experiment aborted',  application_log = True) + '\n'
                 self.abort = True
+                break
+            elif utils.is_graceful_stop_in_queue(self.queues['gui']['in'], False):
+                message_to_screen += self.printl('Graceful stop requested',  application_log = True) + '\n'
                 break
             elif self._start_fragment(fragment_id):
                     if self.number_of_fragments == 1:
@@ -177,6 +181,8 @@ class ExperimentControl(object):
         else:
             result = False
             self.printl('Data acquisition stopped with error')
+        if not aborted:
+            self.finished_fragment_index = fragment_id
         return result
     
      ############### Devices ##################
@@ -340,10 +346,12 @@ class ExperimentControl(object):
         software_environment = self._pack_software_environment()
         experiment_log_dict = self.log.log_dict
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-            for fragment_file in self.fragment_files:
+            for fragment_file in self.fragment_files[0:self.finished_fragment_index +1]:
                 fragment_file.software_environment = software_environment
                 fragment_file.experiment_log = numpy.fromstring(pickle.dumps(experiment_log_dict), numpy.uint8)
                 fragment_file.save(['software_environment', 'experiment_log'])
+                fragment_file.close()
+            for fragment_file in self.fragment_files[self.finished_fragment_index :]:
                 fragment_file.close()
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             for fragment_path, data_to_mat in self.fragment_data.items():
@@ -352,27 +360,19 @@ class ExperimentControl(object):
                 data_to_mat['config'] = experiment_data.save_config(None, self.config, self.experiment_config)
                 scipy.io.savemat(fragment_path, data_to_mat, oned_as = 'row', long_field_names=True)
         #Check all the fragments
-        if not self.abort:
-            self.printl('Check measurement data')
-            self.fragment_check_result = True
-            for fragment_file in self.filenames['local_fragments']:
-                    if hasattr(self.config, 'RUN_MES_EXTRACTOR'):
-                        if self.config.RUN_MES_EXTRACTOR:
-                            mes_extractor = importers.MESExtractor(fragment_file)
-                            try:
-                                data_class, stimulus_class, mes_name = mes_extractor.parse()#TODO: The return values need to be checked
-                                time.sleep(1.0) #Wait till file write is ready
-                            except MemoryError:
-                                self.printl('mesextractor parsing was not successful for {0}' .format(fragment_file))
-                    try:
-                        result, self.fragment_error_messages = experiment_data.check_fragment(fragment_file, self.config)
-                    except:
-                        result = False
-                        self.fragment_error_messages = traceback.format_exc()
-                    if not result:
-                        self.fragment_check_result = result
-                        self.printl('Incorrect fragment file: ' + str(self.fragment_error_messages))
-        for fid in range(self.number_of_fragments):
+        self.printl('Check measurement data')
+        self.fragment_check_result = True
+        for fragment_file in self.filenames['local_fragments'][0:self.finished_fragment_index +1]:
+            if os.path.exists(fragment_file):
+                try:
+                    result, self.fragment_error_messages = experiment_data.check_fragment(fragment_file, self.config)
+                except:
+                    result = False
+                    self.fragment_error_messages = traceback.format_exc()
+                if not result:
+                    self.fragment_check_result = result
+                    self.printl('Incorrect fragment file: ' + str(self.fragment_error_messages))
+        for fid in range(len(self.filenames['local_fragments'][0:self.finished_fragment_index +1])):
             if os.path.exists(self.filenames['local_fragments'][fid]):
                 shutil.copy(self.filenames['local_fragments'][fid], self.filenames['fragments'][fid])
 

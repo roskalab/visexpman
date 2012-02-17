@@ -162,6 +162,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.show_network_messages_button, QtCore.SIGNAL('clicked()'),  self.show_network_messages)
         self.connect(self.debug_widget.z_stack_button, QtCore.SIGNAL('clicked()'),  self.acquire_z_stack)
         self.connect(self.debug_widget.stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.stop_experiment)
+        self.connect(self.debug_widget.graceful_stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.graceful_stop_experiment)
         self.connect(self.debug_widget.start_experiment_button, QtCore.SIGNAL('clicked()'),  self.start_experiment)
         self.connect(self.debug_widget.set_stage_origin_button, QtCore.SIGNAL('clicked()'),  self.set_stage_origin)
         self.connect(self.debug_widget.read_stage_button, QtCore.SIGNAL('clicked()'),  self.read_stage)
@@ -180,6 +181,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.scan_region_groupbox.vertical_scan_button, QtCore.SIGNAL('clicked()'),  self.acquire_vertical_scan)
         self.connect(self.debug_widget.set_objective_button, QtCore.SIGNAL('clicked()'),  self.set_objective)
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
+        self.connect(self.debug_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.update_animal_parameter_display)
 
         
     def acquire_vertical_scan(self):
@@ -247,6 +249,7 @@ class VisionExperimentGui(QtGui.QWidget):
                         self.printc(region_name)
                     #Data to be saved regardless it is a master position or not:
                     scan_region = {}
+                    scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
                     scan_region['brain_surface'] = {}
                     scan_region['brain_surface']['image'] = self.brain_surface_image[self.config.DEFAULT_PMT_CHANNEL]
                     scan_region['brain_surface']['scale'] = self.brain_surface_image['scale']
@@ -386,6 +389,11 @@ class VisionExperimentGui(QtGui.QWidget):
         self.queues['stim']['out'].put(command)
         self.printc(command)
         
+    def graceful_stop_experiment(self):
+        command = 'SOCgraceful_stop_experimentEOCguiEOP'
+        self.queues['stim']['out'].put(command)
+        self.printc(command)
+        
     def start_experiment(self):
         command = 'SOCexecute_experimentEOCEOP'
         self.queues['stim']['out'].put(command)
@@ -454,7 +462,6 @@ class VisionExperimentGui(QtGui.QWidget):
         if scan_regions.keys() != self.scan_regions.keys():
             self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, scan_regions.keys())
         self.scan_regions = scan_regions
-        self.update_animal_parameter_display()
         #Display image of selected region
         selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
         if hasattr(self.scan_regions, 'has_key'):
@@ -475,16 +482,21 @@ class VisionExperimentGui(QtGui.QWidget):
                 #update overwiew
                 image, scale = experiment_data.merge_brain_regions(self.scan_regions, region_on_top = selected_region)
                 self.show_image(image, 'overview', scale)
-            
+                
         #Display coordinates of selected region
         if self.scan_regions.has_key(selected_region):
-            self.debug_widget.scan_region_groupbox.region_position.setText(\
-                                                                           '{0:.2f}, {1:.2f}, {2:.2f}' \
+            if self.scan_regions[selected_region].has_key('add_date'):
+                region_add_date = self.scan_regions[selected_region]['add_date']
+            else:
+                region_add_date = 'unknown'
+            self.debug_widget.scan_region_groupbox.region_info.setText(\
+                                                                           '{0:.2f}, {1:.2f}, {2:.2f}\n{3}' \
                                                                            .format(self.scan_regions[selected_region]['position']['x'][0], 
                                                                                    self.scan_regions[selected_region]['position']['y'][0], 
-                                                                                   self.scan_regions[selected_region]['position']['z'][0]))
+                                                                                   self.scan_regions[selected_region]['position']['z'][0], 
+                                                                                   region_add_date))
 
-    def update_animal_parameter_display(self):
+    def update_animal_parameter_display(self, index):
         selected_mouse_file  = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText()))
         if os.path.exists(selected_mouse_file):
             h = hdf5io.Hdf5io(selected_mouse_file)
@@ -718,6 +730,4 @@ def run_gui():
     app.exec_()
 
 if __name__ == '__main__':
-#    m = Main()
-#    m.start()    
     run_gui()

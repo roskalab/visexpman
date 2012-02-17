@@ -363,18 +363,18 @@ class VisualStimulationsExperiment(experiment.Experiment):
         self.add_text('TEST', color = (0.0,  0.0,  1.0), position = utils.cr((200.0, 100.0)))
         ndots = 2
         dot_sizes = [100, 100]
-        dot_positions = [utils.cr((0, 0)), utils.cr((100, 0))]
+        dot_positions = utils.cr(((0, 0), (100, 0)))
         self.show_dots(dot_sizes, dot_positions, ndots)
         self.disable_text()
         ndots = 3
         dot_sizes = [100, 100, 10]
-        dot_positions = [utils.cr((0, 0)), utils.cr((100, 0)), utils.cr((100, 100))]
+        dot_positions = utils.cr(((0, 100, 0), (0, 0, 100)))
         self.show_dots(dot_sizes, dot_positions, ndots, color = (1.0,  1.0,  0.0))
         self.show_dots(dot_sizes, dot_positions, ndots, color = numpy.array([[[1.0,  1.0,  0.0], [1.0,  0.0,  0.0], [0.0,  0.0,  1.0]]]))        
         #Multiple frames
         ndots = 3
         dot_sizes = numpy.array([200, 200, 200, 20, 20, 20])
-        dot_positions = numpy.array([utils.cr((0, 0)), utils.cr((200, 0)), utils.cr((200, 200)), utils.cr((0, 0)), utils.cr((200, 0)), utils.cr((100, 100))])
+        dot_positions = utils.cr(((0, 200, 200, 0, 200, 100), (0, 0, 200, 0, 0, 100)))
         color = numpy.array([[[1.0,  1.0,  0.0], [1.0,  0.0,  0.0], [0.0,  0.0,  1.0]], [[1.0,  1.0,  0.0], [1.0,  0.0,  0.0], [0.0,  0.0,  1.0]]])
         self.show_dots(dot_sizes, dot_positions, ndots, duration = 2.0/self.config.SCREEN_EXPECTED_FRAME_RATE, color = color)
         #Test show_shape

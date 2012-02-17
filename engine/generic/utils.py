@@ -687,14 +687,20 @@ def wait_data_appear_in_queue(queue, timeout):
     '''
     t = Timeout(timeout)
     return t.wait_timeout(_is_queue_not_empty, queue)
-
+       
 def is_abort_experiment_in_queue(queue, keep_in_queue = True):
+    return is_keyword_in_queue(queue, 'abort_experiment', keep_in_queue)
+
+def is_graceful_stop_in_queue(queue, keep_in_queue = True):
+    return is_keyword_in_queue(queue, 'graceful_stop_experiment', keep_in_queue)
+
+def is_keyword_in_queue(queue, keyword, keep_in_queue = True):
     result = False
     if hasattr(queue, 'empty'):
         queue_content = []
         while not queue.empty():
             command = queue.get()
-            if 'abort_experiment' in command:
+            if keyword in command:
                 result = True
                 if keep_in_queue:
                     queue_content.append(command)

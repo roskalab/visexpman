@@ -211,6 +211,7 @@ class DebugWidget(QtGui.QWidget):
         self.experiment_name.addItems(QtCore.QStringList(['moving_dot', 'grating', 'led stimulation']))
         self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
         self.stop_experiment_button = QtGui.QPushButton('Stop experiment',  self)
+        self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful stop experiment',  self)
         #Stage related
         self.set_stage_origin_button = QtGui.QPushButton('set stage origin', self)
         self.read_stage_button = QtGui.QPushButton('read stage', self)
@@ -240,6 +241,7 @@ class DebugWidget(QtGui.QWidget):
         self.layout.addWidget(self.experiment_name, 1, 0, 1, 1)
         self.layout.addWidget(self.start_experiment_button, 1, 1, 1, 1)
         self.layout.addWidget(self.stop_experiment_button, 1, 2, 1, 1)
+        self.layout.addWidget(self.graceful_stop_experiment_button, 1, 3, 1, 1)
         self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
         self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
         self.layout.addWidget(self.move_stage_button, 2, 2, 1, 1)
@@ -281,7 +283,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.remove_button = QtGui.QPushButton('Remove',  self)
         
         self.move_to_button = QtGui.QPushButton('Move to',  self)
-        self.region_position = QtGui.QLabel('',  self)
+        self.region_info = QtGui.QLabel('',  self)
         self.register_button = QtGui.QPushButton('Register',  self)
         self.realign_button = QtGui.QPushButton('Realign',  self)
         #Vertical alignment
@@ -300,10 +302,11 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.scan_regions_combobox, 4, 1, 1, 2)
         self.layout.addWidget(self.remove_button, 4, 3, 1, 1)
         self.layout.addWidget(self.move_to_button, 5, 1, 1, 1)
-        self.layout.addWidget(self.region_position, 5, 2, 1, 2)
+        self.layout.addWidget(self.region_info, 5, 2, 2, 2)
         self.layout.addWidget(self.register_button, 6, 0, 1, 1)
         self.layout.addWidget(self.realign_button, 6, 1, 1, 1)
         self.layout.addWidget(self.vertical_scan_button, 7, 0, 1, 1)
+        
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)

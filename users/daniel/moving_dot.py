@@ -45,7 +45,7 @@ class ShortMovingDotConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty        
         self.DIAMETER_UM = [300]        
-        self.ANGLES = [0] # degrees
+        self.ANGLES = [90,270] # degrees
         self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
@@ -240,10 +240,12 @@ class MovingDot(experiment.Experiment):
                # so that calcium transients can settle and we can clearly distinguish responses belonging to different directions. 
                 if numpy.any(angleset[a]==[0,90,180,270]):
                     direction = [k for k in vr_all.keys() if angleset[a] in k][0]
-                    vr = vr_all[direction][b]; vc = vc_all[direction][b]
-                    if angleset[a] in [270, 180]: # swap coordinates
-                        vr = vr[-1::-1] 
-                        vc = vc[-1::-1]
+                    vr = vr_all[direction][b]; 
+                    vc = vc_all[direction][b]
+                    if angleset[a]== 270: # swap coordinates
+                        vr = vr[:,-1::-1]
+                    elif angleset[a]==180: 
+                        vc = vc[:,-1::-1]
                     
                     # try to balance the dot run lengths (in case of multiple dots) so that most of the time the number of dots on screen is constant        
                     segm_length = vr.shape[1]/self.experiment_config.NDOTS #length of the trajectory 1 dot has to run in the stimulation segment
