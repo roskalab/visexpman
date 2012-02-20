@@ -218,6 +218,17 @@ def index(seq, f):
     """
     return next((i for i in xrange(len(seq)) if f(seq[i])), None)
 
+def celery_available():
+    try:
+        import celery
+        ct=celery.task.control.ping()
+        if len(ct)>0:
+            return True # at least 1 worker is alive
+        else:
+            return False # no workers alive
+    except: # no celery, run 1 threaded version
+        return False
+        
 def is_list(item):
     if isinstance(item,(list,tuple)):
         response='list'
