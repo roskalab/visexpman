@@ -180,6 +180,22 @@ def nameless_dummy_object_with_methods(*methods):
     for sym in methods:
         d[sym] = lambda self,*args,**kwargs: None
     return type("",(object,),d)()
+    
+def flatten(l, ltypes=(list, tuple)):
+    ltype = type(l)
+    l = list(l)
+    i = 0
+    while i < len(l):
+        while isinstance(l[i], ltypes):
+            if not l[i]:
+                l.pop(i)
+                i -= 1
+                break
+            else:
+                l[i:i + 1] = l[i]
+        i += 1
+    return ltype(l)
+
 
 def traverse(obj,  attrchain):
     '''Walks trough the attribute chain starting from obj and returns the last element of the chain. E.g.
@@ -200,6 +216,17 @@ def index(seq, f):
         return 'Calcium'
     """
     return next((i for i in xrange(len(seq)) if f(seq[i])), None)
+
+def is_list(item):
+    if isinstance(item,(list,tuple)):
+        response='list'
+        if isinstance(item[0],(list,tuple)):
+            response='list_of_lists'
+        if isinstance(item[0],dict):
+            response='list_of_dicts'
+    else:
+        response=None
+    return response
 
 from collections import deque
 class ModifiableIterator(object):
@@ -304,6 +331,13 @@ class TestUtils(unittest.TestCase):
                 alist.list = [1,3,4,5]
             result.append(item)
         self.assertEqual(result,[1,2,1,3,4,5])
+        
+    def test_flatten(self):
+        a = []
+        for i in xrange(3):
+            a = [a, i]
+            a = flatten(a)
+        #self.assertEqual()
         
     def test_dynamic_import(self):
         # Example

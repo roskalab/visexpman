@@ -229,6 +229,7 @@ class VisionExperimentGui(QtGui.QWidget):
         -objective positon where the data acquisition shall take place. This is below the brain surface
         -stage position. If master position is saved, the current position is set to origin. The origin of stimulation software is also 
         '''
+
         if widget == None:
             widget = self.debug_widget
         result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
@@ -247,6 +248,13 @@ class VisionExperimentGui(QtGui.QWidget):
                         relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
                         region_name = 'r_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
                         self.printc(region_name)
+                    #Ask for confirmation to overwrite if region name already exists
+                    if hdf5_handler.scan_regions.has_key(region_name):
+                        reply = QtGui.QMessageBox.question(self, 'Overwriting scan region', "Are you sure?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+                        if reply == QtGui.QMessageBox.No:
+                            self.printc('Region not saved')
+                            hdf5_handler.close()
+                            return
                     #Data to be saved regardless it is a master position or not:
                     scan_region = {}
                     scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
@@ -398,6 +406,12 @@ class VisionExperimentGui(QtGui.QWidget):
         command = 'SOCexecute_experimentEOCEOP'
         self.queues['stim']['out'].put(command)
         self.printc(command)
+        start_time = time.time()
+        while not utils.is_keyword_in_queue(self.queues['stim']['in'], 'SOCexecute_experimentEOCcompleteEOP'):
+            if time.time() - start_time > 600.0:#TODO: this wait shall not be here, such things shall be run be poller
+                self.printc('Experiment completition timeout')
+                break
+        self.printc('Experiment complete')
 
     def save_animal_parameters(self):
         '''
@@ -444,16 +458,22 @@ class VisionExperimentGui(QtGui.QWidget):
             self.hdf5_handler.save(variable_name)
             self.printc('Animal parameters saved')
             self.hdf5_handler.close()
+            #set selected mouse file to this one
+            self.update_mouse_files_combobox(set_to_value = os.path.split(mouse_file_path)[-1])
             
-    def update_gui_items(self):
-        '''
-        Update comboboxes with file lists
-        '''
+    def update_mouse_files_combobox(self, set_to_value = None):
         new_mouse_files = file.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
         if self.mouse_files != new_mouse_files:
             self.mouse_files = new_mouse_files
             self.update_combo_box_list(self.debug_widget.scan_region_groupbox.select_mouse_file, self.mouse_files)
-        
+            if set_to_value != None:
+                self.debug_widget.scan_region_groupbox.select_mouse_file.setCurrentIndex(self.mouse_files.index(set_to_value))
+
+    def update_gui_items(self):
+        '''
+        Update comboboxes with file lists
+        '''
+        self.update_mouse_files_combobox()
         selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
         scan_regions = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file), 'scan_regions')
         if scan_regions == None:
@@ -498,7 +518,7 @@ class VisionExperimentGui(QtGui.QWidget):
 
     def update_animal_parameter_display(self, index):
         selected_mouse_file  = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText()))
-        if os.path.exists(selected_mouse_file):
+        if os.path.exists(selected_mouse_file) and '.hdf5' in selected_mouse_file:
             h = hdf5io.Hdf5io(selected_mouse_file)
             varname = h.find_variable_in_h5f('animal_parameters')[0]
             h.load(varname)

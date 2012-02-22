@@ -134,7 +134,7 @@ class MesInterface(object):
         result = False
         if self.connection.connected_to_remote_client():
             self.queues['mes']['out'].put('SOCsetZ_relativeEOC{0}EOP' .format(parameter_path_on_mes))
-            if network_interface.wait_for_response(self.response_queue, ['SOCsetZ_relativeEOCcommandsentEOP'], timeout = timeout):
+            if network_interface.wait_for_response( self.queues['mes']['in'], ['SOCsetZ_relativeEOCcommandsentEOP'], timeout = timeout):
                 result = True
                 os.remove(parameter_path)
         return result
