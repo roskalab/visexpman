@@ -52,6 +52,9 @@ class ExperimentControl(object):
         if context.has_key('stage_origin'):
             self.stage_origin = context['stage_origin']
         message_to_screen = ''
+        if not self.connections['mes'].connected_to_remote_client():
+            message_to_screen = 'No connection with MES'
+            return message_to_screen
         self._prepare_experiment()
         message = '{0}/{1} started at {2}' .format(self.experiment_name, self.experiment_config_name, utils.datetime_string())
         message_to_screen += self.printl(message,  application_log = True) + '\n'
@@ -83,7 +86,6 @@ class ExperimentControl(object):
         return message_to_screen
 
     def _prepare_experiment(self):
-#        gc.collect()
         self.frame_counter = 0
         self.stimulus_frame_info = []
         self.initialize_experiment_log()
