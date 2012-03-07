@@ -134,7 +134,7 @@ class MesInterface(object):
         result = False
         if self.connection.connected_to_remote_client():
             self.queues['mes']['out'].put('SOCsetZ_relativeEOC{0}EOP' .format(parameter_path_on_mes))
-            if network_interface.wait_for_response(self.response_queue, ['SOCsetZ_relativeEOCcommandsentEOP'], timeout = timeout):
+            if network_interface.wait_for_response( self.queues['mes']['in'], ['SOCsetZ_relativeEOCcommandsentEOP'], timeout = timeout):
                 result = True
                 os.remove(parameter_path)
         return result
@@ -174,7 +174,7 @@ class MesInterface(object):
         #Acquire z stack
         if self.connection.connected_to_remote_client():
             self.queues['mes']['out'].put('SOCacquire_z_stackEOC{0}EOP' .format(z_stack_path_on_mes))
-            results.append(network_interface.wait_for_response(self.response_queue, 'SOCacquire_z_stackEOCstartedEOP', timeout = timeout))
+            results.append(network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_z_stackEOCstartedEOP', timeout = timeout))
             if results[-1]:
                 results.append(network_interface.wait_for_response(self.queues['mes']['in'], ['SOCacquire_z_stackEOCOKEOP', 'SOCacquire_z_stackEOCUSEOP'], timeout = -1))
                 results.append(network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_z_stackEOCsaveOKEOP', timeout = 5 * timeout))

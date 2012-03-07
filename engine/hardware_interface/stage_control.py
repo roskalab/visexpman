@@ -137,6 +137,7 @@ class AllegraStage(StageControl):
                 try:
                     self.position = self.position_ustep * self.config.STAGE[self.id]['um_per_ustep']
                 except ValueError:
+                    self.position = numpy.zeros(3, dtype = float)
                     print 'position in ustep: {0}' .format(self.position_ustep)
                     
             else:

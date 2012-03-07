@@ -129,10 +129,12 @@ class VisionExperimentGui(QtGui.QWidget):
         self.two_photon_image = context_hdf5.findvar('two_photon_image')
         if hasattr(self.two_photon_image, 'has_key'):
             if self.two_photon_image.has_key(self.config.DEFAULT_PMT_CHANNEL):
-                self.show_image(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0, self.two_photon_image['scale'])
+                self.show_image(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0, 
+                                self.two_photon_image['scale']['row'], 
+                                origin = self.two_photon_image['origin'])
         self.vertical_scan = context_hdf5.findvar('vertical_scan')
         if hasattr(self.vertical_scan, 'has_key'):
-            self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scale'])
+            self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scale']['row'], origin = self.two_photon_image['origin'])
         context_hdf5.close()
         self.stage_position_valid = False
         self.mouse_files = []
@@ -183,7 +185,6 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
         self.connect(self.debug_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.update_animal_parameter_display)
 
-        
     def acquire_vertical_scan(self):
         '''
         User have to figure out what is the correct scan time
@@ -194,7 +195,7 @@ class VisionExperimentGui(QtGui.QWidget):
             #Load scan settings from parameter file
             parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'scan_region_parameters.mat')
             selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
-            selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+            selected_region = self.get_current_region_name()
             scan_regions = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file), 'scan_regions')
             scan_regions[selected_region]['vertical_section']['mes_parameters'].tofile(parameter_file_path)
             result, line_scan_path = self.mes_interface.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file_path)
@@ -206,7 +207,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 if result:
                     self.vertical_scan = matlabfile.read_vertical_scan(line_scan_path)
                     #rescale image so that it could be displayed
-                    self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scale'])
+                    self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scale']['row'], origin = self.vertical_scan['origin'])
                     self.save_context()
                 else:
                     self.printc('data not saved')
@@ -229,6 +230,7 @@ class VisionExperimentGui(QtGui.QWidget):
         -objective positon where the data acquisition shall take place. This is below the brain surface
         -stage position. If master position is saved, the current position is set to origin. The origin of stimulation software is also 
         '''
+
         if widget == None:
             widget = self.debug_widget
         result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
@@ -241,12 +243,19 @@ class VisionExperimentGui(QtGui.QWidget):
                     hdf5_handler.scan_regions = hdf5_handler.findvar('scan_regions')
                     if hdf5_handler.scan_regions == None:
                         hdf5_handler.scan_regions = {}
-                    region_name = str(widget.scan_region_groupbox.scan_regions_combobox.currentText())
+                    region_name = self.get_current_region_name()
                     #If no name provided, will be generated from the coordinates
                     if region_name == '':
                         relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
                         region_name = 'r_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
                         self.printc(region_name)
+                    #Ask for confirmation to overwrite if region name already exists
+                    if hdf5_handler.scan_regions.has_key(region_name):
+                        reply = QtGui.QMessageBox.question(self, 'Overwriting scan region', "Are you sure?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+                        if reply == QtGui.QMessageBox.No:
+                            self.printc('Region not saved')
+                            hdf5_handler.close()
+                            return
                     #Data to be saved regardless it is a master position or not:
                     scan_region = {}
                     scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
@@ -290,7 +299,7 @@ class VisionExperimentGui(QtGui.QWidget):
                     
     def remove_scan_region(self):
         selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
-        selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+        selected_region = self.get_current_region_name()
         hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file))
         scan_regions = hdf5_handler.findvar('scan_regions')
         if scan_regions.has_key(selected_region):
@@ -338,7 +347,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.suggested_translation = utils.cr((0, 0)) #To avoid unnecessary movements if realign button is pressed twice
         
     def move_to_region(self):
-        selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+        selected_region = self.get_current_region_name()
         if (self.scan_regions.has_key('master') or self.scan_regions.has_key('r_0_0')) and self.scan_regions.has_key(selected_region):
             if self.scan_regions.has_key('master'):
                 master_position_name = 'master'
@@ -371,13 +380,16 @@ class VisionExperimentGui(QtGui.QWidget):
                 #Load scan settings from parameter file
                 parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'scan_region_parameters.mat')
                 selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
-                selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+                selected_region = self.get_current_region_name()
                 scan_regions = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file), 'scan_regions')
                 scan_regions[selected_region]['brain_surface']['mes_parameters'].tofile(parameter_file_path)
                 self.two_photon_image,  result = self.mes_interface.acquire_two_photon_image(self.config.MES_TIMEOUT, parameter_file = parameter_file_path)
-            self.files_to_delete.append(self.two_photon_image['path'])
+            if self.two_photon_image.has_key('path'):#For unknown reason this key is not found sometimes
+                self.files_to_delete.append(self.two_photon_image['path'])
             if result:
-                self.show_image(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0, self.two_photon_image['scale'])
+                self.show_image(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0, 
+                                self.two_photon_image['scale']['row'], 
+                                origin = self.two_photon_image['origin'])
                 self.save_context()
             else:
                 self.printc('No image acquired')
@@ -398,6 +410,12 @@ class VisionExperimentGui(QtGui.QWidget):
         command = 'SOCexecute_experimentEOCEOP'
         self.queues['stim']['out'].put(command)
         self.printc(command)
+        start_time = time.time()
+        while not utils.is_keyword_in_queue(self.queues['stim']['in'], 'SOCexecute_experimentEOCcompleteEOP'):
+            if time.time() - start_time > 600.0:#TODO: this wait shall not be here, such things shall be run be poller
+                self.printc('Experiment completition timeout')
+                break
+        self.printc('Experiment complete')
 
     def save_animal_parameters(self):
         '''
@@ -444,26 +462,38 @@ class VisionExperimentGui(QtGui.QWidget):
             self.hdf5_handler.save(variable_name)
             self.printc('Animal parameters saved')
             self.hdf5_handler.close()
+            #set selected mouse file to this one
+            self.update_mouse_files_combobox(set_to_value = os.path.split(mouse_file_path)[-1])
             
-    def update_gui_items(self):
-        '''
-        Update comboboxes with file lists
-        '''
+    def update_mouse_files_combobox(self, set_to_value = None):
         new_mouse_files = file.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
         if self.mouse_files != new_mouse_files:
             self.mouse_files = new_mouse_files
             self.update_combo_box_list(self.debug_widget.scan_region_groupbox.select_mouse_file, self.mouse_files)
-        
+            if set_to_value != None:
+                self.debug_widget.scan_region_groupbox.select_mouse_file.setCurrentIndex(self.mouse_files.index(set_to_value))
+
+    def update_gui_items(self):
+        '''
+        Update comboboxes with file lists
+        '''
+        self.update_mouse_files_combobox()
         selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
         scan_regions = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file), 'scan_regions')
         if scan_regions == None:
             scan_regions = {}
         #is new region added?
         if scan_regions.keys() != self.scan_regions.keys():
-            self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, scan_regions.keys())
+            displayable_region_names = []
+            for region in scan_regions.keys():
+                if scan_regions[region].has_key('add_date'):
+                    displayable_region_names.append(region + '  ' + scan_regions[region]['add_date'])
+                else:
+                    displayable_region_names.append(region)
+            self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, displayable_region_names)
         self.scan_regions = scan_regions
         #Display image of selected region
-        selected_region = str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+        selected_region = self.get_current_region_name()
         if hasattr(self.scan_regions, 'has_key'):
             if self.scan_regions.has_key(selected_region):
                 line = None
@@ -476,12 +506,14 @@ class VisionExperimentGui(QtGui.QWidget):
                                     -(self.scan_regions[selected_region]['vertical_section']['p2']['row'] - self.scan_regions[selected_region]['brain_surface']['origin']['row'])])
                     line /= self.scan_regions[selected_region]['brain_surface']['scale']['row']
                     line = line.tolist()
-                    
-                    self.show_image(self.scan_regions[selected_region]['vertical_section']['scaled_image'], 3, self.scan_regions[selected_region]['vertical_section']['scale'])
-                self.show_image(self.scan_regions[selected_region]['brain_surface']['image'], 1, self.scan_regions[selected_region]['brain_surface']['scale'], line = line)
+                    self.show_image(self.scan_regions[selected_region]['vertical_section']['scaled_image'], 3,
+                                     self.scan_regions[selected_region]['vertical_section']['scale']['row'], 
+                                     origin = self.scan_regions[selected_region]['vertical_section']['origin'])
+                image_to_display = self.scan_regions[selected_region]['brain_surface']
+                self.show_image(image_to_display['image'], 1, image_to_display['scale']['row'], line = line, origin = image_to_display['origin'])
                 #update overwiew
                 image, scale = experiment_data.merge_brain_regions(self.scan_regions, region_on_top = selected_region)
-                self.show_image(image, 'overview', scale)
+                self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
                 
         #Display coordinates of selected region
         if self.scan_regions.has_key(selected_region):
@@ -498,7 +530,7 @@ class VisionExperimentGui(QtGui.QWidget):
 
     def update_animal_parameter_display(self, index):
         selected_mouse_file  = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText()))
-        if os.path.exists(selected_mouse_file):
+        if os.path.exists(selected_mouse_file) and '.hdf5' in selected_mouse_file:
             h = hdf5io.Hdf5io(selected_mouse_file)
             varname = h.find_variable_in_h5f('animal_parameters')[0]
             h.load(varname)
@@ -593,19 +625,27 @@ class VisionExperimentGui(QtGui.QWidget):
     def parse_list_response(self, response):
         return numpy.array(map(float,parameter_extract.findall( response)[0].split(',')))
     
-    def show_image(self, image, channel, scale, line = None):
+    def show_image(self, image, channel, scale, line = None, origin = None):
+        scale_indexed = scale
+            
         if line != None:
             image_with_line = generic.draw_line_numpy_array(image, line)
         else:
             image_with_line = image
-        if channel == 'overview':
-            self.overview_widget.image_display.setPixmap(imaged.array_to_qpixmap(image_with_line, self.config.OVERVIEW_IMAGE_SIZE))
-            self.overview_widget.image_display.image = image_with_line
-            self.overview_widget.image_display.scale = scale
+        if origin != None:
+            origin_fixed = origin
+            division = numpy.round(min(image_with_line.shape) *  scale_indexed/ 5.0, -1)
+            image_with_sidebar = generic.draw_scalebar(image_with_line, origin_fixed, scale_indexed, division)
         else:
-            self.regions_images_widget.image_display[channel].setPixmap(imaged.array_to_qpixmap(image_with_line, self.config.IMAGE_SIZE))
-            self.regions_images_widget.image_display[channel].image = image_with_line
-            self.regions_images_widget.image_display[channel].scale = scale
+            image_with_sidebar = image_with_line
+        if channel == 'overview':
+            self.overview_widget.image_display.setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.OVERVIEW_IMAGE_SIZE))
+            self.overview_widget.image_display.image = image_with_sidebar
+            self.overview_widget.image_display.scale = scale_indexed
+        else:
+            self.regions_images_widget.image_display[channel].setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.IMAGE_SIZE))
+            self.regions_images_widget.image_display[channel].image = image_with_sidebar
+            self.regions_images_widget.image_display[channel].scale = scale_indexed
         
     def send_command(self):
         connection = str(self.debug_widget.select_connection_list.currentText())
@@ -658,6 +698,9 @@ class VisionExperimentGui(QtGui.QWidget):
         widget.clear()
         widget.addItems(QtCore.QStringList(new_list))
         widget.setCurrentIndex(current_index)
+        
+    def get_current_region_name(self):
+        return str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText()).split(' ')[0]
 
     def closeEvent(self, e):
         e.accept()
