@@ -9,6 +9,7 @@ import numpy
 import os.path
 import re
 import os
+import os.path
 import shutil
 
 import PyQt4.QtCore as QtCore
@@ -136,7 +137,8 @@ class MesInterface(object):
             self.queues['mes']['out'].put('SOCsetZ_relativeEOC{0}EOP' .format(parameter_path_on_mes))
             if network_interface.wait_for_response( self.queues['mes']['in'], ['SOCsetZ_relativeEOCcommandsentEOP'], timeout = timeout):
                 result = True
-                os.remove(parameter_path)
+        if os.path.exists(parameter_path):
+            os.remove(parameter_path)
         return result
             
     ################# Single two photon frame###############

@@ -4,6 +4,7 @@ import os
 import numpy
 import traceback
 import re
+import cPickle as pickle
 
 import PyQt4.QtCore as QtCore
 
@@ -109,9 +110,14 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log)
         return 'selected experiment: ' + str(experiment_index) + ' '
         
-    def execute_experiment(self, source_code = ''):
+    def execute_experiment(self, **kwargs):
+        if kwargs.has_key('source_code'):
+            source_code = kwargs['source_code']
+        else:
+           source_code = ''
+           
         if source_code == '':
-            self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log)
+            self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log, parameters = kwargs)
         else:
             loadable_source_code = source_code.replace('<newline>', '\n')
             loadable_source_code = loadable_source_code.replace('<comma>', ',')
@@ -131,8 +137,6 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         context = {}
         context['stage_origin'] = self.stage_origin
         result = self.experiment_config.runnable.run_experiment(context)
-        time.sleep(0.05)
-        self.queues['gui']['out'].put('SOCexecute_experimentEOCcompleteEOP')
         return result
         
 class CommandSender(QtCore.QThread):

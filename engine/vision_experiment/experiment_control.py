@@ -44,18 +44,29 @@ class ExperimentControl(object):
             if hasattr(self, 'fragment_durations'):
                 if not hasattr(self.fragment_durations, 'index') and not hasattr(self.fragment_durations, 'shape'):
                     self.fragment_durations = [self.fragment_durations]
-        self.start_time = time.time()
-        self.timestamp = str(int(self.start_time))
-        self.filenames = {}
-        
+        if self.parameters.has_key('objective_positions'):
+            self.objective_positions = map(float, self.parameters['objective_positions'].split('<comma>'))
+
     def run_experiment(self, context):
+        message_to_screen = ''
+        if hasattr(self, 'objective_positions'):
+            for objective_position in self.objective_positions:
+                context['objective_position'] = objective_position
+                message_to_screen += self.run_single_experiment(context)
+                if self.abort:
+                    break
+        else:
+            message_to_screen = self.run_single_experiment(context)
+        return message_to_screen
+        
+    def run_single_experiment(self, context):
         if context.has_key('stage_origin'):
             self.stage_origin = context['stage_origin']
         message_to_screen = ''
-        if not self.connections['mes'].connected_to_remote_client():
-            message_to_screen = 'No connection with MES'
+        if not self.connections['mes'].connected_to_remote_client() and self.config.PLATFORM == 'mes':
+            message_to_screen = self.printl('No connection with MES')
             return message_to_screen
-        self._prepare_experiment()
+        message_to_screen += self._prepare_experiment(context)
         message = '{0}/{1} started at {2}' .format(self.experiment_name, self.experiment_config_name, utils.datetime_string())
         message_to_screen += self.printl(message,  application_log = True) + '\n'
         self.finished_fragment_index = 0
@@ -84,17 +95,26 @@ class ExperimentControl(object):
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'
         self.application_log.flush()
         return message_to_screen
-
-    def _prepare_experiment(self):
+        
+    def _prepare_experiment(self, context):
+        message_to_screen = ''
         self.frame_counter = 0
         self.stimulus_frame_info = []
+        self.start_time = time.time()
+        self.timestamp = str(int(self.start_time))
+        self.filenames = {}
         self.initialize_experiment_log()
         self.initialize_devices()
         if self.config.PLATFORM == 'mes':
+            if context.has_key('objective_position'):
+                if not self.mes_interface.set_objective(context['objective_position'], self.config.MES_TIMEOUT):
+                    self.abort = True
+                    message_to_screen = 'objective not set'
             #read stage and objective
             self.stage_position = self.stage.read_position() - self.stage_origin
             result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
         self.prepare_files()
+        return message_to_screen 
         
     def _finish_experiment(self):
         self.finish_data_fragments()
@@ -301,7 +321,6 @@ class ExperimentControl(object):
                                     'experiment_source' : experiment_source, 
                                     }
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-            #This conversion is necessary because hdf5io cannot handle lists
             stimulus_frame_info = {}
             if stimulus_frame_info_with_data_series_index != 0:
                         for i in range(0, len(stimulus_frame_info_with_data_series_index)):
@@ -318,7 +337,6 @@ class ExperimentControl(object):
                     mes_data = numpy.zeros((2, 1), dtype = numpy.uint8)
                 data_to_file['mes_data'] = mes_data
                 data_to_file['mes_data_hash'] = hashlib.sha1(mes_data).hexdigest()
-                
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             stimulus_frame_info = stimulus_frame_info_with_data_series_index
         data_to_file['stimulus_frame_info'] = stimulus_frame_info

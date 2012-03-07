@@ -45,8 +45,8 @@ class ShortMovingDotConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty        
         self.DIAMETER_UM = [300]        
-        self.ANGLES = [90,270] # degrees
-        self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
+        self.ANGLES = [90] # degrees
+        self.SPEED = [2000] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
         self.PDURATION = 0
@@ -62,20 +62,22 @@ class MovingDotPre(experiment.PreExperiment):
         self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
 
 class MovingDot(experiment.Experiment):
-    def __init__(self, machine_config, experiment_config, queues, connections, application_log):
-        experiment.Experiment.__init__(self, machine_config, experiment_config, queues, connections, application_log)
+    def __init__(self, machine_config, experiment_config, queues, connections, application_log, parameters = {}):
+        experiment.Experiment.__init__(self, machine_config, experiment_config, queues, connections, application_log, parameters = parameters)
         
     def pre_first_fragment(self):
         self.show_fullscreen(color = 0.0)
     
     def run(self, fragment_id = 0):    
-        self.show_dots([self.diameter_pix*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE]*len(self.row_col[fragment_id]), self.row_col[fragment_id], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+        self.show_dots(numpy.array([self.diameter_pix*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE]*len(self.row_col[fragment_id])), 
+                self.row_col[fragment_id], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
         self.show_fullscreen(color = 0.0)
         self.experiment_specific_data ={}
         if hasattr(self, 'shown_line_order'):
             self.experiment_specific_data['shown_line_order'] = self.shown_line_order[fragment_id]
         if hasattr(self,'shown_directions'):
-            self.experiment_specific_data['shown_directions']= self.shown_directions[fragment_id]
+#            self.experiment_specific_data['shown_directions']= self.shown_directions[fragment_id]
+            self.experiment_specific_data['shown_directions']= numpy.array(self.shown_directions[fragment_id])
             
     def cleanup(self):
         #add experiment identifier node to experiment hdf5
@@ -316,7 +318,7 @@ class MovingDot(experiment.Experiment):
                     for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[cai][b][n][:,f])
                     self.row_col[-1].extend([c*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE for c in coords])
-                self.shown_directions[-1].append((allangles[a1], len(self.row_col[-1]))) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
+                self.shown_directions[-1].append([allangles[a1], len(self.row_col[-1])]) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
                 self.line_end[-1].append(arow_col[cai][b][0].shape[1])
             self.row_col[-1]=utils.rc(numpy.array(self.row_col[-1]))
         pass

@@ -99,11 +99,11 @@ def check_fragment(path, config):
         else:
             data_node_name = data_node_name[1:]
         data_node_name = string.join(data_node_name).replace(' ', '_')
-            
         expected_top_level_nodes = ['experiment_config', 'machine_config', 'experiment_config_pickled', 'machine_config_pickled', 'experiment_log', \
-                                    'software_environment', data_node_name]
+                                    'software_environment']
         if config.PLATFORM == 'mes':
             expected_top_level_nodes.append('position')
+        expected_top_level_nodes.append(data_node_name)
         fragment_handle = hdf5io.Hdf5io(path)
         nodes = fragment_handle.loadvar(expected_top_level_nodes)
         if None in nodes:
@@ -146,8 +146,8 @@ def check_fragment(path, config):
                     messages.append('unexpected data type in {0}'.format(node_name))
                 elif numpy.array(map(node.has_key, expected_subnodes)).sum() != len(expected_subnodes):
                     result = False
-                    messages.append('unexpected datafields in {0}'.format(node_name))
-        fragment_handle.close()
+                    messages.append('unexpected number of datafields in {0}'.format(node_name))
+        fragment_handle.close()        
     return result, messages
     
 def merge_brain_regions(scan_regions, region_on_top = None):

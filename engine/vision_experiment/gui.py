@@ -1,10 +1,12 @@
 import time
 import numpy
+import re
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
+from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.generic import utils
 from visexpA.engine.datadisplay import imaged
 
@@ -342,18 +344,23 @@ class StandardIOWidget(QtGui.QWidget):
         self.layout.setColumnStretch(0, 100)
         self.setLayout(self.layout)
         
+parameter_extract = re.compile('EOC(.+)EOP')
+command_extract = re.compile('SOC(.+)EOC')
 class Poller(QtCore.QThread):
-    def __init__(self, parent):
+    def __init__(self, parent, queues):
+        self.queues = queues
         self.parent = parent
         self.config = self.parent.config
         QtCore.QThread.__init__(self)
         self.abort = False
         self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
         self.parent.connect(self, QtCore.SIGNAL('update_gui'),  self.parent.update_gui_items)
+        
+        self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.parent.connections)
     
     def abort_poller(self):
         self.abort = True
-
+    
     def printc(self, text):
         self.emit(QtCore.SIGNAL('printc'), text)
         
@@ -366,11 +373,40 @@ class Poller(QtCore.QThread):
             if elapsed_time > self.config.GUI_REFRESH_PERIOD:
                 last_time = now
                 self.periodic()
-            time.sleep(1e-2)
+            self.handle_events()
+            self.handle_commands()
+            time.sleep(1e-1)
         self.printc('poller stopped')
         
     def periodic(self):
         self.emit(QtCore.SIGNAL('update_gui'))
+        
+    def handle_events(self):
+        for k, queue in self.queues.items():
+            if not queue['in'].empty():
+                message = queue['in'].get()
+                command = command_extract.findall(message)
+                if len(command) > 0:
+                    command = command[0]
+                parameter = parameter_extract.findall(message)
+                if len(parameter) > 0:
+                    parameter = parameter[0]                
+                if command == 'connection':
+                    message = command
+                elif command == 'echo' and parameter == 'GUI':
+                    message = ''
+                else:
+                    self.printc(k.upper() + ' '  + message)
+                    
+    def handle_commands(self):
+        pass
+        
+    #GUI initiated functions
+    def set_objective(self):
+        position = float(self.parent.scanc())
+        if self.mes_interface.set_objective(position, self.config.MES_TIMEOUT):
+            self.parent.debug_widget.objective_position_label.setText(str(position))
+            self.printc('objective is set to {0} um'.format(position))
         
 if __name__ == '__main__':
     pass

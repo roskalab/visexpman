@@ -151,7 +151,7 @@ class DebugOnLaptop(VisionExperimentConfig):
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'GratingConfig'
-        EXPERIMENT_CONFIG = 'MovingDotConfig'
+        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
 #        EXPERIMENT_CONFIG = 'Dummy'
         #=== paths/data handling ===
         use_drive = 'v'
@@ -192,10 +192,11 @@ class DebugOnLaptop(VisionExperimentConfig):
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         MES_TIMEOUT = 10.0
         PLATFORM = 'standalone'
+        PLATFORM = 'mes'
         
         #=== Network ===
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'
-        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.21'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         #=== hardware ===
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = 2
@@ -264,6 +265,8 @@ class Debug(VisionExperimentConfig):
 #        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
         EXPERIMENT_CONFIG = 'Dummy'
         RUN_MES_EXTRACTOR = False
+        PLATFORM = 'mes'
+#        PLATFORM = 'standalone'
         #=== paths/data handling ===
         use_drive = 'v'
         
@@ -305,12 +308,10 @@ class Debug(VisionExperimentConfig):
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
         MAXIMUM_RECORDING_DURATION = [96, [0, 10000]] #100
         MES_TIMEOUT = 15.0
-        PLATFORM = 'mes'
-#        PLATFORM = 'standalone'
         
         #=== Network ===
         ENABLE_UDP = False
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'#'172.27.25.220'
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.21'#'172.27.25.220' .1: production
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (self.OS == 'win')

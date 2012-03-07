@@ -19,6 +19,7 @@ import numpy
 import shutil
 import traceback
 import re
+import cPickle as pickle
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -29,7 +30,6 @@ import visexpman.engine.generic.utils as utils
 import visexpman.engine.vision_experiment.configuration as configuration
 import visexpman.engine.vision_experiment.gui as gui
 import visexpman.engine.hardware_interface.network_interface as network_interface
-import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpman.engine.generic.utils as utils
 from visexpman.engine.generic import file
 import visexpman.engine.generic as generic
@@ -57,7 +57,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.config = config
         self.command_relay_server = command_relay_server
         self.console_text = ''
-        self.poller = gui.Poller(self)
+        self.init_network()
+        self.poller = gui.Poller(self, self.queues)
         self.poller.start()
         QtGui.QWidget.__init__(self)
         self.setWindowTitle('Vision Experiment Manager GUI')
@@ -66,7 +67,6 @@ class VisionExperimentGui(QtGui.QWidget):
         self.create_gui()
         self.create_layout()
         self.connect_signals()
-        self.init_network()
         self.init_files()
         self.update_gui_items()
         self.show()
@@ -102,7 +102,6 @@ class VisionExperimentGui(QtGui.QWidget):
         self.queues['mes']['out'] = Queue.Queue()
         self.queues['mes']['in'] = Queue.Queue()
         self.connections['mes'] = network_interface.start_client(self.config, 'GUI', 'GUI_MES', self.queues['mes']['in'], self.queues['mes']['out'])
-        self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections)
         self.queues['stim'] = {}
         self.queues['stim']['out'] = Queue.Queue()
         self.queues['stim']['in'] = Queue.Queue()
@@ -181,7 +180,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.scan_region_groupbox.move_to_button, QtCore.SIGNAL('clicked()'),  self.move_to_region)
         self.connect(self.debug_widget.scan_region_groupbox.register_button, QtCore.SIGNAL('clicked()'),  self.register)
         self.connect(self.debug_widget.scan_region_groupbox.vertical_scan_button, QtCore.SIGNAL('clicked()'),  self.acquire_vertical_scan)
-        self.connect(self.debug_widget.set_objective_button, QtCore.SIGNAL('clicked()'),  self.set_objective)
+        self.connect(self.debug_widget.set_objective_button, QtCore.SIGNAL('clicked()'),  self.poller.set_objective)
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
         self.connect(self.debug_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.update_animal_parameter_display)
 
@@ -399,23 +398,22 @@ class VisionExperimentGui(QtGui.QWidget):
     def stop_experiment(self):
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
-        self.printc(command)
+        self.printc('stop_experiment')
         
     def graceful_stop_experiment(self):
         command = 'SOCgraceful_stop_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
-        self.printc(command)
+        self.printc('graceful_stop_experiment')
         
     def start_experiment(self):
-        command = 'SOCexecute_experimentEOCEOP'
+        params =  self.scanc()
+        if len(params)>0:
+            objective_positions = params.replace(',',  '<comma>')
+            command = 'SOCexecute_experimentEOCobjective_positions={0}EOP' .format(objective_positions)
+        else:
+            command = 'SOCexecute_experimentEOCEOP'        
         self.queues['stim']['out'].put(command)
-        self.printc(command)
-        start_time = time.time()
-        while not utils.is_keyword_in_queue(self.queues['stim']['in'], 'SOCexecute_experimentEOCcompleteEOP'):
-            if time.time() - start_time > 600.0:#TODO: this wait shall not be here, such things shall be run be poller
-                self.printc('Experiment completition timeout')
-                break
-        self.printc('Experiment complete')
+        self.printc('Experiment started')
 
     def save_animal_parameters(self):
         '''
