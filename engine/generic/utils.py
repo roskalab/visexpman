@@ -497,6 +497,8 @@ version_paths = {
     'Helpers' : 'version', 
     'visexpman': 'version', 
     'visexpA': 'version', 
+    'scikits.learn':'__version__',
+    'Polygon':'__version__'
     }    
     
 def imported_modules():

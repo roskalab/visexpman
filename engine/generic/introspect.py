@@ -4,6 +4,7 @@ log = logging.getLogger('introspect')
 import PyQt4.QtCore as QtCore
 from contextlib import contextmanager
 import inspect
+import time
 import re
 ## {{{ http://code.activestate.com/recipes/519621/ (r4)
 import weakref
@@ -218,6 +219,23 @@ def index(seq, f):
     """
     return next((i for i in xrange(len(seq)) if f(seq[i])), None)
 
+class Timer(object):
+    '''Simple measurement utility, use as:
+    with Timer('give_a_name'):
+        statement1
+        statementN
+    '''
+    def __init__(self, name=None):
+        self.name = name
+
+    def __enter__(self):
+        self.tstart = time.time()
+
+    def __exit__(self, type, value, traceback):
+        if self.name:
+            print '[%s]' % self.name,
+        print 'Elapsed: %s' % (time.time() - self.tstart)
+
 def celery_available():
     try:
         import celery
@@ -234,8 +252,12 @@ def is_list(item):
         response='list'
         if isinstance(item[0],(list,tuple)):
             response='list_of_lists'
-        if isinstance(item[0],dict):
+        if sum(isinstance(i0,dict) for i0 in item)==len(item):
             response='list_of_dicts'
+        if sum(hasattr(i0,'shape') and len(i0.dtype) == 0 for i0 in item)==len(item):
+            response = 'list_of_arrays'
+        if sum(hasattr(i0,'shape') and len(i0.dtype) > 0 for i0 in item)==len(item):
+            response = 'list_of_recarrays'
     else:
         response=None
     return response
