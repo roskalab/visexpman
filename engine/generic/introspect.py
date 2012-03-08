@@ -6,6 +6,7 @@ from contextlib import contextmanager
 import inspect
 import time
 import re
+import numpy
 ## {{{ http://code.activestate.com/recipes/519621/ (r4)
 import weakref
 
@@ -247,7 +248,13 @@ def celery_available():
     except: # no celery, run 1 threaded version
         return False
         
-def is_list(item):
+def list_type(item):
+    try:
+        item2=numpy.array(item)
+        if item2.dtype is not object:
+            return None
+    except:
+        pass
     if isinstance(item,(list,tuple)):
         response='list'
         if isinstance(item[0],(list,tuple)):

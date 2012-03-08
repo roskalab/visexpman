@@ -180,9 +180,17 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.scan_region_groupbox.move_to_button, QtCore.SIGNAL('clicked()'),  self.move_to_region)
         self.connect(self.debug_widget.scan_region_groupbox.register_button, QtCore.SIGNAL('clicked()'),  self.register)
         self.connect(self.debug_widget.scan_region_groupbox.vertical_scan_button, QtCore.SIGNAL('clicked()'),  self.acquire_vertical_scan)
-        self.connect(self.debug_widget.set_objective_button, QtCore.SIGNAL('clicked()'),  self.poller.set_objective)
+#        self.connect(self.debug_widget.set_objective_button, QtCore.SIGNAL('clicked()'),  self.poller.set_objective)
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
         self.connect(self.debug_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.update_animal_parameter_display)
+
+        
+        self.signal_mapper = QtCore.QSignalMapper(self)
+        self.signal_mapper.setMapping(self.debug_widget.set_objective_button, QtCore.QString('1'))
+        self.debug_widget.set_objective_button.clicked.connect(self.signal_mapper.map)
+        
+        
+        self.signal_mapper.mapped.connect(self.poller.convey_command)
 
     def acquire_vertical_scan(self):
         '''

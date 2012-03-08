@@ -374,7 +374,7 @@ class Poller(QtCore.QThread):
                 last_time = now
                 self.periodic()
             self.handle_events()
-            self.handle_commands()
+#            self.handle_commands()
             time.sleep(1e-1)
         self.printc('poller stopped')
         
@@ -397,10 +397,13 @@ class Poller(QtCore.QThread):
                     message = ''
                 else:
                     self.printc(k.upper() + ' '  + message)
-                    
+
     def handle_commands(self):
         pass
         
+    def convey_command(self, command):
+        pass
+    
     #GUI initiated functions
     def set_objective(self):
         position = float(self.parent.scanc())

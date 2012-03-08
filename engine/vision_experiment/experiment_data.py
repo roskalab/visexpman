@@ -105,7 +105,7 @@ def check_fragment(path, config):
             expected_top_level_nodes.append('position')
         expected_top_level_nodes.append(data_node_name)
         fragment_handle = hdf5io.Hdf5io(path)
-        nodes = fragment_handle.loadvar(expected_top_level_nodes)
+        nodes = fragment_handle.findvar(expected_top_level_nodes)
         if None in nodes:
             result = False
             messages.append('Top level node missing: {0}'.format(expected_top_level_nodes[nodes.index(None)]))

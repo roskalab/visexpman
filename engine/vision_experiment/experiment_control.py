@@ -24,7 +24,6 @@ from visexpman.engine.hardware_interface import instrument
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.hardware_interface import stage_control
 
-
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 import visexpA.engine.datahandlers.importers as importers
 
@@ -323,6 +322,7 @@ class ExperimentControl(object):
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             stimulus_frame_info = {}
             if stimulus_frame_info_with_data_series_index != 0:
+#                stimulus_frame_info = self.stimulus_frame_info
                         for i in range(0, len(stimulus_frame_info_with_data_series_index)):
                             stimulus_frame_info['index_'+str(i)] = self.stimulus_frame_info[i]
             if self.config.PLATFORM == 'mes':

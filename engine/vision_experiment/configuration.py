@@ -127,8 +127,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_TEXT = True
         TEXT_COLOR = [[1.0,  0.0,  0.0] ,  [[0.0, 0.0, 0.0],  [1.0,  1.0,  1.0]]]
 #        TEXT_SIZE = [12,  [2,  20]]
-        
-        STATES = [['idle',  'stimulation'],  None]        #This might be obsolete
+               
 
         MENU_POSITION = utils.cr((-0.48, 0.45))
         MESSAGE_POSITION = utils.cr((-0.48,0.0))
