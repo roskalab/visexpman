@@ -155,17 +155,23 @@ class MesInterface(object):
         image = numpy.zeros((2, 2))
         if self.connection.connected_to_remote_client():
             self.queues['mes']['out'].put('SOCacquire_xy_imageEOC{0}EOP' .format(two_photon_image_path_on_mes))
-            if network_interface.wait_for_response(self.queues['mes']['in'], ['SOCacquire_xy_imageEOCOKEOP', 'SOCacquire_xy_imageEOCUSEOP'], timeout = timeout):
-                if os.path.exists(two_photon_image_path):
-                    time.sleep(0.2)
-                    try:
-                        image = matlabfile.read_two_photon_image(two_photon_image_path)
-                        result = True
-                    except AssertionError:
-                        #Wait till file is available
-                        time.sleep(1.0)
-                        image = matlabfile.read_two_photon_image(two_photon_image_path)
-                        result = True
+            if network_interface.wait_for_response(self.queues['mes']['in'], ['SOCacquire_xy_imageEOCstartedEOP'], timeout = timeout):
+                if network_interface.wait_for_response(self.queues['mes']['in'], ['SOCacquire_xy_imageEOCOKEOP'], timeout = timeout):
+                    if network_interface.wait_for_response(self.queues['mes']['in'], ['SOCacquire_xy_imageEOCsaveOKEOP'], timeout = timeout):
+                        if os.path.exists(two_photon_image_path):
+                            time.sleep(0.2)
+                            try:
+                                image = matlabfile.read_two_photon_image(two_photon_image_path)
+                                result = True
+                            except AssertionError:
+                                #Wait till file is available
+                                time.sleep(1.0)
+                                image = matlabfile.read_two_photon_image(two_photon_image_path)
+                                result = True
+        import Image
+        im = numpy.cast['uint8'](image['pmtUGraw']/2)
+        im  = Image.fromarray(im)
+        im.save('v:\\debug\\data\\2p.png')
         return image, result
 
     ################# Z stack #########################
@@ -178,12 +184,11 @@ class MesInterface(object):
             self.queues['mes']['out'].put('SOCacquire_z_stackEOC{0}EOP' .format(z_stack_path_on_mes))
             results.append(network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_z_stackEOCstartedEOP', timeout = timeout))
             if results[-1]:
-                results.append(network_interface.wait_for_response(self.queues['mes']['in'], ['SOCacquire_z_stackEOCOKEOP', 'SOCacquire_z_stackEOCUSEOP'], timeout = -1))
-                results.append(network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_z_stackEOCsaveOKEOP', timeout = 5 * timeout))
+                results.append(network_interface.wait_for_response(self.queues['mes']['in'], ['SOCacquire_z_stackEOCOKEOP'], timeout = 3*timeout))
             else:
                 #Remove command from command queue
-                if not self.command_queue.empty():
-                    self.command_queue.get()
+                if not self.queues['mes']['out'].empty():
+                    self.queues['mes']['out'].get()
                 return {}, results
             #Extract z stack from mat file
             if test_mat_file != None:

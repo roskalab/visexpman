@@ -322,9 +322,7 @@ class ExperimentControl(object):
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             stimulus_frame_info = {}
             if stimulus_frame_info_with_data_series_index != 0:
-#                stimulus_frame_info = self.stimulus_frame_info
-                        for i in range(0, len(stimulus_frame_info_with_data_series_index)):
-                            stimulus_frame_info['index_'+str(i)] = self.stimulus_frame_info[i]
+                stimulus_frame_info = self.stimulus_frame_info
             if self.config.PLATFORM == 'mes':
                 time.sleep(0.1 * 1e-6 * os.path.getsize(self.filenames['mes_fragments'][fragment_id])) #Wait till data write complete
                 try:
