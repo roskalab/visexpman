@@ -1,6 +1,7 @@
 import time
 import numpy
 import re
+import Queue
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -346,16 +347,18 @@ class StandardIOWidget(QtGui.QWidget):
         
 parameter_extract = re.compile('EOC(.+)EOP')
 command_extract = re.compile('SOC(.+)EOC')
+
+################### Poller #######################
 class Poller(QtCore.QThread):
     def __init__(self, parent, queues):
         self.queues = queues
+        self.signal_id_queue = Queue.Queue() #signal parameter is passed to handler
         self.parent = parent
         self.config = self.parent.config
         QtCore.QThread.__init__(self)
         self.abort = False
         self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
         self.parent.connect(self, QtCore.SIGNAL('update_gui'),  self.parent.update_gui_items)
-        
         self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.parent.connections)
     
     def abort_poller(self):
@@ -374,7 +377,7 @@ class Poller(QtCore.QThread):
                 last_time = now
                 self.periodic()
             self.handle_events()
-#            self.handle_commands()
+            self.handle_commands()
             time.sleep(1e-1)
         self.printc('poller stopped')
         
@@ -390,7 +393,7 @@ class Poller(QtCore.QThread):
                     command = command[0]
                 parameter = parameter_extract.findall(message)
                 if len(parameter) > 0:
-                    parameter = parameter[0]                
+                    parameter = parameter[0]
                 if command == 'connection':
                     message = command
                 elif command == 'echo' and parameter == 'GUI':
@@ -399,17 +402,27 @@ class Poller(QtCore.QThread):
                     self.printc(k.upper() + ' '  + message)
 
     def handle_commands(self):
-        pass
+        if not self.signal_id_queue.empty():
+            function_call = self.signal_id_queue.get()
+            if hasattr(self, function_call):
+                getattr(self, function_call)()
         
-    def convey_command(self, command):
-        pass
+    def pass_signal(self, signal_id):
+        self.signal_id_queue.put(str(signal_id))
     
     #GUI initiated functions
     def set_objective(self):
-        position = float(self.parent.scanc())
+        try:
+            position = float(self.parent.scanc())
+        except ValueError:
+            self.printc('No position is given')
+            return
         if self.mes_interface.set_objective(position, self.config.MES_TIMEOUT):
             self.parent.debug_widget.objective_position_label.setText(str(position))
             self.printc('objective is set to {0} um'.format(position))
+        else:
+            self.printc('mes did not respond')
+        
         
 if __name__ == '__main__':
     pass

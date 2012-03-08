@@ -156,6 +156,8 @@ class VisionExperimentGui(QtGui.QWidget):
         
     ####### Signals/functions ###############
     def connect_signals(self):
+        self.signal_mapper = QtCore.QSignalMapper(self)
+        
         self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
         self.connect(self.debug_widget.animal_parameters_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)
@@ -185,12 +187,11 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.update_animal_parameter_display)
 
         
-        self.signal_mapper = QtCore.QSignalMapper(self)
-        self.signal_mapper.setMapping(self.debug_widget.set_objective_button, QtCore.QString('1'))
+        
+        self.signal_mapper.setMapping(self.debug_widget.set_objective_button, QtCore.QString('set_objective'))
         self.debug_widget.set_objective_button.clicked.connect(self.signal_mapper.map)
         
-        
-        self.signal_mapper.mapped.connect(self.poller.convey_command)
+        self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
 
     def acquire_vertical_scan(self):
         '''
