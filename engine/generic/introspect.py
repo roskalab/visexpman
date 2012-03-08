@@ -251,7 +251,7 @@ def celery_available():
 def list_type(item):
     try:
         item2=numpy.array(item)
-        if item2.dtype is not object:
+        if item2.dtype != object:
             return None
     except:
         pass
