@@ -11,9 +11,12 @@ import os
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 if os.name == 'nt':
-    import PyDAQmx
-    import PyDAQmx.DAQmxConstants as DAQmxConstants
-    import PyDAQmx.DAQmxTypes as DAQmxTypes
+    try:
+        import PyDAQmx
+        import PyDAQmx.DAQmxConstants as DAQmxConstants
+        import PyDAQmx.DAQmxTypes as DAQmxTypes
+    except:
+        pass
 
 
 class AnalogIO(instrument.Instrument):

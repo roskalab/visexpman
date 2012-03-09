@@ -21,6 +21,7 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
+import visexpman
 from visexpA.engine.datadisplay import imaged
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.vision_experiment.configuration as configuration
@@ -47,11 +48,12 @@ parameter_extract = re.compile('EOC(.+)EOP')
 
 ################### Main widget #######################
 class VisionExperimentGui(QtGui.QWidget):
-    def __init__(self, config, command_relay_server = None):
-        self.config = config
-        self.command_relay_server = command_relay_server
+    def __init__(self, user, config_class):
+        self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
+        self.command_relay_server = network_interface.CommandRelayServer(self.config)
         self.console_text = ''
         self.mouse_files = []
+        self.overwrite_region = 'undefined'
         self.poller = gui.Poller(self)
         self.poller.start()
         self.queues = self.poller.queues
@@ -64,7 +66,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_signals()
         self.update_gui_items()
         self.show()
-        
+
     def create_gui(self):
         self.debug_widget = gui.DebugWidget(self, self.config)
         self.regions_images_widget = gui.RegionsImagesWidget(self, self.config)
@@ -76,9 +78,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.image_tab = QtGui.QTabWidget(self)
         self.image_tab.addTab(self.regions_images_widget, 'Regions')
         self.image_tab.addTab(self.overview_widget, 'Overview')
-        
         self.standard_io_widget = gui.StandardIOWidget(self, self.config)
-        
         if hasattr(self.poller.two_photon_image, 'has_key'):
             if self.poller.two_photon_image.has_key(self.config.DEFAULT_PMT_CHANNEL):
                 self.show_image(self.poller.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0, 
@@ -95,15 +95,9 @@ class VisionExperimentGui(QtGui.QWidget):
         self.layout.setRowStretch(3, 3)
         self.layout.setColumnStretch(2, 1)
         self.setLayout(self.layout)
-
-    
-    
-            
-    
         
     ####### Signals/functions ###############
     def connect_signals(self):
-        
         self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
         self.connect(self.debug_widget.animal_parameters_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)
@@ -144,10 +138,12 @@ class VisionExperimentGui(QtGui.QWidget):
     def stop_experiment(self):
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
+        self.printc('Experiment abort requested,  please wait')
         
     def graceful_stop_experiment(self):
         command = 'SOCgraceful_stop_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
+        self.printc('Graceful stop requested,  please wait')
         
     def start_experiment(self):
         params =  self.scanc()
@@ -205,6 +201,9 @@ class VisionExperimentGui(QtGui.QWidget):
             self.hdf5_handler.close()
             #set selected mouse file to this one
             self.update_mouse_files_combobox(set_to_value = os.path.split(mouse_file_path)[-1])
+            #Clear image displays showing regions
+            self.regions_images_widget.clear_image_display(1)
+            self.regions_images_widget.clear_image_display(3)
             
     def update_mouse_files_combobox(self, set_to_value = None):
         new_mouse_files = file.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
@@ -220,11 +219,16 @@ class VisionExperimentGui(QtGui.QWidget):
         '''
         self.update_mouse_files_combobox()
         selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
-        scan_regions = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file), 'scan_regions')
+        mouse_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file)
+        scan_regions = hdf5io.read_item(mouse_file_full_path, 'scan_regions')
         if scan_regions == None:
             scan_regions = {}
-        #is new region added?
-        if scan_regions.keys() != self.poller.scan_regions.keys():
+        #is mouse file changed recently?
+        if not hasattr(self, 'mouse_file_last_change_time'):
+            self.mouse_file_last_change_time = 0
+        mouse_file_last_change_time = os.stat(mouse_file_full_path).st_mtime
+        if mouse_file_last_change_time != self.mouse_file_last_change_time:
+            self.mouse_file_last_change_time = mouse_file_last_change_time
             displayable_region_names = []
             for region in scan_regions.keys():
                 if scan_regions[region].has_key('add_date'):
@@ -373,6 +377,14 @@ class VisionExperimentGui(QtGui.QWidget):
         
     def get_current_region_name(self):
         return str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText()).split(' ')[0]
+        
+    def show_overwrite_region_messagebox(self):
+        utils.empty_queue(self.poller.gui_thread_queue)
+        reply = QtGui.QMessageBox.question(self, 'Overwriting scan region', "Are you sure?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.No:
+            self.poller.gui_thread_queue.put(False)
+        else:
+            self.poller.gui_thread_queue.put(True)
 
     def closeEvent(self, e):
         e.accept()
@@ -389,59 +401,10 @@ class VisionExperimentGui(QtGui.QWidget):
             self.command_relay_server.shutdown_servers()            
             time.sleep(2.0) #Enough time to close network connections
         sys.exit(0)
-        
-class GuiConfig(configuration.VisionExperimentConfig):
-    def _set_user_parameters(self):
-        COORDINATE_SYSTEM='center'
-
-        if self.OS == 'win':
-            v_drive_folder = 'V:\\'
-        elif self.OS == 'linux':                        
-            v_drive_folder = '/home/zoltan/visexp'
-        if len(sys.argv) >1:
-            arg = sys.argv[1]
-        else:
-            arg = ''
-        if 'dev' in arg or 'development' in self.PACKAGE_PATH:
-            CONTEXT_NAME = 'gui_dev.hdf5'
-            data_folder = os.path.join(v_drive_folder, 'debug', 'data')
-            MES_DATA_FOLDER = 'V:\\debug\\data'
-            MES_DATA_PATH = os.path.join(v_drive_folder, 'debug', 'data')            
-        else:
-            CONTEXT_NAME = 'gui.hdf5'
-            data_folder = os.path.join(v_drive_folder, 'experiment_data')
-            MES_DATA_FOLDER = 'V:\\experiment_data'
-            MES_DATA_PATH = os.path.join(v_drive_folder, 'experiment_data')
-        self.MES_TIMEOUT = 5.0
-        self.MAX_REGISTRATION_TIME = 30.0
-        LOG_PATH = os.path.join(data_folder, 'log')
-        EXPERIMENT_LOG_PATH = data_folder
-        EXPERIMENT_DATA_PATH = data_folder
-        CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
-        self.GUI_REFRESH_PERIOD = 2.0
-        self.COMMAND_RELAY_SERVER['ENABLE'] = ENABLE_NETWORK
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'#'172.27.26.1'#'172.27.25.220'
-        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = ENABLE_NETWORK
-#        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 60.0
-        DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
-        self.STAGE_TIMEOUT = 30.0
-
-        #== GUI specific ==
-        GUI_POSITION = utils.cr((10, 10))
-        GUI_SIZE = utils.cr((1200, 800))
-        TAB_SIZE = utils.cr((500, 800))
-        IMAGE_SIZE = utils.rc((400, 400))
-        OVERVIEW_IMAGE_SIZE = utils.rc((800, 800))
-        self._create_parameters_from_locals(locals())
 
 def run_gui():
-    config = GuiConfig()
-    if ENABLE_NETWORK:
-        cr = network_interface.CommandRelayServer(config)
-    else:
-        cr = None
     app = Qt.QApplication(sys.argv)
-    gui2 = VisionExperimentGui(config, cr)
+    gui = VisionExperimentGui(sys.argv[1], sys.argv[2])
     app.exec_()
 
 if __name__ == '__main__':

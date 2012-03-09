@@ -91,9 +91,12 @@ class RegionsImagesWidget(QtGui.QWidget):
         self.image_display = []
         for i in range(4):
             self.image_display.append(QtGui.QLabel())
-        blank_image = 128*numpy.ones((self.config.IMAGE_SIZE['col'], self.config.IMAGE_SIZE['row']), dtype = numpy.uint8)
+        self.blank_image = 128*numpy.ones((self.config.IMAGE_SIZE['col'], self.config.IMAGE_SIZE['row']), dtype = numpy.uint8)
         for image in self.image_display:
-            image.setPixmap(imaged.array_to_qpixmap(blank_image))
+            image.setPixmap(imaged.array_to_qpixmap(self.blank_image))
+            
+    def clear_image_display(self, index):
+        self.image_display[index].setPixmap(imaged.array_to_qpixmap(self.blank_image))
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -164,6 +167,7 @@ class DebugWidget(QtGui.QWidget):
         self.select_connection_list = QtGui.QComboBox(self)        
         self.select_connection_list.addItems(QtCore.QStringList(self.connection_names))
         self.send_command_button = QtGui.QPushButton('Send command',  self)
+        self.connected_clients_label = QtGui.QLabel('', self)
         #Development
         self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
@@ -193,6 +197,7 @@ class DebugWidget(QtGui.QWidget):
         self.layout.addWidget(self.show_network_messages_button, 3, 1, 1, 1)
         self.layout.addWidget(self.select_connection_list, 3, 2, 1, 1)
         self.layout.addWidget(self.send_command_button, 3, 3, 1, 1)
+        self.layout.addWidget(self.connected_clients_label, 3, 5, 1, 4)
         self.layout.addWidget(self.animal_parameters_groupbox, 4, 0, 4, 4)
         self.layout.addWidget(self.scan_region_groupbox, 4, 5, 3, 4)
         
@@ -288,6 +293,7 @@ command_extract = re.compile('SOC(.+)EOC')
 class Poller(QtCore.QThread):
     def __init__(self, parent):
         self.signal_id_queue = Queue.Queue() #signal parameter is passed to handler
+        self.gui_thread_queue = Queue.Queue()
         self.parent = parent
         self.config = self.parent.config
         QtCore.QThread.__init__(self)
@@ -295,6 +301,7 @@ class Poller(QtCore.QThread):
         self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)#TODO: these connects can be called from here
         self.parent.connect(self, QtCore.SIGNAL('update_gui'),  self.parent.update_gui_items)
         self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
+        self.parent.connect(self, QtCore.SIGNAL('show_overwrite_region_messagebox'),  self.parent.show_overwrite_region_messagebox)
         self.init_network()
         self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections)
         self.init_files()
@@ -319,9 +326,7 @@ class Poller(QtCore.QThread):
     def init_files(self):
         self.files_to_delete = []
         self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt'))) 
-        # create folder if not exists
-        self.context_file_path = os.path.join(self.config.CONTEXT_PATH, self.config.CONTEXT_NAME)
-        context_hdf5 = hdf5io.Hdf5io(self.context_file_path)
+        context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE)
         context_hdf5.load('stage_origin')
         context_hdf5.load('stage_position')
         if hasattr(context_hdf5, 'stage_position') and hasattr(context_hdf5, 'stage_origin') :
@@ -339,7 +344,7 @@ class Poller(QtCore.QThread):
         self.scan_regions = {}
         
     def save_context(self):        
-        context_hdf5 = hdf5io.Hdf5io(self.context_file_path)
+        context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE)
         context_hdf5.stage_origin = self.stage_origin
         context_hdf5.stage_position = self.stage_position        
         context_hdf5.save('stage_origin',overwrite = True)
@@ -399,8 +404,28 @@ class Poller(QtCore.QThread):
                     message = command
                 elif command == 'echo' and parameter == 'GUI':
                     message = ''
+                elif message == 'connected to server':
+                    #This is sent by the local queued client and its meaning can be confusing, therefore not shown
+                    message = ''
                 else:
                     self.printc(k.upper() + ' '  + message)
+                    
+            #Check for network connection status
+            if hasattr(self.parent, 'debug_widget') and hasattr(self.parent.command_relay_server, 'servers'):
+                connection_status = self.parent.command_relay_server.get_connection_status()
+                connected = 'Alive connections: '
+                if connection_status['STIM_MES/MES'] and connection_status['STIM_MES/STIM']:
+                    connected += 'STIM-MES  '
+                if connection_status['GUI_MES/MES'] and connection_status['GUI_MES/GUI']:
+                    connected += 'GUI-MES  '
+                if connection_status['GUI_STIM/STIM'] and connection_status['GUI_STIM/GUI']:
+                    connected += 'GUI-STIM  '
+                if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
+                    connected += 'GUI-ANALYSIS  '
+                if connection_status['STIM_ANALYSIS/ANALYSIS'] and connection_status['STIM_ANALYSIS/GUI']:
+                    connected += 'STIM-ANALYSIS'
+                
+                self.parent.debug_widget.connected_clients_label.setText(connected)
 
     def handle_commands(self):
         if not self.signal_id_queue.empty():
@@ -418,7 +443,7 @@ class Poller(QtCore.QThread):
         result = False
         utils.empty_queue(self.queues['stim']['in'])
         self.queues['stim']['out'].put('SOCstageEOCreadEOP')
-        if utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.STAGE_TIMEOUT):
+        if utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.GUI_STAGE_TIMEOUT):
             while not self.queues['stim']['in'].empty():
                 response = self.queues['stim']['in'].get()            
                 if 'SOCstageEOC' in response:
@@ -459,6 +484,7 @@ class Poller(QtCore.QThread):
         elif len(movement) != 3:
             self.printc('invalid coordinates')
             return
+        self.parent.debug_widget.scan_region_groupbox.scan_regions_combobox.setEditText('')
         self.move_stage_relative(movement)
 
     def move_stage_relative(self, movement):
@@ -466,19 +492,18 @@ class Poller(QtCore.QThread):
             del self.brain_surface_image
         if hasattr(self, 'vertical_scan'):
             del self.vertical_scan
-        self.parent.debug_widget.scan_region_groupbox.scan_regions_combobox.setEditText('')
         utils.empty_queue(self.queues['stim']['in'])
         self.queues['stim']['out'].put('SOCstageEOCset,{0},{1},{2}EOP'.format(movement[0], movement[1], movement[2]))
         self.printc('movement {0}'.format(movement))
-        if utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.STAGE_TIMEOUT):
+        if utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.GUI_STAGE_TIMEOUT):
             while not self.queues['stim']['in'].empty():
                 response = self.queues['stim']['in'].get()
                 if 'SOCstageEOC' in response:
                     self.stage_position = self.parse_list_response(response)
                     self.save_context()
                     self.parent.debug_widget.current_position_label.setText('rel: {0}' .format(numpy.round(self.stage_position - self.stage_origin, 2)))
-                    self.printc('abs: ' + str(self.stage_position))
-                    self.printc('rel: ' + str(self.stage_position - self.stage_origin))
+                    self.printc('New position: abs: {0}, rel: {1}'.format(self.stage_position, self.stage_position - self.stage_origin))
+
 ################### MES #######################
     def set_objective(self):
         try:
@@ -556,7 +581,7 @@ class Poller(QtCore.QThread):
                 if result:
                     self.vertical_scan = matlabfile.read_vertical_scan(line_scan_path)
                     #rescale image so that it could be displayed
-                    self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scale']['row'], origin = self.vertical_scan['origin'])
+                    self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scale']['row'])
                     self.save_context()
                 else:
                     self.printc('data not saved')
@@ -574,74 +599,76 @@ class Poller(QtCore.QThread):
         -objective positon where the data acquisition shall take place. This is below the brain surface
         -stage position. If master position is saved, the current position is set to origin. The origin of stimulation software is also 
         '''
-
         if widget == None:
             widget = self.parent.debug_widget
+        if not hasattr(self, 'brain_surface_image'):
+            self.printc('No brain surface image is acquired')
+            return
+        mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(widget.scan_region_groupbox.select_mouse_file.currentText()))
+        if not (os.path.exists(mouse_file_path) and '.hdf5' in mouse_file_path):
+            self.printc('mouse file not found')
+            return
         result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
-        if self.read_stage(display_coords = False) and result:
-            if hasattr(self, 'brain_surface_image'):
-                mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(widget.scan_region_groupbox.select_mouse_file.currentText()))
-                if os.path.exists(mouse_file_path) and '.hdf5' in mouse_file_path:
-                    #Read scan regions
-                    hdf5_handler = hdf5io.Hdf5io(mouse_file_path)
-                    hdf5_handler.scan_regions = hdf5_handler.findvar('scan_regions')
-                    if hdf5_handler.scan_regions == None:
-                        hdf5_handler.scan_regions = {}
-                    region_name = self.parent.get_current_region_name()
-                    #If no name provided, will be generated from the coordinates
-                    if region_name == '':
-                        relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
-                        region_name = 'r_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
-                        self.printc(region_name)
-                    elif ' ' in region_name:
-                        region_name = region_name.replace(' ', '_')
-                    #Ask for confirmation to overwrite if region name already exists
-                    if hdf5_handler.scan_regions.has_key(region_name):
-                        reply = QtGui.QMessageBox.question(self, 'Overwriting scan region', "Are you sure?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
-                        if reply == QtGui.QMessageBox.No:
-                            self.printc('Region not saved')
-                            hdf5_handler.close()
-                            return
-                    #Data to be saved regardless it is a master position or not:
-                    scan_region = {}
-                    scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
-                    scan_region['brain_surface'] = {}
-                    scan_region['brain_surface']['image'] = self.brain_surface_image[self.config.DEFAULT_PMT_CHANNEL]
-                    scan_region['brain_surface']['scale'] = self.brain_surface_image['scale']
-                    scan_region['brain_surface']['origin'] = self.brain_surface_image['origin']
-                    scan_region['brain_surface']['mes_parameters']  = utils.file_to_binary_array(self.brain_surface_image['path'].tostring())
-                    #Vertical section
-                    if hasattr(self, 'vertical_scan'):
-                        if self.vertical_scan !=  None:
-                            scan_region['vertical_section'] = self.vertical_scan
-                            scan_region['vertical_section']['mes_parameters'] = utils.file_to_binary_array(self.vertical_scan['path'].tostring())
-                        else:
-                            self.printc('No vertical scan is available')
-                    else:
-                        self.printc('No vertical scan is available')
-                    if region_name == 'master':
-                       if not self.set_stage_origin():
-                            self.printc('Setting origin did not succeed')
-                            hdf5_handler.close()
-                            return
-                    if region_name == 'master' or hdf5_handler.scan_regions.has_key('master') or region_name == 'r_0_0' or\
-                    hdf5_handler.scan_regions.has_key('r_0_0'):
-                        scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
-                    else:
-                        self.printc('Master position has to be defined')
-                        hdf5_handler.close()
-                        return
-                    #Save new scan region to hdf5 file
-                    hdf5_handler.scan_regions[region_name] = scan_region
-                    hdf5_handler.save('scan_regions', overwrite = True)
-                    hdf5_handler.close()
-                    self.printc('Scan region saved')
-                else:
-                    self.printc('mouse file not found')
+        if not result:
+            self.printc('MES does not respond')
+            return
+        if not self.read_stage(display_coords = False):
+            self.printc('Stage cannot be accessed')
+            return
+        #Read scan regions
+        hdf5_handler = hdf5io.Hdf5io(mouse_file_path)
+        hdf5_handler.scan_regions = hdf5_handler.findvar('scan_regions')
+        if hdf5_handler.scan_regions == None:
+            hdf5_handler.scan_regions = {}
+        region_name = self.parent.get_current_region_name()
+        #If no name provided, will be generated from the coordinates
+        if region_name == '':
+            relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
+            region_name = 'r_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
+        elif ' ' in region_name:
+            region_name = region_name.replace(' ', '_')
+        if not (region_name == 'master' or hdf5_handler.scan_regions.has_key('master') or region_name == 'r_0_0' or\
+                                        hdf5_handler.scan_regions.has_key('r_0_0')):
+            self.printc('Master position has to be defined')
+            hdf5_handler.close()
+            return
+        #Ask for confirmation to overwrite if region name already exists
+        if hdf5_handler.scan_regions.has_key(region_name):
+            self.emit(QtCore.SIGNAL('show_overwrite_region_messagebox'))
+            while self.gui_thread_queue.empty() :
+                time.sleep(0.1) 
+            if not self.gui_thread_queue.get():
+                self.printc('Region not saved')
+                hdf5_handler.close()
+                return
+        if region_name == 'master':
+           if not self.set_stage_origin():
+                self.printc('Setting origin did not succeed')
+                hdf5_handler.close()
+                return
+        scan_region = {}
+        scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
+        scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
+        scan_region['brain_surface'] = {}
+        scan_region['brain_surface']['image'] = self.brain_surface_image[self.config.DEFAULT_PMT_CHANNEL]
+        scan_region['brain_surface']['scale'] = self.brain_surface_image['scale']
+        scan_region['brain_surface']['origin'] = self.brain_surface_image['origin']
+        scan_region['brain_surface']['mes_parameters']  = utils.file_to_binary_array(self.brain_surface_image['path'].tostring())
+        #Vertical section
+        if hasattr(self, 'vertical_scan'):
+            if self.vertical_scan !=  None:
+                scan_region['vertical_section'] = self.vertical_scan
+                scan_region['vertical_section']['mes_parameters'] = utils.file_to_binary_array(self.vertical_scan['path'].tostring())
             else:
-                self.printc('No brain surface image is acquired')
+                self.printc('Vertical scan is not available')
         else:
-            self.printc('Stage or objective position is not available')
+            self.printc('Vertical scan is not available')
+        #Save new scan region to hdf5 file
+        hdf5_handler.scan_regions[region_name] = scan_region
+        hdf5_handler.save('scan_regions', overwrite = True)
+        hdf5_handler.close()
+        self.emit(QtCore.SIGNAL('update_gui'))
+        self.printc('{0} scan region saved'.format(region_name))
 
     def remove_scan_region(self):
         selected_mouse_file  = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
@@ -658,13 +685,7 @@ class Poller(QtCore.QThread):
             self.printc('Master region cannot be removed')
             
     def register(self):
-#        self.printc((self.image_display[0].scale['row'], self.image_display[1].scale['row']))
-#        self.printc((self.image_display[0].image.shape, self.image_display[1].image.shape))
-#        if self.image_display[0].scale['row'] != self.image_display[1].scale['row']:
-#            rescaled_image = generic.rescale_numpy_array_image(self.image_display[0].image, self.image_display[0].scale['row'] / self.image_display[1].scale['row'])
-#        else:
         rescaled_image = self.parent.regions_images_widget.image_display[0].raw_image
-#        self.printc(rescaled_image.shape)
         image_hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.CONTEXT_PATH, 'image.hdf5'))
         image_hdf5_handler.f1 = rescaled_image
         image_hdf5_handler.f2 = self.parent.regions_images_widget.image_display[1].raw_image
@@ -680,7 +701,7 @@ class Poller(QtCore.QThread):
                     self.registration_result = self.parse_list_response(response) #rotation in angle, center or rotation, translation
                     self.suggested_translation = utils.cr(utils.nd(self.two_photon_image['scale']) * self.registration_result[-2:]*numpy.array([-1, 1]))
                     self.printc(self.registration_result[-2:])
-                    self.printc(self.suggested_translation)
+                    self.printc('Suggested translation: {0}'.format(self.suggested_translation))
         else:
             self.printc('no response')
 

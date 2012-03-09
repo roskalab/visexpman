@@ -30,9 +30,9 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         command_parser.CommandParser.__init__(self, queue_in, queue_out, log = self.log, failsafe = False)
         screen.ScreenAndKeyboardHandler.__init__(self)
         self.stage_origin = numpy.zeros(3)
-        if hasattr(self.config, 'CONTEXT_PATH'):
+        if hasattr(self.config, 'CONTEXT_FILE'):
             try:
-                self.stage_origin = hdf5io.read_item(self.config.CONTEXT_PATH, 'stage_origin')
+                self.stage_origin = hdf5io.read_item(self.config.CONTEXT_FILE, 'stage_origin')
             except:
                 self.log.info('Context file cannot be opened')
             if self.stage_origin == None:

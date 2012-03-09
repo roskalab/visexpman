@@ -159,12 +159,9 @@ def merge_brain_regions(scan_regions, region_on_top = None):
     for k, v in scan_regions.items():
         region = {}
         region['image'] = v['brain_surface']['image']
-        if isinstance(v['brain_surface']['scale'].real,  numpy.float64):
-            scale = v['brain_surface']['scale'].real#um/pixel
-        else:
-            scale = v['brain_surface']['scale'].real['row'] #um/pixel
+        scale = v['brain_surface']['scale']['row'] #um/pixel
         region['scale'] = scale
-        region['position'] = utils.cr((v['position']['x'], v['position']['y']))
+        region['position'] = utils.cr((v['position']['y'], v['position']['x']))
         regions.append(region)
         scales.append(scale)
         if region_on_top == k:

@@ -1,13 +1,12 @@
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
-from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
-import visexpman.engine.vision_experiment.experiment as experiment
-import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
-import visexpman.engine.generic.utils as utils
 import os
+import os.path
 import serial
 import numpy
 import time
+
+from visexpman.engine.generic.parameter import Parameter
+from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
+from visexpman.engine.generic import utils
 
 class PPRLConfig(VisionExperimentConfig):
     
@@ -259,27 +258,23 @@ class Debug(VisionExperimentConfig):
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'GratingConfig'
-#        EXPERIMENT_CONFIG = 'PixelSizeCalibrationConfig'
-#         EXPERIMENT_CONFIG = 'LedStimulationConfig'
+        EXPERIMENT_CONFIG = 'PixelSizeCalibrationConfig'
+        EXPERIMENT_CONFIG = 'LedStimulationConfig'
         EXPERIMENT_CONFIG = 'MovingDotConfig'
-#        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
         EXPERIMENT_CONFIG = 'Dummy'
-        RUN_MES_EXTRACTOR = False
+        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
+        PLATFORM = 'standalone'
         PLATFORM = 'mes'
-#        PLATFORM = 'standalone'
         #=== paths/data handling ===
         use_drive = 'v'
-        
         if os.name == 'nt':
             if use_drive == 'g':
-                drive_data_folder = 'g:\\User\\Zoltan\\data'
+                root_folder = 'g:\\User\\Zoltan'
             elif use_drive =='v':
-                drive_data_folder = 'V:\\debug\\data'
-            CONTEXT_PATH = 'v:\\context\\gui_dev.hdf5'
+                root_folder = 'V:\\'
         else:
-            drive_data_folder = '/home/zoltan/visexp/debug/data'        
-            CONTEXT_PATH = '/home/zoltan/visexp/context/gui_dev.hdf5'
-            
+            root_folder = '/home/zoltan/visexp/' 
+        drive_data_folder = os.path.join(root_folder, 'debug', 'data')
         LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = drive_data_folder
@@ -287,8 +282,8 @@ class Debug(VisionExperimentConfig):
             MES_DATA_FOLDER = 'g:\\User\\Zoltan\\data'
         elif use_drive =='v':
             MES_DATA_FOLDER = 'V:\\debug\\data'
-        
-        
+        self.CONTEXT_NAME = 'gui_dev.hdf5'
+        CONTEXT_PATH = os.path.join(root_folder, 'context')
         CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         
@@ -313,6 +308,7 @@ class Debug(VisionExperimentConfig):
         ENABLE_UDP = False
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.21'#'172.27.25.220' .1: production
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
+        self.COMMAND_RELAY_SERVER['ENABLE'] = True
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (self.OS == 'win')
         ACQUISITION_TRIGGER_PIN = 2
@@ -330,8 +326,8 @@ class Debug(VisionExperimentConfig):
                                     
         STAGE = [{'serial_port' : motor_serial_port,
                  'enable': (self.OS == 'win'),
-                 'speed': 800,
-                 'acceleration' : 200,
+                 'speed': 2000,
+                 'acceleration' : 1000,
                  'move_timeout' : 45.0,
                  'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]
@@ -374,19 +370,20 @@ class VS3DUS(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'MovingDotConfig'    
         MES_TIMEOUT = 15.0
-        RUN_MES_EXTRACTOR = False
         #=== paths/data handling ===
         if os.name == 'nt':            
-            v_drive_data_folder = 'V:\\experiment_data'
-            CONTEXT_PATH = 'v:\\context\\gui.hdf5'
+            v_drive_folder = 'V:\\'
         else:            
-            v_drive_data_folder = '/home/zoltan/visexp/experiment_data'
-            CONTEXT_PATH = '/home/zoltan/visexp/context/gui.hdf5'
+            v_drive_folder = '/home/zoltan/visexp'
+        v_drive_data_folder = os.path.join(v_drive_folder,  'experiment_data')
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
         MES_DATA_FOLDER = 'V:\\experiment_data'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self.CONTEXT_NAME = 'gui_dev.hdf5'
+        CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
+
         #=== screen ===
         FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800, 600])
@@ -404,8 +401,9 @@ class VS3DUS(VisionExperimentConfig):
         MES_TIMEOUT = 10.0
         PLATFORM = 'mes'
         #=== Network ===
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.1'
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.21'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
+        self.COMMAND_RELAY_SERVER['ENABLE'] = True
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2

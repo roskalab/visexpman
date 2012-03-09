@@ -197,6 +197,19 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         'ENABLE' : True
 #         }
 #         ]]
+        #GUI
+        MAX_REGISTRATION_TIME = [30.0, [0.5, 600.0]]
+        GUI_STAGE_TIMEOUT = [30.0, [0.5, 60.0]]
+        DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
+        GUI_POSITION = utils.cr((10, 10))
+        GUI_SIZE = utils.cr((1200, 800))
+        TAB_SIZE = utils.cr((500, 800))
+        IMAGE_SIZE = utils.rc((400, 400))
+        OVERVIEW_IMAGE_SIZE = utils.rc((800, 800))
+        GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
+        
+        #jobhandler
+        PARSE_PERIOD = [2.0, [0.0, 10.0]]
         
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
@@ -257,6 +270,9 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             x = x/x.max()
             y = y/y.max()
             self.GAMMA_CORRECTION = scipy.interpolate.interp1d(y, x, bounds_error  = False, fill_value  = 0.0)
+        ########### Context file #########
+        if hasattr(self, 'CONTEXT_PATH') and hasattr(self, 'CONTEXT_NAME'):
+            self.CONTEXT_FILE_p = visexpman.engine.generic.parameter.Parameter(os.path.join(self.CONTEXT_PATH, self.CONTEXT_NAME))
 
     def _merge_commands(self, command_list, user_command_list):        
         commands = dict(command_list.items() + user_command_list.items())
@@ -271,8 +287,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             else:
                 all_keys.append(v['key'])
         return commands
-
-
+        
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         PAR1 = 'par'
