@@ -241,7 +241,7 @@ class VisionExperimentGui(QtGui.QWidget):
         selected_region = self.get_current_region_name()
         if hasattr(scan_regions, 'has_key'):
             if scan_regions.has_key(selected_region):
-                line = None
+                line = []
                 if scan_regions[selected_region].has_key('vertical_section'):
                     #convert line info from um to pixel
                     line = numpy.array([\
@@ -299,29 +299,27 @@ class VisionExperimentGui(QtGui.QWidget):
 
     ####### Helpers ###############
     
-    def show_image(self, image, channel, scale, line = None, origin = None):
-        scale_indexed = scale
-            
-        if line != None:
-            image_with_line = generic.draw_line_numpy_array(image, line)
-        else:
-            image_with_line = image
+    def show_image(self, image, channel, scale, line = [], origin = None):
         if origin != None:
-            origin_fixed = origin
-            division = numpy.round(min(image_with_line.shape) *  scale_indexed/ 5.0, -1)
-            image_with_sidebar = generic.draw_scalebar(image_with_line, origin_fixed, scale_indexed, division)
+            division = numpy.round(min(image.shape) *  scale/ 5.0, -1)
         else:
-            image_with_sidebar = image_with_line
+            division = 0
+        image_in = {}
+        image_in['image'] = image
+        image_in['scale'] = scale
+        image_in['origin'] = origin
         if channel == 'overview':
+            image_with_sidebar = generic.generate_gui_image(image_in, self.config.OVERVIEW_IMAGE_SIZE, self.config, lines  = line, sidebar_division = division)
             self.overview_widget.image_display.setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.OVERVIEW_IMAGE_SIZE))
             self.overview_widget.image_display.image = image_with_sidebar
             self.overview_widget.image_display.raw_image = image
-            self.overview_widget.image_display.scale = scale_indexed
+            self.overview_widget.image_display.scale = scale
         else:
+            image_with_sidebar = generic.generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, sidebar_division = division)
             self.regions_images_widget.image_display[channel].setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.IMAGE_SIZE))
             self.regions_images_widget.image_display[channel].image = image_with_sidebar
             self.regions_images_widget.image_display[channel].raw_image = image
-            self.regions_images_widget.image_display[channel].scale = scale_indexed
+            self.regions_images_widget.image_display[channel].scale = scale
         
     def send_command(self):
         connection = str(self.debug_widget.select_connection_list.currentText())

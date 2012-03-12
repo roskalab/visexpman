@@ -154,15 +154,14 @@ class DebugOnLaptop(VisionExperimentConfig):
 #        EXPERIMENT_CONFIG = 'Dummy'
         #=== paths/data handling ===
         use_drive = 'v'
-        
         if os.name == 'nt':
             if use_drive == 'g':
-                drive_data_folder = 'g:\\User\\Zoltan\\data'
+                root_folder = 'g:\\User\\Zoltan'
             elif use_drive =='v':
-                drive_data_folder = 'V:\\debug\\data'
+                root_folder = 'V:\\'
         else:
-            drive_data_folder = '/home/zoltan/visexp/debug/data'        
-            
+            root_folder = '/home/zoltan/visexp/' 
+        drive_data_folder = os.path.join(root_folder, 'debug', 'data')
         LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = drive_data_folder
@@ -170,7 +169,8 @@ class DebugOnLaptop(VisionExperimentConfig):
             MES_DATA_FOLDER = 'g:\\User\\Zoltan\\data'
         elif use_drive =='v':
             MES_DATA_FOLDER = 'V:\\debug\\data'
-        
+        self.CONTEXT_NAME = 'gui_dev.hdf5'
+        CONTEXT_PATH = os.path.join(root_folder, 'context')
         CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         
@@ -194,7 +194,7 @@ class DebugOnLaptop(VisionExperimentConfig):
         PLATFORM = 'mes'
         
         #=== Network ===
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.21'
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         #=== hardware ===
         ENABLE_PARALLEL_PORT = False

@@ -581,7 +581,7 @@ class Poller(QtCore.QThread):
                 if result:
                     self.vertical_scan = matlabfile.read_vertical_scan(line_scan_path)
                     #rescale image so that it could be displayed
-                    self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scale']['row'])
+                    self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scale']['row'], origin = self.vertical_scan['origin'])
                     self.save_context()
                 else:
                     self.printc('data not saved')
