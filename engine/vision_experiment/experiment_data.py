@@ -197,7 +197,7 @@ def merge_brain_regions(scan_regions, region_on_top = None):
     for region in regions:
         image[region['position']['col'] + offset[0]:region['position']['col'] + offset[0] + region['image'].shape[0], \
               region['position']['row'] + offset[1]:region['position']['row'] + offset[1] + region['image'].shape[1]] = region['image'] 
-    return image, common_scale
+    return image, utils.rc((common_scale, common_scale))
 
 if __name__=='__main__':
     import Image

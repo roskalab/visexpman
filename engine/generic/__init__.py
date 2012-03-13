@@ -46,7 +46,6 @@ def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 
         font = ImageFont.truetype("arial.ttf", fontsize)
     else:
         font = ImageFont.truetype("/usr/share/fonts/truetype/msttcorefonts/arial.ttf", fontsize)
-
     image_size = utils.cr((image.shape[0]*float(scale['row']), image.shape[1]*float(scale['col'])))
     if mes:
         number_of_divisions = int(image_size['row'] / division)
@@ -59,7 +58,6 @@ def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 
     else:
         number_of_divisions = int(image_size['row'] / division)
         row_labels = numpy.linspace(origin['row'],  origin['row'] + number_of_divisions * division, number_of_divisions+1)
-    
     #Overlay labels
     for label in col_labels:
         position = int((label-origin['col'])/scale['col']) + frame_size
@@ -81,8 +79,7 @@ def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 
         draw.line((image_with_frame.shape[1] - int(0.75*frame_size), position,  image_with_frame.shape[1] - frame_size, position), fill = fill, width = 0)
     im = numpy.asarray(im)
     return im
-    
-    
+       
 def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0):
     '''
     Combine images with widgets like lines, sidebars. 
@@ -114,16 +111,17 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0):
     #Draw lines
     image_with_line = rescaled_image
     for line in lines:
-        #Considering MES origin
+        #Line: x1,y1,x2, y2 - x - col, y = row
+        #Considering MES/Image origin
         line_in_pixel  = [(line[0] - merged_image['origin']['col'])/merged_image['scale']['col'] ,  
                             (-line[1] + merged_image['origin']['row'])/merged_image['scale']['row'] , 
-                            (line[2] - merged_image['origin']['col']/merged_image['scale']['col'] ),  
+                            (line[2] - merged_image['origin']['col'])/merged_image['scale']['col'],  
                             (-line[3] + merged_image['origin']['row'])/merged_image['scale']['row'] ]
-        line_in_pixel = (numpy.cast['int32'](numpy.array(line_in_pixel))).tolist()
+        line_in_pixel = (numpy.cast['int32'](numpy.array(line_in_pixel)*rescale)).tolist()
         image_with_line = draw_line_numpy_array(image_with_line, line_in_pixel)
     #create sidebar
     if sidebar_division != 0:
-        image_with_sidebar = draw_scalebar(image_with_line, merged_image['origin'], merged_image['scale'], sidebar_division, frame_size = config.SIDEBAR_SIZE)
+        image_with_sidebar = draw_scalebar(image_with_line, merged_image['origin'], utils.rc_multiply_with_constant(merged_image['scale'], 1.0/rescale), sidebar_division, frame_size = config.SIDEBAR_SIZE)
     else:
         image_with_sidebar = image_with_line
     out_image[0:image_with_sidebar.shape[0], 0:image_with_sidebar.shape[1], :] = image_with_sidebar

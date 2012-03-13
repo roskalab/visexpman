@@ -50,6 +50,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_MES = False
         MES_TIMEOUT = [10.0, [1.0, 100.0]]
         MES_RECORD_START_DELAY = [3.0, [1.0, 10.0]]
+        OBJECTIVE_POSITION_LIMIT = [1000.0, [500.0, 2000.0]]
         
         #display parameters:
         SCREEN_RESOLUTION = utils.rc([600, 800])        
@@ -201,8 +202,11 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         }
 #         ]]
         #GUI
-        screen_size = QtGui.QDesktopWidget().screenGeometry()
-        screen_size = utils.cr((screen_size.width(), screen_size.height()))
+        if 'gui' in sys.argv[0]:
+            screen_size = QtGui.QDesktopWidget().screenGeometry()
+            screen_size = utils.cr((0.95*screen_size.width(), 0.9*screen_size.height()))
+        else:
+            screen_size = utils.cr((800, 600))
         MAX_REGISTRATION_TIME = [30.0, [0.5, 600.0]]
         GUI_STAGE_TIMEOUT = [30.0, [0.5, 60.0]]
         DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
