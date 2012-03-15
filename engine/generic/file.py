@@ -168,3 +168,63 @@ def convert_path_to_remote_machine_path(local_file_path, remote_machine_folder, 
     if remote_win_path:
         remote_file_path = remote_file_path.replace('/',  '\\')
     return remote_file_path
+
+
+def check_png_hashes(fname,function,*args,**kwargs):
+        '''Checks whether the function code and argument hashes exist in the png file and updates them if necessary'''
+        oldpng = Image.open(fname)
+        if 'function_hash' in oldpng.info:
+            fh = oldpng.info['function_hash']
+        if 'function_arguments_hash' in oldpng.info:
+            ah = oldpng.info['function_arguments_hash']
+        new_fh, new_ah = check_before_long_calculation(fh, function,ah,args,kwargs)
+        if new_fh is None: 
+            return None
+        else:
+            return {'function_hash':new_fh, 'function_arguments_hash':new_ah}
+
+def pngsave(im, file):
+    '''Wrapper around PIL png writer that properly handles metadata'''
+    # these can be automatically added to Image.info dict                                                                              
+    # they are not user-added metadata
+    reserved = ('interlace', 'gamma', 'dpi', 'transparency', 'aspect')
+
+    # undocumented class
+    from PIL import PngImagePlugin
+    meta = PngImagePlugin.PngInfo()
+
+    # copy metadata into new object
+    for k,v in im.info.iteritems():
+        if k in reserved: continue
+        meta.add_text(k, v, 0)
+
+    # and save
+    im.save(file, "PNG", pnginfo=meta)
+
+import unittest
+class TestUtils(unittest.TestCase):
+    def setUp(self):
+        import tempfile,os
+        f,self.filename = tempfile.mkstemp(suffix='.png')
+        os.close(f)
+
+    def tearDown(self):
+        os.remove(self.filename)
+        pass
+    
+    def test_pngsave(self):
+        import numpy, Image, hashlib
+        pic = numpy.zeros((233,234),numpy.uint8)
+        pic[0,233]=255
+        h = hashlib.md5()
+        h.update(pic)
+        pilpic = Image.fromarray(pic)
+        pilpic.info['mycomment']='my text is short'
+        pilpic.info['myhash']= h.digest()
+        pngsave(pilpic,self.filename)
+        pilconfirm = Image.open(self.filename)
+        self.assertTrue((pilconfirm.info['mycomment']==pilpic.info['mycomment']) and (pilconfirm.info['myhash']==pilpic.info['myhash']))
+        pass
+        
+if __name__=='__main__':
+    unittest.main()

@@ -86,13 +86,6 @@ class MovingDot(experiment.Experiment):
         self.hdf5.save(experiment_identifier)
         
     def prepare(self):
-        # we want at least 2 repetitions in the same recording, but the best is to
-        # keep all repetitions in the same recording
-        angleset = numpy.sort(numpy.unique(self.experiment_config.ANGLES))
-        allangles0 = numpy.tile(angleset, [self.experiment_config.REPEATS])
-        permlist = getpermlist(allangles0.shape[0], self.experiment_config.RANDOMIZE)
-        allangles = allangles0[permlist]
-
         diameter_pix = self.experiment_config.DIAMETER_UM[0]*self.experiment_config.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         self.diameter_pix = diameter_pix
         speed_pix = self.experiment_config.SPEED[0]*self.experiment_config.machine_config.SCREEN_UM_TO_PIXEL_SCALE
@@ -120,6 +113,14 @@ class MovingDot(experiment.Experiment):
         hor_dur = 2*line_len['hor0'].sum()/speed_pix/self.experiment_config.NDOTS
         total_dur = (self.experiment_config.PDURATION*8+diag_dur+ver_dur+hor_dur)*self.experiment_config.REPEATS
         nblocks = numpy.ceil(total_dur/self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION)#[0]
+        
+         # we want at least 2 repetitions in the same recording, but the best is to
+        # keep all repetitions in the same recording
+        angleset = numpy.sort(numpy.unique(self.experiment_config.ANGLES))
+        allangles0 = numpy.tile(angleset, [self.experiment_config.REPEATS])
+        permlist = getpermlist(allangles0.shape[0], self.experiment_config.RANDOMIZE)
+        allangles = allangles0[permlist]
+        
         # hard limit: a block in which all directions are shown the grid must not be sparser than 3*dot size. Reason: we assume dotsize
         # corresponds to excitatory receptive field size. We assume excitatiory receptive field is surrounded by inhibitory fields with same width.
          # here we divide the grid into multiple recording blocks if necessary
@@ -306,20 +307,26 @@ class MovingDot(experiment.Experiment):
         self.line_end = [] # index in coordinate list where a line ends and another starts (the other line can be of the same or a different direction
         self.shown_directions = [] # list of direction of each block presented on the screen
         # create a list of coordinates where dots have to be shown, note when a direction subblock ends, and when a block ends (in case the stimulus has to be split into blocks due to recording duration limit)
+        permlist = getpermlist(allangles.shape[0]*(nblocks-1), self.experiment_config.RANDOMIZE)
         for b in range(int(nblocks)):
             self.row_col.append([])
             self.shown_directions.append([])
             self.line_end.append([])
             for a1 in range(len(allangles)):
                 cai = numpy.where(angleset==allangles[a1])[0]
+                # show an extra dot trajectory at a direction so that when stimulations starts from black screen, this trajectory can be skipped
+                #...
+                self.shown_directions[-1].append({'block_start':[allangles[a1], len(self.row_col[-1])]})
                 for f in range(arow_col[cai][b][0].shape[1]):
                     coords = []
                     for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[cai][b][n][:,f])
                     self.row_col[-1].extend([c*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE for c in coords])
-                self.shown_directions[-1].append([allangles[a1], len(self.row_col[-1])]) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
+                self.shown_directions[-1]['block_end']=[allangles[a1], len(self.row_col[-1])] # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
                 self.line_end[-1].append(arow_col[cai][b][0].shape[1])
             self.row_col[-1]=utils.rc(numpy.array(self.row_col[-1]))
+            # if stim is broken into blocks then angles in different blocks are shown in different order, shuffle angles now:
+            allangles = allangles[permlist[b*allangles.shape[0]:(b+1)*allangles.shape[0]]]
         pass
     
 def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
