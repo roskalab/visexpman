@@ -265,6 +265,22 @@ class MesInterface(object):
         return mes_scan_range
 
     #######################  Line scan #######################
+    def line_scan(self, parameter_file = '', scan_time = None):
+        result, line_scan_path = self.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file, scan_time = scan_time)
+        if not result:
+            return {}, False
+        if scan_time != None:
+            timeout = 1.5 * scan_time
+        else:
+            timeout = 2 * self.config.MES_TIMEOUT
+        result = self.wait_for_line_scan_complete(timeout = timeout)
+        if not result:
+            return {}, False
+        result = self.wait_for_line_scan_save_complete(timeout = timeout)
+        if not result:
+            return {}, False
+        return matlabfile.read_vertical_scan(line_scan_path), True
+        
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
         if parameter_file == None:
             #generate a mes parameter file name, that does not exits
@@ -285,7 +301,7 @@ class MesInterface(object):
             result = False
         time.sleep(1.5)#This delay is nccessary to ensure that the parameter file is completely written to the disk
         return result, line_scan_path, line_scan_path_on_mes
-
+        
     def start_line_scan(self, timeout = -1, parameter_file = '', scan_time = None):
         '''
         parameter_file:

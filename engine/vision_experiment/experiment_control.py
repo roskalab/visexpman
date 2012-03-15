@@ -84,6 +84,7 @@ class ExperimentControl(object):
                         self.run(fragment_id)
                     if not self._finish_fragment(fragment_id):
                         self.abort = True
+                        break #Do not record further fragments in case of error
             else:
                 self.abort = True
                 if self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
@@ -167,13 +168,14 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             data_acquisition_stop_success = True
         elif self.config.PLATFORM == 'mes':
-            self.mes_timeout = self.fragment_durations[fragment_id]            
+            self.mes_timeout = 1.5 * self.fragment_durations[fragment_id]            
             if self.mes_timeout < self.config.MES_TIMEOUT:
                 self.mes_timeout = self.config.MES_TIMEOUT
             if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
                 data_acquisition_stop_success =  self.mes_interface.wait_for_line_scan_complete(self.mes_timeout)
+                if not data_acquisition_stop_success:
+                    self.printl('Line scan complete ERROR')
             else:
-                self.printl('Line scan complete ERROR')
                 data_acquisition_stop_success =  False
         elif self.config.PLATFORM == 'standalone':
             data_acquisition_stop_success =  True
@@ -191,6 +193,8 @@ class ExperimentControl(object):
                     self.printl('Wait for data save complete')
                     line_scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(self.mes_timeout)
                     self.printl('Data save complete')
+                    if not line_scan_data_save_success:
+                        self.printl('Line scan data save error')
                 else:
                     aborted = True
                     line_scan_data_save_success = False

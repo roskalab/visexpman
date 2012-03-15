@@ -82,10 +82,14 @@ class VisionExperimentGui(QtGui.QWidget):
         if hasattr(self.poller.two_photon_image, 'has_key'):
             if self.poller.two_photon_image.has_key(self.config.DEFAULT_PMT_CHANNEL):
                 self.show_image(self.poller.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0, 
-                                self.poller.two_photon_image['scale']['row'], 
+                                self.poller.two_photon_image['scale'], 
                                 origin = self.poller.two_photon_image['origin'])
         if hasattr(self.poller.vertical_scan, 'has_key'):
-            self.show_image(self.poller.vertical_scan['scaled_image'], 2, self.poller.vertical_scan['scale']['row'], origin = self.poller.two_photon_image['origin'])
+            if self.poller.vertical_scan.has_key('scaled_scale'):#temporary
+                scale = self.poller.vertical_scan['scaled_scale']
+            else:
+                scale = self.poller.vertical_scan['scale']
+            self.show_image(self.poller.vertical_scan['scaled_image'], 2, scale, origin = self.poller.two_photon_image['origin'])
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -128,6 +132,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.register_button, 'register')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.realign_button, 'realign_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.move_to_button, 'move_to_region')
+        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.vertical_realign_button, 'vertical_realign')
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
@@ -241,21 +246,15 @@ class VisionExperimentGui(QtGui.QWidget):
         selected_region = self.get_current_region_name()
         if hasattr(scan_regions, 'has_key'):
             if scan_regions.has_key(selected_region):
-                line = None
+                line = []
                 if scan_regions[selected_region].has_key('vertical_section'):
-                    #convert line info from um to pixel
-                    line = numpy.array([\
-                                    scan_regions[selected_region]['vertical_section']['p1']['col'] - scan_regions[selected_region]['brain_surface']['origin']['col'],\
-                                    -(scan_regions[selected_region]['vertical_section']['p1']['row'] - scan_regions[selected_region]['brain_surface']['origin']['row']),\
-                                    scan_regions[selected_region]['vertical_section']['p2']['col'] - scan_regions[selected_region]['brain_surface']['origin']['col'],\
-                                    -(scan_regions[selected_region]['vertical_section']['p2']['row'] - scan_regions[selected_region]['brain_surface']['origin']['row'])])
-                    line /= scan_regions[selected_region]['brain_surface']['scale']['row']
-                    line = line.tolist()
+                    line = [[ scan_regions[selected_region]['vertical_section']['p1']['col'] ,  scan_regions[selected_region]['vertical_section']['p1']['row'] , 
+                             scan_regions[selected_region]['vertical_section']['p2']['col'] ,  scan_regions[selected_region]['vertical_section']['p2']['row'] ]]
                     self.show_image(scan_regions[selected_region]['vertical_section']['scaled_image'], 3,
-                                     scan_regions[selected_region]['vertical_section']['scale']['row'], 
+                                     scan_regions[selected_region]['vertical_section']['scaled_scale'], 
                                      origin = scan_regions[selected_region]['vertical_section']['origin'])
                 image_to_display = scan_regions[selected_region]['brain_surface']
-                self.show_image(image_to_display['image'], 1, image_to_display['scale']['row'], line = line, origin = image_to_display['origin'])
+                self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
                 #update overwiew
                 image, scale = experiment_data.merge_brain_regions(scan_regions, region_on_top = selected_region)
                 self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
@@ -299,29 +298,27 @@ class VisionExperimentGui(QtGui.QWidget):
 
     ####### Helpers ###############
     
-    def show_image(self, image, channel, scale, line = None, origin = None):
-        scale_indexed = scale
-            
-        if line != None:
-            image_with_line = generic.draw_line_numpy_array(image, line)
-        else:
-            image_with_line = image
+    def show_image(self, image, channel, scale, line = [], origin = None):
         if origin != None:
-            origin_fixed = origin
-            division = numpy.round(min(image_with_line.shape) *  scale_indexed/ 5.0, -1)
-            image_with_sidebar = generic.draw_scalebar(image_with_line, origin_fixed, scale_indexed, division)
+            division = numpy.round(min(image.shape) *  scale['row']/ 5.0, -1)
         else:
-            image_with_sidebar = image_with_line
+            division = 0
+        image_in = {}
+        image_in['image'] = image
+        image_in['scale'] = scale
+        image_in['origin'] = origin
         if channel == 'overview':
+            image_with_sidebar = generic.generate_gui_image(image_in, self.config.OVERVIEW_IMAGE_SIZE, self.config, lines  = line, sidebar_division = division)
             self.overview_widget.image_display.setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.OVERVIEW_IMAGE_SIZE))
             self.overview_widget.image_display.image = image_with_sidebar
             self.overview_widget.image_display.raw_image = image
-            self.overview_widget.image_display.scale = scale_indexed
+            self.overview_widget.image_display.scale = scale
         else:
+            image_with_sidebar = generic.generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, sidebar_division = division)
             self.regions_images_widget.image_display[channel].setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.IMAGE_SIZE))
             self.regions_images_widget.image_display[channel].image = image_with_sidebar
             self.regions_images_widget.image_display[channel].raw_image = image
-            self.regions_images_widget.image_display[channel].scale = scale_indexed
+            self.regions_images_widget.image_display[channel].scale = scale
         
     def send_command(self):
         connection = str(self.debug_widget.select_connection_list.currentText())
@@ -339,13 +336,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.printc('\n')
 
     def show_network_messages(self):
-        if hasattr(self, 'network_messages'):
-            for info in self.command_relay_server.get_debug_info():
-                self.network_messages.append(info)
-        else:
-            self.network_messages = self.command_relay_server.get_debug_info()
-        self.network_messages = self.network_messages[-500:] #limit the number of displayed messages
-        for network_message in self.network_messages:
+        network_messages = self.command_relay_server.get_debug_info()
+        for network_message in network_messages:
             endpoint_name = network_message[1].split(' ')
             endpoint_name = (endpoint_name[1] + '/' + endpoint_name[3]).replace(',','')
             message = network_message[1].split('port')[1].split(': ', 1)[1]

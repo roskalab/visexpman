@@ -161,7 +161,7 @@ def merge_brain_regions(scan_regions, region_on_top = None):
         region['image'] = v['brain_surface']['image']
         scale = v['brain_surface']['scale']['row'] #um/pixel
         region['scale'] = scale
-        region['position'] = utils.cr((v['position']['y'], v['position']['x']))
+        region['position'] = utils.cr((v['position']['y'], -v['position']['x'])) #It is not clear why this axis shall have a factor of -1
         regions.append(region)
         scales.append(scale)
         if region_on_top == k:
@@ -197,7 +197,7 @@ def merge_brain_regions(scan_regions, region_on_top = None):
     for region in regions:
         image[region['position']['col'] + offset[0]:region['position']['col'] + offset[0] + region['image'].shape[0], \
               region['position']['row'] + offset[1]:region['position']['row'] + offset[1] + region['image'].shape[1]] = region['image'] 
-    return image, common_scale
+    return image, utils.rc((common_scale, common_scale))
 
 if __name__=='__main__':
     import Image

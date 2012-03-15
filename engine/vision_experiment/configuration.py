@@ -12,6 +12,9 @@ except:
 
 import tempfile
 import unittest
+
+import PyQt4.QtGui as QtGui
+
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
@@ -47,6 +50,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_MES = False
         MES_TIMEOUT = [10.0, [1.0, 100.0]]
         MES_RECORD_START_DELAY = [3.0, [1.0, 10.0]]
+        OBJECTIVE_POSITION_LIMIT = [1000.0, [500.0, 2000.0]]
         
         #display parameters:
         SCREEN_RESOLUTION = utils.rc([600, 800])        
@@ -198,16 +202,21 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         }
 #         ]]
         #GUI
+        if 'gui' in sys.argv[0]:
+            screen_size = QtGui.QDesktopWidget().screenGeometry()
+            screen_size = utils.cr((0.95*screen_size.width(), 0.9*screen_size.height()))
+        else:
+            screen_size = utils.cr((800, 600))
         MAX_REGISTRATION_TIME = [30.0, [0.5, 600.0]]
         GUI_STAGE_TIMEOUT = [30.0, [0.5, 60.0]]
         DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
-        GUI_POSITION = utils.cr((10, 10))
-        GUI_SIZE = utils.cr((1200, 800))
-        TAB_SIZE = utils.cr((500, 800))
-        IMAGE_SIZE = utils.rc((400, 400))
-        OVERVIEW_IMAGE_SIZE = utils.rc((800, 800))
+        GUI_POSITION = utils.cr((5, 5))
+        GUI_SIZE = screen_size
+        TAB_SIZE = utils.cr((0.3 * screen_size['col'], 0.9 * screen_size['col']))
+        IMAGE_SIZE = utils.rc_multiply_with_constant(utils.rc((1, 1)), 0.4 * screen_size['row'])
+        OVERVIEW_IMAGE_SIZE = utils.rc_multiply_with_constant(IMAGE_SIZE, 2)
+        SIDEBAR_SIZE = [30, [10, 100]]
         GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
-        
         #jobhandler
         PARSE_PERIOD = [2.0, [0.0, 10.0]]
         
