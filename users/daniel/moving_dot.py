@@ -77,7 +77,8 @@ class MovingDot(experiment.Experiment):
         if hasattr(self, 'shown_line_order'):
             self.experiment_specific_data['shown_line_order'] = self.shown_line_order[fragment_id]
         if hasattr(self,'shown_directions'):
-            self.experiment_specific_data['shown_directions']= self.shown_directions[fragment_id]
+            if self.experiment_specific_data.has_key('shown_directions'):
+                self.experiment_specific_data['shown_directions']= self.shown_directions[fragment_id]
             
     def cleanup(self):
         #add experiment identifier node to experiment hdf5

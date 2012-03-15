@@ -104,16 +104,23 @@ class RC3DWindowsConfig(VisionExperimentConfig):
 
 class MBP(VisionExperimentConfig):
     def _set_user_parameters(self):        
-        RUN_MODE = 'single experiment'
+        
         EXPERIMENT_CONFIG = 'MovingDotConfig'
+        PLATFORM = 'standalone'
+
+        #### Paths ####
         LOG_PATH = '/Users/hd/Documents/DataBase'
+        #LOG_PATH = 'v:\\debug\\data\\log'
         EXPERIMENT_LOG_PATH = LOG_PATH
         BASE_PATH='/Users/hd/Documents/DataBase'
+        #BASE_PATH='v:\\debug\\data'
         ARCHIVE_PATH = os.path.join(BASE_PATH,'archive')
-        EXPERIMENT_RESULT_PATH = ARCHIVE_PATH
+        MES_DATA_FOLDER = ARCHIVE_PATH
         CAPTURE_PATH = os.path.join(BASE_PATH,'capture')
-        FULLSCREEN = False
+        
         EXPERIMENT_DATA_PATH = os.path.join(BASE_PATH,'archive')#'../../../presentinator/data' 
+        
+        FULLSCREEN = False
         ENABLE_PARALLEL_PORT = False
         ENABLE_UDP = False
         SCREEN_RESOLUTION = utils.rc([600,   800])
@@ -125,22 +132,62 @@ class MBP(VisionExperimentConfig):
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
-        
-        FRAME_WAIT_FACTOR = 0 
-        GAMMA = 1.0
-        ENABLE_FILTERWHEEL = False
-        
-        #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
-        # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
-        
-        SEGMENT_DURATION = 87
-        
-        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #seconds
+        MAXIMUM_RECORDING_DURATION = [87, [0, 10000]] #seconds #SEGMENT_DURATION nincs tobbe
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         COORDINATE_SYSTEM='ulcorner'
             
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
+        #=== Network ===
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
+        #=== stage ===
+        motor_serial_port = {
+                                    'port' :  'COM1',
+                                    'baudrate' : 19200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                    
+                                    }
+                                    
+        STAGE = [{'serial_port' : motor_serial_port,
+                 'enable': False,
+                 'speed': 800,
+                 'acceleration' : 200,
+                 'move_timeout' : 45.0,
+                 'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
+                 }]
+        #=== DAQ ===
+        SYNC_CHANNEL_INDEX = 1
+        DAQ_CONFIG = [
+                    {
+                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 5000,
+                    'AI_CHANNEL' : 'Dev1/ai0:2',
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : -10.0,
+                    'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
+                    'ENABLE' : False
+                    },
+                    {
+                    'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 1000,
+                    'AO_CHANNEL' : 'Dev1/ao0',
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : 0.0,
+                    
+                    'ENABLE' : False
+                    }
+                    ]
+        
+        #=== Others ===
+        
+        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
+                                    'next': {'key': 'n', 'domain': ['running experiment']},}
+        
+        
         VisionExperimentConfig._create_parameters_from_locals(self, locals())
         #VisionExperimentConfig._set_parameters_from_locals(self, locals())
         
@@ -191,7 +238,7 @@ class DebugOnLaptop(VisionExperimentConfig):
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
         MES_TIMEOUT = 10.0
         PLATFORM = 'standalone'
-        PLATFORM = 'mes'
+#        PLATFORM = 'mes'
         
         #=== Network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
