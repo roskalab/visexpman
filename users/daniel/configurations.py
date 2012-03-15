@@ -306,7 +306,7 @@ class Debug(VisionExperimentConfig):
         
         #=== Network ===
         ENABLE_UDP = False
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.21'#'172.27.25.220' .1: production
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'#'172.27.25.220' .1: production
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
         #=== hardware ===
@@ -401,7 +401,7 @@ class VS3DUS(VisionExperimentConfig):
         MES_TIMEOUT = 10.0
         PLATFORM = 'mes'
         #=== Network ===
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.21'
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
         #=== hardware ===

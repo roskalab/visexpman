@@ -52,7 +52,9 @@ class Log(object):
             full_log += item + '\n'
         self.log.info(full_log)
         self.log_messages = []
+        time.sleep(0.1)#Sometimes random errors occur at this point
         self.handler.flush()
+        time.sleep(0.1)
         
     def queue(self, queue, name = None):
         '''

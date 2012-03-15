@@ -168,10 +168,10 @@ class MesInterface(object):
                                 time.sleep(1.0)
                                 image = matlabfile.read_two_photon_image(two_photon_image_path)
                                 result = True
-        import Image
-        im = numpy.cast['uint8'](image['pmtUGraw']/2)
-        im  = Image.fromarray(im)
-        im.save('v:\\debug\\data\\2p.png')
+#        import Image
+#        im = numpy.cast['uint8'](image['pmtUGraw']/2)
+#        im  = Image.fromarray(im)
+#        im.save('v:\\debug\\data\\2p.png')
         return image, result
 
     ################# Z stack #########################
@@ -201,6 +201,17 @@ class MesInterface(object):
         else:
             return {}, results
 
+    def start_z_stack(self, timeout = -1):
+        z_stack_path, z_stack_path_on_mes = self._generate_mes_file_paths('z_stack.mat')
+        utils.empty_queue(self.queues['mes']['in'])
+        results = []
+        #Acquire z stack
+        if not self.connection.connected_to_remote_client():
+            return z_stack_path, False
+        self.queues['mes']['out'].put('SOCacquire_z_stackEOC{0}EOP' .format(z_stack_path_on_mes))
+        result = network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_z_stackEOCstartedEOP', timeout = timeout)
+        return z_stack_path, result
+        
     #######################  RC scan ######################=#
     def rc_scan(self, cell_centers, timeout = -1):
         '''
@@ -265,7 +276,7 @@ class MesInterface(object):
         return mes_scan_range
 
     #######################  Line scan #######################
-    def line_scan(self, parameter_file = '', scan_time = None):
+    def vertical_line_scan(self, parameter_file = '', scan_time = None): #TODO: generalize to line scan
         result, line_scan_path = self.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file, scan_time = scan_time)
         if not result:
             return {}, False

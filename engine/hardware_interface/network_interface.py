@@ -289,6 +289,7 @@ class QueuedClient(QtCore.QThread):
                                     connection_close_request = True                                
                                 if len(data)>0:                                    
                                     self.queue_in.put(data)
+                                    self.printl(data)
                                 self.last_message_time = time.time()
                             if time.time() - self.last_message_time > self.no_message_timeout:
                                 self.printl('Connection timeout')
