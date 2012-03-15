@@ -33,6 +33,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
+        self.PRECOND='line from previous direction' #setting this to 'line from previous direction' will insert a line before sweeping the screen with lines from the current direction
         self.runnable = 'MovingDot'
         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
@@ -228,7 +229,7 @@ class MovingDot(experiment.Experiment):
     def allangles_in_a_block(self, diameter_pix,gridstep_pix,movestep_pix,w, h, nblocks,  vr_all, vc_all, angleset, allangles, total_dur):
         '''algortithm that splits the trajectories to be shown into blocks so that each block shows all angles and repetitions'''
         block_dur = total_dur/nblocks
-        
+        precond_lines = dict.fromkeys(angleset) # coordinate arrays for each direction, 1 trajectory, middle of the screen
         # ANGLES and repetitions are played within a block
         # coords are in matrix coordinates: origin is topleft corner. 0 degree runs
         # from left to right.
@@ -250,21 +251,23 @@ class MovingDot(experiment.Experiment):
                         vc = vc[:,-1::-1]
                     
                     # try to balance the dot run lengths (in case of multiple dots) so that most of the time the number of dots on screen is constant        
-                    segm_length = vr.shape[1]/self.experiment_config.NDOTS #length of the trajectory 1 dot has to run in the stimulation segment
-                    cl =range(vr.shape[0])
+                    segm_length = vr.shape[1]/self.experiment_config.NDOTS #number of coordinate points in the trajectory 1 dot has to run in the stimulation segment
+                    cl =range(vr.shape[0]) # this many lines will be shown
                     #partsep = [zeros(1,self.experiment_config.NDOTS),size(vr,2)]
                     partsep = range(0 , vr.shape[0], int(numpy.ceil(segm_length)))
                     if len(partsep)<self.experiment_config.NDOTS+1:
                         partsep.append(vr.shape[1])
-                    dots_line_i = [range(partsep[d1-1], partsep[d1]) for d1 in range(1, self.experiment_config.NDOTS+1)]
+                    dots_line_i = [range(partsep[d1-1], partsep[d1]) for d1 in range(1, self.experiment_config.NDOTS+1)] 
                     drc=[]
                     for s1 in range(self.experiment_config.NDOTS): #each dot runs through a full line
-                        dl = numpy.prod(vr[:,dots_line_i[s1]].shape)
+                        dl = numpy.prod(vr[:,dots_line_i[s1]].shape) # total number of coordinate points for all the lines in the current direction
                         drc.append(numpy.r_[numpy.reshape(vr[:,dots_line_i[s1]],[1,dl]), 
-                            numpy.reshape(vc[:,dots_line_i[s1]],[1,dl])])
+                            numpy.reshape(vc[:,dots_line_i[s1]],[1,dl])]) # reshape lines to a single list of coordinates
                         if s1>1 and dl < len(drc[s1-1]): # a dot will run shorter than the others
                         # the following line was not tested in python (works in matlab)
                             drc[s1] = numpy.c_[drc[s1],-diameter_pix*numpy.ones(2,len(drc[s1-1])-dl)] # complete with coordinate outside of the screen
+                            
+                    precond_lines[a] = numpy.c_[vr[vr.shape[0]/2], vc[vr.shape[0]/2]].T
                 else: # diagonal line
                     row_col_f,linelengths_f = diagonal_tr(angleset[a],diameter_pix,gridstep_pix,movestep_pix,w, h)
                     row_col =row_col_f[b::nblocks]
@@ -302,31 +305,37 @@ class MovingDot(experiment.Experiment):
                     for s1 in range(self.experiment_config.NDOTS):
                         if len(drc[s1])<max(ml): # a dot will run shorter than the others
                             drc[s1] = numpy.c_[drc[s1],-diameter_pix*numpy.ones(2,max(ml)-len(drc[s1]))] # complete with coordinate outside of the screen
+                    
+                    precond_lines[a] = row_col[row_col.shape[0]/2].T
                 arow_col[a][b] = drc
         self.row_col = [] # list of coordinates to show on the screen
         self.line_end = [] # index in coordinate list where a line ends and another starts (the other line can be of the same or a different direction
-        self.shown_directions = [] # list of direction of each block presented on the screen
+        self.shown_directions = {'block_start':[], 'block_end':[]} # list of direction of each block presented on the screen
         # create a list of coordinates where dots have to be shown, note when a direction subblock ends, and when a block ends (in case the stimulus has to be split into blocks due to recording duration limit)
         permlist = getpermlist(allangles.shape[0]*(nblocks-1), self.experiment_config.RANDOMIZE)
         for b in range(int(nblocks)):
             self.row_col.append([])
-            self.shown_directions.append([])
+            self.shown_directions['block_start'].append([])
+            self.shown_directions['block_end'].append([])
             self.line_end.append([])
+            if hasattr(self.experiment_config, 'PRECOND') and self.experiment_config.PRECOND=='line from previous direction':
+                    # show an extra dot trajectory at a direction so that when stimulations starts from black screen, this trajectory can be skipped
+                    precond_ai = numpy.where(angleset==allangles[-1])[0][0] # take the previous angle to avoid eventual habituation by repeating the same direction
+                    self.row_col[-1].extend([precond_lines[precond_ai][:, c_i]*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE for c_i in range(precond_lines[precond_ai].shape[1])])
+                    # now continue with adding the trajectories actually used in the analysis:
             for a1 in range(len(allangles)):
                 cai = numpy.where(angleset==allangles[a1])[0]
-                # show an extra dot trajectory at a direction so that when stimulations starts from black screen, this trajectory can be skipped
-                #...
-                self.shown_directions[-1].append({'block_start':[allangles[a1], len(self.row_col[-1])]})
+                self.shown_directions['block_start'][-1].append([allangles[a1], len(self.row_col[-1])])
                 for f in range(arow_col[cai][b][0].shape[1]):
                     coords = []
                     for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[cai][b][n][:,f])
                     self.row_col[-1].extend([c*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE for c in coords])
-                self.shown_directions[-1]['block_end']=[allangles[a1], len(self.row_col[-1])] # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
+                self.shown_directions['block_end'][-1].append([allangles[a1], len(self.row_col[-1])]) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
                 self.line_end[-1].append(arow_col[cai][b][0].shape[1])
             self.row_col[-1]=utils.rc(numpy.array(self.row_col[-1]))
             # if stim is broken into blocks then angles in different blocks are shown in different order, shuffle angles now:
-            allangles = allangles[permlist[b*allangles.shape[0]:(b+1)*allangles.shape[0]]]
+            allangles = allangles[permlist[(permlist>=b*allangles.shape[0]) * (permlist<(b+1)*allangles.shape[0])]%len(allangles)]
         pass
     
 def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
@@ -476,8 +485,8 @@ def run_stimulation(vs):
 if __name__ == '__main__':
     import visexpman    
     import sys
-    from visexpman.engine.visexp_runner import VisExpRunner
-    vs_runner = VisExpRunner('daniel', sys.argv[1]) #first argument should be a class name
+    from visexpman.engine.vision_experiment import VisionExperimentRunner
+    vs_runner = VisionExperimentRunner('daniel', sys.argv[1]) #first argument should be a class name
 #     commands = [
 #                     [0.0,'SOCexecute_experimentEOC'],                    
 #                     [0.0,'SOCquitEOC'],

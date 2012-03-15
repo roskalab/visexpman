@@ -133,7 +133,7 @@ class MBP(VisionExperimentConfig):
         #self.STIMULUS_LIST_p = Parameter(STIMULUS_LIST ) # ez hogy kerulhet ide?  mar ertem de ez nagy kavaras!
         # nem ilyen formaban kellett volna?:STATES = [['idle',  'stimulation'],  None]
         
-        SEGMENT_DURATION = 2
+        SEGMENT_DURATION = 87
         
         MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #seconds
         EXPERIMENT_FILE_FORMAT = 'hdf5'
