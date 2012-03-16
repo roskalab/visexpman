@@ -7,6 +7,7 @@ import time
 from visexpman.engine.generic.parameter import Parameter
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
+from visexpman.engine.generic import file
 
 class PPRLConfig(VisionExperimentConfig):
     
@@ -206,6 +207,8 @@ class DebugOnLaptop(VisionExperimentConfig):
                 root_folder = 'g:\\User\\Zoltan'
             elif use_drive =='v':
                 root_folder = 'V:\\'
+            elif use_drive =='c':
+                root_folder = 'c:\\_del'
         else:
             root_folder = '/home/zoltan/visexp/' 
         drive_data_folder = os.path.join(root_folder, 'debug', 'data')
@@ -220,6 +223,11 @@ class DebugOnLaptop(VisionExperimentConfig):
         CONTEXT_PATH = os.path.join(root_folder, 'context')
         CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
+        #Create folders that does not exists
+        for folder in [LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, MES_DATA_FOLDER, CONTEXT_PATH, CAPTURE_PATH]:
+            file.mkdir_notexists(folder)
+        
+        
         
         #=== screen ===
         FULLSCREEN = not True

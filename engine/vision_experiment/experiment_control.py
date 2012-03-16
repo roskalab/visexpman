@@ -337,7 +337,7 @@ class ExperimentControl(object):
                 time.sleep(0.5+0.1 * 1e-6 * os.path.getsize(self.filenames['mes_fragments'][fragment_id])) #Wait till data write complete
                 try:
                     #Maybe a local copy should be made:
-                    tmp_mes_file = tempfile.mktemp()
+                    tmp_mes_file = tempfile.mkstemp()[1]
                     shutil.copy(self.filenames['mes_fragments'][fragment_id], tmp_mes_file)
                     mes_data = utils.file_to_binary_array(tmp_mes_file)
                 except:

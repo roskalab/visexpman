@@ -4,7 +4,9 @@ import os.path
 def set_file_dates(path, file_info):
     os.utime(path, (file_info.st_atime, file_info.st_mtime))
 
-#== File(name) operations ==
+def mkdir_notexists(folder):
+    if not os.path.exists(folder):
+        os.mkdir(folder)
 
 def find_files_and_folders(start_path,  extension = None, filter = None):
         '''
