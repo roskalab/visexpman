@@ -90,6 +90,8 @@ class ExperimentControl(object):
                 if self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
                     self.printl('Analog acquisition finished')
                 break
+            if self.abort:
+                break
         self._finish_experiment()
         #Send message to screen, log experiment completition
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'

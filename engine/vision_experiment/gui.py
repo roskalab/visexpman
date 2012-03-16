@@ -170,10 +170,6 @@ class DebugWidget(QtGui.QWidget):
     def create_widgets(self):
         #MES related
         self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
-#        self.line_scan_button = QtGui.QPushButton('Line scan', self)
-#        self.rc_scan_button = QtGui.QPushButton('RC scan point', self)
-#        self.rc_scan_point = QtGui.QComboBox(self)
-#        self.rc_scan_point.setEditable(True)
         #Stage related
         self.set_stage_origin_button = QtGui.QPushButton('set stage origin', self)
         self.read_stage_button = QtGui.QPushButton('read stage', self)
@@ -195,13 +191,11 @@ class DebugWidget(QtGui.QWidget):
         self.objective_position_label = QtGui.QLabel('', self)
         #Helpers
         self.save_two_photon_image_button = QtGui.QPushButton('Save two photon image',  self)
+        self.help_button = QtGui.QPushButton('Help',  self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.z_stack_button, 0, 0, 1, 1)
-#        self.layout.addWidget(self.line_scan_button, 0, 1, 1, 1)
-#        self.layout.addWidget(self.rc_scan_button, 0, 2, 1, 1)
-#        self.layout.addWidget(self.rc_scan_point, 0, 3, 1, 2)
         self.layout.addWidget(self.experiment_control_groupbox, 0, 5, 1, 4)
         self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
         self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
@@ -218,7 +212,8 @@ class DebugWidget(QtGui.QWidget):
         self.layout.addWidget(self.animal_parameters_groupbox, 4, 0, 2, 4)
         self.layout.addWidget(self.scan_region_groupbox, 4, 5, 2, 4)
         
-        self.layout.addWidget(self.save_two_photon_image_button, 8, 0, 1, 1)
+        self.layout.addWidget(self.help_button, 8, 0, 1, 1)
+        self.layout.addWidget(self.save_two_photon_image_button, 8, 1, 1, 1)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -246,10 +241,12 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         
         self.move_to_button = QtGui.QPushButton('Move to',  self)
         self.region_info = QtGui.QLabel('',  self)
-        self.realign_label = QtGui.QLabel('Realign after moving to region', self)
+        self.realign_label = QtGui.QLabel('Skip realign after moving to region', self)
         self.realign_checkbox = QtGui.QCheckBox(self)
         self.vertical_realignment_only_label = QtGui.QLabel('Vertical realignment only', self)
         self.vertical_realignment_only_checkbox = QtGui.QCheckBox(self)
+        self.set_objective_label = QtGui.QLabel('Set objective too', self)
+        self.set_objective_checkbox = QtGui.QCheckBox(self)
         self.vertical_scan_button = QtGui.QPushButton('Vertical scan',  self)
         
 
@@ -272,9 +269,9 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.realign_checkbox, 5, 3, 1, 1)
         self.layout.addWidget(self.vertical_realignment_only_label, 6, 2, 1, 1)
         self.layout.addWidget(self.vertical_realignment_only_checkbox, 6, 3, 1, 1)
-        
-        
-        
+        self.layout.addWidget(self.set_objective_label, 7, 2, 1, 1)
+        self.layout.addWidget(self.set_objective_checkbox, 7, 3, 1, 1)
+
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -360,7 +357,6 @@ class Poller(QtCore.QThread):
             self.stage_position = numpy.zeros(3)
             self.stage_origin = numpy.zeros(3)
         self.two_photon_image = context_hdf5.findvar('two_photon_image')
-        
         self.vertical_scan = context_hdf5.findvar('vertical_scan')
         context_hdf5.close()
         self.stage_position_valid = False
@@ -657,17 +653,8 @@ class Poller(QtCore.QThread):
         region_name = self.parent.get_current_region_name()
         if region_name == '':
             region_name = 'r'
-        relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
-        region_name_tag = '_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
-        region_name = region_name + region_name_tag
-        region_name = region_name.replace(' ', '_')
-        
-        if not('master' in region_name or '0_0' in region_name or self.has_master_position(hdf5_handler.scan_regions)):
-            self.printc('Master position has to be defined')
-            hdf5_handler.close()
-            return
-        #Ask for confirmation to overwrite if region name already exists
         if hdf5_handler.scan_regions.has_key(region_name):
+            #Ask for confirmation to overwrite if region name already exists
             self.emit(QtCore.SIGNAL('show_overwrite_region_messagebox'))
             while self.gui_thread_queue.empty() :
                 time.sleep(0.1) 
@@ -675,6 +662,15 @@ class Poller(QtCore.QThread):
                 self.printc('Region not saved')
                 hdf5_handler.close()
                 return
+        else:
+            relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
+            region_name_tag = '_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
+            region_name = region_name + region_name_tag
+            region_name = region_name.replace(' ', '_')
+        if not('master' in region_name or '0_0' in region_name or self.has_master_position(hdf5_handler.scan_regions)):
+            self.printc('Master position has to be defined')
+            hdf5_handler.close()
+            return
         if region_name == 'master':
            if not self.set_stage_origin():
                 self.printc('Setting origin did not succeed')
@@ -725,19 +721,19 @@ class Poller(QtCore.QThread):
         2. move stage and objective and realign both vertically and in xy
         (3. Realign objective at experiment batches - will be implemented in stimulation sw)
         '''
-        if self.parent.debug_widget.scan_region_groupbox.vertical_realignment_only_checkbox.checkState() != 0 and self.parent.debug_widget.scan_region_groupbox.realign_checkbox.checkState() == 0:
+        if self.parent.debug_widget.scan_region_groupbox.vertical_realignment_only_checkbox.checkState() != 0 and self.parent.debug_widget.scan_region_groupbox.realign_checkbox.checkState() != 0:
             self.printc('Please check \"Realign after moving region\" checkbox')
             return
         selected_region = self.parent.get_current_region_name()
-        #Move objective to saved position
-        if abs(self.scan_regions[selected_region]['position']['z']) > self.config.OBJECTIVE_POSITION_LIMIT:
-            self.printc('Objective position is not correct')
-            return
-        if not self.mes_interface.set_objective(self.scan_regions[selected_region]['position']['z'], self.config.MES_TIMEOUT):
-            self.printc('Setting objective did not succeed')
-            return
-        self.printc('Objective set to {0} um'.format(self.scan_regions[selected_region]['position']['z']))
-        
+        if self.parent.debug_widget.scan_region_groupbox.set_objective_checkbox.checkState() != 0:
+            #Move objective to saved position
+            if abs(self.scan_regions[selected_region]['position']['z']) > self.config.OBJECTIVE_POSITION_LIMIT:
+                self.printc('Objective position is not correct')
+                return
+            if not self.mes_interface.set_objective(self.scan_regions[selected_region]['position']['z'], self.config.MES_TIMEOUT):
+                self.printc('Setting objective did not succeed')
+                return
+            self.printc('Objective set to {0} um'.format(self.scan_regions[selected_region]['position']['z']))
         if self.parent.debug_widget.scan_region_groupbox.vertical_realignment_only_checkbox.checkState() == 0:
             if not (self.has_master_position(self.scan_regions) and self.scan_regions.has_key(selected_region)):
                 self.printc('Master position is not defined')
@@ -750,7 +746,7 @@ class Poller(QtCore.QThread):
             movement = target_relative_position - current_relative_position
             if not self.move_stage_relative(movement):
                 return
-            if self.parent.debug_widget.scan_region_groupbox.realign_checkbox.checkState() == 0:
+            if self.parent.debug_widget.scan_region_groupbox.realign_checkbox.checkState() != 0:
                 self.printc('Moved to selected region.')
                 return
             #Realign in xy, first take an image using saved mes parameters
@@ -773,7 +769,7 @@ class Poller(QtCore.QThread):
                 return
             if not self.register_images(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['brain_surface']['image'], self.two_photon_image['scale']):
                 return
-            if abs(self.suggested_translation['col']) > self.config.MIN_REALIGNMENT_OFFSET or abs(self.suggested_translation['row']) > self.config.MIN_REALIGNMENT_OFFSET:
+            if abs(self.suggested_translation['col']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET or abs(self.suggested_translation['row']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET:
                 self.printc('Realignment was not successful {0}' .format(self.suggested_translation))
                 return
             self.printc('XY offset {0}' .format(self.suggested_translation))
@@ -807,7 +803,7 @@ class Poller(QtCore.QThread):
         if not self.register_images(self.vertical_scan['scaled_image'], self.scan_regions[selected_region]['vertical_section']['image'], self.vertical_scan['scaled_scale']):
             return
         vertical_offset = self.suggested_translation['row']
-        if abs(vertical_offset) > self.config.MIN_REALIGNMENT_OFFSET:
+        if abs(vertical_offset) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET:
             self.printc('Realignment was not successful {0}'.format(vertical_offset))
             return
         self.printc('Vertical offset {0}' .format(vertical_offset))
@@ -819,6 +815,9 @@ class Poller(QtCore.QThread):
         selected_region = self.parent.get_current_region_name()
         if not self.scan_regions.has_key(selected_region):
             self.printc('Selected region does not exists')
+            return False
+        if not self.scan_regions[selected_region].has_key(scan_type):
+            self.printc('Parameters for {0} does not exists' .format(scan_type))
             return False
         self.scan_regions[selected_region][scan_type]['mes_parameters'].tofile(parameter_file_path)
         if not os.path.exists(parameter_file_path):

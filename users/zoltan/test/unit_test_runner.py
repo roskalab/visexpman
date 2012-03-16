@@ -22,6 +22,7 @@ TEST_mes = False
 TEST_hardware_test = False
 TEST_parallel_port = False
 TEST_filterwheel = False
+TEST_nostim = False
 TEST_delete_files = False
 for arg in sys.argv:
     if arg == '-daqmx':
@@ -34,6 +35,8 @@ for arg in sys.argv:
         TEST_parallel_port = True
     elif arg == '-fw':
         TEST_filterwheel = True
+    elif arg == '-nostim': #Stimulation patterns are not checked (saves time)
+        TEST_nostim = True
     elif arg == '-del': #Yet not working
         TEST_delete_files = True
 
@@ -51,10 +54,12 @@ if TEST_os == 'nt':
     TEST_reference_frames_folder = 'v:\\data\\test\\frames_win'
     TEST_reference_mat_file = 'v:\\data\\test\\mes\\line_scan_parameters.mat'
     TEST_reference_z_stack_file = 'v:\\data\\test\\mes\\z_stack_ref.mat'
+    TEST_reference_data_folder = 'v:\\data\\test'
 elif TEST_os == 'posix':
     TEST_reference_frames_folder = '/home/zoltan/visexp/data/test/frames'
     TEST_reference_mat_file = '/home/zoltan/visexp/data/test/mes/line_scan_parameters.mat'
     TEST_reference_z_stack_file = '/home/zoltan/visexp/data/test/mes/z_stack_ref.mat'
+    TEST_reference_data_folder = '/mnt/rzws/data/test'
 elif TEST_os == 'osx':
     TEST_reference_frames_folder = '/Users/rz/visexpman/data/test_data/reference_frames_osx'
 
@@ -103,10 +108,10 @@ class UnitTestRunner():
     '''
     def __init__(self):        
         self.test_configs = [
-               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
-               'enable' : TEST_mes},
-               {'test_class_path' : 'visexpman.engine.vision_experiment.TestVisionExperimentRunner',
-               'enable' : True, 'run_only' : []},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
+#               'enable' : TEST_mes},
+#               {'test_class_path' : 'visexpman.engine.vision_experiment.TestVisionExperimentRunner',
+#               'enable' : True, 'run_only' : []},
 #               {'test_class_path' : 'visexpman.engine.visexp_runner.TestFindoutConfig',
 #               'enable' : True, 'run_only' : []}, 
 #               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
@@ -141,6 +146,8 @@ class UnitTestRunner():
 #               'enable' : True},
 #               {'test_class_path' : 'visexpman.engine.generic.command_parser.TestCommandHandler',
 #               'enable' : True},
+               {'test_class_path' : 'visexpA.engine.datahandlers.hdf5io.TestUtils',
+               'enable' : True},
                ]
 
     def fetch_test_methods(self, test_class):
