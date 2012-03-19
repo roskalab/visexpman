@@ -16,6 +16,7 @@ import shutil
 import traceback
 import re
 import cPickle as pickle
+import webbrowser
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -79,8 +80,8 @@ class VisionExperimentGui(QtGui.QWidget):
             if self.poller.vertical_scan.has_key('scaled_scale'):#temporary
                 scale = self.poller.vertical_scan['scaled_scale']
             else:
-                scale = self.poller.vertical_scan['scale']
-            self.show_image(self.poller.vertical_scan['scaled_image'], 2, scale, origin = self.poller.two_photon_image['origin'])
+                scale = self.poller.vertical_scan['scaled_scale']
+            self.show_image(self.poller.vertical_scan['scaled_image'], 2, scale, origin = self.poller.vertical_scan['origin'])
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -106,6 +107,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
         self.connect(self.debug_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.update_animal_parameter_display)
         self.connect(self.debug_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged()'),  self.update_gui_items)
+        self.connect(self.debug_widget.help_button, QtCore.SIGNAL('clicked()'),  self.show_help)
         
         #Blocking functions, run by poller
         self.signal_mapper = QtCore.QSignalMapper(self)
@@ -127,6 +129,10 @@ class VisionExperimentGui(QtGui.QWidget):
     def connect_and_map_signal(self, widget, mapped_signal_parameter, widget_signal_name = 'clicked'):
         self.signal_mapper.setMapping(widget, QtCore.QString(mapped_signal_parameter))
         getattr(getattr(widget, widget_signal_name), 'connect')(self.signal_mapper.map)
+    
+    def show_help(self):
+        if webbrowser.open_new_tab(self.config.MANUAL_URL):
+            self.printc('Shown in default webbrowser')
 
     def stop_experiment(self):
         command = 'SOCabort_experimentEOCguiEOP'
@@ -240,6 +246,9 @@ class VisionExperimentGui(QtGui.QWidget):
                     self.show_image(scan_regions[selected_region]['vertical_section']['scaled_image'], 3,
                                      scan_regions[selected_region]['vertical_section']['scaled_scale'], 
                                      origin = scan_regions[selected_region]['vertical_section']['origin'])
+                else:
+                    no_scale = utils.rc((1.0, 1.0))
+                    self.show_image(self.regions_images_widget.blank_image, 3, no_scale)
                 image_to_display = scan_regions[selected_region]['brain_surface']
                 self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
                 #update overwiew
