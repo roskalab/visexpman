@@ -311,13 +311,12 @@ class MovingDot(experiment.Experiment):
                 arow_col[a][b] = drc
         self.row_col = [] # list of coordinates to show on the screen
         self.line_end = [] # index in coordinate list where a line ends and another starts (the other line can be of the same or a different direction
-        self.shown_directions = {'block_start':[], 'block_end':[]} # list of direction of each block presented on the screen
+        self.shown_directions = [] # list of direction of each block presented on the screen
         # create a list of coordinates where dots have to be shown, note when a direction subblock ends, and when a block ends (in case the stimulus has to be split into blocks due to recording duration limit)
         permlist = getpermlist(allangles.shape[0]*(nblocks-1), self.experiment_config.RANDOMIZE)
         for b in range(int(nblocks)):
             self.row_col.append([])
-            self.shown_directions['block_start'].append([])
-            self.shown_directions['block_end'].append([])
+            self.shown_directions.append({'block_start':[], 'block_end':[]})
             self.line_end.append([])
             if hasattr(self.experiment_config, 'PRECOND') and self.experiment_config.PRECOND=='line from previous direction':
                     # show an extra dot trajectory at a direction so that when stimulations starts from black screen, this trajectory can be skipped
@@ -326,13 +325,13 @@ class MovingDot(experiment.Experiment):
                     # now continue with adding the trajectories actually used in the analysis:
             for a1 in range(len(allangles)):
                 cai = numpy.where(angleset==allangles[a1])[0]
-                self.shown_directions['block_start'][-1].append([allangles[a1], len(self.row_col[-1])])
+                self.shown_directions[-1]['block_start'].append([allangles[a1], len(self.row_col[-1])])
                 for f in range(arow_col[cai][b][0].shape[1]):
                     coords = []
                     for n in range(self.experiment_config.NDOTS):
                         coords.append(arow_col[cai][b][n][:,f])
                     self.row_col[-1].extend([c*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE for c in coords])
-                self.shown_directions['block_end'][-1].append([allangles[a1], len(self.row_col[-1])]) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
+                self.shown_directions[-1]['block_end'].append([allangles[a1], len(self.row_col[-1])]) # at each coordinate we store the direction, thus we won't need to analyze dot coordinates 
                 self.line_end[-1].append(arow_col[cai][b][0].shape[1])
             self.row_col[-1]=utils.rc(numpy.array(self.row_col[-1]))
             # if stim is broken into blocks then angles in different blocks are shown in different order, shuffle angles now:
