@@ -245,7 +245,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.realign_checkbox = QtGui.QCheckBox(self)
         self.vertical_realignment_only_label = QtGui.QLabel('Vertical realignment only', self)
         self.vertical_realignment_only_checkbox = QtGui.QCheckBox(self)
-        self.set_objective_label = QtGui.QLabel('Set objective too', self)
+        self.set_objective_label = QtGui.QLabel('Move objective to saved position', self)
         self.set_objective_checkbox = QtGui.QCheckBox(self)
         self.vertical_scan_button = QtGui.QPushButton('Vertical scan',  self)
         

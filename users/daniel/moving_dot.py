@@ -46,7 +46,7 @@ class ShortMovingDotConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty        
         self.DIAMETER_UM = [300]        
-        self.ANGLES = [90] # degrees
+        self.ANGLES = [0, 90] # degrees
         self.SPEED = [2000] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
@@ -54,6 +54,7 @@ class ShortMovingDotConfig(experiment.ExperimentConfig):
         self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
+        self.PRECOND='line from previous direction' #setting this to 'line from previous direction' will insert a line before sweeping the screen with lines from the current direction
         self.runnable = 'MovingDot'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
         self._create_parameters_from_locals(locals())
@@ -69,7 +70,7 @@ class MovingDot(experiment.Experiment):
     def pre_first_fragment(self):
         self.show_fullscreen(color = 0.0)
     
-    def run(self, fragment_id = 0):    
+    def run(self, fragment_id = 0):
         self.show_dots(numpy.array([self.diameter_pix*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE]*len(self.row_col[fragment_id])), 
                 self.row_col[fragment_id], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
         self.show_fullscreen(color = 0.0)
@@ -77,9 +78,8 @@ class MovingDot(experiment.Experiment):
         if hasattr(self, 'shown_line_order'):
             self.experiment_specific_data['shown_line_order'] = self.shown_line_order[fragment_id]
         if hasattr(self,'shown_directions'):
-            if self.experiment_specific_data.has_key('shown_directions'):
-                self.experiment_specific_data['shown_directions']= self.shown_directions[fragment_id]
-            
+            self.experiment_specific_data['shown_directions']= self.shown_directions[fragment_id]
+
     def cleanup(self):
         #add experiment identifier node to experiment hdf5
         experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.experiment_control.start_time))

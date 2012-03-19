@@ -415,6 +415,11 @@ class Debug(VisionExperimentConfig):
         #=== Others ===
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
+                                    
+        MAX_REALIGNMENT_OFFSET = 100.0
+        ACCEPTABLE_REALIGNMENT_OFFSET = 5.0
+        REALIGNMENT_XY_THRESHOLD = 2.0
+        REALIGNMENT_Z_THRESHOLD = 1.0
 
         self._create_parameters_from_locals(locals())
         
