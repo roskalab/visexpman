@@ -137,7 +137,7 @@ class MesInterface(object):
             self.queues['mes']['out'].put('SOCsetZ_relativeEOC{0}EOP' .format(parameter_path_on_mes))
             if network_interface.wait_for_response( self.queues['mes']['in'], ['SOCsetZ_relativeEOCcommandsentEOP'], timeout = timeout):
                 result = True
-        if os.path.exists(parameter_path):
+        if os.path.exists(parameter_path):#TODO: check why this is not working
             os.remove(parameter_path)
         return result
             
