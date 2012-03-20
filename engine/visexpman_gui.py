@@ -16,6 +16,7 @@ import shutil
 import traceback
 import re
 import cPickle as pickle
+import webbrowser
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -33,17 +34,8 @@ import visexpman.engine.generic as generic
 import visexpman.engine.generic.geometry as geometry
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import visexpA.engine.datahandlers.hdf5io as hdf5io
-try:
-    import visexpA.engine.dataprocessors.itk_image_registration as itk_image_registration
-    import visexpA.engine.dataprocessors.itk_versor_rigid_registration as itk_versor_rigid_registration
-except:
-    print 'itk not installed'
 from visexpman.engine.vision_experiment import experiment_data
-try:
-    import visexpA.engine.dataprocessors.signal as signal
-except:
-    pass
-    
+
 parameter_extract = re.compile('EOC(.+)EOP')
 
 ################### Main widget #######################
@@ -88,8 +80,8 @@ class VisionExperimentGui(QtGui.QWidget):
             if self.poller.vertical_scan.has_key('scaled_scale'):#temporary
                 scale = self.poller.vertical_scan['scaled_scale']
             else:
-                scale = self.poller.vertical_scan['scale']
-            self.show_image(self.poller.vertical_scan['scaled_image'], 2, scale, origin = self.poller.two_photon_image['origin'])
+                scale = self.poller.vertical_scan['scaled_scale']
+            self.show_image(self.poller.vertical_scan['scaled_image'], 2, scale, origin = self.poller.vertical_scan['origin'])
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -107,14 +99,15 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.animal_parameters_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)
         self.connect(self.debug_widget.show_connected_clients_button, QtCore.SIGNAL('clicked()'),  self.show_connected_clients)
         self.connect(self.debug_widget.show_network_messages_button, QtCore.SIGNAL('clicked()'),  self.show_network_messages)
-        self.connect(self.debug_widget.stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.stop_experiment)
-        self.connect(self.debug_widget.graceful_stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.graceful_stop_experiment)
-        self.connect(self.debug_widget.start_experiment_button, QtCore.SIGNAL('clicked()'),  self.start_experiment)
+        self.connect(self.debug_widget.experiment_control_groupbox.stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.stop_experiment)
+        self.connect(self.debug_widget.experiment_control_groupbox.graceful_stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.graceful_stop_experiment)
+        self.connect(self.debug_widget.experiment_control_groupbox.start_experiment_button, QtCore.SIGNAL('clicked()'),  self.start_experiment)
         self.connect(self.debug_widget.send_command_button, QtCore.SIGNAL('clicked()'),  self.send_command)
         self.connect(self.debug_widget.save_two_photon_image_button, QtCore.SIGNAL('clicked()'),  self.poller.save_two_photon_image)
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
         self.connect(self.debug_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.update_animal_parameter_display)
         self.connect(self.debug_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged()'),  self.update_gui_items)
+        self.connect(self.debug_widget.help_button, QtCore.SIGNAL('clicked()'),  self.show_help)
         
         #Blocking functions, run by poller
         self.signal_mapper = QtCore.QSignalMapper(self)
@@ -129,21 +122,22 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.vertical_scan_button, 'acquire_vertical_scan')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.add_button, 'add_scan_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
-        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.register_button, 'register')
-        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.realign_button, 'realign_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.move_to_button, 'move_to_region')
-        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.vertical_realign_button, 'vertical_realign')
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
     def connect_and_map_signal(self, widget, mapped_signal_parameter, widget_signal_name = 'clicked'):
         self.signal_mapper.setMapping(widget, QtCore.QString(mapped_signal_parameter))
         getattr(getattr(widget, widget_signal_name), 'connect')(self.signal_mapper.map)
+    
+    def show_help(self):
+        if webbrowser.open_new_tab(self.config.MANUAL_URL):
+            self.printc('Shown in default webbrowser')
 
     def stop_experiment(self):
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
-        self.printc('Experiment abort requested,  please wait')
+        self.printc('Stopping experiment requested, please wait')
         
     def graceful_stop_experiment(self):
         command = 'SOCgraceful_stop_experimentEOCguiEOP'
@@ -151,12 +145,13 @@ class VisionExperimentGui(QtGui.QWidget):
         self.printc('Graceful stop requested,  please wait')
         
     def start_experiment(self):
+        self.printc('Experiment started,  please wait')
         params =  self.scanc()
         if len(params)>0:
             objective_positions = params.replace(',',  '<comma>')
-            command = 'SOCexecute_experimentEOCobjective_positions={0}EOP' .format(objective_positions)
+            command = 'SOCexecute_experimentEOCobjective_positions={0}region_name={1}EOP' .format(objective_positions, self.get_current_region_name())
         else:
-            command = 'SOCexecute_experimentEOCEOP'        
+            command = 'SOCexecute_experimentEOCregion_name={0}EOP' .format(self.get_current_region_name())
         self.queues['stim']['out'].put(command)
 
     def save_animal_parameters(self):
@@ -236,10 +231,8 @@ class VisionExperimentGui(QtGui.QWidget):
             self.mouse_file_last_change_time = mouse_file_last_change_time
             displayable_region_names = []
             for region in scan_regions.keys():
-                if scan_regions[region].has_key('add_date'):
-                    displayable_region_names.append(region + '  ' + scan_regions[region]['add_date'])
-                else:
                     displayable_region_names.append(region)
+            displayable_region_names.sort()
             self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, displayable_region_names)
         self.poller.scan_regions = scan_regions
         #Display image of selected region
@@ -253,12 +246,19 @@ class VisionExperimentGui(QtGui.QWidget):
                     self.show_image(scan_regions[selected_region]['vertical_section']['scaled_image'], 3,
                                      scan_regions[selected_region]['vertical_section']['scaled_scale'], 
                                      origin = scan_regions[selected_region]['vertical_section']['origin'])
+                else:
+                    no_scale = utils.rc((1.0, 1.0))
+                    self.show_image(self.regions_images_widget.blank_image, 3, no_scale)
                 image_to_display = scan_regions[selected_region]['brain_surface']
                 self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
                 #update overwiew
                 image, scale = experiment_data.merge_brain_regions(scan_regions, region_on_top = selected_region)
                 self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
-                
+            else:
+                no_scale = utils.rc((1.0, 1.0))
+                self.show_image(self.regions_images_widget.blank_image, 1, no_scale)
+                self.show_image(self.regions_images_widget.blank_image, 3, no_scale)
+                self.show_image(self.regions_images_widget.blank_image, 'overview', no_scale)
         #Display coordinates of selected region
         if scan_regions.has_key(selected_region):
             if scan_regions[selected_region].has_key('add_date'):
@@ -266,11 +266,13 @@ class VisionExperimentGui(QtGui.QWidget):
             else:
                 region_add_date = 'unknown'
             self.debug_widget.scan_region_groupbox.region_info.setText(\
-                                                                           '{0:.2f}, {1:.2f}, {2:.2f}\n{3}' \
+                                                                           '{3}\n{0:.2f}, {1:.2f}, {2:.2f}' \
                                                                            .format(scan_regions[selected_region]['position']['x'][0], 
                                                                                    scan_regions[selected_region]['position']['y'][0], 
                                                                                    scan_regions[selected_region]['position']['z'][0], 
                                                                                    region_add_date))
+        else:
+            self.debug_widget.scan_region_groupbox.region_info.setText('')
 
     def update_animal_parameter_display(self, index):
         selected_mouse_file  = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText()))
@@ -283,8 +285,7 @@ class VisionExperimentGui(QtGui.QWidget):
             .format(animal_parameters['mouse_birth_date'], animal_parameters['gcamp_injection_date'], animal_parameters['strain'], 
                     animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'],  animal_parameters['anesthesia_protocol'])
             h.close()
-
-        self.debug_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
+            self.debug_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
 
     def execute_python(self):
         try:
@@ -368,11 +369,11 @@ class VisionExperimentGui(QtGui.QWidget):
         widget.setCurrentIndex(current_index)
         
     def get_current_region_name(self):
-        return str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText()).split(' ')[0]
+        return str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
         
     def show_overwrite_region_messagebox(self):
         utils.empty_queue(self.poller.gui_thread_queue)
-        reply = QtGui.QMessageBox.question(self, 'Overwriting scan region', "Are you sure?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        reply = QtGui.QMessageBox.question(self, 'Overwriting scan region', "Do you want to overwrite scan region?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
         if reply == QtGui.QMessageBox.No:
             self.poller.gui_thread_queue.put(False)
         else:

@@ -112,6 +112,9 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         self.log.info('Visexpman quit')
         self.log.flush()
         
+    def __del__(self): #To avoid unit test warning
+        pass
+        
     def _stop_network(self):
         if unit_test_runner.TEST_enable_network:
             self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
@@ -158,6 +161,8 @@ class TestVisionExperimentRunner(unittest.TestCase):
                  2. Press ENTER')
             if hasattr(self, 'server'):
                 self.server.shutdown_servers()
+            if '_01_'in self._testMethodName:
+                self.v1.close()
                 
     #== Test cases for VisexpRunner's constructor ==    
     def test_01_VisexpRunner_SafestartConfig(self):        
@@ -231,100 +236,103 @@ class TestVisionExperimentRunner(unittest.TestCase):
                         ))
                         
     def test_06_visual_stimulations_centered(self):
-        config_name = 'VisualStimulationsTestConfig'
-        v = VisionExperimentRunner('zoltan', config_name)        
-        commands = [
-                    [0.0,'SOCexecute_experimentEOC'],                    
-                    [0.0,'SOCquitEOC'],
-                    ]
-        cs = command_handler.CommandSender(v.config, v, commands)
-        cs.start()
-        v.run_loop()
-        cs.close()
-        #Read logs
-        log = file.read_text_file(v.logfile_path)
-        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
-        self.assertEqual(
-                        (self.check_application_log(v), 
-                        self.check_experiment_log(v),
-                        v.experiment_config.runnable.fragment_check_result, 
-                        v.config.__class__, 
-                        v.config.user,
-                        v.experiment_config.__class__, 
-                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_06')), 
-                        self.check_experiment_log_for_visual_stimuli(experiment_log), 
-                        ),
-                        (True, True, True, 
-                        visexpman.users.zoltan.automated_test_data.VisualStimulationsTestConfig,
-                       'zoltan',
-                       visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
-                       True, 
-                       True, 
-                        ))
+        if not unit_test_runner.TEST_nostim:
+            config_name = 'VisualStimulationsTestConfig'
+            v = VisionExperimentRunner('zoltan', config_name)        
+            commands = [
+                        [0.0,'SOCexecute_experimentEOC'],                    
+                        [0.0,'SOCquitEOC'],
+                        ]
+            cs = command_handler.CommandSender(v.config, v, commands)
+            cs.start()
+            v.run_loop()
+            cs.close()
+            #Read logs
+            log = file.read_text_file(v.logfile_path)
+            experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
+            self.assertEqual(
+                            (self.check_application_log(v), 
+                            self.check_experiment_log(v),
+                            v.experiment_config.runnable.fragment_check_result, 
+                            v.config.__class__, 
+                            v.config.user,
+                            v.experiment_config.__class__, 
+                            self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_06')), 
+                            self.check_experiment_log_for_visual_stimuli(experiment_log), 
+                            ),
+                            (True, True, True, 
+                            visexpman.users.zoltan.automated_test_data.VisualStimulationsTestConfig,
+                           'zoltan',
+                           visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
+                           True, 
+                           True, 
+                            ))
                         
     def test_07_visual_stimulations_ul_corner(self):
-        config_name = 'VisualStimulationsUlCornerTestConfig'
-        v = VisionExperimentRunner('zoltan', config_name)        
-        commands = [
-                    [0.0,'SOCexecute_experimentEOC'],                    
-                    [0.0,'SOCquitEOC'],
-                    ]
-        cs = command_handler.CommandSender(v.config, v, commands)
-        cs.start()
-        v.run_loop()
-        cs.close()
-        #Read logs
-        log = file.read_text_file(v.logfile_path)
-        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
-        self.assertEqual(
-                        (self.check_application_log(v), 
-                        self.check_experiment_log(v),
-                        v.experiment_config.runnable.fragment_check_result, 
-                        v.config.__class__, 
-                        v.config.user,
-                        v.experiment_config.__class__, 
-                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_07')), 
-                        self.check_experiment_log_for_visual_stimuli(experiment_log), 
-                        ),
-                        (True, True, True, 
-                        visexpman.users.zoltan.automated_test_data.VisualStimulationsUlCornerTestConfig,
-                       'zoltan',
-                       visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
-                       True, 
-                       True, 
-                        ))
+        if not unit_test_runner.TEST_nostim:
+            config_name = 'VisualStimulationsUlCornerTestConfig'
+            v = VisionExperimentRunner('zoltan', config_name)        
+            commands = [
+                        [0.0,'SOCexecute_experimentEOC'],                    
+                        [0.0,'SOCquitEOC'],
+                        ]
+            cs = command_handler.CommandSender(v.config, v, commands)
+            cs.start()
+            v.run_loop()
+            cs.close()
+            #Read logs
+            log = file.read_text_file(v.logfile_path)
+            experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
+            self.assertEqual(
+                            (self.check_application_log(v), 
+                            self.check_experiment_log(v),
+                            v.experiment_config.runnable.fragment_check_result, 
+                            v.config.__class__, 
+                            v.config.user,
+                            v.experiment_config.__class__, 
+                            self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_07')), 
+                            self.check_experiment_log_for_visual_stimuli(experiment_log), 
+                            ),
+                            (True, True, True, 
+                            visexpman.users.zoltan.automated_test_data.VisualStimulationsUlCornerTestConfig,
+                           'zoltan',
+                           visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
+                           True, 
+                           True, 
+                            ))
                         
     def test_08_visual_stimulations_scaled(self):
-        config_name = 'VisualStimulationsScaledTestConfig'
-        v = VisionExperimentRunner('zoltan', config_name)        
-        commands = [
-                    [0.0,'SOCexecute_experimentEOC'],                    
-                    [0.0,'SOCquitEOC'],
-                    ]
-        cs = command_handler.CommandSender(v.config, v, commands)
-        cs.start()
-        v.run_loop()
-        cs.close()
-        #Read logs
-        log = file.read_text_file(v.logfile_path)
-        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
-        self.assertEqual(
-                        (self.check_application_log(v), 
-                        self.check_experiment_log(v),
-                        v.experiment_config.runnable.fragment_check_result, 
-                        v.config.__class__, 
-                        v.config.user,
-                        v.experiment_config.__class__, 
-                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_08')), 
-                        self.check_experiment_log_for_visual_stimuli(experiment_log), 
-                        ),
-                        (True, True, True, 
-                        visexpman.users.zoltan.automated_test_data.VisualStimulationsScaledTestConfig,
-                       'zoltan',
-                       visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
-                       True, 
-                       True, 
-                        ))
+        if not unit_test_runner.TEST_nostim:
+            config_name = 'VisualStimulationsScaledTestConfig'
+            v = VisionExperimentRunner('zoltan', config_name)        
+            commands = [
+                        [0.0,'SOCexecute_experimentEOC'],                    
+                        [0.0,'SOCquitEOC'],
+                        ]
+            cs = command_handler.CommandSender(v.config, v, commands)
+            cs.start()
+            v.run_loop()
+            cs.close()
+            #Read logs
+            log = file.read_text_file(v.logfile_path)
+            experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
+            self.assertEqual(
+                            (self.check_application_log(v), 
+                            self.check_experiment_log(v),
+                            v.experiment_config.runnable.fragment_check_result, 
+                            v.config.__class__, 
+                            v.config.user,
+                            v.experiment_config.__class__, 
+                            self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_08')), 
+                            self.check_experiment_log_for_visual_stimuli(experiment_log), 
+                            ),
+                            (True, True, True, 
+                            visexpman.users.zoltan.automated_test_data.VisualStimulationsScaledTestConfig,
+                           'zoltan',
+                           visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
+                           True, 
+                           True, 
+                            ))
 
     def test_09_mes_platform(self):
         '''
@@ -338,6 +346,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
         
         unit test runner command line switches: pp, mes (real/emulated mes), daq, stage
         '''
+        #TODO: test not complete
         if unit_test_runner.TEST_mes:
             raw_input('1. In MES software, server address shall be set to this machine\'s ip\n\
                     2. Connect MES to stim\n\

@@ -202,24 +202,30 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         }
 #         ]]
         #GUI
-        if 'gui' in sys.argv[0]:
-            screen_size = QtGui.QDesktopWidget().screenGeometry()
-            screen_size = utils.cr((0.95*screen_size.width(), 0.9*screen_size.height()))
-        else:
-            screen_size = utils.cr((800, 600))
+        screen_size = utils.cr((800, 600))
+        if len(sys.argv) > 0:
+            if 'gui' in sys.argv[0]: #if gui is the main module
+                screen_size = QtGui.QDesktopWidget().screenGeometry()
+                screen_size = utils.cr((0.95*screen_size.width(), 0.9*screen_size.height()))
         MAX_REGISTRATION_TIME = [30.0, [0.5, 600.0]]
         GUI_STAGE_TIMEOUT = [30.0, [0.5, 60.0]]
         DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
         GUI_POSITION = utils.cr((5, 5))
         GUI_SIZE = screen_size
         TAB_SIZE = utils.cr((0.3 * screen_size['col'], 0.9 * screen_size['col']))
-        IMAGE_SIZE = utils.rc_multiply_with_constant(utils.rc((1, 1)), 0.4 * screen_size['row'])
+        IMAGE_SIZE = utils.rc_multiply_with_constant(utils.rc((1, 1)), int(0.45 * screen_size['row']))
         OVERVIEW_IMAGE_SIZE = utils.rc_multiply_with_constant(IMAGE_SIZE, 2)
         SIDEBAR_SIZE = [30, [10, 100]]
         GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
         #jobhandler
         PARSE_PERIOD = [2.0, [0.0, 10.0]]
         
+        MAX_REALIGNMENT_OFFSET = [1000.0, [100.0, 2000.0]]
+        ACCEPTABLE_REALIGNMENT_OFFSET = [2.0, [0.1, 10.0]]
+        REALIGNMENT_XY_THRESHOLD = [1.0, [0.1, 10.0]]
+        REALIGNMENT_Z_THRESHOLD = [1.0, [0.1, 10.0]]
+        
+        MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 

@@ -32,7 +32,7 @@ class SafestartConfig(configuration.VisionExperimentConfig):
         if os.name == 'nt':
             tmp_folder = 'c:\\temp'
         elif os.name == 'posix':
-            tmp_folder = os.path.dirname(tempfile.mktemp())
+            tmp_folder = os.path.dirname(tempfile.mkstemp()[1])
         LOG_PATH = tmp_folder
         EXPERIMENT_LOG_PATH = tmp_folder
         BASE_PATH= tmp_folder

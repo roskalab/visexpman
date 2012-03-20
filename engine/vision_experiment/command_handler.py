@@ -115,7 +115,6 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             source_code = kwargs['source_code']
         else:
            source_code = ''
-           
         if source_code == '':
             self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log, parameters = kwargs)
         else:

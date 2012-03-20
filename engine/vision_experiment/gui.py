@@ -3,6 +3,7 @@ import numpy
 import re
 import Queue
 import traceback
+import os
 import os.path
 
 import PyQt4.Qt as Qt
@@ -17,6 +18,30 @@ from visexpman.engine.generic import log
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
+
+class ExperimentControlGroupBox(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, 'Experiment control', parent)
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        #Stimulation/experiment control related
+        self.experiment_name = QtGui.QComboBox(self)
+        self.experiment_name.setEditable(True)
+        self.experiment_name.addItems(QtCore.QStringList(['moving_dot', 'grating', 'led stimulation']))
+        self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
+        self.stop_experiment_button = QtGui.QPushButton('Stop experiment',  self)
+        self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful stop experiment',  self)
+    
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.experiment_name, 0, 0)
+        self.layout.addWidget(self.start_experiment_button, 0, 1)
+        self.layout.addWidget(self.stop_experiment_button, 0, 2)
+        self.layout.addWidget(self.graceful_stop_experiment_button, 0, 3)
+        self.setLayout(self.layout)
+
 
 class AnimalParametersGroupBox(QtGui.QGroupBox):
     def __init__(self, parent):
@@ -47,7 +72,8 @@ class AnimalParametersGroupBox(QtGui.QGroupBox):
         self.gender.addItems(QtCore.QStringList(['male', 'female']))
         self.anesthesia_protocol_label = QtGui.QLabel('Anesthesia protocol',  self)
         self.anesthesia_protocol = QtGui.QComboBox(self)        
-        self.anesthesia_protocol.addItems(QtCore.QStringList(['isoflCP 1.0', 'isoflCP 0.5', 'isoflCP 1.5']))
+        self.anesthesia_protocol.addItems(QtCore.QStringList(['isoflCP 1.5', 'isoflCP 1.0', 'isoflCP 0.5']))
+        self.anesthesia_protocol.setEditable(True)
         self.mouse_strain_label = QtGui.QLabel('Mouse strain',  self)
         self.mouse_strain = QtGui.QComboBox(self)
         self.mouse_strain.addItems(QtCore.QStringList(['bl6', 'chat', 'chatdtr',  'grik4']))
@@ -144,17 +170,6 @@ class DebugWidget(QtGui.QWidget):
     def create_widgets(self):
         #MES related
         self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
-        self.line_scan_button = QtGui.QPushButton('Line scan', self)
-        self.rc_scan_button = QtGui.QPushButton('RC scan point', self)
-        self.rc_scan_point = QtGui.QComboBox(self)
-        self.rc_scan_point.setEditable(True)
-        #Stimulation/experiment control related
-        self.experiment_name = QtGui.QComboBox(self)
-        self.experiment_name.setEditable(True)
-        self.experiment_name.addItems(QtCore.QStringList(['moving_dot', 'grating', 'led stimulation']))
-        self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
-        self.stop_experiment_button = QtGui.QPushButton('Stop experiment',  self)
-        self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful stop experiment',  self)
         #Stage related
         self.set_stage_origin_button = QtGui.QPushButton('set stage origin', self)
         self.read_stage_button = QtGui.QPushButton('read stage', self)
@@ -169,23 +184,19 @@ class DebugWidget(QtGui.QWidget):
         self.send_command_button = QtGui.QPushButton('Send command',  self)
         self.connected_clients_label = QtGui.QLabel('', self)
         #Development
+        self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
         self.set_objective_button = QtGui.QPushButton('set objective', self)
         self.objective_position_label = QtGui.QLabel('', self)
         #Helpers
         self.save_two_photon_image_button = QtGui.QPushButton('Save two photon image',  self)
+        self.help_button = QtGui.QPushButton('Help',  self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.z_stack_button, 0, 0, 1, 1)
-        self.layout.addWidget(self.line_scan_button, 0, 1, 1, 1)
-        self.layout.addWidget(self.rc_scan_button, 0, 2, 1, 1)
-        self.layout.addWidget(self.rc_scan_point, 0, 3, 1, 2)
-        self.layout.addWidget(self.experiment_name, 1, 0, 1, 1)
-        self.layout.addWidget(self.start_experiment_button, 1, 1, 1, 1)
-        self.layout.addWidget(self.stop_experiment_button, 1, 2, 1, 1)
-        self.layout.addWidget(self.graceful_stop_experiment_button, 1, 3, 1, 1)
+        self.layout.addWidget(self.experiment_control_groupbox, 0, 5, 1, 4)
         self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
         self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
         self.layout.addWidget(self.move_stage_button, 2, 2, 1, 1)
@@ -201,7 +212,8 @@ class DebugWidget(QtGui.QWidget):
         self.layout.addWidget(self.animal_parameters_groupbox, 4, 0, 2, 4)
         self.layout.addWidget(self.scan_region_groupbox, 4, 5, 2, 4)
         
-        self.layout.addWidget(self.save_two_photon_image_button, 8, 0, 1, 1)
+        self.layout.addWidget(self.help_button, 8, 0, 1, 1)
+        self.layout.addWidget(self.save_two_photon_image_button, 8, 1, 1, 1)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -229,11 +241,14 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         
         self.move_to_button = QtGui.QPushButton('Move to',  self)
         self.region_info = QtGui.QLabel('',  self)
-        self.register_button = QtGui.QPushButton('Register',  self)
-        self.realign_button = QtGui.QPushButton('Realign',  self)
-        #Vertical alignment
+        self.realign_label = QtGui.QLabel('Skip realign after moving to region', self)
+        self.realign_checkbox = QtGui.QCheckBox(self)
+        self.vertical_realignment_only_label = QtGui.QLabel('Vertical realignment only', self)
+        self.vertical_realignment_only_checkbox = QtGui.QCheckBox(self)
+        self.set_objective_label = QtGui.QLabel('Move objective to saved position', self)
+        self.set_objective_checkbox = QtGui.QCheckBox(self)
         self.vertical_scan_button = QtGui.QPushButton('Vertical scan',  self)
-        self.vertical_realign_button = QtGui.QPushButton('Vertical realign',  self)
+        
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -243,17 +258,20 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.use_saved_scan_settings_label, 2, 1, 1, 1)
         self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 2, 2, 1, 1)
         self.layout.addWidget(self.get_two_photon_image_button, 3, 0, 1, 1)
+        self.layout.addWidget(self.vertical_scan_button, 3, 2, 1, 1)
         self.layout.addWidget(self.snap_brain_surface_button, 3, 3, 1, 1)
         self.layout.addWidget(self.add_button, 4, 0, 1, 1)
         self.layout.addWidget(self.scan_regions_combobox, 4, 1, 1, 2)
-        self.layout.addWidget(self.remove_button, 4, 3, 1, 1)
+        self.layout.addWidget(self.region_info, 4, 3, 1, 1)
+        self.layout.addWidget(self.remove_button, 5, 0, 1, 1)
         self.layout.addWidget(self.move_to_button, 5, 1, 1, 1)
-        self.layout.addWidget(self.region_info, 5, 2, 2, 2)
-        self.layout.addWidget(self.register_button, 6, 0, 1, 1)
-        self.layout.addWidget(self.realign_button, 6, 1, 1, 1)
-        self.layout.addWidget(self.vertical_scan_button, 7, 0, 1, 1)
-        self.layout.addWidget(self.vertical_realign_button, 7, 1, 1, 1)
-        
+        self.layout.addWidget(self.realign_label, 5, 2, 1, 1)
+        self.layout.addWidget(self.realign_checkbox, 5, 3, 1, 1)
+        self.layout.addWidget(self.vertical_realignment_only_label, 6, 2, 1, 1)
+        self.layout.addWidget(self.vertical_realignment_only_checkbox, 6, 3, 1, 1)
+        self.layout.addWidget(self.set_objective_label, 7, 2, 1, 1)
+        self.layout.addWidget(self.set_objective_checkbox, 7, 3, 1, 1)
+
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -300,6 +318,7 @@ class Poller(QtCore.QThread):
         self.config = self.parent.config
         QtCore.QThread.__init__(self)
         self.abort = False
+        self.vertical_scan_acquired = False
         self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)#TODO: these connects can be called from here
         self.parent.connect(self, QtCore.SIGNAL('update_gui'),  self.parent.update_gui_items)
         self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
@@ -338,7 +357,6 @@ class Poller(QtCore.QThread):
             self.stage_position = numpy.zeros(3)
             self.stage_origin = numpy.zeros(3)
         self.two_photon_image = context_hdf5.findvar('two_photon_image')
-        
         self.vertical_scan = context_hdf5.findvar('vertical_scan')
         context_hdf5.close()
         self.stage_position_valid = False
@@ -409,6 +427,22 @@ class Poller(QtCore.QThread):
                 elif message == 'connected to server':
                     #This is sent by the local queued client and its meaning can be confusing, therefore not shown
                     message = ''
+                elif message == 'SOCacquire_z_stackEOCOKEOP':
+                    message = 'Z stack acquisition complete.'
+                elif message == 'SOCacquire_z_stackEOCsaveOKEOP' and os.path.exists(self.z_stack_path):
+                    time.sleep(0.1)
+                    self.z_stack = matlabfile.read_z_stack(self.z_stack_path)
+                    self.read_stage(display_coords = False)
+                    self.z_stack['stage_position'] = utils.pack_position(self.stage_position-self.stage_origin, 0)
+                    self.z_stack['add_date'] = utils.datetime_string().replace('_', ' ')
+                    #Save z stack to mouse file
+                    self.printc('Z stack is saved to mouse file')
+                    mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText()))
+                    h = hdf5io.Hdf5io(mouse_file_path.replace('.hdf5', '_z_stack.hdf5'))
+                    h.z_stack = self.z_stack
+                    h.save('z_stack')
+                    h.close()
+                    os.remove(self.z_stack_path)
                 else:
                     self.printc(k.upper() + ' '  + message)
                     
@@ -419,11 +453,11 @@ class Poller(QtCore.QThread):
                 if connection_status['STIM_MES/MES'] and connection_status['STIM_MES/STIM']:
                     connected += 'STIM-MES  '
                 if connection_status['GUI_MES/MES'] and connection_status['GUI_MES/GUI']:
-                    connected += 'GUI-MES  '
+                    connected += 'MES  '
                 if connection_status['GUI_STIM/STIM'] and connection_status['GUI_STIM/GUI']:
-                    connected += 'GUI-STIM  '
+                    connected += 'STIM  '
                 if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
-                    connected += 'GUI-ANALYSIS  '
+                    connected += 'ANALYSIS  '
                 if connection_status['STIM_ANALYSIS/ANALYSIS'] and connection_status['STIM_ANALYSIS/GUI']:
                     connected += 'STIM-ANALYSIS'
                 
@@ -451,7 +485,7 @@ class Poller(QtCore.QThread):
                 if 'SOCstageEOC' in response:
                     self.stage_position = self.parse_list_response(response)
                     if display_coords:
-                        self.printc('abs: {0}, rel: {1}'.format(self.stage_position, self.stage_position - self.stage_origin))
+                        self.printc('rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
                     self.save_context()
                     self.parent.debug_widget.current_position_label.setText('rel: {0}' .format(numpy.round(self.stage_position - self.stage_origin, 2)))
                     result = True
@@ -496,14 +530,20 @@ class Poller(QtCore.QThread):
         utils.empty_queue(self.queues['stim']['in'])
         self.queues['stim']['out'].put('SOCstageEOCset,{0},{1},{2}EOP'.format(movement[0], movement[1], movement[2]))
         self.printc('movement {0}'.format(movement))
-        if utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.GUI_STAGE_TIMEOUT):
-            while not self.queues['stim']['in'].empty():
-                response = self.queues['stim']['in'].get()
-                if 'SOCstageEOC' in response:
-                    self.stage_position = self.parse_list_response(response)
-                    self.save_context()
-                    self.parent.debug_widget.current_position_label.setText('rel: {0}' .format(numpy.round(self.stage_position - self.stage_origin, 2)))
-                    self.printc('New position: abs: {0}, rel: {1}'.format(self.stage_position, self.stage_position - self.stage_origin))
+        if not utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.GUI_STAGE_TIMEOUT):
+            self.printc('Stage does not respond')
+            return False
+        while not self.queues['stim']['in'].empty():
+            response = self.queues['stim']['in'].get()
+            if 'SOCstageEOC' in response:
+                self.stage_position = self.parse_list_response(response)
+                self.save_context()
+                self.parent.debug_widget.current_position_label.setText('rel: {0}' .format(numpy.round(self.stage_position - self.stage_origin, 2)))
+                self.printc('New position rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
+                return True
+        self.printc('Stage does not respond')
+        return False
+                    
 
 ################### MES #######################
     def set_objective(self):
@@ -520,19 +560,17 @@ class Poller(QtCore.QThread):
             self.printc('mes did not respond')
             
     def acquire_z_stack(self):
-        self.printc('acquire z stack')
+        self.printc('Starting z stack, please wait')
         try:
-            self.z_stack, results = self.mes_interface.acquire_z_stack(self.config.MES_TIMEOUT)
-            self.printc((self.z_stack, results))
+            self.z_stack_path, results = self.mes_interface.start_z_stack(self.config.MES_TIMEOUT)
+            self.printc((self.z_stack_path, results))
         except:
             self.printc(traceback.format_exc())
             
-    def acquire_two_photon_image(self):
-        self.printc('acquire two photon image')
+    def acquire_two_photon_image(self, use_region_parameters = False):
+        self.printc('Acquire two photon image')
         try:
-            if self.parent.debug_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() == 0:
-                self.two_photon_image,  result = self.mes_interface.acquire_two_photon_image(self.config.MES_TIMEOUT)
-            else:
+            if self.parent.debug_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() != 0 or use_region_parameters:
                 #Load scan settings from parameter file
                 parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'scan_region_parameters.mat')
                 if self.create_parameterfile_from_region_info(parameter_file_path, 'brain_surface'):
@@ -540,6 +578,8 @@ class Poller(QtCore.QThread):
                 else:
                     self.two_photon_image = {}
                     result = False
+            elif self.parent.debug_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() == 0:
+                self.two_photon_image,  result = self.mes_interface.acquire_two_photon_image(self.config.MES_TIMEOUT)
             if hasattr(self.two_photon_image, 'has_key'):
                 if self.two_photon_image.has_key('path'):#For unknown reason this key is not found sometimes
                     self.files_to_delete.append(self.two_photon_image['path'])
@@ -548,44 +588,36 @@ class Poller(QtCore.QThread):
                                 self.two_photon_image['scale'], 
                                 origin = self.two_photon_image['origin'])
                 self.save_context()
+                return True
             else:
                 self.printc('No image acquired')
         except:
             self.printc(traceback.format_exc())
-            
+        return False
+
     def snap_brain_surface(self):
         self.acquire_two_photon_image()
         self.brain_surface_image = self.two_photon_image
-        
-    def acquire_vertical_scan(self):
+
+    def acquire_vertical_scan(self, use_region_parameters = False):
         '''
         User have to figure out what is the correct scan time
         '''
-        self.printc('acquire vertical scan')#TODO replace to line_scan(self, parameter_file = '', scan_time = None)
-        if self.parent.debug_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() == 0:
-            result, line_scan_path = self.mes_interface.start_line_scan(timeout = self.config.MES_TIMEOUT)
+        self.printc('Acquire vertical scan')
+        if self.parent.debug_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() != 0 or use_region_parameters:
+            parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'vertical_scan_region_parameters.mat')
+            if not self.create_parameterfile_from_region_info(parameter_file_path, 'vertical_section'):
+                return False
+            self.vertical_scan,  result = self.mes_interface.vertical_line_scan(parameter_file = parameter_file_path)
+            self.files_to_delete.append(parameter_file_path)
         else:
-            #Load scan settings from parameter file
-            parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'scan_region_parameters.mat')
-            if self.create_parameterfile_from_region_info(parameter_file_path, 'vertical_section'):
-                result, line_scan_path = self.mes_interface.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file_path)
-        self.files_to_delete.append(line_scan_path)
+            self.vertical_scan,  result = self.mes_interface.vertical_line_scan()
         if result:
-            result = self.mes_interface.wait_for_line_scan_complete(timeout = self.config.MES_TIMEOUT)
-            if result:
-                result = self.mes_interface.wait_for_line_scan_save_complete(timeout = self.config.MES_TIMEOUT)
-                if result:
-                    self.vertical_scan = matlabfile.read_vertical_scan(line_scan_path)
-                    #rescale image so that it could be displayed
-                    self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scaled_scale'], origin = self.vertical_scan['origin'])
-                    self.save_context()
-                else:
-                    self.printc('data not saved')
-            else:
-                self.printc('scan complete with error')
-        else:
-            self.printc('scan did not start')
-            
+            self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scaled_scale'], origin = self.vertical_scan['origin'])
+            self.save_context()
+            self.vertical_scan_acquired = True
+        return result
+        
     ################### Regions #######################
     def add_scan_region(self, widget = None):
         '''
@@ -595,6 +627,8 @@ class Poller(QtCore.QThread):
         -objective positon where the data acquisition shall take place. This is below the brain surface
         -stage position. If master position is saved, the current position is set to origin. The origin of stimulation software is also 
         '''
+        if not self.vertical_scan_acquired and hasattr(self, 'vertical_scan'):
+            del self.vertical_scan
         if widget == None:
             widget = self.parent.debug_widget
         if not hasattr(self, 'brain_surface_image'):
@@ -608,9 +642,6 @@ class Poller(QtCore.QThread):
         if not result:
             self.printc('MES does not respond')
             return
-        if self.objective_position != 0:
-            self.printc('Objetive shall be set to 0')
-            return
         if not self.read_stage(display_coords = False):
             self.printc('Stage cannot be accessed')
             return
@@ -620,19 +651,10 @@ class Poller(QtCore.QThread):
         if hdf5_handler.scan_regions == None:
             hdf5_handler.scan_regions = {}
         region_name = self.parent.get_current_region_name()
-        #If no name provided, will be generated from the coordinates
         if region_name == '':
-            relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
-            region_name = 'r_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
-        elif ' ' in region_name:
-            region_name = region_name.replace(' ', '_')
-        if not (region_name == 'master' or hdf5_handler.scan_regions.has_key('master') or region_name == 'r_0_0' or\
-                                        hdf5_handler.scan_regions.has_key('r_0_0')):
-            self.printc('Master position has to be defined')
-            hdf5_handler.close()
-            return
-        #Ask for confirmation to overwrite if region name already exists
+            region_name = 'r'
         if hdf5_handler.scan_regions.has_key(region_name):
+            #Ask for confirmation to overwrite if region name already exists
             self.emit(QtCore.SIGNAL('show_overwrite_region_messagebox'))
             while self.gui_thread_queue.empty() :
                 time.sleep(0.1) 
@@ -640,6 +662,15 @@ class Poller(QtCore.QThread):
                 self.printc('Region not saved')
                 hdf5_handler.close()
                 return
+        else:
+            relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
+            region_name_tag = '_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
+            region_name = region_name + region_name_tag
+            region_name = region_name.replace(' ', '_')
+        if not('master' in region_name or '0_0' in region_name or self.has_master_position(hdf5_handler.scan_regions)):
+            self.printc('Master position has to be defined')
+            hdf5_handler.close()
+            return
         if region_name == 'master':
            if not self.set_stage_origin():
                 self.printc('Setting origin did not succeed')
@@ -682,109 +713,166 @@ class Poller(QtCore.QThread):
             hdf5_handler.close()
         else:
             self.printc('Master region cannot be removed')
-            
-    def register(self):
-        rescaled_image = self.parent.regions_images_widget.image_display[0].raw_image
-        image_hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.CONTEXT_PATH, 'image.hdf5'))
-        image_hdf5_handler.f1 = rescaled_image
-        image_hdf5_handler.f2 = self.parent.regions_images_widget.image_display[1].raw_image
-        image_hdf5_handler.save(['f1', 'f2'], overwrite = True)
-        image_hdf5_handler.close()
-        arguments = ''
-        utils.empty_queue(self.queues['analysis']['in'])
-        self.queues['analysis']['out'].put('SOCregisterEOC' + arguments + 'EOP')
-        if utils.wait_data_appear_in_queue(self.queues['analysis']['in'], self.config.MAX_REGISTRATION_TIME):
-            while not self.queues['analysis']['in'].empty():
-                response = self.queues['analysis']['in'].get()
-                if 'register' in response:
-                    self.registration_result = self.parse_list_response(response) #rotation in angle, center or rotation, translation
-                    self.suggested_translation = utils.cr(utils.nd(self.two_photon_image['scale']) * self.registration_result[-2:]*numpy.array([-1, 1]))
-                    self.printc(self.registration_result[-2:])
-                    self.printc('Suggested translation: {0}'.format(self.suggested_translation))
-        else:
-            self.printc('no response')
 
-    def realign_region(self):
-        if hasattr(self, 'suggested_translation'):
-            self.move_stage_relative(-numpy.round(numpy.array([self.suggested_translation['col'], self.suggested_translation['row'], 0.0]), 2))
-            self.suggested_translation = utils.cr((0, 0)) #To avoid unnecessary movements if realign button is pressed twice
-        else:
-            self.printc('Realignment suggestion is not available.')
-        
     def move_to_region(self):
+        '''
+        Use cases:
+        1. move stage and objective without realignment
+        2. move stage and objective and realign both vertically and in xy
+        (3. Realign objective at experiment batches - will be implemented in stimulation sw)
+        '''
+        if self.parent.debug_widget.scan_region_groupbox.vertical_realignment_only_checkbox.checkState() != 0 and self.parent.debug_widget.scan_region_groupbox.realign_checkbox.checkState() != 0:
+            self.printc('Please check \"Realign after moving region\" checkbox')
+            return
         selected_region = self.parent.get_current_region_name()
-        if (self.scan_regions.has_key('master') or self.scan_regions.has_key('r_0_0')) and self.scan_regions.has_key(selected_region):
-            if self.scan_regions.has_key('master'):
-                master_position_name = 'master'
-            else:
-                master_position_name = 'r_0_0'
+        if self.parent.debug_widget.scan_region_groupbox.set_objective_checkbox.checkState() != 0:
+            #Move objective to saved position
+            if abs(self.scan_regions[selected_region]['position']['z']) > self.config.OBJECTIVE_POSITION_LIMIT:
+                self.printc('Objective position is not correct')
+                return
+            if not self.mes_interface.set_objective(self.scan_regions[selected_region]['position']['z'], self.config.MES_TIMEOUT):
+                self.printc('Setting objective did not succeed')
+                return
+            self.printc('Objective set to {0} um'.format(self.scan_regions[selected_region]['position']['z']))
+        if self.parent.debug_widget.scan_region_groupbox.vertical_realignment_only_checkbox.checkState() == 0:
+            if not (self.has_master_position(self.scan_regions) and self.scan_regions.has_key(selected_region)):
+                self.printc('Master position is not defined')
+                return
+            #Move stage to saved region position
+            master_position_name = self.get_master_position_name(self.scan_regions)
             current_relative_position = self.stage_position - self.stage_origin
             master_position = numpy.array([self.scan_regions[master_position_name]['position']['x'][0], self.scan_regions[master_position_name]['position']['y'][0], current_relative_position[-1]])
             target_relative_position = numpy.array([self.scan_regions[selected_region]['position']['x'][0], self.scan_regions[selected_region]['position']['y'][0], current_relative_position[-1]])
             movement = target_relative_position - current_relative_position
-            self.move_stage_relative(movement)
-        else:
-            self.printc('Master position is not defined')
-            
-############# Vertical realignment #############
-
-    def vertical_realign(self, max_number_of_iterations = 1, max_position_errror = 1.0, set_back_objective = False):
-        '''
-        Performs the vertical realignment of the system following this procedure:
-
-            1. Read current objective position and save it if set_back_objective == True
-            2. save current line scan parameters
-            3. move to 0 um
-            Next three steps are repeated for max_number_of_iterations times:
-                4. acquire vertical scan using saved region vertical scan parameters
-                5. register vertical scan with saved vertical scan
-                6.  move objective with suggested value
-            7. set back original line scan parameters
-            8. set back objective if set_back_objective == True
-        '''
-        result, initial_objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
-        if not result:
-            self.printc('MES does not respond')
-            return
-        elif abs(initial_objective_position) > self.config.OBJECTIVE_POSITION_LIMIT:#Considering that imaging deeper than 5-600 um is not possible, therefore we assume that the objective was not set to 0 at the
-                                                                                        #brain surface if objective position is outside -1000, 1000 um range
-            self.printc('Objective is not set to 0 at brain surface')
-            return
-        result, original_line_scan_parameters_path, original_line_scan_parameters_path_on_mes = self.mes_interface.get_line_scan_parameters(timeout = self.config.MES_TIMEOUT)
-        if not self.mes_interface.set_objective(0, self.config.MES_TIMEOUT):
-            self.printc('Setting objective to 0 um did not succeed.')
-            return
-        for iteration in range(max_number_of_iterations):
-            parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'vertical_scan_region_parameters.mat')
-            if not self.create_parameterfile_from_region_info(parameter_file_path, 'vertical_section'):
+            if not self.move_stage_relative(movement):
                 return
-            line_scan,  result = self.mes_interface.line_scan(parameter_file = parameter_file_path)
+            if self.parent.debug_widget.scan_region_groupbox.realign_checkbox.checkState() != 0:
+                self.printc('Moved to selected region.')
+                return
+            #Realign in xy, first take an image using saved mes parameters
+            if not self.acquire_two_photon_image(use_region_parameters = True):
+                return
+            self.printc('Register with saved image.')
+            #calculate translation between current and saved brain surface image
+            if not self.register_images(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['brain_surface']['image'], self.two_photon_image['scale']):
+                return
+            if abs(self.suggested_translation['col'])  > self.config.MAX_REALIGNMENT_OFFSET or abs(self.suggested_translation['row']) > self.config.MAX_REALIGNMENT_OFFSET:
+                self.printc('Suggested translation is not plausible')
+                return
+            #Translate stage with suggested values
+            if abs(self.suggested_translation['col'])  > self.config.REALIGNMENT_XY_THRESHOLD or abs(self.suggested_translation['row']) > self.config.REALIGNMENT_XY_THRESHOLD:
+                self.move_stage_relative(-numpy.round(numpy.array([self.suggested_translation['col'], self.suggested_translation['row'], 0.0]), 2))
+            else:
+                self.printc('Suggested translation is small, stage not moved')
+            #Get a two photon image and register again, to see whether realignment was successful
+            if not self.acquire_two_photon_image(use_region_parameters = True):
+                return
+            if not self.register_images(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['brain_surface']['image'], self.two_photon_image['scale']):
+                return
+            if abs(self.suggested_translation['col']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET or abs(self.suggested_translation['row']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET:
+                self.printc('Realignment was not successful {0}' .format(self.suggested_translation))
+                return
+            self.printc('XY offset {0}' .format(self.suggested_translation))
+        #Realign vertically, first take a vertical section using saved mes parameters
+        if not self.acquire_vertical_scan(use_region_parameters = True):
+            self.printc('Vertical scan was not successful')
+            return
+        #calculate z offset between currently acquired vertical scan and reference data
+        if not self.register_images(self.vertical_scan['scaled_image'], self.scan_regions[selected_region]['vertical_section']['image'], self.vertical_scan['scaled_scale']):
+            return
+        vertical_offset = self.suggested_translation['row']
+        if abs(vertical_offset)  > self.config.MAX_REALIGNMENT_OFFSET:
+            self.printc('Suggested movement is not plausible')
+            return
+        #Move objective
+        if abs(vertical_offset)  > self.config.REALIGNMENT_Z_THRESHOLD:
+            result, objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
             if not result:
-                self.printc('Vertical scan did not succeed')
+                self.printc('MES does not respond')
                 return
-            #register with saved vertical section
-            #move objective
-        self.printc('OK')
-
-############# Helpers #############
-
+        else:
+            self.printc('Suggested translation is small, objective is not moved.')
+        new_objective_position = objective_position + vertical_offset
+        if not self.mes_interface.set_objective(new_objective_position, self.config.MES_TIMEOUT):
+            self.printc('Setting objective did not succeed')
+            return
+        #Verify vertical realignment
+        if not self.acquire_vertical_scan(use_region_parameters = True):
+            self.printc('Vertical scan was not successful')
+            return
+        if not self.register_images(self.vertical_scan['scaled_image'], self.scan_regions[selected_region]['vertical_section']['image'], self.vertical_scan['scaled_scale']):
+            return
+        vertical_offset = self.suggested_translation['row']
+        if abs(vertical_offset) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET:
+            self.printc('Realignment was not successful {0}'.format(vertical_offset))
+            return
+        self.printc('Vertical offset {0}' .format(vertical_offset))
+        self.suggested_translation = utils.cr((0, 0))
+        self.printc('Move to region complete')
+        
+    ############# Helpers #############
     def create_parameterfile_from_region_info(self, parameter_file_path, scan_type):
-        selected_mouse_file  = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
-        scan_regions = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file), 'scan_regions')
         selected_region = self.parent.get_current_region_name()
-        if not scan_regions.has_key(selected_region):
+        if not self.scan_regions.has_key(selected_region):
             self.printc('Selected region does not exists')
             return False
-        scan_regions[selected_region][scan_type]['mes_parameters'].tofile(parameter_file_path)
+        if not self.scan_regions[selected_region].has_key(scan_type):
+            self.printc('Parameters for {0} does not exists' .format(scan_type))
+            return False
+        self.scan_regions[selected_region][scan_type]['mes_parameters'].tofile(parameter_file_path)
         if not os.path.exists(parameter_file_path):
             self.printc('Parameter file not created')
             return False
         else:
             return True
-            
+
+    def create_image_registration_data_file(self, f1, f2):
+        image_hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.CONTEXT_PATH, 'image.hdf5'))
+        image_hdf5_handler.f1 = f1
+        image_hdf5_handler.f2 = f2
+        image_hdf5_handler.save(['f1', 'f2'], overwrite = True)
+        image_hdf5_handler.close()
+        
+    def register_images(self, f1, f2, scale,  print_result = True):
+        self.create_image_registration_data_file(f1, f2)
+        utils.empty_queue(self.queues['analysis']['in'])
+        arguments = ''
+        self.queues['analysis']['out'].put('SOCregisterEOC' + arguments + 'EOP')
+        if utils.wait_data_appear_in_queue(self.queues['analysis']['in'], self.config.MAX_REGISTRATION_TIME):
+            while not self.queues['analysis']['in'].empty():
+                    response = self.queues['analysis']['in'].get()
+                    if 'error' in response:
+                        self.printc('Image registration resulted error')
+                        return False
+                    elif 'register' in response:
+                        self.registration_result = self.parse_list_response(response) #rotation in angle, center or rotation, translation
+                        self.suggested_translation = utils.cr(utils.nd(scale) * self.registration_result[-2:]*numpy.array([-1, 1]))
+                        if print_result:
+                            self.printc(self.registration_result[-2:])
+                            self.printc('Suggested translation: {0}'.format(self.suggested_translation))
+                        return True
+            else:
+                self.printc('Analysis does not respond')
+        return False
 
     def parse_list_response(self, response):
         return numpy.array(map(float,parameter_extract.findall( response)[0].split(',')))
+        
+    def has_master_position(self, scan_regions):
+        master_position_exists = False
+        for saved_region_name in scan_regions.keys():
+            if 'master' in saved_region_name or '0_0' in saved_region_name:
+                master_position_exists = True
+                break
+        return master_position_exists
+        
+    def get_master_position_name(self, scan_regions):
+        master_position_name = ''
+        for saved_region_name in scan_regions.keys():
+            if 'master' in saved_region_name or '0_0' in saved_region_name:
+                master_position_name = saved_region_name
+                break
+        return master_position_name
         
 # Test cases:
 # 1. move stage - set stage origin - including read stage

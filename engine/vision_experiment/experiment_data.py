@@ -95,7 +95,7 @@ def check_fragment(path, config):
     elif config.EXPERIMENT_FILE_FORMAT == 'hdf5':
         data_node_name =  os.path.split(path)[-1].replace('.hdf5', '').split('_')
         if config.PLATFORM == 'mes':
-            data_node_name = data_node_name[4:]
+            data_node_name = data_node_name[-3:]
         else:
             data_node_name = data_node_name[1:]
         data_node_name = string.join(data_node_name).replace(' ', '_')
@@ -147,6 +147,10 @@ def check_fragment(path, config):
                 elif numpy.array(map(node.has_key, expected_subnodes)).sum() != len(expected_subnodes):
                     result = False
                     messages.append('unexpected number of datafields in {0}'.format(node_name))
+                if 'MovingDot' in node_name and not node['generated_data'].has_key['shown_directions']:
+                    result = False
+                    messages.append('Shown directions are not saved {0}'.format(node['generated_data']))
+                    
         fragment_handle.close()        
     return result, messages
     

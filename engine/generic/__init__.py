@@ -19,7 +19,7 @@ def draw_line_numpy_array(image, line, fill = (255, 0, 0)):
     im = Image.fromarray(generic.normalize(image,numpy.uint8))
     im = im.convert('RGB')
     draw = ImageDraw.Draw(im)
-    draw.line(line, fill, width = 2)
+    draw.line(line, fill, width = 1)
     return numpy.asarray(im)
     
 def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 0, 0),  mes = True):
@@ -109,14 +109,15 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0):
     rescale = (numpy.cast['float64'](utils.nd(image_area)) / merged_image['image'].shape).min()
     rescaled_image = rescale_numpy_array_image(merged_image['image'], rescale)
     #Draw lines
-    image_with_line = rescaled_image
+    image_with_line = numpy.array([rescaled_image, rescaled_image, rescaled_image])
+    image_with_line = numpy.rollaxis(image_with_line, 0, 3)
     for line in lines:
         #Line: x1,y1,x2, y2 - x - col, y = row
         #Considering MES/Image origin
-        line_in_pixel  = [(line[0] - merged_image['origin']['col'])/merged_image['scale']['col'] ,  
-                            (-line[1] + merged_image['origin']['row'])/merged_image['scale']['row'] , 
-                            (line[2] - merged_image['origin']['col'])/merged_image['scale']['col'],  
-                            (-line[3] + merged_image['origin']['row'])/merged_image['scale']['row'] ]
+        line_in_pixel  = [(line[0] - merged_image['origin']['col'])/merged_image['scale']['col'],
+                            (-line[1] + merged_image['origin']['row'])/merged_image['scale']['row'],
+                            (line[2] - merged_image['origin']['col'])/merged_image['scale']['col'],
+                            (-line[3] + merged_image['origin']['row'])/merged_image['scale']['row']]
         line_in_pixel = (numpy.cast['int32'](numpy.array(line_in_pixel)*rescale)).tolist()
         image_with_line = draw_line_numpy_array(image_with_line, line_in_pixel)
     #create sidebar

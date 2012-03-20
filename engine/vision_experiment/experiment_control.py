@@ -90,6 +90,8 @@ class ExperimentControl(object):
                 if self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
                     self.printl('Analog acquisition finished')
                 break
+            if self.abort:
+                break
         self._finish_experiment()
         #Send message to screen, log experiment completition
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'
@@ -168,7 +170,7 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             data_acquisition_stop_success = True
         elif self.config.PLATFORM == 'mes':
-            self.mes_timeout = 1.5 * self.fragment_durations[fragment_id]            
+            self.mes_timeout = 2.0 * self.fragment_durations[fragment_id]            
             if self.mes_timeout < self.config.MES_TIMEOUT:
                 self.mes_timeout = self.config.MES_TIMEOUT
             if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
@@ -271,9 +273,13 @@ class ExperimentControl(object):
                 fragment_name = 'fragment_{0}_{1}_{2}' .format(self.experiment_name, self.timestamp, fragment_id)
             fragment_filename = os.path.join(self.config.EXPERIMENT_DATA_PATH, '{0}.{1}' .format(fragment_name, self.config.EXPERIMENT_FILE_FORMAT))
             if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5' and  self.config.PLATFORM == 'mes':
-                if hasattr(self, 'stage_position') and hasattr(self, 'objective_position'):
-                    fragment_filename = fragment_filename.replace('fragment_', 
-                    'fragment_{0:.1f}_{1:.1f}_{2}_'.format(self.stage_position[0], self.stage_position[1], self.objective_position))
+                if hasattr(self, 'objective_position'):
+                    if self.parameters.has_key('region_name'):
+                        fragment_filename = fragment_filename.replace('fragment_', 
+                        'fragment_{0}_{1}_'.format(self.parameters['region_name'], self.objective_position))
+                    elif hasattr(self, 'stage_position'):
+                        fragment_filename = fragment_filename.replace('fragment_', 
+                        'fragment_{0:.1f}_{1:.1f}_{2}_'.format(self.stage_position[0], self.stage_position[1], self.objective_position))
                 self.filenames['mes_fragments'].append(fragment_filename.replace('hdf5', 'mat'))
             elif self.config.EXPERIMENT_FILE_FORMAT == 'mat' and self.config.PLATFORM == 'elphys':
                 fragment_filename = file.generate_filename(fragment_filename, last_tag = str(fragment_id))
@@ -328,10 +334,10 @@ class ExperimentControl(object):
             if stimulus_frame_info_with_data_series_index != 0:
                 stimulus_frame_info = self.stimulus_frame_info
             if self.config.PLATFORM == 'mes':
-                time.sleep(0.1 * 1e-6 * os.path.getsize(self.filenames['mes_fragments'][fragment_id])) #Wait till data write complete
+                time.sleep(0.5+0.1 * 1e-6 * os.path.getsize(self.filenames['mes_fragments'][fragment_id])) #Wait till data write complete
                 try:
                     #Maybe a local copy should be made:
-                    tmp_mes_file = tempfile.mktemp()
+                    tmp_mes_file = tempfile.mkstemp()[1]
                     shutil.copy(self.filenames['mes_fragments'][fragment_id], tmp_mes_file)
                     mes_data = utils.file_to_binary_array(tmp_mes_file)
                 except:
