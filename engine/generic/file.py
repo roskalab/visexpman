@@ -172,12 +172,16 @@ def convert_path_to_remote_machine_path(local_file_path, remote_machine_folder, 
 
 def check_png_hashes(fname,function,*args,**kwargs):
         '''Checks whether the function code and argument hashes exist in the png file and updates them if necessary'''
-        oldpng = Image.open(fname)
-        if 'function_hash' in oldpng.info:
-            fh = oldpng.info['function_hash']
-        if 'function_arguments_hash' in oldpng.info:
-            ah = oldpng.info['function_arguments_hash']
-        new_fh, new_ah = check_before_long_calculation(fh, function,ah,args,kwargs)
+        import Image 
+        from visexpA.engine.dataprocessors.generic import check_before_long_calculation
+        if os.path.exists(fname):
+            oldpng = Image.open(fname)
+            if 'function_hash' in oldpng.info:
+                fh = oldpng.info['function_hash']
+            if 'function_arguments_hash' in oldpng.info:
+                ah = oldpng.info['function_arguments_hash']
+        else: ah=fh=None
+        new_fh, new_ah = check_before_long_calculation(fh, function,ah,*args,**kwargs)
         if new_fh is None: 
             return None
         else:
