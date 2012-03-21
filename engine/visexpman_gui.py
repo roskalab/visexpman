@@ -116,6 +116,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.move_stage_button, 'move_stage')
         self.connect_and_map_signal(self.debug_widget.move_stage_to_origin_button, 'move_stage_to_origin')
         self.connect_and_map_signal(self.debug_widget.set_objective_button, 'set_objective')
+        self.connect_and_map_signal(self.debug_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.debug_widget.z_stack_button, 'acquire_z_stack')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.get_two_photon_image_button, 'acquire_two_photon_image')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.snap_brain_surface_button, 'snap_brain_surface')
@@ -138,18 +139,18 @@ class VisionExperimentGui(QtGui.QWidget):
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
         self.printc('Stopping experiment requested, please wait')
-        
+
     def graceful_stop_experiment(self):
         command = 'SOCgraceful_stop_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
         self.printc('Graceful stop requested,  please wait')
-        
+
     def start_experiment(self):
         self.printc('Experiment started,  please wait')
         params =  self.scanc()
         if len(params)>0:
             objective_positions = params.replace(',',  '<comma>')
-            command = 'SOCexecute_experimentEOCobjective_positions={0}region_name={1}EOP' .format(objective_positions, self.get_current_region_name())
+            command = 'SOCexecute_experimentEOCobjective_positions={0},region_name={1}EOP' .format(objective_positions, self.get_current_region_name())
         else:
             command = 'SOCexecute_experimentEOCregion_name={0}EOP' .format(self.get_current_region_name())
         self.queues['stim']['out'].put(command)
@@ -213,7 +214,7 @@ class VisionExperimentGui(QtGui.QWidget):
             if set_to_value != None:
                 self.debug_widget.scan_region_groupbox.select_mouse_file.setCurrentIndex(self.mouse_files.index(set_to_value))
 
-    def update_gui_items(self):
+    def update_gui_items(self,  active_region = None):
         '''
         Update comboboxes with file lists
         '''
@@ -233,7 +234,7 @@ class VisionExperimentGui(QtGui.QWidget):
             for region in scan_regions.keys():
                     displayable_region_names.append(region)
             displayable_region_names.sort()
-            self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, displayable_region_names)
+            self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, displayable_region_names,  selected_item = active_region)
         self.poller.scan_regions = scan_regions
         #Display image of selected region
         selected_region = self.get_current_region_name()
@@ -275,6 +276,10 @@ class VisionExperimentGui(QtGui.QWidget):
             self.debug_widget.scan_region_groupbox.region_info.setText('')
 
     def update_animal_parameter_display(self, index):
+        '''
+        Selected mouse file changed
+        '''
+        self.poller.stage_origin_set = False
         selected_mouse_file  = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText()))
         if os.path.exists(selected_mouse_file) and '.hdf5' in selected_mouse_file:
             h = hdf5io.Hdf5io(selected_mouse_file)
@@ -357,7 +362,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def scanc(self):
         return str(self.standard_io_widget.text_in.toPlainText())
         
-    def update_combo_box_list(self, widget, new_list):
+    def update_combo_box_list(self, widget, new_list,  selected_item = None):
         current_value = widget.currentText()
         if current_value in new_list:
             current_index = new_list.index(current_value)
@@ -366,7 +371,10 @@ class VisionExperimentGui(QtGui.QWidget):
         items_list = QtCore.QStringList(new_list)
         widget.clear()
         widget.addItems(QtCore.QStringList(new_list))
-        widget.setCurrentIndex(current_index)
+        if selected_item != None and selected_item in new_list:
+            widget.setCurrentIndex(new_list.index(selected_item))
+        else:
+            widget.setCurrentIndex(current_index)
         
     def get_current_region_name(self):
         return str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())

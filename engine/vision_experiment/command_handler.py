@@ -132,12 +132,11 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             experiment_module = __import__('experiment_module')
             self.experiment_config = getattr(experiment_module, experiment_config_class_name+tag)(self.config, self.queues, \
                                                                                                   self.connections, self.log, getattr(experiment_module,experiment_class_name+tag), loadable_source_code)
-
         context = {}
         context['stage_origin'] = self.stage_origin
         result = self.experiment_config.runnable.run_experiment(context)
         return result
-        
+
 class CommandSender(QtCore.QThread):
     def __init__(self, config, caller, commands):
         self.config = config

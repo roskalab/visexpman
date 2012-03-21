@@ -57,7 +57,7 @@ class ExperimentControl(object):
         else:
             message_to_screen = self.run_single_experiment(context)
         return message_to_screen
-        
+
     def run_single_experiment(self, context):
         if context.has_key('stage_origin'):
             self.stage_origin = context['stage_origin']
@@ -126,10 +126,8 @@ class ExperimentControl(object):
         #Update logdata to files
         self.log.info('Experiment finished at {0}' .format(utils.datetime_string()))
         self.log.flush()
-        
 
 ########## Fragment related ############
-
     def _start_fragment(self, fragment_id):
         self.printl('Start fragment {0}/{1}'. format(fragment_id+1,  self.number_of_fragments))
         self.stimulus_frame_info_pointer = 0
@@ -388,11 +386,11 @@ class ExperimentControl(object):
                 data_to_mat['config'] = experiment_data.save_config(None, self.config, self.experiment_config)
                 scipy.io.savemat(fragment_path, data_to_mat, oned_as = 'row', long_field_names=True)
         #Check all the fragments
-        self.printl('Check measurement data')
         self.fragment_check_result = True
         for fragment_file in self.filenames['local_fragments'][0:self.finished_fragment_index +1]:
-            if os.path.exists(fragment_file):
+            if os.path.exists(fragment_file) and not self.abort:
                 try:
+                    self.printl('Check measurement data')
                     result, self.fragment_error_messages = experiment_data.check_fragment(fragment_file, self.config)
                 except:
                     result = False

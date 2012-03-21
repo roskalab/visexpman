@@ -70,6 +70,18 @@ def get_objective_position(mat_file, log = None):
             data.append(data_set[0][i][0][0][0])
         data = numpy.array(data)
     return data
+    
+def read_objective_info(mat_file,  log=None):
+    '''
+    Returns absolute, relative objective position and z origin
+    '''
+    m = matlabfile.MatData(mat_file, log = log)
+    data = m.get_field('DATA')
+    data = {}
+    data['rel'] = m.get_field('DATA.Zlevel') [0][0][0][0][0]
+    data['abs'] = m.get_field('DATA.ZlevelArm') [0][0][0][0][0]
+    data['origin'] = m.get_field('DATA.ZlevelOrigin')[0][0][0][0][0]
+    return data
 
 def set_mes_mesaurement_save_flag(mat_file, flag):
     m = matlabfile.MatData(reference_path, target_path)
@@ -115,7 +127,6 @@ class MesInterface(object):
             self.from_gui_queue = None
         
     ################# Objective ###############
-    
     def read_objective_position(self, timeout = -1):
         result, line_scan_path, line_scan_path_on_mes = self.get_line_scan_parameters(timeout = timeout)
         if result:
@@ -123,9 +134,13 @@ class MesInterface(object):
             os.remove(line_scan_path)
             return True, objective_position
         else:
+            if os.path.exists(line_scan_path):
+                os.remove(line_scan_path)
             return False,  None
 
-    def set_objective(self, position, timeout = -1):
+    def set_objective(self, position, timeout = None):
+        if timeout == None:
+            timeout = self.config.MES_TIMEOUT
         parameter_path, parameter_path_on_mes = self._generate_mes_file_paths('set_objective.mat')
         #Generate parameter file
         data_to_mes_mat = {}
@@ -140,7 +155,34 @@ class MesInterface(object):
         if os.path.exists(parameter_path):#TODO: check why this is not working
             os.remove(parameter_path)
         return result
+        
+    def overwrite_relative_position(self, position_value, timeout = None):
+        '''
+        The value of the relative objective position is changed without moving the objective. The origin value is changed
+        '''
+        if timeout == None:
+            timeout = self.config.MES_TIMEOUT
             
+        #Get current objective info
+        result, line_scan_path, line_scan_path_on_mes = self.get_line_scan_parameters(timeout = timeout)
+        if not result:
+            return False
+        objective_info = read_objective_info(line_scan_path)
+        new_origin = objective_info['origin'] + objective_info['rel'] - position_value
+        parameter_path, parameter_path_on_mes = self._generate_mes_file_paths('set_objective_origin.mat')
+        #Generate parameter file
+        data_to_mes_mat = {}
+        data_to_mes_mat['DATA'] = {}
+        data_to_mes_mat['DATA']['origin'] = numpy.array([new_origin], dtype = numpy.float64)[0]
+        scipy.io.savemat(parameter_path, data_to_mes_mat, oned_as = 'column') 
+        result = False
+        if self.connection.connected_to_remote_client():
+            self.queues['mes']['out'].put('SOCset_objective_originEOC{0}EOP' .format(parameter_path_on_mes))
+            if network_interface.wait_for_response( self.queues['mes']['in'], ['SOCset_objective_originEOCcommandsentEOP'], timeout = timeout):
+                result = True
+        if os.path.exists(parameter_path):
+            os.remove(parameter_path)
+        return result
     ################# Single two photon frame###############
 
     def acquire_two_photon_image(self, timeout = -1, parameter_file = None):
@@ -604,4 +646,5 @@ class TestMesInterface(unittest.TestCase):
         return result
 
 if __name__ == "__main__":
-    unittest.main()
+#    unittest.main()
+    read_objective_info('/home/zoltan/visexp/data/test/line_scan_parameters_00000.mat')

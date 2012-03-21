@@ -13,6 +13,9 @@ except:
 
 import unittest
 import time
+import re
+extract_goniometer_axis1 = re.compile('\rX(.+)\n')
+extract_goniometer_axis2 = re.compile('\rY(.+)\n')
 
 class StageControl(instrument.Instrument):
     '''
@@ -20,12 +23,12 @@ class StageControl(instrument.Instrument):
     '''
     def init_communication_interface(self):
         if hasattr(self.config, 'STAGE'):
-            if self.config.STAGE[self.id]['enable']:
-                self.serial_port = serial.Serial(port =self.config.STAGE[self.id]['serial_port']['port'],
-                                                                baudrate = self.config.STAGE[self.id]['serial_port']['baudrate'],
-                                                                parity = self.config.STAGE[self.id]['serial_port']['parity'],
-                                                                stopbits = self.config.STAGE[self.id]['serial_port']['stopbits'],
-                                                                bytesize = self.config.STAGE[self.id]['serial_port']['bytesize'],
+            if self.config.STAGE[self.id]['ENABLE']:
+                self.serial_port = serial.Serial(port =self.config.STAGE[self.id]['SERIAL_PORT']['port'],
+                                                                baudrate = self.config.STAGE[self.id]['SERIAL_PORT']['baudrate'],
+                                                                parity = self.config.STAGE[self.id]['SERIAL_PORT']['parity'],
+                                                                stopbits = self.config.STAGE[self.id]['SERIAL_PORT']['stopbits'],
+                                                                bytesize = self.config.STAGE[self.id]['SERIAL_PORT']['bytesize'],
                                                                 timeout = 0.1)
     def read_position(self):
         pass
@@ -35,7 +38,7 @@ class StageControl(instrument.Instrument):
                                                             
     def close_communication_interface(self):
         if hasattr(self.config, 'STAGE'):
-            if self.config.STAGE[self.id]['enable']:
+            if self.config.STAGE[self.id]['ENABLE']:
                 try:
                     self.serial_port.close()
                 except AttributeError:
@@ -45,10 +48,10 @@ class AllegraStage(StageControl):
     
     def init_instrument(self):
         if hasattr(self.config, 'STAGE'):
-            if self.config.STAGE[self.id]['enable']:
+            if self.config.STAGE[self.id]['ENABLE']:
                 self.command_counter = 0
-                self.acceleration = self.config.STAGE[self.id]['acceleration']
-                self.speed = self.config.STAGE[self.id]['speed']
+                self.acceleration = self.config.STAGE[self.id]['ACCELERATION']
+                self.speed = self.config.STAGE[self.id]['SPEED']
                 self.reset_controller()
         self.read_position()
 
@@ -58,10 +61,10 @@ class AllegraStage(StageControl):
         '''
         reached = False
         if hasattr(self.config, 'STAGE'):
-            if self.config.STAGE[self.id]['enable']:
+            if self.config.STAGE[self.id]['ENABLE']:
                 #Disable joystick
                 self.execute_command('joff')
-                new_position_ustep = numpy.array(new_position) / self.config.STAGE[self.id]['um_per_ustep']
+                new_position_ustep = numpy.array(new_position) / self.config.STAGE[self.id]['UM_PER_USTEP']
                 self.read_position()
                 if relative:
                     self.required_position = self.position_ustep + numpy.array(new_position_ustep)
@@ -87,7 +90,7 @@ class AllegraStage(StageControl):
                         command = 'vel{0} {2}\nacc{0} {3}\npos{0} {1}\nmov{4}{0}' .format(chr(120+axis), str(int(new_position_ustep[axis])), int(spd), int(accel), mode)
                         self.execute_command(command, wait_after_command = False)
                         moved_axes.append(chr(120 + axis))
-                move_timeout = self.config.STAGE[self.id]['move_timeout']
+                move_timeout = self.config.STAGE[self.id]['MOVE_TIMEOUT']
                 self.movement = movement
                 start_of_wait = time.time()
                 response = ''
@@ -118,7 +121,7 @@ class AllegraStage(StageControl):
 
     def read_position(self):
         if hasattr(self.config, 'STAGE'):
-            if self.config.STAGE[self.id]['enable']:
+            if self.config.STAGE[self.id]['ENABLE']:
                 self.serial_port.flushInput()
                 self.execute_command('rx\nry\nrz')
                 time.sleep(0.5) #used to be 0.5 s
@@ -135,7 +138,7 @@ class AllegraStage(StageControl):
                             
                 self.position_ustep = numpy.array(position)
                 try:
-                    self.position = self.position_ustep * self.config.STAGE[self.id]['um_per_ustep']
+                    self.position = self.position_ustep * self.config.STAGE[self.id]['UM_PER_USTEP']
                 except ValueError:
                     self.position = numpy.zeros(3, dtype = float)
                     print 'position in ustep: {0}' .format(self.position_ustep)
@@ -185,7 +188,60 @@ def stage_calibration(side_usteps, folder):
 #        points = signal.regmax(f2,dim_order)
 #        print points
         
+class MotorizedGoniometer(StageControl):
+    def init_instrument(self):
+        if hasattr(self.config, 'STAGE'):
+            if self.config.STAGE[self.id]['ENABLE']:
+                self.execute_command('?R')
+                if 'OK' not in self.serial_port.read(100):
+                    raise RuntimeError('Goniometer does not respond')
 
+        self.read_position()
+        self.execute_command(['V50'])
+        print self.serial_port.read(100)
+        current_pos = self.position
+        self.move(-numpy.array([1, 1]))
+        time.sleep(1.0)
+        self.read_position()
+        print self.position-current_pos,  self.position
+        
+        
+    def execute_command(self, commands, wait_after_command = True):
+        if not isinstance(commands,  list):
+            commands = [commands]
+        for command in commands:
+            self.serial_port.write(command + '\r')
+            if wait_after_command:
+                time.sleep(10e-3)
+                
+    def read_position(self,  print_position = False):
+        self.execute_command(['?X', '?Y'])
+        response = self.serial_port.read(100)
+        try:
+            self.position_ustep = numpy.array(map(int,  [extract_goniometer_axis1.findall(response)[0],  extract_goniometer_axis2.findall(response)[0]]))
+            self.position = self.position_ustep * self.config.STAGE[self.id]['DEGREE_PER_USTEP']
+        except:
+            self.position = None
+        if print_position:
+            print self.position
+        return self.position
+        
+    def move(self, angle):
+        '''
+        Move 2 axis goniometer relative to current position
+        '''
+        angle_in_ustep =  angle / self.config.STAGE[self.id]['DEGREE_PER_USTEP']
+        axis = ['X', 'Y']
+        for i in range(1):
+            if angle_in_ustep[i] < 0:
+                sign = '-'
+            else:
+                sign = '+'
+            self.execute_command('{2}{0}{1}'.format(sign,  abs(angle_in_ustep[i]),  axis[i]))
+            time.sleep(100e-3)
+            response = self.serial_port.read(100)
+            print response
+            time.sleep(1.0)
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
@@ -198,27 +254,43 @@ class MotorTestConfig(visexpman.engine.generic.configuration.Config):
                                     'bytesize' : serial.EIGHTBITS,                                    
                                     }
                                     
-        STAGE = [[{'serial_port' : motor_serial_port,
-                 'enable':True,
-                 'speed': 1000000,
-                 'acceleration' : 1000000,
-                 'move_timeout' : 45.0,
-                 'um_per_ustep' : numpy.ones(3, dtype = numpy.float)
-                 }]]
+        goniometer_serial_port = {
+                                    'port' :  unit_test_runner.TEST_goniometer_com_port,
+                                    'baudrate' : 9600,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,
+                                    }
+                                    
+        STAGE = [{'SERIAL_PORT' : motor_serial_port,
+                 'ENABLE':True,
+                 'SPEED': 1000000,
+                 'ACCELERATION' : 1000000,
+                 'MOVE_TIMEOUT' : 45.0,
+                 'UM_PER_USTEP' : numpy.ones(3, dtype = numpy.float)
+                 }, 
+                 {'SERIAL_PORT' : goniometer_serial_port,
+                 'ENABLE':True,
+                 'SPEED': 1000000,
+                 'ACCELERATION' : 1000000,
+                 'MOVE_TIMEOUT' : 45.0,
+                 'DEGREE_PER_USTEP' : numpy.ones(2, dtype = numpy.float)
+                 }]
         
         self._create_parameters_from_locals(locals())
         
         #Test with different positions, speeds and accelerations, log, disabled
-class TestAllegraStage(unittest.TestCase):
+#class TestAllegraStage(unittest.TestCase):
+class TestAllegraStage():
     def setUp(self):
         self.config = MotorTestConfig()
         self.stage = AllegraStage(self.config, None)
 
     def tearDown(self):
         self.stage.release_instrument()
-
+        
     def test_01_initialize_stage(self):
-        self.assertEqual((hasattr(self.stage, 'speed'), hasattr(self.stage, 'acceleration'), 
+        self.assertEqual((hasattr(self.stage, 'SPEED'), hasattr(self.stage, 'ACCELERATION'), 
                         hasattr(self.stage, 'position'), hasattr(self.stage, 'position_ustep')),
                         (True, True, True, True))
 
@@ -236,9 +308,9 @@ class TestAllegraStage(unittest.TestCase):
         result1 = self.stage.move(movement_vector)
         result2 = self.stage.move(-movement_vector)
         self.assertEqual((result1, result2, (abs(self.stage.position - initial_position)).sum()), (True, True, 0.0))
-
+        
     def test_04_movements_stage_disabled(self):
-        self.config.STAGE[0]['enable'] = False
+        self.config.STAGE[0]['ENABLE'] = False
         self.stage.release_instrument()
         self.stage = AllegraStage(self.config, None)
         initial_position = self.stage.position
@@ -262,8 +334,17 @@ class TestAllegraStage(unittest.TestCase):
         
         self.assertEqual((result, (abs(self.stage.position - initial_position)).sum()), (True, 0.0))
 
+class TestMotorizedGoniometer(unittest.TestCase):
+    def setUp(self):
+        self.config = MotorTestConfig()
+        self.mg = MotorizedGoniometer(self.config, id = 1)
+
+    def tearDown(self):
+        self.mg.release_instrument()
+        
+    def test_01_goniometer_init(self):
+        pass
         
 if __name__ == "__main__":
-#    unittest.main()
-    stage_calibration(1, '/home/zoltan/visexp/debug/stage/cut/0')
-	
+    unittest.main()
+#    stage_calibration(1, '/home/zoltan/visexp/debug/stage/cut/0')

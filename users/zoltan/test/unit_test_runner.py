@@ -71,18 +71,21 @@ if TEST_os == 'nt':
     TEST_valid_file = 'c:\\windows\\win.ini'
     TEST_invalid_file = 'c:\\windows'
     TEST_stage_com_port = 'COM1'
+    TEST_goniometer_com_port = 'COM9'
 elif TEST_os == 'posix':
     TEST_com_port = '/dev/ttyUSB0'
     TEST_working_folder = '/home/zoltan/visexp/data/unit_test_output'
     TEST_valid_file = '/home/zoltan/visexp/codes/experiment/Helpers.py'
     TEST_invalid_file = '/home'
     TEST_stage_com_port = ''
+    TEST_goniometer_com_port = ''
 elif TEST_os == 'osx':
     TEST_com_port = ''
     TEST_working_folder = '/Users/rz/visexpman/data/test'
     TEST_valid_file = '/Users/rz/test_stimulus.py'
     TEST_invalid_file = '/Users/unit_test_runner.py'
     TEST_stage_com_port = ''
+    TEST_goniometer_com_port = ''
 
 TEST_daq_device = 'Dev1'
 

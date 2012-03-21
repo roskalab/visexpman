@@ -51,10 +51,10 @@ def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 
         number_of_divisions = int(image_size['row'] / division)
     else:
         number_of_divisions = int(image_size['col'] / division)
-    col_labels = numpy.linspace(origin['col'],  origin['col'] + number_of_divisions * division, number_of_divisions+1)
+    col_labels = numpy.linspace(numpy.round(origin['col'], 1), numpy.round(origin['col'] + number_of_divisions * division, 1), number_of_divisions+1)
     if mes:
         number_of_divisions = int(image_size['col'] / division)
-        row_labels = numpy.linspace(origin['row'],  origin['row'] - number_of_divisions * division, number_of_divisions+1)
+        row_labels = numpy.linspace(numpy.round(origin['row'], 1),  numpy.round(origin['row'] - number_of_divisions * division, 1), number_of_divisions+1)
     else:
         number_of_divisions = int(image_size['row'] / division)
         row_labels = numpy.linspace(origin['row'],  origin['row'] + number_of_divisions * division, number_of_divisions+1)
@@ -87,7 +87,7 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0):
     Inputs:
     images: images to display. These will be overlaid using coloring, scaling and origin information.
     size: size of output image in pixels in row, col format
-    lines: lines to draw on images, caontaining line endpoints in um
+    lines: lines to draw on images, containing line endpoints in um
     sidebar_division: the size of divisions on the sidebar
     
     config: the following parameters are expected: 

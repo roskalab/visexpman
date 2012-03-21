@@ -151,12 +151,12 @@ class MBP(VisionExperimentConfig):
                                     'bytesize' : serial.EIGHTBITS,                    
                                     }
                                     
-        STAGE = [{'serial_port' : motor_serial_port,
+        STAGE = [{'SERIAL_PORT' : motor_serial_port,
                  'enable': False,
-                 'speed': 800,
-                 'acceleration' : 200,
-                 'move_timeout' : 45.0,
-                 'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
+                 'SPEED': 800,
+                 'ACCELERATION' : 200,
+                 'MOVE_TIMEOUT' : 45.0,
+                 'UM_PER_USTEP' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]
         #=== DAQ ===
         SYNC_CHANNEL_INDEX = 1
@@ -266,12 +266,12 @@ class DebugOnLaptop(VisionExperimentConfig):
                                     'bytesize' : serial.EIGHTBITS,                    
                                     }
                                     
-        STAGE = [{'serial_port' : motor_serial_port,
+        STAGE = [{'SERIAL_PORT' : motor_serial_port,
                  'enable': False,
-                 'speed': 800,
-                 'acceleration' : 200,
-                 'move_timeout' : 45.0,
-                 'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
+                 'SPEED': 800,
+                 'ACCELERATION' : 200,
+                 'MOVE_TIMEOUT' : 45.0,
+                 'UM_PER_USTEP' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]
                  
                                                 
@@ -379,12 +379,12 @@ class Debug(VisionExperimentConfig):
                                     'bytesize' : serial.EIGHTBITS,                    
                                     }
                                     
-        STAGE = [{'serial_port' : motor_serial_port,
-                 'enable': (self.OS == 'win'),
-                 'speed': 2000,
-                 'acceleration' : 1000,
-                 'move_timeout' : 45.0,
-                 'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
+        STAGE = [{'SERIAL_PORT' : motor_serial_port,
+                 'ENABLE': (self.OS == 'win'),
+                 'SPEED': 2000,
+                 'ACCELERATION' : 1000,
+                 'MOVE_TIMEOUT' : 45.0,
+                 'UM_PER_USTEP' : numpy.ones(3, dtype = numpy.float)*(1.0/51.0)
                  }]
 
         #=== DAQ ===
@@ -477,12 +477,12 @@ class VS3DUS(VisionExperimentConfig):
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
                                     }
-        STAGE = [{'serial_port' : motor_serial_port,
-                 'enable': True,
-                 'speed': 2000,
-                 'acceleration' : 1000,
-                 'move_timeout' : 45.0,
-                 'um_per_ustep' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
+        STAGE = [{'SERIAL_PORT' : motor_serial_port,
+                 'ENABLE': True,
+                 'SPEED': 2000,
+                 'ACCELERATION' : 1000,
+                 'MOVE_TIMEOUT' : 45.0,
+                 'UM_PER_USTEP' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]
         #=== DAQ ===
         SYNC_CHANNEL_INDEX = 1
