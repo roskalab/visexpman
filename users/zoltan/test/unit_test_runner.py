@@ -67,14 +67,14 @@ TEST_filterwheel_enable  = True #If set to False, many tests fail.
 
 if TEST_os == 'nt':
     TEST_com_port = 'COM4'
-    TEST_working_folder = 'v:\\data\\unit_test_output'
+    TEST_working_folder = 'v:\\unit_test_output'
     TEST_valid_file = 'c:\\windows\\win.ini'
     TEST_invalid_file = 'c:\\windows'
     TEST_stage_com_port = 'COM1'
     TEST_goniometer_com_port = 'COM9'
 elif TEST_os == 'posix':
     TEST_com_port = '/dev/ttyUSB0'
-    TEST_working_folder = '/home/zoltan/visexp/data/unit_test_output'
+    TEST_working_folder = '/home/zoltan/visexp/unit_test_output'
     TEST_valid_file = '/home/zoltan/visexp/codes/experiment/Helpers.py'
     TEST_invalid_file = '/home'
     TEST_stage_com_port = ''
@@ -214,15 +214,22 @@ class UnitTestRunner():
         directories = []
 
         if TEST_delete_files:
+            time.sleep(2.0)
             for root, dirs, files in os.walk(TEST_working_folder):
                 for file in files:
                     path = root + os.sep + file
                     if os.stat(path).st_mtime > unit_test_start_time and not 'test_archive' in path:
-                        os.remove(path)
+                        try:
+                            os.remove(path)
+                        except:
+                            print path,  'Not removed'
                 for dir in dirs:
                     path = root + os.sep + dir
                     if os.stat(path).st_mtime > unit_test_start_time:
-                        shutil.rmtree(path)
+                        try:
+                            shutil.rmtree(path)
+                        except:
+                            print path,  'Not removed'
 
     def save_source_and_results(self):
         test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(TEST_working_folder, 'test_archive.zip'))
