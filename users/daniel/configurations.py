@@ -441,7 +441,7 @@ class VS3DUS(VisionExperimentConfig):
         EXPERIMENT_DATA_PATH = v_drive_data_folder
         MES_DATA_FOLDER = 'V:\\experiment_data'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
-        self.CONTEXT_NAME = 'gui_dev.hdf5'
+        self.CONTEXT_NAME = 'gui.hdf5'
         CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
 
         #=== screen ===
@@ -510,6 +510,12 @@ class VS3DUS(VisionExperimentConfig):
         #=== Others ===
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
+                                    
+        MAX_REALIGNMENT_OFFSET = 500.0
+        ACCEPTABLE_REALIGNMENT_OFFSET = 5.0
+        REALIGNMENT_XY_THRESHOLD = 2.0
+        REALIGNMENT_Z_THRESHOLD = 2.0
+        
         self._create_parameters_from_locals(locals())        
 
 if __name__ == "__main__":

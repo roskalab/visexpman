@@ -332,7 +332,8 @@ class MesInterface(object):
         result = self.wait_for_line_scan_save_complete(timeout = timeout)
         if not result:
             return {}, False
-        return matlabfile.read_vertical_scan(line_scan_path), True
+        vertical_scan = matlabfile.read_vertical_scan(line_scan_path)
+        return vertical_scan, True
         
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
         if parameter_file == None:

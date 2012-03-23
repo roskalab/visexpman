@@ -253,7 +253,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 image_to_display = scan_regions[selected_region]['brain_surface']
                 self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
                 #update overwiew
-                image, scale = experiment_data.merge_brain_regions(scan_regions, region_on_top = selected_region)
+                image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
                 self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
             else:
                 no_scale = utils.rc((1.0, 1.0))

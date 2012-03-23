@@ -153,62 +153,9 @@ def check_fragment(path, config):
                     
         fragment_handle.close()        
     return result, messages
-    
-def merge_brain_regions(scan_regions, region_on_top = None):
-    #gather images, scales and positions
-    regions = []
-    scales = []
-    region_on_top_index = 0
-    index = 0
-    for k, v in scan_regions.items():
-        region = {}
-        region['image'] = v['brain_surface']['image']
-        scale = v['brain_surface']['scale']['row'] #um/pixel
-        region['scale'] = scale
-        region['position'] = utils.cr((v['position']['y'], -v['position']['x'])) #It is not clear why this axis shall have a factor of -1
-        regions.append(region)
-        scales.append(scale)
-        if region_on_top == k:
-            region_on_top_index = index
-        index += 1
-    #put preferred one to the last position
-    pushed = regions[-1]
-    regions[-1] = regions[region_on_top_index]
-    regions[region_on_top_index] = pushed
-    #convert images to same scale
-    common_scale = min(scales)
-    image_bounds = []
-    for i in range(len(regions)):
-        scale = regions[i]['scale'] / common_scale
-        regions[i]['image'] = generic.rescale_numpy_array_image(regions[i]['image'], utils.rc((scale, scale)))
-        regions[i]['position'] = utils.rc_multiply(regions[i]['position'], utils.rc((1/common_scale, 1/common_scale)))
-        regions[i]['position'] = utils.rc((int(regions[i]['position']['row']), int(regions[i]['position']['col'])))
-        image_extent = utils.cr(regions[i]['image'].shape)
-        image_bounds.append([regions[i]['position']['row'] + image_extent['row'], regions[i]['position']['col'] + image_extent['col']])
-        image_bounds.append([regions[i]['position']['row'], regions[i]['position']['col'] + image_extent['col']])
-        image_bounds.append([regions[i]['position']['row'] + image_extent['row'], regions[i]['position']['col']])
-        image_bounds.append([regions[i]['position']['row'], regions[i]['position']['col']])
-    #find out image_size 
-    image_bounds = numpy.array(image_bounds)
-    row_min = image_bounds[:,0].min()
-    row_max = image_bounds[:,0].max()
-    col_min = image_bounds[:,1].min()
-    col_max = image_bounds[:,1].max()
-    image_size = (int(col_max - col_min), int(row_max - row_min))
-    offset = (int(-col_min), int(-row_min))
-    #create image
-    image = numpy.zeros(image_size, dtype = numpy.uint8)
-    for region in regions:
-        image[region['position']['col'] + offset[0]:region['position']['col'] + offset[0] + region['image'].shape[0], \
-              region['position']['row'] + offset[1]:region['position']['row'] + offset[1] + region['image'].shape[1]] = region['image'] 
-    return image, utils.rc((common_scale, common_scale))
 
 if __name__=='__main__':
-    import Image
-    im, c = merge_brain_regions(hdf5io.read_item('/home/zoltan/visexp/debug/data/mouse_chatdtr_14-9-2011_26-1-2012_0_0.hdf5', 'scan_regions'), 'master')
-    im = Image.fromarray(im)
-    im.save('/home/zoltan/visexp/debug/data/p.png')
-    
+        pass
     
     
     

@@ -245,15 +245,18 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.move_to_button = QtGui.QPushButton('Move to',  self)
         self.region_info = QtGui.QLabel('',  self)
         self.move_to_region_options = {}
-        self.move_to_region_options['header_labels'] = [ QtGui.QLabel('Move', self),   QtGui.QLabel('Realign', self)]
-        self.move_to_region_options['row_labels'] = [ QtGui.QLabel('Stage', self),   QtGui.QLabel('Objective', self)]
+        self.move_to_region_options['header_labels'] = [ QtGui.QLabel('Move', self), QtGui.QLabel('Realign', self), QtGui.QLabel('Adjust origin', self)]
+        self.move_to_region_options['row_labels'] = [ QtGui.QLabel('Stage', self), QtGui.QLabel('Objective', self)]
         self.move_to_region_options['checkboxes'] = {}
         self.move_to_region_options['checkboxes']['stage_move'] = QtGui.QCheckBox(self)
         self.move_to_region_options['checkboxes']['stage_realign'] = QtGui.QCheckBox(self)
+        self.move_to_region_options['checkboxes']['stage_origin_adjust'] = QtGui.QCheckBox(self)
         self.move_to_region_options['checkboxes']['objective_move'] = QtGui.QCheckBox(self)
         self.move_to_region_options['checkboxes']['objective_realign'] = QtGui.QCheckBox(self)
+        self.move_to_region_options['checkboxes']['objective_origin_adjust'] = QtGui.QCheckBox(self)
         for k, v in self.move_to_region_options['checkboxes'].items():
-            v.setCheckState(2)
+            if 'origin_adjust' not in k:
+                v.setCheckState(2)
         self.vertical_scan_button = QtGui.QPushButton('Vertical scan',  self)
 
     def create_layout(self):
@@ -261,24 +264,27 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.select_mouse_file_label, 0, 0, 1, 1)
         self.layout.addWidget(self.select_mouse_file, 0, 1, 1, 3)
         self.layout.addWidget(self.animal_parameters_label, 1, 0, 1, 4)
-        self.layout.addWidget(self.use_saved_scan_settings_label, 2, 2, 1, 1)
-        self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 2, 3, 1, 1)
-        self.layout.addWidget(self.get_two_photon_image_button, 3, 0, 1, 1)
+        self.layout.addWidget(self.use_saved_scan_settings_label, 2, 1, 1, 1)
+        self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 2, 2, 1, 1)
+        self.layout.addWidget(self.get_two_photon_image_button, 3, 3, 1, 1)
         self.layout.addWidget(self.vertical_scan_button, 3, 2, 1, 1)
-        self.layout.addWidget(self.snap_brain_surface_button, 3, 3, 1, 1)
-        self.layout.addWidget(self.add_button, 4, 0, 1, 1)
-        self.layout.addWidget(self.scan_regions_combobox, 4, 1, 1, 2)
+        self.layout.addWidget(self.snap_brain_surface_button, 2, 3, 1, 1)
+        self.layout.addWidget(self.add_button, 3, 0, 1, 1)
+        self.layout.addWidget(self.scan_regions_combobox, 4, 0, 1, 2)
         self.layout.addWidget(self.region_info, 4, 3, 1, 1)
         self.layout.addWidget(self.remove_button, 5, 0, 1, 1)
-        self.layout.addWidget(self.move_to_button, 5, 1, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['header_labels'][0], 5, 2, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['header_labels'][1], 5, 3, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['row_labels'][0], 6, 1, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['row_labels'][1], 7, 1, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['checkboxes']['stage_move'], 6, 2, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['checkboxes']['stage_realign'], 6, 3, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 7, 2, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 7, 3, 1, 1)
+        self.layout.addWidget(self.move_to_button, 4, 2, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['header_labels'][0], 5, 1, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['header_labels'][1], 5, 2, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['header_labels'][2], 5, 3, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['row_labels'][0], 6, 0, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['row_labels'][1], 7, 0, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['stage_move'], 6, 1, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['stage_realign'], 6, 2, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['stage_origin_adjust'], 6, 3, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 7, 1, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 7, 2, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_origin_adjust'], 7, 3, 1, 1)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -504,7 +510,7 @@ class Poller(QtCore.QThread):
                     else:
                         self.printc('Done')
                     self.save_context()
-                    self.parent.debug_widget.current_position_label.setText('rel: {0}' .format(self.get_displayable_position()))
+                    self.update_position_display()
                     result = True
         else:
             self.printc('stage is not accessible')
@@ -530,7 +536,7 @@ class Poller(QtCore.QThread):
                     self.stage_origin_set = True
                     result = True
         self.origin_set = True
-        self.parent.debug_widget.current_position_label.setText('rel: {0}' .format(self.get_displayable_position()))
+        self.update_position_display()
         return result
         
     def move_stage(self):
@@ -559,7 +565,7 @@ class Poller(QtCore.QThread):
             if 'SOCstageEOC' in response:
                 self.stage_position = self.parse_list_response(response)
                 self.save_context()
-                self.parent.debug_widget.current_position_label.setText('rel: {0}' .format(self.get_displayable_position()))
+                self.update_position_display()
                 self.printc('New position rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
                 return True
         self.printc('Stage does not respond')
@@ -575,7 +581,7 @@ class Poller(QtCore.QThread):
             return
         if self.mes_interface.set_objective(position, self.config.MES_TIMEOUT):
             self.objective_position = position
-            self.parent.debug_widget.current_position_label.setText('rel: {0}' .format(self.get_displayable_position()))
+            self.update_position_display()
             self.printc('Objective is set to {0} um'.format(position))
         else:
             self.printc('MES did not respond')
@@ -619,6 +625,12 @@ class Poller(QtCore.QThread):
                             self.two_photon_image['scale'], 
                             origin = self.two_photon_image['origin'])
             self.save_context()
+            #Update objective position to ensure synchronzation with manual control of objective
+            result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
+            if not result:
+                self.printc('MES does not respond')
+            else:
+                self.update_position_display()
             return True
         else:
                 self.printc('No image acquired')
@@ -652,6 +664,12 @@ class Poller(QtCore.QThread):
                                       0.04*self.vertical_scan['scaled_image'].shape[0] * self.vertical_scan['scaled_scale']['col'], self.objective_position]]
         else:
             objective_position_marker = []
+        #Update objective position to ensure synchronzation with manual control of objective
+        result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
+        if not result:
+            self.printc('MES does not respond')
+        else:
+            self.update_position_display()
         self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scaled_scale'], line = objective_position_marker, origin = self.vertical_scan['origin'])
         self.save_context()
         self.vertical_scan_acquired = True
@@ -810,18 +828,21 @@ class Poller(QtCore.QThread):
                 self.printc('Suggested translation is not plausible')
                 return
             #Translate stage with suggested values
+            stage_translation = -numpy.round(numpy.array([self.suggested_translation['col'], self.suggested_translation['row'], 0.0]), 2)
             if abs(self.suggested_translation['col'])  > self.config.REALIGNMENT_XY_THRESHOLD or abs(self.suggested_translation['row']) > self.config.REALIGNMENT_XY_THRESHOLD:
-                self.move_stage_relative(-numpy.round(numpy.array([self.suggested_translation['col'], self.suggested_translation['row'], 0.0]), 2))
+                self.move_stage_relative(stage_translation)
             else:
                 self.printc('Suggested translation is small, stage is not moved')
+            if self.parent.debug_widget.scan_region_groupbox.move_to_region_options['checkboxes']['stage_origin_adjust'] .checkState() != 0:
+                self.printc('Stage origin was corrected with detected offset')
+                self.stage_origin = self.stage_origin + stage_translation
             #Get a two photon image and register again, to see whether realignment was successful
             if not self.acquire_two_photon_image(use_region_parameters = True):
                 return
             if not self.register_images(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['brain_surface']['image'], self.two_photon_image['scale']):
                 return
             if abs(self.suggested_translation['col']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET or abs(self.suggested_translation['row']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET:
-                self.printc('Realignment was not successful {0}' .format(self.suggested_translation))
-                return
+                self.printc('Realignment was not successful {0}' .format(self.suggested_translation)) #Process not interrupted, but moves to vertical realignment
             self.printc('XY offset {0}' .format(self.suggested_translation))
         if self.parent.debug_widget.scan_region_groupbox.move_to_region_options['checkboxes']['objective_realign'] .checkState() != 0 and\
                 self.scan_regions[selected_region].has_key('vertical_section'):
@@ -852,9 +873,7 @@ class Poller(QtCore.QThread):
                     return
                 else:
                     #Change origin when full realignment is done with moving both objective and stage and realign both devices
-                    if self.parent.debug_widget.scan_region_groupbox.move_to_region_options['checkboxes']['objective_move'] .checkState() != 0 and\
-                            self.parent.debug_widget.scan_region_groupbox.move_to_region_options['checkboxes']['stage_move'] .checkState() != 0 and\
-                            self.parent.debug_widget.scan_region_groupbox.move_to_region_options['checkboxes']['objective_realign'] .checkState() != 0:
+                    if self.parent.debug_widget.scan_region_groupbox.move_to_region_options['checkboxes']['objective_origin_adjust'] .checkState() != 0:
                         if not self.mes_interface.overwrite_relative_position(objective_position, self.config.MES_TIMEOUT):
                             self.printc('Setting objective relative value did not succeed')
                             return
@@ -877,7 +896,7 @@ class Poller(QtCore.QThread):
                 self.printc('Realignment was not successful {0}'.format(vertical_offset))
                 return
             self.printc('Vertical offset {0}' .format(vertical_offset))
-        self.parent.debug_widget.current_position_label.setText('rel: {0}' .format(self.get_displayable_position()))
+        self.update_position_display()
         self.suggested_translation = utils.cr((0, 0))
         self.printc('Move to region complete')
         
@@ -913,7 +932,7 @@ class Poller(QtCore.QThread):
         utils.empty_queue(self.queues['analysis']['in'])
         arguments = ''
         self.queues['analysis']['out'].put('SOCregisterEOC' + arguments + 'EOP')
-        if not utils.wait_data_appear_in_queue(self.queues['analysis']['in'], 6.0):
+        if not utils.wait_data_appear_in_queue(self.queues['analysis']['in'], 10.0):
             self.printc('Analysis not connected')
             return False
         if 'SOCregisterEOCstartedEOP' not in self.queues['analysis']['in'].get():
@@ -957,10 +976,10 @@ class Poller(QtCore.QThread):
                 break
         return master_position_name
         
-    def get_displayable_position(self):
+    def update_position_display(self):
         display_position = numpy.round(self.stage_position - self.stage_origin, 2)
         display_position[-1] = self.objective_position
-        return '{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2])
+        self.parent.debug_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
         
 # Test cases:
 # 1. move stage - set stage origin - including read stage
