@@ -43,17 +43,23 @@ class ExperimentControl(object):
             if hasattr(self, 'fragment_durations'):
                 if not hasattr(self.fragment_durations, 'index') and not hasattr(self.fragment_durations, 'shape'):
                     self.fragment_durations = [self.fragment_durations]
-        if self.parameters.has_key('objective_positions'):
-            self.objective_positions = map(float, self.parameters['objective_positions'].split('<comma>'))
+        if self.parameters.has_key('objective_positions') and self.parameters.has_key('laser_intensities'):
+            self.objective_positions = map(float, self.parameters['objective_positions'].split('<comma>')) 
+            self.laser_intensities = map(float, self.parameters['laser_intensities'].split('<comma>'))
+            if len(self.laser_intensities) != len(self.objective_positions):
+                raise RuntimeError('Number of provided laser intensities and objective positions must be equal')
 
     def run_experiment(self, context):
         message_to_screen = ''
-        if hasattr(self, 'objective_positions'):
-            for objective_position in self.objective_positions:
-                context['objective_position'] = objective_position
+        if hasattr(self, 'objective_positions') and hasattr(self, 'laser_intensities'):
+            for i in range(len(self.objective_positions)):
+                context['objective_position'] = self.objective_positions[i]                
+                context['laser_intensity'] = self.laser_intensities[i]
+                context['experiment_count'] = '{0}/{1}'.format(i+1, len(self.objective_positions))
                 message_to_screen += self.run_single_experiment(context)
                 if self.abort:
                     break
+                self.queues['gui']['out'].put('Experiment sequence complete')
         else:
             message_to_screen = self.run_single_experiment(context)
         return message_to_screen
@@ -67,6 +73,8 @@ class ExperimentControl(object):
             return message_to_screen
         message_to_screen += self._prepare_experiment(context)
         message = '{0}/{1} started at {2}' .format(self.experiment_name, self.experiment_config_name, utils.datetime_string())
+        if context.has_key('experiment_count'):
+            message = '{0} {1}'.format( context['experiment_count'],  message)
         message_to_screen += self.printl(message,  application_log = True) + '\n'
         self.finished_fragment_index = 0
         for fragment_id in range(self.number_of_fragments):
@@ -111,7 +119,15 @@ class ExperimentControl(object):
             if context.has_key('objective_position'):
                 if not self.mes_interface.set_objective(context['objective_position'], self.config.MES_TIMEOUT):
                     self.abort = True
-                    message_to_screen = 'objective not set'
+                    self.printl('Objective not set')
+                else:
+                    self.printl('Objective is set to {0} um' .format(context['objective_position']))
+                result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(context['laser_intensity'])
+                if not result:
+                    self.abort = True
+                    slef.printl('Laser intensity not set')
+                else:
+                    self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
             #read stage and objective
             self.stage_position = self.stage.read_position() - self.stage_origin
             result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
@@ -347,6 +363,12 @@ class ExperimentControl(object):
             stimulus_frame_info = stimulus_frame_info_with_data_series_index
         data_to_file['stimulus_frame_info'] = stimulus_frame_info
         self.stimulus_frame_info_pointer = len(self.stimulus_frame_info)
+        if self.config.PLATFORM == 'mes':
+            result,  laser_intensity = self.mes_interface.read_laser_intensity()
+            if result:
+                data_to_file['laser_intensity'] = laser_intensity
+            else:
+                self.printl('Laser intensity not available')
         return data_to_file
             
     def save_fragment_data(self, fragment_id):

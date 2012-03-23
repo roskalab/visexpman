@@ -127,6 +127,11 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0):
         image_with_sidebar = image_with_line
     out_image[0:image_with_sidebar.shape[0], 0:image_with_sidebar.shape[1], :] = image_with_sidebar
     return out_image
+    
+    
+def expspace(start,  end,  number_of_points):
+    exponent = numpy.log(end-start+1)
+    return numpy.exp(numpy.linspace(0.0,  1.0,  number_of_points)*exponent)+start-1
 
 class GuiImagesTestConfig():
     def __init__(self):
@@ -143,15 +148,17 @@ class Test(unittest.TestCase):
 #    #    image = {'image': 100*numpy.ones((100, 200),  numpy.uint16), 'origin':utils.rc((0, 0)), 'scale': utils.rc((1, 1))}
 #        im = generate_gui_image(image, utils.cr((600, 600)), GuiImagesTestConfig(), lines = [[0, 0, 100, 0]], sidebar_division = 100)
 #        Image.fromarray(im).save('/home/zoltan/visexp/debug/debug.png')
-        
-    def test_02(self):
-        im = 128*numpy.ones((436, 576))
-        im = Image.fromarray(draw_scalebar(im, utils.rc((-40.4, -192.6)), 0.367878 , 30.0,  fill = 0))
-        if os.name == 'nt':
-            im.save('v:\\debug\\scalebar.png')
-        else:
-            im.save('/home/zoltan/visexp/debug/scalebar.png')
-
+    
+#    def test_02(self):
+#        im = 128*numpy.ones((436, 576))
+#        im = Image.fromarray(draw_scalebar(im, utils.rc((-40.4, -192.6)), 0.367878 , 30.0,  fill = 0))
+#        if os.name == 'nt':
+#            im.save('v:\\debug\\scalebar.png')
+#        else:
+#            im.save('/home/zoltan/visexp/debug/scalebar.png')
+#    
+    def test_03(self):
+        print expspace(0,  10,  4)
     
 if __name__ == '__main__':
     unittest.main()

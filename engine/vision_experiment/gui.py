@@ -12,6 +12,7 @@ import PyQt4.QtCore as QtCore
 
 from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.hardware_interface import network_interface
+from visexpman.engine import generic
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 from visexpman.engine.generic import log
@@ -33,6 +34,12 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
         self.stop_experiment_button = QtGui.QPushButton('Stop experiment',  self)
         self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful stop experiment',  self)
+        self.objective_positions_label = QtGui.QLabel('Objective positions [um]',  self)
+        self.objective_positions_combobox = QtGui.QComboBox(self)
+        self.objective_positions_combobox.setEditable(True)
+        self.laser_intensities_label = QtGui.QLabel('Laser intensity (min, max) [%]',  self)
+        self.laser_intensities_combobox = QtGui.QComboBox(self)
+        self.laser_intensities_combobox.setEditable(True)
     
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -40,6 +47,10 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.start_experiment_button, 0, 1)
         self.layout.addWidget(self.stop_experiment_button, 0, 2)
         self.layout.addWidget(self.graceful_stop_experiment_button, 0, 3)
+        self.layout.addWidget(self.objective_positions_label, 1, 0)
+        self.layout.addWidget(self.objective_positions_combobox, 1, 1, 1, 2)
+        self.layout.addWidget(self.laser_intensities_label, 1, 3)
+        self.layout.addWidget(self.laser_intensities_combobox, 1, 4)
         self.setLayout(self.layout)
 
 
@@ -199,7 +210,7 @@ class DebugWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.z_stack_button, 0, 0, 1, 1)
-        self.layout.addWidget(self.experiment_control_groupbox, 0, 5, 1, 4)
+        self.layout.addWidget(self.experiment_control_groupbox, 0, 5, 2, 4)
         self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
         self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
         self.layout.addWidget(self.move_stage_button, 2, 2, 1, 1)
@@ -899,6 +910,21 @@ class Poller(QtCore.QThread):
         self.update_position_display()
         self.suggested_translation = utils.cr((0, 0))
         self.printc('Move to region complete')
+    ################## Experiment control ####################x
+    def start_experiment(self):
+        self.printc('Experiment started,  please wait')
+        objective_positions_string = str(self.parent.debug_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
+        laser_intensities_string =  str(self.parent.debug_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
+        if len(objective_positions_string)>0 and len(laser_intensities_string):
+            objective_positions = objective_positions_string.replace(',',  '<comma>').replace(' ',  '')
+            laser_intensities = map(float, laser_intensities_string.replace(' ', '').split(','))
+            laser_intensities = generic.expspace(laser_intensities[0],  laser_intensities[1],  len(objective_positions.split('<comma>')))
+            laser_intensities = str(laser_intensities.tolist()).replace(', ',  '<comma>').replace('[', '').replace(']', '')
+            command = 'SOCexecute_experimentEOCobjective_positions={0},laser_intensities={2},region_name={1}EOP' \
+                .format(objective_positions, self.parent.get_current_region_name(), laser_intensities)
+        else:
+            command = 'SOCexecute_experimentEOCregion_name={0}EOP' .format(self.parent.get_current_region_name())
+        self.queues['stim']['out'].put(command)
         
     ############# Helpers #############
     def create_parameterfile_from_region_info(self, parameter_file_path, scan_type):

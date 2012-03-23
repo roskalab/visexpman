@@ -20,6 +20,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 
 from visexpman.users.zoltan.test import unit_test_runner
+parameter_extract = re.compile('EOC(.+)EOP')
 
 
 def generate_scan_points_mat(points, mat_file):
@@ -183,8 +184,54 @@ class MesInterface(object):
         if os.path.exists(parameter_path):
             os.remove(parameter_path)
         return result
-    ################# Single two photon frame###############
+        
+        ################# Laser intensity ###############
+    def set_laser_intensity(self, laser_intensity, timeout = None):
+        if timeout == None:
+            timeout = self.config.MES_TIMEOUT
+        parameter_path, parameter_path_on_mes = self._generate_mes_file_paths('set_objective.mat')
+        #Generate parameter file
+        data_to_mes_mat = {}
+        data_to_mes_mat['DATA'] = {}
+        data_to_mes_mat['DATA']['laser_intensity'] = numpy.array([laser_intensity], dtype = numpy.float64)[0]
+        scipy.io.savemat(parameter_path, data_to_mes_mat, oned_as = 'column') 
+        result = False
+        if self.connection.connected_to_remote_client():
+            self.queues['mes']['out'].put('SOCset_laser_intensityEOC{0}EOP' .format(parameter_path_on_mes))
+            if network_interface.wait_for_response( self.queues['mes']['in'], ['SOCset_laser_intensityEOCcommandsentEOP'], timeout = timeout):
+                result = True
+        if os.path.exists(parameter_path):
+            os.remove(parameter_path)
+        #Wait till laser reaches required intensity
+        start_time = time.time()
+        while True:
+            result, adjusted_laser_intensity = self.read_laser_intensity(timeout = timeout)
+            if time.time() - start_time > timeout:
+                break
+                result = False
+            if result and abs(laser_intensity - adjusted_laser_intensity) < 0.1:
+                result = True
+                break
+            time.sleep(1.0)
+        return result, adjusted_laser_intensity
+        
+    def read_laser_intensity(self, timeout = None):
+        result = False
+        laser_intensity = 0
+        if timeout == None:
+            timeout = self.config.MES_TIMEOUT
+        if self.connection.connected_to_remote_client():
+            self.queues['mes']['out'].put('SOCread_laser_intensityEOCEOP')
+            if utils.wait_data_appear_in_queue(self.queues['mes']['in'], timeout):
+                while not self.queues['mes']['in'].empty():
+                    response = self.queues['mes']['in'].get()
+                    if 'read_laser_intensity' in response:
+                        result = True
+                        laser_intensity = float(parameter_extract.findall(response)[0])
+                    
+        return result, laser_intensity
 
+    ################# Single two photon frame###############
     def acquire_two_photon_image(self, timeout = -1, parameter_file = None):
         if parameter_file == None:
             #generate a mes parameter file name, that does not exits
@@ -400,7 +447,6 @@ class MesInterface(object):
         return self._wait_for_mes_response(timeout, 'SOCacquire_line_scanEOCsaveOKEOP')    
 
 ####################### Private functions ########################
-
     def _wait_for_mes_response(self, timeout, expected_responses):
         '''
         Waits till MES sends notification about the completition of a certain command.

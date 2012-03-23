@@ -317,7 +317,7 @@ class Debug(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'LedStimulationConfig'
         EXPERIMENT_CONFIG = 'MovingDotConfig'
         EXPERIMENT_CONFIG = 'Dummy'
-        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
+#        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
         PLATFORM = 'standalone'
         PLATFORM = 'mes'
         #=== paths/data handling ===

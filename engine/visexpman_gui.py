@@ -1,7 +1,4 @@
 #TODO: rename to visexp_gui.py
-#TODO: timestamp to gui.hdf5 and string_timestamp node
-
-ENABLE_NETWORK = True
 
 import sys
 import os
@@ -24,17 +21,15 @@ import PyQt4.QtCore as QtCore
 
 import visexpman
 from visexpA.engine.datadisplay import imaged
-import visexpman.engine.generic.utils as utils
-import visexpman.engine.vision_experiment.configuration as configuration
-import visexpman.engine.vision_experiment.gui as gui
+from visexpman.engine.generic import utils
+from visexpman.engine.vision_experiment import configuration
+from visexpman.engine.vision_experiment import gui
 from visexpman.engine.hardware_interface import network_interface
-import visexpman.engine.generic.utils as utils
+from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
-import visexpman.engine.generic as generic
-import visexpman.engine.generic.geometry as geometry
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
-import visexpA.engine.datahandlers.hdf5io as hdf5io
-from visexpman.engine.vision_experiment import experiment_data
+from visexpman.engine import generic
+from visexpman.users.zoltan.test import unit_test_runner
+from visexpA.engine.datahandlers import hdf5io
 
 parameter_extract = re.compile('EOC(.+)EOP')
 
@@ -101,7 +96,6 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.show_network_messages_button, QtCore.SIGNAL('clicked()'),  self.show_network_messages)
         self.connect(self.debug_widget.experiment_control_groupbox.stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.stop_experiment)
         self.connect(self.debug_widget.experiment_control_groupbox.graceful_stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.graceful_stop_experiment)
-        self.connect(self.debug_widget.experiment_control_groupbox.start_experiment_button, QtCore.SIGNAL('clicked()'),  self.start_experiment)
         self.connect(self.debug_widget.send_command_button, QtCore.SIGNAL('clicked()'),  self.send_command)
         self.connect(self.debug_widget.save_two_photon_image_button, QtCore.SIGNAL('clicked()'),  self.poller.save_two_photon_image)
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
@@ -124,6 +118,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.add_button, 'add_scan_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.move_to_button, 'move_to_region')
+        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
@@ -144,16 +139,6 @@ class VisionExperimentGui(QtGui.QWidget):
         command = 'SOCgraceful_stop_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
         self.printc('Graceful stop requested,  please wait')
-
-    def start_experiment(self):
-        self.printc('Experiment started,  please wait')
-        params =  self.scanc()
-        if len(params)>0:
-            objective_positions = params.replace(',',  '<comma>')
-            command = 'SOCexecute_experimentEOCobjective_positions={0},region_name={1}EOP' .format(objective_positions, self.get_current_region_name())
-        else:
-            command = 'SOCexecute_experimentEOCregion_name={0}EOP' .format(self.get_current_region_name())
-        self.queues['stim']['out'].put(command)
 
     def save_animal_parameters(self):
         '''
@@ -397,10 +382,9 @@ class VisionExperimentGui(QtGui.QWidget):
         #delete files:
         for file_path in self.poller.files_to_delete:
             if os.path.exists(file_path):
-                os.remove(file_path)
-        if ENABLE_NETWORK:
-            self.command_relay_server.shutdown_servers()            
-            time.sleep(2.0) #Enough time to close network connections
+                os.remove(file_path)        
+        self.command_relay_server.shutdown_servers()            
+        time.sleep(2.0) #Enough time to close network connections
         sys.exit(0)
 
 def run_gui():
