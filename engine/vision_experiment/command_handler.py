@@ -83,13 +83,15 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         '''
         try:
             st = time.time()
-            if 'read' in par or 'set' in par or 'origin' in par:
+            if 'read' in par or 'set' in par or 'origin' in par or 'stop' in par:
                 stage = stage_control.AllegraStage(self.config, log = self.log)
+                if 'stop' in par:
+                    stage.stop()
                 position = stage.read_position()
                 if 'set' not in par:
                     self.queues['gui']['out'].put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
                 if 'origin' in par:
-                    self.stage_origin = position                
+                    self.stage_origin = position
                 if 'set' in par:
                     new_position = numpy.array([float(new_x), float(new_y), float(new_z)])
                     reached = stage.move(new_position)
@@ -99,9 +101,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             return str(par) + ' ' + str(position) + '\n' + str(time.time() - st) + ' ' + str(stage.command_counter )
         except:
             return str(traceback.format_exc())
-            
-###### Experiment related commands ###############
 
+###### Experiment related commands ###############
     def select_experiment(self, experiment_index):
         '''
         Selects experiment config based on keyboard command and instantiates the experiment config class
@@ -109,15 +110,18 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.selected_experiment_config_index = int(experiment_index)
         self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log)
         return 'selected experiment: ' + str(experiment_index) + ' '
-        
+
     def execute_experiment(self, **kwargs):
         if kwargs.has_key('source_code'):
             source_code = kwargs['source_code']
         else:
            source_code = ''
-        if source_code == '':
-            self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log, parameters = kwargs)
-        else:
+        if kwargs.has_key('experiment_config'):
+            for experiment_config in self.experiment_config_list:
+                if experiment_config[1].__name__ == kwargs['experiment_config']:
+                    self.experiment_config = experiment_config[1](self.config, self.queues, self.connections, self.log, parameters = kwargs)
+                    break
+        elif source_code != '':
             loadable_source_code = source_code.replace('<newline>', '\n')
             loadable_source_code = loadable_source_code.replace('<comma>', ',')
             loadable_source_code = loadable_source_code.replace('<equal>', '=')
@@ -132,6 +136,10 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             experiment_module = __import__('experiment_module')
             self.experiment_config = getattr(experiment_module, experiment_config_class_name+tag)(self.config, self.queues, \
                                                                                                   self.connections, self.log, getattr(experiment_module,experiment_class_name+tag), loadable_source_code)
+        else:
+            self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log, parameters = kwargs)
+        #Remove abort commands from queue
+        utils.is_keyword_in_queue(self.queues['gui']['in'], 'abort', keep_in_queue = False)
         context = {}
         context['stage_origin'] = self.stage_origin
         result = self.experiment_config.runnable.run_experiment(context)

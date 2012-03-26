@@ -30,10 +30,11 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         #Stimulation/experiment control related
         self.experiment_name = QtGui.QComboBox(self)
         self.experiment_name.setEditable(True)
-        self.experiment_name.addItems(QtCore.QStringList(['moving_dot', 'grating', 'led stimulation']))
+        self.experiment_name.addItems(QtCore.QStringList([]))
         self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
         self.stop_experiment_button = QtGui.QPushButton('Stop experiment',  self)
         self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful stop experiment',  self)
+        self.identify_flourescence_intensity_distribution_button = QtGui.QPushButton('Fluorescence distribution',  self)
         self.objective_positions_label = QtGui.QLabel('Objective positions [um]',  self)
         self.objective_positions_combobox = QtGui.QComboBox(self)
         self.objective_positions_combobox.setEditable(True)
@@ -47,6 +48,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.start_experiment_button, 0, 1)
         self.layout.addWidget(self.stop_experiment_button, 0, 2)
         self.layout.addWidget(self.graceful_stop_experiment_button, 0, 3)
+        self.layout.addWidget(self.identify_flourescence_intensity_distribution_button, 2, 0)
         self.layout.addWidget(self.objective_positions_label, 1, 0)
         self.layout.addWidget(self.objective_positions_combobox, 1, 1, 1, 2)
         self.layout.addWidget(self.laser_intensities_label, 1, 3)
@@ -185,7 +187,7 @@ class DebugWidget(QtGui.QWidget):
         self.set_stage_origin_button = QtGui.QPushButton('Set stage origin', self)
         self.read_stage_button = QtGui.QPushButton('Read stage', self)
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
-        self.move_stage_to_origin_button = QtGui.QPushButton('Move to origin', self)
+        self.stop_stage_button = QtGui.QPushButton('Stop stage', self)
         self.current_position_label = QtGui.QLabel('', self)
         #Network related
         self.show_connected_clients_button = QtGui.QPushButton('Show connected clients',  self)
@@ -214,7 +216,7 @@ class DebugWidget(QtGui.QWidget):
         self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
         self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
         self.layout.addWidget(self.move_stage_button, 2, 2, 1, 1)
-        self.layout.addWidget(self.move_stage_to_origin_button, 2, 3, 1, 1)
+        self.layout.addWidget(self.stop_stage_button, 2, 3, 1, 1)
         self.layout.addWidget(self.current_position_label, 2, 5, 1, 2)
         self.layout.addWidget(self.set_objective_button, 2, 7, 1, 1)
         self.layout.addWidget(self.set_objective_value_button, 2, 8, 1, 1)
@@ -225,7 +227,6 @@ class DebugWidget(QtGui.QWidget):
         self.layout.addWidget(self.connected_clients_label, 3, 5, 1, 4)
         self.layout.addWidget(self.animal_parameters_groupbox, 4, 0, 2, 4)
         self.layout.addWidget(self.scan_region_groupbox, 4, 5, 2, 4)
-        
         self.layout.addWidget(self.help_button, 8, 0, 1, 1)
         self.layout.addWidget(self.save_two_photon_image_button, 8, 1, 1, 1)
         self.layout.addWidget(self.override_enforcing_set_stage_origin_checkbox, 8, 2, 1, 1)
@@ -581,7 +582,23 @@ class Poller(QtCore.QThread):
                 return True
         self.printc('Stage does not respond')
         return False
-                    
+        
+    def stop_stage(self):
+        utils.empty_queue(self.queues['stim']['in'])
+        self.queues['stim']['out'].put('SOCstageEOCstopEOP')
+        if not utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.GUI_STAGE_TIMEOUT):
+            self.printc('Stage does not respond')
+            return
+        while not self.queues['stim']['in'].empty():
+            response = self.queues['stim']['in'].get()
+            if 'SOCstageEOC' in response:
+                self.stage_position = self.parse_list_response(response)
+                self.save_context()
+                self.update_position_display()
+                self.printc('New position rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
+                return True
+        self.printc('Stage does not respond')
+        return
 
 ################### MES #######################
     def set_objective(self):
@@ -910,9 +927,76 @@ class Poller(QtCore.QThread):
         self.update_position_display()
         self.suggested_translation = utils.cr((0, 0))
         self.printc('Move to region complete')
-    ################## Experiment control ####################x
+        
+    ################## Experiment control ####################
+    def identify_flourescence_intensity_distribution(self):
+        '''
+        Input parameters:
+        - z range
+        - max laser power at min/max z
+        Performs z linescans at different depths with different laser intensities
+        '''
+        laser_step = 10.0
+        #Gather parameters from GUI
+        try:
+            z_overlap = float(self.parent.scanc())
+        except ValueError:
+            z_overlap = self.config.DEFAULT_Z_SCAN_OVERLAP
+        try:
+            z_top, z_bottom = map(float, str(self.parent.debug_widget.experiment_control_groupbox.objective_positions_combobox.currentText()).split(','))
+        except ValueError:
+            z_top = 0
+            z_bottom = float(str(self.parent.debug_widget.experiment_control_groupbox.objective_positions_combobox.currentText()))
+        if z_top < z_bottom:
+            self.printc('z bottom must be deeper than z top')
+            return
+        try:
+            max_laser_z_top, max_laser_z_bottom =  map(float, str(self.parent.debug_widget.experiment_control_groupbox.laser_intensities_combobox.currentText()).split(','))
+        except ValueError:
+            max_laser_z_top, max_laser_z_bottom = (30, 50)
+        if max_laser_z_top > max_laser_z_bottom:
+            self.printc('Laser intensity shall increase with depth')
+            return
+        #Calculate objective positions and laser intensities
+        z_step = self.config.MES_Z_SCAN_SCOPE - z_overlap
+        objective_positions = (z_top - 0.5 * self.config.MES_Z_SCAN_SCOPE - numpy.arange((z_top - z_bottom) / z_step) * z_step).tolist()
+        max_laser_intensities = numpy.linspace(max_laser_z_top, max_laser_z_bottom, len(objective_positions))
+        calibration_parameters = []
+        for i in range(len(objective_positions)):
+            calibration_parameters.append({'objective_position' : objective_positions[i], 'laser_intensity': numpy.arange(1, int(max_laser_intensities[i]/laser_step)+1) * laser_step})
+        #Execute calibration process
+        vertical_scans = []
+        for i1 in range(len(calibration_parameters)):
+            if not self.mes_interface.set_objective(calibration_parameters[i1]['objective_position'], self.config.MES_TIMEOUT):
+                self.printc('MES does not respond')
+                return
+            else:
+                for laser_intensity in calibration_parameters[i1]['laser_intensity']:
+                    #Adjust laser
+                    result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(laser_intensity)
+                    if not result:
+                        self.printc('Setting laser intensity did not succeed')
+                        return
+                    self.printc('Objective: {0} um, laser: {1} %'.format(calibration_parameters[i1]['objective_position'], laser_intensity))
+                    #Vertical scan
+                    vertical_scan,  result = self.mes_interface.vertical_line_scan()
+                    if not result:
+                        self.printc('Vertical scan did not succeed')
+                        return
+                    vertical_scan['laser_intensity'] = laser_intensity
+                    vertical_scan['objective_position'] = calibration_parameters[i1]['objective_position']
+                    vertical_scans.append(vertical_scan)
+                    self.files_to_delete.append(vertical_scan['path'])
+                    self.show_image(vertical_scan['scaled_image'], 2, vertical_scan['scaled_scale'], origin = vertical_scan['origin'])
+        self.save_context()
+        #Save results to mouse file
+        mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText()))
+        hdf5io.save_item(mouse_file_path,  'intensity_calibration_data', vertical_scans, overwrite = True)
+        self.printc('Done')
+
     def start_experiment(self):
         self.printc('Experiment started,  please wait')
+        experiment_config_name = str(self.parent.debug_widget.experiment_control_groupbox.experiment_name.currentText())
         objective_positions_string = str(self.parent.debug_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
         laser_intensities_string =  str(self.parent.debug_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
         if len(objective_positions_string)>0 and len(laser_intensities_string):
@@ -920,10 +1004,10 @@ class Poller(QtCore.QThread):
             laser_intensities = map(float, laser_intensities_string.replace(' ', '').split(','))
             laser_intensities = generic.expspace(laser_intensities[0],  laser_intensities[1],  len(objective_positions.split('<comma>')))
             laser_intensities = str(laser_intensities.tolist()).replace(', ',  '<comma>').replace('[', '').replace(']', '')
-            command = 'SOCexecute_experimentEOCobjective_positions={0},laser_intensities={2},region_name={1}EOP' \
-                .format(objective_positions, self.parent.get_current_region_name(), laser_intensities)
+            command = 'SOCexecute_experimentEOCexperiment_config={3},objective_positions={0},laser_intensities={2},region_name={1}EOP' \
+                .format(objective_positions, self.parent.get_current_region_name(), laser_intensities, experiment_config_name)
         else:
-            command = 'SOCexecute_experimentEOCregion_name={0}EOP' .format(self.parent.get_current_region_name())
+            command = 'SOCexecute_experimentEOCexperiment_config={1},region_name={0}EOP' .format(self.parent.get_current_region_name(), experiment_config_name)
         self.queues['stim']['out'].put(command)
         
     ############# Helpers #############

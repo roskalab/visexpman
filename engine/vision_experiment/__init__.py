@@ -34,7 +34,6 @@ class VisionExperimentRunner(command_handler.CommandHandler):
     This class is responsible for running vision experiment.
     '''
     def __init__(self, user, config_class):
-        self.state = 'init'#OBSOLETE
         ########## Set up configurations ################
         try:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
@@ -47,7 +46,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             self.config.user = user
         #== Fetch experiment classes ==
         if self.config.user != 'undefined':
-            self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig)                    
+            self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig)
         else:
             #In case of SafestartConfig, no experiment configs are loaded
             #TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig

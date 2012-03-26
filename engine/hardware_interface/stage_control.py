@@ -116,7 +116,6 @@ class AllegraStage(StageControl):
                 #reenable joystick
                 self.execute_command('jon')
                 self.log_during_experiment('stage move: {0}' .format(new_position))
-                    
         return reached
 
     def read_position(self):
@@ -146,13 +145,16 @@ class AllegraStage(StageControl):
             else:
                 self.position = numpy.zeros(3, dtype = float)
             return self.position #in um
-        
-                                         
+
     def reset_controller(self):
         self.serial_port.setRTS(True)
         time.sleep(20e-3) #Min 20 ms
         self.serial_port.setRTS(False)
         time.sleep(0.5) #used to be 0.5 s
+        
+    def stop(self):
+        self.execute_command('STOPALL')
+        return self.serial_port.read(100)
         
     def execute_command(self, command, print_response = False, wait_after_command = True):
         commands = command.split('\n')
@@ -196,16 +198,17 @@ class MotorizedGoniometer(StageControl):
                 if 'OK' not in self.serial_port.read(100):
                     raise RuntimeError('Goniometer does not respond')
 
-        self.read_position()
         self.execute_command(['V50'])
         print self.serial_port.read(100)
-        current_pos = self.position
-        self.move(-numpy.array([1, 1]))
-        time.sleep(1.0)
-        self.read_position()
-        print self.position-current_pos,  self.position
-        
-        
+        movements = [numpy.array([0.01285, 0]), -numpy.array([0.01285, 0])]#, -numpy.array([2, 0]), numpy.array([2, 0])]
+        for m in movements:
+            self.read_position()
+            current_pos = self.position
+            self.move(m)
+            time.sleep(3.0)
+            self.read_position()
+            print self.position-current_pos, self.position
+
     def execute_command(self, commands, wait_after_command = True):
         if not isinstance(commands,  list):
             commands = [commands]
@@ -213,15 +216,20 @@ class MotorizedGoniometer(StageControl):
             self.serial_port.write(command + '\r')
             if wait_after_command:
                 time.sleep(10e-3)
-                
+
     def read_position(self,  print_position = False):
+        #flush input buffer
+        self.serial_port.read(100)
         self.execute_command(['?X', '?Y'])
         response = self.serial_port.read(100)
         try:
             self.position_ustep = numpy.array(map(int,  [extract_goniometer_axis1.findall(response)[0],  extract_goniometer_axis2.findall(response)[0]]))
             self.position = self.position_ustep * self.config.STAGE[self.id]['DEGREE_PER_USTEP']
         except:
-            self.position = None
+            import traceback
+            print traceback.format_exc()
+        if not hasattr(self, 'position'):
+            self.position = numpy.zeros(2)
         if print_position:
             print self.position
         return self.position
@@ -238,10 +246,8 @@ class MotorizedGoniometer(StageControl):
             else:
                 sign = '+'
             self.execute_command('{2}{0}{1}'.format(sign,  abs(angle_in_ustep[i]),  axis[i]))
-            time.sleep(100e-3)
+            time.sleep(2.0)
             response = self.serial_port.read(100)
-            print response
-            time.sleep(1.0)
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):

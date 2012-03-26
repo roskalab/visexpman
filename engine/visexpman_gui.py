@@ -37,6 +37,7 @@ parameter_extract = re.compile('EOC(.+)EOP')
 class VisionExperimentGui(QtGui.QWidget):
     def __init__(self, user, config_class):
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
+        self.config.user = user
         self.command_relay_server = network_interface.CommandRelayServer(self.config)
         self.console_text = ''
         self.mouse_files = []
@@ -77,6 +78,13 @@ class VisionExperimentGui(QtGui.QWidget):
             else:
                 scale = self.poller.vertical_scan['scaled_scale']
             self.show_image(self.poller.vertical_scan['scaled_image'], 2, scale, origin = self.poller.vertical_scan['origin'])
+        #Get list of experiment configs
+        experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig)
+        experiment_config_names = []
+        for experiment_config in experiment_config_list:
+            experiment_config_names.append(experiment_config[1].__name__)
+        self.debug_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
+        self.debug_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index('MovingDotConfig'))
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -108,7 +116,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.read_stage_button, 'read_stage')
         self.connect_and_map_signal(self.debug_widget.set_stage_origin_button, 'set_stage_origin')
         self.connect_and_map_signal(self.debug_widget.move_stage_button, 'move_stage')
-        self.connect_and_map_signal(self.debug_widget.move_stage_to_origin_button, 'move_stage_to_origin')
+        self.connect_and_map_signal(self.debug_widget.stop_stage_button, 'stop_stage')
         self.connect_and_map_signal(self.debug_widget.set_objective_button, 'set_objective')
         self.connect_and_map_signal(self.debug_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.debug_widget.z_stack_button, 'acquire_z_stack')
@@ -119,6 +127,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.move_to_button, 'move_to_region')
         self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
+        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
+        
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
@@ -286,7 +296,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def clear_console(self):
         self.console_text  = ''
         self.standard_io_widget.text_out.setPlainText(self.console_text)
-
+        
     ####### Helpers ###############
     
     def show_image(self, image, channel, scale, line = [], origin = None):

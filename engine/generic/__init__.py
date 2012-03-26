@@ -6,6 +6,7 @@ import os
 import utils
 from visexpA.engine.dataprocessors import generic
 import unittest
+import itertools
 
 def rescale_numpy_array_image(image, scale):
     if not isinstance(scale,  numpy.ndarray) and not isinstance(scale,  numpy.void):
@@ -132,6 +133,20 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0):
 def expspace(start,  end,  number_of_points):
     exponent = numpy.log(end-start+1)
     return numpy.exp(numpy.linspace(0.0,  1.0,  number_of_points)*exponent)+start-1
+def iterate_parameter_space(parameters):
+    iterable_parameters = []
+    for parameter_name, parameter_values in parameters.items():
+        iterable_parameters.append(parameter_values)
+    iterable = []
+    for item in itertools.product(*iterable_parameters):
+        iterable.append(item)
+    iterable_parameters = []    
+    for item in iterable:
+        parameter_set = {}        
+        for i in range(len(parameters.keys())):
+            parameter_set[parameters.keys()[i]] = item[i]
+        iterable_parameters.append(parameter_set)
+    return iterable_parameters
 
 class GuiImagesTestConfig():
     def __init__(self):
