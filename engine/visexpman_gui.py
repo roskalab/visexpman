@@ -110,13 +110,14 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.update_animal_parameter_display)
         self.connect(self.debug_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged()'),  self.update_gui_items)
         self.connect(self.debug_widget.help_button, QtCore.SIGNAL('clicked()'),  self.show_help)
+        self.connect(self.debug_widget.stop_stage_button, QtCore.SIGNAL('clicked()'),  self.poller.stop_stage)
         
         #Blocking functions, run by poller
         self.signal_mapper = QtCore.QSignalMapper(self)
         self.connect_and_map_signal(self.debug_widget.read_stage_button, 'read_stage')
         self.connect_and_map_signal(self.debug_widget.set_stage_origin_button, 'set_stage_origin')
         self.connect_and_map_signal(self.debug_widget.move_stage_button, 'move_stage')
-        self.connect_and_map_signal(self.debug_widget.stop_stage_button, 'stop_stage')
+#        self.connect_and_map_signal(self.debug_widget.stop_stage_button, 'stop_stage')
         self.connect_and_map_signal(self.debug_widget.set_objective_button, 'set_objective')
         self.connect_and_map_signal(self.debug_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.debug_widget.z_stack_button, 'acquire_z_stack')

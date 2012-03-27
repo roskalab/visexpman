@@ -499,10 +499,10 @@ class Poller(QtCore.QThread):
                     self.printc(traceback.format_exc())
             else:
                 self.printc('{0} method does not exists'.format(function_call))
-        
+
     def pass_signal(self, signal_id):
         self.signal_id_queue.put(str(signal_id))
-    
+
 ################### Stage #######################
     def read_stage(self, display_coords = False):
         self.printc('Reading stage and objective position, please wait')
@@ -582,23 +582,10 @@ class Poller(QtCore.QThread):
                 return True
         self.printc('Stage does not respond')
         return False
-        
+
     def stop_stage(self):
         utils.empty_queue(self.queues['stim']['in'])
         self.queues['stim']['out'].put('SOCstageEOCstopEOP')
-        if not utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.GUI_STAGE_TIMEOUT):
-            self.printc('Stage does not respond')
-            return
-        while not self.queues['stim']['in'].empty():
-            response = self.queues['stim']['in'].get()
-            if 'SOCstageEOC' in response:
-                self.stage_position = self.parse_list_response(response)
-                self.save_context()
-                self.update_position_display()
-                self.printc('New position rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
-                return True
-        self.printc('Stage does not respond')
-        return
 
 ################### MES #######################
     def set_objective(self):
@@ -1088,7 +1075,8 @@ class Poller(QtCore.QThread):
         
     def update_position_display(self):
         display_position = numpy.round(self.stage_position - self.stage_origin, 2)
-        display_position[-1] = self.objective_position
+        if hasattr(self, 'objective_position'):
+            display_position[-1] = self.objective_position
         self.parent.debug_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
         
 # Test cases:

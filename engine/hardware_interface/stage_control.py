@@ -1,5 +1,5 @@
-#TODO: rename to stage_control
 import numpy
+import re
 import instrument
 import visexpman.engine.generic.configuration
 import visexpman.engine.generic.utils as utils
@@ -13,14 +13,19 @@ except:
 
 import unittest
 import time
-import re
+
 extract_goniometer_axis1 = re.compile('\rX(.+)\n')
 extract_goniometer_axis2 = re.compile('\rY(.+)\n')
+parameter_extract = re.compile('EOC(.+)EOP')
 
 class StageControl(instrument.Instrument):
     '''
     (States: init, ready, moving, error)
     '''
+    def __init__(self, config,  log = None, experiment_start_time = None, settings = None, id = 0, queue = None):
+        instrument.Instrument.__init__(self, config,  log = None, experiment_start_time = None, settings = None, id = 0)
+        self.queue = queue
+                              
     def init_communication_interface(self):
         if hasattr(self.config, 'STAGE'):
             if self.config.STAGE[self.id]['ENABLE']:
@@ -111,6 +116,12 @@ class AllegraStage(StageControl):
                     if time.time() - start_of_wait > move_timeout:
                         #Log: no reponse from stage                    
                         break
+                    if hasattr(self.queue,  'empty'):
+                        if not self.queue.empty():
+                            if 'stop' in parameter_extract.findall(self.queue.get())[0]:
+                                print 'stop stage'
+                                self.stop()
+                                break
                 self.read_position()
                 self.movement_time = time.time() - start_of_wait
                 #reenable joystick
