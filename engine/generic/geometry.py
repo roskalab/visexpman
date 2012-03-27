@@ -425,6 +425,29 @@ def rotate_vector(vector, angle):
     return numpy.squeeze(numpy.asarray((rotation_matrix_x * rotation_matrix_y * rotation_matrix_z * vector_matrix).transpose()))
 
 ### Daniel's methods, no tests yet
+def rotate_around_center(point,  angle, center=None):
+    '''Rotates a point around a center. Coordinate 0 denotes columns, coordinate 1
+    denotes rows (Cartesian coordinate system).'''
+    apoint = numpy.array(point).astype(numpy.float64)
+    if center is not None:
+        apoint -= center # move center to origo
+    ca = numpy.cos(angle)
+    sa = numpy.sin(angle)
+    rotated = numpy.empty(apoint.shape, apoint.dtype) # keeps same type as input
+    rotated[0] = numpy.around(apoint[0]*ca - apoint[1]*sa, decimals = 15) #around needed for the case when angle = 45 degrees: sin and cos will not be the same number
+    rotated[1] = numpy.around(apoint[0]*sa + apoint[1]*ca, decimals=15)
+    if center is not None:
+        rotated += center
+    rotated = rotated.astype(apoint.dtype)
+    if not hasattr(point, 'shape'): # input was list
+        rotated = rotated.tolist()
+    return rotated
+  
+def centered_rigid_transform2d(point, translation,  angle,  center):
+    apoint = numpy.array(point)
+    res = rotate_around_center(apoint, angle, center) + translation
+    if not hasattr(point, 'shape'): res = res.tolist()
+    return res
 
 def plane(params, coords):
     c0, c1, c2 = params
@@ -851,9 +874,18 @@ class testGeometry(unittest.TestCase):
         result = ray_polygon_intersection( self.__class__.test_data[case]['ray_starting_point'], self.__class__.test_data[case]['ray_direction'], self.__class__.test_data[case]['polygon'])
         self.assertEqual(result, self.__class__.test_data[case]['result'])
 
+    def test_plane_rotation(self):
+        point = [1, 1]
+        angle = 45.0/180*numpy.pi
+        res1= rotate_around_center(point, angle)
+        center = [0.5, 0.5]
+        point = [1.0, 1.0]
+        res2= rotate_around_center(point, angle, center)
+        good = sum([numpy.around(i, decimals=15)-numpy.around(j, decimals=15) for i, j in zip(res2, [0.5, 0.5+numpy.sqrt(2)/2])])
+        self.assertTrue(res1==[0, 1] and good==0.0)
 
 if __name__ == "__main__":
-#    unittest.main()
+    unittest.main()
     test_data =  [               {
                  'line_point1': numpy.array([0.0, 1.0, 0.0]), 
                  'line_point2': numpy.array([1.0, 1.0, 0.0]), 
