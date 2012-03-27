@@ -6,6 +6,7 @@ import os
 import utils
 from visexpA.engine.dataprocessors import generic
 import unittest
+import itertools
 
 def rescale_numpy_array_image(image, scale):
     if not isinstance(scale,  numpy.ndarray) and not isinstance(scale,  numpy.void):
@@ -51,10 +52,10 @@ def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 
         number_of_divisions = int(image_size['row'] / division)
     else:
         number_of_divisions = int(image_size['col'] / division)
-    col_labels = numpy.linspace(origin['col'],  origin['col'] + number_of_divisions * division, number_of_divisions+1)
+    col_labels = numpy.linspace(numpy.round(origin['col'], 1), numpy.round(origin['col'] + number_of_divisions * division, 1), number_of_divisions+1)
     if mes:
         number_of_divisions = int(image_size['col'] / division)
-        row_labels = numpy.linspace(origin['row'],  origin['row'] - number_of_divisions * division, number_of_divisions+1)
+        row_labels = numpy.linspace(numpy.round(origin['row'], 1),  numpy.round(origin['row'] - number_of_divisions * division, 1), number_of_divisions+1)
     else:
         number_of_divisions = int(image_size['row'] / division)
         row_labels = numpy.linspace(origin['row'],  origin['row'] + number_of_divisions * division, number_of_divisions+1)
@@ -87,7 +88,7 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0):
     Inputs:
     images: images to display. These will be overlaid using coloring, scaling and origin information.
     size: size of output image in pixels in row, col format
-    lines: lines to draw on images, caontaining line endpoints in um
+    lines: lines to draw on images, containing line endpoints in um
     sidebar_division: the size of divisions on the sidebar
     
     config: the following parameters are expected: 
@@ -127,6 +128,25 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0):
         image_with_sidebar = image_with_line
     out_image[0:image_with_sidebar.shape[0], 0:image_with_sidebar.shape[1], :] = image_with_sidebar
     return out_image
+    
+    
+def expspace(start,  end,  number_of_points):
+    exponent = numpy.log(end-start+1)
+    return numpy.exp(numpy.linspace(0.0,  1.0,  number_of_points)*exponent)+start-1
+def iterate_parameter_space(parameters):
+    iterable_parameters = []
+    for parameter_name, parameter_values in parameters.items():
+        iterable_parameters.append(parameter_values)
+    iterable = []
+    for item in itertools.product(*iterable_parameters):
+        iterable.append(item)
+    iterable_parameters = []    
+    for item in iterable:
+        parameter_set = {}        
+        for i in range(len(parameters.keys())):
+            parameter_set[parameters.keys()[i]] = item[i]
+        iterable_parameters.append(parameter_set)
+    return iterable_parameters
 
 class GuiImagesTestConfig():
     def __init__(self):
@@ -143,15 +163,17 @@ class Test(unittest.TestCase):
 #    #    image = {'image': 100*numpy.ones((100, 200),  numpy.uint16), 'origin':utils.rc((0, 0)), 'scale': utils.rc((1, 1))}
 #        im = generate_gui_image(image, utils.cr((600, 600)), GuiImagesTestConfig(), lines = [[0, 0, 100, 0]], sidebar_division = 100)
 #        Image.fromarray(im).save('/home/zoltan/visexp/debug/debug.png')
-        
-    def test_02(self):
-        im = 128*numpy.ones((436, 576))
-        im = Image.fromarray(draw_scalebar(im, utils.rc((-40.4, -192.6)), 0.367878 , 30.0,  fill = 0))
-        if os.name == 'nt':
-            im.save('v:\\debug\\scalebar.png')
-        else:
-            im.save('/home/zoltan/visexp/debug/scalebar.png')
-
+    
+#    def test_02(self):
+#        im = 128*numpy.ones((436, 576))
+#        im = Image.fromarray(draw_scalebar(im, utils.rc((-40.4, -192.6)), 0.367878 , 30.0,  fill = 0))
+#        if os.name == 'nt':
+#            im.save('v:\\debug\\scalebar.png')
+#        else:
+#            im.save('/home/zoltan/visexp/debug/scalebar.png')
+#    
+    def test_03(self):
+        print expspace(0,  10,  4)
     
 if __name__ == '__main__':
     unittest.main()

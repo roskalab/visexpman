@@ -20,6 +20,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 
 from visexpman.users.zoltan.test import unit_test_runner
+parameter_extract = re.compile('EOC(.+)EOP')
 
 
 def generate_scan_points_mat(points, mat_file):
@@ -70,6 +71,18 @@ def get_objective_position(mat_file, log = None):
             data.append(data_set[0][i][0][0][0])
         data = numpy.array(data)
     return data
+    
+def read_objective_info(mat_file,  log=None):
+    '''
+    Returns absolute, relative objective position and z origin
+    '''
+    m = matlabfile.MatData(mat_file, log = log)
+    data = m.get_field('DATA')
+    data = {}
+    data['rel'] = m.get_field('DATA.Zlevel') [0][0][0][0][0]
+    data['abs'] = m.get_field('DATA.ZlevelArm') [0][0][0][0][0]
+    data['origin'] = m.get_field('DATA.ZlevelOrigin')[0][0][0][0][0]
+    return data
 
 def set_mes_mesaurement_save_flag(mat_file, flag):
     m = matlabfile.MatData(reference_path, target_path)
@@ -115,7 +128,6 @@ class MesInterface(object):
             self.from_gui_queue = None
         
     ################# Objective ###############
-    
     def read_objective_position(self, timeout = -1):
         result, line_scan_path, line_scan_path_on_mes = self.get_line_scan_parameters(timeout = timeout)
         if result:
@@ -123,9 +135,13 @@ class MesInterface(object):
             os.remove(line_scan_path)
             return True, objective_position
         else:
+            if os.path.exists(line_scan_path):
+                os.remove(line_scan_path)
             return False,  None
 
-    def set_objective(self, position, timeout = -1):
+    def set_objective(self, position, timeout = None):
+        if timeout == None:
+            timeout = self.config.MES_TIMEOUT
         parameter_path, parameter_path_on_mes = self._generate_mes_file_paths('set_objective.mat')
         #Generate parameter file
         data_to_mes_mat = {}
@@ -140,9 +156,82 @@ class MesInterface(object):
         if os.path.exists(parameter_path):#TODO: check why this is not working
             os.remove(parameter_path)
         return result
+        
+    def overwrite_relative_position(self, position_value, timeout = None):
+        '''
+        The value of the relative objective position is changed without moving the objective. The origin value is changed
+        '''
+        if timeout == None:
+            timeout = self.config.MES_TIMEOUT
             
-    ################# Single two photon frame###############
+        #Get current objective info
+        result, line_scan_path, line_scan_path_on_mes = self.get_line_scan_parameters(timeout = timeout)
+        if not result:
+            return False
+        objective_info = read_objective_info(line_scan_path)
+        new_origin = objective_info['origin'] + objective_info['rel'] - position_value
+        parameter_path, parameter_path_on_mes = self._generate_mes_file_paths('set_objective_origin.mat')
+        #Generate parameter file
+        data_to_mes_mat = {}
+        data_to_mes_mat['DATA'] = {}
+        data_to_mes_mat['DATA']['origin'] = numpy.array([new_origin], dtype = numpy.float64)[0]
+        scipy.io.savemat(parameter_path, data_to_mes_mat, oned_as = 'column') 
+        result = False
+        if self.connection.connected_to_remote_client():
+            self.queues['mes']['out'].put('SOCset_objective_originEOC{0}EOP' .format(parameter_path_on_mes))
+            if network_interface.wait_for_response( self.queues['mes']['in'], ['SOCset_objective_originEOCcommandsentEOP'], timeout = timeout):
+                result = True
+        if os.path.exists(parameter_path):
+            os.remove(parameter_path)
+        return result
+        
+        ################# Laser intensity ###############
+    def set_laser_intensity(self, laser_intensity, timeout = None):
+        if timeout == None:
+            timeout = self.config.MES_TIMEOUT
+        parameter_path, parameter_path_on_mes = self._generate_mes_file_paths('set_objective.mat')
+        #Generate parameter file
+        data_to_mes_mat = {}
+        data_to_mes_mat['DATA'] = {}
+        data_to_mes_mat['DATA']['laser_intensity'] = numpy.array([laser_intensity], dtype = numpy.float64)[0]
+        scipy.io.savemat(parameter_path, data_to_mes_mat, oned_as = 'column') 
+        result = False
+        if self.connection.connected_to_remote_client():
+            self.queues['mes']['out'].put('SOCset_laser_intensityEOC{0}EOP' .format(parameter_path_on_mes))
+            if network_interface.wait_for_response( self.queues['mes']['in'], ['SOCset_laser_intensityEOCcommandsentEOP'], timeout = timeout):
+                result = True
+        if os.path.exists(parameter_path):
+            os.remove(parameter_path)
+        #Wait till laser reaches required intensity
+        start_time = time.time()
+        while True:
+            result, adjusted_laser_intensity = self.read_laser_intensity(timeout = timeout)
+            if time.time() - start_time > timeout:
+                break
+                result = False
+            if result and abs(laser_intensity - adjusted_laser_intensity) < 0.1:
+                result = True
+                break
+            time.sleep(1.0)
+        return result, adjusted_laser_intensity
+        
+    def read_laser_intensity(self, timeout = None):
+        result = False
+        laser_intensity = 0
+        if timeout == None:
+            timeout = self.config.MES_TIMEOUT
+        if self.connection.connected_to_remote_client():
+            self.queues['mes']['out'].put('SOCread_laser_intensityEOCEOP')
+            if utils.wait_data_appear_in_queue(self.queues['mes']['in'], timeout):
+                while not self.queues['mes']['in'].empty():
+                    response = self.queues['mes']['in'].get()
+                    if 'read_laser_intensity' in response:
+                        result = True
+                        laser_intensity = float(parameter_extract.findall(response)[0])
+                    
+        return result, laser_intensity
 
+    ################# Single two photon frame###############
     def acquire_two_photon_image(self, timeout = -1, parameter_file = None):
         if parameter_file == None:
             #generate a mes parameter file name, that does not exits
@@ -290,7 +379,8 @@ class MesInterface(object):
         result = self.wait_for_line_scan_save_complete(timeout = timeout)
         if not result:
             return {}, False
-        return matlabfile.read_vertical_scan(line_scan_path), True
+        vertical_scan = matlabfile.read_vertical_scan(line_scan_path)
+        return vertical_scan, True
         
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
         if parameter_file == None:
@@ -357,7 +447,6 @@ class MesInterface(object):
         return self._wait_for_mes_response(timeout, 'SOCacquire_line_scanEOCsaveOKEOP')    
 
 ####################### Private functions ########################
-
     def _wait_for_mes_response(self, timeout, expected_responses):
         '''
         Waits till MES sends notification about the completition of a certain command.
@@ -604,4 +693,5 @@ class TestMesInterface(unittest.TestCase):
         return result
 
 if __name__ == "__main__":
-    unittest.main()
+#    unittest.main()
+    read_objective_info('/home/zoltan/visexp/data/test/line_scan_parameters_00000.mat')

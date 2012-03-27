@@ -1,7 +1,4 @@
 #TODO: rename to visexp_gui.py
-#TODO: timestamp to gui.hdf5 and string_timestamp node
-
-ENABLE_NETWORK = True
 
 import sys
 import os
@@ -24,17 +21,15 @@ import PyQt4.QtCore as QtCore
 
 import visexpman
 from visexpA.engine.datadisplay import imaged
-import visexpman.engine.generic.utils as utils
-import visexpman.engine.vision_experiment.configuration as configuration
-import visexpman.engine.vision_experiment.gui as gui
+from visexpman.engine.generic import utils
+from visexpman.engine.vision_experiment import configuration
+from visexpman.engine.vision_experiment import gui
 from visexpman.engine.hardware_interface import network_interface
-import visexpman.engine.generic.utils as utils
+from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
-import visexpman.engine.generic as generic
-import visexpman.engine.generic.geometry as geometry
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
-import visexpA.engine.datahandlers.hdf5io as hdf5io
-from visexpman.engine.vision_experiment import experiment_data
+from visexpman.engine import generic
+from visexpman.users.zoltan.test import unit_test_runner
+from visexpA.engine.datahandlers import hdf5io
 
 parameter_extract = re.compile('EOC(.+)EOP')
 
@@ -42,6 +37,7 @@ parameter_extract = re.compile('EOC(.+)EOP')
 class VisionExperimentGui(QtGui.QWidget):
     def __init__(self, user, config_class):
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
+        self.config.user = user
         self.command_relay_server = network_interface.CommandRelayServer(self.config)
         self.console_text = ''
         self.mouse_files = []
@@ -82,6 +78,13 @@ class VisionExperimentGui(QtGui.QWidget):
             else:
                 scale = self.poller.vertical_scan['scaled_scale']
             self.show_image(self.poller.vertical_scan['scaled_image'], 2, scale, origin = self.poller.vertical_scan['origin'])
+        #Get list of experiment configs
+        experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig)
+        experiment_config_names = []
+        for experiment_config in experiment_config_list:
+            experiment_config_names.append(experiment_config[1].__name__)
+        self.debug_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
+        self.debug_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index('MovingDotConfig'))
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -101,7 +104,6 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.show_network_messages_button, QtCore.SIGNAL('clicked()'),  self.show_network_messages)
         self.connect(self.debug_widget.experiment_control_groupbox.stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.stop_experiment)
         self.connect(self.debug_widget.experiment_control_groupbox.graceful_stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.graceful_stop_experiment)
-        self.connect(self.debug_widget.experiment_control_groupbox.start_experiment_button, QtCore.SIGNAL('clicked()'),  self.start_experiment)
         self.connect(self.debug_widget.send_command_button, QtCore.SIGNAL('clicked()'),  self.send_command)
         self.connect(self.debug_widget.save_two_photon_image_button, QtCore.SIGNAL('clicked()'),  self.poller.save_two_photon_image)
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
@@ -114,8 +116,9 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.read_stage_button, 'read_stage')
         self.connect_and_map_signal(self.debug_widget.set_stage_origin_button, 'set_stage_origin')
         self.connect_and_map_signal(self.debug_widget.move_stage_button, 'move_stage')
-        self.connect_and_map_signal(self.debug_widget.move_stage_to_origin_button, 'move_stage_to_origin')
+        self.connect_and_map_signal(self.debug_widget.stop_stage_button, 'stop_stage')
         self.connect_and_map_signal(self.debug_widget.set_objective_button, 'set_objective')
+        self.connect_and_map_signal(self.debug_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.debug_widget.z_stack_button, 'acquire_z_stack')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.get_two_photon_image_button, 'acquire_two_photon_image')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.snap_brain_surface_button, 'snap_brain_surface')
@@ -123,6 +126,9 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.add_button, 'add_scan_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.move_to_button, 'move_to_region')
+        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
+        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
+        
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
@@ -138,21 +144,11 @@ class VisionExperimentGui(QtGui.QWidget):
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
         self.printc('Stopping experiment requested, please wait')
-        
+
     def graceful_stop_experiment(self):
         command = 'SOCgraceful_stop_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
         self.printc('Graceful stop requested,  please wait')
-        
-    def start_experiment(self):
-        self.printc('Experiment started,  please wait')
-        params =  self.scanc()
-        if len(params)>0:
-            objective_positions = params.replace(',',  '<comma>')
-            command = 'SOCexecute_experimentEOCobjective_positions={0}region_name={1}EOP' .format(objective_positions, self.get_current_region_name())
-        else:
-            command = 'SOCexecute_experimentEOCregion_name={0}EOP' .format(self.get_current_region_name())
-        self.queues['stim']['out'].put(command)
 
     def save_animal_parameters(self):
         '''
@@ -213,7 +209,7 @@ class VisionExperimentGui(QtGui.QWidget):
             if set_to_value != None:
                 self.debug_widget.scan_region_groupbox.select_mouse_file.setCurrentIndex(self.mouse_files.index(set_to_value))
 
-    def update_gui_items(self):
+    def update_gui_items(self,  active_region = None):
         '''
         Update comboboxes with file lists
         '''
@@ -233,7 +229,7 @@ class VisionExperimentGui(QtGui.QWidget):
             for region in scan_regions.keys():
                     displayable_region_names.append(region)
             displayable_region_names.sort()
-            self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, displayable_region_names)
+            self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, displayable_region_names,  selected_item = active_region)
         self.poller.scan_regions = scan_regions
         #Display image of selected region
         selected_region = self.get_current_region_name()
@@ -252,7 +248,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 image_to_display = scan_regions[selected_region]['brain_surface']
                 self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
                 #update overwiew
-                image, scale = experiment_data.merge_brain_regions(scan_regions, region_on_top = selected_region)
+                image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
                 self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
             else:
                 no_scale = utils.rc((1.0, 1.0))
@@ -275,6 +271,10 @@ class VisionExperimentGui(QtGui.QWidget):
             self.debug_widget.scan_region_groupbox.region_info.setText('')
 
     def update_animal_parameter_display(self, index):
+        '''
+        Selected mouse file changed
+        '''
+        self.poller.stage_origin_set = False
         selected_mouse_file  = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText()))
         if os.path.exists(selected_mouse_file) and '.hdf5' in selected_mouse_file:
             h = hdf5io.Hdf5io(selected_mouse_file)
@@ -296,7 +296,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def clear_console(self):
         self.console_text  = ''
         self.standard_io_widget.text_out.setPlainText(self.console_text)
-
+        
     ####### Helpers ###############
     
     def show_image(self, image, channel, scale, line = [], origin = None):
@@ -357,7 +357,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def scanc(self):
         return str(self.standard_io_widget.text_in.toPlainText())
         
-    def update_combo_box_list(self, widget, new_list):
+    def update_combo_box_list(self, widget, new_list,  selected_item = None):
         current_value = widget.currentText()
         if current_value in new_list:
             current_index = new_list.index(current_value)
@@ -366,7 +366,10 @@ class VisionExperimentGui(QtGui.QWidget):
         items_list = QtCore.QStringList(new_list)
         widget.clear()
         widget.addItems(QtCore.QStringList(new_list))
-        widget.setCurrentIndex(current_index)
+        if selected_item != None and selected_item in new_list:
+            widget.setCurrentIndex(new_list.index(selected_item))
+        else:
+            widget.setCurrentIndex(current_index)
         
     def get_current_region_name(self):
         return str(self.debug_widget.scan_region_groupbox.scan_regions_combobox.currentText())
@@ -389,10 +392,9 @@ class VisionExperimentGui(QtGui.QWidget):
         #delete files:
         for file_path in self.poller.files_to_delete:
             if os.path.exists(file_path):
-                os.remove(file_path)
-        if ENABLE_NETWORK:
-            self.command_relay_server.shutdown_servers()            
-            time.sleep(2.0) #Enough time to close network connections
+                os.remove(file_path)        
+        self.command_relay_server.shutdown_servers()            
+        time.sleep(2.0) #Enough time to close network connections
         sys.exit(0)
 
 def run_gui():

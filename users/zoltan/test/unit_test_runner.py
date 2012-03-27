@@ -54,36 +54,35 @@ if TEST_os == 'nt':
     TEST_reference_mat_file = 'v:\\data\\test\\mes\\line_scan_parameters.mat'
     TEST_reference_z_stack_file = 'v:\\data\\test\\mes\\z_stack_ref.mat'
     TEST_reference_data_folder = 'v:\\data\\test'
+    TEST_com_port = 'COM4'
+    TEST_working_folder = 'v:\\unit_test_output'
+    TEST_valid_file = 'c:\\windows\\win.ini'
+    TEST_invalid_file = 'c:\\windows'
+    TEST_stage_com_port = 'COM1'
+    TEST_goniometer_com_port = 'COM9'
 elif TEST_os == 'posix':
     TEST_reference_frames_folder = '/home/zoltan/visexp/data/test/frames'
     TEST_reference_mat_file = '/home/zoltan/visexp/data/test/mes/line_scan_parameters.mat'
     TEST_reference_z_stack_file = '/home/zoltan/visexp/data/test/mes/z_stack_ref.mat'
     TEST_reference_data_folder = '/mnt/rzws/data/test'
-elif TEST_os == 'osx':
-    TEST_reference_frames_folder = '/Users/rz/visexpman/data/test_data/reference_frames_osx'
-
-#== Hardware config during test ==
-TEST_filterwheel_enable  = True #If set to False, many tests fail.
-
-if TEST_os == 'nt':
-    TEST_com_port = 'COM4'
-    TEST_working_folder = 'v:\\data\\unit_test_output'
-    TEST_valid_file = 'c:\\windows\\win.ini'
-    TEST_invalid_file = 'c:\\windows'
-    TEST_stage_com_port = 'COM1'
-elif TEST_os == 'posix':
     TEST_com_port = '/dev/ttyUSB0'
-    TEST_working_folder = '/home/zoltan/visexp/data/unit_test_output'
-    TEST_valid_file = '/home/zoltan/visexp/codes/experiment/Helpers.py'
+    TEST_working_folder = '/home/zoltan/visexp/unit_test_output'
+    TEST_valid_file = '/home/zoltan/visexp/codes/development/visexpman/engine/__init__.py'
     TEST_invalid_file = '/home'
     TEST_stage_com_port = ''
+    TEST_goniometer_com_port = ''
 elif TEST_os == 'osx':
+    TEST_reference_frames_folder = '/Users/rz/visexpman/data/test_data/reference_frames_osx'
     TEST_com_port = ''
     TEST_working_folder = '/Users/rz/visexpman/data/test'
     TEST_valid_file = '/Users/rz/test_stimulus.py'
     TEST_invalid_file = '/Users/unit_test_runner.py'
     TEST_stage_com_port = ''
+    TEST_goniometer_com_port = ''
 
+
+#== Hardware config during test ==
+TEST_filterwheel_enable  = True #If set to False, many tests fail.
 TEST_daq_device = 'Dev1'
 
 def generate_filename(path):
@@ -146,6 +145,8 @@ class UnitTestRunner():
                {'test_class_path' : 'visexpman.engine.generic.command_parser.TestCommandHandler',
                'enable' : True},
                {'test_class_path' : 'visexpA.engine.datahandlers.hdf5io.TestUtils',
+               'enable' : True},
+               {'test_class_path' : 'visexpA.engine.datadisplay.imaged.TestMergeBrainRegions',
                'enable' : True},
                ]
 
@@ -211,15 +212,22 @@ class UnitTestRunner():
         directories = []
 
         if TEST_delete_files:
+            time.sleep(2.0)
             for root, dirs, files in os.walk(TEST_working_folder):
                 for file in files:
                     path = root + os.sep + file
                     if os.stat(path).st_mtime > unit_test_start_time and not 'test_archive' in path:
-                        os.remove(path)
+                        try:
+                            os.remove(path)
+                        except:
+                            print path,  'Not removed'
                 for dir in dirs:
                     path = root + os.sep + dir
                     if os.stat(path).st_mtime > unit_test_start_time:
-                        shutil.rmtree(path)
+                        try:
+                            shutil.rmtree(path)
+                        except:
+                            print path,  'Not removed'
 
     def save_source_and_results(self):
         test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(TEST_working_folder, 'test_archive.zip'))

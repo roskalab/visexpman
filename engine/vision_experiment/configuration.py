@@ -51,6 +51,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         MES_TIMEOUT = [10.0, [1.0, 100.0]]
         MES_RECORD_START_DELAY = [3.0, [1.0, 10.0]]
         OBJECTIVE_POSITION_LIMIT = [1000.0, [500.0, 2000.0]]
+        MES_Z_SCAN_SCOPE = [100.0, [0.0, 200.0]]
+        DEFAULT_Z_SCAN_OVERLAP = [10.0, [0.0,  50]]
         
         #display parameters:
         SCREEN_RESOLUTION = utils.rc([600, 800])        
@@ -220,7 +222,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #jobhandler
         PARSE_PERIOD = [2.0, [0.0, 10.0]]
         
-        MAX_REALIGNMENT_OFFSET = [1000.0, [100.0, 2000.0]]
+        MAX_REALIGNMENT_OFFSET = [500.0, [100.0, 1000.0]]
         ACCEPTABLE_REALIGNMENT_OFFSET = [2.0, [0.1, 10.0]]
         REALIGNMENT_XY_THRESHOLD = [1.0, [0.1, 10.0]]
         REALIGNMENT_Z_THRESHOLD = [1.0, [0.1, 10.0]]
