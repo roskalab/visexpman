@@ -227,8 +227,6 @@ class DebugOnLaptop(VisionExperimentConfig):
         for folder in [LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, MES_DATA_FOLDER, CONTEXT_PATH, CAPTURE_PATH]:
             file.mkdir_notexists(folder)
         
-        
-        
         #=== screen ===
         FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
@@ -356,7 +354,7 @@ class Debug(VisionExperimentConfig):
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
-        MAXIMUM_RECORDING_DURATION = [96, [0, 10000]] #100
+        MAXIMUM_RECORDING_DURATION = [90.0, [0, 10000]] #100
         MES_TIMEOUT = 15.0
         
         #=== Network ===
