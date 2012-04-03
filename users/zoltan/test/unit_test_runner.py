@@ -148,6 +148,8 @@ class UnitTestRunner():
                'enable' : True},
                {'test_class_path' : 'visexpA.engine.datadisplay.imaged.TestMergeBrainRegions',
                'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.scanner_control.TestScannerControl',
+               'enable' : True, 'run_only' : []},
                ]
 
     def fetch_test_methods(self, test_class):

@@ -257,6 +257,9 @@ def rc_multiply(operand1, operand2):
             return rc(numpy.array([rows, cols]))    
     else:
         raise TypeError('When multiplying two arrays of row_col type, make sure both operands have the row_col type') 
+        
+def rc_abs(value):
+    return rc((abs(value['row']), abs(value['col'])))
 
 def rc_multiply_with_constant(rc_value, constant):
     if rc_value.shape == ():

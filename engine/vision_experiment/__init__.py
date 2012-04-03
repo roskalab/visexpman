@@ -332,7 +332,8 @@ class TestVisionExperimentRunner(unittest.TestCase):
                            True, 
                            True, 
                             ))
-
+                            
+    @unittest.skipIf(not unit_test_runner.TEST_mes,  'MES tests disabled')
     def test_09_mes_platform(self):
         '''
         Tested features:
@@ -345,39 +346,37 @@ class TestVisionExperimentRunner(unittest.TestCase):
         
         unit test runner command line switches: pp, mes (real/emulated mes), daq, stage
         '''
-        #TODO: test not complete
-        if unit_test_runner.TEST_mes:
-            raw_input('1. In MES software, server address shall be set to this machine\'s ip\n\
-                    2. Connect MES to stim\n\
-                    3. Press ENTER')
-            
-            commands = [
-                        [0.02,'SOCexecute_experimentEOC'],
-                        [0.01,'SOCquitEOC'], 
-                        ]
-            config_name = 'TestMesPlatformConfig'
-            v = VisionExperimentRunner('zoltan', config_name)
-            cs = command_handler.CommandSender(v.config, v, commands)
-            cs.start()
-            v.run_loop()
-            cs.close()
-           #Read logs
-            log = file.read_text_file(v.logfile_path)
-            experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
-            self.assertEqual(
-                            (self.check_application_log(v), 
-                            self.check_experiment_log(v), 
-                            'show_fullscreen(' in experiment_log,
-                            v.experiment_config.runnable.fragment_check_result, 
-                            v.config.__class__, 
-                            v.config.user,
-                            v.experiment_config.__class__, 
-                            ),
-                            (True, True, True, True, 
-                            visexpman.users.zoltan.automated_test_data.TestMesPlatformConfig,
-                           'zoltan',
-                           visexpman.users.zoltan.automated_test_data.MesPlatformExperimentC, 
-                            ))
+        raw_input('1. In MES software, server address shall be set to this machine\'s ip\n\
+                2. Connect MES to stim\n\
+                3. Press ENTER')
+        
+        commands = [
+                    [0.02,'SOCexecute_experimentEOC'],
+                    [0.01,'SOCquitEOC'], 
+                    ]
+        config_name = 'TestMesPlatformConfig'
+        v = VisionExperimentRunner('zoltan', config_name)
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+       #Read logs
+        log = file.read_text_file(v.logfile_path)
+        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
+        self.assertEqual(
+                        (self.check_application_log(v), 
+                        self.check_experiment_log(v), 
+                        'show_fullscreen(' in experiment_log,
+                        v.experiment_config.runnable.fragment_check_result, 
+                        v.config.__class__, 
+                        v.config.user,
+                        v.experiment_config.__class__, 
+                        ),
+                        (True, True, True, True, 
+                        visexpman.users.zoltan.automated_test_data.TestMesPlatformConfig,
+                       'zoltan',
+                       visexpman.users.zoltan.automated_test_data.MesPlatformExperimentC, 
+                        ))
 
     def test_10_elphys_platform(self):
         '''

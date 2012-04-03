@@ -227,8 +227,11 @@ class MesInterface(object):
                     response = self.queues['mes']['in'].get()
                     if 'read_laser_intensity' in response:
                         result = True
-                        laser_intensity = float(parameter_extract.findall(response)[0])
-                    
+                        laser_intensity = parameter_extract.findall(response)
+                        if len(laser_intensity) > 0:
+                            laser_intensity = float(laser_intensity[0])
+                        else:
+                            result = False
         return result, laser_intensity
 
     ################# Single two photon frame###############

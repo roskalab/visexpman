@@ -62,6 +62,8 @@ class ExperimentControl(object):
                 self.queues['gui']['out'].put('Experiment sequence complete')
         else:
             message_to_screen = self.run_single_experiment(context)
+        if self.abort:#Commands sent after abort are ignored
+            utils.empty_queue(self.queues['gui']['in'])
         return message_to_screen
 
     def run_single_experiment(self, context):
@@ -125,7 +127,7 @@ class ExperimentControl(object):
                 result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(context['laser_intensity'])
                 if not result:
                     self.abort = True
-                    slef.printl('Laser intensity not set')
+                    slef.printl('Laser intensity is not set')
                 else:
                     self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
             #read stage and objective
@@ -155,6 +157,7 @@ class ExperimentControl(object):
             self.printl('Analog signal recording started')
         if self.config.PLATFORM == 'mes':
             mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
+            self.printl('Fragment duration is {0} s'.format(int(mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
             #start two photon recording
             line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = mes_record_time, 
@@ -368,7 +371,7 @@ class ExperimentControl(object):
             if result:
                 data_to_file['laser_intensity'] = laser_intensity
             else:
-                self.printl('Laser intensity not available')
+                self.printl('Laser intensity is not available')
         return data_to_file
             
     def save_fragment_data(self, fragment_id):
@@ -412,7 +415,7 @@ class ExperimentControl(object):
         for fragment_file in self.filenames['local_fragments'][0:self.finished_fragment_index +1]:
             if os.path.exists(fragment_file) and not self.abort:
                 try:
-                    self.printl('Check measurement data')
+                    self.printl('Check fragment {0}'.format(os.path.split(fragment_file)[-1]))
                     result, self.fragment_error_messages = experiment_data.check_fragment(fragment_file, self.config)
                 except:
                     result = False

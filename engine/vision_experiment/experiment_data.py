@@ -104,6 +104,8 @@ def check_fragment(path, config):
         if config.PLATFORM == 'mes':
             expected_top_level_nodes.append('position')
         expected_top_level_nodes.append(data_node_name)
+        import time
+        time.sleep(40.0)#TMP, to be removed
         fragment_handle = hdf5io.Hdf5io(path)
         nodes = fragment_handle.findvar(expected_top_level_nodes)
         if None in nodes:

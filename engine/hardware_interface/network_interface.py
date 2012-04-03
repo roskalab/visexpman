@@ -57,12 +57,13 @@ class SockServer(SocketServer.TCPServer):
                     now = time.time()
                     if self.shutdown_requested:
                         connection_close_request = True
-                    #Check if connection is alive
                     if self.queue_out.empty():
+                        #Check if connection is alive
                         if now - self.last_alive_message > 0.2 * self.connection_timeout:
                             try:
-                                request.send(self.alive_message)
-                                self.last_alive_message = now
+                                if self.keepalive:
+                                    request.send(self.alive_message)
+                                    self.last_alive_message = now
                             except:
                                 self.printl(traceback.format_exc())
                                 #If sending alive message is unsuccessful, connection terminated
@@ -71,7 +72,11 @@ class SockServer(SocketServer.TCPServer):
                         try:
                             data = request.recv(1024)
                             self.last_receive_time = now
-                            self.keepalive = True
+                            if len(data)>0:
+                                if not self.keepalive:
+                                    self.printl('Keepalive check on')
+                                if not 'echo' in data:
+                                    self.keepalive = True
                         except:           
                             data = ''
                         data = data.replace(self.alive_message,'')
@@ -84,6 +89,7 @@ class SockServer(SocketServer.TCPServer):
                                 self.printl('connection close requested')
                                 connection_close_request = True
                             elif 'keepalive' in data and 'off' in data:
+                                self.printl('Keepalive check off')
                                 self.keepalive = False
                             else:
                                 self.queue_in.put(data)

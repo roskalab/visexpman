@@ -499,10 +499,10 @@ class Poller(QtCore.QThread):
                     self.printc(traceback.format_exc())
             else:
                 self.printc('{0} method does not exists'.format(function_call))
-        
+
     def pass_signal(self, signal_id):
         self.signal_id_queue.put(str(signal_id))
-    
+
 ################### Stage #######################
     def read_stage(self, display_coords = False):
         self.printc('Reading stage and objective position, please wait')
@@ -582,23 +582,11 @@ class Poller(QtCore.QThread):
                 return True
         self.printc('Stage does not respond')
         return False
-        
+
     def stop_stage(self):
         utils.empty_queue(self.queues['stim']['in'])
         self.queues['stim']['out'].put('SOCstageEOCstopEOP')
-        if not utils.wait_data_appear_in_queue(self.queues['stim']['in'], self.config.GUI_STAGE_TIMEOUT):
-            self.printc('Stage does not respond')
-            return
-        while not self.queues['stim']['in'].empty():
-            response = self.queues['stim']['in'].get()
-            if 'SOCstageEOC' in response:
-                self.stage_position = self.parse_list_response(response)
-                self.save_context()
-                self.update_position_display()
-                self.printc('New position rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
-                return True
-        self.printc('Stage does not respond')
-        return
+        self.printc('Stage stopped')
 
 ################### MES #######################
     def set_objective(self):
@@ -936,6 +924,7 @@ class Poller(QtCore.QThread):
         - max laser power at min/max z
         Performs z linescans at different depths with different laser intensities
         '''
+        self.abort_calib = False
         laser_step = 10.0
         #Gather parameters from GUI
         try:
@@ -957,21 +946,33 @@ class Poller(QtCore.QThread):
         if max_laser_z_top > max_laser_z_bottom:
             self.printc('Laser intensity shall increase with depth')
             return
+        tag = int(time.time())
+        image_dir = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'vs{0}'.format(tag))
+        os.mkdir(image_dir)
         #Calculate objective positions and laser intensities
         z_step = self.config.MES_Z_SCAN_SCOPE - z_overlap
         objective_positions = (z_top - 0.5 * self.config.MES_Z_SCAN_SCOPE - numpy.arange((z_top - z_bottom) / z_step) * z_step).tolist()
         max_laser_intensities = numpy.linspace(max_laser_z_top, max_laser_z_bottom, len(objective_positions))
         calibration_parameters = []
         for i in range(len(objective_positions)):
-            calibration_parameters.append({'objective_position' : objective_positions[i], 'laser_intensity': numpy.arange(1, int(max_laser_intensities[i]/laser_step)+1) * laser_step})
+            max_laser_value_index =  int(max_laser_intensities[i]/laser_step)+1
+            min_laser_value_index = max_laser_value_index - 2
+            if min_laser_value_index <= 0:
+                min_laser_value_index = 1
+            calibration_parameters.append({'objective_position' : objective_positions[i], 'laser_intensity': numpy.arange(min_laser_value_index,max_laser_value_index) * laser_step})
+        
         #Execute calibration process
         vertical_scans = []
         for i1 in range(len(calibration_parameters)):
+            if self.abort_calib:
+                break
             if not self.mes_interface.set_objective(calibration_parameters[i1]['objective_position'], self.config.MES_TIMEOUT):
                 self.printc('MES does not respond')
                 return
             else:
                 for laser_intensity in calibration_parameters[i1]['laser_intensity']:
+                    if self.abort_calib:
+                        break
                     #Adjust laser
                     result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(laser_intensity)
                     if not result:
@@ -988,10 +989,13 @@ class Poller(QtCore.QThread):
                     vertical_scans.append(vertical_scan)
                     self.files_to_delete.append(vertical_scan['path'])
                     self.show_image(vertical_scan['scaled_image'], 2, vertical_scan['scaled_scale'], origin = vertical_scan['origin'])
+                    imaged.imshow(vertical_scan['scaled_image'], save=os.path.join(image_dir, 'vertical_scan-{2}-{0}-{1}.png'.format(int(laser_intensity), int(calibration_parameters[i1]['objective_position']), tag)))
         self.save_context()
         #Save results to mouse file
         mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText()))
-        hdf5io.save_item(mouse_file_path,  'intensity_calibration_data', vertical_scans, overwrite = True)
+        #TMP:
+        mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'vertical_scans-{0}.hdf5'.format(tag))
+        hdf5io.save_item(mouse_file_path,  'intensity_calibration_data', vertical_scans, overwrite = False)
         self.printc('Done')
 
     def start_experiment(self):
@@ -1088,7 +1092,8 @@ class Poller(QtCore.QThread):
         
     def update_position_display(self):
         display_position = numpy.round(self.stage_position - self.stage_origin, 2)
-        display_position[-1] = self.objective_position
+        if hasattr(self, 'objective_position'):
+            display_position[-1] = self.objective_position
         self.parent.debug_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
         
 # Test cases:

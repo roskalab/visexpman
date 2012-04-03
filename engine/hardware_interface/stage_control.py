@@ -1,26 +1,31 @@
-#TODO: rename to stage_control
 import numpy
-import instrument
-import visexpman.engine.generic.configuration
-import visexpman.engine.generic.utils as utils
+import re
+import time
 import os
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
-
 try:
     import serial
 except:
-    pass
+    print 'pyserial not installed'
 
 import unittest
-import time
-import re
+
+import instrument
+import visexpman.engine.generic.configuration
+from visexpman.engine.generic import utils
+import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+
 extract_goniometer_axis1 = re.compile('\rX(.+)\n')
 extract_goniometer_axis2 = re.compile('\rY(.+)\n')
+parameter_extract = re.compile('EOC(.+)EOP')
 
 class StageControl(instrument.Instrument):
     '''
     (States: init, ready, moving, error)
     '''
+    def __init__(self, config,  log = None, experiment_start_time = None, settings = None, id = 0, queue = None):
+        instrument.Instrument.__init__(self, config,  log = None, experiment_start_time = None, settings = None, id = id)
+        self.queue = queue
+                              
     def init_communication_interface(self):
         if hasattr(self.config, 'STAGE'):
             if self.config.STAGE[self.id]['ENABLE']:
@@ -111,6 +116,12 @@ class AllegraStage(StageControl):
                     if time.time() - start_of_wait > move_timeout:
                         #Log: no reponse from stage                    
                         break
+                    if hasattr(self.queue,  'empty'):
+                        if not self.queue.empty():
+                            if 'stop' in parameter_extract.findall(self.queue.get())[0]:
+                                print 'stop stage'
+                                self.stop()
+                                break
                 self.read_position()
                 self.movement_time = time.time() - start_of_wait
                 #reenable joystick
@@ -198,16 +209,6 @@ class MotorizedGoniometer(StageControl):
                 if 'OK' not in self.serial_port.read(100):
                     raise RuntimeError('Goniometer does not respond')
 
-        self.execute_command(['V50'])
-        print self.serial_port.read(100)
-        movements = [numpy.array([0.01285, 0]), -numpy.array([0.01285, 0])]#, -numpy.array([2, 0]), numpy.array([2, 0])]
-        for m in movements:
-            self.read_position()
-            current_pos = self.position
-            self.move(m)
-            time.sleep(3.0)
-            self.read_position()
-            print self.position-current_pos, self.position
 
     def execute_command(self, commands, wait_after_command = True):
         if not isinstance(commands,  list):
@@ -215,44 +216,67 @@ class MotorizedGoniometer(StageControl):
         for command in commands:
             self.serial_port.write(command + '\r')
             if wait_after_command:
-                time.sleep(10e-3)
+                time.sleep(100e-3)
+                
+    def set_speed(self,  speed):
+        self.execute_command(['V'+str(int(speed))])
+        if 'OK' in self.serial_port.read(100):
+            return True
+        else:
+            return False
 
     def read_position(self,  print_position = False):
         #flush input buffer
         self.serial_port.read(100)
+        result  = False
         self.execute_command(['?X', '?Y'])
         response = self.serial_port.read(100)
-        try:
-            self.position_ustep = numpy.array(map(int,  [extract_goniometer_axis1.findall(response)[0],  extract_goniometer_axis2.findall(response)[0]]))
-            self.position = self.position_ustep * self.config.STAGE[self.id]['DEGREE_PER_USTEP']
-        except:
-            import traceback
-            print traceback.format_exc()
+        if len(response)>0:
+            try:
+                self.position_ustep = numpy.array(map(int,  [extract_goniometer_axis1.findall(response)[0],  extract_goniometer_axis2.findall(response)[0]]))
+                self.position = self.position_ustep * self.config.STAGE[self.id]['DEGREE_PER_USTEP']
+                result = True
+            except:
+                if print_position:
+                    import traceback
+                    print traceback.format_exc()
+                    print response
         if not hasattr(self, 'position'):
             self.position = numpy.zeros(2)
         if print_position:
             print self.position
-        return self.position
+        return self.position, result
         
     def move(self, angle):
         '''
         Move 2 axis goniometer relative to current position
         '''
+        initial_position = self.read_position()[0]
         angle_in_ustep =  angle / self.config.STAGE[self.id]['DEGREE_PER_USTEP']
         axis = ['X', 'Y']
-        for i in range(1):
+        result = True
+        for i in range(2):
             if angle_in_ustep[i] < 0:
                 sign = '-'
             else:
                 sign = '+'
-            self.execute_command('{2}{0}{1}'.format(sign,  abs(angle_in_ustep[i]),  axis[i]))
-            time.sleep(2.0)
-            response = self.serial_port.read(100)
+            if angle_in_ustep[i] != 0:
+                self.execute_command('{2}{0}{1}'.format(sign,  int(abs(angle_in_ustep[i])),  axis[i]))
+                timeout = utils.Timeout(self.config.STAGE[self.id]['MOVE_TIMEOUT'])
+                if not timeout.wait_timeout(self.position_reached):
+                    result = False
+        return result
+            
+    def position_reached(self):
+        if 'OK' in self.serial_port.read(100):
+            return True
+        else:
+            return False
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         
-        motor_serial_port = {
+        stage_serial_port = {
                                     'port' :  unit_test_runner.TEST_stage_com_port,
                                     'baudrate' : 19200,
                                     'parity' : serial.PARITY_NONE,
@@ -267,20 +291,25 @@ class MotorTestConfig(visexpman.engine.generic.configuration.Config):
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,
                                     }
-                                    
-        STAGE = [{'SERIAL_PORT' : motor_serial_port,
+        #One step is 0.9 degree, 8 microsteps make one step and the transmission ratio is 1:252: 
+        degree_factor = 0.9/(8*252)
+        degree_factor = 0.00045*4 #According to manufacturer
+        #xmin = 20.2644, ymin =  171.3096
+        #xmax = 63.0108, ymax= 212.9562
+        #Counter ranges x axis: 11266-35005, y axis: 95179 - 118301
+        STAGE = [{'SERIAL_PORT' : stage_serial_port,
                  'ENABLE':True,
                  'SPEED': 1000000,
                  'ACCELERATION' : 1000000,
                  'MOVE_TIMEOUT' : 45.0,
                  'UM_PER_USTEP' : numpy.ones(3, dtype = numpy.float)
-                 }, 
+                 },
                  {'SERIAL_PORT' : goniometer_serial_port,
                  'ENABLE':True,
                  'SPEED': 1000000,
                  'ACCELERATION' : 1000000,
-                 'MOVE_TIMEOUT' : 45.0,
-                 'DEGREE_PER_USTEP' : numpy.ones(2, dtype = numpy.float)
+                 'MOVE_TIMEOUT' : 15.0,
+                 'DEGREE_PER_USTEP' : degree_factor * numpy.ones(2, dtype = numpy.float)
                  }]
         
         self._create_parameters_from_locals(locals())
@@ -347,9 +376,16 @@ class TestMotorizedGoniometer(unittest.TestCase):
 
     def tearDown(self):
         self.mg.release_instrument()
-        
-    def test_01_goniometer_init(self):
-        pass
+
+    def test_01_goniometer_small_movement(self):
+        angle_factor = -16.0
+        movements = [angle_factor * numpy.array([1.0, 1.0])]#, -angle_factor * numpy.array([1.0, 2.0])]
+        results = []
+        if self.mg.set_speed(300):
+            for m in movements:
+                results.append(self.mg.move(m))
+                time.sleep(0.0)
+        self.assertEqual(False in results,  False)
         
 if __name__ == "__main__":
     unittest.main()
