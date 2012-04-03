@@ -885,6 +885,18 @@ def string_to_array(string):
         array.append(ord(byte))
     return numpy.array(array)
     
+def nan2value(inarray, value=numpy.nanmin):
+    '''removes NaNs from input array and replaces with the minimum value'''
+    if hasattr(value, 'func_name'):
+        value = value(inarray)
+    inarray[numpy.isnan(inarray)]=value
+    return inarray
+
+def nan2mask(inarray):
+    '''Converts a numpy array with posibble nan values to a masked array that is masked where inarray
+    contained nan values'''
+    return numpy.ma.array(inarray, mask=numpy.isnan(inarray))
+
 def enter_hit():
     i,o,e = select.select([sys.stdin],[],[],0.0001)
     for s in i:

@@ -1,7 +1,8 @@
 import numpy
 import unittest
 import utils
-
+import Image
+from visexpman.engine.generic.utils import nan2value
 
 if __name__ == "__main__":
     preceision = 3
@@ -425,29 +426,96 @@ def rotate_vector(vector, angle):
     return numpy.squeeze(numpy.asarray((rotation_matrix_x * rotation_matrix_y * rotation_matrix_z * vector_matrix).transpose()))
 
 ### Daniel's methods, no tests yet
-def rotate_around_center(point,  angle, center=None):
+def rotate_around_center(inarray, angle, center=None,  reshape=False):
+    '''Extends rotate function of scipy with user definable center. Uses larger image with NaN values
+    to prevent data loss. NaNs are converted to a mask at the end'''
+    from scipy.ndimage.interpolation import shift, rotate
+    from visexpman.engine.generic.utils import nd
+    if center is not None:
+        i_dbg=inarray.copy()
+        cshift = numpy.array(inarray.shape)/2-nd(center)
+        bord = numpy.ceil(numpy.abs(cshift))
+        ext_im = numpy.nan*numpy.ones(inarray.shape+bord*2) #larger image in all directions, shift will not loose data and center remains
+        ext_im[bord[0]:-bord[0], bord[1]:-bord[1]] = inarray
+        inarray = shift(ext_im,  cshift,  cval=numpy.nan, order=0)
+    rot = rotate(inarray, angle, cval=numpy.nan,  order=1, reshape=reshape) # if reshape=True this rotation can enlarge the image, we do not crop back this enlargement, only the center displacement!
+    if center is not None: # shift back to original center
+        rot = shift(rot,  -cshift, cval=numpy.nan, order=0)[bord[0]:-bord[0], bord[1]:-bord[1]]
+    rot = numpy.ma.array(rot, mask=numpy.isnan(rot))
+    rot[rot==numpy.nan] = 0 # remove nans so that image display works
+    return rot
+                             
+def rotate_around_center_pil(data,  angle, center=None,  **kwargs):
     '''Rotates a point around a center. Coordinate 0 denotes columns, coordinate 1
-    denotes rows (Cartesian coordinate system).'''
-    apoint = numpy.array(point).astype(numpy.float64)
-    if center is not None:
-        apoint -= center # move center to origo
-    ca = numpy.cos(angle)
-    sa = numpy.sin(angle)
-    rotated = numpy.empty(apoint.shape, apoint.dtype) # keeps same type as input
-    rotated[0] = numpy.around(apoint[0]*ca - apoint[1]*sa, decimals = 15) #around needed for the case when angle = 45 degrees: sin and cos will not be the same number
-    rotated[1] = numpy.around(apoint[0]*sa + apoint[1]*ca, decimals=15)
-    if center is not None:
-        rotated += center
-    rotated = rotated.astype(apoint.dtype)
-    if not hasattr(point, 'shape'): # input was list
-        rotated = rotated.tolist()
+    denotes rows (Cartesian coordinate system). Column index grows to the right, row index grows upwards.
+    Positive angle rotates counter-clockwise'''
+    if hasattr(data, 'size') and hasattr(data, 'shape') and data.size >2: #numpy image
+        return_masked = kwargs.get('return_masked', True)
+        if return_masked:
+            mask = Image.fromarray(0*data+1)
+        data = Image.fromarray(data)
+        if center is not None:
+            tr=utils.rc_add(utils.rc_multiply_with_constant(utils.cr(data.size), 0.5), utils.rc_multiply_with_constant(center, -1))
+            data = data.transform(data.size, Image.AFFINE, (1, 0, tr['col'], 0, 1, tr['row']), Image.BICUBIC)
+            if return_masked:
+                mask = mask.transform(mask.size, Image.AFFINE, (1, 0, tr['col'], 0, 1, tr['row']))
+        rot = data.rotate(numpy.degrees(angle), Image.BICUBIC)
+        if return_masked:
+            mask_rot = mask.rotate(numpy.degrees(angle))
+        if center is not None:
+            rot = rot.transform(data.size, Image.AFFINE, (1, 0, -tr['col'], 0, 1, -tr['row']), Image.BICUBIC)
+            if return_masked:
+                mask_rot = mask_rot.transform(data.size, Image.AFFINE, (1, 0, -tr['col'], 0, 1, -tr['row']))
+        rotated = numpy.array(rot)
+        if return_masked:
+            rotated = numpy.ma.array(rotated, mask=1-numpy.array(mask_rot))
+    else: # single point
+        apoint = numpy.array(data).astype(numpy.float64)
+        if center is not None:
+            apoint -= center # move center to origo
+        ca = numpy.cos(angle)
+        sa = numpy.sin(angle)
+        rotated = numpy.empty(apoint.shape, apoint.dtype) # keeps same type as input
+        rotated[0] = numpy.around(apoint[0]*ca - apoint[1]*sa, decimals = 15) #around needed for the case when angle = 45 degrees: sin and cos will not be the same number
+        rotated[1] = numpy.around(apoint[0]*sa + apoint[1]*ca, decimals=15)
+        if center is not None:
+            rotated += center
+        rotated = rotated.astype(apoint.dtype)
+        if not hasattr(data, 'shape'): # input was list
+            rotated = rotated.tolist()
     return rotated
   
-def centered_rigid_transform2d(point, translation,  angle,  center):
-    apoint = numpy.array(point)
-    res = rotate_around_center(apoint, angle, center) + translation
-    if not hasattr(point, 'shape'): res = res.tolist()
+def centered_rigid_transform2d(data, translation,  angle,  center, **kwargs):
+    adata = numpy.array(data)
+    if adata.size==2: # single point
+        res = rotate_around_center(adata, angle, center) + translation
+        if not hasattr(data, 'shape'): res = res.tolist()
+    else: # image input
+        res  = rotate_around_center(adata, angle, center, **kwargs)
+        #mask = res.mask
+        #if numpy.any(mask):
+           # mask = numpy.array(Image.fromarray(mask.astype(numpy.uint8)).transform((res.shape[1], res.shape[0]), Image.AFFINE, (1, 0, translation['col'], 0, 1, translation['row'])))
+        #res = numpy.array(Image.fromarray(res).transform((res.shape[1], res.shape[0]), Image.AFFINE, (1, 0, translation['col'], 0, 1, translation['row']), Image.BICUBIC))
+        from scipy.ndimage.interpolation import shift
+        res = op_masked(shift, res, (translation['row'], translation['col']), order=0, cval=numpy.nan)
+        #res = numpy.ma.array(res, mask=mask)
     return res
+
+def op_masked(function, inarray,  *args,  **kwargs):
+    '''Wrapper function for a function that introduces shape change to the array. Thanks to 
+    the wrapping, scipy.ndimage.interpolation and ..shift handles masked arrays.'''
+    if hasattr(inarray, 'mask'):
+        mask = inarray.mask
+        kw2= kwargs.copy()
+        kw2['cval']=numpy.nan
+        kw2['order']=0
+        outmask = nan2value(function(mask.astype(numpy.float),  *args, **kw2), numpy.nanmax)
+    inarray = function(inarray, *args, **kwargs)
+    if 'outmask' in locals():
+        inarray = numpy.ma.array(inarray, mask=outmask)
+    return inarray
+    
+
 
 def plane(params, coords):
     c0, c1, c2 = params
