@@ -527,16 +527,16 @@ def centered_rigid_transform2d(data,  **kwargs):
                 origin = rc((0, 0))
                 print('Warning! Point will be rotated around (0, 0). If this is not what you wanted,  supply rotation center in keyword "origin"')
         if center is None: center = origin
-        res = rotate_around_center(adata, angle, nd(origin))
+        res = rotate_around_center(adata, angle, nd(origin, True))
         offs = calc_offset(angle, center,  translation,  origin)
-        res += nd(offs)
+        res += nd(offs, True)
         if not hasattr(data, 'shape'): res = res.tolist()
     else: # image input
         if origin is None: 
             origin = rc(numpy.array(adata.shape)/2)
         if center is None:
             center = origin
-        res = rotate_around_center(adata, angle, origin,  reshape=kwargs.get('reshape'))
+        res = rotate_around_center(adata, angle, origin,  reshape=kwargs.get('reshape', False))
         offset = calc_offset(angle, center, translation, origin)
         if debug:
             from visexpA.engine.datadisplay.imaged import imshow
@@ -548,7 +548,7 @@ def centered_rigid_transform2d(data,  **kwargs):
 def calc_offset(angle, center, translation,  image_center):
     '''Calculates the offset value : offset = -RC+C+T where R is the rotation matrix,
     C is the rotation center, T is the translation vector.'''
-    RC = rotate_around_center(nd(center), -angle,  nd(image_center)) #use -angle, since point rotation by default rotates positive degrees counter clockwise
+    RC = rotate_around_center(nd(center, True), angle,  nd(image_center, True)) #use -angle, since point rotation by default rotates positive degrees counter clockwise
     return rc(-RC+nd(center)+nd(translation))
     
 def op_masked(function, inarray,  *args,  **kwargs):

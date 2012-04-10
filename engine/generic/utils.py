@@ -168,9 +168,12 @@ def arrays_equal(a1, a2):
         a2_ = a2
     return (abs(a1_-a2_)).sum() == 0
 
-def nd(rcarray):
+def nd(rcarray, squeeze=False):
     '''Convenience function to convert a recarray to nd array'''
-    return rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
+    res= rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
+    if squeeze:
+        res=numpy.squeeze(res)
+    return res
 
 def rcd(raw):
     return rcd_pack(raw, dim_order = [0, 1, 2])
@@ -193,7 +196,7 @@ def rcd_pack(raw, dim_order = [0, 1]):
     if raw.ndim==2 and raw.shape[1]==len(dim_names): # convenience feature: user must not care if input shape is (2,x) or (x,2)  we convert to the required format (2,x)
         raw=raw.T    
     if raw.size == len(dim_names):
-        return numpy.array(tuple(raw), dtype)
+        return numpy.array(tuple(raw), dtype, ndmin=1) #ndmin=1 ensures that array can be indexed
     else:
         return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
 
