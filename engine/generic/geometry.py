@@ -527,22 +527,36 @@ def centered_rigid_transform2d(data,  **kwargs):
                 origin = rc((0, 0))
                 print('Warning! Point will be rotated around (0, 0). If this is not what you wanted,  supply rotation center in keyword "origin"')
         if center is None: center = origin
-        res = rotate_around_center(adata, angle, nd(origin, True))
-        offs = calc_offset(angle, center,  translation,  origin)
-        res += nd(offs, True)
+        if 0: # rotation followed by translation
+            res = rotate_around_center(adata, angle, nd(origin, True))
+            offs = calc_offset(angle, center,  translation,  origin)
+            res += nd(offs, True)
+        else:
+            offs = calc_offset(angle, center,  translation,  origin)
+            adata += nd(offs, True)
+            res = rotate_around_center(adata, angle, nd(origin, True))
         if not hasattr(data, 'shape'): res = res.tolist()
     else: # image input
         if origin is None: 
             origin = rc(numpy.array(adata.shape)/2)
         if center is None:
             center = origin
-        res = rotate_around_center(adata, angle, origin,  reshape=kwargs.get('reshape', False))
-        offset = calc_offset(angle, center, translation, origin)
-        if debug:
-            from visexpA.engine.datadisplay.imaged import imshow
-            imshow(res, offset)
-            imshow(res, translation)
-        res = op_masked(shift, res, (offset['row'], offset['col']), order=0, cval=numpy.nan)
+        if 0:
+            res = rotate_around_center(adata, angle, origin,  reshape=kwargs.get('reshape', False))
+            offset = calc_offset(angle, center, translation, origin)
+            if debug:
+                from visexpA.engine.datadisplay.imaged import imshow
+                imshow(res, offset)
+                imshow(res, translation)
+            res = op_masked(shift, res, (offset['row'], offset['col']), order=0, cval=numpy.nan)
+        else:
+            offset = calc_offset(angle, center, translation, origin)
+            if debug:
+                from visexpA.engine.datadisplay.imaged import imshow
+                imshow(res, offset)
+                imshow(res, translation)
+            res = op_masked(shift, adata, (offset['row'], offset['col']), order=0, cval=numpy.nan)
+            res = rotate_around_center(res, angle, origin,  reshape=kwargs.get('reshape', False))
     return res
 
 def calc_offset(angle, center, translation,  image_center):

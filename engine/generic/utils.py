@@ -168,6 +168,12 @@ def arrays_equal(a1, a2):
         a2_ = a2
     return (abs(a1_-a2_)).sum() == 0
 
+def argsort(seq):
+    '''same as numpy.argsort but works on sequences'''
+    #http://stackoverflow.com/questions/3382352/equivalent-of-numpy-argsort-in-basic-python/3382369#3382369
+    #by ubuntu
+    return sorted(range(len(seq)), key=seq.__getitem__)
+    
 def nd(rcarray, squeeze=False):
     '''Convenience function to convert a recarray to nd array'''
     res= rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
@@ -186,7 +192,9 @@ def cr(raw):
             
 def rcd_pack(raw, dim_order = [0, 1]):
     dim_names0 = ['row','col','depth']
-    dim_names = [dim_names0[n] for n in dim_order]
+    order = argsort(dim_order)
+    dim_order = sorted(dim_order)
+    dim_names = [dim_names0[n] for n in dim_order] # sorted ensures that field ordering will always be as dim_names0, this way nd will always give [row,col] or [row,col,depth] ordered data
     raw = numpy.array(raw, ndmin=2)
     if numpy.squeeze(raw).ndim!=2 and raw.size!=len(dim_names): #1 dimensional with exactly 2 values is accepted as row,col pair
         raise RuntimeError('At least '+ str(len(dim_names)) +' values are needed')
@@ -196,8 +204,10 @@ def rcd_pack(raw, dim_order = [0, 1]):
     if raw.ndim==2 and raw.shape[1]==len(dim_names): # convenience feature: user must not care if input shape is (2,x) or (x,2)  we convert to the required format (2,x)
         raw=raw.T    
     if raw.size == len(dim_names):
+        raw = numpy.take(raw, order)
         return numpy.array(tuple(raw), dtype, ndmin=1) #ndmin=1 ensures that array can be indexed
     else:
+        raw= numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
         return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
 
 def rc_add(operand1, operand2,  operation = '+'):
@@ -985,15 +995,15 @@ class TestUtils(unittest.TestCase):
     def test_14_rcd_pack(self):
         results = []
         for d in range(2, 4):
-            data = numpy.ones((4, d, ), numpy.uint16)
+            data =numpy.ones((4, d), numpy.uint16)
             if d>0:
                 for d1 in range(1, 4):
                     data[0] = d1*data[0]
                 if d>1:
                     for d2 in range(2, 4):
                         data[0, 0]=10*d2*data[0, 0]
-            results.append(nd(rcd_pack(data, dim_order = range(d))))
-        self.assertTrue(numpy.all(item) for item in results)    
+            results.append([nd(rcd_pack(data, dim_order = range(d))), data])
+        self.assertTrue(numpy.all((item[0]==item[1]).all() for item in results))
         pass
         
     def test_15_rcd_pack(self):
@@ -1002,68 +1012,69 @@ class TestUtils(unittest.TestCase):
         self.assertEqual((rc_value['row'], rc_value['col']), data)
                 
 if __name__ == "__main__":
-    start_point = cr((0.0, 0.0))
-    end_point = cr((10.0, 10.0))
-    spatial_resolution =2.5
+    #commented out by Daniel:
+    #start_point = cr((0.0, 0.0))
+    #end_point = cr((10.0, 10.0))
+    #spatial_resolution =2.5
 #    print rc_add(start_point, end_point)
-    print calculate_trajectory(start_point,  end_point,  spatial_resolution)
+    #print calculate_trajectory(start_point,  end_point,  spatial_resolution)
 #    l = [1, 2, 3]
 #    imported_modules()
 # temp solution by Daniel:
     
-    class Test(unittest.TestCase):
-        def setUp(self):
-            pass
-            
-        def tearDown(self):
-            pass
-
-        def test_parsefilename(self):
-            filename = 'whatever/folder/Bl6(b 04.09.10 i 01.11.10)-(-372 -78 129)-r2-w1000-sp2400-3stat-3move-2.0x-20x(ND10 isoflCP 0.5 R).tif.frames'
-            commonpars = {'AnimalStrain':['^(\S+)\(', str], # Match M???(... at the beginning of the line
-                            'AnimalBirthDay_YMD':['\(b\S*\ (\d{2,2})\.(\d{2,2})\.(\d{2,2})\ ', int],
-                            'Injected_YMD':['i\S*\ (\d{2,2})\.(\d{2,2})\.(\d{2,2})\ *\)', int],
-                            'StagePos':['\((-*\d+\.*\d*)\ +(-*\d+\.*\d*)',float], # (x y # lookahead assertion needed?
-                            'Depth':['\ +(\d+\.*\d*)\)',float], # z)
-                            'Repetition':['-r(\d+)-',int], #-r??
-                            'StimulusName':['-r\d+-(\S+)-\d\.\d+mspl',str], #-r??-string
-                            'Objective':['-*(\d+)x\(',int],
-                            'Comments':['^M\d+(\S+)\(',str],
-                            'Anesthesia':['ND\d\d*\ (\S+\ *\S*)\ \S+\)$',str],
-                                          }
-            stimpar = file.parsefilename(filename, commonpars)
-            result = {'AnimalStrain':['Bl6'], # Match M???(... at the beginning of the line
-                            'AnimalBirthDay_YMD':[4, 9, 10],
-                            'Injected_YMD':[1, 11, 10],
-                            'StagePos':[-372, -78], # (x y # lookahead assertion needed?
-                            'Depth':[129.0], # z)
-                            'Repetition':[2], #-r??
-                            'StimulusName':['w1000-sp2400-3stat-3move'], #-r??-string
-                            'Objective':[20],
-                            'Comments':['isoflCP 0.5 R'],
-                            'Anesthesia':['isoflCP 0.5']
-                                          }
-            self.assertequal(stimpar, result)
-            
-        def test_getziphandler(self):
-            pass
-
-        def test_fetch_classes(self):
-            class GrandMother(object):
-                pass
-            class GrandFather(object):
-                pass
-            class Father(GrandMother, GrandFather):
-                pass
-            class Mother(GrandMother):
-                pass
-            class Boy(Mother):
-                pass
-            self.assertEqual(fetch_classes('visexpman.engine.generic', required_ancestors=[GrandMother, GrandFather], direct=False),1 )
+#    class Test(unittest.TestCase):
+#        def setUp(self):
+#            pass
+#            
+#        def tearDown(self):
+#            pass
+#
+#        def test_parsefilename(self):
+#            filename = 'whatever/folder/Bl6(b 04.09.10 i 01.11.10)-(-372 -78 129)-r2-w1000-sp2400-3stat-3move-2.0x-20x(ND10 isoflCP 0.5 R).tif.frames'
+#            commonpars = {'AnimalStrain':['^(\S+)\(', str], # Match M???(... at the beginning of the line
+#                            'AnimalBirthDay_YMD':['\(b\S*\ (\d{2,2})\.(\d{2,2})\.(\d{2,2})\ ', int],
+#                            'Injected_YMD':['i\S*\ (\d{2,2})\.(\d{2,2})\.(\d{2,2})\ *\)', int],
+#                            'StagePos':['\((-*\d+\.*\d*)\ +(-*\d+\.*\d*)',float], # (x y # lookahead assertion needed?
+#                            'Depth':['\ +(\d+\.*\d*)\)',float], # z)
+#                            'Repetition':['-r(\d+)-',int], #-r??
+#                            'StimulusName':['-r\d+-(\S+)-\d\.\d+mspl',str], #-r??-string
+#                            'Objective':['-*(\d+)x\(',int],
+#                            'Comments':['^M\d+(\S+)\(',str],
+#                            'Anesthesia':['ND\d\d*\ (\S+\ *\S*)\ \S+\)$',str],
+#                                          }
+#            stimpar = file.parsefilename(filename, commonpars)
+#            result = {'AnimalStrain':['Bl6'], # Match M???(... at the beginning of the line
+#                            'AnimalBirthDay_YMD':[4, 9, 10],
+#                            'Injected_YMD':[1, 11, 10],
+#                            'StagePos':[-372, -78], # (x y # lookahead assertion needed?
+#                            'Depth':[129.0], # z)
+#                            'Repetition':[2], #-r??
+#                            'StimulusName':['w1000-sp2400-3stat-3move'], #-r??-string
+#                            'Objective':[20],
+#                            'Comments':['isoflCP 0.5 R'],
+#                            'Anesthesia':['isoflCP 0.5']
+#                                          }
+#            self.assertequal(stimpar, result)
+#            
+#        def test_getziphandler(self):
+#            pass
+#
+#        def test_fetch_classes(self):
+#            class GrandMother(object):
+#                pass
+#            class GrandFather(object):
+#                pass
+#            class Father(GrandMother, GrandFather):
+#                pass
+#            class Mother(GrandMother):
+#                pass
+#            class Boy(Mother):
+#                pass
+#            self.assertEqual(fetch_classes('visexpman.engine.generic', required_ancestors=[GrandMother, GrandFather], direct=False),1 )
 
             
     mytest = unittest.TestSuite()
-    mytest.addTest(Test('test_fetch_classes'))
+   # mytest.addTest(Test('test_fetch_classes'))
     mytest.addTest(TestUtils('test_01_pulse_train'))
     mytest.addTest(TestUtils('test_02_pulse_train'))
     mytest.addTest(TestUtils('test_03_pulse_train'))
