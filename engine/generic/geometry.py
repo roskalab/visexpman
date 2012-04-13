@@ -428,7 +428,6 @@ def rotate_vector(vector, angle):
     vector_matrix = vector_matrix.transpose()
     return numpy.squeeze(numpy.asarray((rotation_matrix_x * rotation_matrix_y * rotation_matrix_z * vector_matrix).transpose()))
 
-### Daniel's methods, no tests yet
 def rotate_around_center(inarray, angle, center=None,  reshape=False):
     '''Extends rotate function of scipy with user definable center. Uses larger image with NaN values
     to prevent data loss. NaNs are converted to a mask at the end'''
@@ -527,7 +526,7 @@ def centered_rigid_transform2d(data,  **kwargs):
                 origin = rc((0, 0))
                 print('Warning! Point will be rotated around (0, 0). If this is not what you wanted,  supply rotation center in keyword "origin"')
         if center is None: center = origin
-        if 0: # rotation followed by translation
+        if 1: # rotation followed by translation
             res = rotate_around_center(adata, angle, nd(origin, True))
             offs = calc_offset(angle, center,  translation,  origin)
             res += nd(offs, True)
@@ -541,21 +540,21 @@ def centered_rigid_transform2d(data,  **kwargs):
             origin = rc(numpy.array(adata.shape)/2)
         if center is None:
             center = origin
-        if 0:
+        if 1:
             res = rotate_around_center(adata, angle, origin,  reshape=kwargs.get('reshape', False))
             offset = calc_offset(angle, center, translation, origin)
             if debug:
                 from visexpA.engine.datadisplay.imaged import imshow
-                imshow(res, offset)
+               # imshow(res, offset)
                 imshow(res, translation)
             res = op_masked(shift, res, (offset['row'], offset['col']), order=0, cval=numpy.nan)
         else:
             offset = calc_offset(angle, center, translation, origin)
             if debug:
                 from visexpA.engine.datadisplay.imaged import imshow
-                imshow(res, offset)
+               # imshow(res, offset)
                 imshow(res, translation)
-            res = op_masked(shift, adata, (offset['row'], offset['col']), order=0, cval=numpy.nan)
+            res = op_masked(shift, adata, (-offset['row'], offset['col']), order=0, cval=numpy.nan)
             res = rotate_around_center(res, angle, origin,  reshape=kwargs.get('reshape', False))
     return res
 
@@ -579,7 +578,20 @@ def op_masked(function, inarray,  *args,  **kwargs):
         inarray = numpy.ma.array(inarray, mask=outmask)
     return inarray
     
-
+def match_sizes_centered(a, b):
+    '''Crops the borders of two images to make both the same size. Their center remains aligned, i.e. the borders are trimmed symmetrically'''
+    z=numpy.array((0, 0))
+    b_s = numpy.array(b.shape)
+    a_s=numpy.array(a.shape)
+    bord_b = numpy.floor(numpy.maximum(z, (b_s.astype(float)-a_s)/2))
+    bord_a =numpy.floor(numpy.maximum(z, (a_s.astype(float)-b_s)/2))
+    size_out_a = a_s-bord_a*2
+    size_out_b = b_s-bord_b*2
+    size_diff_a = numpy.maximum(z, size_out_a-size_out_b) # when size difference is odd, at one side we must trim one pixel more than on the other side
+    size_diff_b = numpy.maximum(z, size_out_b-size_out_a)
+    a_trim = a[bord_a[0]:a.shape[0]-bord_a[0]-size_diff_a[0], bord_a[1]:a.shape[1]-bord_a[1]-size_diff_a[1]]
+    b_trim = b[bord_b[0]:b.shape[0]-bord_b[0]-size_diff_b[0], bord_b[1]:b.shape[1]-bord_b[1]-size_diff_b[1]]
+    return a_trim, b_trim
 
 def plane(params, coords):
     c0, c1, c2 = params
