@@ -251,8 +251,8 @@ def celery_available():
 def list_type(item):
     try:
         item2=numpy.array(item)
-        if item2.dtype != object:
-            return None
+        if item2.dtype != object and isinstance(item, (list, tuple)) and hasattr(item[0], 'shape'):
+            return 'list_of_arrays'
     except:
         pass
     if isinstance(item,(list,tuple)):

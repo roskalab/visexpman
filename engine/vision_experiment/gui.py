@@ -484,7 +484,7 @@ class Poller(QtCore.QThread):
                     connected += 'STIM  '
                 if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
                     connected += 'ANALYSIS  '
-                if connection_status['STIM_ANALYSIS/ANALYSIS'] and connection_status['STIM_ANALYSIS/STIM']:
+                if connection_status['STIM_ANALYSIS/ANALYSIS'] and connection_status['STIM_ANALYSIS/GUI']:
                     connected += 'STIM-ANALYSIS'
                 
                 self.parent.debug_widget.connected_clients_label.setText(connected)

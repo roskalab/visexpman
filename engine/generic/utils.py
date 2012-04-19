@@ -38,6 +38,35 @@ def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100))
             circle[coords[0][i], coords[1][i]] = color
     return circle 
  
+def numpy_circles(radii,  centers,  array_size,  colors = None):
+    from visexpA.engine.datadisplay.imaged import imshow
+
+    a = numpy.zeros(array_size).astype('uint8')
+    if not isinstance(radii, (list, tuple)) or  (hasattr(radii, 'shape') and radii.shape[1]==1):
+        # either a numpy array of row, col pairs, or a list of numpy arrays with 1 row,col pair is accepted
+        radii = [radii]
+    if colors is None: colors = 255
+    if not isinstance(colors, (tuple, list)) or (len(colors)==1 and len(radii)>1):
+        colors = [colors]*len(radii)
+    
+    from PIL import Image, ImageDraw
+    im=Image.fromarray(a)
+    draw = ImageDraw.Draw(im)
+    im_center = numpy.array(array_size).astype(float)/2
+    for c, r, color in zip(centers, radii, colors):
+        if 0:
+            r_l = numpy.clip(c['row']-r, 0, array_size[0]) # lower limit for row coords
+            r_h = numpy.clip(c['row']+r+1, 0, array_size[0])
+            c_l = numpy.clip(c['col']-r, 0, array_size[1])
+            c_h = numpy.clip(c['col']+r+1, 0, array_size[1]+1)
+            row, col = numpy.ogrid[r_l-c['row']+(r-1)%2: r_h-c['row'], c_l-c['col']+(r-1)%2: c_h-c['col']]
+            index = row**2 + col**2 <= r**2
+            a[r_l:r_h+(r%2),c_l:c_h+(r%2)][index] = color
+        else:
+            bbox =  (c['col']-r,  c['row']-r,c['col']+r, c['row']+r)
+            draw.ellipse(bbox, fill=color)
+    return numpy.array(im)
+
 def arc_vertices(diameter, n_vertices,  angle,  angle_range,  pos = [0, 0]):
     if not isinstance(diameter,  list):
         diameter_list = [diameter, diameter]
@@ -1010,7 +1039,16 @@ class TestUtils(unittest.TestCase):
         data = (1, 2)
         rc_value = rc(data)
         self.assertEqual((rc_value['row'], rc_value['col']), data)
-                
+         
+            
+    def test_numpy_circles(self):
+        pars = [ [[10, 25], (rc((1, 1)), rc((25, 25))), (64, 64), 255],  #
+                        [[10, 25],  (rc((64-1, 64-1)), rc((64-25, 64-25))), (64, 64), 255],   # odd radius, single center
+                        ]
+        for p in pars:
+            img = numpy_circles(p[0], p[1], p[2], p[3])
+            pass
+            
 if __name__ == "__main__":
     #commented out by Daniel:
     #start_point = cr((0.0, 0.0))
@@ -1074,7 +1112,7 @@ if __name__ == "__main__":
 
             
     mytest = unittest.TestSuite()
-   # mytest.addTest(Test('test_fetch_classes'))
+    mytest.addTest(TestUtils('test_numpy_circles'))
     mytest.addTest(TestUtils('test_01_pulse_train'))
     mytest.addTest(TestUtils('test_02_pulse_train'))
     mytest.addTest(TestUtils('test_03_pulse_train'))
