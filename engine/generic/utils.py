@@ -213,13 +213,13 @@ def nd(rcarray, squeeze=False):
 def rcd(raw):
     return rcd_pack(raw, dim_order = [0, 1, 2])
     
-def rc(raw):
-    return rcd_pack(raw, dim_order = [0, 1])
+def rc(raw,  zd=False):
+    return rcd_pack(raw, dim_order = [0, 1], zd=zd)
 
-def cr(raw):
-    return rcd_pack(raw, dim_order = [1, 0])    
+def cr(raw,  zd=False):
+    return rcd_pack(raw, dim_order = [1, 0], zd=zd)    
             
-def rcd_pack(raw, dim_order = [0, 1]):
+def rcd_pack(raw, dim_order = [0, 1], zd=False):
     dim_names0 = ['row','col','depth']
     order = argsort(dim_order)
     dim_order = sorted(dim_order)
@@ -234,7 +234,9 @@ def rcd_pack(raw, dim_order = [0, 1]):
         raw=raw.T    
     if raw.size == len(dim_names):
         raw = numpy.take(raw, order)
-        return numpy.array(tuple(raw), dtype, ndmin=1) #ndmin=1 ensures that array can be indexed
+        if zd: ndmin=0
+        else: ndmin=1
+        return numpy.array(tuple(raw), dtype, ndmin=zd) #ndmin=1 ensures that array can be indexed
     else:
         raw= numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
         return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
