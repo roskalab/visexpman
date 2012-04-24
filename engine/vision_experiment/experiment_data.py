@@ -12,17 +12,21 @@ from visexpman.engine import generic
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as gen
 
-
 ############### Preprocess measurement data ####################
-def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None):
+def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_signal_min_amplitude = 1.5):
     #Find out high and low voltage levels
     histogram, bin_edges = numpy.histogram(sync_signal, bins = 20)
     if histogram.max() == histogram[0] or histogram.max() == histogram[-1]:
+        pulses_detected = True
         low_voltage_level = 0.5 * (bin_edges[0] + bin_edges[1])
         high_voltage_level = 0.5 * (bin_edges[-1] + bin_edges[-2])
+#        print high_voltage_level - low_voltage_level
+        if high_voltage_level - low_voltage_level  < sync_signal_min_amplitude:
+            pulses_detected = False
+            return stimulus_frame_info, 0, pulses_detected
     else:
-        print 'Sync signal is not binary'
-        return stimulus_frame_info, 0
+        pulses_detected = False
+        return stimulus_frame_info, 0, pulses_detected
     threshold = 0.5 * (low_voltage_level + high_voltage_level)
     #detect sync signal rising edges
     binary_sync = numpy.where(sync_signal < threshold, 0, 1)
@@ -39,7 +43,7 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None):
                 info['data_series_index'] = -1
                 print 'less trigger pulses were detected'
             stimulus_frame_info_with_data_series_index.append(info)
-    return stimulus_frame_info_with_data_series_index, rising_edges_indexes
+    return stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected
 
 #################### Saving/loading data to hdf5 ####################
 def save_config(file_handle, machine_config, experiment_config = None):

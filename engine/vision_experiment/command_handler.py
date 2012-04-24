@@ -24,7 +24,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
     def __init__(self):
         self.keyboard_command_queue = Queue.Queue()
         #Here the set of queues are defined from commands are parsed
-        queue_in = [self.queues['mes']['in'], self.queues['gui']['in'], self.keyboard_command_queue, self.queues['udp']['in']]
+        queue_in = [self.queues['mes']['in'], self.queues['gui']['in'], self.queues['analysis']['in'], self.keyboard_command_queue, self.queues['udp']['in']]
         #Set of queues where command parser output is relayed NOT YET IMPLEMENTED IN command_parser
         queue_out = self.queues['gui']['out']
         command_parser.CommandParser.__init__(self, queue_in, queue_out, log = self.log, failsafe = False)

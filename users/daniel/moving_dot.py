@@ -26,13 +26,14 @@ class MovingDotConfig(experiment.ExperimentConfig):
         #string list: list[0] - empty        
         self.DIAMETER_UM = [300]
         self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees        
-        self.SPEED = [1800] #[40deg/s] % deg/s should not be larger than screen size
+        self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
-        self.REPEATS = 1
+        self.REPEATS = 3
         self.PDURATION = 0
-        self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+        self.GRIDSTEP = 1.0/1.5 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
+        self.PAUSE_BEFORE_AFTER = 5.0
         self.PRECOND='line from previous direction' #setting this to 'line from previous direction' will insert a line before sweeping the screen with lines from the current direction
         self.runnable = 'MovingDot'
         self.pre_runnable = 'MovingDotPre'
@@ -46,14 +47,15 @@ class ShortMovingDotConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty        
         self.DIAMETER_UM = [300]        
-        self.ANGLES = [0, 90] # degrees
-        self.SPEED = [2000] #[40deg/s] % deg/s should not be larger than screen size
+        self.ANGLES = [45] # degrees
+        self.SPEED = [3000] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
         self.PDURATION = 0
         self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
+        self.PAUSE_BEFORE_AFTER = 0.0
         self.runnable = 'MovingDot'
         self.PRECOND='line from previous direction'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
@@ -74,6 +76,7 @@ class LongMovingDotConfig(experiment.ExperimentConfig):
         self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
         self.RANDOMIZE = 1
+        self.PAUSE_BEFORE_AFTER = 10.0
         self.runnable = 'MovingDot'
         self.PRECOND='line from previous direction'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
@@ -92,9 +95,10 @@ class MovingDot(experiment.Experiment):
         self.show_fullscreen(color = 0.0)
     
     def run(self, fragment_id = 0):
+        self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE_BEFORE_AFTER)
         self.show_dots(numpy.array([self.diameter_pix*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE]*len(self.row_col[fragment_id])), 
                 self.row_col[fragment_id], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
-        self.show_fullscreen(color = 0.0)
+        self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE_BEFORE_AFTER)
         self.experiment_specific_data ={}
         if hasattr(self, 'shown_line_order'):
             self.experiment_specific_data['shown_line_order'] = self.shown_line_order[fragment_id]
@@ -161,7 +165,7 @@ class MovingDot(experiment.Experiment):
         self.number_of_fragments = len(self.row_col)
         self.fragment_durations = []
         for fragment_duration in range(self.number_of_fragments):
-            self.fragment_durations.append(float(len(self.row_col[fragment_duration]) / self.experiment_config.NDOTS)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+            self.fragment_durations.append(float(len(self.row_col[fragment_duration]) / self.experiment_config.NDOTS)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE + 2*self.experiment_config.PAUSE_BEFORE_AFTER)
 #        print self.shown_directions
             
     def angles_broken_to_multi_block(self, w, h, diameter_pix, speed_pix,gridstep_pix, movestep_pix,  hlines_r, hlines_c, vlines_r, vlines_c,   angleset, allangles):

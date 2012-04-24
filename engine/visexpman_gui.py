@@ -14,6 +14,7 @@ import traceback
 import re
 import cPickle as pickle
 import webbrowser
+import unittest
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -129,7 +130,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.move_to_button, 'move_to_region')
         self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
         self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
-        
+        self.connect_and_map_signal(self.debug_widget.test3dscanning_groupbox.start_test_button, 'start_3dscan_test')
+        self.connect_and_map_signal(self.debug_widget.test3dscanning_groupbox.show_rc_scan_results_button, 'show_rc_scan_results')
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         

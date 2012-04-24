@@ -349,7 +349,7 @@ def arc_perimeter(radius,  angle):
     return numpy.pi  * 2 *radius * slice_ratio
     
 def rc_distance(point1,  point2):
-    return numpy.sqrt((point1['col']-point2['col'])**2 + (point1['row']-point2['row'])**2)
+    return numpy.sqrt((float(point1['col'])-float(point2['col']))**2 + (float(point1['row'])-float(point2['row']))**2)
     
 def calculate_trajectory(start_point,  end_point,  spatial_resolution,  curve = 'linear'):
     '''

@@ -11,41 +11,43 @@ import numpy
 import time
 import shutil
 
-class GratingConfig(experiment.ExperimentConfig):
+class MovingGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing        
         self.NUMBER_OF_MARCHING_PHASES = 4
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
-        self.MARCH_TIME = 1.0#3.0
-        self.GRATING_STAND_TIME = 1.0#1.0        
+        self.MARCH_TIME = 1.5#3.0
+        self.GRATING_STAND_TIME = 2.0#1.0        
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
         self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [1800.0]#1800
+        self.VELOCITIES = [1200.0]#1800
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 1
-        self.runnable = 'GratingExperiment'
-        self.pre_runnable = 'GratingPreExperiment'
+        self.REPEATS = 3
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
 
-class ShortGratingConfig(experiment.ExperimentConfig):
+class ShortMovingGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing
-        self.NUMBER_OF_MARCHING_PHASES = 4
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 5
-        self.MARCH_TIME = 1.0
-        self.GRATING_STAND_TIME = 1.0
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1
+        self.MARCH_TIME = 0.5
+        self.GRATING_STAND_TIME = 0.5
         #Grating parameters        
         self.ORIENTATIONS = [0, 45]
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1800.0]#1800
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
         self.REPEATS = 1
-        self.runnable = 'GratingExperiment'
-        self.pre_runnable = 'GratingPreExperiment'
+        self.PAUSE_BEFORE_AFTER = 0.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
         
-class GratingExperiment(experiment.Experiment):
+class MovingGrating(experiment.Experiment):
     def prepare(self):
         self.marching_phases = -numpy.linspace(0, 360, self.experiment_config.NUMBER_OF_MARCHING_PHASES + 1)[:-1]        
         self.stimulus_units = []
@@ -72,26 +74,28 @@ class GratingExperiment(experiment.Experiment):
         self.period_time = self.overall_duration / self.experiment_config.REPEATS
         if self.period_time > self.machine_config.MAXIMUM_RECORDING_DURATION:
             raise RuntimeError('Stimulus too long')
-        self.fragment_durations = [self.period_time] * self.experiment_config.REPEATS
-        self.fragment_repeats = [1] * self.experiment_config.REPEATS
+        self.fragment_durations = [self.period_time*self.experiment_config.REPEATS + 2 * self.experiment_config.PAUSE_BEFORE_AFTER] 
         self.number_of_fragments = len(self.fragment_durations)
         #Group stimulus units into fragments
         segment_pointer = 0
-        self.fragmented_stimulus_units = []
-        for fragment_repeats in self.fragment_repeats:
-            self.fragmented_stimulus_units.append(self.stimulus_units[segment_pointer:segment_pointer + int(fragment_repeats)])
-            segment_pointer += int(fragment_repeats)
+        self.fragmented_stimulus_units = [self.stimulus_units]
         self.experiment_specific_data = {}
 
     def run(self, fragment_id = 0):
         frame_counter = 0
         segment_counter = 0
-        self.experiment_specific_data['segment_info'] = {}        
+        self.experiment_specific_data['segment_info'] = {} 
+        is_first_dislayed = False
         for stimulus_unit in self.fragmented_stimulus_units[fragment_id]:
             for orientaion in self.experiment_config.ORIENTATIONS:
                 #Show marching grating
                 for phase in self.marching_phases:
-                    self.show_grating(duration = self.experiment_config.MARCH_TIME, 
+                    if not is_first_dislayed:
+                        is_first_dislayed = True
+                        static_grating_duration = self.experiment_config.PAUSE_BEFORE_AFTER + self.experiment_config.MARCH_TIME
+                    else:
+                        static_grating_duration = self.experiment_config.MARCH_TIME
+                    self.show_grating(duration = static_grating_duration, 
                             orientation = orientaion, 
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],
@@ -125,6 +129,7 @@ class GratingExperiment(experiment.Experiment):
                 segment_id = segment_id.replace(' ', '0')
                 self.experiment_specific_data['segment_info'][segment_id] = segment_info
                 segment_counter += 1
+        time.sleep(self.experiment_config.PAUSE_BEFORE_AFTER)
 
     def cleanup(self):
         #add experiment identifier node to experiment hdf5
@@ -133,7 +138,7 @@ class GratingExperiment(experiment.Experiment):
         setattr(self.hdf5, experiment_identifier, {'id': None})
         self.hdf5.save(experiment_identifier)
                 
-class GratingPreExperiment(experiment.PreExperiment):    
+class MovingGratingPre(experiment.PreExperiment):    
     def run(self):
         self.show_grating(duration = 0, 
                             orientation = self.experiment_config.ORIENTATIONS[0], 

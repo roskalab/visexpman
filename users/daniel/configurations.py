@@ -265,7 +265,7 @@ class DebugOnLaptop(VisionExperimentConfig):
                                     }
                                     
         STAGE = [{'SERIAL_PORT' : motor_serial_port,
-                 'enable': False,
+                 'ENABLE': False,
                  'SPEED': 800,
                  'ACCELERATION' : 200,
                  'MOVE_TIMEOUT' : 45.0,
@@ -293,7 +293,6 @@ class DebugOnLaptop(VisionExperimentConfig):
                     'AO_CHANNEL' : 'Dev1/ao0',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : 0.0,
-                    
                     'ENABLE' : False
                     }
                     ]
@@ -354,7 +353,7 @@ class Debug(VisionExperimentConfig):
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
-        MAXIMUM_RECORDING_DURATION = [90.0, [0, 10000]] #100
+        MAXIMUM_RECORDING_DURATION = [900.0, [0, 10000]] #100
         MES_TIMEOUT = 15.0
         
         #=== Network ===
@@ -455,7 +454,7 @@ class VS3DUS(VisionExperimentConfig):
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
-        MAXIMUM_RECORDING_DURATION = [96, [0, 10000]] #100
+        MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
         MES_TIMEOUT = 10.0
         PLATFORM = 'mes'
         #=== Network ===

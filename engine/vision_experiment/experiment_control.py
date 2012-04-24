@@ -43,23 +43,28 @@ class ExperimentControl(object):
             if hasattr(self, 'fragment_durations'):
                 if not hasattr(self.fragment_durations, 'index') and not hasattr(self.fragment_durations, 'shape'):
                     self.fragment_durations = [self.fragment_durations]
-        if self.parameters.has_key('objective_positions') and self.parameters.has_key('laser_intensities'):
-            self.objective_positions = map(float, self.parameters['objective_positions'].split('<comma>')) 
+        if self.parameters.has_key('objective_positions'):
+            self.objective_positions = map(float, self.parameters['objective_positions'].split('<comma>'))
+        if self.parameters.has_key('laser_intensities'):
             self.laser_intensities = map(float, self.parameters['laser_intensities'].split('<comma>'))
-            if len(self.laser_intensities) != len(self.objective_positions):
-                raise RuntimeError('Number of provided laser intensities and objective positions must be equal')
+        if self.parameters.has_key('scan_mode'):
+            self.scan_mode = self.parameters['scan_mode']
+        else:
+            self.scan_mode = 'xy'
 
     def run_experiment(self, context):
         message_to_screen = ''
-        if hasattr(self, 'objective_positions') and hasattr(self, 'laser_intensities'):
+        if hasattr(self, 'objective_positions'):
             for i in range(len(self.objective_positions)):
                 context['objective_position'] = self.objective_positions[i]                
-                context['laser_intensity'] = self.laser_intensities[i]
+                if hasattr(self, 'laser_intensities'):
+                    context['laser_intensity'] = self.laser_intensities[i]
                 context['experiment_count'] = '{0}/{1}'.format(i+1, len(self.objective_positions))
                 message_to_screen += self.run_single_experiment(context)
                 if self.abort:
                     break
-                self.queues['gui']['out'].put('Experiment sequence complete')
+                time.sleep(3.0)#Later connection with MES shall be checked
+            self.queues['gui']['out'].put('Experiment sequence complete')
         else:
             message_to_screen = self.run_single_experiment(context)
         if self.abort:#Commands sent after abort are ignored
@@ -94,6 +99,8 @@ class ExperimentControl(object):
                         self.run(fragment_id)
                     if not self._finish_fragment(fragment_id):
                         self.abort = True
+                        #close fragment files
+                        self.fragment_files[fragment_id].close()
                         break #Do not record further fragments in case of error
             else:
                 self.abort = True
@@ -124,12 +131,13 @@ class ExperimentControl(object):
                     self.printl('Objective not set')
                 else:
                     self.printl('Objective is set to {0} um' .format(context['objective_position']))
-                result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(context['laser_intensity'])
-                if not result:
-                    self.abort = True
-                    slef.printl('Laser intensity is not set')
-                else:
-                    self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
+                if context.has_key('laser_intensity'):
+                    result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(context['laser_intensity'])
+                    if not result:
+                        self.abort = True
+                        self.printl('Laser intensity is not set')
+                    else:
+                        self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
             #read stage and objective
             self.stage_position = self.stage.read_position() - self.stage_origin
             result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
@@ -159,14 +167,20 @@ class ExperimentControl(object):
             mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
             self.printl('Fragment duration is {0} s'.format(int(mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
-            #start two photon recording
-            line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = mes_record_time, 
-                parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT)
-            if line_scan_start_success:
+            if self.scan_mode == 'xyz':
+                cell_centers = hdf5io.read_item(os.path.join(self.config.CONTEXT_PATH,  'cell_positions.hdf5'), 'cell_positions_fine')#TODO: this is a temporary solution
+                scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(cell_centers, 
+                                                                                      parameter_file = self.filenames['mes_fragments'][fragment_id], 
+                                                                                      scan_time = mes_record_time)
+            else:
+                #start two photon recording
+                scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = mes_record_time, 
+                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
+            if scan_start_success:
                 time.sleep(1.0)
             else:
-                self.printl('Line scan start ERROR')
-            return line_scan_start_success
+                self.printl('Scan start ERROR')
+            return scan_start_success
         elif self.config.PLATFORM == 'elphys':
             #Set acquisition trigger pin to high
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
@@ -191,7 +205,10 @@ class ExperimentControl(object):
             if self.mes_timeout < self.config.MES_TIMEOUT:
                 self.mes_timeout = self.config.MES_TIMEOUT
             if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
-                data_acquisition_stop_success =  self.mes_interface.wait_for_line_scan_complete(self.mes_timeout)
+                if self.scan_mode == 'xyz':
+                    data_acquisition_stop_success =  self.mes_interface.wait_for_rc_scan_complete(self.mes_timeout)
+                else:
+                    data_acquisition_stop_success =  self.mes_interface.wait_for_line_scan_complete(self.mes_timeout)
                 if not data_acquisition_stop_success:
                     self.printl('Line scan complete ERROR')
             else:
@@ -210,18 +227,24 @@ class ExperimentControl(object):
             if self.config.PLATFORM == 'mes':
                 if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
                     self.printl('Wait for data save complete')
-                    line_scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(self.mes_timeout)
-                    self.printl('Data save complete')
-                    if not line_scan_data_save_success:
+                    if self.scan_mode == 'xyz':
+                        scan_data_save_success = self.mes_interface.wait_for_rc_scan_save_complete(self.mes_timeout)
+                    else:
+                        scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(self.mes_timeout)
+                    self.printl('MES data save complete')
+                    if not scan_data_save_success:
                         self.printl('Line scan data save error')
                 else:
                     aborted = True
-                    line_scan_data_save_success = False
-                result = line_scan_data_save_success
+                    scan_data_save_success = False
+                result = scan_data_save_success
             else:
                 pass
             if not aborted:
                 self.save_fragment_data(fragment_id)
+                #Ask analysis to start preprocessing measurement data
+                command = 'SOCpreporcess_fragmentEOCscan_mode={0},fragment_path={1}EOP'.format(self.scan_mode, os.path.split(self.filenames['fragments'][fragment_id])[-1])
+                self.queues['analysis']['out'].put(command)
         else:
             result = False
             self.printl('Data acquisition stopped with error')
@@ -249,7 +272,7 @@ class ExperimentControl(object):
         self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
         if self.config.PLATFORM == 'mes':
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
-        
+
     def close_devices(self):
         self.parallel_port.release_instrument()
         if self.config.OS == 'win':
@@ -257,7 +280,7 @@ class ExperimentControl(object):
                 filterwheel.release_instrument()
         self.led_controller.release_instrument()
         self.stage.release_instrument()
-        
+
     ############### File handling ##################
     def prepare_files(self):
         self._generate_filenames()
@@ -326,17 +349,27 @@ class ExperimentControl(object):
             analog_input_data = self.analog_input.ai_data
         else:
             analog_input_data = numpy.zeros((2, 2))
-            self.printl('Analog input data is not available')
-        stimulus_frame_info_with_data_series_index, rising_edges_indexes =\
+            self.printl('Analog input data is NOT available')
+        stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected =\
                             experiment_data.preprocess_stimulus_sync(\
                             analog_input_data[:, self.config.SYNC_CHANNEL_INDEX], 
-                            stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:])
+                            stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:], 
+                            sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)
+        if not pulses_detected:
+            self.printl('Stimulus sync signal is NOT detected')
+        if self.config.PLATFORM == 'mes':
+            a, b, pulses_detected =\
+            experiment_data.preprocess_stimulus_sync(\
+                            analog_input_data[:, 0], sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)
+            if not pulses_detected:
+                self.printl('MES sync signal is NOT detected')
         if not hasattr(self, 'experiment_specific_data'):
                 self.experiment_specific_data = 0
         if hasattr(self, 'source_code'):
             experiment_source = self.source_code
         else:
             experiment_source = utils.file_to_binary_array(inspect.getfile(self.__class__).replace('.pyc', '.py'))
+        software_environment = self._pack_software_environment()
         data_to_file = {
                                     'sync_data' : analog_input_data, 
                                     'current_fragment' : fragment_id, #deprecated
@@ -345,23 +378,15 @@ class ExperimentControl(object):
                                     'number_of_fragments' : self.number_of_fragments, 
                                     'generated_data' : self.experiment_specific_data, 
                                     'experiment_source' : experiment_source, 
+                                    'software_environment' : software_environment, 
                                     }
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
+            data_to_file['experiment_log'] = numpy.fromstring(pickle.dumps(self.log.log_dict), numpy.uint8)
             stimulus_frame_info = {}
             if stimulus_frame_info_with_data_series_index != 0:
                 stimulus_frame_info = self.stimulus_frame_info
             if self.config.PLATFORM == 'mes':
-                time.sleep(0.5+0.1 * 1e-6 * os.path.getsize(self.filenames['mes_fragments'][fragment_id])) #Wait till data write complete
-                try:
-                    #Maybe a local copy should be made:
-                    tmp_mes_file = tempfile.mkstemp()[1]
-                    shutil.copy(self.filenames['mes_fragments'][fragment_id], tmp_mes_file)
-                    mes_data = utils.file_to_binary_array(tmp_mes_file)
-                except:
-                    self.printl(traceback.format_exc())
-                    mes_data = numpy.zeros((2, 1), dtype = numpy.uint8)
-                data_to_file['mes_data'] = mes_data
-                data_to_file['mes_data_hash'] = hashlib.sha1(mes_data).hexdigest()
+                data_to_file['mes_data_path'] = os.path.split(self.filenames['mes_fragments'][fragment_id])[-1]
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             stimulus_frame_info = stimulus_frame_info_with_data_series_index
         data_to_file['stimulus_frame_info'] = stimulus_frame_info
@@ -383,49 +408,27 @@ class ExperimentControl(object):
                 experiment_data.save_position(self.fragment_files[fragment_id], self.stage_position, self.objective_position)
             setattr(self.fragment_files[fragment_id], self.fragment_names[fragment_id], data_to_file)
             self.fragment_files[fragment_id].save(self.fragment_names[fragment_id])
+            self.fragment_files[fragment_id].close()
             if hasattr(self, 'fragment_durations'):
-                time.sleep(1.0 + 0.05 * self.fragment_durations[fragment_id])#Wait till data is written to disk
+                time.sleep(1.0 + 0.01 * self.fragment_durations[fragment_id])#Wait till data is written to disk
             else:
                 time.sleep(1.0)
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.fragment_data[self.filenames['local_fragments'][fragment_id]] = data_to_file
         del data_to_file
+        shutil.copy(self.filenames['local_fragments'][fragment_id], self.filenames['fragments'][fragment_id])
         self.printl('Measurement data saved to: {0}'.format(self.filenames['fragments'][fragment_id]))
 
     def finish_data_fragments(self):
         #Experiment log, source code, module versions
-        software_environment = self._pack_software_environment()
         experiment_log_dict = self.log.log_dict
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-            for fragment_file in self.fragment_files[0:self.finished_fragment_index +1]:
-                fragment_file.software_environment = software_environment
-                fragment_file.experiment_log = numpy.fromstring(pickle.dumps(experiment_log_dict), numpy.uint8)
-                fragment_file.save(['software_environment', 'experiment_log'])
-                fragment_file.close()
-            for fragment_file in self.fragment_files[self.finished_fragment_index :]:
-                fragment_file.close()
+            pass
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             for fragment_path, data_to_mat in self.fragment_data.items():
-                data_to_mat['software_environment'] = software_environment
                 data_to_mat['experiment_log_dict'] = experiment_log_dict
                 data_to_mat['config'] = experiment_data.save_config(None, self.config, self.experiment_config)
                 scipy.io.savemat(fragment_path, data_to_mat, oned_as = 'row', long_field_names=True)
-        #Check all the fragments
-        self.fragment_check_result = True
-        for fragment_file in self.filenames['local_fragments'][0:self.finished_fragment_index +1]:
-            if os.path.exists(fragment_file) and not self.abort:
-                try:
-                    self.printl('Check fragment {0}'.format(os.path.split(fragment_file)[-1]))
-                    result, self.fragment_error_messages = experiment_data.check_fragment(fragment_file, self.config)
-                except:
-                    result = False
-                    self.fragment_error_messages = traceback.format_exc()
-                if not result:
-                    self.fragment_check_result = result
-                    self.printl('Incorrect fragment file: ' + str(self.fragment_error_messages))
-        for fid in range(len(self.filenames['local_fragments'][0:self.finished_fragment_index +1])):
-            if os.path.exists(self.filenames['local_fragments'][fid]):
-                shutil.copy(self.filenames['local_fragments'][fid], self.filenames['fragments'][fid])
 
     def _pack_software_environment(self):
         software_environment = {}

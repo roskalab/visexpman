@@ -240,12 +240,7 @@ class Timer(object):
 def celery_available():
     try:
         import celery
-        if '2.5.' in celery.__version__:
-            ct=celery.task.control.ping()
-        elif '2.6.' in celery.__version__:
-            from celery.app.control import Control
-            c = Control()
-            ct= c.ping()
+        ct=celery.task.control.ping()
         if len(ct)>0:
             return True # at least 1 worker is alive
         else:
@@ -254,10 +249,10 @@ def celery_available():
         return False
         
 def list_type(item):
-    try:
+    try: # is data convertible to numpy array of scalar (including string) values?
         item2=numpy.array(item)
-        if item2.dtype != object and isinstance(item, (list, tuple)) and hasattr(item[0], 'shape'):
-            return 'list_of_arrays'
+        if isinstance(item, (list, tuple)) and numpy.issctype(item2.dtype):
+            return 'arrayized'
     except:
         pass
     if isinstance(item,(list,tuple)):

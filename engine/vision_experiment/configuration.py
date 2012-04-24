@@ -176,6 +176,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
         SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
+        SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
         
 #                 DAQ_CONFIG = [[
 #         {
@@ -222,10 +223,12 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #jobhandler
         PARSE_PERIOD = [2.0, [0.0, 10.0]]
         
-        MAX_REALIGNMENT_OFFSET = [500.0, [100.0, 1000.0]]
+        MAX_REALIGNMENT_OFFSET = [50.0, [10.0, 1000.0]]
         ACCEPTABLE_REALIGNMENT_OFFSET = [2.0, [0.1, 10.0]]
         REALIGNMENT_XY_THRESHOLD = [1.0, [0.1, 10.0]]
         REALIGNMENT_Z_THRESHOLD = [1.0, [0.1, 10.0]]
+        
+        SKIP_FRAGMENT_CHECK = False
         
         MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
         #this function call is compulsory
