@@ -240,7 +240,12 @@ class Timer(object):
 def celery_available():
     try:
         import celery
-        ct=celery.task.control.ping()
+        if '2.5.' in celery.__version__:
+            ct=celery.task.control.ping()
+        elif '2.6.' in celery.__version__:
+            from celery.app.control import Control
+            c = Control()
+            ct= c.ping()
         if len(ct)>0:
             return True # at least 1 worker is alive
         else:
