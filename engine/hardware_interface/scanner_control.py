@@ -374,6 +374,7 @@ class TestScannerControl(unittest.TestCase):
         self.assertListEqual(results, len(results)*[5*[0.0]])
         
     def test_03_generate_line_scans(self):
+        plot_enable = False
         lines = [
                  {'p0': utils.rc((0, -10)), 'p1': utils.rc((0, 10)), 'ds': 1.0}, 
                  {'p0': utils.rc((10, -10)), 'p1': utils.rc((10, 10)), 'ds': 1.0}, 
@@ -390,28 +391,31 @@ class TestScannerControl(unittest.TestCase):
         accmax = 100000
         vmax = 5000
         pos_x, pos_y, speed_x, speed_y, accel_x, accel_y, scan_mask, period_time = generate_line_scan_series(lines, self.dt, setting_time, vmax, accmax, scanning_periods = 2, start_stop_scanner = True, start_stop_time = start_stop_time)
-        print period_time
-        print abs(pos_x).max(), abs(pos_y).max(), abs(speed_x).max(), abs(speed_y).max(), abs(accel_x).max(), abs(accel_y).max()
-        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
-        figure(1)
-        subplot(411)
-        plot(pos_x)
-        plot(pos_y)
-        title('position')
-        subplot(413)
-        plot(speed_x)
-        plot(speed_y)
-        title('speed')
-        subplot(414)
-        plot(accel_x)
-        plot(accel_y)
-        title('acceleration')
-        subplot(412)
-        plot(scan_mask)
-        title('scan mask')
-#        show()
-#        savefig('/home/zoltan/visexp/debug/data/x.pdf')
+        if plot_enable:
+            print period_time
+            print abs(pos_x).max(), abs(pos_y).max(), abs(speed_x).max(), abs(speed_y).max(), abs(accel_x).max(), abs(accel_y).max()
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+            figure(1)
+            subplot(411)
+            plot(pos_x)
+            plot(pos_y)
+            title('position')
+            subplot(413)
+            plot(speed_x)
+            plot(speed_y)
+            title('speed')
+            subplot(414)
+            plot(accel_x)
+            plot(accel_y)
+            title('acceleration')
+            subplot(412)
+            plot(scan_mask)
+            title('scan mask')
+    #        show()
+    #        savefig('/home/zoltan/visexp/debug/data/x.pdf')
+    
     def test_04_generate_rectangular_scan(self):
+        plot_enable = False
         config = ScannerTestConfig()
         spatial_resolution = 1.0
         position = utils.rc((0, 0))
@@ -419,24 +423,25 @@ class TestScannerControl(unittest.TestCase):
         setting_time = 0.01
         frames_to_scan = 2
         pos_x, pos_y, scan_mask, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
-        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
-        figure(2)
-        subplot(411)
-        plot(pos_x)
-        plot(pos_y)
-        title('position')
-#        subplot(413)
-#        plot(speed_x)
-#        plot(speed_y)
-#        title('speed')
-#        subplot(414)
-#        plot(accel_x)
-#        plot(accel_y)
-#        title('acceleration')
-        subplot(412)
-        plot(scan_mask)
-        title('scan mask')
-        show()
+        if plot_enable:
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+            figure(2)
+            subplot(411)
+            plot(pos_x)
+            plot(pos_y)
+            title('position')
+    #        subplot(413)
+    #        plot(speed_x)
+    #        plot(speed_y)
+    #        title('speed')
+    #        subplot(414)
+    #        plot(accel_x)
+    #        plot(accel_y)
+    #        title('acceleration')
+            subplot(412)
+            plot(scan_mask)
+            title('scan mask')
+            show()
         
 if __name__ == "__main__":
     unittest.main()

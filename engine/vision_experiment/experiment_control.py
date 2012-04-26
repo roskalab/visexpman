@@ -413,10 +413,10 @@ class ExperimentControl(object):
                 time.sleep(1.0 + 0.01 * self.fragment_durations[fragment_id])#Wait till data is written to disk
             else:
                 time.sleep(1.0)
+            shutil.copy(self.filenames['local_fragments'][fragment_id], self.filenames['fragments'][fragment_id])
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.fragment_data[self.filenames['local_fragments'][fragment_id]] = data_to_file
         del data_to_file
-        shutil.copy(self.filenames['local_fragments'][fragment_id], self.filenames['fragments'][fragment_id])
         self.printl('Measurement data saved to: {0}'.format(self.filenames['fragments'][fragment_id]))
 
     def finish_data_fragments(self):
