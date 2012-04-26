@@ -269,6 +269,15 @@ def list_type(item):
         response=None
     return response
 
+def dict_isequal(d1,d2):
+    if set(d1.keys()) != set(d2.keys()): return False
+    for k in d1.keys():
+        if hasattr(d1[k],'shape'):
+            if numpy.any(d1[k]!=d2[k]): return False
+        else: 
+            if d1[k]!=d2[k]: return False
+    return True
+
 from collections import deque
 class ModifiableIterator(object):
     '''Implements an normal iterator but the order of the elements in the list being iterated 
