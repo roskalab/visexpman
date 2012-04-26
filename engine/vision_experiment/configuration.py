@@ -228,7 +228,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         REALIGNMENT_XY_THRESHOLD = [1.0, [0.1, 10.0]]
         REALIGNMENT_Z_THRESHOLD = [1.0, [0.1, 10.0]]
         
-        SKIP_FRAGMENT_CHECK = False
+        ENABLE_FRAGMENT_CHECK = True
         
         MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
         #this function call is compulsory

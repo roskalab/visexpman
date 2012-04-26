@@ -15,7 +15,6 @@ from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine import generic
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
-from visexpman.engine.generic import log
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
@@ -411,9 +410,9 @@ class Poller(QtCore.QThread):
         self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
     
     ################### Files #######################
+
     def init_files(self):
         self.files_to_delete = []
-        self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt'))) 
         context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE)
         context_hdf5.load('stage_origin')
         context_hdf5.load('stage_position')
@@ -702,11 +701,9 @@ class Poller(QtCore.QThread):
                             origin = self.two_photon_image['origin'])
             self.save_context()
             #Update objective position to ensure synchronzation with manual control of objective
-            result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
-            if not result:
-                self.printc('MES does not respond')
-            else:
-                self.update_position_display()
+            self.objective_position = self.two_photon_image['objective_position'] 
+            self.update_position_display()
+            self.printc('Done')
             return True
         else:
                 self.printc('No image acquired')
@@ -735,17 +732,12 @@ class Poller(QtCore.QThread):
         if hasattr(self.vertical_scan, 'has_key'):
             if self.vertical_scan.has_key('path'):#For unknown reason this key is not found sometimes
                 self.files_to_delete.append(self.vertical_scan['path'])
-        if hasattr(self,  'objective_position'):
-            objective_position_marker = [[0, self.objective_position, 
-                                      0.04*self.vertical_scan['scaled_image'].shape[0] * self.vertical_scan['scaled_scale']['col'], self.objective_position]]
-        else:
-            objective_position_marker = []
         #Update objective position to ensure synchronzation with manual control of objective
-        result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
-        if not result:
-            self.printc('MES does not respond')
-        else:
-            self.update_position_display()
+        self.objective_position = self.vertical_scan['objective_position']
+        objective_position_marker = [[0, self.objective_position, 
+                                      0.04*self.vertical_scan['scaled_image'].shape[0] * self.vertical_scan['scaled_scale']['col'], self.objective_position]]
+        
+        self.update_position_display()
         self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scaled_scale'], line = objective_position_marker, origin = self.vertical_scan['origin'])
         self.save_context()
         self.vertical_scan_acquired = True
@@ -1115,8 +1107,8 @@ class Poller(QtCore.QThread):
             #XZ line scans from cell centers
             self.z_range = 50.0
             self.line_length = 20.0
-            if self.mes_interface.create_XZline_from_points(self.data_3dscan_test['expected_cell_centers'], self.z_range, self.line_length):
-                self.issue_experiment_start(scan_mode = 'xz')
+#            if self.mes_interface.create_XZline_from_points(self.data_3dscan_test['expected_cell_centers'], self.z_range, self.line_length):
+            self.issue_experiment_start(scan_mode = 'xz')
         elif self.parent.debug_widget.test3dscanning_groupbox.enable_3d_scan_checkbox.checkState() != 0:
             self.issue_experiment_start(scan_mode = 'xyz')
 #            cells = hdf5io.read_item(os.path.join(self.config.CONTEXT_PATH,  'cell_positions.hdf5'), 'cell_positions_fine')

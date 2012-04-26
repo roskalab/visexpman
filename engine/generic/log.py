@@ -1,19 +1,28 @@
 import logging
 import datetime
 import time
+import os.path
+import tempfile
+import shutil
 import unittest
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+from visexpman.users.zoltan.test import unit_test_runner
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
-import os.path
 
 class Log(object):
-    def __init__(self, name,  path, write_mode = 'automatic', timestamp = 'date_time'):
+    def __init__(self, name,  path, write_mode = 'automatic', timestamp = 'date_time', local_saving = False):
         '''
         write_mode: 'automatic', 'user controlled' - way of saving data to disk
         '''
+        self.path = path
+        self.local_saving = local_saving
+        if self.local_saving:
+            self.log_path = os.path.join(tempfile.gettempdir(), os.path.split(path)[1])
+        else:
+            self.log_path = path
+            
         self.log = logging.getLogger(name)
-        self.handler = logging.FileHandler(path)
+        self.handler = logging.FileHandler(self.log_path)
         formatter = logging.Formatter('%(message)s')
         self.handler.setFormatter(formatter)
         self.log.addHandler(self.handler)
@@ -70,6 +79,10 @@ class Log(object):
             self.info(name, log_timestamp = False)
         for entry in utils.empty_queue(queue):
             self.info([utils.time_stamp_to_hms(entry[0]), entry[1]], log_timestamp = False)
+            
+    def copy(self):
+        if self.local_saving:
+            shutil.copyfile(self.log_path, self.path)
         
 class TestLog(unittest.TestCase):
     def setUp(self):

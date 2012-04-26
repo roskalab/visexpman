@@ -11,6 +11,7 @@ import re
 import os
 import os.path
 import shutil
+import tempfile
 
 import PyQt4.QtCore as QtCore
 
@@ -69,22 +70,34 @@ def set_mes_mesaurement_save_flag(mat_file, flag):
     m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
     m.flush()   
 
-def set_line_scan_time(scan_time, reference_path, target_path, scan_mode = 'xy'):
+def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 'xy'):
     '''
     scan_time: in ms
     reference_path: reference mat file that will be used as a template
     target_path: 
+    
+    Parameter file shall be modified via a local copy avoid file errors occuring  on fetwork shares
     '''
-    #TODO rename to set scan parameter file
-    m = matlabfile.MatData(reference_path, target_path)
-    ts = m.get_field(m.name2path('ts'))[0][0][0][0]
-    ts = numpy.array([ts[0],ts[1],ts[2],numpy.round(float(1000*scan_time), 0)], dtype = numpy.float64)
-    m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
+    
+    reference_path_local = str(tempfile.mkstemp(suffix='.mat')[1])
+    target_path_local = str(tempfile.mkstemp(suffix='.mat')[1])
+    shutil.copy(reference_path, reference_path_local)
+    m = matlabfile.MatData(reference_path_local, target_path_local)
+    if scan_time != None:
+        ts = m.get_field(m.name2path('ts'))[0][0][0][0]
+        ts = numpy.array([ts[0],ts[1],ts[2],numpy.round(float(1000*scan_time), 0)], dtype = numpy.float64)
+        m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
     if scan_mode == 'xz':
         m.raw_mat['DATA'][0]['breakFFregion'] = 2.0
-    elif scan_mode == 'xyz':
+    elif scan_mode == 'xy':
+        m.raw_mat['DATA'][0]['breakFFregion'] = 0.0
+    if scan_mode == 'xyz':
         m.raw_mat['DATA'][0]['info_Linfo'] = 0
     m.flush()
+    time.sleep(0.2)
+    if os.path.exists(target_path):
+        os.remove(target_path)
+    shutil.copy(target_path_local, target_path)
 
 def get_line_scan_time(path):
     m = matlabfile.MatData(path)
@@ -358,7 +371,7 @@ class MesInterface(object):
         else:
             result, rc_scan_path, rc_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
         if scan_time != None and result:
-            set_line_scan_time(scan_time, rc_scan_path, rc_scan_path, scan_mode = 'xyz')
+            set_scan_parameter_file(scan_time, rc_scan_path, rc_scan_path, scan_mode = 'xyz')
         else:
             self._log_info('Get parameter file did not succeed')
             return False, rc_scan_path
@@ -429,7 +442,7 @@ class MesInterface(object):
 
     #######################  Line scan #######################
     def vertical_line_scan(self, parameter_file = '', scan_time = None): #TODO: generalize to line scan
-        result, line_scan_path = self.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file, scan_time = scan_time)
+        result, line_scan_path = self.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file, scan_time = scan_time,  scan_mode = 'xz')
         if not result:
             return {}, False
         if scan_time != None:
@@ -442,7 +455,7 @@ class MesInterface(object):
         result = self.wait_for_line_scan_save_complete(timeout = timeout)
         if not result:
             return {}, False
-        vertical_scan = matlabfile.read_vertical_scan(line_scan_path)
+        vertical_scan = matlabfile.read_vertical_scan(line_scan_path)[0]
         return vertical_scan, True
         
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
@@ -476,7 +489,7 @@ class MesInterface(object):
         if parameter_file == '':
             line_scan_path = file.generate_filename(os.path.join(self.config.MES_DATA_FOLDER, 'line_scan.mat'))
             line_scan_path_on_mes =  file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
-            result = True
+            result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = line_scan_path, timeout = timeout)
         elif os.path.exists(parameter_file):
             line_scan_path = parameter_file
             line_scan_path_on_mes = file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
@@ -484,9 +497,8 @@ class MesInterface(object):
         else:
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
 
-        if scan_time != None and result:
-            set_line_scan_time(scan_time, line_scan_path, line_scan_path, scan_mode = scan_mode)
         if result:
+            set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, scan_mode = scan_mode)
             #previously sent garbage is removed from queue
             utils.empty_queue(self.queues['mes']['in'])        
             #Acquire line scan if MES is connected            
@@ -767,8 +779,10 @@ if __name__ == "__main__":
 #    import shutil
 #    path = file.generate_filename('/home/zoltan/visexp/unit_test_output/scanparams.mat')
 #    shutil.copy('/home/zoltan/visexp/data/test/scanparams.mat', path)
-#    set_line_scan_time(10.0, path,  path, scan_mode = 'xyz')
+#    set_scan_parameter_file(10.0, path,  path, scan_mode = 'xyz')
   #TEST )X+1
-  from visexpA.engine.datahandlers import hdf5io
-  points = hdf5io.read_item(os.path.join('/home/zoltan/visexp/context',  'cell_positions.hdf5'), 'cell_positions_fine')
-  generate_scan_points_mat(points, '/home/zoltan/visexp/debug/data/crpoints.mat')
+#  from visexpA.engine.datahandlers import hdf5io
+#  points = hdf5io.read_item(os.path.join('/home/zoltan/visexp/context',  'cell_positions.hdf5'), 'cell_positions_fine')
+#  generate_scan_points_mat(points, '/home/zoltan/visexp/debug/data/crpoints.mat')
+#     set_scan_parameter_file(10.0, '/home/zoltan/visexp/debug/data/test.mat',  '/home/zoltan/visexp/debug/data/test.mat')
+    set_scan_parameter_file(10.0, 'V:\\debug\\data\\test.mat',  'V:\\debug\\data\\test.mat')

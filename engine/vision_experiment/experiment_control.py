@@ -240,7 +240,7 @@ class ExperimentControl(object):
                 result = scan_data_save_success
             else:
                 pass
-            if not aborted:
+            if not aborted and result:
                 self.save_fragment_data(fragment_id)
                 #Ask analysis to start preprocessing measurement data
                 command = 'SOCpreporcess_fragmentEOCscan_mode={0},fragment_path={1}EOP'.format(self.scan_mode, os.path.split(self.filenames['fragments'][fragment_id])[-1])

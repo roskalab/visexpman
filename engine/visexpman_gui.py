@@ -29,6 +29,7 @@ from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 from visexpman.engine import generic
+from visexpman.engine.generic import log
 from visexpman.users.zoltan.test import unit_test_runner
 from visexpA.engine.datahandlers import hdf5io
 
@@ -43,6 +44,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.console_text = ''
         self.mouse_files = []
         self.overwrite_region = 'undefined'
+        self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True) 
         self.poller = gui.Poller(self)
         self.poller.start()
         self.queues = self.poller.queues
@@ -355,7 +357,10 @@ class VisionExperimentGui(QtGui.QWidget):
         self.console_text  += text + '\n'
         self.standard_io_widget.text_out.setPlainText(self.console_text)
         self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
-        self.poller.log.info(text)
+        try:
+            self.log.info(text)
+        except:
+            print 'gui: logging error'
 
     def scanc(self):
         return str(self.standard_io_widget.text_in.toPlainText())
@@ -391,6 +396,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['analysis']['out'].put('SOCclose_connectionEOCstop_clientEOP')
+        self.log.copy()
         self.emit(QtCore.SIGNAL('abort'))
         #delete files:
         for file_path in self.poller.files_to_delete:
