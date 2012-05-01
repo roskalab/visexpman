@@ -176,7 +176,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
         SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
-        SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
+        SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]#TODO: copy to user config
         
 #                 DAQ_CONFIG = [[
 #         {
@@ -220,6 +220,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         OVERVIEW_IMAGE_SIZE = utils.rc_multiply_with_constant(IMAGE_SIZE, 2)
         SIDEBAR_SIZE = [30, [10, 100]]
         GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
+        GUI_INIT_JOB = [5.0, [0.1, 10.0]]
         #jobhandler
         PARSE_PERIOD = [2.0, [0.0, 10.0]]
         
@@ -227,8 +228,12 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ACCEPTABLE_REALIGNMENT_OFFSET = [2.0, [0.1, 10.0]]
         REALIGNMENT_XY_THRESHOLD = [1.0, [0.1, 10.0]]
         REALIGNMENT_Z_THRESHOLD = [1.0, [0.1, 10.0]]
+        CELL_MERGE_DISTANCE = [3.0, [1.0, 20.0]] #TODO: copy to user config
         
-        ENABLE_FRAGMENT_CHECK = True
+        ENABLE_FRAGMENT_CHECK = True #TODO: copy to user config
+        
+        #MES scanning config
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_RANGE' : 50.0, 'Z_RESOLUTION':0.5}
         
         MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
         #this function call is compulsory

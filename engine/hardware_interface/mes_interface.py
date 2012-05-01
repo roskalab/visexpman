@@ -34,25 +34,8 @@ def generate_scan_points_mat(points, mat_file):
 #TOD: check here that the data has rcd format and f8 datattype
     data_to_mes_mat = {}
     data_to_mes_mat['DATA'] = points
-    scipy.io.savemat(mat_file, data_to_mes_mat, oned_as = 'column')       
+    scipy.io.savemat(mat_file, data_to_mes_mat, oned_as = 'column')
 
-def get_objective_position(mat_file, log = None):
-    '''
-    Reads relative Z position
-    '''
-    m = matlabfile.MatData(mat_file, log = log)
-    data = m.get_field('DATA')
-    n_frames = data[0].shape[0]
-    if n_frames <= 2: #For some reason sometimes two data units reside in the mat file
-        data = m.get_field('DATA.Zlevel.0')[0].flatten()
-    else:
-        data = []
-        data_set = m.get_field('DATA.Zlevel') 
-        for i in range(n_frames):
-            data.append(data_set[0][i][0][0][0])
-        data = numpy.array(data)
-    return data
-    
 def read_objective_info(mat_file,  log=None):
     '''
     Returns absolute, relative objective position and z origin
@@ -74,11 +57,11 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
     '''
     scan_time: in ms
     reference_path: reference mat file that will be used as a template
-    target_path: 
-    
+    target_path:
+
     Parameter file shall be modified via a local copy avoid file errors occuring  on fetwork shares
     '''
-    
+
     reference_path_local = str(tempfile.mkstemp(suffix='.mat')[1])
     target_path_local = str(tempfile.mkstemp(suffix='.mat')[1])
     shutil.copy(reference_path, reference_path_local)
@@ -87,17 +70,23 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
         ts = m.get_field(m.name2path('ts'))[0][0][0][0]
         ts = numpy.array([ts[0],ts[1],ts[2],numpy.round(float(1000*scan_time), 0)], dtype = numpy.float64)
         m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
+    
     if scan_mode == 'xz':
-        m.raw_mat['DATA'][0]['breakFFregion'] = 2.0
+        try: #when field does not exists, just skip writing it
+            m.raw_mat['DATA'][0]['breakFFregion'] = 2.0
+        except ValueError:
+            pass
     elif scan_mode == 'xy':
-        m.raw_mat['DATA'][0]['breakFFregion'] = 0.0
+        try:
+            m.raw_mat['DATA'][0]['breakFFregion'] = 0.0
+        except ValueError:
+            pass
     if scan_mode == 'xyz':
         m.raw_mat['DATA'][0]['info_Linfo'] = 0
     m.flush()
     time.sleep(0.2)
-    if os.path.exists(target_path):
-        os.remove(target_path)
-    shutil.copy(target_path_local, target_path)
+    shutil.copyfile(target_path_local, target_path)
+#    shutil.copyfile(target_path_local, 'V:\\debug\\data\\pars.mat')
 
 def get_line_scan_time(path):
     m = matlabfile.MatData(path)
@@ -127,16 +116,23 @@ class MesInterface(object):
             self.from_gui_queue = None
         
     ################# Objective ###############
-    def read_objective_position(self, timeout = -1):
+    def read_objective_position(self, timeout = -1, with_origin = False):
         result, line_scan_path, line_scan_path_on_mes = self.get_line_scan_parameters(timeout = timeout)
         if result:
-            objective_position = get_objective_position(line_scan_path)[0]
+            objective_position, objective_origin = matlabfile.get_objective_info(line_scan_path)
             os.remove(line_scan_path)
-            return True, objective_position
+            if with_origin:
+                return True, objective_position, objective_origin
+            else:
+                return True, objective_position
+            
         else:
             if os.path.exists(line_scan_path):
                 os.remove(line_scan_path)
-            return False,  None
+            if with_origin:
+                return False,  None, None
+            else:
+                return False,  None
 
     def set_objective(self, position, timeout = None):
         if timeout == None:
@@ -304,7 +300,12 @@ class MesInterface(object):
         return z_stack_path, result
         
     #######################  RC scan #######################
-    def create_XZline_from_points(self, cell_centers, z_range,  line_length):
+    def create_XZline_from_points(self, cell_centers, xz_scan_config):
+        if not hasattr(cell_centers, 'dtype'):
+            return False
+        z_range = xz_scan_config['Z_RANGE']
+        line_length = xz_scan_config['LINE_LENGTH']
+        z_resolution = xz_scan_config['Z_RESOLUTION']
         timeout = self.config.MES_TIMEOUT
         parameter_path, parameter_path_on_mes = self._generate_mes_file_paths('create_xz_line_params.mat')
         #Generate parameter file
@@ -314,11 +315,15 @@ class MesInterface(object):
         data_to_mes_mat['DATA']['params'] = {}
         data_to_mes_mat['DATA']['params']['LineLength'] = line_length
         data_to_mes_mat['DATA']['params']['zshift'] = 1.0
-        data_to_mes_mat['DATA']['params']['Tpixnum'] = z_range/0.5
-        data_to_mes_mat['DATA']['params']['Tpixwidth'] = 0.5
+        data_to_mes_mat['DATA']['params']['Tpixnum'] = z_range/z_resolution
+        data_to_mes_mat['DATA']['params']['Tpixwidth'] = z_resolution
+#        temp_path = str(tempfile.mkstemp(suffix='.mat')[1])
         scipy.io.savemat(parameter_path, data_to_mes_mat, oned_as = 'column') 
+#        shutil.copyfile(temp_path, parameter_path)
         self.queues['mes']['out'].put('SOCcreate_XZline_from_pointsEOC{0}EOP'.format(parameter_path_on_mes))
         result = network_interface.wait_for_response(self.queues['mes']['in'], 'SOCcreate_XZline_from_pointsEOCline_setEOP', timeout = timeout)
+        time.sleep(1.0) #Need to wait for MES to ensure that creating xz line from points operation is completely finished
+        os.remove(parameter_path)
         return result
     
     def rc_scan(self, cell_centers):
@@ -402,7 +407,10 @@ class MesInterface(object):
         generate_scan_points_mat(points, points_mat)
         utils.empty_queue(self.queues['mes']['in'])
         self.queues['mes']['out'].put('SOCset_pointsEOC{0}EOP' .format(points_mat_on_mes))
-        return network_interface.wait_for_response(self.queues['mes']['in'], 'SOCset_pointsEOCpoints_setEOP', timeout = timeout)
+        result = network_interface.wait_for_response(self.queues['mes']['in'], 'SOCset_pointsEOCpoints_setEOP', timeout = timeout)
+#        time.sleep(0.2)
+#        os.remove(points_mat)
+        return result
 
     def rc_runnability_test(self, points, timeout = -1):
         points_mat, points_mat_on_mes = self._generate_mes_file_paths('rc_points.mat')
@@ -442,7 +450,7 @@ class MesInterface(object):
 
     #######################  Line scan #######################
     def vertical_line_scan(self, parameter_file = '', scan_time = None): #TODO: generalize to line scan
-        result, line_scan_path = self.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file, scan_time = scan_time,  scan_mode = 'xz')
+        result, line_scan_path = self.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file, scan_time = scan_time,  scan_mode = 'xy')#Since one region is used, breakFF is not mecessary
         if not result:
             return {}, False
         if scan_time != None:
@@ -459,6 +467,8 @@ class MesInterface(object):
         return vertical_scan, True
         
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
+        if timeout == -1:
+            timeout = self.config.MES_TIMEOUT
         if parameter_file == None:
             #generate a mes parameter file name, that does not exits
             line_scan_path, line_scan_path_on_mes = self._generate_mes_file_paths('line_scan_parameters.mat')
@@ -496,12 +506,11 @@ class MesInterface(object):
             result = True
         else:
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
-
         if result:
             set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, scan_mode = scan_mode)
             #previously sent garbage is removed from queue
             utils.empty_queue(self.queues['mes']['in'])        
-            #Acquire line scan if MES is connected            
+            #Acquire line scan if MES is connected
             if self.connection.connected_to_remote_client():
                 self.queues['mes']['out'].put('SOCacquire_line_scanEOC{0}EOP' .format(line_scan_path_on_mes))
                 result = network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_line_scanEOCstartedEOP', timeout = timeout, 
@@ -685,7 +694,6 @@ class TestMesInterface(unittest.TestCase):
         self.mes_interface = MesInterface(self.config, queues = queues, connections = {'mes' : self.user_client})
         self.server = network_interface.CommandRelayServer(self.config)
 
-
     def test_all_functions(self):
         '''
         1. line scan with mes settings
@@ -732,4 +740,4 @@ if __name__ == "__main__":
 #  points = hdf5io.read_item(os.path.join('/home/zoltan/visexp/context',  'cell_positions.hdf5'), 'cell_positions_fine')
 #  generate_scan_points_mat(points, '/home/zoltan/visexp/debug/data/crpoints.mat')
 #     set_scan_parameter_file(10.0, '/home/zoltan/visexp/debug/data/test.mat',  '/home/zoltan/visexp/debug/data/test.mat')
-    set_scan_parameter_file(10.0, 'V:\\debug\\data\\test.mat',  'V:\\debug\\data\\test.mat')
+    set_scan_parameter_file(10.0, '/mnt/rzws/debug/data/vertical_scan_region_parameters.mat',  '/mnt/rzws/debug/data/vertical_scan_region_parameters.mat')

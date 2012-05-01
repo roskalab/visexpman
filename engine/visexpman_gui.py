@@ -132,8 +132,9 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.move_to_button, 'move_to_region')
         self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
         self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
-        self.connect_and_map_signal(self.debug_widget.test3dscanning_groupbox.start_test_button, 'start_3dscan_test')
-        self.connect_and_map_signal(self.debug_widget.test3dscanning_groupbox.show_rc_scan_results_button, 'show_rc_scan_results')
+        if gui.TEST3D:
+            self.connect_and_map_signal(self.debug_widget.test3dscanning_groupbox.start_test_button, 'start_3dscan_test')
+            self.connect_and_map_signal(self.debug_widget.test3dscanning_groupbox.show_rc_scan_results_button, 'show_rc_scan_results')
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
@@ -280,7 +281,8 @@ class VisionExperimentGui(QtGui.QWidget):
         Selected mouse file changed
         '''
         self.poller.stage_origin_set = False
-        selected_mouse_file  = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText()))
+        mouse_file = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
+        selected_mouse_file  = os.path.join(self.config.EXPERIMENT_DATA_PATH, mouse_file)
         if os.path.exists(selected_mouse_file) and '.hdf5' in selected_mouse_file:
             h = hdf5io.Hdf5io(selected_mouse_file)
             varname = h.find_variable_in_h5f('animal_parameters')[0]
@@ -291,6 +293,8 @@ class VisionExperimentGui(QtGui.QWidget):
                     animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'],  animal_parameters['anesthesia_protocol'])
             h.close()
             self.debug_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
+        self.poller.set_mouse_file()
+    
 
     def execute_python(self):
         try:

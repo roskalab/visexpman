@@ -140,7 +140,8 @@ class ExperimentControl(object):
                         self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
             #read stage and objective
             self.stage_position = self.stage.read_position() - self.stage_origin
-            result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
+            result,  self.objective_position, context['objective_origin'] = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
+            self._fetch_cell_locations(context)
         self.prepare_files()
         return message_to_screen 
         
@@ -167,13 +168,19 @@ class ExperimentControl(object):
             mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
             self.printl('Fragment duration is {0} s'.format(int(mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
-            if self.scan_mode == 'xyz':
-                cell_centers = hdf5io.read_item(os.path.join(self.config.CONTEXT_PATH,  'cell_positions.hdf5'), 'cell_positions_fine')#TODO: this is a temporary solution
-                scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(cell_centers, 
+            #start two photon recording
+            if self.scan_mode == 'xyz' and hasattr(self, 'cell_locations'):
+                scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.cell_locations, 
                                                                                       parameter_file = self.filenames['mes_fragments'][fragment_id], 
                                                                                       scan_time = mes_record_time)
             else:
-                #start two photon recording
+                if self.scan_mode == 'xz' and hasattr(self, 'cell_locations'):
+                    #Before starting scan, set xz lines
+                    if not self.mes_interface.create_XZline_from_points(self.cell_locations, self.config.XZ_SCAN_CONFIG):
+                        self.printl('Creating XZ lines did not succeed')
+                        return False
+                    else:
+                        self.printl('XZ lines created')
                 scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = mes_record_time, 
                     parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
             if scan_start_success:
@@ -243,7 +250,12 @@ class ExperimentControl(object):
             if not aborted and result:
                 self.save_fragment_data(fragment_id)
                 #Ask analysis to start preprocessing measurement data
-                command = 'SOCpreporcess_fragmentEOCscan_mode={0},fragment_path={1}EOP'.format(self.scan_mode, os.path.split(self.filenames['fragments'][fragment_id])[-1])
+                parameters = 'scan_mode={0},fragment_path={1}'.format(self.scan_mode, os.path.split(self.filenames['fragments'][fragment_id])[-1])
+                if self.parameters.has_key('region_name'):
+                    parameters += ',region_name={0}'.format(self.parameters['region_name'])
+                if self.parameters.has_key('explore_cells'):
+                    parameters += ',explore_cells={0}'.format(self.parameters['explore_cells'])
+                command = 'SOCpreporcess_fragmentEOC{0}EOP'.format(parameters)
                 self.queues['analysis']['out'].put(command)
         else:
             result = False
@@ -316,10 +328,10 @@ class ExperimentControl(object):
                 if hasattr(self, 'objective_position'):
                     if self.parameters.has_key('region_name'):
                         fragment_filename = fragment_filename.replace('fragment_', 
-                        'fragment_{0}_{1}_'.format(self.parameters['region_name'], self.objective_position))
+                        'fragment_{2}_{0}_{1}_'.format(self.parameters['region_name'], self.objective_position, self.scan_mode))
                     elif hasattr(self, 'stage_position'):
                         fragment_filename = fragment_filename.replace('fragment_', 
-                        'fragment_{0:.1f}_{1:.1f}_{2}_'.format(self.stage_position[0], self.stage_position[1], self.objective_position))
+                        'fragment_{3}_{0:.1f}_{1:.1f}_{2}_'.format(self.stage_position[0], self.stage_position[1], self.objective_position, self.scan_mode))
                 self.filenames['mes_fragments'].append(fragment_filename.replace('hdf5', 'mat'))
             elif self.config.EXPERIMENT_FILE_FORMAT == 'mat' and self.config.PLATFORM == 'elphys':
                 fragment_filename = file.generate_filename(fragment_filename, last_tag = str(fragment_id))
@@ -447,7 +459,58 @@ class ExperimentControl(object):
         software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
         zipfile_handler.close()
         return software_environment
+        
+    def _load_xy_scan_parameter_file(self, context, fragment_path):
+        '''
+        Not tested, might not be necessary
+        '''
+        if self.parameters.has_key('roi_file') and self.parameters.has_key('region_name'):
+            mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['roi_file'].replace('roi_', 'mouse_'))
+            scan_regions = hdf5io.read_item(mouse_file, 'scan_regions')
+            if hasattr(scan_regions, 'has_key'):
+                if scan_regions.has_key(context['region_name']):
+                    scan_parameter_file_binary = scan_regions[context['region_name']]['xy_scan_parameters']
+                    scan_parameter_file_binary.tofile(fragment_path)
 
+    def _fetch_cell_locations(self, context):
+        self.cell_locations = None
+        if self.parameters.has_key('roi_file') and self.parameters.has_key('region_name'):
+            roi_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['roi_file'])
+            if not os.path.exists(roi_file):
+                self.printl('Roi file does not exists: ' + roi_file)
+                return
+            rois = hdf5io.read_item(roi_file, 'rois')
+            if hasattr(rois, 'has_key'):
+                if rois.has_key(self.parameters['region_name']):
+                    roi_layers = rois[self.parameters['region_name']]
+                    if self.parameters['explore_cells'] == 'False' and self.parameters['scan_mode'] == 'xyz':
+                        #merge cell coordinates from different layers
+                        merged_list_of_cells = []
+                        for roi_layer in roi_layers:
+                            if roi_layer['ready']:
+                                for cell in roi_layer['positions']:
+                                    merged_list_of_cells.append(cell)
+                        #eliminate redundant cell locations
+                        filtered_cell_list = []
+                        for i in range(len(merged_list_of_cells)):
+                            keep_cell = True
+                            for j in range(i+1, len(merged_list_of_cells)):
+                                if abs(utils.rc_distance(merged_list_of_cells[i], merged_list_of_cells[j])) < self.config.CELL_MERGE_DISTANCE:
+                                    keep_cell = False
+                            if keep_cell:
+                                cell = merged_list_of_cells[i]
+                                filtered_cell_list.append((cell['row'], cell['col'], cell['depth']))
+                        self.cell_locations = utils.rcd(filtered_cell_list)
+                        self.cell_locations['depth'] += context['objective_origin']
+                    elif self.parameters['scan_mode'] == 'xz':
+                        for roi_layer in roi_layers:
+                            if roi_layer['z'] == self.objective_position:
+                                self.cell_locations = roi_layer['positions']
+                                self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
+                                break
+        if self.cell_locations != None:
+            self.printl('Cell locations loaded')
+            
     ############### Helpers ##################
     def _get_elapsed_time(self):
         return time.time() - self.start_time
