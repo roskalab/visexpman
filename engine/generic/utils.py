@@ -205,7 +205,10 @@ def argsort(seq):
     
 def nd(rcarray, squeeze=False):
     '''Convenience function to convert a recarray to nd array'''
-    res= rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
+    if rcarray.dtype.names != dim_names0[:len(rcarray.dtype.names)]: # fields are not ordered in the default order
+        res = numpy.array([rcarray[f] for f in dim_names0[:len(rcarray.dtype.names)]]) # take field by field in the default order
+    else: # faster way
+        res= rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
     if squeeze:
         res=numpy.squeeze(res)
     return res
@@ -213,30 +216,32 @@ def nd(rcarray, squeeze=False):
 def rcd(raw):
     return rcd_pack(raw, dim_order = [0, 1, 2])
     
-def rc(raw,  zd=False):
-    return rcd_pack(raw, dim_order = [0, 1], zd=zd)
+def rc(raw,**kwargs):
+    return rcd_pack(raw, dim_order = [0, 1],**kwargs)
 
-def cr(raw,  zd=False):
-    return rcd_pack(raw, dim_order = [1, 0], zd=zd)    
-            
-def rcd_pack(raw, dim_order = [0, 1], zd=False):
-    dim_names0 = ['row','col','depth']
+def cr(raw,  **kwargs):
+    return rcd_pack(raw, dim_order = [1, 0],**kwargs)    
+dim_names0 = ['row','col','depth']
+def rcd_pack(raw, dim_order = [0, 1],**kwargs):
+    '''If a tuple is given as raw, the output will be 0dimensional rc array'''
     order = argsort(dim_order)
     dim_order = sorted(dim_order)
     dim_names = [dim_names0[n] for n in dim_order] # sorted ensures that field ordering will always be as dim_names0, this way nd will always give [row,col] or [row,col,depth] ordered data
+    # handle case when input is a tuple having as many elements as dimensions (max 3)
+    if (isinstance(raw,(list,tuple)) and len(raw) == len(dim_names)) or (raw.ndim==1 and raw.size==len(dim_names)):
+        nd = kwargs.get('nd',0)
+        raw = numpy.array(raw)[order] #reorder elements if they are not in row,col,depth order
+        dtype={'names':dim_names,'formats':[raw[0].dtype]*len(dim_names)}
+        return numpy.array(tuple(raw), dtype,ndmin=nd) 
+    #handle normal situation: input is a list (array) of tuples, each tuple contains 1 to 3 elements from the row,col,depth tuple
     raw = numpy.array(raw, ndmin=2)
-    if numpy.squeeze(raw).ndim!=2 and raw.size!=len(dim_names): #1 dimensional with exactly 2 values is accepted as row,col pair
+    if numpy.squeeze(raw).ndim!=2 and raw.size!=len(dim_names): #1 dimensional with exactly 1 to 3 values is accepted as row,col pair
         raise RuntimeError('At least '+ str(len(dim_names)) +' values are needed')
     dtype={'names':dim_names,'formats':[raw.dtype]*len(dim_names)}
     if raw.ndim > len(dim_names):
         raise TypeError('Input data dimension must be '+str(len(dim_names))+' Call rc_flatten if you want data to be flattened before conversion')
     if raw.ndim==2 and raw.shape[1]==len(dim_names): # convenience feature: user must not care if input shape is (2,x) or (x,2)  we convert to the required format (2,x)
         raw=raw.T    
-    if raw.size == len(dim_names):
-        raw = numpy.take(raw, order)
-        if zd: ndmin=0
-        else: ndmin=1
-        return numpy.array(tuple(raw), dtype, ndmin=zd) #ndmin=1 ensures that array can be indexed
     else:
         raw= numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
         return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)

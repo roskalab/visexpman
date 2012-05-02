@@ -578,20 +578,17 @@ def op_masked(function, inarray,  *args,  **kwargs):
         inarray = numpy.ma.array(inarray, mask=outmask)
     return inarray
     
-def match_sizes_centered(a, b):
-    '''Crops the borders of two images to make both the same size. Their center remains aligned, i.e. the borders are trimmed symmetrically'''
+def match_sizes_centered(images):
+    '''Crops the borders of two images to make both the same size. Their center remains aligned, i.e. the borders are trimmed symmetrically.'''
     z=numpy.array((0, 0))
-    b_s = numpy.array(b.shape)
-    a_s=numpy.array(a.shape)
-    bord_b = numpy.floor(numpy.maximum(z, (b_s.astype(float)-a_s)/2))
-    bord_a =numpy.floor(numpy.maximum(z, (a_s.astype(float)-b_s)/2))
-    size_out_a = a_s-bord_a*2
-    size_out_b = b_s-bord_b*2
-    size_diff_a = numpy.maximum(z, size_out_a-size_out_b) # when size difference is odd, at one side we must trim one pixel more than on the other side
-    size_diff_b = numpy.maximum(z, size_out_b-size_out_a)
-    a_trim = a[bord_a[0]:a.shape[0]-bord_a[0]-size_diff_a[0], bord_a[1]:a.shape[1]-bord_a[1]-size_diff_a[1]]
-    b_trim = b[bord_b[0]:b.shape[0]-bord_b[0]-size_diff_b[0], bord_b[1]:b.shape[1]-bord_b[1]-size_diff_b[1]]
-    return a_trim, b_trim
+    shapes = numpy.r_[[i.shape for i in images]]
+    cs = shapes.min(axis=0) # minimum shape across all images
+    imout= []
+    for im in images:
+        ims = numpy.array(im.shape).astype(float)
+        bord = numpy.maximum(z, (ims-cs)/2)
+        imout.append(im[numpy.floor(bord[0]):ims[0]-numpy.ceil(bord[0]), numpy.floor(bord[1]):ims[1]-numpy.ceil(bord[1])])
+    return imout
 
 def plane(params, coords):
     c0, c1, c2 = params
@@ -1028,6 +1025,13 @@ class testGeometry(unittest.TestCase):
         good = sum([numpy.around(i, decimals=15)-numpy.around(j, decimals=15) for i, j in zip(res2, [0.5, 0.5+numpy.sqrt(2)/2])])
         self.assertTrue(res1==[0, 1] and good==0.0)
 
+    def test_match_sizes_centered(self):
+        im1= numpy.zeros((16,16))
+        im2= numpy.zeros((20,16))
+        im3= numpy.zeros((20,21))
+        images = match_sizes_centered([im1,im2,im3])
+        self.assertEqual(sum([1 for i in images if i.shape==(16,16)]),len(images))
+        pass
 if __name__ == "__main__":
     unittest.main()
     test_data =  [               {
