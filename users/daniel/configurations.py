@@ -317,6 +317,13 @@ class Debug(VisionExperimentConfig):
 #        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
         PLATFORM = 'standalone'
         PLATFORM = 'mes'
+        
+        CELL_MERGE_DISTANCE = 10.0
+        
+        ENABLE_FRAGMENT_CHECK = True
+        
+        #MES scanning config
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':10.0, 'Z_RANGE' : 50.0, 'Z_RESOLUTION':0.5}
         #=== paths/data handling ===
         use_drive = 'v'
         if os.name == 'nt':

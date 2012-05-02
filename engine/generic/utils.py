@@ -354,8 +354,11 @@ def arc_perimeter(radius,  angle):
     return numpy.pi  * 2 *radius * slice_ratio
     
 def rc_distance(point1,  point2):
-    return numpy.sqrt((float(point1['col'])-float(point2['col']))**2 + (float(point1['row'])-float(point2['row']))**2)
-    
+    if 'depth' in point1.dtype.names and 'depth' in point2.dtype.names:
+        return numpy.sqrt((float(point1['col'])-float(point2['col']))**2 + (float(point1['row'])-float(point2['row']))**2 + (float(point1['depth'])-float(point2['depth']))**2)
+    else:
+        return numpy.sqrt((float(point1['col'])-float(point2['col']))**2 + (float(point1['row'])-float(point2['row']))**2)
+
 def calculate_trajectory(start_point,  end_point,  spatial_resolution,  curve = 'linear'):
     '''
     Calculate trajectory coordinates between two points or a point pairs

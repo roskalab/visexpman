@@ -135,7 +135,7 @@ class CommandRelayServer(object):
     def __init__(self, config):
         self.config = config        
         if self.config.COMMAND_RELAY_SERVER['ENABLE']:
-            self.log = log.Log('server log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'server_log.txt')), timestamp = 'no') 
+            self.log = log.Log('server log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'server_log.txt')), timestamp = 'no', local_saving = True) 
             self._generate_queues()
             self._create_servers()
             self._start_servers()
@@ -195,6 +195,7 @@ class CommandRelayServer(object):
                 for endpoint, server in connection.items():
                     server.shutdown()
             self.log.queue(self.log_queue)
+        self.log.copy()
                 
     def get_debug_info(self, time_format = True):
         debug_info = []
@@ -203,7 +204,10 @@ class CommandRelayServer(object):
                 packet = self.log_queue.get()
                 if time_format:
                     packet = [utils.time_stamp_to_hms(packet[0]), packet[1]]
-                self.log.info(packet)
+                try:
+                    self.log.info(packet)
+                except:
+                    print 'network: log error'
                 debug_info.append(packet)
         return debug_info
         

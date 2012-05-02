@@ -11,9 +11,10 @@ Extreme setting: big movement, short setting time, big speed change
 #TODO: check generated scan for acceleration, speed and position limits
 import numpy
 
+import daq_instrument
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import configuration
-
+from visexpman.users.zoltan.test import unit_test_runner
 import unittest
 
 class ScannerTestConfig(configuration.Config):
@@ -25,6 +26,20 @@ class ScannerTestConfig(configuration.Config):
         self.SCANNER_DELAY = 0#As function of scanner speed
         self.SCANNER_START_STOP_TIME = 0.1
         self.SCANNER_MAX_POSITION = 200.0
+        DAQ_CONFIG = [
+        {
+        'ANALOG_CONFIG' : 'aio',
+        'DAQ_TIMEOUT' : 2.0, 
+        'AO_SAMPLE_RATE' : 100000,
+        'AI_SAMPLE_RATE' : 200000,
+        'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
+        'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai0:2',
+        'MAX_VOLTAGE' : 5.0,
+        'MIN_VOLTAGE' : -5.0,
+        'DURATION_OF_AI_READ' : 2.0,
+        'ENABLE' : True
+        },     
+        ]
         self._create_parameters_from_locals(locals())
         
         
@@ -201,36 +216,7 @@ def generate_line_scan(p0, p1, ds, dt, vmax):
     x_scanner_trajectory = numpy.linspace(p0['col'], p1['col'], number_of_points+1)
     y_scanner_trajectory = numpy.linspace(p0['row'], p1['row'], number_of_points+1)
     return x_scanner_trajectory[:-1], y_scanner_trajectory[:-1], scanner_speed, is_safe
-
-def set_position_and_speed1(s0, s1, v0, v1, T, dt, Amax = None, omit_last = False):
-    #Determine setting times
-    if v1 != v0:
-        Tset_position = 0.5 * T
-        Tset_speed = 0.5 * T
-    else:
-        Tset_position = T
-        Tset_speed = 0
-    if check_position_setting_max_acceleration(s0, s1, v0, Tset_position, Amax) and check_speed_setting_max_acceleration(v0, v1, Tset_speed, Amax):
-        is_safe = True
-    else:
-        is_safe = False
-    #First adjust speed
-    s_speed_up, v_speed_up, a_speed_up,  t_speed_up,  A_speed_up,  ds = set_speed(s0, v0, v1, Tset_speed, dt, omit_last)
-    #Then position
-    s_set_position, v_set_position, a_set_position, t_set_position, A_set_position = set_position(s0+ds,  s1,  v1, Tset_position, dt, omit_last)
-    s = numpy.zeros(s_speed_up.shape[0] + s_set_position.shape[0])
-    v = numpy.zeros_like(s)
-    a = numpy.zeros_like(s)
-    s[:s_speed_up.shape[0]] = s_speed_up
-    s[s_speed_up.shape[0]:] = s_set_position
-    v[:v_speed_up.shape[0]] = v_speed_up
-    v[v_speed_up.shape[0]:] = v_set_position
-    a[:a_speed_up.shape[0]] = a_speed_up
-    a[a_speed_up.shape[0]:] = a_set_position
-    t = time_vector(T,  dt)
-    A = max(abs(A_speed_up), abs(A_set_position))
-    return s, v, a, t, A, is_safe
-    
+   
 def calculate_parameters(s0,s1,v0,v1,T):
     ds = s1-s0
     dv = v1-v0
@@ -284,16 +270,6 @@ def set_position_and_speed(s0, s1, v0, v1, T, dt, Amax = None, omit_last = False
     return s, v, a, t, A, is_safe
 
 ########## Helpers ##################
-def integral_function(y, dx, y0 = 0):
-    Y = []
-    for i in range(len(y)):
-        if i == 0:
-            Y.append(0)
-        else:
-            Y.append(y[:i].sum()*dx)
-    Y = numpy.array(Y)+y0
-    return Y
-
 def time_vector(T, dt):
     return numpy.linspace(0.0,T,T/dt+1)
 
@@ -309,7 +285,7 @@ class TestScannerControl(unittest.TestCase):
     def setUp(self):
         self.dt = 1e-3
         
-    def test_01_set_position_and_speed(self):
+    def te1st_01_set_position_and_speed(self):
         inputs = [
                   {'s0': 1.0, 's1': 0.0,'v0':0.0, 'v1':2.0,  'T': 1.0}, 
                   {'s0': 0.0, 's1': 0.0,'v0':-2.0, 'v1':2.0,  'T': 1.0}, 
@@ -340,7 +316,7 @@ class TestScannerControl(unittest.TestCase):
             results.append([ds_error, dv_error, numpy.round(a[0],8), numpy.round(a[-1],8),  max_acceleration_error])
         self.assertListEqual(results, len(results)*[5*[0.0]])
         
-    def test_02_set_speed_position_withmax_acceleration(self):
+    def te1st_02_set_speed_position_withmax_acceleration(self):
         inputs = [
                   {'s0': 1.0, 's1': 0.0,'v0':0.0, 'v1':2.0,  'T': 1.0}, 
                   {'s0': 0.0, 's1': 0.0,'v0':-2.0, 'v1':2.0,  'T': 1.0}, 
@@ -373,7 +349,8 @@ class TestScannerControl(unittest.TestCase):
             results.append([ds_error, dv_error, numpy.round(a[0],8), numpy.round(a[-1],8),  max_acceleration_error])
         self.assertListEqual(results, len(results)*[5*[0.0]])
         
-    def test_03_generate_line_scans(self):
+    def te1st_03_generate_line_scans(self):
+        plot_enable = False
         lines = [
                  {'p0': utils.rc((0, -10)), 'p1': utils.rc((0, 10)), 'ds': 1.0}, 
                  {'p0': utils.rc((10, -10)), 'p1': utils.rc((10, 10)), 'ds': 1.0}, 
@@ -390,28 +367,31 @@ class TestScannerControl(unittest.TestCase):
         accmax = 100000
         vmax = 5000
         pos_x, pos_y, speed_x, speed_y, accel_x, accel_y, scan_mask, period_time = generate_line_scan_series(lines, self.dt, setting_time, vmax, accmax, scanning_periods = 2, start_stop_scanner = True, start_stop_time = start_stop_time)
-        print period_time
-        print abs(pos_x).max(), abs(pos_y).max(), abs(speed_x).max(), abs(speed_y).max(), abs(accel_x).max(), abs(accel_y).max()
-        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
-        figure(1)
-        subplot(411)
-        plot(pos_x)
-        plot(pos_y)
-        title('position')
-        subplot(413)
-        plot(speed_x)
-        plot(speed_y)
-        title('speed')
-        subplot(414)
-        plot(accel_x)
-        plot(accel_y)
-        title('acceleration')
-        subplot(412)
-        plot(scan_mask)
-        title('scan mask')
-#        show()
-#        savefig('/home/zoltan/visexp/debug/data/x.pdf')
-    def test_04_generate_rectangular_scan(self):
+        if plot_enable:
+            print period_time
+            print abs(pos_x).max(), abs(pos_y).max(), abs(speed_x).max(), abs(speed_y).max(), abs(accel_x).max(), abs(accel_y).max()
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+            figure(1)
+            subplot(411)
+            plot(pos_x)
+            plot(pos_y)
+            title('position')
+            subplot(413)
+            plot(speed_x)
+            plot(speed_y)
+            title('speed')
+            subplot(414)
+            plot(accel_x)
+            plot(accel_y)
+            title('acceleration')
+            subplot(412)
+            plot(scan_mask)
+            title('scan mask')
+    #        show()
+    #        savefig('/home/zoltan/visexp/debug/data/x.pdf')
+    
+    def t1est_04_generate_rectangular_scan(self):
+        plot_enable = False
         config = ScannerTestConfig()
         spatial_resolution = 1.0
         position = utils.rc((0, 0))
@@ -419,95 +399,68 @@ class TestScannerControl(unittest.TestCase):
         setting_time = 0.01
         frames_to_scan = 2
         pos_x, pos_y, scan_mask, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
-        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
-        figure(2)
-        subplot(411)
-        plot(pos_x)
-        plot(pos_y)
-        title('position')
-#        subplot(413)
-#        plot(speed_x)
-#        plot(speed_y)
-#        title('speed')
-#        subplot(414)
-#        plot(accel_x)
-#        plot(accel_y)
-#        title('acceleration')
-        subplot(412)
-        plot(scan_mask)
-        title('scan mask')
-        show()
+        if plot_enable:
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+            figure(2)
+            subplot(411)
+            plot(pos_x)
+            plot(pos_y)
+            title('position')
+    #        subplot(413)
+    #        plot(speed_x)
+    #        plot(speed_y)
+    #        title('speed')
+    #        subplot(414)
+    #        plot(accel_x)
+    #        plot(accel_y)
+    #        title('acceleration')
+            subplot(412)
+            plot(scan_mask)
+            title('scan mask')
+            show()
+            
+    def test_05_daq(self):
+        plot_enable = not False
+        config = ScannerTestConfig()
+        unit_test_runner.TEST_daq_device = 'Dev3'
+        config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'aio'
+        config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 1.0
+        config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 250000
+        config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 500000
+        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
+        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
+        aio = daq_instrument.AnalogIO(config)
+        waveform = 2*numpy.ones((2, 500000))
+        waveform = numpy.linspace(0.0, 1.0, 500000)
+        waveform = numpy.array([waveform, waveform])
+        waveform[1, :] =1*waveform[1, :]
+        waveform[:, -1] = numpy.zeros(2)
+        waveform[:, -2] = numpy.zeros(2)
+        waveform[:, -3] = numpy.zeros(2)
+        aio.waveform = waveform.T
+        aio.start_daq_activity()
+#        aio.run()
+        import time
+        time.sleep(1.0)
+        aio.finish_daq_activity()
+        ai_data_first_run = aio.ai_data
+        waveform_1 = 2*waveform
+        aio.waveform = waveform_1.T
+        aio.run()
+        aio.release_instrument()
+#        print aio.ai_data
+        if plot_enable:
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+            figure(1)
+            plot(ai_data_first_run)
+            figure(2)
+            plot(aio.ai_data)
+#            plot(aio.ai_data[:, 0])
+#            plot(aio.ai_data[:, 1])
+#            plot(aio.ai_data[:, 2])
+#            plot(aio.ai_data[:, 3])
+            show()
+        
         
 if __name__ == "__main__":
     unittest.main()
-
-
-#import numpy
-#from matplotlib.pyplot import plot, show,legend
-#
-#def calculate_parameters(s0,s1,v0,v1,T):
-#    ds = s1-s0
-#    dv = v1-v0
-#    a = s0
-#    b = v0
-#    def_parameters = numpy.matrix([[T**3,T**4,T**5],[3*T**2,4*T**3,5*T**4],[3, 6*T, 10*T**2]])
-#    def_values = numpy.linalg.inv(def_parameters)*numpy.matrix([ds-v0*T, dv, 0]).T
-#    d,e,f = numpy.array(def_values).T[0].tolist()
-#    #Maximal speed
-#    vmax = []
-#    discr = 36*e**2-120*d*f
-#    if discr >= 0 and f != 0:
-#        tvmax1 = (-6*e - numpy.sqrt(discr))/(20*f)
-#        tvmax2 = (-6*e + numpy.sqrt(discr))/(20*f)
-#        if 0  <= tvmax1 and tvmax1 <= T:
-#            t = tvmax1
-#            vmax.append(b + 3*d*t**2 + 4*e*t**3 + 5*f*t**4)
-#        if 0  <= tvmax2 and tvmax2 <= T:
-#            t = tvmax2
-#            vmax.append(b + 3*d*t**2 + 4*e*t**3 + 5*f*t**4)
-#    #Maximal acceleration
-#    amax = []
-#    discr = 16*e**2-40*d*f
-#    if discr >= 0 and f != 0:
-#        tamax1 = (-4*e - numpy.sqrt(discr))/(20*f)
-#        tamax2 = (-4*e + numpy.sqrt(discr))/(20*f)
-#        if 0  <= tamax1 and tamax1 <= T:
-#            t = tamax1
-#            amax.append(6*d*t + 12*e*t**2 + 20*f*t**3)
-#        if 0  <= tamax2 and tamax2 <= T:
-#            t = tamax2
-#            amax.append(6*d*t + 12*e*t**2 + 20*f*t**3)
-#    return a,b,d,e,f, vmax, amax
-#    
-#def set_position_and_speed(s0, s1, v0, v1, T, dt, Amax = None, omit_last = False):
-#    t = numpy.linspace(0,T,T/dt+1)
-#    ds = s1-s0
-#    dv = v1-v0
-#    #Polinom parameters
-#    a,b,d,e,f,vmax, amax = calculate_parameters(s0,s1,v0,v1,T)
-#    s = a + b*t + d*t**3 + e*t**4 + f*t**5
-#    v = b + 3*d*t**2 + 4*e*t**3 + 5*f*t**4
-#    a = 6*d*t + 12*e*t**2 + 20*f*t**3
-#    A = abs(a).max()
-#    is_safe  = True
-#    if omit_last:
-#        t = t[:-1]
-#        s = s[:-1]
-#        v = v[:-1]
-#        a = a[:-1]
-#    return s, v, a, t, A, is_safe
-#    
-#
-#
-#v0 = -100.0
-#v1 = 2.0
-#s0 = 10.0
-#s1 = 0.0
-#T = 10.0
-#dt = 1e-3
-#s, v, a, t, A, is_safe = set_position_and_speed(s0, s1, v0, v1, T, dt)
-#plot(t,a)
-#plot(t,v)
-#plot(t,s)
-#legend(['a','v','s'])
-#show()

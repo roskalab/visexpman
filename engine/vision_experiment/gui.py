@@ -15,10 +15,11 @@ from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine import generic
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
-from visexpman.engine.generic import log
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
+
+TEST3D = False
 
 class Test3dScanningGroupBox(QtGui.QGroupBox):
     def __init__(self, parent):
@@ -81,6 +82,10 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.laser_intensities_label = QtGui.QLabel('Laser intensity (min, max) [%]',  self)
         self.laser_intensities_combobox = QtGui.QComboBox(self)
         self.laser_intensities_combobox.setEditable(True)
+        self.scan_mode = QtGui.QComboBox(self)
+        self.scan_mode.addItems(QtCore.QStringList(['xy', 'xz', 'xyz']))
+        self.explore_cells_label = QtGui.QLabel('Explore cells', self)
+        self.explore_cells_checkbox = QtGui.QCheckBox(self)
     
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -93,8 +98,10 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.objective_positions_combobox, 1, 1, 1, 2)
         self.layout.addWidget(self.laser_intensities_label, 1, 3)
         self.layout.addWidget(self.laser_intensities_combobox, 1, 4)
+        self.layout.addWidget(self.scan_mode, 2, 1)
+        self.layout.addWidget(self.explore_cells_label, 2, 2)
+        self.layout.addWidget(self.explore_cells_checkbox, 2, 3)
         self.setLayout(self.layout)
-
 
 class AnimalParametersGroupBox(QtGui.QGroupBox):
     def __init__(self, parent):
@@ -237,7 +244,8 @@ class DebugWidget(QtGui.QWidget):
         self.send_command_button = QtGui.QPushButton('Send command',  self)
         self.connected_clients_label = QtGui.QLabel('', self)
         #Development
-        self.test3dscanning_groupbox = Test3dScanningGroupBox(self)
+        if TEST3D:
+            self.test3dscanning_groupbox = Test3dScanningGroupBox(self)
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
@@ -253,7 +261,8 @@ class DebugWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.z_stack_button, 0, 0, 1, 1)
-        self.layout.addWidget(self.test3dscanning_groupbox, 1, 0, 1, 4)
+        if TEST3D:
+            self.layout.addWidget(self.test3dscanning_groupbox, 1, 0, 1, 4)
         self.layout.addWidget(self.experiment_control_groupbox, 0, 5, 2, 4)
         self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
         self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
@@ -305,10 +314,11 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.move_to_region_options['checkboxes']['stage_realign'] = QtGui.QCheckBox(self)
         self.move_to_region_options['checkboxes']['stage_origin_adjust'] = QtGui.QCheckBox(self)
         self.move_to_region_options['checkboxes']['objective_move'] = QtGui.QCheckBox(self)
+        self.move_to_region_options['checkboxes']['objective_move'].setEnabled(False)
         self.move_to_region_options['checkboxes']['objective_realign'] = QtGui.QCheckBox(self)
         self.move_to_region_options['checkboxes']['objective_origin_adjust'] = QtGui.QCheckBox(self)
         for k, v in self.move_to_region_options['checkboxes'].items():
-            if 'origin_adjust' not in k:
+            if 'origin_adjust' not in k and 'objective_move' not in k:
                 v.setCheckState(2)
         self.vertical_scan_button = QtGui.QPushButton('Vertical scan',  self)
 
@@ -411,9 +421,9 @@ class Poller(QtCore.QThread):
         self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
     
     ################### Files #######################
+
     def init_files(self):
         self.files_to_delete = []
-        self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt'))) 
         context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE)
         context_hdf5.load('stage_origin')
         context_hdf5.load('stage_position')
@@ -463,9 +473,14 @@ class Poller(QtCore.QThread):
     def run(self):
         self.printc('poller starts')
         last_time = time.time()
+        startup_time = last_time
+        init_job_run = False
         while not self.abort:
             now = time.time()
             elapsed_time = now - last_time
+            if now - startup_time > self.config.GUI_INIT_JOB and not init_job_run:
+                self.init_job()
+                init_job_run = True
             if elapsed_time > self.config.GUI_REFRESH_PERIOD:
                 last_time = now
                 self.periodic()
@@ -476,6 +491,12 @@ class Poller(QtCore.QThread):
         
     def periodic(self):
         self.emit(QtCore.SIGNAL('update_gui'))
+        
+    def init_job(self):
+        '''
+        Functions that need to be called only once at application start
+        '''
+        self.set_mouse_file()
 
     def handle_events(self):
         for k, queue in self.queues.items():
@@ -511,24 +532,26 @@ class Poller(QtCore.QThread):
                     h.close()
                     self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
                     os.remove(self.z_stack_path)
-                elif command == 'fragment_preprocessed':
-                    if hasattr(self, 'data_3dscan_test'):
-                        self.data_3dscan_test['fragment_files'].append(parameter)
-#                        self.printc(self.data_3dscan_test)
-                elif command == 'cell_coordinates_detected':
-                    self.z_range = 100.0
-                    self.line_length = 20.0
-#                    self.printc('Put XZ frames on detected cells')
-#                    cell_centers = hdf5io.read_item(os.path.join(self.config.CONTEXT_PATH,  'cell_positions.hdf5'), 'cell_positions')
-#                    if self.mes_interface.create_XZline_from_points(cell_centers, self.z_range, self.line_length):
-#                        self.issue_experiment_start()
-#                        self.printc('XZ scan starts')
-                elif command == 'cell_coordinates_ready':
-                    pass
-                    #Here the followings are checked:
-                    # 1. number of fragment files
-                    # 2. cell coordinates compared to expected ones
-                    # 3. cell coordinates from 2d scan and sidefolded frame scan are compared with each other
+                elif command == 'jobhandler_started':
+                    self.set_mouse_file()
+#                elif command == 'fragment_preprocessed':
+#                    if hasattr(self, 'data_3dscan_test'):
+#                        self.data_3dscan_test['fragment_files'].append(parameter)
+##                        self.printc(self.data_3dscan_test)
+#                elif command == 'cell_coordinates_detected':
+#                    self.z_range = 100.0
+#                    self.line_length = 20.0
+##                    self.printc('Put XZ frames on detected cells')
+##                    cell_centers = hdf5io.read_item(os.path.join(self.config.CONTEXT_PATH,  'cell_positions.hdf5'), 'cell_positions')
+##                    if self.mes_interface.create_XZline_from_points(cell_centers, self.z_range, self.line_length):
+##                        self.issue_experiment_start()
+##                        self.printc('XZ scan starts')
+#                elif command == 'cell_coordinates_ready':
+#                    pass
+#                    #Here the followings are checked:
+#                    # 1. number of fragment files
+#                    # 2. cell coordinates compared to expected ones
+#                    # 3. cell coordinates from 2d scan and sidefolded frame scan are compared with each other
                 else:
                     self.printc(k.upper() + ' '  + message)
                     
@@ -702,11 +725,9 @@ class Poller(QtCore.QThread):
                             origin = self.two_photon_image['origin'])
             self.save_context()
             #Update objective position to ensure synchronzation with manual control of objective
-            result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
-            if not result:
-                self.printc('MES does not respond')
-            else:
-                self.update_position_display()
+            self.objective_position = self.two_photon_image['objective_position'] 
+            self.update_position_display()
+            self.printc('Image acquiring ready')
             return True
         else:
                 self.printc('No image acquired')
@@ -735,17 +756,12 @@ class Poller(QtCore.QThread):
         if hasattr(self.vertical_scan, 'has_key'):
             if self.vertical_scan.has_key('path'):#For unknown reason this key is not found sometimes
                 self.files_to_delete.append(self.vertical_scan['path'])
-        if hasattr(self,  'objective_position'):
-            objective_position_marker = [[0, self.objective_position, 
-                                      0.04*self.vertical_scan['scaled_image'].shape[0] * self.vertical_scan['scaled_scale']['col'], self.objective_position]]
-        else:
-            objective_position_marker = []
         #Update objective position to ensure synchronzation with manual control of objective
-        result,  self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
-        if not result:
-            self.printc('MES does not respond')
-        else:
-            self.update_position_display()
+        self.objective_position = self.vertical_scan['objective_position']
+        objective_position_marker = [[0, self.objective_position, 
+                                      0.04*self.vertical_scan['scaled_image'].shape[0] * self.vertical_scan['scaled_scale']['col'], self.objective_position]]
+        
+        self.update_position_display()
         self.show_image(self.vertical_scan['scaled_image'], 2, self.vertical_scan['scaled_scale'], line = objective_position_marker, origin = self.vertical_scan['origin'])
         self.save_context()
         self.vertical_scan_acquired = True
@@ -804,7 +820,7 @@ class Poller(QtCore.QThread):
         if hdf5_handler.scan_regions.has_key(region_name):
             #Ask for confirmation to overwrite if region name already exists
             self.emit(QtCore.SIGNAL('show_overwrite_region_messagebox'))
-            while self.gui_thread_queue.empty() :
+            while self.gui_thread_queue.empty():
                 time.sleep(0.1) 
             if not self.gui_thread_queue.get():
                 self.printc('Region not saved')
@@ -827,6 +843,10 @@ class Poller(QtCore.QThread):
         scan_region['brain_surface']['scale'] = self.brain_surface_image['scale']
         scan_region['brain_surface']['origin'] = self.brain_surface_image['origin']
         scan_region['brain_surface']['mes_parameters']  = utils.file_to_binary_array(self.brain_surface_image['path'].tostring())
+        #Save xy line scan parameters
+        result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters()
+        if result and os.path.exists(line_scan_path):
+            scan_region['xy_scan_parameters'] = utils.file_to_binary_array(line_scan_path)
         #Vertical section
         if hasattr(self, 'vertical_scan'):
             if self.vertical_scan !=  None:
@@ -937,24 +957,21 @@ class Poller(QtCore.QThread):
             if abs(vertical_offset)  > self.config.MAX_REALIGNMENT_OFFSET:
                 self.printc('Suggested movement is not plausible')
                 return
-            result, objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
-            if not result:
-                self.printc('MES does not respond')
-                return
-            new_objective_position = objective_position + vertical_offset
+            new_objective_position = self.objective_position + vertical_offset#self.objective_position was updated by vertical scan
             #Move objective
             if abs(vertical_offset)  > self.config.REALIGNMENT_Z_THRESHOLD:
                 if not self.mes_interface.set_objective(new_objective_position, self.config.MES_TIMEOUT):
                     self.printc('Setting objective did not succeed')
                     return
                 else:
+                    self.printc('Objective moved to {0}'.format(new_objective_position))
                     #Change origin when full realignment is done with moving both objective and stage and realign both devices
                     if self.parent.debug_widget.scan_region_groupbox.move_to_region_options['checkboxes']['objective_origin_adjust'] .checkState() != 0:
-                        if not self.mes_interface.overwrite_relative_position(objective_position, self.config.MES_TIMEOUT):
+                        if not self.mes_interface.overwrite_relative_position(self.objective_position, self.config.MES_TIMEOUT):
                             self.printc('Setting objective relative value did not succeed')
                             return
                         else:
-                            self.printc('Objective relative value was corrected with detected offset')
+                            self.printc('Objective relative origin was corrected with detected offset')
                     result, self.objective_position = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT)
                     if not result:
                         self.printc('MES did not respond')
@@ -1060,19 +1077,16 @@ class Poller(QtCore.QThread):
 
     def start_experiment(self):
         self.printc('Experiment started, please wait')
-        experiment_config_name = str(self.parent.debug_widget.experiment_control_groupbox.experiment_name.currentText())
-        objective_positions_string = str(self.parent.debug_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
-        laser_intensities_string =  str(self.parent.debug_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
-        parameters = 'experiment_config={0},region_name={1}' .format(experiment_config_name, self.parent.get_current_region_name())
-        if len(objective_positions_string)>0:
-            parameters += ',objective_positions='+objective_positions_string.replace(',',  '<comma>').replace(' ',  '')
-        if len(laser_intensities_string) > 0:
-            laser_intensities = map(float, laser_intensities_string.replace(' ', '').split(','))
-            laser_intensities = generic.expspace(laser_intensities[0],  laser_intensities[1],  len(objective_positions.split('<comma>')))
-            laser_intensities = str(laser_intensities.tolist()).replace(', ',  '<comma>').replace('[', '').replace(']', '')
-            parameters += ',laser_intensities='+laser_intensities
-        command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
-        self.queues['stim']['out'].put(command)
+        scan_mode = str(self.parent.debug_widget.experiment_control_groupbox.scan_mode.currentText())
+        explore_cells = (self.parent.debug_widget.experiment_control_groupbox.explore_cells_checkbox.checkState() != 0)
+        if 0:
+            laser_intensities_string =  str(self.parent.debug_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
+            if len(laser_intensities_string) > 0:
+                laser_intensities = map(float, laser_intensities_string.replace(' ', '').split(','))
+                laser_intensities = generic.expspace(laser_intensities[0],  laser_intensities[1],  len(objective_positions.split('<comma>')))
+                laser_intensities = str(laser_intensities.tolist()).replace(', ',  '<comma>').replace('[', '').replace(']', '')
+                parameters += ',laser_intensities='+laser_intensities
+        self.issue_experiment_start(scan_mode = scan_mode, explore_cells = explore_cells)
        
     ############ 3d scan test ###############
     def show_rc_scan_results(self):
@@ -1115,6 +1129,7 @@ class Poller(QtCore.QThread):
             #XZ line scans from cell centers
             self.z_range = 50.0
             self.line_length = 20.0
+#            self.printc(self.mes_interface.create_XZline_from_points(self.data_3dscan_test['expected_cell_centers'], self.z_range, self.line_length))
             if self.mes_interface.create_XZline_from_points(self.data_3dscan_test['expected_cell_centers'], self.z_range, self.line_length):
                 self.issue_experiment_start(scan_mode = 'xz')
         elif self.parent.debug_widget.test3dscanning_groupbox.enable_3d_scan_checkbox.checkState() != 0:
@@ -1167,7 +1182,7 @@ class Poller(QtCore.QThread):
         if 'SOCregisterEOCstartedEOP' not in self.queues['analysis']['in'].get():
             self.printc('Image registration did not start')
             return False
-        if utils.wait_data_appear_in_queue(self.queues['analysis']['in'], self.config.MAX_REGISTRATION_TIME):
+        if utils.wait_data_appear_in_queue(self.queues['analysis']['in'], timeout = self.config.MAX_REGISTRATION_TIME):#TODO: the content of the queue also need to be checked
             while not self.queues['analysis']['in'].empty():
                     response = self.queues['analysis']['in'].get()
                     if 'error' in response:
@@ -1180,8 +1195,6 @@ class Poller(QtCore.QThread):
                             self.printc(self.registration_result[-2:])
                             self.printc('Suggested translation: {0}'.format(self.suggested_translation))
                         return True
-            else:
-                self.printc('Analysis does not respond')
         else:
             self.printc('Analysis does not respond')
         return False
@@ -1210,16 +1223,33 @@ class Poller(QtCore.QThread):
         if hasattr(self, 'objective_position'):
             display_position[-1] = self.objective_position
         self.parent.debug_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
+        
+    def set_mouse_file(self):
+        #Notify jobhandler about the change of mouse file
+        mouse_file = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
+        command = 'SOCselect_mouse_fileEOC{0}EOP' .format(mouse_file.replace('mouse_',  'rois_'))
+        self.queues['analysis']['out'].put(command)
 
-    def issue_experiment_start(self,  scan_mode = 'xy'):
+    def issue_experiment_start(self, scan_mode = 'xy', explore_cells = True):
         experiment_config_name = str(self.parent.debug_widget.experiment_control_groupbox.experiment_name.currentText())
-        objective_positions_string = str(self.parent.debug_widget.test3dscanning_groupbox.objective_positions_combobox.currentText())
-        parameters = 'experiment_config={0},region_name={1}' .format(experiment_config_name, self.parent.get_current_region_name())
+        objective_positions_string = str(self.parent.debug_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
+        roi_file = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText()).replace('mouse_', 'rois_')
+        parameters = 'experiment_config={0},scan_mode={1},roi_file={2},explore_cells={3}' \
+                        .format(experiment_config_name, scan_mode, roi_file, explore_cells)
         if len(objective_positions_string)>0:
             parameters += ',objective_positions='+objective_positions_string.replace(',',  '<comma>').replace(' ',  '')
-        parameters += ',scan_mode='+scan_mode.replace(',',  '<comma>').replace(' ',  '')
+        region_name = self.parent.get_current_region_name()
+        if len(region_name)>0:
+            parameters += ',region_name='+region_name
+        if explore_cells and len(region_name) == 0:
+            self.printc('Exploring cells is not possible without selected region')
+            return
+        if explore_cells and scan_mode == 'xyz':
+            self.printc('Exploring cells is not possible in xyz mode')
+            return
         command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
         self.queues['stim']['out'].put(command)
+        self.printc(parameters)
         
 # Test cases:
 # 1. move stage - set stage origin - including read stage
