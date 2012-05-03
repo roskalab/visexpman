@@ -319,11 +319,10 @@ class Debug(VisionExperimentConfig):
         PLATFORM = 'mes'
         
         CELL_MERGE_DISTANCE = 10.0
-        
         ENABLE_FRAGMENT_CHECK = True
         
         #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':10.0, 'Z_RANGE' : 50.0, 'Z_RESOLUTION':0.5}
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':25.0, 'Z_RANGE' : 50.0, 'Z_RESOLUTION':1}
         #=== paths/data handling ===
         use_drive = 'v'
         if os.name == 'nt':
@@ -347,7 +346,7 @@ class Debug(VisionExperimentConfig):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         
         #=== screen ===
-        FULLSCREEN = not True
+        FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800, 600])
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
@@ -427,7 +426,7 @@ class Debug(VisionExperimentConfig):
 
         self._create_parameters_from_locals(locals())
         
-class VS3DUS(VisionExperimentConfig):
+class RcMicroscopeSetup(VisionExperimentConfig):
     '''
     Visual stimulation machine of 3D microscope setup
     '''
@@ -514,11 +513,16 @@ class VS3DUS(VisionExperimentConfig):
         #=== Others ===
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
-                                    
+
         MAX_REALIGNMENT_OFFSET = 500.0
         ACCEPTABLE_REALIGNMENT_OFFSET = 5.0
         REALIGNMENT_XY_THRESHOLD = 2.0
         REALIGNMENT_Z_THRESHOLD = 2.0
+
+        CELL_MERGE_DISTANCE = 10.0
+        #MES scanning config
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':25.0, 'Z_RANGE' : 100.0, 'Z_RESOLUTION':1}
+ 
         
         self._create_parameters_from_locals(locals())        
 

@@ -506,6 +506,7 @@ class ExperimentControl(object):
                         for roi_layer in roi_layers:
                             if roi_layer['z'] == self.objective_position:
                                 self.cell_locations = roi_layer['positions']
+                                self.cell_locations['depth'] = self.objective_position * numpy.ones_like(self.cell_locations['depth'])#Ensure that objective is not moved
                                 self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
                                 break
         if self.cell_locations != None:

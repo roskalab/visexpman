@@ -151,11 +151,10 @@ def check_fragment(path, config):
                     messages.append('unexpected data type in {0}'.format(node_name))
                 elif numpy.array(map(node.has_key, expected_subnodes)).sum() != len(expected_subnodes):
                     result = False
-                    messages.append('unexpected number of datafields in {0}'.format(node_name))
+                    messages.append('unexpected number of datafields in {0}, {1}'.format(node_name,  map(node.has_key, expected_subnodes)))
                 if 'MovingDot' in node_name and not node['generated_data'].has_key('shown_directions'):
                     result = False
                     messages.append('Shown directions are not saved {0}'.format(node['generated_data']))
-                    
         fragment_handle.close()        
     return result, messages
 

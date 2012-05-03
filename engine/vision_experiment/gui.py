@@ -89,18 +89,19 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
     
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.experiment_name, 0, 0)
-        self.layout.addWidget(self.start_experiment_button, 0, 1)
-        self.layout.addWidget(self.stop_experiment_button, 0, 2)
-        self.layout.addWidget(self.graceful_stop_experiment_button, 0, 3)
-        self.layout.addWidget(self.identify_flourescence_intensity_distribution_button, 2, 0)
-        self.layout.addWidget(self.objective_positions_label, 1, 0)
-        self.layout.addWidget(self.objective_positions_combobox, 1, 1, 1, 2)
-        self.layout.addWidget(self.laser_intensities_label, 1, 3)
-        self.layout.addWidget(self.laser_intensities_combobox, 1, 4)
-        self.layout.addWidget(self.scan_mode, 2, 1)
-        self.layout.addWidget(self.explore_cells_label, 2, 2)
-        self.layout.addWidget(self.explore_cells_checkbox, 2, 3)
+        self.layout.addWidget(self.experiment_name, 0, 0, 1, 2)
+        self.layout.addWidget(self.start_experiment_button, 0, 2)
+        self.layout.addWidget(self.stop_experiment_button, 0, 3)
+        self.layout.addWidget(self.graceful_stop_experiment_button, 0, 4)
+        
+        self.layout.addWidget(self.scan_mode, 1, 0)
+        self.layout.addWidget(self.explore_cells_label, 1, 1)
+        self.layout.addWidget(self.explore_cells_checkbox, 1, 2)
+        self.layout.addWidget(self.objective_positions_label, 1, 3)
+        self.layout.addWidget(self.objective_positions_combobox, 1, 4, 1, 2)
+        self.layout.addWidget(self.identify_flourescence_intensity_distribution_button, 2, 0, 1, 2)
+        self.layout.addWidget(self.laser_intensities_label, 2, 2, 1, 2)
+        self.layout.addWidget(self.laser_intensities_combobox, 2, 4, 1, 2)
         self.setLayout(self.layout)
 
 class AnimalParametersGroupBox(QtGui.QGroupBox):
@@ -236,13 +237,6 @@ class DebugWidget(QtGui.QWidget):
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
         self.stop_stage_button = QtGui.QPushButton('Stop stage', self)
         self.current_position_label = QtGui.QLabel('', self)
-        #Network related
-        self.show_connected_clients_button = QtGui.QPushButton('Show connected clients',  self)
-        self.show_network_messages_button = QtGui.QPushButton('Show network messages',  self)
-        self.select_connection_list = QtGui.QComboBox(self)        
-        self.select_connection_list.addItems(QtCore.QStringList(self.connection_names))
-        self.send_command_button = QtGui.QPushButton('Send command',  self)
-        self.connected_clients_label = QtGui.QLabel('', self)
         #Development
         if TEST3D:
             self.test3dscanning_groupbox = Test3dScanningGroupBox(self)
@@ -250,37 +244,48 @@ class DebugWidget(QtGui.QWidget):
         self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
         self.set_objective_button = QtGui.QPushButton('Set objective', self)
-        self.set_objective_value_button = QtGui.QPushButton('Set objective relative value', self)
-        self.set_objective_value_button.setEnabled(False)
+#        self.set_objective_value_button = QtGui.QPushButton('Set objective relative value', self)
+#        self.set_objective_value_button.setEnabled(False)
         #Helpers
         self.save_two_photon_image_button = QtGui.QPushButton('Save two photon image',  self)
         self.help_button = QtGui.QPushButton('Help',  self)
         self.override_enforcing_set_stage_origin_checkbox = QtGui.QCheckBox(self)
         self.override_enforcing_set_stage_origin_checkbox.setToolTip('Do not check for set stage origin')
+        #Network related
+        self.show_connected_clients_button = QtGui.QPushButton('Show connected clients',  self)
+        self.show_network_messages_button = QtGui.QPushButton('Show network messages',  self)
+        self.select_connection_list = QtGui.QComboBox(self)        
+        self.select_connection_list.addItems(QtCore.QStringList(self.connection_names))
+        self.send_command_button = QtGui.QPushButton('Send command',  self)
+        self.connected_clients_label = QtGui.QLabel('', self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.z_stack_button, 0, 0, 1, 1)
         if TEST3D:
             self.layout.addWidget(self.test3dscanning_groupbox, 1, 0, 1, 4)
-        self.layout.addWidget(self.experiment_control_groupbox, 0, 5, 2, 4)
-        self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
-        self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
-        self.layout.addWidget(self.move_stage_button, 2, 2, 1, 1)
-        self.layout.addWidget(self.stop_stage_button, 2, 3, 1, 1)
-        self.layout.addWidget(self.current_position_label, 2, 5, 1, 2)
-        self.layout.addWidget(self.set_objective_button, 2, 7, 1, 1)
-        self.layout.addWidget(self.set_objective_value_button, 2, 8, 1, 1)
-        self.layout.addWidget(self.show_connected_clients_button, 3, 0, 1, 1)
-        self.layout.addWidget(self.show_network_messages_button, 3, 1, 1, 1)
-        self.layout.addWidget(self.select_connection_list, 3, 2, 1, 1)
-        self.layout.addWidget(self.send_command_button, 3, 3, 1, 1)
-        self.layout.addWidget(self.connected_clients_label, 3, 5, 1, 4)
+        self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 2, 4)
+#        self.layout.addWidget(self.set_objective_value_button, 2, 8, 1, 1)
         self.layout.addWidget(self.animal_parameters_groupbox, 4, 0, 2, 4)
-        self.layout.addWidget(self.scan_region_groupbox, 4, 5, 2, 4)
-        self.layout.addWidget(self.help_button, 8, 0, 1, 1)
-        self.layout.addWidget(self.save_two_photon_image_button, 8, 1, 1, 1)
-        self.layout.addWidget(self.override_enforcing_set_stage_origin_checkbox, 8, 2, 1, 1)
+        self.layout.addWidget(self.scan_region_groupbox, 4, 4, 2, 4)
+        
+        self.layout.addWidget(self.show_connected_clients_button, 8, 0, 1, 1)
+        self.layout.addWidget(self.show_network_messages_button, 8, 1, 1, 1)
+        self.layout.addWidget(self.select_connection_list, 8, 2, 1, 1)
+        self.layout.addWidget(self.send_command_button, 8, 3, 1, 1)
+        self.layout.addWidget(self.connected_clients_label, 8, 4, 1, 3)
+        
+        self.layout.addWidget(self.z_stack_button, 9, 0, 1, 1)
+        self.layout.addWidget(self.save_two_photon_image_button, 9, 1, 1, 1)
+        self.layout.addWidget(self.help_button, 9, 2, 1, 1)
+        self.layout.addWidget(self.override_enforcing_set_stage_origin_checkbox, 9, 3, 1, 1)
+        
+        self.layout.addWidget(self.set_stage_origin_button, 10, 0, 1, 1)
+        self.layout.addWidget(self.read_stage_button, 10, 1, 1, 1)
+        self.layout.addWidget(self.move_stage_button, 10, 2, 1, 1)
+        self.layout.addWidget(self.stop_stage_button, 10, 3, 1, 1)
+        self.layout.addWidget(self.set_objective_button, 10, 4, 1, 1)
+        self.layout.addWidget(self.current_position_label, 10, 5, 1, 2)
+        
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -321,6 +326,8 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
             if 'origin_adjust' not in k and 'objective_move' not in k:
                 v.setCheckState(2)
         self.vertical_scan_button = QtGui.QPushButton('Vertical scan',  self)
+        self.cell_info_label = QtGui.QLabel('', self)
+        self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -333,6 +340,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.vertical_scan_button, 3, 2, 1, 1)
         self.layout.addWidget(self.snap_brain_surface_button, 2, 3, 1, 1)
         self.layout.addWidget(self.add_button, 3, 0, 1, 1)
+        self.layout.addWidget(self.create_xz_lines_button, 3, 1, 1, 1)
         self.layout.addWidget(self.scan_regions_combobox, 4, 0, 1, 2)
         self.layout.addWidget(self.region_info, 4, 3, 1, 1)
         self.layout.addWidget(self.remove_button, 5, 0, 1, 1)
@@ -348,6 +356,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 7, 1, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 7, 2, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_origin_adjust'], 7, 3, 1, 1)
+        self.layout.addWidget(self.cell_info_label, 8, 0, 2, 4)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -496,7 +505,7 @@ class Poller(QtCore.QThread):
         '''
         Functions that need to be called only once at application start
         '''
-        self.set_mouse_file()
+        self.set_roi_file()
 
     def handle_events(self):
         for k, queue in self.queues.items():
@@ -533,7 +542,7 @@ class Poller(QtCore.QThread):
                     self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
                     os.remove(self.z_stack_path)
                 elif command == 'jobhandler_started':
-                    self.set_mouse_file()
+                    self.set_roi_file()
 #                elif command == 'fragment_preprocessed':
 #                    if hasattr(self, 'data_3dscan_test'):
 #                        self.data_3dscan_test['fragment_files'].append(parameter)
@@ -558,17 +567,25 @@ class Poller(QtCore.QThread):
             #Check for network connection status
             if hasattr(self.parent, 'debug_widget') and hasattr(self.parent.command_relay_server, 'servers'):
                 connection_status = self.parent.command_relay_server.get_connection_status()
-                connected = 'Alive connections: '
+                connected = ''
+                n_connected = 0
                 if connection_status['STIM_MES/MES'] and connection_status['STIM_MES/STIM']:
                     connected += 'STIM-MES  '
+                    n_connected += 1
                 if connection_status['GUI_MES/MES'] and connection_status['GUI_MES/GUI']:
                     connected += 'MES  '
+                    n_connected += 1
                 if connection_status['GUI_STIM/STIM'] and connection_status['GUI_STIM/GUI']:
                     connected += 'STIM  '
+                    n_connected += 1
                 if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
                     connected += 'ANALYSIS  '
+                    n_connected += 1
                 if connection_status['STIM_ANALYSIS/ANALYSIS'] and connection_status['STIM_ANALYSIS/STIM']:
                     connected += 'STIM-ANALYSIS'
+                    n_connected += 1
+                n_connections = len(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].keys())
+                connected = 'Alive connections ({0}/{1}): '.format(n_connected, n_connections) + connected
                 
                 self.parent.debug_widget.connected_clients_label.setText(connected)
 
@@ -637,8 +654,9 @@ class Poller(QtCore.QThread):
     def move_stage(self):
         movement = self.parent.scanc().split(',')
         if len(movement) == 2:
+            #Only two values are accepted
             movement.append('0')
-        elif len(movement) != 3:
+        else:
             self.printc('invalid coordinates')
             return
         self.parent.debug_widget.scan_region_groupbox.scan_regions_combobox.setEditText('')
@@ -766,6 +784,28 @@ class Poller(QtCore.QThread):
         self.save_context()
         self.vertical_scan_acquired = True
         return result
+        
+    def create_xz_lines(self):
+        selected_mouse_file = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
+        roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file.replace('mouse_', 'rois_'))
+        if os.path.exists(roi_file_full_path):
+            rois = hdf5io.read_item(roi_file_full_path, 'rois')
+        else:
+            rois = {}
+        region_name = self.parent.get_current_region_name()
+        if rois.has_key(region_name):
+            result,  self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
+            if not result:
+                self.printc('Objective position is not available')
+                return
+            for layer in rois[region_name]:
+                if layer['z'] == self.objective_position:
+                    cell_locations = layer['positions']
+                    cell_locations['depth'] = numpy.zeros_like(cell_locations['depth']) * self.objective_position + self.objective_origin
+                    if not self.mes_interface.create_XZline_from_points(cell_locations, self.config.XZ_SCAN_CONFIG):
+                        selfprintc('Creating xz lines did not succeed')
+                    break
+                    
         
     ################### Regions #######################
     def add_scan_region(self, widget = None):
@@ -1224,11 +1264,12 @@ class Poller(QtCore.QThread):
             display_position[-1] = self.objective_position
         self.parent.debug_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
         
-    def set_mouse_file(self):
+    def set_roi_file(self):
         #Notify jobhandler about the change of mouse file
         mouse_file = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
-        command = 'SOCselect_mouse_fileEOC{0}EOP' .format(mouse_file.replace('mouse_',  'rois_'))
-        self.queues['analysis']['out'].put(command)
+        if len(mouse_file)>0:
+            command = 'SOCselect_roi_fileEOC{0}EOP' .format(mouse_file.replace('mouse_',  'rois_'))
+            self.queues['analysis']['out'].put(command)
 
     def issue_experiment_start(self, scan_mode = 'xy', explore_cells = True):
         experiment_config_name = str(self.parent.debug_widget.experiment_control_groupbox.experiment_name.currentText())

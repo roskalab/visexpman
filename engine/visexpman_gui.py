@@ -122,7 +122,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.move_stage_button, 'move_stage')
 #        self.connect_and_map_signal(self.debug_widget.stop_stage_button, 'stop_stage')
         self.connect_and_map_signal(self.debug_widget.set_objective_button, 'set_objective')
-        self.connect_and_map_signal(self.debug_widget.set_objective_value_button, 'set_objective_relative_value')
+#        self.connect_and_map_signal(self.debug_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.debug_widget.z_stack_button, 'acquire_z_stack')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.get_two_photon_image_button, 'acquire_two_photon_image')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.snap_brain_surface_button, 'snap_brain_surface')
@@ -130,6 +130,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.add_button, 'add_scan_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.move_to_button, 'move_to_region')
+        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.create_xz_lines_button, 'create_xz_lines')
         self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
         self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
         if gui.TEST3D:
@@ -223,6 +224,11 @@ class VisionExperimentGui(QtGui.QWidget):
         selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
         mouse_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file)
         scan_regions = hdf5io.read_item(mouse_file_full_path, 'scan_regions')
+        roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file.replace('mouse_', 'rois_'))
+        if os.path.exists(roi_file_full_path):
+            rois = hdf5io.read_item(roi_file_full_path, 'rois')
+        else:
+            rois = {}
         if scan_regions == None:
             scan_regions = {}
         #is mouse file changed recently?
@@ -275,6 +281,25 @@ class VisionExperimentGui(QtGui.QWidget):
                                                                                    region_add_date))
         else:
             self.debug_widget.scan_region_groupbox.region_info.setText('')
+        if utils.safe_has_key(rois, selected_region):
+            roi = rois[selected_region]
+            info = 'depth, n cells, status: '
+            for i in range(len(roi)):
+                if roi[i]['ready']:
+                    status = 'xyz'
+                else:
+                    status = 'xy'
+                n_cells = roi[i]['positions'].shape
+                if len(n_cells)>0:
+                    n_cells = n_cells[0]
+                else:
+                    n_cells = 0
+                info +='{0}, {1}, {2};  '.format(int(roi[i]['z'][0]), n_cells, status)
+                if i>len(roi)/2.0 and i<len(roi)/2.0+1:
+                    info += '\n'
+            self.debug_widget.scan_region_groupbox.cell_info_label.setText(info)
+        else:
+            self.debug_widget.scan_region_groupbox.cell_info_label.setText('')
 
     def update_animal_parameter_display(self, index):
         '''
@@ -293,7 +318,7 @@ class VisionExperimentGui(QtGui.QWidget):
                     animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'],  animal_parameters['anesthesia_protocol'])
             h.close()
             self.debug_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
-        self.poller.set_mouse_file()
+        self.poller.set_roi_file()
     
 
     def execute_python(self):

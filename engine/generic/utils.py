@@ -955,7 +955,12 @@ def enter_hit():
             return True
     return False
     
-
+def safe_has_key(var, key):
+    result = False
+    if hasattr(var, 'has_key'):
+        if var.has_key(key):
+            result = True
+    return result
 
 
 class TestUtils(unittest.TestCase):
