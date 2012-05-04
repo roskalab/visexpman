@@ -232,6 +232,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         MIN_SCAN_REGION_AVERAGING = [3, [1, 10]]
         
         ENABLE_FRAGMENT_CHECK = True #TODO: copy to user config
+        ENABLE_MESEXTRACTOR = True
         
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_RANGE' : 50.0, 'Z_RESOLUTION':0.5}

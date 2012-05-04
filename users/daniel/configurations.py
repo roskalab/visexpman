@@ -320,7 +320,7 @@ class Debug(VisionExperimentConfig):
         
         CELL_MERGE_DISTANCE = 10.0
         ENABLE_FRAGMENT_CHECK = True
-        
+        ENABLE_MESEXTRACTOR = True
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':25.0, 'Z_RANGE' : 50.0, 'Z_RESOLUTION':1}
         #=== paths/data handling ===
