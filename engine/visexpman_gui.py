@@ -125,7 +125,6 @@ class VisionExperimentGui(QtGui.QWidget):
 #        self.connect_and_map_signal(self.debug_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.debug_widget.z_stack_button, 'acquire_z_stack')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.get_two_photon_image_button, 'acquire_two_photon_image')
-        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.snap_brain_surface_button, 'snap_brain_surface')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.vertical_scan_button, 'acquire_vertical_scan')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.add_button, 'add_scan_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.remove_button, 'remove_scan_region')

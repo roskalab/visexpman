@@ -20,6 +20,7 @@ from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
 
 TEST3D = False
+BUTTON_HIGHLIGHT = 'color: red'
 
 class Test3dScanningGroupBox(QtGui.QGroupBox):
     def __init__(self, parent):
@@ -73,7 +74,9 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.experiment_name.setEditable(True)
         self.experiment_name.addItems(QtCore.QStringList([]))
         self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
+        self.start_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.stop_experiment_button = QtGui.QPushButton('Stop experiment',  self)
+        self.stop_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful stop experiment',  self)
         self.identify_flourescence_intensity_distribution_button = QtGui.QPushButton('Fluorescence distribution',  self)
         self.objective_positions_label = QtGui.QLabel('Objective positions [um]',  self)
@@ -233,6 +236,7 @@ class DebugWidget(QtGui.QWidget):
         self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
         #Stage related
         self.set_stage_origin_button = QtGui.QPushButton('Set stage origin', self)
+        self.set_stage_origin_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.read_stage_button = QtGui.QPushButton('Read stage', self)
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
         self.stop_stage_button = QtGui.QPushButton('Stop stage', self)
@@ -301,15 +305,16 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.select_mouse_file_label = QtGui.QLabel('Select mouse file', self)
         self.select_mouse_file = QtGui.QComboBox(self)
         self.animal_parameters_label = QtGui.QLabel('', self)
-        self.get_two_photon_image_button = QtGui.QPushButton('Get two photon image',  self)
+        self.get_two_photon_image_button = QtGui.QPushButton('Get XY scan',  self)
+        self.get_two_photon_image_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.use_saved_scan_settings_label = QtGui.QLabel('Use saved scan settings', self)
         self.use_saved_scan_settings_settings_checkbox = QtGui.QCheckBox(self)
-        self.snap_brain_surface_button = QtGui.QPushButton('Snap brain surface',  self)
         self.add_button = QtGui.QPushButton('Add',  self)
         self.scan_regions_combobox = QtGui.QComboBox(self)
         self.scan_regions_combobox.setEditable(True)
         self.remove_button = QtGui.QPushButton('Remove',  self)
         self.move_to_button = QtGui.QPushButton('Move to',  self)
+        self.move_to_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.region_info = QtGui.QLabel('',  self)
         self.move_to_region_options = {}
         self.move_to_region_options['header_labels'] = [ QtGui.QLabel('Move', self), QtGui.QLabel('Realign', self), QtGui.QLabel('Adjust origin', self)]
@@ -325,7 +330,8 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         for k, v in self.move_to_region_options['checkboxes'].items():
             if 'origin_adjust' not in k and 'objective_move' not in k:
                 v.setCheckState(2)
-        self.vertical_scan_button = QtGui.QPushButton('Vertical scan',  self)
+        self.vertical_scan_button = QtGui.QPushButton('Get XZ scan',  self)
+        self.vertical_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.cell_info_label = QtGui.QLabel('', self)
         self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
 
@@ -338,7 +344,6 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 2, 2, 1, 1)
         self.layout.addWidget(self.get_two_photon_image_button, 3, 3, 1, 1)
         self.layout.addWidget(self.vertical_scan_button, 3, 2, 1, 1)
-        self.layout.addWidget(self.snap_brain_surface_button, 2, 3, 1, 1)
         self.layout.addWidget(self.add_button, 3, 0, 1, 1)
         self.layout.addWidget(self.create_xz_lines_button, 3, 1, 1, 1)
         self.layout.addWidget(self.scan_regions_combobox, 4, 0, 1, 2)
@@ -663,8 +668,8 @@ class Poller(QtCore.QThread):
         self.move_stage_relative(movement)
 
     def move_stage_relative(self, movement):
-        if hasattr(self, 'brain_surface_image'): #to avoid saving false data at saving regions
-            del self.brain_surface_image
+        if hasattr(self, 'two_photon_image'): #to avoid saving false data at saving regions
+            del self.two_photon_image
         if hasattr(self, 'vertical_scan'):
             del self.vertical_scan
         utils.empty_queue(self.queues['stim']['in'])
@@ -750,11 +755,7 @@ class Poller(QtCore.QThread):
         else:
                 self.printc('No image acquired')
         return False
-
-    def snap_brain_surface(self):
-        self.acquire_two_photon_image()
-        self.brain_surface_image = self.two_photon_image
-
+        
     def acquire_vertical_scan(self, use_region_parameters = False):
         '''
         The correct scan time needs to be defined by the user
@@ -820,8 +821,14 @@ class Poller(QtCore.QThread):
             del self.vertical_scan
         if widget == None:
             widget = self.parent.debug_widget
-        if not hasattr(self, 'brain_surface_image'):
+        if not hasattr(self, 'two_photon_image'):
             self.printc('No brain surface image is acquired')
+            return
+        if self.two_photon_image['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
+            self.printc('Brain surface image averaging is only {0}, set it to {1}' .format(self.two_photon_image['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
+            return
+        if self.vertical_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
+            self.printc('Vertical scan averaging is only {0}, set it to {1}' .format(self.vertical_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
             return
         mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(widget.scan_region_groupbox.select_mouse_file.currentText()))
         if not (os.path.exists(mouse_file_path) and '.hdf5' in mouse_file_path):
@@ -879,10 +886,10 @@ class Poller(QtCore.QThread):
         scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
         scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
         scan_region['brain_surface'] = {}
-        scan_region['brain_surface']['image'] = self.brain_surface_image[self.config.DEFAULT_PMT_CHANNEL]
-        scan_region['brain_surface']['scale'] = self.brain_surface_image['scale']
-        scan_region['brain_surface']['origin'] = self.brain_surface_image['origin']
-        scan_region['brain_surface']['mes_parameters']  = utils.file_to_binary_array(self.brain_surface_image['path'].tostring())
+        scan_region['brain_surface']['image'] = self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL]
+        scan_region['brain_surface']['scale'] = self.two_photon_image['scale']
+        scan_region['brain_surface']['origin'] = self.two_photon_image['origin']
+        scan_region['brain_surface']['mes_parameters']  = utils.file_to_binary_array(self.two_photon_image['path'].tostring())
         #Save xy line scan parameters
         result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters()
         if result and os.path.exists(line_scan_path):
