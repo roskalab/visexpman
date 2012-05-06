@@ -322,7 +322,7 @@ class Debug(VisionExperimentConfig):
         ENABLE_FRAGMENT_CHECK = True
         ENABLE_MESEXTRACTOR = True
         #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':25.0, 'Z_RANGE' : 50.0, 'Z_RESOLUTION':1}
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':25.0, 'Z_RANGE' : 100.0, 'Z_RESOLUTION':1}
         #=== paths/data handling ===
         use_drive = 'v'
         if os.name == 'nt':
@@ -346,7 +346,7 @@ class Debug(VisionExperimentConfig):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         
         #=== screen ===
-        FULLSCREEN = True
+        FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False

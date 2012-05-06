@@ -6,6 +6,8 @@ import cPickle as pickle
 import unittest
 import hashlib
 import string
+import shutil
+import tempfile
 
 from visexpman.engine.generic import utils
 from visexpman.engine import generic
@@ -83,83 +85,94 @@ def save_position(hdf5, stagexyz, objective_z = None):
     hdf5.position = utils.pack_position(stagexyz, objective_z)
     hdf5.save('position')
 
-def check_fragment(path, config):
+def check_fragment(path, fragment_hdf5_handle = None):
     messages = []
     result = True
-    if config.EXPERIMENT_FILE_FORMAT == 'mat':
-        expected_top_level_nodes = ['rising_edges_indexes', 'number_of_fragments', 'stimulus_frame_info', 'generated_data', \
-            'experiment_log_dict', 'sync_data', 'actual_fragment', 'config', 'current_fragment', 'experiment_source', 'software_environment']
-        mat_data = scipy.io.loadmat(path, mat_dtype = True)
-        if numpy.array(map(mat_data.has_key,expected_top_level_nodes)).sum() != len(expected_top_level_nodes):
-            messages.append('Top level node missing')
-            result = False
-        else:
-            #TODO: Here comes the check of the subnodes and its contents
-            pass
-    elif config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-        data_node_name =  os.path.split(path)[-1].replace('.hdf5', '').split('_')
-        if config.PLATFORM == 'mes':
-            data_node_name = data_node_name[-3:]
-        else:
-            data_node_name = data_node_name[1:]
-        data_node_name = string.join(data_node_name).replace(' ', '_')
-        expected_top_level_nodes = ['experiment_config', 'machine_config', 'experiment_config_pickled', 'machine_config_pickled']
-        if config.PLATFORM == 'mes':
-            expected_top_level_nodes.append('position')
-        expected_top_level_nodes.append(data_node_name)
-        import time
+    data_node_name =  os.path.split(path)[-1].replace('.hdf5', '').split('_')
+    data_node_name = data_node_name[-3:]
+    data_node_name = string.join(data_node_name).replace(' ', '_')
+    expected_top_level_nodes = ['experiment_config', 'machine_config', 'experiment_config_pickled', 'machine_config_pickled', 'call_parameters']
+    expected_top_level_nodes.append('position')
+    expected_top_level_nodes.append(data_node_name)
+    import time
 #        time.sleep(10.0)#TMP, to be removed
+    if fragment_hdf5_handle == None:
         fragment_handle = hdf5io.Hdf5io(path)
-        nodes = fragment_handle.findvar(expected_top_level_nodes)
-        if None in nodes:
-            result = False
-            messages.append('Top level node missing: {0}'.format(expected_top_level_nodes[nodes.index(None)]))
-        hdf5_data_dict = {}
-        for i in range(len(nodes)):
-            node = nodes[i]
-            node_name = expected_top_level_nodes[i]
-            if node_name == 'software_environment':
-                #TODO: check the source code content
-                if not hasattr(node, 'keys'):
-                    result = False
-                    messages.append('unexpected data type in software_environment')
-                elif not (node.has_key('source_code') and node.has_key('module_version')):
-                    result = False
-                    messages.append('unexpected data in software_environment')
-            elif node_name == 'position':
-                pass#TODO: check it
-            elif node_name == 'experiment_config' or node_name == 'machine_config':
-                if not hasattr(node, 'keys'):
-                    result = False
-                    messages.append('unexpected data type in {0}'.format(node_name))
-                elif not (node.has_key('OS') and node.has_key('PACKAGE_PATH')):
-                    result = False
-                    messages.append('unexpected data in {0}'.format(node_name))
-            elif node_name == 'experiment_config_pickled' or node_name == 'machine_config_pickled':
-                if not hasattr(node,  'dtype'):
-                    result = False
-                    messages.append('unexpected data type in {0}'.format(node_name))
-            elif node_name == 'experiment_log_dict':
-                if not hasattr(node,  'keys'):
-                    result = False
-                    messages.append('unexpected data type in {0}'.format(node_name))
-            elif node_name == expected_top_level_nodes[-1]:
-                expected_subnodes = ['rising_edges_indexes', 'number_of_fragments', 'stimulus_frame_info', 'generated_data', \
-            'sync_data', 'actual_fragment',  'current_fragment', 'experiment_source', 'experiment_log', 'software_environment', 'laser_intensity']
-                if not hasattr(node,  'has_key'):
-                    result = False
-                    messages.append('unexpected data type in {0}'.format(node_name))
-                elif numpy.array(map(node.has_key, expected_subnodes)).sum() != len(expected_subnodes):
-                    result = False
-                    messages.append('unexpected number of datafields in {0}, {1}'.format(node_name,  map(node.has_key, expected_subnodes)))
-                if 'MovingDot' in node_name and not node['generated_data'].has_key('shown_directions'):
-                    result = False
-                    messages.append('Shown directions are not saved {0}'.format(node['generated_data']))
-        fragment_handle.close()        
+    else:
+        fragment_handle = fragment_hdf5_handle
+    nodes = fragment_handle.findvar(expected_top_level_nodes)
+    if None in nodes:
+        result = False
+        messages.append('Top level node missing: {0}'.format(expected_top_level_nodes[nodes.index(None)]))
+    hdf5_data_dict = {}
+    for i in range(len(nodes)):
+        node = nodes[i]
+        node_name = expected_top_level_nodes[i]
+        if node_name == 'software_environment':
+            #TODO: check the source code content
+            if not hasattr(node, 'keys'):
+                result = False
+                messages.append('unexpected data type in software_environment')
+            elif not (node.has_key('source_code') and node.has_key('module_version')):
+                result = False
+                messages.append('unexpected data in software_environment')
+        elif node_name == 'position':
+            pass#TODO: check it
+        elif node_name == 'experiment_config' or node_name == 'machine_config':
+            if not hasattr(node, 'keys'):
+                result = False
+                messages.append('unexpected data type in {0}'.format(node_name))
+            elif not (node.has_key('OS') and node.has_key('PACKAGE_PATH')):
+                result = False
+                messages.append('unexpected data in {0}'.format(node_name))
+        elif node_name == 'experiment_config_pickled' or node_name == 'machine_config_pickled':
+            if not hasattr(node,  'dtype'):
+                result = False
+                messages.append('unexpected data type in {0}'.format(node_name))
+        elif node_name == 'experiment_log_dict':
+            if not hasattr(node,  'keys'):
+                result = False
+                messages.append('unexpected data type in {0}'.format(node_name))
+        elif node_name == expected_top_level_nodes[-1]:
+            expected_subnodes = ['rising_edges_indexes', 'number_of_fragments', 'stimulus_frame_info', 'generated_data', \
+        'sync_data', 'actual_fragment',  'current_fragment', 'experiment_source', 'experiment_log', 'software_environment']#, 'laser_intensity']
+            if not hasattr(node,  'has_key'):
+                result = False
+                messages.append('unexpected data type in {0}'.format(node_name))
+            elif numpy.array(map(node.has_key, expected_subnodes)).sum() != len(expected_subnodes):
+                result = False
+                messages.append('unexpected number of datafields in {0}, {1}'.format(node_name,  map(node.has_key, expected_subnodes)))
+            if 'MovingDot' in node_name and not node['generated_data'].has_key('shown_directions'):
+                result = False
+                messages.append('Shown directions are not saved {0}'.format(node['generated_data']))
+    if fragment_hdf5_handle == None:
+        fragment_handle.close()
     return result, messages
+    
+def read_rois(roi_file, region_name, objective_position = None, z_range = None):
+    if not os.path.exists(roi_file):
+        return
+    tmp_path = tempfile.mkstemp(suffix='.hdf5')[1]
+    shutil.copyfile(roi_file, tmp_path)
+    rois = hdf5io.read_item(tmp_path, 'rois')
+    cell_locations = []
+    if rois.has_key(region_name):
+        for roi_layer in rois[region_name].values():
+            if roi_layer.has_key('cell_locations'):
+                for location in roi_layer['cell_locations']:
+                    if objective_position != None and z_range != None:
+                        append = False
+                        if location['depth'] > objective_position - 0.5*z_range and location['depth'] < objective_position + 0.5*z_range:
+                            append = True
+                    else:
+                        append = True
+                    if append:
+                        cell_locations.append(utils.nd(location))
+        cell_locations = utils.rcd(numpy.array(cell_locations))
+        return cell_locations
 
 if __name__=='__main__':
-        pass
+        print read_rois('/mnt/rzws/debug/data/rois_test1_1-1-2012_1-1-2012_0_0.hdf5', 'r_0_0', objective_position = 0.0, z_range = 100.0)
     
     
     

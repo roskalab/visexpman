@@ -49,7 +49,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.poller.start()
         self.queues = self.poller.queues
         QtGui.QWidget.__init__(self)
-        self.setWindowTitle('Vision Experiment Manager GUI')
+        self.setWindowTitle('Vision Experiment Manager GUI - {0} - {1}' .format(user,  config_class))
         self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
         self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
         self.create_gui()
@@ -87,7 +87,7 @@ class VisionExperimentGui(QtGui.QWidget):
         for experiment_config in experiment_config_list:
             experiment_config_names.append(experiment_config[1].__name__)
         self.debug_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
-        self.debug_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index('MovingDotConfig'))
+        self.debug_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index('ShortMovingGratingConfig'))
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -113,6 +113,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.update_animal_parameter_display)
         self.connect(self.debug_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged()'),  self.update_gui_items)
         self.connect(self.debug_widget.help_button, QtCore.SIGNAL('clicked()'),  self.show_help)
+        self.connect(self.debug_widget.run_fragment_process_button, QtCore.SIGNAL('clicked()'),  self.run_fragment_process)
         self.connect(self.debug_widget.stop_stage_button, QtCore.SIGNAL('clicked()'),  self.poller.stop_stage)
         
         #Blocking functions, run by poller
@@ -120,27 +121,30 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.debug_widget.read_stage_button, 'read_stage')
         self.connect_and_map_signal(self.debug_widget.set_stage_origin_button, 'set_stage_origin')
         self.connect_and_map_signal(self.debug_widget.move_stage_button, 'move_stage')
-#        self.connect_and_map_signal(self.debug_widget.stop_stage_button, 'stop_stage')
+        self.connect_and_map_signal(self.debug_widget.stop_stage_button, 'stop_stage')
         self.connect_and_map_signal(self.debug_widget.set_objective_button, 'set_objective')
 #        self.connect_and_map_signal(self.debug_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.debug_widget.z_stack_button, 'acquire_z_stack')
-        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.get_two_photon_image_button, 'acquire_two_photon_image')
+        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.get_two_photon_image_button, 'acquire_xy_image')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.vertical_scan_button, 'acquire_vertical_scan')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.add_button, 'add_scan_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.move_to_button, 'move_to_region')
         self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.create_xz_lines_button, 'create_xz_lines')
         self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
+        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.next_depth_button, 'next_experiment')
+        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.redo_depth_button, 'redo_experiment')
+        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.previous_depth_button, 'previous_experiment')
         self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
-        if gui.TEST3D:
-            self.connect_and_map_signal(self.debug_widget.test3dscanning_groupbox.start_test_button, 'start_3dscan_test')
-            self.connect_and_map_signal(self.debug_widget.test3dscanning_groupbox.show_rc_scan_results_button, 'show_rc_scan_results')
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
     def connect_and_map_signal(self, widget, mapped_signal_parameter, widget_signal_name = 'clicked'):
-        self.signal_mapper.setMapping(widget, QtCore.QString(mapped_signal_parameter))
-        getattr(getattr(widget, widget_signal_name), 'connect')(self.signal_mapper.map)
+        if hasattr(self.poller, mapped_signal_parameter):
+            self.signal_mapper.setMapping(widget, QtCore.QString(mapped_signal_parameter))
+            getattr(getattr(widget, widget_signal_name), 'connect')(self.signal_mapper.map)
+        else:
+            self.printc('{0} method does not exists'.format(mapped_signal_parameter))
     
     def show_help(self):
         if webbrowser.open_new_tab(self.config.MANUAL_URL):
@@ -154,7 +158,12 @@ class VisionExperimentGui(QtGui.QWidget):
     def graceful_stop_experiment(self):
         command = 'SOCgraceful_stop_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
-        self.printc('Graceful stop requested,  please wait')
+        self.printc('Graceful stop requested, please wait')
+        
+    def run_fragment_process(self):
+        command = 'SOCrun_fragment_status_checkEOCEOP'
+        self.queues['analysis']['out'].put(command)
+        self.printc('Run fragment status check')
 
     def save_animal_parameters(self):
         '''
@@ -224,10 +233,10 @@ class VisionExperimentGui(QtGui.QWidget):
         mouse_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file)
         scan_regions = hdf5io.read_item(mouse_file_full_path, 'scan_regions')
         roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file.replace('mouse_', 'rois_'))
-        if os.path.exists(roi_file_full_path):
-            rois = hdf5io.read_item(roi_file_full_path, 'rois')
-        else:
-            rois = {}
+#        if os.path.exists(roi_file_full_path):
+#            rois = hdf5io.read_item(roi_file_full_path, 'rois')
+#        else:
+#            rois = {}
         if scan_regions == None:
             scan_regions = {}
         #is mouse file changed recently?
@@ -280,25 +289,25 @@ class VisionExperimentGui(QtGui.QWidget):
                                                                                    region_add_date))
         else:
             self.debug_widget.scan_region_groupbox.region_info.setText('')
-        if utils.safe_has_key(rois, selected_region):
-            roi = rois[selected_region]
-            info = 'depth, n cells, status: '
-            for i in range(len(roi)):
-                if roi[i]['ready']:
-                    status = 'xyz'
-                else:
-                    status = 'xy'
-                n_cells = roi[i]['positions'].shape
-                if len(n_cells)>0:
-                    n_cells = n_cells[0]
-                else:
-                    n_cells = 0
-                info +='{0}, {1}, {2};  '.format(int(roi[i]['z'][0]), n_cells, status)
-                if i>len(roi)/2.0 and i<len(roi)/2.0+1:
-                    info += '\n'
-            self.debug_widget.scan_region_groupbox.cell_info_label.setText(info)
-        else:
-            self.debug_widget.scan_region_groupbox.cell_info_label.setText('')
+#        if utils.safe_has_key(rois, selected_region):
+#            roi = rois[selected_region]
+#            info = 'depth, n cells, status: '
+#            for i in range(len(roi)):
+#                if roi[i]['ready']:
+#                    status = 'xyz'
+#                else:
+#                    status = 'xy'
+#                n_cells = roi[i]['positions'].shape
+#                if len(n_cells)>0:
+#                    n_cells = n_cells[0]
+#                else:
+#                    n_cells = 0
+#                info +='{0}, {1}, {2};  '.format(int(roi[i]['z'][0]), n_cells, status)
+#                if i>len(roi)/2.0 and i<len(roi)/2.0+1:
+#                    info += '\n'
+#            self.debug_widget.scan_region_groupbox.cell_info_label.setText(info)
+#        else:
+#            self.debug_widget.scan_region_groupbox.cell_info_label.setText('')
 
     def update_animal_parameter_display(self, index):
         '''

@@ -1,5 +1,6 @@
 import os
 import os.path
+import numpy
     
 def set_file_dates(path, file_info):
     os.utime(path, (file_info.st_atime, file_info.st_mtime))
@@ -61,21 +62,23 @@ def parsefilename(filename, regexdict):
             regexdict[k] = None # this pattern was not found
     return regexdict
 
-#TODO: pass filter condition
-def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False):    
+def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False, filter_condition = None):    
     files = os.listdir(folder_name)    
     filtered_files = []
     for file in files:
         if isinstance(filter,  list) or isinstance(filter,  tuple):
             found  = False
+            conditions_met = []
             for filter_item in filter:
                 if inverted_filter:
                     if filter_item not in file:
                         found = True
+                        conditions_met.append(found)
                 else:
                     if filter_item in file:
                         found = True
-            if found:
+                        conditions_met.append(found)
+            if (filter_condition == 'and' and numpy.array(conditions_met).sum() == len(filter)) or (filter_condition == None and found):
                 if fullpath:
                     filtered_files.append(os.path.join(folder_name, file))
                 else:
@@ -206,6 +209,22 @@ def pngsave(im, file):
 
     # and save
     im.save(file, "PNG", pnginfo=meta)
+    
+def parse_fragment_filename(path):
+    fields = {}
+    filename = os.path.split(path)[1]
+    if '.hdf5' in path:
+       filename = filename.replace('.hdf5', '')
+    elif '.mat' in path:
+        filename = filename.replace('.mat', '')
+    else:
+        return fields
+    filename = filename.split('_')
+    fields['scan_mode'] = filename[1]
+    fields['stimulus_name'] = filename[-3]
+    fields['id'] = filename[-2]
+    fields['fragment_id'] = filename[-1]
+    return fields
 
 import unittest
 class TestUtils(unittest.TestCase):
