@@ -1,6 +1,12 @@
 import os
 import os.path
 import numpy
+import tempfile
+
+def mkstemp(suffix):
+    f,filename = tempfile.mkstemp(suffix=suffix)
+    os.close(f)
+    return filename
     
 def set_file_dates(path, file_info):
     os.utime(path, (file_info.st_atime, file_info.st_mtime))

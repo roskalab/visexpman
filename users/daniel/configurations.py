@@ -317,7 +317,7 @@ class Debug(VisionExperimentConfig):
 #        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
         PLATFORM = 'standalone'
         PLATFORM = 'mes'
-        
+        PARSE_PERIOD = 2.0
         CELL_MERGE_DISTANCE = 10.0
         ENABLE_FRAGMENT_CHECK = True
         ENABLE_MESEXTRACTOR = True

@@ -220,6 +220,7 @@ class DebugWidget(QtGui.QWidget):
         self.override_enforcing_set_stage_origin_checkbox = QtGui.QCheckBox(self)
         self.override_enforcing_set_stage_origin_checkbox.setToolTip('Do not check for set stage origin')
         self.run_fragment_process_button = QtGui.QPushButton('Run fragment process',  self)
+        self.fragment_process_status_button = QtGui.QPushButton('Fragment process status',  self)
         #Network related
         self.show_connected_clients_button = QtGui.QPushButton('Show connected clients',  self)
         self.show_network_messages_button = QtGui.QPushButton('Show network messages',  self)
@@ -246,14 +247,14 @@ class DebugWidget(QtGui.QWidget):
         self.layout.addWidget(self.help_button, 9, 2, 1, 1)
         self.layout.addWidget(self.override_enforcing_set_stage_origin_checkbox, 9, 3, 1, 1)
         self.layout.addWidget(self.run_fragment_process_button, 9, 4, 1, 1)
-                
+        self.layout.addWidget(self.fragment_process_status_button, 9, 5, 1, 1)
+
         self.layout.addWidget(self.set_stage_origin_button, 10, 0, 1, 1)
         self.layout.addWidget(self.read_stage_button, 10, 1, 1, 1)
         self.layout.addWidget(self.move_stage_button, 10, 2, 1, 1)
         self.layout.addWidget(self.stop_stage_button, 10, 3, 1, 1)
         self.layout.addWidget(self.set_objective_button, 10, 4, 1, 1)
         self.layout.addWidget(self.current_position_label, 10, 5, 1, 2)
-        
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -557,6 +558,18 @@ class Poller(QtCore.QThread):
                 connected = 'Alive connections ({0}/{1}): '.format(n_connected, n_connections) + connected
                 
                 self.parent.debug_widget.connected_clients_label.setText(connected)
+                
+    def send_tasks_to_jobhandler(self):
+        if hasattr(self, 'fragment_process_queue'):
+            if not self.fragment_process_queue.empty():
+                queue_item = self.fragment_process_queue.get()
+                self.queues['analysis']['out'].put('SOCstart_fragment_processingEOC{0}EOP'.format(queue_item))
+                t = utils.Timeout(1.0)
+                if not t.wait_timeout(utils.is_keyword_in_queue, self.queues['analysis']['in'], 'fragment_processing_started', False):
+                    self.fragment_process_queue.put(queue_item)
+                else:
+                    self.printc('{0} was sent to analysis' .format(queue_item))
+
 
     def handle_commands(self):
         if not self.signal_id_queue.empty():
@@ -784,9 +797,10 @@ class Poller(QtCore.QThread):
         if self.two_photon_image['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
             self.printc('Brain surface image averaging is only {0}, set it to {1}' .format(self.two_photon_image['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
             return
-        if self.vertical_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
-            self.printc('Number of frames is only {0}, set it to {1}' .format(self.vertical_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
-            return
+        if hasattr(self, 'vertical_scan'):
+            if self.vertical_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
+                self.printc('Number of frames is only {0}, set it to {1}' .format(self.vertical_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
+                return
         mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(widget.scan_region_groupbox.select_mouse_file.currentText()))
         if not (os.path.exists(mouse_file_path) and '.hdf5' in mouse_file_path):
             self.printc('mouse file not found')

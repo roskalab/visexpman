@@ -731,6 +731,21 @@ class Timeout(object):
             time.sleep(self.sleep_period)
         return result
         
+def periodic_caller(period, call, args = None, idle_time = 0.1):
+    last_run = time.time()
+    while True:
+        now = time.time()
+        if now - last_run >= period:
+            last_run = now
+            if args == None:
+                if call():
+                    break
+            else:
+                if call(*args):
+                    break
+        time.sleep(idle_time)
+        
+        
 ##### Queue #########
 def empty_queue(queue):
     results = []

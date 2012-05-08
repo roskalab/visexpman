@@ -249,12 +249,17 @@ class ExperimentControl(object):
                 pass
             if not aborted and result:
                 self.save_fragment_data(fragment_id)
-                #Ask analysis to start preprocessing measurement data
-                parameters = 'scan_mode={0},fragment_path={1}'.format(self.scan_mode, os.path.split(self.filenames['fragments'][fragment_id])[-1])
-                if self.parameters.has_key('explore_cells'):
-                    parameters += ',explore_cells={0}'.format(self.parameters['explore_cells'])
-                command = 'SOCstart_fragment_processingEOC{0}EOP'.format(parameters)
-                self.queues['analysis']['out'].put(command)
+                if self.config.PLATFORM == 'mes':
+                    #Ask analysis to start preprocessing measurement data
+                    parameters = 'scan_mode={0},fragment_path={1}'.format(self.scan_mode, os.path.split(self.filenames['fragments'][fragment_id])[-1])
+                    if self.parameters.has_key('explore_cells'):
+                        parameters += ',explore_cells={0}'.format(self.parameters['explore_cells'])
+                    if 0:
+                        self.queues['analysis']['out'].put('SOCstart_fragment_processingEOC{0}EOP'.format(parameters))
+                    elif 0:
+                        self.queues['process_request'].put(parameters)
+#                    else:
+#                        self.queues['gui']['out'].put('SOCfragment_readyEOC{0}EOP'.format(parameters))
         else:
             result = False
             self.printl('Data acquisition stopped with error')
