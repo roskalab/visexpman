@@ -241,7 +241,7 @@ def rcd_pack(raw, dim_order = [0, 1],**kwargs):
     if raw.ndim > len(dim_names):
         raise TypeError('Input data dimension must be '+str(len(dim_names))+' Call rc_flatten if you want data to be flattened before conversion')
     if raw.ndim==2 and raw.shape[1]==len(dim_names): # convenience feature: user must not care if input shape is (2,x) or (x,2)  we convert to the required format (2,x)
-        raw=raw.T    
+        raw=raw.T
     else:
         raw= numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
     return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
@@ -731,6 +731,21 @@ class Timeout(object):
             time.sleep(self.sleep_period)
         return result
         
+def periodic_caller(period, call, args = None, idle_time = 0.1):
+    last_run = time.time()
+    while True:
+        now = time.time()
+        if now - last_run >= period:
+            last_run = now
+            if args == None:
+                if call():
+                    break
+            else:
+                if call(*args):
+                    break
+        time.sleep(idle_time)
+        
+        
 ##### Queue #########
 def empty_queue(queue):
     results = []
@@ -960,7 +975,12 @@ def enter_hit():
             return True
     return False
     
-
+def safe_has_key(var, key):
+    result = False
+    if hasattr(var, 'has_key'):
+        if var.has_key(key):
+            result = True
+    return result
 
 
 class TestUtils(unittest.TestCase):

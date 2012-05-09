@@ -10,6 +10,7 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
+from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine import generic
@@ -19,47 +20,7 @@ from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
 
-TEST3D = False
-
-class Test3dScanningGroupBox(QtGui.QGroupBox):
-    def __init__(self, parent):
-        QtGui.QGroupBox.__init__(self, '3d scan test', parent)
-        self.create_widgets()
-        self.create_layout()
-
-    def create_widgets(self):
-        self.start_test_button = QtGui.QPushButton('Start', self)
-        self.stop_test_button = QtGui.QPushButton('Stop', self)
-        self.objective_positions_label = QtGui.QLabel('Objective positions [um]', self)
-        self.objective_positions_combobox = QtGui.QComboBox(self)
-        self.objective_positions_combobox.setEditable(True)
-        self.cell_positions_label = QtGui.QLabel('Expected cell positions x,y,z, [um]', self)
-        self.cell_positions_combobox = QtGui.QComboBox(self)
-        self.cell_positions_combobox.setEditable(True)
-        self.enable_2d_scan_label = QtGui.QLabel('2D',  self)
-        self.enable_2d_scan_checkbox = QtGui.QCheckBox(self)
-        self.enable_folded_frame_scan_label = QtGui.QLabel('Ff', self)
-        self.enable_folded_frame_scan_checkbox = QtGui.QCheckBox(self)
-        self.enable_3d_scan_label = QtGui.QLabel('3D', self)
-        self.enable_3d_scan_checkbox = QtGui.QCheckBox(self)
-        self.show_rc_scan_results_button = QtGui.QPushButton('Show RC results', self)
-    
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.start_test_button, 0, 5)
-        self.layout.addWidget(self.stop_test_button, 0, 6)
-        self.layout.addWidget(self.objective_positions_label, 0, 0)
-        self.layout.addWidget(self.objective_positions_combobox, 0, 1, 1, 4)
-        self.layout.addWidget(self.cell_positions_label, 1, 0, 1, 2)
-        self.layout.addWidget(self.cell_positions_combobox, 1, 2, 1, 5)
-        self.layout.addWidget(self.enable_2d_scan_label, 2, 0)
-        self.layout.addWidget(self.enable_2d_scan_checkbox, 2, 1)
-        self.layout.addWidget(self.enable_folded_frame_scan_label, 2, 2)
-        self.layout.addWidget(self.enable_folded_frame_scan_checkbox, 2, 3)
-        self.layout.addWidget(self.enable_3d_scan_label, 2, 4)
-        self.layout.addWidget(self.enable_3d_scan_checkbox, 2, 5)
-        self.layout.addWidget(self.show_rc_scan_results_button, 2, 6)
-        self.setLayout(self.layout)
+BUTTON_HIGHLIGHT = 'color: red'
 
 class ExperimentControlGroupBox(QtGui.QGroupBox):
     def __init__(self, parent):
@@ -73,10 +34,15 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.experiment_name.setEditable(True)
         self.experiment_name.addItems(QtCore.QStringList([]))
         self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
+        self.start_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.stop_experiment_button = QtGui.QPushButton('Stop experiment',  self)
+        self.stop_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
+        self.next_depth_button = QtGui.QPushButton('Next',  self)
+        self.redo_depth_button = QtGui.QPushButton('Redo',  self)
+        self.previous_depth_button = QtGui.QPushButton('Prev',  self)
         self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful stop experiment',  self)
         self.identify_flourescence_intensity_distribution_button = QtGui.QPushButton('Fluorescence distribution',  self)
-        self.objective_positions_label = QtGui.QLabel('Objective positions [um]',  self)
+        self.objective_positions_label = QtGui.QLabel('Objective range [um]\n start,end,step',  self)
         self.objective_positions_combobox = QtGui.QComboBox(self)
         self.objective_positions_combobox.setEditable(True)
         self.laser_intensities_label = QtGui.QLabel('Laser intensity (min, max) [%]',  self)
@@ -86,21 +52,25 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.scan_mode.addItems(QtCore.QStringList(['xy', 'xz', 'xyz']))
         self.explore_cells_label = QtGui.QLabel('Explore cells', self)
         self.explore_cells_checkbox = QtGui.QCheckBox(self)
+        
     
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.experiment_name, 0, 0)
-        self.layout.addWidget(self.start_experiment_button, 0, 1)
-        self.layout.addWidget(self.stop_experiment_button, 0, 2)
-        self.layout.addWidget(self.graceful_stop_experiment_button, 0, 3)
-        self.layout.addWidget(self.identify_flourescence_intensity_distribution_button, 2, 0)
-        self.layout.addWidget(self.objective_positions_label, 1, 0)
-        self.layout.addWidget(self.objective_positions_combobox, 1, 1, 1, 2)
-        self.layout.addWidget(self.laser_intensities_label, 1, 3)
-        self.layout.addWidget(self.laser_intensities_combobox, 1, 4)
-        self.layout.addWidget(self.scan_mode, 2, 1)
-        self.layout.addWidget(self.explore_cells_label, 2, 2)
-        self.layout.addWidget(self.explore_cells_checkbox, 2, 3)
+        self.layout.addWidget(self.experiment_name, 0, 0, 1, 2)
+        self.layout.addWidget(self.start_experiment_button, 0, 2, 1, 2)
+        self.layout.addWidget(self.stop_experiment_button, 0, 4)
+        self.layout.addWidget(self.graceful_stop_experiment_button, 0, 5)
+        self.layout.addWidget(self.previous_depth_button, 1, 0, 1, 2)
+        self.layout.addWidget(self.next_depth_button, 1, 4, 1, 1)
+        self.layout.addWidget(self.redo_depth_button, 1, 2, 1, 2)
+        self.layout.addWidget(self.scan_mode, 2, 0)
+        self.layout.addWidget(self.explore_cells_label, 2, 1)
+        self.layout.addWidget(self.explore_cells_checkbox, 2, 2)
+        self.layout.addWidget(self.objective_positions_label, 2, 4)
+        self.layout.addWidget(self.objective_positions_combobox, 2, 5, 1, 2)
+        self.layout.addWidget(self.identify_flourescence_intensity_distribution_button, 3, 0, 1, 2)
+        self.layout.addWidget(self.laser_intensities_label, 3, 2, 1, 2)
+        self.layout.addWidget(self.laser_intensities_combobox, 3, 4, 1, 2)
         self.setLayout(self.layout)
 
 class AnimalParametersGroupBox(QtGui.QGroupBox):
@@ -232,10 +202,25 @@ class DebugWidget(QtGui.QWidget):
         self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
         #Stage related
         self.set_stage_origin_button = QtGui.QPushButton('Set stage origin', self)
+        self.set_stage_origin_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.read_stage_button = QtGui.QPushButton('Read stage', self)
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
         self.stop_stage_button = QtGui.QPushButton('Stop stage', self)
         self.current_position_label = QtGui.QLabel('', self)
+        #Development
+        self.experiment_control_groupbox = ExperimentControlGroupBox(self)
+        self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
+        self.scan_region_groupbox = ScanRegionGroupBox(self)
+        self.set_objective_button = QtGui.QPushButton('Set objective', self)
+#        self.set_objective_value_button = QtGui.QPushButton('Set objective relative value', self)
+#        self.set_objective_value_button.setEnabled(False)
+        #Helpers
+        self.save_two_photon_image_button = QtGui.QPushButton('Save two photon image',  self)
+        self.help_button = QtGui.QPushButton('Help',  self)
+        self.override_enforcing_set_stage_origin_checkbox = QtGui.QCheckBox(self)
+        self.override_enforcing_set_stage_origin_checkbox.setToolTip('Do not check for set stage origin')
+        self.run_fragment_process_button = QtGui.QPushButton('Run fragment process',  self)
+        self.fragment_process_status_button = QtGui.QPushButton('Fragment process status',  self)
         #Network related
         self.show_connected_clients_button = QtGui.QPushButton('Show connected clients',  self)
         self.show_network_messages_button = QtGui.QPushButton('Show network messages',  self)
@@ -243,44 +228,33 @@ class DebugWidget(QtGui.QWidget):
         self.select_connection_list.addItems(QtCore.QStringList(self.connection_names))
         self.send_command_button = QtGui.QPushButton('Send command',  self)
         self.connected_clients_label = QtGui.QLabel('', self)
-        #Development
-        if TEST3D:
-            self.test3dscanning_groupbox = Test3dScanningGroupBox(self)
-        self.experiment_control_groupbox = ExperimentControlGroupBox(self)
-        self.animal_parameters_groupbox = AnimalParametersGroupBox(self)
-        self.scan_region_groupbox = ScanRegionGroupBox(self)
-        self.set_objective_button = QtGui.QPushButton('Set objective', self)
-        self.set_objective_value_button = QtGui.QPushButton('Set objective relative value', self)
-        self.set_objective_value_button.setEnabled(False)
-        #Helpers
-        self.save_two_photon_image_button = QtGui.QPushButton('Save two photon image',  self)
-        self.help_button = QtGui.QPushButton('Help',  self)
-        self.override_enforcing_set_stage_origin_checkbox = QtGui.QCheckBox(self)
-        self.override_enforcing_set_stage_origin_checkbox.setToolTip('Do not check for set stage origin')
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.z_stack_button, 0, 0, 1, 1)
-        if TEST3D:
-            self.layout.addWidget(self.test3dscanning_groupbox, 1, 0, 1, 4)
-        self.layout.addWidget(self.experiment_control_groupbox, 0, 5, 2, 4)
-        self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
-        self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
-        self.layout.addWidget(self.move_stage_button, 2, 2, 1, 1)
-        self.layout.addWidget(self.stop_stage_button, 2, 3, 1, 1)
-        self.layout.addWidget(self.current_position_label, 2, 5, 1, 2)
-        self.layout.addWidget(self.set_objective_button, 2, 7, 1, 1)
-        self.layout.addWidget(self.set_objective_value_button, 2, 8, 1, 1)
-        self.layout.addWidget(self.show_connected_clients_button, 3, 0, 1, 1)
-        self.layout.addWidget(self.show_network_messages_button, 3, 1, 1, 1)
-        self.layout.addWidget(self.select_connection_list, 3, 2, 1, 1)
-        self.layout.addWidget(self.send_command_button, 3, 3, 1, 1)
-        self.layout.addWidget(self.connected_clients_label, 3, 5, 1, 4)
+        self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 2, 4)
+#        self.layout.addWidget(self.set_objective_value_button, 2, 8, 1, 1)
         self.layout.addWidget(self.animal_parameters_groupbox, 4, 0, 2, 4)
-        self.layout.addWidget(self.scan_region_groupbox, 4, 5, 2, 4)
-        self.layout.addWidget(self.help_button, 8, 0, 1, 1)
-        self.layout.addWidget(self.save_two_photon_image_button, 8, 1, 1, 1)
-        self.layout.addWidget(self.override_enforcing_set_stage_origin_checkbox, 8, 2, 1, 1)
+        self.layout.addWidget(self.scan_region_groupbox, 4, 4, 2, 4)
+        
+        self.layout.addWidget(self.show_connected_clients_button, 8, 0, 1, 1)
+        self.layout.addWidget(self.show_network_messages_button, 8, 1, 1, 1)
+        self.layout.addWidget(self.select_connection_list, 8, 2, 1, 1)
+        self.layout.addWidget(self.send_command_button, 8, 3, 1, 1)
+        self.layout.addWidget(self.connected_clients_label, 8, 4, 1, 4)
+        
+        self.layout.addWidget(self.z_stack_button, 9, 0, 1, 1)
+        self.layout.addWidget(self.save_two_photon_image_button, 9, 1, 1, 1)
+        self.layout.addWidget(self.help_button, 9, 2, 1, 1)
+        self.layout.addWidget(self.override_enforcing_set_stage_origin_checkbox, 9, 3, 1, 1)
+        self.layout.addWidget(self.run_fragment_process_button, 9, 4, 1, 1)
+        self.layout.addWidget(self.fragment_process_status_button, 9, 5, 1, 1)
+
+        self.layout.addWidget(self.set_stage_origin_button, 10, 0, 1, 1)
+        self.layout.addWidget(self.read_stage_button, 10, 1, 1, 1)
+        self.layout.addWidget(self.move_stage_button, 10, 2, 1, 1)
+        self.layout.addWidget(self.stop_stage_button, 10, 3, 1, 1)
+        self.layout.addWidget(self.set_objective_button, 10, 4, 1, 1)
+        self.layout.addWidget(self.current_position_label, 10, 5, 1, 2)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -296,15 +270,16 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.select_mouse_file_label = QtGui.QLabel('Select mouse file', self)
         self.select_mouse_file = QtGui.QComboBox(self)
         self.animal_parameters_label = QtGui.QLabel('', self)
-        self.get_two_photon_image_button = QtGui.QPushButton('Get two photon image',  self)
+        self.get_two_photon_image_button = QtGui.QPushButton('XY scan',  self)
+        self.get_two_photon_image_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.use_saved_scan_settings_label = QtGui.QLabel('Use saved scan settings', self)
         self.use_saved_scan_settings_settings_checkbox = QtGui.QCheckBox(self)
-        self.snap_brain_surface_button = QtGui.QPushButton('Snap brain surface',  self)
         self.add_button = QtGui.QPushButton('Add',  self)
         self.scan_regions_combobox = QtGui.QComboBox(self)
         self.scan_regions_combobox.setEditable(True)
         self.remove_button = QtGui.QPushButton('Remove',  self)
         self.move_to_button = QtGui.QPushButton('Move to',  self)
+        self.move_to_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.region_info = QtGui.QLabel('',  self)
         self.move_to_region_options = {}
         self.move_to_region_options['header_labels'] = [ QtGui.QLabel('Move', self), QtGui.QLabel('Realign', self), QtGui.QLabel('Adjust origin', self)]
@@ -320,7 +295,10 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         for k, v in self.move_to_region_options['checkboxes'].items():
             if 'origin_adjust' not in k and 'objective_move' not in k:
                 v.setCheckState(2)
-        self.vertical_scan_button = QtGui.QPushButton('Vertical scan',  self)
+        self.vertical_scan_button = QtGui.QPushButton('XZ scan',  self)
+        self.vertical_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
+        self.cell_info_label = QtGui.QLabel('', self)
+        self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -331,8 +309,8 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.use_saved_scan_settings_settings_checkbox, 2, 2, 1, 1)
         self.layout.addWidget(self.get_two_photon_image_button, 3, 3, 1, 1)
         self.layout.addWidget(self.vertical_scan_button, 3, 2, 1, 1)
-        self.layout.addWidget(self.snap_brain_surface_button, 2, 3, 1, 1)
         self.layout.addWidget(self.add_button, 3, 0, 1, 1)
+        self.layout.addWidget(self.create_xz_lines_button, 3, 1, 1, 1)
         self.layout.addWidget(self.scan_regions_combobox, 4, 0, 1, 2)
         self.layout.addWidget(self.region_info, 4, 3, 1, 1)
         self.layout.addWidget(self.remove_button, 5, 0, 1, 1)
@@ -348,6 +326,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 7, 1, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 7, 2, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_origin_adjust'], 7, 3, 1, 1)
+        self.layout.addWidget(self.cell_info_label, 8, 0, 2, 4)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -496,7 +475,7 @@ class Poller(QtCore.QThread):
         '''
         Functions that need to be called only once at application start
         '''
-        self.set_mouse_file()
+        self.set_roi_file()
 
     def handle_events(self):
         for k, queue in self.queues.items():
@@ -533,7 +512,7 @@ class Poller(QtCore.QThread):
                     self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
                     os.remove(self.z_stack_path)
                 elif command == 'jobhandler_started':
-                    self.set_mouse_file()
+                    self.set_roi_file()
 #                elif command == 'fragment_preprocessed':
 #                    if hasattr(self, 'data_3dscan_test'):
 #                        self.data_3dscan_test['fragment_files'].append(parameter)
@@ -558,19 +537,39 @@ class Poller(QtCore.QThread):
             #Check for network connection status
             if hasattr(self.parent, 'debug_widget') and hasattr(self.parent.command_relay_server, 'servers'):
                 connection_status = self.parent.command_relay_server.get_connection_status()
-                connected = 'Alive connections: '
+                connected = ''
+                n_connected = 0
                 if connection_status['STIM_MES/MES'] and connection_status['STIM_MES/STIM']:
                     connected += 'STIM-MES  '
+                    n_connected += 1
                 if connection_status['GUI_MES/MES'] and connection_status['GUI_MES/GUI']:
                     connected += 'MES  '
+                    n_connected += 1
                 if connection_status['GUI_STIM/STIM'] and connection_status['GUI_STIM/GUI']:
                     connected += 'STIM  '
+                    n_connected += 1
                 if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
                     connected += 'ANALYSIS  '
+                    n_connected += 1
                 if connection_status['STIM_ANALYSIS/ANALYSIS'] and connection_status['STIM_ANALYSIS/STIM']:
                     connected += 'STIM-ANALYSIS'
+                    n_connected += 1
+                n_connections = len(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].keys())
+                connected = 'Alive connections ({0}/{1}): '.format(n_connected, n_connections) + connected
                 
                 self.parent.debug_widget.connected_clients_label.setText(connected)
+                
+    def send_tasks_to_jobhandler(self):
+        if hasattr(self, 'fragment_process_queue'):
+            if not self.fragment_process_queue.empty():
+                queue_item = self.fragment_process_queue.get()
+                self.queues['analysis']['out'].put('SOCstart_fragment_processingEOC{0}EOP'.format(queue_item))
+                t = utils.Timeout(1.0)
+                if not t.wait_timeout(utils.is_keyword_in_queue, self.queues['analysis']['in'], 'fragment_processing_started', False):
+                    self.fragment_process_queue.put(queue_item)
+                else:
+                    self.printc('{0} was sent to analysis' .format(queue_item))
+
 
     def handle_commands(self):
         if not self.signal_id_queue.empty():
@@ -637,16 +636,17 @@ class Poller(QtCore.QThread):
     def move_stage(self):
         movement = self.parent.scanc().split(',')
         if len(movement) == 2:
+            #Only two values are accepted
             movement.append('0')
-        elif len(movement) != 3:
+        else:
             self.printc('invalid coordinates')
             return
         self.parent.debug_widget.scan_region_groupbox.scan_regions_combobox.setEditText('')
         self.move_stage_relative(movement)
 
     def move_stage_relative(self, movement):
-        if hasattr(self, 'brain_surface_image'): #to avoid saving false data at saving regions
-            del self.brain_surface_image
+        if hasattr(self, 'two_photon_image'): #to avoid saving false data at saving regions
+            del self.two_photon_image
         if hasattr(self, 'vertical_scan'):
             del self.vertical_scan
         utils.empty_queue(self.queues['stim']['in'])
@@ -704,18 +704,18 @@ class Poller(QtCore.QThread):
         except:
             self.printc(traceback.format_exc())
             
-    def acquire_two_photon_image(self, use_region_parameters = False):
+    def acquire_xy_image(self, use_region_parameters = False):
         self.printc('Acquire two photon image')
         if self.parent.debug_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() != 0 or use_region_parameters:
             #Load scan settings from parameter file
             parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'scan_region_parameters.mat')
             if self.create_parameterfile_from_region_info(parameter_file_path, 'brain_surface'):
-                self.two_photon_image,  result = self.mes_interface.acquire_two_photon_image(self.config.MES_TIMEOUT, parameter_file = parameter_file_path)
+                self.two_photon_image,  result = self.mes_interface.acquire_xy_image(self.config.MES_TIMEOUT, parameter_file = parameter_file_path)
             else:
                 self.two_photon_image = {}
                 result = False
         elif self.parent.debug_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() == 0:
-            self.two_photon_image,  result = self.mes_interface.acquire_two_photon_image(self.config.MES_TIMEOUT)
+            self.two_photon_image,  result = self.mes_interface.acquire_xy_image(self.config.MES_TIMEOUT)
         if hasattr(self.two_photon_image, 'has_key'):
             if self.two_photon_image.has_key('path'):#For unknown reason this key is not found sometimes
                 self.files_to_delete.append(self.two_photon_image['path'])
@@ -732,11 +732,7 @@ class Poller(QtCore.QThread):
         else:
                 self.printc('No image acquired')
         return False
-
-    def snap_brain_surface(self):
-        self.acquire_two_photon_image()
-        self.brain_surface_image = self.two_photon_image
-
+        
     def acquire_vertical_scan(self, use_region_parameters = False):
         '''
         The correct scan time needs to be defined by the user
@@ -767,6 +763,21 @@ class Poller(QtCore.QThread):
         self.vertical_scan_acquired = True
         return result
         
+    def create_xz_lines(self):
+        selected_mouse_file = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
+        roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file.replace('mouse_', 'rois_'))
+        region_name = self.parent.get_current_region_name()
+        result,  self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
+        if not result:
+            self.printc('Objective position is not available')
+            return
+        if os.path.exists(roi_file_full_path):
+            cell_locations = experiment_data.read_rois(roi_file_full_path, region_name, objective_position = self.objective_position, z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'])
+            if cell_locations is not None:
+                cell_locations['depth'] = numpy.zeros_like(cell_locations['depth']) * self.objective_position + self.objective_origin
+                if not self.mes_interface.create_XZline_from_points(cell_locations, self.config.XZ_SCAN_CONFIG):
+                        selfprintc('Creating xz lines did not succeed')
+                        
     ################### Regions #######################
     def add_scan_region(self, widget = None):
         '''
@@ -780,9 +791,16 @@ class Poller(QtCore.QThread):
             del self.vertical_scan
         if widget == None:
             widget = self.parent.debug_widget
-        if not hasattr(self, 'brain_surface_image'):
+        if not hasattr(self, 'two_photon_image'):
             self.printc('No brain surface image is acquired')
             return
+        if self.two_photon_image['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
+            self.printc('Brain surface image averaging is only {0}, set it to {1}' .format(self.two_photon_image['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
+            return
+        if hasattr(self, 'vertical_scan'):
+            if self.vertical_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
+                self.printc('Number of frames is only {0}, set it to {1}' .format(self.vertical_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
+                return
         mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(widget.scan_region_groupbox.select_mouse_file.currentText()))
         if not (os.path.exists(mouse_file_path) and '.hdf5' in mouse_file_path):
             self.printc('mouse file not found')
@@ -839,10 +857,10 @@ class Poller(QtCore.QThread):
         scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
         scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
         scan_region['brain_surface'] = {}
-        scan_region['brain_surface']['image'] = self.brain_surface_image[self.config.DEFAULT_PMT_CHANNEL]
-        scan_region['brain_surface']['scale'] = self.brain_surface_image['scale']
-        scan_region['brain_surface']['origin'] = self.brain_surface_image['origin']
-        scan_region['brain_surface']['mes_parameters']  = utils.file_to_binary_array(self.brain_surface_image['path'].tostring())
+        scan_region['brain_surface']['image'] = self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL]
+        scan_region['brain_surface']['scale'] = self.two_photon_image['scale']
+        scan_region['brain_surface']['origin'] = self.two_photon_image['origin']
+        scan_region['brain_surface']['mes_parameters']  = utils.file_to_binary_array(self.two_photon_image['path'].tostring())
         #Save xy line scan parameters
         result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters()
         if result and os.path.exists(line_scan_path):
@@ -914,7 +932,7 @@ class Poller(QtCore.QThread):
                 return
         if self.parent.debug_widget.scan_region_groupbox.move_to_region_options['checkboxes']['stage_realign'] .checkState() != 0:
             self.printc('Realign stage')
-            if not self.acquire_two_photon_image(use_region_parameters = True):
+            if not self.acquire_xy_image(use_region_parameters = True):
                 return
             self.printc('Register with saved image.')
             #calculate translation between current and saved brain surface image
@@ -933,7 +951,7 @@ class Poller(QtCore.QThread):
                 self.printc('Stage origin was corrected with detected offset')
                 self.stage_origin = self.stage_origin + stage_translation
             #Get a two photon image and register again, to see whether realignment was successful
-            if not self.acquire_two_photon_image(use_region_parameters = True):
+            if not self.acquire_xy_image(use_region_parameters = True):
                 return
             if not self.register_images(self.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['brain_surface']['image'], self.two_photon_image['scale']):
                 return
@@ -1077,16 +1095,91 @@ class Poller(QtCore.QThread):
 
     def start_experiment(self):
         self.printc('Experiment started, please wait')
-        scan_mode = str(self.parent.debug_widget.experiment_control_groupbox.scan_mode.currentText())
-        explore_cells = (self.parent.debug_widget.experiment_control_groupbox.explore_cells_checkbox.checkState() != 0)
-        if 0:
-            laser_intensities_string =  str(self.parent.debug_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
-            if len(laser_intensities_string) > 0:
-                laser_intensities = map(float, laser_intensities_string.replace(' ', '').split(','))
-                laser_intensities = generic.expspace(laser_intensities[0],  laser_intensities[1],  len(objective_positions.split('<comma>')))
-                laser_intensities = str(laser_intensities.tolist()).replace(', ',  '<comma>').replace('[', '').replace(']', '')
-                parameters += ',laser_intensities='+laser_intensities
-        self.issue_experiment_start(scan_mode = scan_mode, explore_cells = explore_cells)
+        self.experiment_parameters = {}
+        self.experiment_parameters['explore_cells'] = (self.parent.debug_widget.experiment_control_groupbox.explore_cells_checkbox.checkState() != 0)
+        self.experiment_parameters['scan_mode'] = str(self.parent.debug_widget.experiment_control_groupbox.scan_mode.currentText())
+        self.experiment_parameters['mouse_file'] = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
+        self.experiment_parameters['roi_file'] = self.experiment_parameters['mouse_file'].replace('mouse_', 'rois_')
+        region_name = self.parent.get_current_region_name()
+        if len(region_name)>0:
+            self.experiment_parameters['region_name'] = region_name
+        objective_range_string = str(self.parent.debug_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
+        if len(objective_range_string)>0:
+            objective_positions = map(float, objective_range_string.split(','))
+            if objective_positions[0] > objective_positions[1]:
+                reverse = True
+                tmp = objective_positions[0]
+                objective_positions[0] = objective_positions[1]
+                objective_positions[1] = tmp
+            else:
+                reverse = False
+            objective_positions[1] += objective_positions[2]
+            self.experiment_parameters['objective_positions'] = numpy.arange(*objective_positions)
+            if reverse:
+                self.experiment_parameters['objective_positions'] = self.experiment_parameters['objective_positions'].tolist()
+                self.experiment_parameters['objective_positions'].reverse()
+                self.experiment_parameters['objective_positions'] = numpy.array(self.experiment_parameters['objective_positions'])
+            self.experiment_parameters['current_objective_position_index'] = 0
+        laser_intensities_string =  str(self.parent.debug_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
+        if len(laser_intensities_string) > 0:
+            self.experiment_parameters['laser_intensities'] = map(float, laser_intensities_string.replace(' ', '').split(','))
+            self.experiment_parameters['laser_intensities'] = generic.expspace(self.experiment_parameters['laser_intensities'][0], self.experiment_parameters['laser_intensities'][1],  self.experiment_parameters['objective_positions'].shape[0])
+        if self.experiment_parameters['explore_cells'] and len(self.experiment_parameters['region_name']) == 0:
+            self.printc('Exploring cells is not possible without selected region')
+            return
+        if self.experiment_parameters['explore_cells'] and self.experiment_parameters['scan_mode'] == 'xyz':
+            self.printc('Exploring cells is not possible in xyz mode')
+            return
+        #Have jobhandler start checking fragment status
+#        if len(self.experiment_parameters['roi_file'])>0:
+#            command = 'SOCstart_roi_file_checkEOCEOP'# .format(self.experiment_parameters['roi_file'])
+#            self.queues['analysis']['out'].put(command)
+        #Set back next/prev/redo button texts
+        self.parent.debug_widget.experiment_control_groupbox.next_depth_button.setText('Next')
+        self.parent.debug_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
+        self.parent.debug_widget.experiment_control_groupbox.redo_depth_button.setText('Redo')
+        #Start experiment batch
+        self.issue_experiment_start(self.experiment_parameters)
+
+    def issue_experiment_start(self, experiment_parameters):
+        #Ensure that user can switch between different stimulations during the experiment batch
+        self.experiment_parameters['experiment_config'] = str(self.parent.debug_widget.experiment_control_groupbox.experiment_name.currentText())
+        parameters = 'experiment_config={0},scan_mode={1},explore_cells={2}' \
+                        .format(experiment_parameters['experiment_config'], experiment_parameters['scan_mode'], experiment_parameters['explore_cells'])
+        if experiment_parameters.has_key('roi_file'):
+            parameters += ',roi_file={0}'.format(experiment_parameters['roi_file'])
+        if experiment_parameters.has_key('current_objective_position_index') and experiment_parameters.has_key('objective_positions'):
+            objective_position = experiment_parameters['objective_positions'][experiment_parameters['current_objective_position_index']]
+            parameters += ',objective_positions={0}'.format(objective_position)
+            #Update redo and next buttons
+            self.parent.debug_widget.experiment_control_groupbox.redo_depth_button.setText('Redo {0} um'.format(objective_position))
+            if experiment_parameters['current_objective_position_index']+1 < experiment_parameters['objective_positions'].shape[0]:
+                objective_position = experiment_parameters['objective_positions'][experiment_parameters['current_objective_position_index']+1]
+                self.parent.debug_widget.experiment_control_groupbox.next_depth_button.setText('Next {0} um'.format(objective_position))
+            if experiment_parameters['current_objective_position_index'] > 0:
+                objective_position = experiment_parameters['objective_positions'][experiment_parameters['current_objective_position_index']-1]
+                self.parent.debug_widget.experiment_control_groupbox.previous_depth_button.setText('Prev {0} um'.format(objective_position))
+                
+        if experiment_parameters.has_key('region_name'):
+            parameters += ',region_name='+experiment_parameters['region_name']
+        command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
+        self.queues['stim']['out'].put(command)
+        self.printc(parameters)
+        
+    def previous_experiment(self):
+        if self.experiment_parameters.has_key('current_objective_position_index') and \
+            self.experiment_parameters['current_objective_position_index'] > 0:
+            self.experiment_parameters['current_objective_position_index'] -= 1
+            self.issue_experiment_start(self.experiment_parameters)
+        
+    def redo_experiment(self):
+        self.issue_experiment_start(self.experiment_parameters)
+        
+    def next_experiment(self):
+        if self.experiment_parameters.has_key('current_objective_position_index') and \
+            self.experiment_parameters['current_objective_position_index'] < self.experiment_parameters['objective_positions'].shape[0]:
+            self.experiment_parameters['current_objective_position_index'] += 1
+            self.issue_experiment_start(self.experiment_parameters)
        
     ############ 3d scan test ###############
     def show_rc_scan_results(self):
@@ -1104,46 +1197,8 @@ class Poller(QtCore.QThread):
             p.figure(2)
             p.plot(scanned_trajectory['masked_line'][::undersample])
             p.plot(scanned_trajectory['roi'][::undersample])
-            p.show()
-        
-    def start_3dscan_test(self):
-        self.printc('3d scan test started, please wait')
-        self.data_3dscan_test = {}
-        self.data_3dscan_test['fragment_files'] = []
-        self.data_3dscan_test['expected_cell_centers'] = str(self.parent.debug_widget.test3dscanning_groupbox.cell_positions_combobox.currentText())
-        if len(self.data_3dscan_test['expected_cell_centers']) > 0:
-            self.data_3dscan_test['expected_cell_centers'] = numpy.array(map(float, self.data_3dscan_test['expected_cell_centers'].split(',')))
-            if self.data_3dscan_test['expected_cell_centers'].shape[0] %3 != 0:
-                self.printc('Invalid number of cell coordinates')
-                return False
-            self.data_3dscan_test['expected_cell_centers'] = numpy.reshape(self.data_3dscan_test['expected_cell_centers'], (self.data_3dscan_test['expected_cell_centers'].shape[0]/3, 3))
-            self.data_3dscan_test['expected_cell_centers'] = utils.rcd(self.data_3dscan_test['expected_cell_centers'])
-        else:
-            self.data_3dscan_test['expected_cell_centers'] = hdf5io.read_item(os.path.join(self.config.CONTEXT_PATH,  'cell_positions.hdf5'), 'cell_positions')
-        experiment_config_name = str(self.parent.debug_widget.experiment_control_groupbox.experiment_name.currentText())
-        objective_positions_string = str(self.parent.debug_widget.test3dscanning_groupbox.objective_positions_combobox.currentText())
-        self.data_3dscan_test['number_of_output_files']  = 2 * (len(objective_positions_string.split(',')) + 1) + 1
-        if self.parent.debug_widget.test3dscanning_groupbox.enable_2d_scan_checkbox.checkState() != 0:
-            self.issue_experiment_start(scan_mode = 'xy')
-        elif self.parent.debug_widget.test3dscanning_groupbox.enable_folded_frame_scan_checkbox.checkState() != 0:
-            #XZ line scans from cell centers
-            self.z_range = 50.0
-            self.line_length = 20.0
-#            self.printc(self.mes_interface.create_XZline_from_points(self.data_3dscan_test['expected_cell_centers'], self.z_range, self.line_length))
-            if self.mes_interface.create_XZline_from_points(self.data_3dscan_test['expected_cell_centers'], self.z_range, self.line_length):
-                self.issue_experiment_start(scan_mode = 'xz')
-        elif self.parent.debug_widget.test3dscanning_groupbox.enable_3d_scan_checkbox.checkState() != 0:
-            self.issue_experiment_start(scan_mode = 'xyz')
-#            cells = hdf5io.read_item(os.path.join(self.config.CONTEXT_PATH,  'cell_positions.hdf5'), 'cell_positions_fine')
-#            scanned_trajectory, result = self.mes_interface.rc_scan(cells)
-#            self.scanned_trajectory = scanned_trajectory
-#            self.printc(result)
-#            if result:
-#                path = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, '3d_scan_results.hdf5'))
-#                hdf5io.save_item(path, 'scanned_trajectory', scanned_trajectory)
-#                hdf5io.save_item(path, 'expected_cell_centers', cells)
-                
-        
+            p.show()      
+            
     ############# Helpers #############
     def create_parameterfile_from_region_info(self, parameter_file_path, scan_type):
         selected_region = self.parent.get_current_region_name()
@@ -1224,33 +1279,13 @@ class Poller(QtCore.QThread):
             display_position[-1] = self.objective_position
         self.parent.debug_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
         
-    def set_mouse_file(self):
+    def set_roi_file(self):
         #Notify jobhandler about the change of mouse file
         mouse_file = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
-        command = 'SOCselect_mouse_fileEOC{0}EOP' .format(mouse_file.replace('mouse_',  'rois_'))
-        self.queues['analysis']['out'].put(command)
+        if len(mouse_file)>0:
+            command = 'SOCset_roi_fileEOCfilename={0}EOP' .format(mouse_file.replace('mouse_',  'rois_'))
+            self.queues['analysis']['out'].put(command)
 
-    def issue_experiment_start(self, scan_mode = 'xy', explore_cells = True):
-        experiment_config_name = str(self.parent.debug_widget.experiment_control_groupbox.experiment_name.currentText())
-        objective_positions_string = str(self.parent.debug_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
-        roi_file = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText()).replace('mouse_', 'rois_')
-        parameters = 'experiment_config={0},scan_mode={1},roi_file={2},explore_cells={3}' \
-                        .format(experiment_config_name, scan_mode, roi_file, explore_cells)
-        if len(objective_positions_string)>0:
-            parameters += ',objective_positions='+objective_positions_string.replace(',',  '<comma>').replace(' ',  '')
-        region_name = self.parent.get_current_region_name()
-        if len(region_name)>0:
-            parameters += ',region_name='+region_name
-        if explore_cells and len(region_name) == 0:
-            self.printc('Exploring cells is not possible without selected region')
-            return
-        if explore_cells and scan_mode == 'xyz':
-            self.printc('Exploring cells is not possible in xyz mode')
-            return
-        command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
-        self.queues['stim']['out'].put(command)
-        self.printc(parameters)
-        
 # Test cases:
 # 1. move stage - set stage origin - including read stage
 # 2. set / read objective

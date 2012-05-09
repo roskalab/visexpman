@@ -249,14 +249,17 @@ class ExperimentControl(object):
                 pass
             if not aborted and result:
                 self.save_fragment_data(fragment_id)
-                #Ask analysis to start preprocessing measurement data
-                parameters = 'scan_mode={0},fragment_path={1}'.format(self.scan_mode, os.path.split(self.filenames['fragments'][fragment_id])[-1])
-                if self.parameters.has_key('region_name'):
-                    parameters += ',region_name={0}'.format(self.parameters['region_name'])
-                if self.parameters.has_key('explore_cells'):
-                    parameters += ',explore_cells={0}'.format(self.parameters['explore_cells'])
-                command = 'SOCpreporcess_fragmentEOC{0}EOP'.format(parameters)
-                self.queues['analysis']['out'].put(command)
+                if self.config.PLATFORM == 'mes':
+                    #Ask analysis to start preprocessing measurement data
+                    parameters = 'scan_mode={0},fragment_path={1}'.format(self.scan_mode, os.path.split(self.filenames['fragments'][fragment_id])[-1])
+                    if self.parameters.has_key('explore_cells'):
+                        parameters += ',explore_cells={0}'.format(self.parameters['explore_cells'])
+                    if 0:
+                        self.queues['analysis']['out'].put('SOCstart_fragment_processingEOC{0}EOP'.format(parameters))
+                    elif 0:
+                        self.queues['process_request'].put(parameters)
+#                    else:
+#                        self.queues['gui']['out'].put('SOCfragment_readyEOC{0}EOP'.format(parameters))
         else:
             result = False
             self.printl('Data acquisition stopped with error')
@@ -414,12 +417,14 @@ class ExperimentControl(object):
     def save_fragment_data(self, fragment_id):
         data_to_file = self._prepare_fragment_data(fragment_id)
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
+            #Save experiment calling parameters:
+            self.fragment_files[fragment_id].call_parameters = self.parameters
             experiment_data.save_config(self.fragment_files[fragment_id], self.config, self.experiment_config)
             #Save stage and objective position
             if self.config.PLATFORM == 'mes':
                 experiment_data.save_position(self.fragment_files[fragment_id], self.stage_position, self.objective_position)
             setattr(self.fragment_files[fragment_id], self.fragment_names[fragment_id], data_to_file)
-            self.fragment_files[fragment_id].save(self.fragment_names[fragment_id])
+            self.fragment_files[fragment_id].save([self.fragment_names[fragment_id], 'call_parameters'])
             self.fragment_files[fragment_id].close()
             if hasattr(self, 'fragment_durations'):
                 time.sleep(1.0 + 0.01 * self.fragment_durations[fragment_id])#Wait till data is written to disk
@@ -428,7 +433,6 @@ class ExperimentControl(object):
             shutil.copy(self.filenames['local_fragments'][fragment_id], self.filenames['fragments'][fragment_id])
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.fragment_data[self.filenames['local_fragments'][fragment_id]] = data_to_file
-        del data_to_file
         self.printl('Measurement data saved to: {0}'.format(self.filenames['fragments'][fragment_id]))
 
     def finish_data_fragments(self):
@@ -503,11 +507,18 @@ class ExperimentControl(object):
                         self.cell_locations = utils.rcd(filtered_cell_list)
                         self.cell_locations['depth'] += context['objective_origin']
                     elif self.parameters['scan_mode'] == 'xz':
-                        for roi_layer in roi_layers:
-                            if roi_layer['z'] == self.objective_position:
-                                self.cell_locations = roi_layer['positions']
-                                self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
-                                break
+                        if self.parameters['explore_cells']  == 'True':
+                            pass
+#                            for roi_layer in roi_layers:
+#                                if roi_layer['z'] == self.objective_position:
+#                                    self.cell_locations = roi_layer['positions']
+#                                    self.cell_locations['depth'] = self.objective_position * numpy.ones_like(self.cell_locations['depth'])#Ensure that objective is not moved
+#                                    self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
+#                                    break
+                        else:
+                            self.cell_locations = experiment_data.read_rois(roi_file, self.parameters['region_name'], objective_position = self.objective_position, z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'])
+                            self.cell_locations['depth'] = self.objective_position * numpy.ones_like(self.cell_locations['depth'])#Ensure that objective is not moved
+                            self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
         if self.cell_locations != None:
             self.printl('Cell locations loaded')
             

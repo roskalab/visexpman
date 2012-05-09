@@ -97,13 +97,14 @@ class SockServer(SocketServer.TCPServer):
                             connection_close_request = True
                             self.printl('Connection timeout')
                     else:
-                        out = self.queue_out.get()
-                        try:
-                            request.send(out)
-                        except:
-                            self.queue_out.put(out)
-                            self.printl(traceback.format_exc())
-                            connection_close_request = True
+                        if not connection_close_request:
+                            out = self.queue_out.get()
+                            try:
+                                request.send(out)
+                            except:
+                                self.queue_out.put(out)
+                                self.printl(traceback.format_exc())
+                                connection_close_request = True
                     if connection_close_request:
                         break
                 self.printl('closed')
@@ -244,8 +245,10 @@ class QueuedClient(QtCore.QThread):
         self.log_queue.put([time.time(), debug_message], True)
         
     def run(self):   
+        self.setPriority(QtCore.QThread.HighPriority)
         shutdown_request = False
         out = ''
+        keepalive = True
         while True:
             connection_close_request = False
             try:
@@ -279,6 +282,10 @@ class QueuedClient(QtCore.QThread):
                                     self.printl(traceback.format_exc())
                                     self.queue_out.put(out)
                                     connection_close_request = True
+                                if 'keepalive' in out and 'off' in out:
+                                    keepalive = False
+                                if 'keepalive' in out and 'on' in out:
+                                    keepalive = True
                         else:
                             try:
                                 data = self.connection.recv(1024)
@@ -287,7 +294,7 @@ class QueuedClient(QtCore.QThread):
                                     self.last_receive_timout = time.time()
                                 data = ''
                             if len(data) > 0:                            
-                                if self.alive_message in data:
+                                if self.alive_message in data and keepalive:
                                    #Send back keep alive message
                                     data = data.replace(self.alive_message,'')
                                     try:

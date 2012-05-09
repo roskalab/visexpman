@@ -28,6 +28,24 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
+        
+class QuickStimulationMovingGratingConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 3
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+        self.MARCH_TIME = 1.0
+        self.GRATING_STAND_TIME = 1.0
+        #Grating parameters        
+        self.ORIENTATIONS = range(0, 360, 90)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [1200.0]#1800
+        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 1
+        self.PAUSE_BEFORE_AFTER = 0.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+        self._create_parameters_from_locals(locals())
 
 class ShortMovingGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -37,7 +55,7 @@ class ShortMovingGratingConfig(experiment.ExperimentConfig):
         self.MARCH_TIME = 0.5
         self.GRATING_STAND_TIME = 0.5
         #Grating parameters        
-        self.ORIENTATIONS = [0, 45]
+        self.ORIENTATIONS = [0]
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1800.0]#1800
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
