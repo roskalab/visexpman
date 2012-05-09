@@ -5,16 +5,60 @@ import Image
 from visexpman.engine.generic.utils import nan2value
 from scipy.ndimage.interpolation import shift, rotate
 from visexpman.engine.generic.utils import nd, rc, cr
+from visexpA.engine.datadisplay.imaged import imshow
 
 
-if __name__ == "__main__":
-    preceision = 3
-else:
-    try:
-        import visexpman.users.zoltan.configurations
-        preceision = visexpman.users.zoltan.configurations.GEOMETRY_PRECISION
-    except:
-        preceision = 3
+
+def Haffine_from_points(fp,tp):
+    """ find H, affine transformation, such that 
+        tp is affine transf of fp. From Solem'blog"""
+        #could not make it work yet
+    fp=numpy.array(fp)
+    tp=numpy.array(tp)
+    if fp.shape != tp.shape:
+        raise RuntimeError, 'number of points do not match'
+    if fp.shape[0]!=2 and fp.shape[1]==2:
+        fp = fp.T
+    if fp.shape[0]!=2:
+        raise RuntimeError,'points must be given as a 2,n array'
+    if tp.shape[0]!=2 and tp.shape[1]==2:
+        tp = tp.T
+    if tp.shape[0]!=2:
+        raise RuntimeError,'points must be given as a 2,n array'
+    fp = numpy.r_[fp,numpy.ones((1,fp.shape[1],))]
+    tp = numpy.r_[tp,numpy.ones((1,tp.shape[1],))]
+    #condition points
+    #-from points-
+    m = numpy.mean(fp[:2], axis=1)
+    maxstd = numpy.max(numpy.std(fp[:2], axis=1))+1e-9
+    C1 = numpy.diag([1/maxstd, 1/maxstd, 1]) 
+    C1[0][2] = -m[0]/maxstd
+    C1[1][2] = -m[1]/maxstd
+    fp_cond = numpy.dot(C1,fp)
+
+    #-to points-
+    m = numpy.mean(tp[:2], axis=1)
+    C2 = C1.copy() #must use same scaling for both point sets
+    C2[0][2] = -m[0]/maxstd
+    C2[1][2] = -m[1]/maxstd
+    tp_cond = numpy.dot(C2,tp)
+
+    #conditioned points have mean zero, so translation is zero
+    A = numpy.concatenate((fp_cond[:2],tp_cond[:2]), axis=0)
+    U,S,V = numpy.linalg.svd(A.T)
+
+    #create B and C matrices as Hartley-Zisserman (2:nd ed) p 130.
+    tmp = V[:2].T
+    B = tmp[:2]
+    C = tmp[2:4]
+
+    tmp2 = numpy.concatenate((numpy.dot(C,numpy.linalg.pinv(B)),numpy.zeros((2,1))), axis=1) 
+    H = numpy.vstack((tmp2,[0,0,1]))
+
+    #decondition
+    H = numpy.dot(numpy.linalg.inv(C2),numpy.dot(H,C1))
+
+    return H / H[2][2]
 
 def divide_vectors(v1, v2):
     if v2[0] != 0.0 and v2[1] != 0.0 and v2[2] != 0.0:
@@ -1032,6 +1076,22 @@ class testGeometry(unittest.TestCase):
         images = match_sizes_centered([im1,im2,im3])
         self.assertEqual(sum([1 for i in images if i.shape==(16,16)]),len(images))
         pass
+    
+        
+    @unittest.skip('Could not make it work correctly')
+    def test_HAffine_from_points(self):
+        from scipy.ndimage import affine_transform
+        im1 = numpy.zeros((256,256),numpy.uint8)
+        im1[32:37,32] = 255
+        im1[67:69,45:64] = 255
+        im1[32,33]=255
+        im1[120,99]=255
+        a = numpy.radians(-45)
+        A = numpy.array([[numpy.cos(a), numpy.sin(a)], [-numpy.sin(a), numpy.cos(a)]]).T
+        im2  =affine_transform(im1,A,[0,0],order=0)
+        A2 = Haffine_from_points(zip(*im2.nonzero()),zip(*im1.nonzero()))
+        pass
+        
 if __name__ == "__main__":
     unittest.main()
     test_data =  [               {
