@@ -42,7 +42,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.previous_depth_button = QtGui.QPushButton('Prev',  self)
         self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful stop experiment',  self)
         self.identify_flourescence_intensity_distribution_button = QtGui.QPushButton('Fluorescence distribution',  self)
-        self.objective_positions_label = QtGui.QLabel('Objective range [um]\n start,end,step',  self)
+        self.objective_positions_label = QtGui.QLabel('Objective range [um]\n start,end,step,[laser step %]',  self)
         self.objective_positions_combobox = QtGui.QComboBox(self)
         self.objective_positions_combobox.setEditable(True)
         self.laser_intensities_label = QtGui.QLabel('Laser intensity (min, max) [%]',  self)
@@ -773,10 +773,15 @@ class Poller(QtCore.QThread):
             return
         if os.path.exists(roi_file_full_path):
             cell_locations = experiment_data.read_rois(roi_file_full_path, region_name, objective_position = self.objective_position, z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'])
+            cell_locations = experiment_data.merge_cell_locations(cell_locations, self.config.CELL_MERGE_DISTANCE, True)
             if cell_locations is not None:
-                cell_locations['depth'] = numpy.zeros_like(cell_locations['depth']) * self.objective_position + self.objective_origin
-                if not self.mes_interface.create_XZline_from_points(cell_locations, self.config.XZ_SCAN_CONFIG):
+                cell_locations['depth'] = numpy.ones_like(cell_locations['depth']) * self.objective_position + self.objective_origin
+                if not self.mes_interface.create_XZline_from_points(cell_locations, self.config.XZ_SCAN_CONFIG, False):
                         selfprintc('Creating xz lines did not succeed')
+                else:
+                    self.printc('{0} xz lines created'.format(cell_locations.shape[0]))
+            else:
+                self.printc('No cell locations')
                         
     ################### Regions #######################
     def add_scan_region(self, widget = None):
@@ -1106,6 +1111,9 @@ class Poller(QtCore.QThread):
         objective_range_string = str(self.parent.debug_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
         if len(objective_range_string)>0:
             objective_positions = map(float, objective_range_string.split(','))
+            if len(objective_positions) >3:
+                self.experiment_parameters['laser_step'] = objective_positions[3]
+                objective_positions = objective_positions[:3]
             if objective_positions[0] > objective_positions[1]:
                 reverse = True
                 tmp = objective_positions[0]
@@ -1162,6 +1170,8 @@ class Poller(QtCore.QThread):
                 
         if experiment_parameters.has_key('region_name'):
             parameters += ',region_name='+experiment_parameters['region_name']
+        if experiment_parameters.has_key('laser_step'):
+            parameters += ',laser_step='+str(experiment_parameters['laser_step'])
         command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
         self.queues['stim']['out'].put(command)
         self.printc(parameters)

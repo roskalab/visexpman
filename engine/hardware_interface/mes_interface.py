@@ -304,12 +304,9 @@ class MesInterface(object):
         return z_stack_path, result
         
     #######################  RC scan #######################
-    def create_XZline_from_points(self, cell_centers, xz_scan_config):
+    def create_XZline_from_points(self, cell_centers, xz_scan_config, delete_parameter_file = True):
         if not hasattr(cell_centers, 'dtype'):
             return False
-        z_range = xz_scan_config['Z_RANGE']
-        line_length = xz_scan_config['LINE_LENGTH']
-        z_resolution = xz_scan_config['Z_RESOLUTION']
         timeout = self.config.MES_TIMEOUT
         parameter_path, parameter_path_on_mes = self._generate_mes_file_paths('create_xz_line_params.mat')
         #Generate parameter file
@@ -317,17 +314,18 @@ class MesInterface(object):
         data_to_mes_mat['DATA'] = {}
         data_to_mes_mat['DATA']['points'] = cell_centers
         data_to_mes_mat['DATA']['params'] = {}
-        data_to_mes_mat['DATA']['params']['LineLength'] = line_length
+        data_to_mes_mat['DATA']['params']['LineLength'] = xz_scan_config['LINE_LENGTH']
         data_to_mes_mat['DATA']['params']['zshift'] = 1.0
-        data_to_mes_mat['DATA']['params']['Tpixnum'] = z_range/z_resolution
-        data_to_mes_mat['DATA']['params']['Tpixwidth'] = z_resolution
+        data_to_mes_mat['DATA']['params']['Tpixnum'] = xz_scan_config['Z_PIXEL_SIZE']
+        data_to_mes_mat['DATA']['params']['Tpixwidth'] = xz_scan_config['Z_RESOLUTION']
 #        temp_path = str(tempfile.mkstemp(suffix='.mat')[1])
         scipy.io.savemat(parameter_path, data_to_mes_mat, oned_as = 'column') 
 #        shutil.copyfile(temp_path, parameter_path)
         self.queues['mes']['out'].put('SOCcreate_XZline_from_pointsEOC{0}EOP'.format(parameter_path_on_mes))
         result = network_interface.wait_for_response(self.queues['mes']['in'], 'SOCcreate_XZline_from_pointsEOCline_setEOP', timeout = timeout)
         time.sleep(1.0) #Need to wait for MES to ensure that creating xz line from points operation is completely finished
-        os.remove(parameter_path)
+        if delete_parameter_file:
+            os.remove(parameter_path)
         return result
     
     def rc_scan(self, cell_centers):

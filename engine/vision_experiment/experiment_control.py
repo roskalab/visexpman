@@ -138,6 +138,21 @@ class ExperimentControl(object):
                         self.printl('Laser intensity is not set')
                     else:
                         self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
+                if self.parameters.has_key('laser_step'):
+                    result,  laser_intensity = self.mes_interface.read_laser_intensity()
+                    if not result:
+                        self.printl('Laser intensity is NOT available')
+                    else:
+                        laser_intensity += float(self.parameters['laser_step'])
+                        if laser_intensity > 100.0:
+                            laser_intensity = 100.0
+                        result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(laser_intensity)
+                        if not result:
+                            self.abort = True
+                            self.printl('Laser intensity is not set')
+                        else:
+                            self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
+                
             #read stage and objective
             self.stage_position = self.stage.read_position() - self.stage_origin
             result,  self.objective_position, context['objective_origin'] = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
@@ -249,15 +264,15 @@ class ExperimentControl(object):
                 pass
             if not aborted and result:
                 self.save_fragment_data(fragment_id)
-                if self.config.PLATFORM == 'mes':
-                    #Ask analysis to start preprocessing measurement data
-                    parameters = 'scan_mode={0},fragment_path={1}'.format(self.scan_mode, os.path.split(self.filenames['fragments'][fragment_id])[-1])
-                    if self.parameters.has_key('explore_cells'):
-                        parameters += ',explore_cells={0}'.format(self.parameters['explore_cells'])
-                    if 0:
-                        self.queues['analysis']['out'].put('SOCstart_fragment_processingEOC{0}EOP'.format(parameters))
-                    elif 0:
-                        self.queues['process_request'].put(parameters)
+#                if self.config.PLATFORM == 'mes':
+#                    #Ask analysis to start preprocessing measurement data
+#                    parameters = 'scan_mode={0},fragment_path={1}'.format(self.scan_mode, os.path.split(self.filenames['fragments'][fragment_id])[-1])
+#                    if self.parameters.has_key('explore_cells'):
+#                        parameters += ',explore_cells={0}'.format(self.parameters['explore_cells'])
+#                    if 0:
+#                        self.queues['analysis']['out'].put('SOCstart_fragment_processingEOC{0}EOP'.format(parameters))
+#                    elif 0:
+#                        self.queues['process_request'].put(parameters)
 #                    else:
 #                        self.queues['gui']['out'].put('SOCfragment_readyEOC{0}EOP'.format(parameters))
         else:
@@ -516,7 +531,8 @@ class ExperimentControl(object):
 #                                    self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
 #                                    break
                         else:
-                            self.cell_locations = experiment_data.read_rois(roi_file, self.parameters['region_name'], objective_position = self.objective_position, z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'])
+                            self.cell_locations = experiment_data.read_rois(roi_file, self.parameters['region_name'], objective_position = self.objective_position, z_range = self.config.Z_PIXEL_SIZE)
+                            self.cell_locations = experiment_data.merge_cell_locations(self.cell_locations, self.config.CELL_MERGE_DISTANCE, True)
                             self.cell_locations['depth'] = self.objective_position * numpy.ones_like(self.cell_locations['depth'])#Ensure that objective is not moved
                             self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
         if self.cell_locations != None:

@@ -353,8 +353,8 @@ def arc_perimeter(radius,  angle):
     slice_ratio = angle / 360.0
     return numpy.pi  * 2 *radius * slice_ratio
     
-def rc_distance(point1,  point2):
-    if 'depth' in point1.dtype.names and 'depth' in point2.dtype.names:
+def rc_distance(point1,  point2, rc_distance_only = False):
+    if 'depth' in point1.dtype.names and 'depth' in point2.dtype.names and not rc_distance:
         return numpy.sqrt((float(point1['col'])-float(point2['col']))**2 + (float(point1['row'])-float(point2['row']))**2 + (float(point1['depth'])-float(point2['depth']))**2)
     else:
         return numpy.sqrt((float(point1['col'])-float(point2['col']))**2 + (float(point1['row'])-float(point2['row']))**2)

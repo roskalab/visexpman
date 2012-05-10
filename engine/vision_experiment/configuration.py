@@ -235,7 +235,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_MESEXTRACTOR = True
         
         #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_RANGE' : 50.0, 'Z_RESOLUTION':0.5}
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 50.0, 'Z_RESOLUTION':2.0, 'Z_RANGE' : 100.0}
         
         MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
         #this function call is compulsory
