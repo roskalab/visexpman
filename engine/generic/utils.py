@@ -222,13 +222,14 @@ def rc(raw,**kwargs):
 def cr(raw,  **kwargs):
     return rcd_pack(raw, dim_order = [1, 0],**kwargs)    
 dim_names0 = ['row','col','depth']
+
 def rcd_pack(raw, dim_order = [0, 1],**kwargs):
     '''If a tuple is given as raw, the output will be 0dimensional rc array'''
     order = argsort(dim_order)
     dim_order = sorted(dim_order)
     dim_names = [dim_names0[n] for n in dim_order] # sorted ensures that field ordering will always be as dim_names0, this way nd will always give [row,col] or [row,col,depth] ordered data
     # handle case when input is a tuple having as many elements as dimensions (max 3)
-    if (isinstance(raw,(list,tuple)) and ((len(raw) == len(dim_names)) and (type(raw[0])==int or type(raw[0])==float)) or (hasattr(raw,'ndim') and raw.ndim==1 and raw.size==len(dim_names))):
+    if (isinstance(raw,(list,tuple)) and ((len(raw) == len(dim_names)) and (type(raw[0])==int or type(raw[0])==float or type(raw[0]) == numpy.float64 or type(raw[0]) == numpy.float32 or type(raw[0]) == numpy.int32)) or (hasattr(raw,'ndim') and raw.ndim==1 and raw.size==len(dim_names))):
         nd = kwargs.get('nd',0)
         raw = numpy.array(raw)[order] #reorder elements if they are not in row,col,depth order
         dtype={'names':dim_names,'formats':[raw[0].dtype]*len(dim_names)}

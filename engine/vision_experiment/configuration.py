@@ -82,9 +82,9 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         UDP_PORT =[446,  [200,  65000]] #RZ Why dont you like 446  Since this is used only in Presentinator setups and there the 446 port is used, this can be 446 instead of 9999
         UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
         
-        #Command interface        TODO: these two params are obsolete
-        SERVER_IP = ''
-        COMMAND_INTERFACE_PORT = [10000, [1100,  65000]]        
+        #Command interface
+        #SERVER_IP = ''
+        #COMMAND_INTERFACE_PORT = [10000, [1100,  65000]]        
         
         #naming: server - client
         self.BASE_PORT = 10000
@@ -176,7 +176,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
         SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
-        SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]#TODO: copy to user config
+        SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
         
 #                 DAQ_CONFIG = [[
 #         {
@@ -228,10 +228,10 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ACCEPTABLE_REALIGNMENT_OFFSET = [2.0, [0.1, 10.0]]
         REALIGNMENT_XY_THRESHOLD = [1.0, [0.1, 10.0]]
         REALIGNMENT_Z_THRESHOLD = [1.0, [0.1, 10.0]]
-        CELL_MERGE_DISTANCE = [3.0, [1.0, 20.0]] #TODO: copy to user config
+        CELL_MERGE_DISTANCE = [3.0, [1.0, 20.0]]
         MIN_SCAN_REGION_AVERAGING = [3, [1, 10]]
         
-        ENABLE_FRAGMENT_CHECK = True #TODO: copy to user config
+        ENABLE_FRAGMENT_CHECK = True
         ENABLE_MESEXTRACTOR = True
         
         #MES scanning config

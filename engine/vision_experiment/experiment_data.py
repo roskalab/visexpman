@@ -111,7 +111,6 @@ def check_fragment(path, fragment_hdf5_handle = None):
         node = nodes[i]
         node_name = expected_top_level_nodes[i]
         if node_name == 'software_environment':
-            #TODO: check the source code content
             if not hasattr(node, 'keys'):
                 result = False
                 messages.append('unexpected data type in software_environment')
@@ -119,7 +118,9 @@ def check_fragment(path, fragment_hdf5_handle = None):
                 result = False
                 messages.append('unexpected data in software_environment')
         elif node_name == 'position':
-            pass#TODO: check it
+            if not hasattr(node, 'dtype'):
+                result = False
+                messages.append('position data is in unexpected format')
         elif node_name == 'experiment_config' or node_name == 'machine_config':
             if not hasattr(node, 'keys'):
                 result = False
