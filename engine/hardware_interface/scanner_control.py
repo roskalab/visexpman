@@ -321,6 +321,11 @@ class TwoPhotonScanner(instrument.Instrument):
     def init_instrument(self):
         self.shutter = daq_instrument.DigitalIO(self.config, id=1)
         self.aio = daq_instrument.AnalogIO(self.config)
+        self.binning_factor = float(self.aio.daq_config['AI_SAMPLE_RATE'])/self.aio.daq_config['AO_SAMPLE_RATE']
+        if self.binning_factor != numpy.round(self.binning_factor, 0):
+            raise RuntimeError('AI sample rate must be the multiple of AO sample rate')
+        else:
+            self.binning_factor = int(self.binning_factor)
         
     def start_measurement(self, scanner_x, scanner_y):
         #Convert from position to voltage
@@ -329,6 +334,9 @@ class TwoPhotonScanner(instrument.Instrument):
         self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr(self.scanner_control_signal[:,0]), self.config.SCANNER_RAMP_TIME, self.config.SCANNER_HOLD_TIME)
         self.aio.waveform = self.scanner_control_signal.T
         self.pmt_raw = []
+        self.data = []
+        self.frame_rate = float(self.aio.daq_config['AO_SAMPLE_RATE']/self.scanner_positions.shape[1])
+        self.boundaries = numpy.nonzero(numpy.diff(self.scan_mask))[0]+1
         self.open_shutter()
         self.aio.start_daq_activity()
         
@@ -350,6 +358,7 @@ class TwoPhotonScanner(instrument.Instrument):
         pos_x, pos_y, self.scan_mask, accel_speed, result = generate_rectangular_scan(size, position, spatial_resolution, 1, setting_time, self.config)
         if not result:
             raise RuntimeError('Scanning pattern is not feasable')
+        self.is_rectangular_scan = True
         self.start_measurement(pos_x, pos_y)
         
     def start_line_scan(self, lines, setting_time = None):
@@ -358,18 +367,23 @@ class TwoPhotonScanner(instrument.Instrument):
         pos_x, pos_y, self.scan_mask, accel_speed, result = generate_lines_scan(lines, setting_time, 1, self.config)
         if not result:
             raise RuntimeError('Scanning pattern is not feasable')
+        self.is_rectangular_scan = False
         self.start_measurement(pos_x, pos_y)
         
-        
     def read_pmt(self):
-        self.pmt_raw.append(self.aio.read_analog())
+        raw_pmt_data = self.aio.read_analog()
+        self.pmt_raw.append(raw_pmt_data)
         
     def finish_measurement(self):
         self.aio.finish_daq_activity()
         self.close_shutter()
         #value of ao at stopping continous generation is unknown
         self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr((0.0, 0.0)), self.config.SCANNER_RAMP_TIME)
-        
+        #Gather measurment data
+        for raw_pmt_data in self.pmt_raw:
+            binned_pmt_data = self._binning_data(raw_pmt_data, self.binning_factor)
+            self.data.append(numpy.array((numpy.split(binned_pmt_data, self.boundaries)[1::2])))
+        self.data = numpy.array(self.data)
         
     def open_shutter(self):
         self.shutter.set()
@@ -380,6 +394,32 @@ class TwoPhotonScanner(instrument.Instrument):
     def close_instrument(self):
         self.aio.release_instrument()
         self.shutter.release_instrument()
+        
+    ####### Helpers #####################
+    def _binning_data(self, data, factor):
+        return numpy.reshape(data, (data.shape[0]/factor, factor, data.shape[1])).mean(1)
+        
+def generate_test_lines(scanner_range, repeats, speeds):
+    lines1 = [
+                 {'p0': utils.rc((0.5*scanner_range, 0)), 'p1': utils.rc((-0.5*scanner_range, 0))}, 
+                 {'p0': utils.rc((-0.5*scanner_range, 0)), 'p1': utils.rc((0.5*scanner_range, 0))}, 
+                 ]
+    lines2 = [
+                 {'p0': utils.rc((0, 0.5*scanner_range)), 'p1': utils.rc((0, -0.5*scanner_range))}, 
+                 {'p0': utils.rc((0, -0.5*scanner_range)), 'p1': utils.rc((0, 0.5*scanner_range))}, 
+                 ]
+    line_patterns = [lines1, lines2]
+    lines = []
+    for speed in speeds:
+        for line_pattern in line_patterns:
+            for repeat in range(repeats):
+                for line in line_pattern:
+                    import copy
+                    line_to_add = copy.copy(line)
+                    line_to_add['v'] = speed
+                    lines.append(line_to_add)
+        
+    return lines
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):
@@ -519,12 +559,12 @@ class TestScannerControl(unittest.TestCase):
             title('scan mask')
             show()
             
-    def test_05_twophoton(self):
+    def te1st_05_twophoton(self):
         import time
         plot_enable = not False
         config = ScannerTestConfig()
         config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'aio'
-        config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 1.0
+        config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
         config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 250000
         config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 500000
         config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
@@ -533,25 +573,55 @@ class TestScannerControl(unittest.TestCase):
         config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
         lines = [
                  {'p0': utils.rc((50, 0)), 'p1': utils.rc((-50, 0)), 'v': 1000.0}, 
-                 {'p0': utils.rc((0, 50)), 'p1': utils.rc((0, -50)), 'v': 1000.0}, 
+                 {'p0': utils.rc((-50, 0)), 'p1': utils.rc((50, 0)), 'v': 1000.0}, 
                  ]
+        lines = generate_test_lines(100, 1, [500, 1000, 2000, 4000])
         tp = TwoPhotonScanner(config)
-#        tp.start_rectangular_scan(utils.rc((100, 100)), spatial_resolution = 0.5, setting_time = 0.4e-3)
+#        tp.start_rectangular_scan(utils.rc((100, 100)), spatial_resolution = 1.0, setting_time = 0.3e-3)
         tp.start_line_scan(lines, setting_time = 20e-3)
-        tp.read_pmt()
+        for i in range(1):
+            tp.read_pmt()
         tp.finish_measurement()
         tp.release_instrument()
-        
-
+        #Image.fromarray(normalize(tp.images[0][:,:,0],numpy.uint8)).save('v:\\debug\\pmt1.png')
         if plot_enable:
             from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
             figure(1)
             plot(tp.pmt_raw[0])
             figure(2)
-#            plot(tp.pmt_raw[1])
-#            figure(3)
+            plot(tp.data[0][0][:,0])
+            plot(tp.data[0][0][:,1])
+            figure(3)
+            plot(tp.data[0][1][:,0])
+            plot(tp.data[0][1][:,1])
+            figure(4)
             plot(tp.scanner_positions.T)
+            show()
             
+    def test_06_calibrate_scanner_parameters(self):
+        import time
+        plot_enable = not False
+        config = ScannerTestConfig()
+        config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'aio'
+        config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
+        config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 250000
+        config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 500000
+        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
+        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
+        config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
+        config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
+        lines = generate_test_lines(100, 1, [300, 600, 1000, 2000, 4000])
+        tp = TwoPhotonScanner(config)
+        tp.start_line_scan(lines, setting_time = 40e-3)
+        tp.read_pmt()
+        tp.finish_measurement()
+        tp.release_instrument()
+        if plot_enable:
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+            figure(1)
+            plot(tp.pmt_raw[0])
+            figure(4)
+            plot(tp.scanner_positions.T)
             show()
         
     def _ramp(self):
