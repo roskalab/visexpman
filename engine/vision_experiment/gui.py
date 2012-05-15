@@ -52,8 +52,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.scan_mode.addItems(QtCore.QStringList(['xy', 'xz', 'xyz']))
         self.explore_cells_label = QtGui.QLabel('Explore cells', self)
         self.explore_cells_checkbox = QtGui.QCheckBox(self)
-        
-    
+
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.experiment_name, 0, 0, 1, 2)
@@ -765,7 +764,10 @@ class Poller(QtCore.QThread):
         
     def create_xz_lines(self):
         selected_mouse_file = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
-        roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file.replace('mouse_', 'rois_'))
+        if not hasattr(self, 'animal_parameters'):
+            self.printc('Animal parameters are not available, roi filename is unknown')
+            return
+        roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.generate_animal_filename('rois', self.animal_parameters))
         region_name = self.parent.get_current_region_name()
         result,  self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
         if not result:
@@ -1159,8 +1161,9 @@ class Poller(QtCore.QThread):
         if experiment_parameters.has_key('current_objective_position_index') and experiment_parameters.has_key('objective_positions'):
             objective_position = experiment_parameters['objective_positions'][experiment_parameters['current_objective_position_index']]
             parameters += ',objective_positions={0}'.format(objective_position)
-            #Update redo and next buttons
             self.parent.debug_widget.experiment_control_groupbox.redo_depth_button.setText('Redo {0} um'.format(objective_position))
+            #Update redo and next buttons
+            time.sleep(0.2)
             if experiment_parameters['current_objective_position_index']+1 < experiment_parameters['objective_positions'].shape[0]:
                 objective_position = experiment_parameters['objective_positions'][experiment_parameters['current_objective_position_index']+1]
                 self.parent.debug_widget.experiment_control_groupbox.next_depth_button.setText('Next {0} um'.format(objective_position))
@@ -1292,9 +1295,15 @@ class Poller(QtCore.QThread):
     def set_roi_file(self):
         #Notify jobhandler about the change of mouse file
         mouse_file = str(self.parent.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
-        if len(mouse_file)>0:
-            command = 'SOCset_roi_fileEOCfilename={0}EOP' .format(mouse_file.replace('mouse_',  'rois_'))
+        if len(mouse_file)>0 and hasattr(self, 'animal_parameters'):
+            roi_filename = self.generate_animal_filename('rois', self.animal_parameters)
+            command = 'SOCset_roi_fileEOCfilename={0}EOP' .format(roi_filename)
             self.queues['analysis']['out'].put(command)
+            
+    def generate_animal_filename(self, tag, animal_parameters, extension = 'hdf5'):
+        name = '{5}_{0}_{1}_{2}_{3}_{4}.{6}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
+                                         animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], tag, extension)
+        return name
 
 # Test cases:
 # 1. move stage - set stage origin - including read stage

@@ -77,10 +77,7 @@ class VisionExperimentGui(QtGui.QWidget):
                                 self.poller.two_photon_image['scale'], 
                                 origin = self.poller.two_photon_image['origin'])
         if hasattr(self.poller.vertical_scan, 'has_key'):
-            if self.poller.vertical_scan.has_key('scaled_scale'):#temporary
-                scale = self.poller.vertical_scan['scaled_scale']
-            else:
-                scale = self.poller.vertical_scan['scaled_scale']
+            scale = self.poller.vertical_scan['scaled_scale']
             self.show_image(self.poller.vertical_scan['scaled_image'], 2, scale, origin = self.poller.vertical_scan['origin'])
         #Get list of experiment configs
         experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig)
@@ -205,12 +202,12 @@ class VisionExperimentGui(QtGui.QWidget):
         name = '{0}_{1}_{2}_{3}_{4}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
                                          animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'])
 
-        mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'mouse_{0}.hdf5'\
-                                            .format(name))
+        mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.poller.generate_animal_filename('mouse', animal_parameters))
         
         if os.path.exists(mouse_file_path):
             self.printc('Animal parameter file already exists')
-        else:        
+        else:
+            self.poller.animal_parameters = animal_parameters
             self.hdf5_handler = hdf5io.Hdf5io(mouse_file_path)
             variable_name = 'animal_parameters_{0}'.format(int(time.time()))        
             setattr(self.hdf5_handler,  variable_name, animal_parameters)
@@ -239,11 +236,11 @@ class VisionExperimentGui(QtGui.QWidget):
         selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
         mouse_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file)
         scan_regions = hdf5io.read_item(mouse_file_full_path, 'scan_regions')
-        roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file.replace('mouse_', 'rois_'))
-        if os.path.exists(roi_file_full_path):
-            rois = hdf5io.read_item(roi_file_full_path, 'rois', safe=True)
-        else:
-            rois = {}
+        rois = {}
+        if hasattr(self.poller, 'animal_parameters'):
+            roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.poller.generate_animal_filename('rois', self.poller.animal_parameters))
+            if os.path.exists(roi_file_full_path):
+                rois = hdf5io.read_item(roi_file_full_path, 'rois', safe=True)
         if scan_regions == None:
             scan_regions = {}
         #is mouse file changed recently?
@@ -308,7 +305,11 @@ class VisionExperimentGui(QtGui.QWidget):
                     n_cells = roi[id]['cell_locations'].shape[0]
                 else:
                     n_cells = 0
-                info +='{0}, {1}{2}{3}, {4};  '.format(id, int(roi[id]['fragment_check_ready']), int(roi[id]['mesextractor_ready']), int(roi[id]['find_cells_ready']), n_cells)
+                responding_pixels = 0
+                if roi[id].has_key('soma_rois'):
+                    for soma_roi in roi[id]['soma_rois']:
+                        responding_pixels +=  soma_roi.shape[0]
+                info +='{0}, {1}{2}{3}, {4}/{5};  '.format(id, int(roi[id]['fragment_check_ready']), int(roi[id]['mesextractor_ready']), int(roi[id]['find_cells_ready']), n_cells, responding_pixels)
                 if (i+2)%3==0:
                     info += '\n'
 
@@ -333,6 +334,7 @@ class VisionExperimentGui(QtGui.QWidget):
                     animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'],  animal_parameters['anesthesia_protocol'])
             h.close()
             self.debug_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
+        self.poller.animal_parameters = animal_parameters
         self.poller.set_roi_file()
     
 

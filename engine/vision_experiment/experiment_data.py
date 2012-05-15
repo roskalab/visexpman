@@ -52,12 +52,13 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_sign
 #################### Saving/loading data to hdf5 ####################
 def save_config(file_handle, machine_config, experiment_config = None):
     if hasattr(file_handle, 'save'):
-        file_handle.machine_config = copy.deepcopy(machine_config.get_all_parameters()) #The deepcopy is necessary to avoid conflict between daqmx and hdf5io        
-        file_handle.experiment_config = experiment_config.get_all_parameters()
+        if 0:
+            file_handle.machine_config = copy.deepcopy(machine_config.get_all_parameters()) #The deepcopy is necessary to avoid conflict between daqmx and hdf5io        
+            file_handle.experiment_config = experiment_config.get_all_parameters()
         #pickle configs
-        file_handle.machine_config_pickled = pickle_config(machine_config)
-        file_handle.experiment_config_pickled = pickle_config(experiment_config)
-        file_handle.save(['experiment_config', 'machine_config', 'experiment_config_pickled', 'machine_config_pickled'])
+        file_handle.machine_config = pickle_config(machine_config)
+        file_handle.experiment_config = pickle_config(experiment_config)
+        file_handle.save(['experiment_config', 'machine_config'])#, 'experiment_config_pickled', 'machine_config_pickled'])
     elif file_handle == None:
         config = {}
         config['machine_config'] = copy.deepcopy(machine_config.get_all_parameters())
@@ -93,7 +94,7 @@ def check_fragment(path, fragment_hdf5_handle = None):
     data_node_name =  os.path.split(path)[-1].replace('.hdf5', '').split('_')
     data_node_name = data_node_name[-3:]
     data_node_name = string.join(data_node_name).replace(' ', '_')
-    expected_top_level_nodes = ['experiment_config', 'machine_config', 'experiment_config_pickled', 'machine_config_pickled', 'call_parameters']
+    expected_top_level_nodes = ['experiment_config', 'machine_config', 'call_parameters']
     expected_top_level_nodes.append('position')
     expected_top_level_nodes.append(data_node_name)
     import time
@@ -122,13 +123,6 @@ def check_fragment(path, fragment_hdf5_handle = None):
                 result = False
                 messages.append('position data is in unexpected format')
         elif node_name == 'experiment_config' or node_name == 'machine_config':
-            if not hasattr(node, 'keys'):
-                result = False
-                messages.append('unexpected data type in {0}'.format(node_name))
-            elif not (node.has_key('OS') and node.has_key('PACKAGE_PATH')):
-                result = False
-                messages.append('unexpected data in {0}'.format(node_name))
-        elif node_name == 'experiment_config_pickled' or node_name == 'machine_config_pickled':
             if not hasattr(node,  'dtype'):
                 result = False
                 messages.append('unexpected data type in {0}'.format(node_name))
