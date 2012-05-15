@@ -331,7 +331,7 @@ class Debug(VisionExperimentConfig):
             elif use_drive =='v':
                 root_folder = 'V:\\'
         else:
-            root_folder = '/home/zoltan/visexp/' 
+            root_folder = '/mnt/rzws/'
         drive_data_folder = os.path.join(root_folder, 'debug', 'data')
         LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        

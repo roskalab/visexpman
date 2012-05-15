@@ -53,6 +53,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         OBJECTIVE_POSITION_LIMIT = [1000.0, [500.0, 2000.0]]
         MES_Z_SCAN_SCOPE = [100.0, [0.0, 200.0]]
         DEFAULT_Z_SCAN_OVERLAP = [10.0, [0.0,  50]]
+        OBJECTIVE_TRANSIENT_SMOOTHING_TIME = [13, [0, 20]]
         
         #display parameters:
         SCREEN_RESOLUTION = utils.rc([600, 800])        
@@ -236,6 +237,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 50.0, 'Z_RESOLUTION':2.0, 'Z_RANGE' : 100.0}
+        XZ_FRAME_CLIPPING = {'top': 4,  'bottom':3}
         
         MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
         #this function call is compulsory

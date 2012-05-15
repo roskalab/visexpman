@@ -255,7 +255,7 @@ class AnalogIO(instrument.Instrument):
                 self.analog_output.StopTask()
             if self.enable_ai:
                 self.analog_input.StopTask()
-                if self.ao_sampling_mode == DAQmxConstants.DAQmx_Val_FiniteSamps:
+                if not hasattr(self, 'ao_sampling_mode') or self.ao_sampling_mode == DAQmxConstants.DAQmx_Val_FiniteSamps:
                     self.ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
                     self.ai_raw_data = self.ai_data
                     self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()
