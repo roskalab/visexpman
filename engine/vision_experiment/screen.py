@@ -1,5 +1,3 @@
-#TODO: Rename this module
-
 import pygame
 import socket
 import time
@@ -44,8 +42,7 @@ class VisionExperimentScreen(graphics.Screen):
     def _display_bullseye(self):
         if self.show_bullseye:
             #TODO: bullseye size
-            #TODO: consider coordinate system type
-            self.render_imagefile(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'))
+            self.render_imagefile(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'), position = self.config.SCREEN_CENTER)
             
         
     def _show_menu(self, flip = False):

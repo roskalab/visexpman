@@ -114,7 +114,6 @@ class SockServer(SocketServer.TCPServer):
             self.printl(traceback.format_exc())
 
 class QueuedServer(QtCore.QThread):
-    #TODO: Queued server and sock server could be subclassed 
     def __init__(self, queue_in, queue_out, port, name, log_queue, timeout):
         QtCore.QThread.__init__(self)
         self.port = port

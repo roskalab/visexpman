@@ -14,6 +14,8 @@ from visexpman.engine import generic
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as gen
 
+import unittest
+
 ############### Preprocess measurement data ####################
 def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_signal_min_amplitude = 1.5):
     #Find out high and low voltage levels
@@ -109,7 +111,6 @@ def check_fragment(path, fragment_hdf5_handle = None):
         node = nodes[i]
         node_name = expected_top_level_nodes[i]
         if node_name == 'software_environment':
-            #TODO: check the source code content
             if not hasattr(node, 'keys'):
                 result = False
                 messages.append('unexpected data type in software_environment')
@@ -117,7 +118,9 @@ def check_fragment(path, fragment_hdf5_handle = None):
                 result = False
                 messages.append('unexpected data in software_environment')
         elif node_name == 'position':
-            pass#TODO: check it
+            if not hasattr(node, 'dtype'):
+                result = False
+                messages.append('position data is in unexpected format')
         elif node_name == 'experiment_config' or node_name == 'machine_config':
             if not hasattr(node, 'keys'):
                 result = False
@@ -168,11 +171,33 @@ def read_rois(roi_file, region_name, objective_position = None, z_range = None):
                         append = True
                     if append:
                         cell_locations.append(utils.nd(location))
-        cell_locations = utils.rcd(numpy.array(cell_locations))
-        return cell_locations
-
+        if len(cell_locations) == 0:
+            return None
+        else:
+            cell_locations = utils.rcd(numpy.array(cell_locations))
+            return cell_locations
+            
+def merge_cell_locations(cell_locations, merge_distance, xy_distance_only = False):
+    if cell_locations != None:
+        filtered_cell_locations = []
+        for i in range(cell_locations.shape[0]):
+            keep_cell = True
+            for j in range(i+1, cell_locations.shape[0]):
+                if abs(utils.rc_distance(cell_locations[i], cell_locations[j], rc_distance_only = xy_distance_only)) < merge_distance:
+                    keep_cell = False
+            if keep_cell:
+                cell = cell_locations[i]
+                filtered_cell_locations.append((cell['row'], cell['col'], cell['depth']))
+        filtered_cell_locations = utils.rcd(numpy.array(filtered_cell_locations))
+        return filtered_cell_locations
+    
+class TestExperimentData(unittest.TestCase):
+    def test_01_read_merge_rois(self):
+        cell_locations = read_rois('/mnt/rzws/debug/data/rois_test1_1-1-2012_1-1-2012_0_0.hdf5', 'r_0_0', objective_position = -115.0, z_range = 100.0)
+        cell_locations = merge_cell_locations(cell_locations, 10, True)
 if __name__=='__main__':
-        print read_rois('/mnt/rzws/debug/data/rois_test1_1-1-2012_1-1-2012_0_0.hdf5', 'r_0_0', objective_position = 0.0, z_range = 100.0)
+    unittest.main()
+        
     
     
     

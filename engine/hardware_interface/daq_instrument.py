@@ -17,7 +17,45 @@ if os.name == 'nt':
         import PyDAQmx.DAQmxTypes as DAQmxTypes
     except:
         pass
-
+        
+        
+class DigitalIO(instrument.Instrument):
+    def init_instrument(self):
+        if hasattr(self.config,  'DAQ_CONFIG'):
+            try:
+                self.daq_config = self.config.DAQ_CONFIG[self.id]
+            except IndexError:
+                daq_config = {'ENABLE': False}
+                self.daq_config = daq_config
+        else:
+            #Ensure that experiments referencing AnalogIO class will run without errors on machines where DAQ_CONFIG is not defined or daqmx driver is not available
+            daq_config = {'ENABLE': False}
+            self.daq_config = daq_config
+        if os.name == 'nt' and self.daq_config['ENABLE']: 
+            self.digital_output = PyDAQmx.Task()
+            self.digital_output.CreateDOChan(self.daq_config['DO_CHANNEL'],
+                                                            'do',
+                                                            DAQmxConstants.DAQmx_Val_ChanPerLine)
+                                                            
+    def _set_line_value(self, state):
+        digital_values = numpy.array([int(state)], dtype=numpy.uint8)
+        self.digital_output.WriteDigitalLines(1,
+                                    True,
+                                    self.daq_config['DAQ_TIMEOUT'],
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    digital_values,
+                                    None,
+                                    None)
+                                    
+    def set(self):
+        self._set_line_value(True)
+        
+    def clear(self):
+        self._set_line_value(False)
+                                    
+    def close_instrument(self):
+        if os.name == 'nt' and self.daq_config['ENABLE']:
+            self.digital_output.ClearTask()
 
 class AnalogIO(instrument.Instrument):
     '''
@@ -115,17 +153,21 @@ class AnalogIO(instrument.Instrument):
     def _configure_timing(self):    
         if os.name == 'nt' and self.daq_config['ENABLE']:    
             if self.enable_ao:
+                if self.daq_config.has_key('AO_SAMPLING_MODE') and self.daq_config['AO_SAMPLING_MODE'] != 'finite':
+                    self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_ContSamps
+                else:
+                    self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_FiniteSamps
                 self.analog_output.CfgSampClkTiming("OnboardClock",
                                             self.ao_sample_rate,
                                             DAQmxConstants.DAQmx_Val_Rising,
-                                            DAQmxConstants.DAQmx_Val_FiniteSamps,
-                                            self.number_of_ao_samples)                                            
+                                            self.ao_sampling_mode,
+                                            self.number_of_ao_samples)
             if self.enable_ai:
-                sampling = DAQmxConstants.DAQmx_Val_ContSamps #DAQmx_Val_ContSamps #DAQmxConstants.DAQmx_Val_FiniteSamps
+                sampling_mode = DAQmxConstants.DAQmx_Val_ContSamps #DAQmx_Val_ContSamps #DAQmxConstants.DAQmx_Val_FiniteSamps
                 self.analog_input.CfgSampClkTiming("OnboardClock",
                                             self.ai_sample_rate,
                                             DAQmxConstants.DAQmx_Val_Rising,
-                                            sampling,
+                                            sampling_mode,
                                             self.number_of_ai_samples)
         
     def _write_waveform(self):
@@ -146,7 +188,6 @@ class AnalogIO(instrument.Instrument):
         if os.name == 'nt' and self.daq_config['ENABLE']:
             if not hasattr(self, 'waveform') and self.enable_ao:
                 raise RuntimeError('No waveform provided')
-                
             if self.enable_ao:
                 self.number_of_ao_samples = self.waveform.shape[0]
                 self.waveform_duration = float(self.number_of_ao_samples) / float(self.ao_sample_rate)
@@ -169,6 +210,25 @@ class AnalogIO(instrument.Instrument):
             return True
         else:
             return False
+            
+    def read_analog(self):
+        if os.name == 'nt' and self.daq_config['ENABLE']:
+            if self.enable_ai:
+                samples_to_read = self.number_of_ai_samples * self.number_of_ai_channels
+                try:
+                    self.analog_input.ReadAnalogF64(self.number_of_ai_samples,
+                                                self.daq_config['DAQ_TIMEOUT'],
+                                                DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                                self.ai_data,
+                                                samples_to_read,
+                                                DAQmxTypes.byref(self.read),
+                                                None)
+                except PyDAQmx.DAQError:
+                    pass
+                self.ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
+                self.ai_raw_data = self.ai_data
+                self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()
+                return self.ai_data
 
     def finish_daq_activity(self, abort = False):
         if os.name == 'nt' and self.daq_config['ENABLE']:
@@ -187,18 +247,18 @@ class AnalogIO(instrument.Instrument):
                                                 None)
                 except PyDAQmx.DAQError:
                     pass
-                
                 #Make sure that all the acquisitions are completed                
 #                 self.analog_input.WaitUntilTaskDone(self.daq_config['DAQ_TIMEOUT'])
-            if self.enable_ao and not abort:
+            if self.enable_ao and not abort and self.ao_sampling_mode == DAQmxConstants.DAQmx_Val_FiniteSamps:
                 self.analog_output.WaitUntilTaskDone(self.daq_config['DAQ_TIMEOUT'])
             if self.enable_ao:
                 self.analog_output.StopTask()
             if self.enable_ai:
                 self.analog_input.StopTask()
-                self.ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
-                self.ai_raw_data = self.ai_data
-                self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()
+                if self.ao_sampling_mode == DAQmxConstants.DAQmx_Val_FiniteSamps:
+                    self.ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
+                    self.ai_raw_data = self.ai_data
+                    self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()
             return True
         else:
             return False
@@ -383,6 +443,11 @@ class testDaqConfig(configuration.Config):
         'MIN_VOLTAGE' : 0.0,
         'DURATION_OF_AI_READ' : 1.0,
         'ENABLE' : True
+        }, 
+        {
+        'DAQ_TIMEOUT' : 1.0, 
+        'DO_CHANNEL' : unit_test_runner.TEST_daq_device + '/port0/line0',
+        'ENABLE' : True
         }
         ]
         
@@ -400,7 +465,7 @@ class testAnalogPulseConfig(configuration.Config):
         'MAX_VOLTAGE' : 10.0,
         'MIN_VOLTAGE' : 0.0,
         'ENABLE' : True
-        },        
+        },
         ]
         self._create_parameters_from_locals(locals())
 
@@ -913,7 +978,7 @@ class TestDaqInstruments(unittest.TestCase):
         self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 10000
         self.config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'ai'
         
-        aio = AnalogIO(self.config, self)        
+        aio = AnalogIO(self.config, self)
         aio.start_daq_activity()
         time.sleep(ai_read_time)
         aio.finish_daq_activity()
@@ -939,6 +1004,15 @@ class TestDaqInstruments(unittest.TestCase):
                             abs(ai3 - ao1).sum(),
                             ai4.sum()),
                             (0.0, 0.0, 0.0, 0.0, 0.0))
+                            
+    def test_29_test_digital_output(self):
+        do = DigitalIO(self.config, self, id=2)
+        for i in range(100):
+            do.set()
+            time.sleep(0.0)
+            do.clear()
+            time.sleep(0.0)
+        do.release_instrument()
     
     #== Test utilities ==
     def zero_non_zero_ratio(self, data):

@@ -434,7 +434,7 @@ class Screen(object):
         elif key_pressed == '2':
             self.scale = self.scale + self.scale_step
         elif key_pressed == '3':
-            self.save_frame(utils.generate_filename(self.config.CAPTURE_PATH + os.sep + 'capture.bmp'))
+            self.save_frame(file.generate_filename(self.config.CAPTURE_PATH + os.sep + 'capture.bmp'))
             print 'frame saved'
         self.user_keyboard_handler(key_pressed)
         

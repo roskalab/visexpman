@@ -318,11 +318,11 @@ class Debug(VisionExperimentConfig):
         PLATFORM = 'standalone'
         PLATFORM = 'mes'
         PARSE_PERIOD = 2.0
-        CELL_MERGE_DISTANCE = 10.0
+        CELL_MERGE_DISTANCE = 3.0
         ENABLE_FRAGMENT_CHECK = True
         ENABLE_MESEXTRACTOR = True
         #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':25.0, 'Z_RANGE' : 100.0, 'Z_RESOLUTION':1}
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':1.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3, 'Z_RANGE':100.0}
         #=== paths/data handling ===
         use_drive = 'v'
         if os.name == 'nt':
@@ -521,8 +521,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
 
         CELL_MERGE_DISTANCE = 10.0
         #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':25.0, 'Z_RANGE' : 100.0, 'Z_RESOLUTION':1}
- 
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':25.0, 'Z_PIXEL_SIZE' : 100.0, 'Z_RESOLUTION':1, 'Z_RANGE':100.0}
         
         self._create_parameters_from_locals(locals())        
 

@@ -10,8 +10,10 @@ Extreme setting: big movement, short setting time, big speed change
 #eliminate position and speed overshoots - not possible
 #TODO: check generated scan for acceleration, speed and position limits
 import numpy
+import time
 
 import daq_instrument
+import instrument
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import configuration
 from visexpman.users.zoltan.test import unit_test_runner
@@ -19,13 +21,18 @@ import unittest
 
 class ScannerTestConfig(configuration.Config):
     def _create_application_parameters(self):
-        self.SCANNER_MAX_SPEED = utils.rc((50000, 40000))#um/s
-        self.SCANNER_MAX_ACCELERATION = utils.rc((3000000, 2000000)) #um/s2
-        self.SCANNER_ACCELERATION = 200000000
-        self.SCANNER_SIGNAL_SAMPLING_RATE = 1000 #Hz
+        self.SCANNER_MAX_SPEED = utils.rc((1e7, 1e7))#um/s
+        self.SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
+        self.SCANNER_SIGNAL_SAMPLING_RATE = 250000 #Hz
         self.SCANNER_DELAY = 0#As function of scanner speed
-        self.SCANNER_START_STOP_TIME = 0.1
+        self.SCANNER_START_STOP_TIME = 0.02
         self.SCANNER_MAX_POSITION = 200.0
+        self.POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0
+        self.XMIRROR_OFFSET = 0.0#um
+        self.YMIRROR_OFFSET = 0.0#um
+        self.SCANNER_RAMP_TIME = 70.0e-3
+        self.SCANNER_HOLD_TIME = 30.0e-3
+        self.SCANNER_SETTING_TIME = 1e-3
         DAQ_CONFIG = [
         {
         'ANALOG_CONFIG' : 'aio',
@@ -34,38 +41,66 @@ class ScannerTestConfig(configuration.Config):
         'AI_SAMPLE_RATE' : 200000,
         'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
         'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai0:2',
-        'MAX_VOLTAGE' : 5.0,
-        'MIN_VOLTAGE' : -5.0,
+        'MAX_VOLTAGE' : 3.0,
+        'MIN_VOLTAGE' : -3.0,
         'DURATION_OF_AI_READ' : 2.0,
         'ENABLE' : True
-        },     
+        },
+        {
+        'DAQ_TIMEOUT' : 1.0, 
+        'DO_CHANNEL' : unit_test_runner.TEST_daq_device + '/port0/line0',
+        'ENABLE' : True
+        }
         ]
         self._create_parameters_from_locals(locals())
         
-        
-def generate_rectangular_scan(size, position, spatial_resolution, frames_to_scan, setting_time, config):
-    '''
-    size: in rc format, the horizontal and vertical size of the scannable area
-    position: in rc format, the center of the scannable rectangle
-    spatial resolution: in um/pixel
-    '''
+def generate_lines_scan(lines, setting_time, frames_to_scan, config):
+    start_stop_scanner = False
     dt = 1.0/config.SCANNER_SIGNAL_SAMPLING_RATE
     start_stop_time = config.SCANNER_START_STOP_TIME
-    row_positions = numpy.linspace(position['row'] - size['row'],  position['row'] + size['row'],  numpy.ceil(size['row']/spatial_resolution)+1)
-    lines = []
-    for row_poisition in row_positions:
-        line = {'p0': utils.rc((row_poisition, position['col'] - size['col'])), 'p1': utils.rc((row_poisition, position['col'] + size['col'])), 'ds': spatial_resolution}
-        lines.append(line)
     pos_x, pos_y, speed_x, speed_y, accel_x, accel_y, scan_mask, period_time = \
-                generate_line_scan_series(lines, dt, setting_time, config.SCANNER_MAX_SPEED, config.SCANNER_MAX_ACCELERATION, scanning_periods = frames_to_scan, start_stop_scanner = True, start_stop_time = start_stop_time)
+                generate_line_scan_series(lines, dt, setting_time, config.SCANNER_MAX_SPEED, config.SCANNER_MAX_ACCELERATION, scanning_periods = frames_to_scan, start_stop_scanner = start_stop_scanner, start_stop_time = start_stop_time)
     if abs(speed_x).max() < config.SCANNER_MAX_SPEED['col'] and abs(speed_y).max() < config.SCANNER_MAX_SPEED['row'] and\
         abs(accel_x).max() < config.SCANNER_MAX_ACCELERATION['col'] and abs(accel_y).max()< config.SCANNER_MAX_ACCELERATION['row'] and\
         abs(pos_x).max() < config.SCANNER_MAX_POSITION and abs(pos_y).max() < config.SCANNER_MAX_POSITION:
         result = True
     else:
         result = False
-    
-    return pos_x, pos_y, scan_mask, result
+    speed_and_accel = {}
+    speed_and_accel['speed_x'] = speed_x
+    speed_and_accel['speed_y'] = speed_y
+    speed_and_accel['accel_x'] = accel_x
+    speed_and_accel['accel_y'] = accel_y
+    return pos_x, pos_y, scan_mask, speed_and_accel, result
+
+def generate_rectangular_scan(size, position, spatial_resolution, frames_to_scan, setting_time, config):
+    '''
+    size: in rc format, the horizontal and vertical size of the scannable area
+    position: in rc format, the center of the scannable rectangle
+    spatial resolution: in um/pixel
+    '''
+    start_stop_scanner = False
+    dt = 1.0/config.SCANNER_SIGNAL_SAMPLING_RATE
+    start_stop_time = config.SCANNER_START_STOP_TIME
+    row_positions = numpy.linspace(position['row'] - 0.5*size['row'],  position['row'] + 0.5*size['row'],  numpy.ceil(size['row']/spatial_resolution)+1)
+    lines = []
+    for row_position in row_positions:
+        line = {'p0': utils.rc((row_position, position['col'] - 0.5*size['col'])), 'p1': utils.rc((row_position, position['col'] + 0.5*size['col'])), 'ds': spatial_resolution}
+        lines.append(line)
+    pos_x, pos_y, speed_x, speed_y, accel_x, accel_y, scan_mask, period_time = \
+                generate_line_scan_series(lines, dt, setting_time, config.SCANNER_MAX_SPEED, config.SCANNER_MAX_ACCELERATION, scanning_periods = frames_to_scan, start_stop_scanner = start_stop_scanner, start_stop_time = start_stop_time)
+    if abs(speed_x).max() < config.SCANNER_MAX_SPEED['col'] and abs(speed_y).max() < config.SCANNER_MAX_SPEED['row'] and\
+        abs(accel_x).max() < config.SCANNER_MAX_ACCELERATION['col'] and abs(accel_y).max()< config.SCANNER_MAX_ACCELERATION['row'] and\
+        abs(pos_x).max() < config.SCANNER_MAX_POSITION and abs(pos_y).max() < config.SCANNER_MAX_POSITION:
+        result = True
+    else:
+        result = False
+    speed_and_accel = {}
+    speed_and_accel['speed_x'] = speed_x
+    speed_and_accel['speed_y'] = speed_y
+    speed_and_accel['accel_x'] = accel_x
+    speed_and_accel['accel_y'] = accel_y
+    return pos_x, pos_y, scan_mask, speed_and_accel, result
     
 
 #Line scan
@@ -92,9 +127,10 @@ def generate_line_scan_series(lines, dt, setting_time, vmax, accmax, scanning_pe
     #Calculate initial speed and position from the parameters of the last line assuming that the scanning will be periodical
     p0 = lines[-1]['p1']
     if lines[-1].has_key('v'):
-            v0 = line['v']
+        ds, n = calculate_spatial_resolution(lines[-1]['p0'], lines[-1]['p1'], lines[-1]['v'], dt)
+        v0, n = calculate_scanner_speed(lines[-1]['p0'], lines[-1]['p1'], ds, dt)
     else:
-            v0, n = calculate_scanner_speed(lines[-1]['p0'], lines[-1]['p1'], lines[-1]['ds'], dt)
+        v0, n = calculate_scanner_speed(lines[-1]['p0'], lines[-1]['p1'], lines[-1]['ds'], dt)
     if start_stop_scanner:
         start_pos_x, start_speed_x, start_accel_x, t, A, start_safe_x = \
                 set_position_and_speed(p_initial['col'], p0['col'], v_initial['col'], v0['col'], start_stop_time, dt, Amax = a_limits['col'], omit_last = True)
@@ -108,8 +144,8 @@ def generate_line_scan_series(lines, dt, setting_time, vmax, accmax, scanning_pe
             line_out = line
             #connect line's initial position with actual scanner position
             if line.has_key('v'):
-                v1 = line['v']
                 ds, n = calculate_spatial_resolution(line['p0'], line['p1'], line['v'], dt)
+                v1, n = calculate_scanner_speed(line['p0'], line['p1'], ds, dt)
             else:
                 v1, n = calculate_scanner_speed(line['p0'], line['p1'], line['ds'], dt)
                 ds = line['ds']
@@ -280,6 +316,110 @@ def plot_a_v_s(a, v, s, t):
     plot(t,s)
     legend(['a','v','s'])
     show()
+    
+class TwoPhotonScanner(instrument.Instrument):
+    def init_instrument(self):
+        self.shutter = daq_instrument.DigitalIO(self.config, id=1)
+        self.aio = daq_instrument.AnalogIO(self.config)
+        self.binning_factor = float(self.aio.daq_config['AI_SAMPLE_RATE'])/self.aio.daq_config['AO_SAMPLE_RATE']
+        if self.binning_factor != numpy.round(self.binning_factor, 0):
+            raise RuntimeError('AI sample rate must be the multiple of AO sample rate')
+        else:
+            self.binning_factor = int(self.binning_factor)
+        
+    def start_measurement(self, scanner_x, scanner_y):
+        #Convert from position to voltage
+        self.scanner_positions = numpy.array([scanner_x, scanner_y])
+        self.scanner_control_signal = numpy.array([scanner_x + self.config.XMIRROR_OFFSET, scanner_y + self.config.YMIRROR_OFFSET]) * self.config.POSITION_TO_SCANNER_VOLTAGE
+        self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr(self.scanner_control_signal[:,0]), self.config.SCANNER_RAMP_TIME, self.config.SCANNER_HOLD_TIME)
+        self.aio.waveform = self.scanner_control_signal.T
+        self.pmt_raw = []
+        self.data = []
+        self.frame_rate = float(self.aio.daq_config['AO_SAMPLE_RATE']/self.scanner_positions.shape[1])
+        self.boundaries = numpy.nonzero(numpy.diff(self.scan_mask))[0]+1
+        self.open_shutter()
+        self.aio.start_daq_activity()
+        
+    def _set_scanner_voltage(self, initial_voltage, target_voltage, ramp_time, hold_time = 0):
+        ramp_samples = int(self.aio.daq_config['AO_SAMPLE_RATE']*ramp_time)
+        hold_samples = int(self.aio.daq_config['AO_SAMPLE_RATE']*hold_time)
+        scanner_x_waveform = target_voltage['col'] * numpy.ones(ramp_samples + hold_samples)
+        scanner_x_waveform[:ramp_samples] = numpy.linspace(initial_voltage['col'], target_voltage['col'], ramp_samples)
+        scanner_y_waveform = target_voltage['row'] * numpy.ones(ramp_samples + hold_samples)
+        scanner_y_waveform[:ramp_samples] = numpy.linspace(initial_voltage['row'], target_voltage['row'], ramp_samples)
+        self.config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'finite'
+        self.aio.waveform = numpy.array([scanner_x_waveform, scanner_y_waveform]).T
+        self.aio.run()
+        self.config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
+        
+    def start_rectangular_scan(self, size, position = utils.rc((0, 0)), spatial_resolution = 1.0, setting_time = None):
+        if setting_time == None:
+            setting_time = self.config.SCANNER_SETTING_TIME
+        pos_x, pos_y, self.scan_mask, accel_speed, result = generate_rectangular_scan(size, position, spatial_resolution, 1, setting_time, self.config)
+        if not result:
+            raise RuntimeError('Scanning pattern is not feasable')
+        self.is_rectangular_scan = True
+        self.start_measurement(pos_x, pos_y)
+        
+    def start_line_scan(self, lines, setting_time = None):
+        if setting_time == None:
+            setting_time = self.config.SCANNER_SETTING_TIME
+        pos_x, pos_y, self.scan_mask, accel_speed, result = generate_lines_scan(lines, setting_time, 1, self.config)
+        if not result:
+            raise RuntimeError('Scanning pattern is not feasable')
+        self.is_rectangular_scan = False
+        self.start_measurement(pos_x, pos_y)
+        
+    def read_pmt(self):
+        raw_pmt_data = self.aio.read_analog()
+        self.pmt_raw.append(raw_pmt_data)
+        
+    def finish_measurement(self):
+        self.aio.finish_daq_activity()
+        self.close_shutter()
+        #value of ao at stopping continous generation is unknown
+        self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr((0.0, 0.0)), self.config.SCANNER_RAMP_TIME)
+        #Gather measurment data
+        for raw_pmt_data in self.pmt_raw:
+            binned_pmt_data = self._binning_data(raw_pmt_data, self.binning_factor)
+            self.data.append(numpy.array((numpy.split(binned_pmt_data, self.boundaries)[1::2])))
+        self.data = numpy.array(self.data)
+        
+    def open_shutter(self):
+        self.shutter.set()
+        
+    def close_shutter(self):
+        self.shutter.clear()
+        
+    def close_instrument(self):
+        self.aio.release_instrument()
+        self.shutter.release_instrument()
+        
+    ####### Helpers #####################
+    def _binning_data(self, data, factor):
+        return numpy.reshape(data, (data.shape[0]/factor, factor, data.shape[1])).mean(1)
+        
+def generate_test_lines(scanner_range, repeats, speeds):
+    lines1 = [
+                 {'p0': utils.rc((0.5*scanner_range, 0)), 'p1': utils.rc((-0.5*scanner_range, 0))}, 
+                 {'p0': utils.rc((-0.5*scanner_range, 0)), 'p1': utils.rc((0.5*scanner_range, 0))}, 
+                 ]
+    lines2 = [
+                 {'p0': utils.rc((0, 0.5*scanner_range)), 'p1': utils.rc((0, -0.5*scanner_range))}, 
+                 {'p0': utils.rc((0, -0.5*scanner_range)), 'p1': utils.rc((0, 0.5*scanner_range))}, 
+                 ]
+    line_patterns = [lines1, lines2]
+    lines = []
+    for speed in speeds:
+        for line_pattern in line_patterns:
+            for repeat in range(repeats):
+                for line in line_pattern:
+                    import copy
+                    line_to_add = copy.copy(line)
+                    line_to_add['v'] = speed
+                    lines.append(line_to_add)
+        
+    return lines
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):
@@ -390,15 +530,15 @@ class TestScannerControl(unittest.TestCase):
     #        show()
     #        savefig('/home/zoltan/visexp/debug/data/x.pdf')
     
-    def t1est_04_generate_rectangular_scan(self):
-        plot_enable = False
+    def tes1t_04_generate_rectangular_scan(self):
+        plot_enable = not False
         config = ScannerTestConfig()
-        spatial_resolution = 1.0
+        spatial_resolution = 20.0
         position = utils.rc((0, 0))
         size = utils.rc((100, 100))
-        setting_time = 0.01
-        frames_to_scan = 2
-        pos_x, pos_y, scan_mask, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
+        setting_time = 0.00005
+        frames_to_scan = 1
+        pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         if plot_enable:
             from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
             figure(2)
@@ -406,61 +546,92 @@ class TestScannerControl(unittest.TestCase):
             plot(pos_x)
             plot(pos_y)
             title('position')
-    #        subplot(413)
-    #        plot(speed_x)
-    #        plot(speed_y)
-    #        title('speed')
-    #        subplot(414)
-    #        plot(accel_x)
-    #        plot(accel_y)
-    #        title('acceleration')
+            subplot(413)
+            plot(speed_and_accel['speed_x'])
+            plot(speed_and_accel['speed_y'])
+            title('speed')
+            subplot(414)
+            plot(speed_and_accel['accel_x'])
+            plot(speed_and_accel['accel_y'])
+            title('acceleration')
             subplot(412)
             plot(scan_mask)
             title('scan mask')
             show()
             
-    def test_05_daq(self):
+    def te1st_05_twophoton(self):
+        import time
         plot_enable = not False
         config = ScannerTestConfig()
-        unit_test_runner.TEST_daq_device = 'Dev3'
         config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'aio'
-        config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 1.0
+        config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
         config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 250000
         config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 500000
         config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
         config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
-        aio = daq_instrument.AnalogIO(config)
-        waveform = 2*numpy.ones((2, 500000))
-        waveform = numpy.linspace(0.0, 1.0, 500000)
+        config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
+        config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
+        lines = [
+                 {'p0': utils.rc((50, 0)), 'p1': utils.rc((-50, 0)), 'v': 1000.0}, 
+                 {'p0': utils.rc((-50, 0)), 'p1': utils.rc((50, 0)), 'v': 1000.0}, 
+                 ]
+        lines = generate_test_lines(100, 1, [500, 1000, 2000, 4000])
+        tp = TwoPhotonScanner(config)
+#        tp.start_rectangular_scan(utils.rc((100, 100)), spatial_resolution = 1.0, setting_time = 0.3e-3)
+        tp.start_line_scan(lines, setting_time = 20e-3)
+        for i in range(1):
+            tp.read_pmt()
+        tp.finish_measurement()
+        tp.release_instrument()
+        #Image.fromarray(normalize(tp.images[0][:,:,0],numpy.uint8)).save('v:\\debug\\pmt1.png')
+        if plot_enable:
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+            figure(1)
+            plot(tp.pmt_raw[0])
+            figure(2)
+            plot(tp.data[0][0][:,0])
+            plot(tp.data[0][0][:,1])
+            figure(3)
+            plot(tp.data[0][1][:,0])
+            plot(tp.data[0][1][:,1])
+            figure(4)
+            plot(tp.scanner_positions.T)
+            show()
+            
+    def test_06_calibrate_scanner_parameters(self):
+        import time
+        plot_enable = not False
+        config = ScannerTestConfig()
+        config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'aio'
+        config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
+        config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 250000
+        config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 500000
+        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
+        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
+        config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
+        config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
+        lines = generate_test_lines(100, 1, [300, 600, 1000, 2000, 4000])
+        tp = TwoPhotonScanner(config)
+        tp.start_line_scan(lines, setting_time = 40e-3)
+        tp.read_pmt()
+        tp.finish_measurement()
+        tp.release_instrument()
+        if plot_enable:
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+            figure(1)
+            plot(tp.pmt_raw[0])
+            figure(4)
+            plot(tp.scanner_positions.T)
+            show()
+        
+    def _ramp(self):
+        waveform = numpy.linspace(0.0, 1.0, 10000)
         waveform = numpy.array([waveform, waveform])
         waveform[1, :] =1*waveform[1, :]
         waveform[:, -1] = numpy.zeros(2)
         waveform[:, -2] = numpy.zeros(2)
         waveform[:, -3] = numpy.zeros(2)
-        aio.waveform = waveform.T
-        aio.start_daq_activity()
-#        aio.run()
-        import time
-        time.sleep(1.0)
-        aio.finish_daq_activity()
-        ai_data_first_run = aio.ai_data
-        waveform_1 = 2*waveform
-        aio.waveform = waveform_1.T
-        aio.run()
-        aio.release_instrument()
-#        print aio.ai_data
-        if plot_enable:
-            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
-            figure(1)
-            plot(ai_data_first_run)
-            figure(2)
-            plot(aio.ai_data)
-#            plot(aio.ai_data[:, 0])
-#            plot(aio.ai_data[:, 1])
-#            plot(aio.ai_data[:, 2])
-#            plot(aio.ai_data[:, 3])
-            show()
-        
+        return waveform.T
         
 if __name__ == "__main__":
     unittest.main()
