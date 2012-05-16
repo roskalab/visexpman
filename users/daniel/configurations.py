@@ -423,6 +423,18 @@ class Debug(VisionExperimentConfig):
         ACCEPTABLE_REALIGNMENT_OFFSET = 5.0
         REALIGNMENT_XY_THRESHOLD = 2.0
         REALIGNMENT_Z_THRESHOLD = 1.0
+        
+        self.ROI = {}
+        self.ROI['process'] = 'all'
+        self.ROI['overwrite'] = True
+        self.ROI['rawdata_filter']= {'width':13, 
+            'spatial_width':1,
+            'ncpus':16, 
+            'thr':2.5,
+            'separation_width':1, 
+            'spatial_connectivity':1, 
+            'transfermode': 'file'
+                                     }
 
         self._create_parameters_from_locals(locals())
         

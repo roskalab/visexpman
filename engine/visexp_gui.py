@@ -295,7 +295,7 @@ class VisionExperimentGui(QtGui.QWidget):
             self.debug_widget.scan_region_groupbox.region_info.setText('')
         if utils.safe_has_key(rois, selected_region):
             roi = rois[selected_region]
-            info = '{0} file(s); id, status, n cells: '.format(len(roi.keys()))
+            info = '{0} file(s); id, depth, status, n cells, n pixels: '.format(len(roi.keys()))
             row = 0
             ids = roi.keys()
             ids.sort()
@@ -309,7 +309,11 @@ class VisionExperimentGui(QtGui.QWidget):
                 if roi[id].has_key('soma_rois'):
                     for soma_roi in roi[id]['soma_rois']:
                         responding_pixels +=  soma_roi.shape[0]
-                info +='{0}, {1}{2}{3}, {4}/{5};  '.format(id, int(roi[id]['fragment_check_ready']), int(roi[id]['mesextractor_ready']), int(roi[id]['find_cells_ready']), n_cells, responding_pixels)
+                if roi[id].has_key('depth'):
+                    depth = roi[id]['depth']
+                else:
+                    depth = 0
+                info +='{0}, {6}, {1}{2}{3}, {4}/{5};  '.format(id, int(roi[id]['fragment_check_ready']), int(roi[id]['mesextractor_ready']), int(roi[id]['find_cells_ready']), n_cells, responding_pixels,  depth)
                 if (i+2)%3==0:
                     info += '\n'
 
@@ -326,7 +330,7 @@ class VisionExperimentGui(QtGui.QWidget):
         selected_mouse_file  = os.path.join(self.config.EXPERIMENT_DATA_PATH, mouse_file)
         if os.path.exists(selected_mouse_file) and '.hdf5' in selected_mouse_file:
             h = hdf5io.Hdf5io(selected_mouse_file)
-            varname = h.find_variable_in_h5f('animal_parameters')[0]
+            varname = h.find_variable_in_h5f('animal_parameters', regexp=True)[0]
             h.load(varname)
             animal_parameters = getattr(h, varname)
             self.animal_parameters_str = '{2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}, {6}'\
