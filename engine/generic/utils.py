@@ -203,10 +203,13 @@ def argsort(seq):
     #by ubuntu
     return sorted(range(len(seq)), key=seq.__getitem__)
     
-def nd(rcarray, squeeze=False):
+def nd(rcarray, squeeze=False, dim_order=None):
     '''Convenience function to convert a recarray to nd array'''
-    if rcarray.dtype.names != dim_names0[:len(rcarray.dtype.names)]: # fields are not ordered in the default order
-        res = numpy.array([rcarray[f] for f in dim_names0[:len(rcarray.dtype.names)]]) # take field by field in the default order
+    if dim_order is None: dim_order = [0, 1, 2]
+    dim_names4current_data = dim_names0[:len(rcarray.dtype.names)]
+    names_in_order = [dim_names4current_data[dim_order[di]]  for di in range(len(rcarray.dtype.names))]
+    if rcarray.dtype.names !=names_in_order: # fields are not ordered in the default order
+        res = numpy.c_[[rcarray[f] for f in names_in_order]].T # take field by field in the default order
     else: # faster way
         res= rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
     if squeeze:
@@ -622,7 +625,23 @@ def module_versions(modules):
             #raise RuntimeError('This module is not in the version list: %s. Update list in utils.module_versions() function' % str(module))
     return module_version, module_version_dict
 
-
+def execute_program(command):
+    '''Executes a program and captures its output'''
+    import subprocess
+    import sys
+    child = subprocess.Popen(command, shell=True, stderr=subprocess.PIPE)
+    complete = False
+    sout = ''
+    while True:
+        out = child.stderr.read(1)
+        sout+=out
+        if out == '' and child.poll() != None:
+            break
+        if out != '':
+            sys.stdout.write(out)
+            sys.stdout.flush()
+    return sout
+        
 def list_stdlib():
     import distutils.sysconfig as sysconfig
     import os
