@@ -18,7 +18,7 @@ def rescale_numpy_array_image(image, scale):
         scale = utils.cr((scale,  scale))
     im = Image.fromarray(generic.normalize(image,numpy.uint8))
     new_size = (int(im.size[0] * scale['col']), int(im.size[1] * scale['row']))
-    im = im.resize(new_size)
+    im = im.resize(new_size, Image.ANTIALIAS)
     return numpy.asarray(im)
 
 def draw_line_numpy_array(image, line, fill = (255, 0, 0)):

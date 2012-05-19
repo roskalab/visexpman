@@ -1,15 +1,11 @@
 import time
 import os.path
-
-#window_type = 'pyglet'
 import numpy
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
-
 import pygame
-#elif window_type == 'pyglet':
-#    import pyglet
+
 import Image
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file

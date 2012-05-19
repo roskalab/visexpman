@@ -531,7 +531,7 @@ class ExperimentControl(object):
 #                                    self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
 #                                    break
                         else:
-                            self.cell_locations = experiment_data.read_rois(roi_file, self.parameters['region_name'], objective_position = self.objective_position, z_range = self.config.Z_PIXEL_SIZE)
+                            self.cell_locations = experiment_data.read_rois(roi_file, self.parameters['region_name'], objective_position = self.objective_position, z_range = self.config.Z_PIXEL_SIZE, mouse_file = roi_file.replace('rois_', 'mouse_'))#TODO: filename has to be generated
                             self.cell_locations = experiment_data.merge_cell_locations(self.cell_locations, self.config.CELL_MERGE_DISTANCE, True)
                             self.cell_locations['depth'] = self.objective_position * numpy.ones_like(self.cell_locations['depth'])#Ensure that objective is not moved
                             self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value

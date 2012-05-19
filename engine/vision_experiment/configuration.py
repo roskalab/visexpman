@@ -219,6 +219,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         TAB_SIZE = utils.cr((0.3 * screen_size['col'], 0.9 * screen_size['row']))
         IMAGE_SIZE = utils.rc_multiply_with_constant(utils.rc((1, 1)), int(0.4 * screen_size['row']))
         OVERVIEW_IMAGE_SIZE = utils.rc_multiply_with_constant(IMAGE_SIZE, 2)
+        ROI_INFO_IMAGE_SIZE = utils.rc((int(1.35*IMAGE_SIZE['row']), int(1.35*OVERVIEW_IMAGE_SIZE['col'])))
+        ROI_CURVE_IMAGE_CUTOUT = [1600, [0, 2000]]
         SIDEBAR_SIZE = [30, [10, 100]]
         GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
         GUI_INIT_JOB = [5.0, [0.1, 10.0]]

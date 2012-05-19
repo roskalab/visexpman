@@ -324,14 +324,20 @@ class Debug(VisionExperimentConfig):
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':1.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3, 'Z_RANGE':100.0}
         #=== paths/data handling ===
-        use_drive = 'v'
+        use_drive = 'r'
         if os.name == 'nt':
             if use_drive == 'g':
                 root_folder = 'g:\\User\\Zoltan'
             elif use_drive =='v':
                 root_folder = 'V:\\'
+            elif use_drive =='r':
+                root_folder = 'R:\\'
         else:
-            root_folder = '/mnt/rzws/'
+            if use_drive =='v':
+                root_folder = '/mnt/datafast/'
+            elif use_drive =='r':
+                root_folder = '/mnt/rzws/'
+                    
         drive_data_folder = os.path.join(root_folder, 'debug', 'data')
         LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
@@ -340,6 +346,8 @@ class Debug(VisionExperimentConfig):
             MES_DATA_FOLDER = 'g:\\User\\Zoltan\\data'
         elif use_drive =='v':
             MES_DATA_FOLDER = 'V:\\debug\\data'
+        elif use_drive =='r':
+            MES_DATA_FOLDER = 'R:\\debug\\data'
         self.CONTEXT_NAME = 'gui_dev.hdf5'
         CONTEXT_PATH = os.path.join(root_folder, 'context')
         CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
@@ -536,6 +544,9 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         XZ_SCAN_CONFIG = {'LINE_LENGTH':25.0, 'Z_PIXEL_SIZE' : 100.0, 'Z_RESOLUTION':1, 'Z_RANGE':100.0}
         
         self._create_parameters_from_locals(locals())        
+        
+class VS3DUS(RcMicroscopeSetup):
+    pass
 
 if __name__ == "__main__":
     pass

@@ -404,21 +404,24 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
     if not isinstance(exclude_classtypes, (list, tuple)): exclude_classtypes=[exclude_classtypes]
     
     for importer, modname, ispkg in pkgutil.iter_modules(bm.__path__,  bm.__name__+'.'):
-        m= __import__(modname, fromlist='dummy')
-        for attr in inspect.getmembers(m, inspect.isclass):
-            if direct:
-                omro = attr[1].__bases__
-            else:
-                omro = inspect.getmro(attr[1])
-            any_wrong_in_class_tree = [cl in omro for cl in exclude_classtypes]
-            all_good_ancestors = [True for a in required_ancestors if a in omro]
-            if sum(all_good_ancestors) < len(required_ancestors):
-                continue
-            if sum(any_wrong_in_class_tree) >0: continue # the class hierarchy contains ancestors that should not be in this class' ancestor list
-            # required_ancestors or exlude_classtypes conditions handled, we need to check if name is correct:
-            if (attr[0] == classname or classname==None):
-                class_list.append((m, attr[1]))
-                # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run    
+        try:
+            m= __import__(modname, fromlist='dummy')
+            for attr in inspect.getmembers(m, inspect.isclass):
+                if direct:
+                    omro = attr[1].__bases__
+                else:
+                    omro = inspect.getmro(attr[1])
+                any_wrong_in_class_tree = [cl in omro for cl in exclude_classtypes]
+                all_good_ancestors = [True for a in required_ancestors if a in omro]
+                if sum(all_good_ancestors) < len(required_ancestors):
+                    continue
+                if sum(any_wrong_in_class_tree) >0: continue # the class hierarchy contains ancestors that should not be in this class' ancestor list
+                # required_ancestors or exlude_classtypes conditions handled, we need to check if name is correct:
+                if (attr[0] == classname or classname==None):
+                    class_list.append((m, attr[1]))
+                    # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run  
+        except ImportError:
+            pass
                 
     #Filter experiment config list. In test mode, experiment configs are loaded only from automated_test_data. In application run mode
     #this module is omitted

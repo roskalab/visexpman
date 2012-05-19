@@ -1,13 +1,16 @@
+
 import pygame
+
 import socket
 import time
 #import os#?
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import colors
+from visexpman.engine.generic import graphics
 
-import visexpman.engine.generic.graphics as graphics
 from OpenGL.GL import *#?
 from OpenGL.GLUT import *
+
 import copy
 
 def experiment_choices(experiment_list):

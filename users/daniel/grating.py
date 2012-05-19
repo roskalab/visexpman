@@ -1,10 +1,10 @@
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+from visexpman.users.zoltan.test import unit_test_runner
 from visexpman.engine.generic.parameter import Parameter
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
-import visexpman.engine.vision_experiment.experiment as experiment
-import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
-import visexpman.engine.generic.utils as utils
-import visexpman.engine.generic.timing as timing
+from visexpman.engine.hardware_interface import daq_instrument
+from visexpman.engine.vision_experiment import experiment
+from visexpman.engine.generic import utils
+from visexpman.engine.generic import timing
 import os
 import serial
 import numpy

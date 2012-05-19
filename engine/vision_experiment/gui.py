@@ -182,6 +182,45 @@ class OverviewWidget(QtGui.QWidget):
         self.layout.setColumnStretch(3, 3)
         self.setLayout(self.layout)
         
+class SelectRoiWidget(QtGui.QWidget):
+    def __init__(self, parent, config):
+        QtGui.QWidget.__init__(self, parent)
+        self.config = config
+        self.create_widgets()
+        self.create_layout()
+        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
+        
+    def create_widgets(self):
+        self.roi_info_image_display = QtGui.QLabel()
+        blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['col'], self.config.ROI_INFO_IMAGE_SIZE['row']), dtype = numpy.uint8)
+        self.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
+        self.select_measurement_label = QtGui.QLabel('Select measurement',  self)
+        self.select_measurement = QtGui.QComboBox(self)
+        self.select_cell_label = QtGui.QLabel('Select cell',  self)
+        self.select_cell = QtGui.QComboBox(self)
+        self.next_button = QtGui.QPushButton('>>',  self)
+        self.previous_button = QtGui.QPushButton('<<',  self)
+        self.keep_cell_label = QtGui.QLabel('Keep cell',  self)
+        self.select_checkbox = QtGui.QCheckBox(self)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.roi_info_image_display, 0, 0, 1, 48)
+        self.layout.addWidget(self.select_measurement_label, 1, 0)
+        self.layout.addWidget(self.select_measurement, 1, 1)
+        self.layout.addWidget(self.select_cell_label, 1, 2)
+        self.layout.addWidget(self.select_cell, 1, 3)
+        self.layout.addWidget(self.previous_button, 1, 4)
+        self.layout.addWidget(self.keep_cell_label, 1, 5)
+        self.layout.addWidget(self.select_checkbox, 1, 6)
+        self.layout.addWidget(self.next_button, 1, 7)
+        
+        
+        
+        self.layout.setRowStretch(3, 3)
+        self.layout.setColumnStretch(3, 3)
+        self.setLayout(self.layout)
+        
 ################### Debug/helper widgets #######################
 class DebugWidget(QtGui.QWidget):
     def __init__(self, parent, config):
@@ -768,13 +807,14 @@ class Poller(QtCore.QThread):
             self.printc('Animal parameters are not available, roi filename is unknown')
             return
         roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.generate_animal_filename('rois', self.animal_parameters))
+        mouse_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.generate_animal_filename('mouse', self.animal_parameters))
         region_name = self.parent.get_current_region_name()
         result,  self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
         if not result:
             self.printc('Objective position is not available')
             return
         if os.path.exists(roi_file_full_path):
-            cell_locations = experiment_data.read_rois(roi_file_full_path, region_name, objective_position = self.objective_position, z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'])
+            cell_locations = experiment_data.read_rois(roi_file_full_path, region_name, objective_position = self.objective_position, z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], mouse_file = mouse_file_full_path)
             cell_locations = experiment_data.merge_cell_locations(cell_locations, self.config.CELL_MERGE_DISTANCE, True)
             if cell_locations is not None:
                 cell_locations['depth'] = numpy.ones_like(cell_locations['depth']) * self.objective_position + self.objective_origin

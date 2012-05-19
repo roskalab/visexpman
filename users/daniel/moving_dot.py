@@ -47,7 +47,8 @@ class ShortMovingDotConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty        
         self.DIAMETER_UM = [300]        
-        self.ANGLES = [0, 45] # degrees
+        self.ANGLES = [0, 45, 90] # degrees
+        self.ANGLES = [315] # degrees
         self.SPEED = [4000] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
         self.REPEATS = 1
