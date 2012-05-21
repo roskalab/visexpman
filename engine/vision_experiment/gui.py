@@ -192,30 +192,29 @@ class SelectRoiWidget(QtGui.QWidget):
         
     def create_widgets(self):
         self.roi_info_image_display = QtGui.QLabel()
-        blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['col'], self.config.ROI_INFO_IMAGE_SIZE['row']), dtype = numpy.uint8)
+        blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['row'], self.config.ROI_INFO_IMAGE_SIZE['col']), dtype = numpy.uint8)
         self.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
         self.select_measurement_label = QtGui.QLabel('Select measurement',  self)
         self.select_measurement = QtGui.QComboBox(self)
         self.select_cell_label = QtGui.QLabel('Select cell',  self)
         self.select_cell = QtGui.QComboBox(self)
+        self.select_cell.setEditable(True)
         self.next_button = QtGui.QPushButton('>>',  self)
         self.previous_button = QtGui.QPushButton('<<',  self)
-        self.keep_cell_label = QtGui.QLabel('Keep cell',  self)
-        self.select_checkbox = QtGui.QCheckBox(self)
-        
+        self.select_cell_button = QtGui.QPushButton('Select cell',  self)
+        self.skip_cell_button = QtGui.QPushButton('Skip cell',  self)
+
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.roi_info_image_display, 0, 0, 1, 48)
         self.layout.addWidget(self.select_measurement_label, 1, 0)
-        self.layout.addWidget(self.select_measurement, 1, 1)
+        self.layout.addWidget(self.select_measurement, 1, 1, 1, 1)
         self.layout.addWidget(self.select_cell_label, 1, 2)
         self.layout.addWidget(self.select_cell, 1, 3)
         self.layout.addWidget(self.previous_button, 1, 4)
-        self.layout.addWidget(self.keep_cell_label, 1, 5)
-        self.layout.addWidget(self.select_checkbox, 1, 6)
+        self.layout.addWidget(self.select_cell_button, 1, 5)
+        self.layout.addWidget(self.skip_cell_button, 1, 6)
         self.layout.addWidget(self.next_button, 1, 7)
-        
-        
         
         self.layout.setRowStretch(3, 3)
         self.layout.setColumnStretch(3, 3)
@@ -989,7 +988,7 @@ class Poller(QtCore.QThread):
                 self.printc('Suggested translation is not plausible')
                 return
             #Translate stage with suggested values
-            stage_translation = -numpy.round(numpy.array([self.suggested_translation['col'], self.suggested_translation['row'], 0.0]), 2)
+            stage_translation = -numpy.round(numpy.array([self.suggested_translation['col'][0], self.suggested_translation['row'][0], 0.0]), 2)
             if abs(self.suggested_translation['col'])  > self.config.REALIGNMENT_XY_THRESHOLD or abs(self.suggested_translation['row']) > self.config.REALIGNMENT_XY_THRESHOLD:
                 self.move_stage_relative(stage_translation)
             else:

@@ -73,7 +73,7 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
     
     if scan_mode == 'xz':
         try: #when field does not exists, just skip writing it
-            m.raw_mat['DATA'][0]['breakFFregion'] = 2.0
+            m.raw_mat['DATA'][0]['breakFFregion'] = 0.0#Used to be 2.0-> split to rois
         except ValueError:
             pass
     elif scan_mode == 'xy':
@@ -465,7 +465,7 @@ class MesInterface(object):
         result = self.wait_for_line_scan_save_complete(timeout = timeout)
         if not result:
             return {}, False
-        vertical_scan = matlabfile.read_vertical_scan(line_scan_path)[0]
+        vertical_scan = matlabfile.read_vertical_scan(line_scan_path, self.config)[0]
         return vertical_scan, True
         
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):

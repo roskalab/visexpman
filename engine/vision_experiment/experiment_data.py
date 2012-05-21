@@ -152,7 +152,8 @@ def read_rois(roi_file, region_name, objective_position = None, z_range = None, 
     tmp_path = tempfile.mkstemp(suffix='.hdf5')[1]
     shutil.copyfile(roi_file, tmp_path)
     rois = hdf5io.read_item(tmp_path, 'rois')
-    selected_rois = hdf5io.read_item(mouse_file, 'selected_rois')
+    if mouse_file is not None:
+        selected_rois = hdf5io.read_item(mouse_file, 'selected_rois')
     cell_locations = []
     if rois.has_key(region_name):
         for id,  roi_layer in rois[region_name].items():
@@ -161,7 +162,7 @@ def read_rois(roi_file, region_name, objective_position = None, z_range = None, 
                 for location in roi_layer['cell_locations']:
                     if objective_position != None and z_range != None and mouse_file != None:
                         append = False
-                        if location['depth'] > objective_position - 0.5*z_range and location['depth'] < objective_position + 0.5*z_range and selected_rois[region_name][id][cell_counter] :
+                        if location['depth'] > objective_position - 0.5*z_range and location['depth'] < objective_position + 0.5*z_range and mouse_file is not None and selected_rois[region_name][id][cell_counter] :
                             append = True
                     else:
                         append = True
@@ -171,7 +172,7 @@ def read_rois(roi_file, region_name, objective_position = None, z_range = None, 
         if len(cell_locations) == 0:
             return None
         else:
-            cell_locations = utils.rcd(numpy.array(cell_locations))
+            cell_locations = utils.rcd(numpy.array(cell_locations)[:, 0, :])
             return cell_locations
             
 def merge_cell_locations(cell_locations, merge_distance, xy_distance_only = False):
@@ -186,11 +187,11 @@ def merge_cell_locations(cell_locations, merge_distance, xy_distance_only = Fals
                 cell = cell_locations[i]
                 filtered_cell_locations.append((cell['row'], cell['col'], cell['depth']))
         filtered_cell_locations = utils.rcd(numpy.array(filtered_cell_locations))
-        return filtered_cell_locations
-    
+        return filtered_cell_locations    
+   
 class TestExperimentData(unittest.TestCase):
     def test_01_read_merge_rois(self):
-        cell_locations = read_rois('/mnt/rzws/debug/data/rois_test1_1-1-2012_1-1-2012_0_0.hdf5', 'r_0_0', objective_position = -115.0, z_range = 100.0)
+        cell_locations = read_rois('/mnt/rzws/debug/data/rois_test1_1-1-2012_1-1-2012_0_0.hdf5', 'r_0_0', objective_position = 0.0, z_range = 100.0, mouse_file = '/mnt/rzws/debug/data/mouse_test1_1-1-2012_1-1-2012_0_0.hdf5')
         cell_locations = merge_cell_locations(cell_locations, 10, True)
 if __name__=='__main__':
     unittest.main()

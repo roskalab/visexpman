@@ -116,9 +116,11 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.debug_widget.run_fragment_process_button, QtCore.SIGNAL('clicked()'),  self.run_fragment_process)
         self.connect(self.debug_widget.fragment_process_status_button, QtCore.SIGNAL('clicked()'),  self.fragment_process_status)
         self.connect(self.select_roi_widget.next_button, QtCore.SIGNAL('clicked()'),  self.select_next_roi)
+        self.connect(self.select_roi_widget.select_cell_button, QtCore.SIGNAL('clicked()'),  self.select_cell)
+        self.connect(self.select_roi_widget.skip_cell_button, QtCore.SIGNAL('clicked()'),  self.skip_cell)
         self.connect(self.select_roi_widget.previous_button, QtCore.SIGNAL('clicked()'),  self.select_prev_roi)
-        self.connect(self.select_roi_widget.select_cell, QtCore.SIGNAL('currentIndexChanged()'),  self.update_gui_items)
-        self.connect(self.select_roi_widget.select_measurement, QtCore.SIGNAL('currentIndexChanged()'),  self.update_gui_items)
+        self.connect(self.select_roi_widget.select_cell, QtCore.SIGNAL('currentIndexChanged()'),  self.selected_cell_changed)
+        self.connect(self.select_roi_widget.select_measurement, QtCore.SIGNAL('currentIndexChanged()'), self.selected_measurement_changed)
         
         #Blocking functions, run by poller
         self.signal_mapper = QtCore.QSignalMapper(self)
@@ -174,18 +176,33 @@ class VisionExperimentGui(QtGui.QWidget):
         self.queues['analysis']['out'].put(command)
         self.printc('Read fragment process status')
         
-    def select_next_roi(self):
+    def selected_measurement_changed(self):
+        self.printc(self.select_roi_widget.select_cell.currentIndex())
+        self.select_roi_widget.select_cell.setCurrentIndex(0)
+        self.printc(self.select_roi_widget.select_cell.currentIndex())
+        self.update_roi_info()
+        
+    def selected_cell_changed(self):
+        self.update_roi_info()
+        
+    def select_next_roi(self, select = None):
         next_index = self.select_roi_widget.select_cell.currentIndex()+1
-        self.register_roi_selection(next_index)
+        self.register_roi_selection(select)
         self.select_roi_widget.select_cell.setCurrentIndex(next_index)
         
     def select_prev_roi(self):
         if self.select_roi_widget.select_cell.currentIndex() > 0:
             next_index = self.select_roi_widget.select_cell.currentIndex()-1
-            self.register_roi_selection(next_index)
+            self.register_roi_selection(None)
             self.select_roi_widget.select_cell.setCurrentIndex(next_index)
+            
+    def select_cell(self):
+        self.select_next_roi(select=True)
         
-    def register_roi_selection(self, next_index):
+    def skip_cell(self):
+        self.select_next_roi(select=False)
+        
+    def register_roi_selection(self, select):
         if hasattr(self.poller, 'animal_parameters'):
             roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.poller.generate_animal_filename('rois', self.poller.animal_parameters))
             if os.path.exists(roi_file_full_path):
@@ -193,21 +210,26 @@ class VisionExperimentGui(QtGui.QWidget):
             mouse_file = self.poller.generate_animal_filename('mouse', self.poller.animal_parameters)
             mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH,  mouse_file)
             if not os.path.exists(mouse_file):
-                selected_rois = {}
+                return
             else:
-                selected_rois = hdf5io.read_item(mouse_file, 'selected_rois')
+                h = hdf5io.Hdf5io(mouse_file)
+                selected_rois = h.findvar('selected_rois')
                 if selected_rois == None:
                     selected_rois = {}
             region_name = self.get_current_region_name()
             if not selected_rois.has_key(region_name):
                 selected_rois[region_name] = {}
-            measurement_id = str(self.select_roi_widget.select_measurement.currentText())
+            measurement_id = str(self.select_roi_widget.select_measurement.currentText()).split('um/')[1]
             if not selected_rois[region_name].has_key(measurement_id):
                 selected_rois[region_name][measurement_id] = numpy.cast['bool'](numpy.zeros(len(rois[region_name][measurement_id]['soma_rois'])))
-            selected_rois[region_name][measurement_id][self.select_roi_widget.select_cell.currentIndex()] = self.select_roi_widget.select_checkbox.checkState() != 0
-            hdf5io.save_item(mouse_file, 'selected_rois', selected_rois, True)
-            self.update_gui_items()
-            self.select_roi_widget.select_checkbox.setCheckState(2*int(selected_rois[region_name][measurement_id][next_index]))
+            if select is not None:
+                selected_rois[region_name][measurement_id][self.select_roi_widget.select_cell.currentIndex()] = select
+            h.selected_rois = selected_rois
+            h.save('selected_rois', overwrite = True)
+            h.close()
+            self.printc('Loading image...')
+            self.update_roi_info(rois, selected_rois)
+            self.printc(selected_rois[region_name][measurement_id])
 
     def save_animal_parameters(self):
         '''
@@ -328,46 +350,72 @@ class VisionExperimentGui(QtGui.QWidget):
                                                                                    region_add_date))
         else:
             self.debug_widget.scan_region_groupbox.region_info.setText('')
-        rois = {}
+        self.update_roi_info()
+
+    def update_roi_info(self, rois = None, selected_rois = None):
         if hasattr(self.poller, 'animal_parameters'):
             roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.poller.generate_animal_filename('rois', self.poller.animal_parameters))
             if os.path.exists(roi_file_full_path):
-                rois = hdf5io.read_item(roi_file_full_path, 'rois', safe=True)
-        if utils.safe_has_key(rois, selected_region):
-            roi = rois[selected_region]
-            info = '{0} file(s); id, depth, status, n cells, n pixels: '.format(len(roi.keys()))
-            row = 0
-            ids = roi.keys()
-            ids.sort()
-            for i in range(len(roi.keys())):
-                id = ids[i]
-                if True:
-                    if roi[id].has_key('cell_locations'):
-                        n_cells = roi[id]['cell_locations'].shape[0]
+                if rois == None:
+                    rois = hdf5io.read_item(roi_file_full_path, 'rois', safe=True)
+                selected_region = self.get_current_region_name()
+                if utils.safe_has_key(rois, selected_region):
+                    #Update scan regions groupbox with roi info/processing state
+                    roi = rois[selected_region]
+                    info = '{0} file(s); id, depth, status, n cells, n pixels: '.format(len(roi.keys()))
+                    row = 0
+                    ids = roi.keys()
+                    ids.sort()
+                    id_labels = []
+                    for i in range(len(roi.keys())):
+                        id = ids[i]
+                        if roi[id].has_key('cell_locations'):
+                            n_cells = roi[id]['cell_locations'].shape[0]
+                        else:
+                            n_cells = 0
+                        responding_pixels = 0
+                        if roi[id].has_key('soma_rois'):
+                            for soma_roi in roi[id]['soma_rois']:
+                                responding_pixels +=  soma_roi.shape[0]
+                        if roi[id].has_key('depth'):
+                            depth = roi[id]['depth'][0]
+                        else:
+                            depth = 0
+                        if roi[id].has_key('measurement_only'):
+                            measurement_only = int(roi[id]['measurement_only'])
+                        else:
+                            measurement_only = 'x'
+                        if measurement_only == False:
+                            id_labels.append('{0}um/{1}'.format(depth, id))
+                        info +='{0}, {6}, {1}{2}{3}{7}, {4}/{5};  '.format(id, int(roi[id]['fragment_check_ready']), int(roi[id]['mesextractor_ready']), int(roi[id]['find_cells_ready']), n_cells, responding_pixels,  depth, measurement_only)
+                        if i%2==0:
+                            info += '\n'
+                    self.debug_widget.scan_region_groupbox.cell_info_label.setText(info)
+                    #Update Select roi tab
+                    id_labels.sort()
+                    self.update_combo_box_list(self.select_roi_widget.select_measurement, id_labels)
+                    current_measurement_id  = str(self.select_roi_widget.select_measurement.currentText()).split('um/')[1]
+                    if roi[current_measurement_id].has_key('soma_rois'):
+                        cell_ids = map(str, range(len(roi[current_measurement_id]['soma_rois'])))
+                        self.update_combo_box_list(self.select_roi_widget.select_cell, cell_ids)
                     else:
-                        n_cells = 0
-                    responding_pixels = 0
-                    if roi[id].has_key('soma_rois'):
-                        for soma_roi in roi[id]['soma_rois']:
-                            responding_pixels +=  soma_roi.shape[0]
-                    if roi[id].has_key('depth'):
-                        depth = roi[id]['depth']
-                    else:
-                        depth = 0
-                    info +='{0}, {6}, {1}{2}{3}, {4}/{5};  '.format(id, int(roi[id]['fragment_check_ready']), int(roi[id]['mesextractor_ready']), int(roi[id]['find_cells_ready']), n_cells, responding_pixels,  depth)
-                if i%2==0:
-                    info += '\n'
-            self.debug_widget.scan_region_groupbox.cell_info_label.setText(info)
-            self.update_combo_box_list(self.select_roi_widget.select_measurement, ids)
-            current_measurement_id  = str(self.select_roi_widget.select_measurement.currentText())
-            cell_ids = map(str, range(len(roi[current_measurement_id]['soma_rois'])))
-            self.update_combo_box_list(self.select_roi_widget.select_cell, cell_ids)
-            if roi[current_measurement_id].has_key('roi_curves_info'):
-                roi_index = int(self.select_roi_widget.select_cell.currentText())
-                roi_curve = roi[current_measurement_id]['roi_curves_info'][roi_index,:,:self.config.ROI_CURVE_IMAGE_CUTOUT,:]
-                self.show_image(roi_curve, 'roi_curve', utils.rc((1, 1)))
-        else:
-            self.debug_widget.scan_region_groupbox.cell_info_label.setText('')
+                        self.update_combo_box_list(self.select_roi_widget.select_cell, [])
+                    if roi[current_measurement_id].has_key('roi_curves_info'):
+                        roi_index = int(self.select_roi_widget.select_cell.currentText())
+                        roi_curve = roi[current_measurement_id]['roi_curves_info'][roi_index,:,:self.config.ROI_CURVE_IMAGE_CUTOUT,:][::3, ::3]
+                    if selected_rois == None:
+                        mouse_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.poller.generate_animal_filename('mouse', self.poller.animal_parameters))
+                        selected_rois = hdf5io.read_item(mouse_file_full_path, 'selected_rois')
+                    if not selected_rois[selected_region][current_measurement_id][self.select_roi_widget.select_cell.currentIndex()]:
+                        line_indexes = numpy.arange(0, min(roi_curve.shape[0], roi_curve.shape[1]))
+                        line_indexes = numpy.array([line_indexes, line_indexes])
+                        roi_curve[line_indexes,line_indexes] = 0
+                    self.show_image(roi_curve, 'roi_curve', utils.rc((1, 1)))
+            else:
+                self.debug_widget.scan_region_groupbox.cell_info_label.setText('')
+                self.update_combo_box_list(self.select_roi_widget.select_measurement, [])
+                self.update_combo_box_list(self.select_roi_widget.select_cell, [])
+                self.show_image(self.regions_images_widget.blank_image, 'roi_curve', utils.rc((1, 1)))
 
     def update_animal_parameter_display(self, index):
         '''
@@ -386,8 +434,8 @@ class VisionExperimentGui(QtGui.QWidget):
                     animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'],  animal_parameters['anesthesia_protocol'])
             h.close()
             self.debug_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
-        self.poller.animal_parameters = animal_parameters
-        self.poller.set_roi_file()
+            self.poller.animal_parameters = animal_parameters
+            self.poller.set_roi_file()
     
 
     def execute_python(self):
