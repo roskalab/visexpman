@@ -187,7 +187,8 @@ def merge_cell_locations(cell_locations, merge_distance, xy_distance_only = Fals
                 cell = cell_locations[i]
                 filtered_cell_locations.append((cell['row'], cell['col'], cell['depth']))
         filtered_cell_locations = utils.rcd(numpy.array(filtered_cell_locations))
-        return filtered_cell_locations    
+        return filtered_cell_locations
+
    
 class TestExperimentData(unittest.TestCase):
     def test_01_read_merge_rois(self):

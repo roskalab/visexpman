@@ -11,7 +11,6 @@ import shutil
 import traceback
 import re
 import cPickle as pickle
-import webbrowser
 import unittest
 import ImageDraw
 import ImageFont
@@ -41,10 +40,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def __init__(self, user, config_class):
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
         self.config.user = user
-        self.command_relay_server = network_interface.CommandRelayServer(self.config)
         self.console_text = ''
-        self.mouse_files = []
-        self.overwrite_region = 'undefined'
         self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True) 
         self.poller = gui.Poller(self)
         self.poller.start()
@@ -56,92 +52,102 @@ class VisionExperimentGui(QtGui.QWidget):
         self.create_gui()
         self.create_layout()
         self.connect_signals()
-        self.update_gui_items()
+        self.init_variables()
         self.show()
-
+        
     def create_gui(self):
-        self.debug_widget = gui.DebugWidget(self, self.config)
-        self.regions_images_widget = gui.RegionsImagesWidget(self, self.config)
+        self.main_widget = gui.MainWidget(self, self.config)
+        self.animal_parameters_widget = gui.AnimalParametersWidget(self, self.config)
+        self.images_widget = gui.ImagesWidget(self, self.config)
         self.overview_widget = gui.OverviewWidget(self, self.config)
-        self.select_roi_widget = gui.SelectRoiWidget(self, self.config)
-        self.realignment_tab = QtGui.QTabWidget(self)
-        self.realignment_tab.addTab(self.debug_widget, 'Debug')
-        self.realignment_tab.addTab(self.select_roi_widget, 'Select ROI')
-        self.realignment_tab.setCurrentIndex(0)
+        self.select_roi_widget = gui.RoiWidget(self, self.config)
+        self.helpers_widget = gui.HelpersWidget(self, self.config)
+        self.main_tab = QtGui.QTabWidget(self)
+        self.main_tab.addTab(self.main_widget, 'Main')
+        self.main_tab.addTab(self.select_roi_widget, 'ROI')
+        self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
+        self.main_tab.addTab(self.helpers_widget, 'Helpers')
+        self.main_tab.setCurrentIndex(0)
         #Image tab
         self.image_tab = QtGui.QTabWidget(self)
-        self.image_tab.addTab(self.regions_images_widget, 'Regions')
+        self.image_tab.addTab(self.images_widget, 'Regions')
         self.image_tab.addTab(self.overview_widget, 'Overview')
         self.standard_io_widget = gui.StandardIOWidget(self, self.config)
-        if hasattr(self.poller.two_photon_image, 'has_key'):
-            if self.poller.two_photon_image.has_key(self.config.DEFAULT_PMT_CHANNEL):
-                self.show_image(self.poller.two_photon_image[self.config.DEFAULT_PMT_CHANNEL], 0, 
-                                self.poller.two_photon_image['scale'], 
-                                origin = self.poller.two_photon_image['origin'])
-        if hasattr(self.poller.vertical_scan, 'has_key'):
-            scale = self.poller.vertical_scan['scaled_scale']
-            self.show_image(self.poller.vertical_scan['scaled_image'], 2, scale, origin = self.poller.vertical_scan['origin'])
-        #Get list of experiment configs
         experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig)
         experiment_config_names = []
         for experiment_config in experiment_config_list:
             experiment_config_names.append(experiment_config[1].__name__)
-        self.debug_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
-        self.debug_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index('ShortMovingGratingConfig'))
-
+        self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
+        self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index('ShortMovingGratingConfig'))
+        
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.realignment_tab, 0, 0, 1, 1)
+        self.layout.addWidget(self.main_tab, 0, 0, 1, 1)
         self.layout.addWidget(self.standard_io_widget, 1, 0, 1, 1)
         self.layout.addWidget(self.image_tab, 0, 1, 2, 1)
         self.layout.setRowStretch(3, 3)
         self.layout.setColumnStretch(2, 1)
         self.setLayout(self.layout)
         
+    def init_variables(self):
+        self.mouse_files = []
+        
+    def periodic_gui_update(self):
+        #Check for new mouse files
+        if self.update_mouse_files_combobox():
+            self.update_region_names_combobox()
+            self.update_scan_regions()
+        
     ####### Signals/functions ###############
     def connect_signals(self):
+        #Poller control
+        self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
+        #GUI events
+        self.connect(self.main_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.mouse_file_changed)
+        self.connect(self.main_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.region_name_changed)
+        
+        self.signal_mapper = QtCore.QSignalMapper(self)
+        self.connect_and_map_signal(self.animal_parameters_widget.new_mouse_file_button, 'save_animal_parameters')
+        #Experiment control
+        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment')
+        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.graceful_stop_experiment_button, 'graceful_stop_experiment')
+        #Data processing
+        self.connect_and_map_signal(self.main_widget.run_fragment_process_button, 'run_fragment_process')
+        self.connect_and_map_signal(self.main_widget.show_fragment_process_status_button, 'show_fragment_process_status')
+        #ROI
+        self.connect(self.select_roi_widget.next_button, QtCore.SIGNAL('clicked()'),  self.tbd)
+        self.connect(self.select_roi_widget.select_cell_button, QtCore.SIGNAL('clicked()'),  self.tbd)
+        self.connect(self.select_roi_widget.skip_cell_button, QtCore.SIGNAL('clicked()'),  self.tbd)
+        self.connect(self.select_roi_widget.previous_button, QtCore.SIGNAL('clicked()'),  self.tbd)
+        self.connect(self.select_roi_widget.select_measurement_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.tbd)
+        #Network debugger tools
+        self.connect_and_map_signal(self.helpers_widget.show_connected_clients_button, 'show_connected_clients')
+        self.connect_and_map_signal(self.helpers_widget.show_network_messages_button, 'show_network_messages')
+        self.connect_and_map_signal(self.helpers_widget.send_command_button, 'send_command')
+        #Helpers
+        self.connect_and_map_signal(self.helpers_widget.help_button, 'show_help')
+        self.connect(self.helpers_widget.save_xy_scan_button, QtCore.SIGNAL('clicked()'),  self.poller.save_xy_scan)
         self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
-        self.connect(self.debug_widget.animal_parameters_groupbox.new_mouse_file_button, QtCore.SIGNAL('clicked()'),  self.save_animal_parameters)
-        self.connect(self.debug_widget.show_connected_clients_button, QtCore.SIGNAL('clicked()'),  self.show_connected_clients)
-        self.connect(self.debug_widget.show_network_messages_button, QtCore.SIGNAL('clicked()'),  self.show_network_messages)
-        self.connect(self.debug_widget.experiment_control_groupbox.stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.stop_experiment)
-        self.connect(self.debug_widget.experiment_control_groupbox.graceful_stop_experiment_button, QtCore.SIGNAL('clicked()'),  self.graceful_stop_experiment)
-        self.connect(self.debug_widget.send_command_button, QtCore.SIGNAL('clicked()'),  self.send_command)
-        self.connect(self.debug_widget.save_two_photon_image_button, QtCore.SIGNAL('clicked()'),  self.poller.save_two_photon_image)
-        self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
-        self.connect(self.debug_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.update_animal_parameter_display)
-        self.connect(self.debug_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged()'),  self.update_gui_items)
-        self.connect(self.debug_widget.help_button, QtCore.SIGNAL('clicked()'),  self.show_help)
-        self.connect(self.debug_widget.run_fragment_process_button, QtCore.SIGNAL('clicked()'),  self.run_fragment_process)
-        self.connect(self.debug_widget.fragment_process_status_button, QtCore.SIGNAL('clicked()'),  self.fragment_process_status)
-        self.connect(self.select_roi_widget.next_button, QtCore.SIGNAL('clicked()'),  self.select_next_roi)
-        self.connect(self.select_roi_widget.select_cell_button, QtCore.SIGNAL('clicked()'),  self.select_cell)
-        self.connect(self.select_roi_widget.skip_cell_button, QtCore.SIGNAL('clicked()'),  self.skip_cell)
-        self.connect(self.select_roi_widget.previous_button, QtCore.SIGNAL('clicked()'),  self.select_prev_roi)
-        self.connect(self.select_roi_widget.select_cell, QtCore.SIGNAL('currentIndexChanged()'),  self.selected_cell_changed)
-        self.connect(self.select_roi_widget.select_measurement, QtCore.SIGNAL('currentIndexChanged()'), self.selected_measurement_changed)
-        
         #Blocking functions, run by poller
-        self.signal_mapper = QtCore.QSignalMapper(self)
-        self.connect_and_map_signal(self.debug_widget.read_stage_button, 'read_stage')
-        self.connect_and_map_signal(self.debug_widget.set_stage_origin_button, 'set_stage_origin')
-        self.connect_and_map_signal(self.debug_widget.move_stage_button, 'move_stage')
-        self.connect_and_map_signal(self.debug_widget.stop_stage_button, 'stop_stage')
-        self.connect_and_map_signal(self.debug_widget.set_objective_button, 'set_objective')
-#        self.connect_and_map_signal(self.debug_widget.set_objective_value_button, 'set_objective_relative_value')
-        self.connect_and_map_signal(self.debug_widget.z_stack_button, 'acquire_z_stack')
-        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.get_two_photon_image_button, 'acquire_xy_image')
-        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.vertical_scan_button, 'acquire_vertical_scan')
-        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.add_button, 'add_scan_region')
-        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
-        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.move_to_button, 'move_to_region')
-        self.connect_and_map_signal(self.debug_widget.scan_region_groupbox.create_xz_lines_button, 'create_xz_lines')
-        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
-        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.next_depth_button, 'next_experiment')
-        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.redo_depth_button, 'redo_experiment')
-        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.previous_depth_button, 'previous_experiment')
-        self.connect_and_map_signal(self.debug_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
+        self.connect_and_map_signal(self.main_widget.read_stage_button, 'read_stage')
+        self.connect_and_map_signal(self.main_widget.set_stage_origin_button, 'set_stage_origin')
+        self.connect_and_map_signal(self.main_widget.move_stage_button, 'move_stage')
+        self.connect_and_map_signal(self.main_widget.stop_stage_button, 'stop_stage')
+        self.connect_and_map_signal(self.main_widget.set_objective_button, 'set_objective')
+#        self.connect_and_map_signal(self.main_widget.set_objective_value_button, 'set_objective_relative_value')
+        self.connect_and_map_signal(self.main_widget.z_stack_button, 'acquire_z_stack')
+        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.get_xy_scan_button, 'acquire_xy_scan')
+        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.xz_scan_button, 'acquire_xz_scan')
+        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.add_button, 'add_scan_region')
+        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
+        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.move_to_button, 'move_to_region')
+        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.create_xz_lines_button, 'create_xz_lines')
+        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
+        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.next_depth_button, 'next_experiment')
+        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.redo_depth_button, 'redo_experiment')
+        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.previous_depth_button, 'previous_experiment')
+        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
@@ -151,50 +157,219 @@ class VisionExperimentGui(QtGui.QWidget):
             getattr(getattr(widget, widget_signal_name), 'connect')(self.signal_mapper.map)
         else:
             self.printc('{0} method does not exists'.format(mapped_signal_parameter))
+            
+    ############ GUI events ############
+    def mouse_file_changed(self):
+        #Update mouse file path and animal parameters
+        self.poller.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
+        if os.path.exists(self.poller.mouse_file):
+            self.poller.set_mouse_file()
+            h = hdf5io.Hdf5io(self.poller.mouse_file)
+            varname = h.find_variable_in_h5f('animal_parameters', regexp=True)[0]
+            h.load(varname)
+            self.poller.animal_parameters = getattr(h, varname)
+            h.close()
+            self.update_animal_parameter_display()
+            
+    def region_name_changed(self):
+        self.update_scan_regions()
+        
+    ################### GUI updaters #################
+    def update_mouse_files_combobox(self, set_to_value = None):
+        new_mouse_files = file.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
+        if self.mouse_files != new_mouse_files:
+            self.mouse_files = new_mouse_files
+            self.update_combo_box_list(self.main_widget.scan_region_groupbox.select_mouse_file, self.mouse_files)
+            if set_to_value != None:
+                self.main_widget.scan_region_groupbox.select_mouse_file.setCurrentIndex(self.mouse_files.index(set_to_value))
+            return True
+                
+    def update_position_display(self):
+        display_position = numpy.round(self.poller.stage_position - self.poller.stage_origin, 2)
+        if hasattr(self.poller, 'objective_position'):
+            display_position[-1] = self.poller.objective_position
+        self.main_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
+        
+    def update_animal_parameter_display(self):
+        if hasattr(self.poller, 'animal_parameters'):
+            animal_parameters = self.poller.animal_parameters
+            self.animal_parameters_str = '{2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}, {6}'\
+            .format(animal_parameters['mouse_birth_date'], animal_parameters['gcamp_injection_date'], animal_parameters['strain'], 
+                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'],  animal_parameters['anesthesia_protocol'])
+            self.main_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
+            
+    def update_region_names_combobox(self, selected_region = None):
+        #Update combobox containing scan region names
+        region_names = self.poller.scan_regions.keys()
+        region_names.sort()
+        self.update_combo_box_list(self.main_widget.scan_region_groupbox.scan_regions_combobox, region_names, selected_item = selected_region)
+        
+    def update_scan_regions(self, selected_region = None):
+        if selected_region == None:
+            selected_region = self.get_current_region_name()
+        no_scale = utils.rc((1.0, 1.0))
+        if utils.safe_has_key(self.poller.scan_regions, selected_region):
+            scan_regions = self.poller.scan_regions
+            line = []
+            #Update xz image if exists and collect xy line(s)
+            if scan_regions[selected_region].has_key('xz'):
+                line = [[ scan_regions[selected_region]['xz']['p1']['col'] ,  scan_regions[selected_region]['xz']['p1']['row'] , 
+                             scan_regions[selected_region]['xz']['p2']['col'] ,  scan_regions[selected_region]['xz']['p2']['row'] ]]
+                self.show_image(scan_regions[selected_region]['xz']['scaled_image'], 3,
+                                     scan_regions[selected_region]['xz']['scaled_scale'], 
+                                     origin = scan_regions[selected_region]['xz']['origin'])
+            else:
+                self.show_image(self.images_widget.blank_image, 3, no_scale)
+            #Display xy image
+            image_to_display = scan_regions[selected_region]['xy']
+            self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
+            #update overwiew
+            image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
+            self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
+            #Update region info
+            if scan_regions[selected_region].has_key('add_date'):
+                region_add_date = scan_regions[selected_region]['add_date']
+            else:
+                region_add_date = 'unknown'
+            self.main_widget.scan_region_groupbox.region_info.setText(\
+                                                                           '{3}\n{0:.2f}, {1:.2f}, {2:.2f}' \
+                                                                           .format(scan_regions[selected_region]['position']['x'][0], 
+                                                                                   scan_regions[selected_region]['position']['y'][0], 
+                                                                                   scan_regions[selected_region]['position']['z'][0], 
+                                                                                   region_add_date))
+        else:
+                self.show_image(self.images_widget.blank_image, 1, no_scale)
+                self.show_image(self.images_widget.blank_image, 3, no_scale)
+                self.show_image(self.images_widget.blank_image, 'overview', no_scale)
+                self.main_widget.scan_region_groupbox.region_info.setText('')
     
-    def show_help(self):
-        if webbrowser.open_new_tab(self.config.MANUAL_URL):
-            self.printc('Shown in default webbrowser')
+    def show_image(self, image, channel, scale, line = [], origin = None):
+        if origin != None:
+            division = numpy.round(min(image.shape) *  scale['row']/ 5.0, -1)
+        else:
+            division = 0
+        image_in = {}
+        image_in['image'] = image
+        image_in['scale'] = scale
+        image_in['origin'] = origin
+        if channel == 'overview':
+            image_with_sidebar = generate_gui_image(image_in, self.config.OVERVIEW_IMAGE_SIZE, self.config, lines  = line, sidebar_division = division)
+            self.overview_widget.image_display.setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.OVERVIEW_IMAGE_SIZE))
+            self.overview_widget.image_display.image = image_with_sidebar
+            self.overview_widget.image_display.raw_image = image
+            self.overview_widget.image_display.scale = scale
+        elif channel == 'roi_curve':
+            self.select_roi_widget.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(image, self.config.ROI_INFO_IMAGE_SIZE))
+            self.select_roi_widget.roi_info_image_display.image = image
+            self.select_roi_widget.roi_info_image_display.raw_image = image
+            self.select_roi_widget.roi_info_image_display.scale = scale
+        else:
+            image_with_sidebar = generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, sidebar_division = division)
+            self.images_widget.image_display[channel].setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.IMAGE_SIZE))
+            self.images_widget.image_display[channel].image = image_with_sidebar
+            self.images_widget.image_display[channel].raw_image = image
+            self.images_widget.image_display[channel].scale = scale
+        
+    def update_combo_box_list(self, widget, new_list,  selected_item = None):
+        current_value = widget.currentText()
+        if current_value in new_list:
+            current_index = new_list.index(current_value)
+        else:
+            current_index = 0
+        items_list = QtCore.QStringList(new_list)
+        widget.clear()
+        widget.addItems(QtCore.QStringList(new_list))
+        if selected_item != None and selected_item in new_list:
+            widget.setCurrentIndex(new_list.index(selected_item))
+        else:
+            widget.setCurrentIndex(current_index)
+            
+    ######## GUI widget readers ###############
+    def get_current_region_name(self):
+        return str(self.main_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+        
+    def update_current_mouse_path(self):
+        self.poller.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
+            
+    ########## GUI utilities, misc functions #############
+    def show_verify_add_region_messagebox(self):
+        utils.empty_queue(self.poller.gui_thread_queue)
+        reply = QtGui.QMessageBox.question(self, 'Are you sure that line scan is set back to xy?', "Do you want to continue?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.No:
+            self.poller.gui_thread_queue.put(False)
+        else:
+            self.poller.gui_thread_queue.put(True)
+            
+    def show_overwrite_region_messagebox(self):
+        utils.empty_queue(self.poller.gui_thread_queue)
+        reply = QtGui.QMessageBox.question(self, 'Overwriting scan region', "Do you want to overwrite scan region?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.No:
+            self.poller.gui_thread_queue.put(False)
+        else:
+            self.poller.gui_thread_queue.put(True)
+            
+    def tbd(self):
+        pass
+            
+    def execute_python(self):
+        try:
+            exec(str(self.scanc()))
+        except:
+            self.printc(traceback.format_exc())
 
-    def stop_experiment(self):
-        command = 'SOCabort_experimentEOCguiEOP'
-        self.queues['stim']['out'].put(command)
-        self.printc('Stopping experiment requested, please wait')
+    def clear_console(self):
+        self.console_text  = ''
+        self.standard_io_widget.text_out.setPlainText(self.console_text)
+        
+    def printc(self, text):       
+        if not isinstance(text, str):
+            text = str(text)
+        self.console_text  += text + '\n'
+        self.standard_io_widget.text_out.setPlainText(self.console_text)
+        self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
+        try:
+            self.log.info(text)
+        except:
+            print 'gui: logging error'
 
-    def graceful_stop_experiment(self):
-        command = 'SOCgraceful_stop_experimentEOCguiEOP'
-        self.queues['stim']['out'].put(command)
-        self.printc('Graceful stop requested, please wait')
+    def scanc(self):
+        return str(self.standard_io_widget.text_in.toPlainText())
+
+    def closeEvent(self, e):
+        e.accept()
+        self.log.copy()
+        self.emit(QtCore.SIGNAL('abort'))
+        #delete files:
+        for file_path in self.poller.files_to_delete:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        time.sleep(6.0) #Enough time to close network connections
+        sys.exit(0)
         
-    def run_fragment_process(self):
-        command = 'SOCrun_fragment_status_checkEOCEOP'
-        self.queues['analysis']['out'].put(command)
-        self.printc('Run fragment process')
+class VisionExperimentGui1(QtGui.QWidget):
+
+    def new_mouse_file_selected(self, index):
+        '''
+        Selected mouse file changed
+        '''
+        self.poller.stage_origin_set = False
+        self.update_animal_parameter_display()
+        self.update_scan_regions_groupbox()
+        self.poller.set_roi_file()
         
-    def fragment_process_status(self):
-        command = 'SOCrun_fragment_status_checkEOCstatus_only=TrueEOP'
-        self.queues['analysis']['out'].put(command)
-        self.printc('Read fragment process status')
+    def new_scan_region_selected(self, index):
+        self.update_scan_regions_groupbox()
         
-    def selected_measurement_changed(self):
-        self.printc(self.select_roi_widget.select_cell.currentIndex())
-        self.select_roi_widget.select_cell.setCurrentIndex(0)
-        self.printc(self.select_roi_widget.select_cell.currentIndex())
-        self.update_roi_info()
-        
-    def selected_cell_changed(self):
-        self.update_roi_info()
+    def selected_measurement_changed(self, index):
+        self.cell_index = 0
         
     def select_next_roi(self, select = None):
-        next_index = self.select_roi_widget.select_cell.currentIndex()+1
+        self.cell_index += 1
         self.register_roi_selection(select)
-        self.select_roi_widget.select_cell.setCurrentIndex(next_index)
         
     def select_prev_roi(self):
-        if self.select_roi_widget.select_cell.currentIndex() > 0:
-            next_index = self.select_roi_widget.select_cell.currentIndex()-1
-            self.register_roi_selection(None)
-            self.select_roi_widget.select_cell.setCurrentIndex(next_index)
+        self.cell_index -= 1
+        self.register_roi_selection(None)
             
     def select_cell(self):
         self.select_next_roi(select=True)
@@ -219,17 +394,18 @@ class VisionExperimentGui(QtGui.QWidget):
             region_name = self.get_current_region_name()
             if not selected_rois.has_key(region_name):
                 selected_rois[region_name] = {}
-            measurement_id = str(self.select_roi_widget.select_measurement.currentText()).split('um/')[1]
+            measurement_id = str(self.select_roi_widget.select_measurement_combobox.currentText()).split('um/')[1]
             if not selected_rois[region_name].has_key(measurement_id):
                 selected_rois[region_name][measurement_id] = numpy.cast['bool'](numpy.zeros(len(rois[region_name][measurement_id]['soma_rois'])))
+            if self.cell_index < 0 or self.cell_index > selected_rois[region_name][measurement_id].shape[0]:
+                self.cell_index = 0
             if select is not None:
-                selected_rois[region_name][measurement_id][self.select_roi_widget.select_cell.currentIndex()] = select
+                selected_rois[region_name][measurement_id][self.cell_index-1] = select
             h.selected_rois = selected_rois
             h.save('selected_rois', overwrite = True)
             h.close()
             self.printc('Loading image...')
             self.update_roi_info(rois, selected_rois)
-            self.printc(selected_rois[region_name][measurement_id])
 
     def save_animal_parameters(self):
         '''
@@ -279,21 +455,73 @@ class VisionExperimentGui(QtGui.QWidget):
             #set selected mouse file to this one
             self.update_mouse_files_combobox(set_to_value = os.path.split(mouse_file_path)[-1])
             #Clear image displays showing regions
-            self.regions_images_widget.clear_image_display(1)
-            self.regions_images_widget.clear_image_display(3)
+            self.images_widget.clear_image_display(1)
+            self.images_widget.clear_image_display(3)
             
     def update_mouse_files_combobox(self, set_to_value = None):
         new_mouse_files = file.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
         if self.mouse_files != new_mouse_files:
             self.mouse_files = new_mouse_files
-            self.update_combo_box_list(self.debug_widget.scan_region_groupbox.select_mouse_file, self.mouse_files)
+            self.update_combo_box_list(self.main_widget.scan_region_groupbox.select_mouse_file, self.mouse_files)
             if set_to_value != None:
-                self.debug_widget.scan_region_groupbox.select_mouse_file.setCurrentIndex(self.mouse_files.index(set_to_value))
+                self.main_widget.scan_region_groupbox.select_mouse_file.setCurrentIndex(self.mouse_files.index(set_to_value))
+                
+    def periodic_gui_update(self):
+        self.update_mouse_files_combobox()
+        
+    def update_scan_regions_groupbox(self):
+        scan_regions = hdf5io.read_item(self.selected_mouse_file, 'scan_regions')
+        displayable_region_names = []
+        if scan_regions is None:
+            return
+        for region in scan_regions.keys():
+            displayable_region_names.append(region)
+        displayable_region_names.sort()
+        self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, displayable_region_names)
+        #Display image of selected region
+        selected_region = self.get_current_region_name()
+        if hasattr(scan_regions, 'has_key'):
+            if scan_regions.has_key(selected_region):
+                line = []
+                if scan_regions[selected_region].has_key('vertical_section'):
+                    line = [[ scan_regions[selected_region]['vertical_section']['p1']['col'] ,  scan_regions[selected_region]['vertical_section']['p1']['row'] , 
+                             scan_regions[selected_region]['vertical_section']['p2']['col'] ,  scan_regions[selected_region]['vertical_section']['p2']['row'] ]]
+                    self.show_image(scan_regions[selected_region]['vertical_section']['scaled_image'], 3,
+                                     scan_regions[selected_region]['vertical_section']['scaled_scale'], 
+                                     origin = scan_regions[selected_region]['vertical_section']['origin'])
+                else:
+                    no_scale = utils.rc((1.0, 1.0))
+                    self.show_image(self.images_widget.blank_image, 3, no_scale)
+                image_to_display = scan_regions[selected_region]['brain_surface']
+                self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
+                #update overwiew
+                image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
+                self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
+                if scan_regions[selected_region].has_key('add_date'):
+                    region_add_date = scan_regions[selected_region]['add_date']
+                else:
+                    region_add_date = 'unknown'
+                self.debug_widget.scan_region_groupbox.region_info.setText(\
+                                                                           '{3}\n{0:.2f}, {1:.2f}, {2:.2f}' \
+                                                                           .format(scan_regions[selected_region]['position']['x'][0], 
+                                                                                   scan_regions[selected_region]['position']['y'][0], 
+                                                                                   scan_regions[selected_region]['position']['z'][0], 
+                                                                                   region_add_date))
+            else:
+                no_scale = utils.rc((1.0, 1.0))
+                self.show_image(self.images_widget.blank_image, 1, no_scale)
+                self.show_image(self.images_widget.blank_image, 3, no_scale)
+                self.show_image(self.images_widget.blank_image, 'overview', no_scale)
+                self.debug_widget.scan_region_groupbox.region_info.setText('')
+        
 
-    def update_gui_items(self,  active_region = None):
+    def update_gui_items(self, index = 0, active_region = None):
         '''
         Update comboboxes with file lists
         '''
+        self.update_roi_info()
+        if self.realignment_tab.currentIndex() == 1:#No GUI update if Select Roi tab used
+            return
         self.update_mouse_files_combobox()
         selected_mouse_file  = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
         mouse_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, selected_mouse_file)
@@ -311,6 +539,9 @@ class VisionExperimentGui(QtGui.QWidget):
                     displayable_region_names.append(region)
             displayable_region_names.sort()
             self.update_combo_box_list(self.debug_widget.scan_region_groupbox.scan_regions_combobox, displayable_region_names,  selected_item = active_region)
+            mouse_file_changed = True
+        else:
+            mouse_file_changed = False    
         self.poller.scan_regions = scan_regions
         #Display image of selected region
         selected_region = self.get_current_region_name()
@@ -325,7 +556,7 @@ class VisionExperimentGui(QtGui.QWidget):
                                      origin = scan_regions[selected_region]['vertical_section']['origin'])
                 else:
                     no_scale = utils.rc((1.0, 1.0))
-                    self.show_image(self.regions_images_widget.blank_image, 3, no_scale)
+                    self.show_image(self.images_widget.blank_image, 3, no_scale)
                 image_to_display = scan_regions[selected_region]['brain_surface']
                 self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
                 #update overwiew
@@ -333,9 +564,9 @@ class VisionExperimentGui(QtGui.QWidget):
                 self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
             else:
                 no_scale = utils.rc((1.0, 1.0))
-                self.show_image(self.regions_images_widget.blank_image, 1, no_scale)
-                self.show_image(self.regions_images_widget.blank_image, 3, no_scale)
-                self.show_image(self.regions_images_widget.blank_image, 'overview', no_scale)
+                self.show_image(self.images_widget.blank_image, 1, no_scale)
+                self.show_image(self.images_widget.blank_image, 3, no_scale)
+                self.show_image(self.images_widget.blank_image, 'overview', no_scale)
         #Display coordinates of selected region
         if scan_regions.has_key(selected_region):
             if scan_regions[selected_region].has_key('add_date'):
@@ -350,11 +581,15 @@ class VisionExperimentGui(QtGui.QWidget):
                                                                                    region_add_date))
         else:
             self.debug_widget.scan_region_groupbox.region_info.setText('')
-        self.update_roi_info()
+        
 
     def update_roi_info(self, rois = None, selected_rois = None):
+        '''
+        rois,selected_rois -  if provided, not read from file
+        '''
         if hasattr(self.poller, 'animal_parameters'):
             roi_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.poller.generate_animal_filename('rois', self.poller.animal_parameters))
+            mouse_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.poller.generate_animal_filename('mouse', self.poller.animal_parameters))
             if os.path.exists(roi_file_full_path):
                 if rois == None:
                     rois = hdf5io.read_item(roi_file_full_path, 'rois', safe=True)
@@ -393,39 +628,36 @@ class VisionExperimentGui(QtGui.QWidget):
                     self.debug_widget.scan_region_groupbox.cell_info_label.setText(info)
                     #Update Select roi tab
                     id_labels.sort()
-                    self.update_combo_box_list(self.select_roi_widget.select_measurement, id_labels)
-                    current_measurement_id  = str(self.select_roi_widget.select_measurement.currentText()).split('um/')[1]
-                    if roi[current_measurement_id].has_key('soma_rois'):
-                        cell_ids = map(str, range(len(roi[current_measurement_id]['soma_rois'])))
-                        self.update_combo_box_list(self.select_roi_widget.select_cell, cell_ids)
-                    else:
-                        self.update_combo_box_list(self.select_roi_widget.select_cell, [])
+                    if (not hasattr(self, 'id_labels') or len(id_labels) != len(self.id_labels)):
+                        self.update_combo_box_list(self.select_roi_widget.select_measurement_combobox, id_labels)
+                        self.id_labels = id_labels
+                    current_measurement_id  = str(self.select_roi_widget.select_measurement_combobox.currentText()).split('um/')[1]
                     if roi[current_measurement_id].has_key('roi_curves_info'):
-                        roi_index = int(self.select_roi_widget.select_cell.currentText())
-                        roi_curve = roi[current_measurement_id]['roi_curves_info'][roi_index,:,:self.config.ROI_CURVE_IMAGE_CUTOUT,:][::3, ::3]
+                        roi_curve = roi[current_measurement_id]['roi_curves_info'][self.cell_index,:,:self.config.ROI_CURVE_IMAGE_CUTOUT,:][::3, ::3]
                     if selected_rois == None:
-                        mouse_file_full_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.poller.generate_animal_filename('mouse', self.poller.animal_parameters))
                         selected_rois = hdf5io.read_item(mouse_file_full_path, 'selected_rois')
-                    if not selected_rois[selected_region][current_measurement_id][self.select_roi_widget.select_cell.currentIndex()]:
+                    if not selected_rois[selected_region].has_key(current_measurement_id):
+                        selected_rois[selected_region][current_measurement_id] = numpy.cast['bool'](numpy.zeros(len(rois[selected_region][current_measurement_id]['soma_rois'])))
+                    if selected_rois is not None and not selected_rois[selected_region][current_measurement_id][self.cell_index]:
                         line_indexes = numpy.arange(0, min(roi_curve.shape[0], roi_curve.shape[1]))
                         line_indexes = numpy.array([line_indexes, line_indexes])
                         roi_curve[line_indexes,line_indexes] = 0
+                        enabled_cells = numpy.cast['int'](selected_rois[selected_region][current_measurement_id])
+                    else:
+                        enabled_cells = ''
                     self.show_image(roi_curve, 'roi_curve', utils.rc((1, 1)))
+                    self.select_roi_widget.cell_id_display_label.setText('{0}   {1}' .format(self.cell_index, enabled_cells))
             else:
                 self.debug_widget.scan_region_groupbox.cell_info_label.setText('')
-                self.update_combo_box_list(self.select_roi_widget.select_measurement, [])
-                self.update_combo_box_list(self.select_roi_widget.select_cell, [])
-                self.show_image(self.regions_images_widget.blank_image, 'roi_curve', utils.rc((1, 1)))
+                self.select_roi_widget.cell_id_display_label.setText('')
+                self.update_combo_box_list(self.select_roi_widget.select_measurement_combobox, [])
+                self.show_image(self.images_widget.blank_image, 'roi_curve', utils.rc((1, 1)))
 
-    def update_animal_parameter_display(self, index):
-        '''
-        Selected mouse file changed
-        '''
-        self.poller.stage_origin_set = False
+    def update_animal_parameter_display(self):
         mouse_file = str(self.debug_widget.scan_region_groupbox.select_mouse_file.currentText())
-        selected_mouse_file  = os.path.join(self.config.EXPERIMENT_DATA_PATH, mouse_file)
-        if os.path.exists(selected_mouse_file) and '.hdf5' in selected_mouse_file:
-            h = hdf5io.Hdf5io(selected_mouse_file)
+        self.selected_mouse_file  = os.path.join(self.config.EXPERIMENT_DATA_PATH, mouse_file)
+        if os.path.exists(self.selected_mouse_file) and '.hdf5' in self.selected_mouse_file:
+            h = hdf5io.Hdf5io(self.selected_mouse_file)
             varname = h.find_variable_in_h5f('animal_parameters', regexp=True)[0]
             h.load(varname)
             animal_parameters = getattr(h, varname)
@@ -435,9 +667,7 @@ class VisionExperimentGui(QtGui.QWidget):
             h.close()
             self.debug_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
             self.poller.animal_parameters = animal_parameters
-            self.poller.set_roi_file()
-    
-
+            
     def execute_python(self):
         try:
             exec(str(self.scanc()))
@@ -477,30 +707,7 @@ class VisionExperimentGui(QtGui.QWidget):
             self.regions_images_widget.image_display[channel].raw_image = image
             self.regions_images_widget.image_display[channel].scale = scale
         
-    def send_command(self):
-        connection = str(self.debug_widget.select_connection_list.currentText())
-        self.queues[connection]['out'].put(self.scanc())
-        
-    def show_connected_clients(self):
-        connection_status = self.command_relay_server.get_connection_status()
-        connected = []
-        for k, v in connection_status.items():
-            if v:
-                connected.append(k)
-        connected.sort()
-        connected = str(connected).replace('[','').replace(']', '').replace('\'','').replace(',','\n')
-        self.printc(connected)
-        self.printc('\n')
-
-    def show_network_messages(self):
-        network_messages = self.command_relay_server.get_debug_info()
-        for network_message in network_messages:
-            endpoint_name = network_message[1].split(' ')
-            endpoint_name = (endpoint_name[1] + '/' + endpoint_name[3]).replace(',','')
-            message = network_message[1].split('port')[1].split(': ', 1)[1]
-            displayable_message = network_message[0] + ' ' + endpoint_name + '>> ' + message
-            self.printc(displayable_message)
-        self.printc('\n')
+    
             
     def printc(self, text):       
         if not isinstance(text, str):

@@ -1,7 +1,7 @@
 
 #This module shall be renamed, because all optical calculations are to be kept here
 import numpy
-import visual as v
+#import visual as v
 import visexpman.engine.generic.geometry as geometry
 
 last_ray_length = 0.0

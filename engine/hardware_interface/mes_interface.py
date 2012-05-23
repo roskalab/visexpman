@@ -230,7 +230,7 @@ class MesInterface(object):
         return result, laser_intensity
 
     ################# Single two photon frame###############
-    def acquire_xy_image(self, timeout = -1, parameter_file = None):
+    def acquire_xy_scan(self, timeout = -1, parameter_file = None):
         if parameter_file == None:
             #generate a mes parameter file name, that does not exits
             two_photon_image_path, two_photon_image_path_on_mes = self._generate_mes_file_paths('two_photon_image.mat')
