@@ -1,3 +1,4 @@
+import shutil
 import time
 import numpy
 import re
@@ -30,6 +31,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.create_layout()
 
     def create_widgets(self):
+        #TODO: add xz scan config parameter widgets
         #Stimulation/experiment control related
         self.experiment_name = QtGui.QComboBox(self)
         self.experiment_name.setEditable(True)
@@ -507,7 +509,7 @@ class Poller(QtCore.QThread):
         self.scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions')
         self.parent.update_region_names_combobox()
         self.parent.update_scan_regions()
-        self.poller.set_mouse_file()
+        self.set_mouse_file()
 
     def handle_events(self):
         for k, queue in self.queues.items():
@@ -591,12 +593,16 @@ class Poller(QtCore.QThread):
         h_measurement = hdf5io.Hdf5io(measurement_file_path)
         scan_regions[region_name]['measurements'][id]['find_cells_ready'] = True
         scan_regions[region_name]['measurements'][id]['roi_curves_info'] = h_measurement.findvar('roi_curves_info')
+        scan_regions[region_name]['measurements'][id]['mean_image'] = h_measurement.findvar('mean_image')#This may not be necessary, might help manual realignment
+        scan_regions[region_name]['measurements'][id]['detected_accepted_somas'] = h_measurement.findvar('detected_accepted_somas')
         scan_regions[region_name]['measurements'][id]['cell_locations'] = h_measurement.findvar('cell_locations')
         scan_regions[region_name]['measurements'][id]['soma_rois'] = h_measurement.findvar('soma_rois')
         h_measurement.close()
         h.scan_regions = scan_regions
         h.save('scan_regions', overwrite=True)
         h.close()
+        #Create copy of mouse file that can be read by other applications
+        self.backup_mouse_file(h.filename)
         
     def set_process_status_flag(self, id, flag_name):
         scan_regions, region_name, h, measurement_file_path = self.read_scan_regions(id)
@@ -604,6 +610,7 @@ class Poller(QtCore.QThread):
         h.scan_regions = scan_regions
         h.save('scan_regions', overwrite=True)
         h.close()
+        self.backup_mouse_file(h.filename)
     
     def add_measurement_id(self, id):
         scan_regions, region_name, h, measurement_file_path = self.read_scan_regions(id)
@@ -618,6 +625,7 @@ class Poller(QtCore.QThread):
         h.scan_regions = scan_regions
         h.save('scan_regions', overwrite=True)
         h.close()
+        self.backup_mouse_file(h.filename)
         
     def read_scan_regions(self, id):
         #read call parameters
@@ -627,6 +635,7 @@ class Poller(QtCore.QThread):
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
         if not os.path.exists(mouse_file):
             self.printc('Mouse file ({0}) assigned to measurement ({1}) is missing' .format(mouse_file,  id))
+            return
         h = hdf5io.Hdf5io(mouse_file)
         scan_regions = h.findvar('scan_regions')
         if not scan_regions[call_parameters['region_name']].has_key(id):
@@ -637,7 +646,7 @@ class Poller(QtCore.QThread):
         
     ############## Analysis ########################
     def set_mouse_file(self):
-        self.queues['analysis']['out'].put('SOCset_mouse_fileEOCfilename={0}EOP'.format(self.mouse_file))
+        self.queues['analysis']['out'].put('SOCset_mouse_fileEOCfilename={0}EOP'.format(self.mouse_file.replace('.hdf5', '_copy.hdf5')))
                                            
     ########## Manage context ###############
     def init_variables(self):
@@ -657,7 +666,6 @@ class Poller(QtCore.QThread):
         self.xz_scan = context_hdf5.findvar('xz_scan')
         context_hdf5.close()
         self.stage_position_valid = False
-        self.selected_mouse_file = ''
         self.scan_regions = {}
         
     def save_context(self):        
@@ -916,6 +924,7 @@ class Poller(QtCore.QThread):
             self.parent.images_widget.clear_image_display(1)
             self.parent.images_widget.clear_image_display(3)
             self.printc('Animal parameter file saved')
+            self.backup_mouse_file()
     
     ################### Regions #######################
     def add_scan_region(self, widget = None):
@@ -984,7 +993,7 @@ class Poller(QtCore.QThread):
             self.printc('Master position has to be defined')
             hdf5_handler.close()
             return
-        if region_name == 'master':
+        if 'master' in region_name:
            if not self.set_stage_origin():
                 self.printc('Setting origin did not succeed')
                 hdf5_handler.close()
@@ -1026,6 +1035,7 @@ class Poller(QtCore.QThread):
         hdf5_handler.close()
         self.parent.update_region_names_combobox(region_name)
         self.parent.update_scan_regions()
+        self.backup_mouse_file()
         self.printc('{0} scan region saved'.format(region_name))
 
     def remove_scan_region(self):
@@ -1034,6 +1044,7 @@ class Poller(QtCore.QThread):
             if self.scan_regions.has_key(selected_region):
                 del self.scan_regions[selected_region]
             hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions, overwrite=True)
+            self.backup_mouse_file()
             self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setCurrentIndex(0)
             self.parent.update_region_names_combobox()
             self.parent.update_scan_regions()
@@ -1287,6 +1298,8 @@ class Poller(QtCore.QThread):
         if self.experiment_parameters['explore_cells'] and self.experiment_parameters['scan_mode'] == 'xyz':
             self.printc('Exploring cells is not possible in xyz mode')
             return
+        if self.experiment_parameters['scan_mode'] == 'xz':
+            pass#Here comes adding xz scan parameters
         #Have jobhandler start checking fragment status
 #        if len(self.experiment_parameters['roi_file'])>0:
 #            command = 'SOCstart_roi_file_checkEOCEOP'# .format(self.experiment_parameters['roi_file'])
@@ -1415,6 +1428,11 @@ class Poller(QtCore.QThread):
         hdf5_handler.close()
             
     ############# Helpers #############
+    def backup_mouse_file(self, mouse_file = None):
+        if mouse_file is None:
+            mouse_file = self.mouse_file
+        shutil.copyfile(mouse_file, mouse_file.replace('.hdf5', '_copy.hdf5'))
+        
     def create_parameterfile_from_region_info(self, parameter_file_path, scan_type):
         selected_region = self.parent.get_current_region_name()
         if not self.scan_regions.has_key(selected_region):

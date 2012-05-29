@@ -224,7 +224,10 @@ class MesInterface(object):
                         result = True
                         laser_intensity = parameter_extract.findall(response)
                         if len(laser_intensity) > 0:
-                            laser_intensity = float(laser_intensity[0])
+                            try:
+                                laser_intensity = float(laser_intensity[0])
+                            except:
+                                laser_intensity = float(laser_intensity[0].split('EOP')[0])
                         else:
                             result = False
         return result, laser_intensity

@@ -60,11 +60,11 @@ class VisionExperimentGui(QtGui.QWidget):
         self.animal_parameters_widget = gui.AnimalParametersWidget(self, self.config)
         self.images_widget = gui.ImagesWidget(self, self.config)
         self.overview_widget = gui.OverviewWidget(self, self.config)
-        self.select_roi_widget = gui.RoiWidget(self, self.config)
+        self.roi_widget = gui.RoiWidget(self, self.config)
         self.helpers_widget = gui.HelpersWidget(self, self.config)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Main')
-        self.main_tab.addTab(self.select_roi_widget, 'ROI')
+        self.main_tab.addTab(self.roi_widget, 'ROI')
         self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
         self.main_tab.addTab(self.helpers_widget, 'Helpers')
         self.main_tab.setCurrentIndex(0)
@@ -115,11 +115,11 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.run_fragment_process_button, 'run_fragment_process')
         self.connect_and_map_signal(self.main_widget.show_fragment_process_status_button, 'show_fragment_process_status')
         #ROI
-        self.connect(self.select_roi_widget.next_button, QtCore.SIGNAL('clicked()'),  self.tbd)
-        self.connect(self.select_roi_widget.select_cell_button, QtCore.SIGNAL('clicked()'),  self.tbd)
-        self.connect(self.select_roi_widget.skip_cell_button, QtCore.SIGNAL('clicked()'),  self.tbd)
-        self.connect(self.select_roi_widget.previous_button, QtCore.SIGNAL('clicked()'),  self.tbd)
-        self.connect(self.select_roi_widget.select_measurement_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.tbd)
+        self.connect(self.roi_widget.next_button, QtCore.SIGNAL('clicked()'),  self.tbd)
+        self.connect(self.roi_widget.select_cell_button, QtCore.SIGNAL('clicked()'),  self.tbd)
+        self.connect(self.roi_widget.skip_cell_button, QtCore.SIGNAL('clicked()'),  self.tbd)
+        self.connect(self.roi_widget.previous_button, QtCore.SIGNAL('clicked()'),  self.tbd)
+        self.connect(self.roi_widget.select_measurement_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.tbd)
         #Network debugger tools
         self.connect_and_map_signal(self.helpers_widget.show_connected_clients_button, 'show_connected_clients')
         self.connect_and_map_signal(self.helpers_widget.show_network_messages_button, 'show_network_messages')
@@ -259,10 +259,10 @@ class VisionExperimentGui(QtGui.QWidget):
             self.overview_widget.image_display.raw_image = image
             self.overview_widget.image_display.scale = scale
         elif channel == 'roi_curve':
-            self.select_roi_widget.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(image, self.config.ROI_INFO_IMAGE_SIZE))
-            self.select_roi_widget.roi_info_image_display.image = image
-            self.select_roi_widget.roi_info_image_display.raw_image = image
-            self.select_roi_widget.roi_info_image_display.scale = scale
+            self.roi_widget.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(image, self.config.ROI_INFO_IMAGE_SIZE))
+            self.roi_widget.roi_info_image_display.image = image
+            self.roi_widget.roi_info_image_display.raw_image = image
+            self.roi_widget.roi_info_image_display.scale = scale
         else:
             image_with_sidebar = generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, sidebar_division = division)
             self.images_widget.image_display[channel].setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.IMAGE_SIZE))
