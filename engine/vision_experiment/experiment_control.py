@@ -137,7 +137,7 @@ class ExperimentControl(object):
                     self.printl('Objective not set')
                 else:
                     self.printl('Objective is set to {0} um' .format(context['objective_position']))
-                if context.has_key('laser_intensity'):
+                if context.has_key('laser_intensity'):#TODO: reading/setting laser has to be optimized
                     result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(context['laser_intensity'])
                     if not result:
                         self.abort = True
@@ -158,7 +158,9 @@ class ExperimentControl(object):
                             self.printl('Laser intensity is not set')
                         else:
                             self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
-                
+            result, self.laser_intensity = self.mes_interface.read_laser_intensity()
+            if not result:
+                self.printl('Laser intensity is NOT available')
             #read stage and objective
             self.stage_position = self.stage.read_position() - self.stage_origin
             result,  self.objective_position, context['objective_origin'] = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
@@ -273,9 +275,14 @@ class ExperimentControl(object):
             if not aborted and result:
                 self._save_fragment_data(fragment_id)
                 if self.config.PLATFORM == 'mes':
+                    for i in range(5):#Workaround for the temporary failure of queue.put().
+                        time.sleep(0.1)
+                        self.queues['gui']['out'].put('queue_put_problem_dummy_message')
                     #Notify gui about the new file
-                    self.queues['gui']['out'].put('SOCmeasurement_readyEOC{0}EOP'.format(self.timestamp)) 
-                    print 'SOCmeasurement_readyEOC{0}EOP'.format(self.timestamp)
+                    self.printl('SOCmeasurement_readyEOC{0}EOP'.format(self.timestamp))
+                    for i in range(5):
+                        time.sleep(0.1)
+                        self.queues['gui']['out'].put('queue_put_problem_dummy_message')
         else:
             result = False
             self.printl('Data acquisition stopped with error')
@@ -423,11 +430,9 @@ class ExperimentControl(object):
         data_to_file['stimulus_frame_info'] = stimulus_frame_info
         self.stimulus_frame_info_pointer = len(self.stimulus_frame_info)
         if self.config.PLATFORM == 'mes':
-            result,  laser_intensity = self.mes_interface.read_laser_intensity()
-            if result:
-                data_to_file['laser_intensity'] = laser_intensity
-            else:
-                self.printl('Laser intensity is not available')
+            if hasattr(self, 'laser_intensity'):
+                data_to_file['laser_intensity'] = self.laser_intensity
+            
         return data_to_file
             
     def _save_fragment_data(self, fragment_id):
@@ -449,7 +454,7 @@ class ExperimentControl(object):
             shutil.copy(self.filenames['local_fragments'][fragment_id], self.filenames['fragments'][fragment_id])
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.fragment_data[self.filenames['local_fragments'][fragment_id]] = data_to_file
-        self.printl('Measurement data saved to: {0}'.format(self.filenames['fragments'][fragment_id]))
+        self.printl('Measurement data saved to: {0}'.format(os.path.split(self.filenames['fragments'][fragment_id])[1]))
 
     def _finish_data_fragments(self):
         #Experiment log, source code, module versions

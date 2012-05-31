@@ -324,7 +324,7 @@ class Debug(VisionExperimentConfig):
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':1.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3, 'Z_RANGE':80.0}
         #=== paths/data handling ===
-        use_drive = 'r'
+        use_drive = 'v'
         if os.name == 'nt':
             if use_drive == 'g':
                 root_folder = 'g:\\User\\Zoltan'

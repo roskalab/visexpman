@@ -53,7 +53,7 @@ def set_mes_mesaurement_save_flag(mat_file, flag):
     m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
     m.flush()   
 
-def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 'xy'):
+def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 'xy', autozigzag = False):
     '''
     scan_time: in ms
     reference_path: reference mat file that will be used as a template
@@ -79,6 +79,7 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
     elif scan_mode == 'xy':
         try:
             m.raw_mat['DATA'][0]['breakFFregion'] = 0.0
+            m.raw_mat['DATA'][0]['antizigzag'] = float(autozigzag)
         except ValueError:
             pass
     if scan_mode == 'xyz':
@@ -512,7 +513,7 @@ class MesInterface(object):
         else:
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
         if result:
-            set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, scan_mode = scan_mode)
+            set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, scan_mode = scan_mode, autozigzag = self.config.ENABLE_ZIGZAG_CORRECTION)
             #previously sent garbage is removed from queue
             utils.empty_queue(self.queues['mes']['in'])        
             #Acquire line scan if MES is connected

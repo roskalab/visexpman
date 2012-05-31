@@ -4,8 +4,8 @@ import numpy
 import tempfile
 
 def get_measurement_file_path_from_id(id, config):
-    if hasattr(config, 'EXPERIMENT_DATA_FOLDER'):
-        return filtered_file_list(config.EXPERIMENT_DATA_FOLDER, [id, '.hdf5'], fullpath = True, filter_condition = 'and')[0]
+    if hasattr(config, 'EXPERIMENT_DATA_PATH'):
+        return filtered_file_list(config.EXPERIMENT_DATA_PATH, [id, '.hdf5'], fullpath = True, filter_condition = 'and')[0]
 
 def mkstemp(suffix):
     f,filename = tempfile.mkstemp(suffix=suffix)

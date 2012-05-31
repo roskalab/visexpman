@@ -106,11 +106,11 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.gender.addItems(QtCore.QStringList(['male', 'female']))
         self.anesthesia_protocol_label = QtGui.QLabel('Anesthesia protocol',  self)
         self.anesthesia_protocol = QtGui.QComboBox(self)        
-        self.anesthesia_protocol.addItems(QtCore.QStringList(['isoflCP 1.5', 'isoflCP 1.0', 'isoflCP 0.5']))
+        self.anesthesia_protocol.addItems(QtCore.QStringList(['isoflCP 0.5', 'isoflCP 1.0', 'isoflCP 1.5']))
         self.anesthesia_protocol.setEditable(True)
         self.mouse_strain_label = QtGui.QLabel('Mouse strain',  self)
         self.mouse_strain = QtGui.QComboBox(self)
-        self.mouse_strain.addItems(QtCore.QStringList(['bl6', 'chat', 'chatdtr',  'grik4']))
+        self.mouse_strain.addItems(QtCore.QStringList(['chat', 'chatdtr', 'bl6', 'grik4']))
         self.mouse_strain.setEditable(True)
         self.comments = QtGui.QComboBox(self)
         self.comments.setEditable(True)
@@ -432,15 +432,22 @@ class Poller(QtCore.QThread):
         self.abort = False
         self.xz_scan_acquired = False
         self.stage_origin_set = False
-        self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
-        self.parent.connect(self, QtCore.SIGNAL('periodic_gui_update'),  self.parent.periodic_gui_update)
-        self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
-        self.parent.connect(self, QtCore.SIGNAL('show_overwrite_region_messagebox'),  self.parent.show_overwrite_region_messagebox)
-        self.parent.connect(self, QtCore.SIGNAL('show_verify_add_region_messagebox'),  self.parent.show_verify_add_region_messagebox)
+        self.connect_signals()
         self.init_network()
         self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections)
         self.init_variables()
         self.load_context()
+        
+    def connect_signals(self):
+        self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
+        self.parent.connect(self, QtCore.SIGNAL('periodic_gui_update'),  self.parent.periodic_gui_update)
+        self.parent.connect(self, QtCore.SIGNAL('update_scan_regions'),  self.parent.update_scan_regions)
+        self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
+        self.parent.connect(self, QtCore.SIGNAL('show_overwrite_region_messagebox'),  self.parent.show_overwrite_region_messagebox)
+        self.parent.connect(self, QtCore.SIGNAL('show_verify_add_region_messagebox'),  self.parent.show_verify_add_region_messagebox)
+        
+    def connect_signals_to_widgets(self):
+        self.parent.connect(self, QtCore.SIGNAL('clear_image_display'), self.parent.images_widget.clear_image_display)
         
     def init_network(self):
         self.command_relay_server = network_interface.CommandRelayServer(self.config)
@@ -467,6 +474,9 @@ class Poller(QtCore.QThread):
         
     def show_image(self, image, channel, scale, line = [], origin = None):
         self.emit(QtCore.SIGNAL('show_image'), image, channel, scale, line, origin)
+        
+    def update_scan_regions(self):
+        self.emit(QtCore.SIGNAL('update_scan_regions'))
 
     def run(self):
         self.printc('poller starts')
@@ -476,12 +486,10 @@ class Poller(QtCore.QThread):
         while not self.abort:
             now = time.time()
             elapsed_time = now - last_time
-            if now - startup_time > self.config.GUI_INIT_JOB and not init_job_run:
-                self.init_job()
-                init_job_run = True
             if elapsed_time > self.config.GUI_REFRESH_PERIOD:
                 last_time = now
                 self.periodic()
+            self.update_network_connection_status()
             self.handle_events()
             self.handle_commands()
             time.sleep(1e-2)
@@ -502,14 +510,16 @@ class Poller(QtCore.QThread):
         '''
         Functions that need to be called only once at application start
         '''
-        self.show_image(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.xy_scan['scale'], origin = self.xy_scan['origin'])
-        self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], origin = self.xz_scan['origin'])
+        self.connect_signals_to_widgets()
+        if self.xy_scan is not None:
+            self.show_image(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.xy_scan['scale'], origin = self.xy_scan['origin'])
+        if self.xz_scan is not None:
+            self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], origin = self.xz_scan['origin'])
         self.parent.update_mouse_files_combobox()
         self.parent.update_current_mouse_path()
         self.scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions')
         self.parent.update_region_names_combobox()
-        self.parent.update_scan_regions()
-        self.set_mouse_file()
+        self.update_scan_regions()
 
     def handle_events(self):
         for k, queue in self.queues.items():
@@ -539,6 +549,8 @@ class Poller(QtCore.QThread):
                     hdf5io.save_item(self.mouse_file.replace('.hdf5', '_z_stack.hdf5'), 'z_stack', self.z_stack)
                     self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
                     os.remove(self.z_stack_path)
+                elif command == 'jobhandler_started':
+                    self.set_mouse_file()
                 elif command == 'measurement_ready':
                     self.add_measurement_id(parameter)
                 elif command == 'fragment_check_ready' or command == 'mesextractor_ready':
@@ -547,30 +559,6 @@ class Poller(QtCore.QThread):
                     self.add_cells_to_database(parameter)
                 else:
                     self.printc(k.upper() + ' '  + message)
-                    
-            #Check for network connection status
-            if hasattr(self.parent, 'main_widget') and hasattr(self.command_relay_server, 'servers'):
-                connection_status = self.command_relay_server.get_connection_status()
-                connected = ''
-                n_connected = 0
-                if connection_status['STIM_MES/MES'] and connection_status['STIM_MES/STIM']:
-                    connected += 'STIM-MES  '
-                    n_connected += 1
-                if connection_status['GUI_MES/MES'] and connection_status['GUI_MES/GUI']:
-                    connected += 'MES  '
-                    n_connected += 1
-                if connection_status['GUI_STIM/STIM'] and connection_status['GUI_STIM/GUI']:
-                    connected += 'STIM  '
-                    n_connected += 1
-                if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
-                    connected += 'ANALYSIS  '
-                    n_connected += 1
-                if connection_status['STIM_ANALYSIS/ANALYSIS'] and connection_status['STIM_ANALYSIS/STIM']:
-                    connected += 'STIM-ANALYSIS'
-                    n_connected += 1
-                n_connections = len(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].keys())
-                connected = 'Alive connections ({0}/{1}): '.format(n_connected, n_connections) + connected
-                self.parent.main_widget.connected_clients_label.setText(connected)
 
     def handle_commands(self):
         if not self.signal_id_queue.empty():
@@ -603,6 +591,7 @@ class Poller(QtCore.QThread):
         h.close()
         #Create copy of mouse file that can be read by other applications
         self.backup_mouse_file(h.filename)
+        self.printc('Cell(s) added to {0}'.format(id))
         
     def set_process_status_flag(self, id, flag_name):
         scan_regions, region_name, h, measurement_file_path = self.read_scan_regions(id)
@@ -611,13 +600,14 @@ class Poller(QtCore.QThread):
         h.save('scan_regions', overwrite=True)
         h.close()
         self.backup_mouse_file(h.filename)
+        self.printc('Process status flag set: {0} ({1})'.format(flag_name,  id))
+                                                    
     
     def add_measurement_id(self, id):
         scan_regions, region_name, h, measurement_file_path = self.read_scan_regions(id)
         if not scan_regions[region_name].has_key('measurements'):
             scan_regions[region_name]['measurements'] = {}
         scan_regions[region_name]['measurements'][id] = {}
-        scan_regions[region_name]['measurements'][id]['measurement_only'] = not call_parameters['explore_cells']
         scan_regions[region_name]['measurements'][id]['fragment_check_ready'] = False
         scan_regions[region_name]['measurements'][id]['mesextractor_ready'] = False
         scan_regions[region_name]['measurements'][id]['find_cells_ready'] = False
@@ -626,27 +616,29 @@ class Poller(QtCore.QThread):
         h.save('scan_regions', overwrite=True)
         h.close()
         self.backup_mouse_file(h.filename)
+        self.printc('Measurement ID added: {0}'.format(id))
         
     def read_scan_regions(self, id):
         #read call parameters
-        measurement_file_path = file.get_measurement_file_path_from_id(id)
-        call_parameters = hdf5io.read_item(file.get_measurement_file_path_from_id(id), 'call_parameters')
+        measurement_file_path = file.get_measurement_file_path_from_id(id, self.config)
+        call_parameters = hdf5io.read_item(measurement_file_path, 'call_parameters')
         #Read the database from the mouse file pointed by the measurement file
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
         if not os.path.exists(mouse_file):
             self.printc('Mouse file ({0}) assigned to measurement ({1}) is missing' .format(mouse_file,  id))
-            return
+            return 4*[None]
         h = hdf5io.Hdf5io(mouse_file)
         scan_regions = h.findvar('scan_regions')
-        if not scan_regions[call_parameters['region_name']].has_key(id):
+        if scan_regions[call_parameters['region_name']].has_key(id):
             self.printc('ID already exists: {0}'.format(id))
             h.close()
-            return
+            return 4*[None]
         return scan_regions, call_parameters['region_name'], h, measurement_file_path
         
     ############## Analysis ########################
     def set_mouse_file(self):
-        self.queues['analysis']['out'].put('SOCset_mouse_fileEOCfilename={0}EOP'.format(self.mouse_file.replace('.hdf5', '_copy.hdf5')))
+        self.printc('Mouse file sent to jobhandler')
+        self.queues['analysis']['out'].put('SOCset_mouse_fileEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_copy.hdf5')))
                                            
     ########## Manage context ###############
     def init_variables(self):
@@ -699,7 +691,7 @@ class Poller(QtCore.QThread):
                     if display_coords:
                         self.printc('rel: {0}, abs: {1}'.format(self.stage_position - self.stage_origin, self.stage_position))
                     else:
-                        self.printc('Done')
+                        self.printc('Read stage ready')
                     self.save_context()
                     self.parent.update_position_display()
                     result = True
@@ -918,13 +910,15 @@ class Poller(QtCore.QThread):
         else:
             variable_name = 'animal_parameters_{0}'.format(int(time.time()))
             hdf5io.save_item(self.mouse_file, variable_name, self.animal_parameters)
+            time.sleep(0.1)#Wait till file is created
             #set selected mouse file to this one
             self.parent.update_mouse_files_combobox(set_to_value = os.path.split(self.mouse_file)[-1])
             #Clear image displays showing regions
-            self.parent.images_widget.clear_image_display(1)
-            self.parent.images_widget.clear_image_display(3)
+            self.emit(QtCore.SIGNAL('clear_image_display'), 1)
+            self.emit(QtCore.SIGNAL('clear_image_display'), 3)
             self.printc('Animal parameter file saved')
             self.backup_mouse_file()
+            
     
     ################### Regions #######################
     def add_scan_region(self, widget = None):
@@ -1007,7 +1001,7 @@ class Poller(QtCore.QThread):
         scan_region['xy']['origin'] = self.xy_scan['origin']
         scan_region['xy']['mes_parameters']  = utils.file_to_binary_array(self.xy_scan['path'].tostring())
         #Save xy line scan parameters
-        if hasattr(self, 'xz_scan'):
+        if hasattr(self, 'xz_scan') and False:
             #Ask for verification wheather line scan is set back to xy
             self.emit(QtCore.SIGNAL('show_verify_add_region_messagebox'))
             while self.gui_thread_queue.empty():
@@ -1034,7 +1028,7 @@ class Poller(QtCore.QThread):
         hdf5_handler.save('scan_regions', overwrite = True)
         hdf5_handler.close()
         self.parent.update_region_names_combobox(region_name)
-        self.parent.update_scan_regions()
+        self.update_scan_regions()
         self.backup_mouse_file()
         self.printc('{0} scan region saved'.format(region_name))
 
@@ -1047,7 +1041,7 @@ class Poller(QtCore.QThread):
             self.backup_mouse_file()
             self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setCurrentIndex(0)
             self.parent.update_region_names_combobox()
-            self.parent.update_scan_regions()
+            self.update_scan_regions()
             self.printc('{0} region removed'.format(selected_region))
         else:
             self.printc('Master region cannot be removed')
@@ -1414,6 +1408,31 @@ class Poller(QtCore.QThread):
             displayable_message = network_message[0] + ' ' + endpoint_name + '>> ' + message
             self.printc(displayable_message)
         self.printc('\n')
+        
+    def update_network_connection_status(self):
+        #Check for network connection status
+        if hasattr(self.parent, 'main_widget') and hasattr(self.command_relay_server, 'servers'):
+            connection_status = self.command_relay_server.get_connection_status()
+            connected = ''
+            n_connected = 0
+            if connection_status['STIM_MES/MES'] and connection_status['STIM_MES/STIM']:
+                connected += 'STIM-MES  '
+                n_connected += 1
+            if connection_status['GUI_MES/MES'] and connection_status['GUI_MES/GUI']:
+                connected += 'MES  '
+                n_connected += 1
+            if connection_status['GUI_STIM/STIM'] and connection_status['GUI_STIM/GUI']:
+                connected += 'STIM  '
+                n_connected += 1
+            if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
+                connected += 'ANALYSIS  '
+                n_connected += 1
+            if connection_status['STIM_ANALYSIS/ANALYSIS'] and connection_status['STIM_ANALYSIS/STIM']:
+                connected += 'STIM-ANALYSIS'
+                n_connected += 1
+            n_connections = len(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].keys())
+            connected = 'Alive connections ({0}/{1}): '.format(n_connected, n_connections) + connected
+            self.parent.main_widget.connected_clients_label.setText(connected)
             
     ################ Helper functions ###################
     def show_help(self):
@@ -1431,7 +1450,8 @@ class Poller(QtCore.QThread):
     def backup_mouse_file(self, mouse_file = None):
         if mouse_file is None:
             mouse_file = self.mouse_file
-        shutil.copyfile(mouse_file, mouse_file.replace('.hdf5', '_copy.hdf5'))
+        copy_path = mouse_file.replace('.hdf5', '_copy.hdf5')
+        shutil.copyfile(mouse_file, copy_path)
         
     def create_parameterfile_from_region_info(self, parameter_file_path, scan_type):
         selected_region = self.parent.get_current_region_name()
@@ -1510,6 +1530,8 @@ class Poller(QtCore.QThread):
         name = '{5}_{0}_{1}_{2}_{3}_{4}.{6}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
                                          animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], tag, extension)
         return name
+        
+    
         
     
 

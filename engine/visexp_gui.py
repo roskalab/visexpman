@@ -43,7 +43,6 @@ class VisionExperimentGui(QtGui.QWidget):
         self.console_text = ''
         self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True) 
         self.poller = gui.Poller(self)
-        self.poller.start()
         self.queues = self.poller.queues
         QtGui.QWidget.__init__(self)
         self.setWindowTitle('Vision Experiment Manager GUI - {0} - {1}' .format(user,  config_class))
@@ -53,7 +52,9 @@ class VisionExperimentGui(QtGui.QWidget):
         self.create_layout()
         self.connect_signals()
         self.init_variables()
+        self.poller.start()
         self.show()
+        self.poller.init_job()
         
     def create_gui(self):
         self.main_widget = gui.MainWidget(self, self.config)
@@ -162,7 +163,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def mouse_file_changed(self):
         #Update mouse file path and animal parameters
         self.poller.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
-        if os.path.exists(self.poller.mouse_file):
+        if os.path.isfile(self.poller.mouse_file):
             self.poller.set_mouse_file()
             h = hdf5io.Hdf5io(self.poller.mouse_file)
             varname = h.find_variable_in_h5f('animal_parameters', regexp=True)[0]
@@ -177,6 +178,7 @@ class VisionExperimentGui(QtGui.QWidget):
     ################### GUI updaters #################
     def update_mouse_files_combobox(self, set_to_value = None):
         new_mouse_files = file.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
+        new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_copy' not in mouse_file]
         if self.mouse_files != new_mouse_files:
             self.mouse_files = new_mouse_files
             self.update_combo_box_list(self.main_widget.scan_region_groupbox.select_mouse_file, self.mouse_files)
@@ -200,9 +202,10 @@ class VisionExperimentGui(QtGui.QWidget):
             
     def update_region_names_combobox(self, selected_region = None):
         #Update combobox containing scan region names
-        region_names = self.poller.scan_regions.keys()
-        region_names.sort()
-        self.update_combo_box_list(self.main_widget.scan_region_groupbox.scan_regions_combobox, region_names, selected_item = selected_region)
+        if hasattr(self.poller.scan_regions, 'keys'):
+            region_names = self.poller.scan_regions.keys()
+            region_names.sort()
+            self.update_combo_box_list(self.main_widget.scan_region_groupbox.scan_regions_combobox, region_names, selected_item = selected_region)
         
     def update_scan_regions(self, selected_region = None):
         if selected_region == None:
@@ -343,7 +346,7 @@ class VisionExperimentGui(QtGui.QWidget):
         for file_path in self.poller.files_to_delete:
             if os.path.exists(file_path):
                 os.remove(file_path)
-        time.sleep(6.0) #Enough time to close network connections
+        time.sleep(5.0) #Enough time to close network connections
         sys.exit(0)
         
 class VisionExperimentGui1(QtGui.QWidget):

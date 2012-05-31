@@ -223,7 +223,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ROI_CURVE_IMAGE_CUTOUT = [1600, [0, 2000]]
         SIDEBAR_SIZE = [30, [10, 100]]
         GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
-        GUI_INIT_JOB = [3.0, [0.1, 10.0]]
         #jobhandler
         PARSE_PERIOD = [2.0, [0.0, 10.0]]
         
