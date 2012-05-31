@@ -28,7 +28,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees        
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
-        self.REPEATS = 3
+        self.REPEATS = 2
         self.PDURATION = 0
         self.GRIDSTEP = 1.0/1.5 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1

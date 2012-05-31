@@ -198,11 +198,11 @@ class PixelSizeCalibration(experiment.Experiment):
                 
 class LedStimulationConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 10.0 #10.0
-        self.NUMBER_OF_FLASHES = 9.0
-        self.FLASH_DURATION = 500e-3
+        self.PAUSE_BETWEEN_FLASHES = 60.0 #10.0
+        self.NUMBER_OF_FLASHES = 5.0
+        self.FLASH_DURATION = 100e-3
         self.FLASH_AMPLITUDE = 10.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 2.0
+        self.DELAY_BEFORE_FIRST_FLASH = 15.0
         self.runnable = 'LedStimulation'
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())

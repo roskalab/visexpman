@@ -162,8 +162,9 @@ def read_rois(roi_file, region_name, objective_position = None, z_range = None, 
                 for location in roi_layer['cell_locations']:
                     if objective_position != None and z_range != None and mouse_file != None:
                         append = False
-                        if location['depth'] > objective_position - 0.5*z_range and location['depth'] < objective_position + 0.5*z_range and mouse_file is not None and selected_rois[region_name][id][cell_counter] :
-                            append = True
+                        if selected_rois[region_name].has_key(id):
+                            if location['depth'] > objective_position - 0.5*z_range and location['depth'] < objective_position + 0.5*z_range and mouse_file is not None and selected_rois[region_name][id][cell_counter] :
+                                append = True
                     else:
                         append = True
                     if append:

@@ -235,6 +235,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         ENABLE_FRAGMENT_CHECK = True
         ENABLE_MESEXTRACTOR = True
+        ENABLE_CELL_DETECTION = True
+        ENABLE_ZIGZAG_CORRECTION = True
         
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 50.0, 'Z_RESOLUTION':2.0, 'Z_RANGE' : 100.0}

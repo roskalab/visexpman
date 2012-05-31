@@ -450,13 +450,18 @@ class RcMicroscopeSetup(VisionExperimentConfig):
     '''
     Visual stimulation machine of 3D microscope setup
     '''
-    def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'MovingDotConfig'    
+    def _set_user_parameters(self):
+        GUI_REFRESH_PERIOD = 5
+        ENABLE_MESEXTRACTOR = True
+        ENABLE_CELL_DETECTION = True
+        EXPERIMENT_CONFIG = 'MovingDotConfig'
+        
         MES_TIMEOUT = 15.0
         PARSE_PERIOD = 2.0
         CELL_MERGE_DISTANCE = 3.0
         #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':1.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3, 'Z_RANGE':80.0}
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3, 'Z_RANGE':80.0}
+        ENABLE_ZIGZAG_CORRECTION = True
         #=== paths/data handling ===
         if os.name == 'nt':            
             v_drive_folder = 'V:\\'
@@ -544,7 +549,6 @@ class RcMicroscopeSetup(VisionExperimentConfig):
 
         CELL_MERGE_DISTANCE = 10.0
         #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':25.0, 'Z_PIXEL_SIZE' : 100.0, 'Z_RESOLUTION':1, 'Z_RANGE':100.0}
         
         self.ROI = {}
         self.ROI['process'] = 'all'
