@@ -130,6 +130,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.helpers_widget.save_xy_scan_button, QtCore.SIGNAL('clicked()'),  self.poller.save_xy_scan)
         self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
+        self.connect_and_map_signal(self.helpers_widget.add_simulated_measurement_file_button, 'add_simulated_measurement_file')
+                                    
         #Blocking functions, run by poller
         self.connect_and_map_signal(self.main_widget.read_stage_button, 'read_stage')
         self.connect_and_map_signal(self.main_widget.set_stage_origin_button, 'set_stage_origin')

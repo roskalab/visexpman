@@ -3,9 +3,16 @@ import os.path
 import numpy
 import tempfile
 
-def get_measurement_file_path_from_id(id, config):
+def get_measurement_file_path_from_id(id, config, filename_only = False):
     if hasattr(config, 'EXPERIMENT_DATA_PATH'):
-        return filtered_file_list(config.EXPERIMENT_DATA_PATH, [id, '.hdf5'], fullpath = True, filter_condition = 'and')[0]
+        path = filtered_file_list(config.EXPERIMENT_DATA_PATH, [id, '.hdf5'], fullpath = True, filter_condition = 'and')
+        if len(path)==0:
+            return
+        path = path[0]
+        if filename_only: 
+            return os.path.split(path)[1]
+        else:
+            return path
 
 def mkstemp(suffix):
     f,filename = tempfile.mkstemp(suffix=suffix)

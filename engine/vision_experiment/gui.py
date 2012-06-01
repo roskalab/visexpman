@@ -366,6 +366,7 @@ class HelpersWidget(QtGui.QWidget):
         self.help_button = QtGui.QPushButton('Help',  self)
         self.override_enforcing_set_stage_origin_checkbox = QtGui.QCheckBox(self)
         self.override_enforcing_set_stage_origin_checkbox.setToolTip('Do not check for set stage origin')
+        self.add_simulated_measurement_file_button = QtGui.QPushButton('Add simulated measurement file',  self)
         #Network related
         self.show_connected_clients_button = QtGui.QPushButton('Show connected clients',  self)
         self.show_network_messages_button = QtGui.QPushButton('Show network messages',  self)
@@ -383,6 +384,7 @@ class HelpersWidget(QtGui.QWidget):
         self.layout.addWidget(self.save_xy_scan_button, 1, 0, 1, 1)
         self.layout.addWidget(self.help_button, 1, 1, 1, 1)
         self.layout.addWidget(self.override_enforcing_set_stage_origin_checkbox, 1, 2, 1, 1)
+        self.layout.addWidget(self.add_simulated_measurement_file_button, 1, 3, 1, 1)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -553,8 +555,18 @@ class Poller(QtCore.QThread):
                     self.set_mouse_file()
                 elif command == 'measurement_ready':
                     self.add_measurement_id(parameter)
-                elif command == 'fragment_check_ready' or command == 'mesextractor_ready':
-                    self.set_process_status_flag(parameter, command)
+                elif command == 'fragment_check_ready':
+                    #ID is saved, flag will be updated in mouse later when the measurement file is closed
+                    self.fragment_check_ready_id = parameter
+                elif command == 'mesextractor_ready':
+                    flags = [command]
+                    if hasattr(self, 'fragment_check_ready_id') and self.fragment_check_ready_id is not None and parameter == self.fragment_check_ready_id:
+                        #Assuming that by this time the measurement file is closed
+                        flags.append('fragment_check_ready')
+                        self.fragment_check_ready_id = None
+                    else:#Not handled situation: consecutive fragment_check_ready and mesextractor_ready flags are associated to different ids
+                        pass
+                    self.set_process_status_flag(parameter, flags)
                 elif command == 'find_cells_ready':
                     self.add_cells_to_database(parameter)
                 else:
@@ -579,12 +591,13 @@ class Poller(QtCore.QThread):
         scan_regions, region_name, h, measurement_file_path = self.read_scan_regions(id)
         #read cell info from measurement file
         h_measurement = hdf5io.Hdf5io(measurement_file_path)
-        scan_regions[region_name]['measurements'][id]['find_cells_ready'] = True
-        scan_regions[region_name]['measurements'][id]['roi_curves_info'] = h_measurement.findvar('roi_curves_info')
-        scan_regions[region_name]['measurements'][id]['mean_image'] = h_measurement.findvar('mean_image')#This may not be necessary, might help manual realignment
-        scan_regions[region_name]['measurements'][id]['detected_accepted_somas'] = h_measurement.findvar('detected_accepted_somas')
-        scan_regions[region_name]['measurements'][id]['cell_locations'] = h_measurement.findvar('cell_locations')
-        scan_regions[region_name]['measurements'][id]['soma_rois'] = h_measurement.findvar('soma_rois')
+        scan_regions[region_name]['process_status'][id]['find_cells_ready'] = True
+        #TODO: this data goes to different node
+        scan_regions[region_name]['process_status'][id]['roi_curves_info'] = h_measurement.findvar('roi_curves_info')
+        scan_regions[region_name]['process_status'][id]['mean_image'] = h_measurement.findvar('mean_image')#This may not be necessary, might help manual realignment
+        scan_regions[region_name]['process_status'][id]['detected_accepted_somas'] = h_measurement.findvar('detected_accepted_somas')
+        scan_regions[region_name]['process_status'][id]['cell_locations'] = h_measurement.findvar('cell_locations')
+        scan_regions[region_name]['process_status'][id]['soma_rois'] = h_measurement.findvar('soma_rois')
         h_measurement.close()
         h.scan_regions = scan_regions
         h.save('scan_regions', overwrite=True)
@@ -593,25 +606,26 @@ class Poller(QtCore.QThread):
         self.backup_mouse_file(h.filename)
         self.printc('Cell(s) added to {0}'.format(id))
         
-    def set_process_status_flag(self, id, flag_name):
+    def set_process_status_flag(self, id, flag_names):
         scan_regions, region_name, h, measurement_file_path = self.read_scan_regions(id)
-        scan_regions[region_name]['measurements'][id][flag_name] = True
+        for flag_name in flag_names:
+            scan_regions[region_name]['process_status'][id][flag_name] = True
         h.scan_regions = scan_regions
         h.save('scan_regions', overwrite=True)
         h.close()
         self.backup_mouse_file(h.filename)
-        self.printc('Process status flag set: {0} ({1})'.format(flag_name,  id))
-                                                    
+        self.printc('Process status flag set: {1}/{0}'.format(flag_name,  id))
     
     def add_measurement_id(self, id):
         scan_regions, region_name, h, measurement_file_path = self.read_scan_regions(id)
-        if not scan_regions[region_name].has_key('measurements'):
-            scan_regions[region_name]['measurements'] = {}
-        scan_regions[region_name]['measurements'][id] = {}
-        scan_regions[region_name]['measurements'][id]['fragment_check_ready'] = False
-        scan_regions[region_name]['measurements'][id]['mesextractor_ready'] = False
-        scan_regions[region_name]['measurements'][id]['find_cells_ready'] = False
-        scan_regions[region_name]['measurements'][id]['path'] = os.path.split(measurement_file_path)[1]
+        if not scan_regions[region_name].has_key('process_status'):
+            scan_regions[region_name]['process_status'] = {}
+        if scan_regions[region_name]['process_status'].has_key(id):
+            self.printc('ID alread exists')
+        scan_regions[region_name]['process_status'][id] = {}
+        scan_regions[region_name]['process_status'][id]['fragment_check_ready'] = False
+        scan_regions[region_name]['process_status'][id]['mesextractor_ready'] = False
+        scan_regions[region_name]['process_status'][id]['find_cells_ready'] = False
         h.scan_regions = scan_regions
         h.save('scan_regions', overwrite=True)
         h.close()
@@ -1438,6 +1452,20 @@ class Poller(QtCore.QThread):
     def show_help(self):
         if webbrowser.open_new_tab(self.config.MANUAL_URL):
             self.printc('Shown in default webbrowser')
+            
+    def add_simulated_measurement_file(self):
+        for path in file.listdir_fullpath(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'simulated_data')):
+            if '.hdf5' in path:
+                h = hdf5io.Hdf5io(path)
+                h.load('call_parameters')
+                h.call_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
+                h.save('call_parameters', overwrite = True)
+                h.close()
+            shutil.copyfile(path, os.path.join(self.config.EXPERIMENT_DATA_PATH, os.path.split(path)[1]))
+            if '.hdf5' in path:
+                time.sleep(0.1)
+                self.queues['stim']['in'].put('SOCmeasurement_readyEOC{0}EOP'.format(file.parse_fragment_filename(path)['id']))
+                self.printc('Simulated file copied: {0}'.format(path))
             
     def save_xy_scan(self):
         hdf5_handler = hdf5io.Hdf5io(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xy_scan.hdf5')))
