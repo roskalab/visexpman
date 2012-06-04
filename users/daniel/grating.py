@@ -10,13 +10,14 @@ import serial
 import numpy
 import time
 import shutil
+import random
 
 class MovingGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing        
         self.NUMBER_OF_MARCHING_PHASES = 4
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
-        self.MARCH_TIME = 1.5#3.0
+        self.MARCH_TIME = 2.5#3.0
         self.GRATING_STAND_TIME = 2.0#1.0        
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
@@ -41,7 +42,7 @@ class QuickStimulationMovingGratingConfig(experiment.ExperimentConfig):
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1200.0]#1800
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 1
+        self.REPEATS = 2
         self.PAUSE_BEFORE_AFTER = 0.0
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
@@ -74,21 +75,25 @@ class MovingGrating(experiment.Experiment):
             for white_bar_width in self.experiment_config.WHITE_BAR_WIDTHS:
                 for velocity in self.experiment_config.VELOCITIES:
                     for duty_cycle in self.experiment_config.DUTY_CYCLES:
-                        stimulus_unit = {}
-                        stimulus_unit['white_bar_width'] = white_bar_width
-                        stimulus_unit['velocity'] = velocity
-                        stimulus_unit['duty_cycle'] = duty_cycle
-                        period_length = (duty_cycle + 1) * white_bar_width
-                        required_movement = period_length * self.experiment_config.NUMBER_OF_BAR_ADVANCE_OVER_POINT
-                        stimulus_unit['move_time'] = float(required_movement) / velocity
-                        #round it to the multiple of frame rate
-                        stimulus_unit['move_time'] = \
-                                    numpy.round(stimulus_unit['move_time'] * self.machine_config.SCREEN_EXPECTED_FRAME_RATE) / self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                        self.overall_duration += stimulus_unit['move_time'] + self.experiment_config.NUMBER_OF_MARCHING_PHASES * self.experiment_config.MARCH_TIME + self.experiment_config.GRATING_STAND_TIME
-                        self.stimulus_units.append(stimulus_unit)
+                        if repeat > 0:
+                            random.shuffle(self.experiment_config.ORIENTATIONS)
+                        for orientation in self.experiment_config.ORIENTATIONS:
+                            stimulus_unit = {}
+                            stimulus_unit['white_bar_width'] = white_bar_width
+                            stimulus_unit['velocity'] = velocity
+                            stimulus_unit['duty_cycle'] = duty_cycle
+                            stimulus_unit['orientation'] = orientation
+                            period_length = (duty_cycle + 1) * white_bar_width
+                            required_movement = period_length * self.experiment_config.NUMBER_OF_BAR_ADVANCE_OVER_POINT
+                            stimulus_unit['move_time'] = float(required_movement) / velocity
+                            #round it to the multiple of frame rate
+                            stimulus_unit['move_time'] = \
+                                        numpy.round(stimulus_unit['move_time'] * self.machine_config.SCREEN_EXPECTED_FRAME_RATE) / self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+                            self.overall_duration += stimulus_unit['move_time'] + self.experiment_config.NUMBER_OF_MARCHING_PHASES * self.experiment_config.MARCH_TIME + self.experiment_config.GRATING_STAND_TIME
+                            self.stimulus_units.append(stimulus_unit)
                     
         
-        self.overall_duration *= len(self.experiment_config.ORIENTATIONS)
+#         self.overall_duration *= len(self.experiment_config.ORIENTATIONS)
         self.period_time = self.overall_duration / self.experiment_config.REPEATS
         if self.period_time > self.machine_config.MAXIMUM_RECORDING_DURATION:
             raise RuntimeError('Stimulus too long')
@@ -105,8 +110,8 @@ class MovingGrating(experiment.Experiment):
         self.experiment_specific_data['segment_info'] = {} 
         is_first_dislayed = False
         for stimulus_unit in self.fragmented_stimulus_units[fragment_id]:
-            for orientaion in self.experiment_config.ORIENTATIONS:
                 #Show marching grating
+                orientation = stimulus_unit['orientation']
                 for phase in self.marching_phases:
                     if not is_first_dislayed:
                         is_first_dislayed = True
@@ -114,24 +119,24 @@ class MovingGrating(experiment.Experiment):
                     else:
                         static_grating_duration = self.experiment_config.MARCH_TIME
                     self.show_grating(duration = static_grating_duration, 
-                            orientation = orientaion, 
+                            orientation = orientation, 
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],
                             starting_phase = phase)
                 #Show moving grating
                 self.show_grating(duration = stimulus_unit['move_time'], 
-                            orientation = orientaion, 
+                            orientation = orientation, 
                             velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'])
                 #Show static grating
                 self.show_grating(duration = self.experiment_config.GRATING_STAND_TIME, 
-                            orientation = orientaion, 
+                            orientation = orientation, 
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'])
                 #Save segment info to help synchronizing stimulus with measurement data
                 segment_info = {}
                 segment_info['fragment_id'] = fragment_id
-                segment_info['orientation'] = orientaion
+                segment_info['orientation'] = orientation
                 segment_info['velocity'] = stimulus_unit['velocity']
                 segment_info['white_bar_width'] = stimulus_unit['white_bar_width']
                 segment_info['duty_cycle'] = stimulus_unit['duty_cycle']
