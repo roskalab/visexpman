@@ -116,11 +116,13 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.run_fragment_process_button, 'run_fragment_process')
         self.connect_and_map_signal(self.main_widget.show_fragment_process_status_button, 'show_fragment_process_status')
         #ROI
-        self.connect(self.roi_widget.next_button, QtCore.SIGNAL('clicked()'),  self.tbd)
-        self.connect(self.roi_widget.select_cell_button, QtCore.SIGNAL('clicked()'),  self.tbd)
-        self.connect(self.roi_widget.skip_cell_button, QtCore.SIGNAL('clicked()'),  self.tbd)
-        self.connect(self.roi_widget.previous_button, QtCore.SIGNAL('clicked()'),  self.tbd)
-        self.connect(self.roi_widget.select_measurement_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.tbd)
+        
+        self.connect(self.roi_widget.accept_cell_button, QtCore.SIGNAL('clicked()'),  self.tbd)
+        self.connect(self.roi_widget.ignore_cell_button, QtCore.SIGNAL('clicked()'),  self.tbd)
+        self.connect_and_map_signal(self.roi_widget.next_button, 'next_cell')
+        self.connect_and_map_signal(self.roi_widget.previous_button, 'previous_cell')
+        self.connect(self.roi_widget.select_cell_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.select_cell_changed)
+        
         #Network debugger tools
         self.connect_and_map_signal(self.helpers_widget.show_connected_clients_button, 'show_connected_clients')
         self.connect_and_map_signal(self.helpers_widget.show_network_messages_button, 'show_network_messages')
@@ -176,6 +178,10 @@ class VisionExperimentGui(QtGui.QWidget):
             
     def region_name_changed(self):
         self.update_scan_regions()
+        self.update_cell_list()
+        
+    def select_cell_changed(self):
+        self.update_roi_curves_display()
         
     ################### GUI updaters #################
     def update_mouse_files_combobox(self, set_to_value = None):
@@ -247,7 +253,30 @@ class VisionExperimentGui(QtGui.QWidget):
                 self.show_image(self.images_widget.blank_image, 3, no_scale)
                 self.show_image(self.images_widget.blank_image, 'overview', no_scale)
                 self.main_widget.scan_region_groupbox.region_info.setText('')
-    
+                
+    def update_jobhandler_process_status(self):
+        if hasatt(self.process_status):#TODO: not complete
+            self.main_widget.scan_region_groupbox.process_status_label.setText()
+
+    def update_cell_list(self, cells = None):
+        if cells is None:
+            cells  = hdf5io.read_item(self.poller.mouse_file.replace('.hdf5', '_copy.hdf5'), 'cells')
+        self.poller.cells = cells
+        region_name = self.get_current_region_name()
+        if utils.safe_has_key(self.poller.cells, region_name):
+            self.poller.cell_ids = self.poller.cells[region_name].keys()
+            self.poller.cell_ids.sort()
+            self.update_combo_box_list(self.roi_widget.select_cell_combobox,self.poller.cell_ids)
+        
+    def update_roi_curves_display(self):
+        region_name = self.get_current_region_name()
+        cell_id = self.get_current_cell_id()
+        h=hdf5io.Hdf5io(self.poller.mouse_file.replace('.hdf5', '_copy.hdf5'))
+        roi_curve = h.findvar(cell_id,path = '/roi_curves/'+region_name)
+        h.close()
+        if roi_curve is not None:
+            self.show_image(roi_curve, 'roi_curve', utils.rc((1, 1)))
+            
     def show_image(self, image, channel, scale, line = [], origin = None):
         if origin != None:
             division = numpy.round(min(image.shape) *  scale['row']/ 5.0, -1)
@@ -292,6 +321,10 @@ class VisionExperimentGui(QtGui.QWidget):
     ######## GUI widget readers ###############
     def get_current_region_name(self):
         return str(self.main_widget.scan_region_groupbox.scan_regions_combobox.currentText())
+        
+    def get_current_cell_id(self):
+        return str(self.roi_widget.select_cell_combobox.currentText())
+        
         
     def update_current_mouse_path(self):
         self.poller.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.main_widget.scan_region_groupbox.select_mouse_file.currentText()))

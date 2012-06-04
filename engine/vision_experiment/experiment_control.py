@@ -134,39 +134,24 @@ class ExperimentControl(object):
             result,  laser_intensity = self.mes_interface.read_laser_intensity()
             if result:
                 self.initial_laser_intensity = laser_intensity
+                self.laser_intensity = laser_intensity
             else:
                 self.printl('Laser intensity cannot be read')
+            if context.has_key('laser_intensity'):
+                result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(context['laser_intensity'])
+                if not result:
+                    self.abort = True
+                    self.printl('Laser intensity is not set')
+                else:
+                    self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
+                    self.laser_intensity = adjusted_laser_intensity
+            #read stage and objective
             if context.has_key('objective_position'):
                 if not self.mes_interface.set_objective(context['objective_position'], self.config.MES_TIMEOUT):
                     self.abort = True
                     self.printl('Objective not set')
                 else:
                     self.printl('Objective is set to {0} um' .format(context['objective_position']))
-                if context.has_key('laser_intensity'):#TODO: reading/setting laser has to be optimized
-                    result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(context['laser_intensity'])
-                    if not result:
-                        self.abort = True
-                        self.printl('Laser intensity is not set')
-                    else:
-                        self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
-                if self.parameters.has_key('laser_step'):
-                    result,  laser_intensity = self.mes_interface.read_laser_intensity()
-                    if not result:
-                        self.printl('Laser intensity is NOT available')
-                    else:
-                        laser_intensity += float(self.parameters['laser_step'])
-                        if laser_intensity > 100.0:
-                            laser_intensity = 100.0
-                        result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(laser_intensity)
-                        if not result:
-                            self.abort = True
-                            self.printl('Laser intensity is not set')
-                        else:
-                            self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
-            result, self.laser_intensity = self.mes_interface.read_laser_intensity()
-            if not result:
-                self.printl('Laser intensity is NOT available')
-            #read stage and objective
             self.stage_position = self.stage.read_position() - self.stage_origin
             result,  self.objective_position, context['objective_origin'] = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
             if utils.safe_has_key(self.parameters, 'scan_mode'):
@@ -178,10 +163,10 @@ class ExperimentControl(object):
     def _finish_experiment(self):
         self._finish_data_fragments()
         #Set back laser
-        if hasattr(self, 'initial_laser_intensity') and (self.parameters.has_key('laser_intensities') or self.parameters.has_key('laser_step')):
+        if hasattr(self, 'initial_laser_intensity') and self.parameters.has_key('laser_intensities'):
             result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(self.initial_laser_intensity)
             if not result:
-                self.printl('Setting back laser did not succeed')
+                self.printl('Setting back laser did NOT succeed')
         self.printl('Closing devices')
         self._close_devices()
         utils.empty_queue(self.queues['gui']['out'])
@@ -214,10 +199,9 @@ class ExperimentControl(object):
                     xz_scan_config = self.config.XZ_SCAN_CONFIG
                     if self.parameters.has_key('xz_line_lenght'):
                         xz_scan_config['LINE_LENGTH'] = self.parameters['xz_line_lenght']
-                    if self.parameters.has_key('z_pixel_size'):
-                        xz_scan_config['Z_PIXEL_SIZE'] = self.parameters['z_pixel_size']
                     if self.parameters.has_key('z_resolution'):
-                        xz_scan_config['Z_RESOLUTION'] = self.parameters['z_resolution']
+                        xz_scan_config['Z_RESOLUTION'] = float(self.parameters['z_resolution'])
+                        xz_scan_config['Z_PIXEL_SIZE'] = int(float(xz_scan_config['Z_RANGE'])/xz_scan_config['Z_RESOLUTION'])#Always 100 um depth is used
                     
                     if not self.mes_interface.create_XZline_from_points(self.cell_locations, xz_scan_config):
                         self.printl('Creating XZ lines did not succeed')

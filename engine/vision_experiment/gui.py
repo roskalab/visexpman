@@ -53,8 +53,9 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.laser_intensities_combobox.setEditable(True)
         self.scan_mode = QtGui.QComboBox(self)
         self.scan_mode.addItems(QtCore.QStringList(['xy', 'xz', 'xyz']))
-        self.explore_cells_label = QtGui.QLabel('Explore cells', self)
-        self.explore_cells_checkbox = QtGui.QCheckBox(self)
+        self.xz_scan_parameters_label = QtGui.QLabel('XZ line length, z resolution',  self)
+        self.xz_scan_parameters_combobox = QtGui.QComboBox(self)
+        self.xz_scan_parameters_combobox.setEditable(True)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -66,8 +67,8 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.next_depth_button, 1, 4, 1, 1)
         self.layout.addWidget(self.redo_depth_button, 1, 2, 1, 2)
         self.layout.addWidget(self.scan_mode, 2, 0)
-        self.layout.addWidget(self.explore_cells_label, 2, 1)
-        self.layout.addWidget(self.explore_cells_checkbox, 2, 2)
+        self.layout.addWidget(self.xz_scan_parameters_label, 2, 1)
+        self.layout.addWidget(self.xz_scan_parameters_combobox, 2, 2, 1, 2)
         self.layout.addWidget(self.objective_positions_label, 2, 4)
         self.layout.addWidget(self.objective_positions_combobox, 2, 5, 1, 2)
         self.layout.addWidget(self.identify_flourescence_intensity_distribution_button, 3, 0, 1, 2)
@@ -225,7 +226,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
                 v.setCheckState(2)
         self.xz_scan_button = QtGui.QPushButton('XZ scan',  self)
         self.xz_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
-        self.cell_info_label = QtGui.QLabel('', self)
+        self.process_status_label = QtGui.QLabel('', self)
         self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
 
     def create_layout(self):
@@ -254,7 +255,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 7, 1, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 7, 2, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_origin_adjust'], 7, 3, 1, 1)
-        self.layout.addWidget(self.cell_info_label, 8, 0, 2, 4)
+        self.layout.addWidget(self.process_status_label, 8, 0, 2, 4)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -272,28 +273,34 @@ class RoiWidget(QtGui.QWidget):
         self.roi_info_image_display = QtGui.QLabel()
         blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['row'], self.config.ROI_INFO_IMAGE_SIZE['col']), dtype = numpy.uint8)
         self.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
-        self.select_measurement_label = QtGui.QLabel('Select measurement',  self)
-        self.select_measurement_combobox = QtGui.QComboBox(self)
-        self.select_measurement_combobox.setEditable(False)
+        self.select_cell_label = QtGui.QLabel('Select cell',  self)
+        self.select_cell_combobox = QtGui.QComboBox(self)
+        self.select_cell_combobox.setEditable(False)
         self.cell_id_display_label = QtGui.QLabel('',  self)
         self.next_button = QtGui.QPushButton('>>',  self)
         self.previous_button = QtGui.QPushButton('<<',  self)
-        self.select_cell_button = QtGui.QPushButton('Select cell',  self)
-        self.skip_cell_button = QtGui.QPushButton('Skip cell',  self)
+        self.accept_cell_button = QtGui.QPushButton('Accept cell',  self)
+        self.ignore_cell_button = QtGui.QPushButton('Ignore cell',  self)
+        self.cell_group_label = QtGui.QLabel('Cell group',  self)
+        self.cell_group_combobox = QtGui.QComboBox(self)
+        self.cell_group_combobox.setEditable(True)
+        self.save_button = QtGui.QPushButton('Save',  self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.roi_info_image_display, 0, 0, 1, 8)
-        self.layout.addWidget(self.select_measurement_label, 1, 0)
-        self.layout.addWidget(self.select_measurement_combobox, 1, 1)
-        self.layout.addWidget(self.cell_id_display_label, 1, 2, 1, 2)
-        self.layout.addWidget(self.previous_button, 1, 4)
-        self.layout.addWidget(self.select_cell_button, 1, 5)
-        self.layout.addWidget(self.skip_cell_button, 1, 6)
-        self.layout.addWidget(self.next_button, 1, 7)
-        
+        self.layout.addWidget(self.roi_info_image_display, 0, 0, 1, 13)
+        self.layout.addWidget(self.select_cell_label, 1, 0)
+        self.layout.addWidget(self.select_cell_combobox, 1, 1, 1, 2)
+        self.layout.addWidget(self.cell_id_display_label, 1, 3, 1, 2)
+        self.layout.addWidget(self.previous_button, 1, 5)
+        self.layout.addWidget(self.accept_cell_button, 1, 6)
+        self.layout.addWidget(self.ignore_cell_button, 1, 7)
+        self.layout.addWidget(self.next_button, 1, 8)
+        self.layout.addWidget(self.cell_group_label, 1, 9)
+        self.layout.addWidget(self.cell_group_combobox, 1, 10, 1, 2)
+        self.layout.addWidget(self.save_button, 1, 12, 1, 1)
         self.layout.setRowStretch(3, 3)
-        self.layout.setColumnStretch(10, 10)
+        self.layout.setColumnStretch(15, 15)
         self.setLayout(self.layout)
 
 class MainWidget(QtGui.QWidget):
@@ -504,6 +511,7 @@ class Poller(QtCore.QThread):
         self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['analysis']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.command_relay_server.shutdown_servers()
+        time.sleep(3.0)
 
     def periodic(self):
         self.emit(QtCore.SIGNAL('periodic_gui_update'))
@@ -589,35 +597,71 @@ class Poller(QtCore.QThread):
     ############## Measurement file handling ########################
     def add_cells_to_database(self, id):
         scan_regions, region_name, h, measurement_file_path = self.read_scan_regions(id)
+        if scan_regions is None:
+            return
         #read cell info from measurement file
         h_measurement = hdf5io.Hdf5io(measurement_file_path)
         scan_regions[region_name]['process_status'][id]['find_cells_ready'] = True
-        #TODO: this data goes to different node
-        scan_regions[region_name]['process_status'][id]['roi_curves_info'] = h_measurement.findvar('roi_curves_info')
-        scan_regions[region_name]['process_status'][id]['mean_image'] = h_measurement.findvar('mean_image')#This may not be necessary, might help manual realignment
-        scan_regions[region_name]['process_status'][id]['detected_accepted_somas'] = h_measurement.findvar('detected_accepted_somas')
-        scan_regions[region_name]['process_status'][id]['cell_locations'] = h_measurement.findvar('cell_locations')
-        scan_regions[region_name]['process_status'][id]['soma_rois'] = h_measurement.findvar('soma_rois')
+        h.load('images')
+        if not hasattr(h,  'images'):
+            h.images = {}
+        h.images[id] = {}
+        h.images[id]['meanimage'] = h_measurement.findvar('meanimage')
+        h.images[id]['accepted_somaimage'] = h_measurement.findvar('accepted_somaimage')
+        h.load('cells')
+        if not hasattr(h,  'cells'):
+            h.cells = {}
+        if not h.cells.has_key(region_name):
+            h.cells[region_name] = {}
+        h.load('roi_curves')
+        if not hasattr(h,  'roi_curves'):
+            h.roi_curves = {}
+        if not h.roi_curves.has_key(region_name):
+            h.roi_curves[region_name] = {}
+        soma_rois = h_measurement.findvar('soma_rois')
+        roi_centers = h_measurement.findvar('roi_centers')
+        roi_curves= h_measurement.findvar('roi_curves')
+        depth = int(h_measurement.findvar('position')['z'][0])
+        if soma_rois is None or len(soma_rois) == 0:
+            number_of_new_cells = 0
+        else:
+            number_of_new_cells = len(soma_rois)
+        for i in range(number_of_new_cells):
+            cell_id = '{0}_{1}_{2}'.format(depth, i, id)
+            h.cells[region_name][cell_id] = {}
+            h.cells[region_name][cell_id]['depth'] = depth
+            h.cells[region_name][cell_id]['id'] = id
+            h.cells[region_name][cell_id]['soma_rois'] = soma_rois[i]
+            h.cells[region_name][cell_id]['roi_center'] = roi_centers[i]
+            h.cells[region_name][cell_id]['accepted'] = False
+            h.cells[region_name][cell_id]['group'] = {'default':''}
+            h.roi_curves[region_name][cell_id] = roi_curves[i]
         h_measurement.close()
+        #Save changes
         h.scan_regions = scan_regions
-        h.save('scan_regions', overwrite=True)
+        h.save(['scan_regions', 'images', 'cells', 'roi_curves'], overwrite=True)
+        self.parent.update_cell_list(h.cells)
+        self.printc('{1} cells added from {0}'.format(id, number_of_new_cells))
         h.close()
         #Create copy of mouse file that can be read by other applications
         self.backup_mouse_file(h.filename)
-        self.printc('Cell(s) added to {0}'.format(id))
         
     def set_process_status_flag(self, id, flag_names):
         scan_regions, region_name, h, measurement_file_path = self.read_scan_regions(id)
+        if scan_regions is None:
+            return
         for flag_name in flag_names:
             scan_regions[region_name]['process_status'][id][flag_name] = True
         h.scan_regions = scan_regions
         h.save('scan_regions', overwrite=True)
         h.close()
         self.backup_mouse_file(h.filename)
-        self.printc('Process status flag set: {1}/{0}'.format(flag_name,  id))
+        self.printc('Process status flag set: {1}/{0}'.format(flag_names,  id))
     
     def add_measurement_id(self, id):
         scan_regions, region_name, h, measurement_file_path = self.read_scan_regions(id)
+        if scan_regions is None:
+            return
         if not scan_regions[region_name].has_key('process_status'):
             scan_regions[region_name]['process_status'] = {}
         if scan_regions[region_name]['process_status'].has_key(id):
@@ -635,6 +679,9 @@ class Poller(QtCore.QThread):
     def read_scan_regions(self, id):
         #read call parameters
         measurement_file_path = file.get_measurement_file_path_from_id(id, self.config)
+        if measurement_file_path is None or not os.path.exists(measurement_file_path):
+            self.printc('Measurement file not found: {0}, {1}' .format(measurement_file_path,  id))
+            return 4*[None]
         call_parameters = hdf5io.read_item(measurement_file_path, 'call_parameters')
         #Read the database from the mouse file pointed by the measurement file
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
@@ -648,7 +695,22 @@ class Poller(QtCore.QThread):
             h.close()
             return 4*[None]
         return scan_regions, call_parameters['region_name'], h, measurement_file_path
+ 
         
+    def next_cell(self):
+        current_index = self.parent.roi_widget.select_cell_combobox.currentIndex()
+        current_index += 1
+        if current_index >= len(self.cell_ids):
+            current_index = 0
+        self.parent.roi_widget.select_cell_combobox.setCurrentIndex(current_index)
+        
+    def previous_cell(self):
+        current_index = self.parent.roi_widget.select_cell_combobox.currentIndex()
+        current_index -= 1
+        if current_index < 0:
+            current_index = len(self.cell_ids)-1
+        self.parent.roi_widget.select_cell_combobox.setCurrentIndex(current_index)
+
     ############## Analysis ########################
     def set_mouse_file(self):
         self.printc('Mouse file sent to jobhandler')
@@ -1270,7 +1332,6 @@ class Poller(QtCore.QThread):
     def start_experiment(self):
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
-        self.experiment_parameters['explore_cells'] = (self.parent.main_widget.experiment_control_groupbox.explore_cells_checkbox.checkState() != 0)
         self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
         self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
         region_name = self.parent.get_current_region_name()
@@ -1279,9 +1340,6 @@ class Poller(QtCore.QThread):
         objective_range_string = str(self.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
         if len(objective_range_string)>0:
             objective_positions = map(float, objective_range_string.split(','))
-            if len(objective_positions) >3:
-                self.experiment_parameters['laser_step'] = objective_positions[3]
-                objective_positions = objective_positions[:3]
             if objective_positions[0] > objective_positions[1]:
                 reverse = True
                 tmp = objective_positions[0]
@@ -1291,6 +1349,7 @@ class Poller(QtCore.QThread):
                 reverse = False
             objective_positions[1] += objective_positions[2]
             self.experiment_parameters['objective_positions'] = numpy.arange(*objective_positions)
+            self.experiment_parameters['number_of_depths'] = self.experiment_parameters['objective_positions'].shape[0]
             if reverse:
                 self.experiment_parameters['objective_positions'] = self.experiment_parameters['objective_positions'].tolist()
                 self.experiment_parameters['objective_positions'].reverse()
@@ -1299,19 +1358,15 @@ class Poller(QtCore.QThread):
         laser_intensities_string =  str(self.parent.main_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
         if len(laser_intensities_string) > 0:
             self.experiment_parameters['laser_intensities'] = map(float, laser_intensities_string.replace(' ', '').split(','))
-            self.experiment_parameters['laser_intensities'] = generic.expspace(self.experiment_parameters['laser_intensities'][0], self.experiment_parameters['laser_intensities'][1],  self.experiment_parameters['objective_positions'].shape[0])
-        if self.experiment_parameters['explore_cells'] and len(self.experiment_parameters['region_name']) == 0:
-            self.printc('Exploring cells is not possible without selected region')
-            return
-        if self.experiment_parameters['explore_cells'] and self.experiment_parameters['scan_mode'] == 'xyz':
-            self.printc('Exploring cells is not possible in xyz mode')
-            return
+            self.experiment_parameters['laser_intensities'] = numpy.linspace(self.experiment_parameters['laser_intensities'][0],
+                                                                                            self.experiment_parameters['laser_intensities'][1], 
+                                                                                            self.experiment_parameters['number_of_depths'])
+            #generic.expspace(self.experiment_parameters['laser_intensities'][0], self.experiment_parameters['laser_intensities'][1],  self.experiment_parameters['objective_positions'].shape[0])
         if self.experiment_parameters['scan_mode'] == 'xz':
-            pass#Here comes adding xz scan parameters
-        #Have jobhandler start checking fragment status
-#        if len(self.experiment_parameters['roi_file'])>0:
-#            command = 'SOCstart_roi_file_checkEOCEOP'# .format(self.experiment_parameters['roi_file'])
-#            self.queues['analysis']['out'].put(command)
+            params = str(self.parent.main_widget.experiment_control_groupbox.xz_scan_parameters_combobox.currentText())
+            params = params.replace(' ', '').split(',')
+            self.experiment_parameters['xz_line_length'] = params[0]
+            self.experiment_parameters['z_resolution'] = params[1]
         #Set back next/prev/redo button texts
         self.parent.main_widget.experiment_control_groupbox.next_depth_button.setText('Next')
         self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
@@ -1322,9 +1377,9 @@ class Poller(QtCore.QThread):
     def generate_experiment_start_command(self, experiment_parameters):
         #Ensure that user can switch between different stimulations during the experiment batch
         self.experiment_parameters['experiment_config'] = str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
-        parameters = 'experiment_config={0},scan_mode={1},explore_cells={2}' \
-                        .format(experiment_parameters['experiment_config'], experiment_parameters['scan_mode'], experiment_parameters['explore_cells'])
-        if experiment_parameters.has_key('mouse_file'):
+        parameters = 'experiment_config={0},scan_mode={1}' \
+                        .format(experiment_parameters['experiment_config'], experiment_parameters['scan_mode'])
+        if experiment_parameters.has_key('mouse_file') and experiment_parameters.has_key('mouse_file') != '':
             parameters += ',mouse_file={0}'.format(experiment_parameters['mouse_file'])
         if experiment_parameters.has_key('current_objective_position_index') and experiment_parameters.has_key('objective_positions'):
             objective_position = experiment_parameters['objective_positions'][experiment_parameters['current_objective_position_index']]
@@ -1338,14 +1393,16 @@ class Poller(QtCore.QThread):
             if experiment_parameters['current_objective_position_index'] > 0:
                 objective_position = experiment_parameters['objective_positions'][experiment_parameters['current_objective_position_index']-1]
                 self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev {0} um'.format(objective_position))
-                
+        if experiment_parameters.has_key('current_objective_position_index') and experiment_parameters.has_key('laser_intensities'):
+            laser_intensities = experiment_parameters['laser_intensities'][experiment_parameters['current_objective_position_index']]
+            parameters += ',laser_intensities={0}'.format(laser_intensities)
         if experiment_parameters.has_key('region_name') and experiment_parameters['region_name'] != '':
             parameters += ',region_name='+experiment_parameters['region_name']
-        else:
-            self.printc('No region selected')
-            return
-        if experiment_parameters.has_key('laser_step'):
-            parameters += ',laser_step='+str(experiment_parameters['laser_step'])
+        if experiment_parameters['scan_mode'] == 'xz':
+            if experiment_parameters.has_key('xz_line_length'):
+                parameters += ',xz_line_length='+experiment_parameters['xz_line_length']
+            if experiment_parameters.has_key('z_resolution'):
+                parameters += ',z_resolution='+experiment_parameters['z_resolution']
         command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
         self.queues['stim']['out'].put(command)
         self.printc(parameters)
@@ -1360,10 +1417,10 @@ class Poller(QtCore.QThread):
         self.generate_experiment_start_command(self.experiment_parameters)
         
     def next_experiment(self):
-        if self.experiment_parameters.has_key('current_objective_position_index') and \
-            self.experiment_parameters['current_objective_position_index'] < self.experiment_parameters['objective_positions'].shape[0]:
+        if self.experiment_parameters.has_key('current_objective_position_index'):
             self.experiment_parameters['current_objective_position_index'] += 1
-            self.generate_experiment_start_command(self.experiment_parameters)
+            if self.experiment_parameters['current_objective_position_index'] < self.experiment_parameters['objective_positions'].shape[0]:
+                self.generate_experiment_start_command(self.experiment_parameters)
        
     ############ 3d scan test ###############
     def show_rc_scan_results(self):
@@ -1454,6 +1511,7 @@ class Poller(QtCore.QThread):
             self.printc('Shown in default webbrowser')
             
     def add_simulated_measurement_file(self):
+        commands = []
         for path in file.listdir_fullpath(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'simulated_data')):
             if '.hdf5' in path:
                 h = hdf5io.Hdf5io(path)
@@ -1463,9 +1521,13 @@ class Poller(QtCore.QThread):
                 h.close()
             shutil.copyfile(path, os.path.join(self.config.EXPERIMENT_DATA_PATH, os.path.split(path)[1]))
             if '.hdf5' in path:
-                time.sleep(0.1)
-                self.queues['stim']['in'].put('SOCmeasurement_readyEOC{0}EOP'.format(file.parse_fragment_filename(path)['id']))
+                commands.append('SOCmeasurement_readyEOC{0}EOP'.format(file.parse_fragment_filename(path)['id']))
                 self.printc('Simulated file copied: {0}'.format(path))
+        time.sleep(1.0)
+        for command in commands:
+            self.queues['stim']['in'].put(command)
+        self.queues['analysis']['out'].put('SOCclear_joblistEOCEOP')
+        self.printc('Done')
             
     def save_xy_scan(self):
         hdf5_handler = hdf5io.Hdf5io(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xy_scan.hdf5')))
