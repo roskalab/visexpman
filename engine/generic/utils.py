@@ -196,6 +196,13 @@ def arrays_equal(a1, a2):
     else:
         a2_ = a2
     return (abs(a1_-a2_)).sum() == 0
+    
+def um2pixel(data, origin, scale):
+    in_pixel = rc((numpy.cast['int']((data['row']-origin['row'])/scale['row']), numpy.cast['int']((data['col']-origin['col'])/scale['col'])))
+#    for axis in ['row', 'col']:
+#        in_pixel[axis] = numpy.where(in_pixel[axis] < 0,  0,  in_pixel[axis])
+    return in_pixel
+    
 
 def argsort(seq):
     '''same as numpy.argsort but works on sequences'''
@@ -362,6 +369,12 @@ def rc_distance(point1,  point2, rc_distance_only = False):
         return numpy.sqrt((float(point1['col'])-float(point2['col']))**2 + (float(point1['row'])-float(point2['row']))**2 + (float(point1['depth'])-float(point2['depth']))**2)
     else:
         return numpy.sqrt((float(point1['col'])-float(point2['col']))**2 + (float(point1['row'])-float(point2['row']))**2)
+
+def rc_point_curve_distance(point, curve):
+    distance = numpy.zeros_like(curve['row'])
+    for axis in point.dtype.names:
+        distance += (curve[axis] - point[axis])**2
+    return numpy.sqrt(distance)
 
 def calculate_trajectory(start_point,  end_point,  spatial_resolution,  curve = 'linear'):
     '''

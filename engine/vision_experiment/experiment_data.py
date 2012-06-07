@@ -88,7 +88,7 @@ def save_position(hdf5, stagexyz, objective_z = None):
     hdf5.position = utils.pack_position(stagexyz, objective_z)
     hdf5.save('position')
 
-def check_fragment(path, fragment_hdf5_handle = None):
+def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
     messages = []
     result = True
     data_node_name =  os.path.split(path)[-1].replace('.hdf5', '').split('_')

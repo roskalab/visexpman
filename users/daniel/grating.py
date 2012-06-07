@@ -11,6 +11,7 @@ import numpy
 import time
 import shutil
 import random
+import copy
 
 class MovingGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -37,7 +38,7 @@ class QuickStimulationMovingGratingConfig(experiment.ExperimentConfig):
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
         self.MARCH_TIME = 1.0
         self.GRATING_STAND_TIME = 1.0
-        #Grating parameters        
+        #Grating parameters
         self.ORIENTATIONS = range(0, 360, 90)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1200.0]#1800
@@ -71,13 +72,14 @@ class MovingGrating(experiment.Experiment):
         self.marching_phases = -numpy.linspace(0, 360, self.experiment_config.NUMBER_OF_MARCHING_PHASES + 1)[:-1]        
         self.stimulus_units = []
         self.overall_duration = 0
+        orientations = copy.deepcopy(self.experiment_config.ORIENTATIONS)
         for repeat in range(self.experiment_config.REPEATS):
             for white_bar_width in self.experiment_config.WHITE_BAR_WIDTHS:
                 for velocity in self.experiment_config.VELOCITIES:
                     for duty_cycle in self.experiment_config.DUTY_CYCLES:
                         if repeat > 0:
-                            random.shuffle(self.experiment_config.ORIENTATIONS)
-                        for orientation in self.experiment_config.ORIENTATIONS:
+                            random.shuffle(orientations)
+                        for orientation in orientations:
                             stimulus_unit = {}
                             stimulus_unit['white_bar_width'] = white_bar_width
                             stimulus_unit['velocity'] = velocity

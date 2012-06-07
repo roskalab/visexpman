@@ -546,8 +546,6 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         ACCEPTABLE_REALIGNMENT_OFFSET = 5.0
         REALIGNMENT_XY_THRESHOLD = 2.0
         REALIGNMENT_Z_THRESHOLD = 1.0
-
-        CELL_MERGE_DISTANCE = 10.0
         #MES scanning config
         
         self.ROI = {}

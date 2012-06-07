@@ -3,9 +3,13 @@ import os.path
 import numpy
 import tempfile
 
-def get_measurement_file_path_from_id(id, config, filename_only = False):
+def get_measurement_file_path_from_id(id, config, filename_only = False, extension = 'hdf5'):
     if hasattr(config, 'EXPERIMENT_DATA_PATH'):
-        path = filtered_file_list(config.EXPERIMENT_DATA_PATH, [id, '.hdf5'], fullpath = True, filter_condition = 'and')
+        folder = config.EXPERIMENT_DATA_PATH
+    else:
+        folder = config
+    if isinstance(folder,  str) and os.path.exists(folder ):
+        path = filtered_file_list(folder,  [id, '.'+extension], fullpath = True, filter_condition = 'and')
         if len(path)==0:
             return
         path = path[0]
@@ -243,6 +247,10 @@ def parse_fragment_filename(path):
     fields['id'] = filename[-2]
     fields['fragment_id'] = filename[-1]
     return fields
+    
+def filename2hdf5node(filename):
+    fields = parse_fragment_filename(filename)
+    return '_'.join([fields['stimulus_name'], fields['id'], fields['fragment_id']])
 
 import unittest
 class TestUtils(unittest.TestCase):

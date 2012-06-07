@@ -222,7 +222,8 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.move_to_region_options['checkboxes']['objective_realign'] = QtGui.QCheckBox(self)
         self.move_to_region_options['checkboxes']['objective_origin_adjust'] = QtGui.QCheckBox(self)
         for k, v in self.move_to_region_options['checkboxes'].items():
-            if 'origin_adjust' not in k and 'objective_move' not in k:
+#            if 'origin_adjust' not in k and 'objective_move' not in k:
+            if 'stage_move' not in k:
                 v.setCheckState(2)
         self.xz_scan_button = QtGui.QPushButton('XZ scan',  self)
         self.xz_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
@@ -530,6 +531,7 @@ class Poller(QtCore.QThread):
         self.scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions')
         self.parent.update_region_names_combobox()
         self.update_scan_regions()
+        self.update_jobhandler_process_status()
 
     def handle_events(self):
         for k, queue in self.queues.items():
@@ -657,6 +659,7 @@ class Poller(QtCore.QThread):
         h.close()
         self.backup_mouse_file(h.filename)
         self.printc('Process status flag set: {1}/{0}'.format(flag_names,  id))
+        self.update_jobhandler_process_status(scan_regions)
     
     def add_measurement_id(self, id):
         scan_regions, region_name, h, measurement_file_path = self.read_scan_regions(id)
@@ -710,6 +713,15 @@ class Poller(QtCore.QThread):
         if current_index < 0:
             current_index = len(self.cell_ids)-1
         self.parent.roi_widget.select_cell_combobox.setCurrentIndex(current_index)
+        
+    def accept_cell(self):
+        self.select_cell(True)
+        
+    def ignore_cell(self):
+        self.select_cell(False)
+        
+    def select_cell(self, selection):
+        pass!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! CONTINUE HERE
 
     ############## Analysis ########################
     def set_mouse_file(self):
@@ -1621,7 +1633,12 @@ class Poller(QtCore.QThread):
                                          animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], tag, extension)
         return name
         
-    
+    def fetch_backup_mouse_file_path(self):
+        mouse_file_copy = self.mouse_file.replace('.hdf5', '_copy.hdf5')
+        if os.path.exists(mouse_file_copy):
+            return mouse_file_copy
+        else:
+            return self.mouse_file
         
     
 
