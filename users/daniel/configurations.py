@@ -106,7 +106,7 @@ class RC3DWindowsConfig(VisionExperimentConfig):
 class MBP(VisionExperimentConfig):
     def _set_user_parameters(self):        
         
-        EXPERIMENT_CONFIG = 'MovingDotConfig'
+        EXPERIMENT_CONFIG = 'MovingRectangleConfig'
         PLATFORM = 'standalone'
 
         #### Paths ####
@@ -322,9 +322,9 @@ class Debug(VisionExperimentConfig):
         ENABLE_FRAGMENT_CHECK = True
         ENABLE_MESEXTRACTOR = True
         #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':1.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3, 'Z_RANGE':100.0}
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':1.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3, 'Z_RANGE':80.0}
         #=== paths/data handling ===
-        use_drive = 'r'
+        use_drive = 'v'
         if os.name == 'nt':
             if use_drive == 'g':
                 root_folder = 'g:\\User\\Zoltan'
@@ -450,14 +450,23 @@ class RcMicroscopeSetup(VisionExperimentConfig):
     '''
     Visual stimulation machine of 3D microscope setup
     '''
-    def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'MovingDotConfig'    
+    def _set_user_parameters(self):
+        GUI_REFRESH_PERIOD = 5
+        ENABLE_MESEXTRACTOR = True
+        ENABLE_CELL_DETECTION = True
+        EXPERIMENT_CONFIG = 'MovingDotConfig'
+        
         MES_TIMEOUT = 15.0
+        PARSE_PERIOD = 2.0
+        CELL_MERGE_DISTANCE = 3.0
+        #MES scanning config
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3, 'Z_RANGE':80.0}
+        ENABLE_ZIGZAG_CORRECTION = True
         #=== paths/data handling ===
         if os.name == 'nt':            
             v_drive_folder = 'V:\\'
         else:            
-            v_drive_folder = '/home/zoltan/visexp'
+            v_drive_folder = '/mnt/datafast'
         v_drive_data_folder = os.path.join(v_drive_folder,  'experiment_data')
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
@@ -481,7 +490,6 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
-        MES_TIMEOUT = 10.0
         PLATFORM = 'mes'
         #=== Network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'
@@ -537,11 +545,20 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         MAX_REALIGNMENT_OFFSET = 500.0
         ACCEPTABLE_REALIGNMENT_OFFSET = 5.0
         REALIGNMENT_XY_THRESHOLD = 2.0
-        REALIGNMENT_Z_THRESHOLD = 2.0
-
-        CELL_MERGE_DISTANCE = 10.0
+        REALIGNMENT_Z_THRESHOLD = 1.0
         #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':25.0, 'Z_PIXEL_SIZE' : 100.0, 'Z_RESOLUTION':1, 'Z_RANGE':100.0}
+        
+        self.ROI = {}
+        self.ROI['process'] = 'all'
+        self.ROI['overwrite'] = True
+        self.ROI['rawdata_filter']= {'width':13, 
+            'spatial_width':1,
+            'ncpus':16, 
+            'thr':2.5,
+            'separation_width':1, 
+            'spatial_connectivity':1, 
+            'transfermode': 'file'
+                                     }
         
         self._create_parameters_from_locals(locals())        
         

@@ -276,7 +276,8 @@ class QueuedClient(QtCore.QThread):
                                 if 'close_connection' in out:
                                     connection_close_request = True
                                 try:
-                                    self.connection.send(out)
+                                    if 'queue_put_problem_dummy_message' not in out:
+                                        self.connection.send(out)
                                 except:
                                     self.printl(traceback.format_exc())
                                     self.queue_out.put(out)
@@ -312,7 +313,7 @@ class QueuedClient(QtCore.QThread):
                                 connection_close_request = True
                         if connection_close_request:
                             break
-                        time.sleep(0.02)
+                        time.sleep(0.05)
                 else:
                     time.sleep(self.no_message_timeout)
                 time.sleep(0.1)

@@ -53,7 +53,7 @@ def set_mes_mesaurement_save_flag(mat_file, flag):
     m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
     m.flush()   
 
-def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 'xy'):
+def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 'xy', autozigzag = False):
     '''
     scan_time: in ms
     reference_path: reference mat file that will be used as a template
@@ -73,12 +73,13 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
     
     if scan_mode == 'xz':
         try: #when field does not exists, just skip writing it
-            m.raw_mat['DATA'][0]['breakFFregion'] = 2.0
+            m.raw_mat['DATA'][0]['breakFFregion'] = 0.0#Used to be 2.0-> split to rois
         except ValueError:
             pass
     elif scan_mode == 'xy':
         try:
             m.raw_mat['DATA'][0]['breakFFregion'] = 0.0
+            m.raw_mat['DATA'][0]['antizigzag'] = float(autozigzag)
         except ValueError:
             pass
     if scan_mode == 'xyz':
@@ -224,13 +225,16 @@ class MesInterface(object):
                         result = True
                         laser_intensity = parameter_extract.findall(response)
                         if len(laser_intensity) > 0:
-                            laser_intensity = float(laser_intensity[0])
+                            try:
+                                laser_intensity = float(laser_intensity[0])
+                            except:
+                                laser_intensity = float(laser_intensity[0].split('EOP')[0])
                         else:
                             result = False
         return result, laser_intensity
 
     ################# Single two photon frame###############
-    def acquire_xy_image(self, timeout = -1, parameter_file = None):
+    def acquire_xy_scan(self, timeout = -1, parameter_file = None):
         if parameter_file == None:
             #generate a mes parameter file name, that does not exits
             two_photon_image_path, two_photon_image_path_on_mes = self._generate_mes_file_paths('two_photon_image.mat')
@@ -465,7 +469,7 @@ class MesInterface(object):
         result = self.wait_for_line_scan_save_complete(timeout = timeout)
         if not result:
             return {}, False
-        vertical_scan = matlabfile.read_vertical_scan(line_scan_path)[0]
+        vertical_scan = matlabfile.read_vertical_scan(line_scan_path, self.config)[0]
         return vertical_scan, True
         
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
@@ -509,7 +513,7 @@ class MesInterface(object):
         else:
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
         if result:
-            set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, scan_mode = scan_mode)
+            set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, scan_mode = scan_mode, autozigzag = self.config.ENABLE_ZIGZAG_CORRECTION)
             #previously sent garbage is removed from queue
             utils.empty_queue(self.queues['mes']['in'])        
             #Acquire line scan if MES is connected

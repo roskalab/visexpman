@@ -51,6 +51,12 @@ class ExperimentControl(object):
             self.scan_mode = self.parameters['scan_mode']
         else:
             self.scan_mode = 'xy'
+        if self.parameters.has_key('mouse_file') and self.parameters.has_key('region_name'):
+            mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['mouse_file'])
+            if not os.path.exists(mouse_file):
+                self.printl('Mouse file does not exists: ' + mouse_file)
+            else:
+                self.scan_region = hdf5io.read_item(mouse_file, 'scan_regions', safe=True)[self.parameters['region_name']]#TODO: reading the whole database may lead to memory problems
 
     def run_experiment(self, context):
         message_to_screen = ''
@@ -122,48 +128,47 @@ class ExperimentControl(object):
         self.start_time = time.time()
         self.timestamp = str(int(self.start_time))
         self.filenames = {}
-        self.initialize_experiment_log()
-        self.initialize_devices()
+        self._initialize_experiment_log()
+        self._initialize_devices()
         if self.config.PLATFORM == 'mes':
+            result,  laser_intensity = self.mes_interface.read_laser_intensity()
+            if result:
+                self.initial_laser_intensity = laser_intensity
+                self.laser_intensity = laser_intensity
+            else:
+                self.printl('Laser intensity cannot be read')
+            if context.has_key('laser_intensity'):
+                result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(context['laser_intensity'])
+                if not result:
+                    self.abort = True
+                    self.printl('Laser intensity is not set')
+                else:
+                    self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
+                    self.laser_intensity = adjusted_laser_intensity
+            #read stage and objective
             if context.has_key('objective_position'):
                 if not self.mes_interface.set_objective(context['objective_position'], self.config.MES_TIMEOUT):
                     self.abort = True
                     self.printl('Objective not set')
                 else:
                     self.printl('Objective is set to {0} um' .format(context['objective_position']))
-                if context.has_key('laser_intensity'):
-                    result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(context['laser_intensity'])
-                    if not result:
-                        self.abort = True
-                        self.printl('Laser intensity is not set')
-                    else:
-                        self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
-                if self.parameters.has_key('laser_step'):
-                    result,  laser_intensity = self.mes_interface.read_laser_intensity()
-                    if not result:
-                        self.printl('Laser intensity is NOT available')
-                    else:
-                        laser_intensity += float(self.parameters['laser_step'])
-                        if laser_intensity > 100.0:
-                            laser_intensity = 100.0
-                        result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(laser_intensity)
-                        if not result:
-                            self.abort = True
-                            self.printl('Laser intensity is not set')
-                        else:
-                            self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
-                
-            #read stage and objective
             self.stage_position = self.stage.read_position() - self.stage_origin
             result,  self.objective_position, context['objective_origin'] = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
-            self._fetch_cell_locations(context)
-        self.prepare_files()
+            if utils.safe_has_key(self.parameters, 'scan_mode'):
+                if self.parameters.has_key('scan_mode') != 'xy':
+                    self._fetch_cell_locations(context)
+        self._prepare_files()
         return message_to_screen 
         
     def _finish_experiment(self):
-        self.finish_data_fragments()
+        self._finish_data_fragments()
+        #Set back laser
+        if hasattr(self, 'initial_laser_intensity') and self.parameters.has_key('laser_intensities'):
+            result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(self.initial_laser_intensity)
+            if not result:
+                self.printl('Setting back laser did NOT succeed')
         self.printl('Closing devices')
-        self.close_devices()
+        self._close_devices()
         utils.empty_queue(self.queues['gui']['out'])
         #Update logdata to files
         self.log.info('Experiment finished at {0}' .format(utils.datetime_string()))
@@ -191,7 +196,14 @@ class ExperimentControl(object):
             else:
                 if self.scan_mode == 'xz' and hasattr(self, 'cell_locations'):
                     #Before starting scan, set xz lines
-                    if not self.mes_interface.create_XZline_from_points(self.cell_locations, self.config.XZ_SCAN_CONFIG):
+                    xz_scan_config = self.config.XZ_SCAN_CONFIG
+                    if self.parameters.has_key('xz_line_lenght'):
+                        xz_scan_config['LINE_LENGTH'] = self.parameters['xz_line_lenght']
+                    if self.parameters.has_key('z_resolution'):
+                        xz_scan_config['Z_RESOLUTION'] = float(self.parameters['z_resolution'])
+                        xz_scan_config['Z_PIXEL_SIZE'] = int(float(xz_scan_config['Z_RANGE'])/xz_scan_config['Z_RESOLUTION'])#Always 100 um depth is used
+                    
+                    if not self.mes_interface.create_XZline_from_points(self.cell_locations, xz_scan_config):
                         self.printl('Creating XZ lines did not succeed')
                         return False
                     else:
@@ -263,18 +275,16 @@ class ExperimentControl(object):
             else:
                 pass
             if not aborted and result:
-                self.save_fragment_data(fragment_id)
-#                if self.config.PLATFORM == 'mes':
-#                    #Ask analysis to start preprocessing measurement data
-#                    parameters = 'scan_mode={0},fragment_path={1}'.format(self.scan_mode, os.path.split(self.filenames['fragments'][fragment_id])[-1])
-#                    if self.parameters.has_key('explore_cells'):
-#                        parameters += ',explore_cells={0}'.format(self.parameters['explore_cells'])
-#                    if 0:
-#                        self.queues['analysis']['out'].put('SOCstart_fragment_processingEOC{0}EOP'.format(parameters))
-#                    elif 0:
-#                        self.queues['process_request'].put(parameters)
-#                    else:
-#                        self.queues['gui']['out'].put('SOCfragment_readyEOC{0}EOP'.format(parameters))
+                self._save_fragment_data(fragment_id)
+                if self.config.PLATFORM == 'mes':
+                    for i in range(5):#Workaround for the temporary failure of queue.put().
+                        time.sleep(0.1)
+                        self.queues['gui']['out'].put('queue_put_problem_dummy_message')
+                    #Notify gui about the new file
+                    self.printl('SOCmeasurement_readyEOC{0}EOP'.format(self.timestamp))
+                    for i in range(5):
+                        time.sleep(0.1)
+                        self.queues['gui']['out'].put('queue_put_problem_dummy_message')
         else:
             result = False
             self.printl('Data acquisition stopped with error')
@@ -284,7 +294,7 @@ class ExperimentControl(object):
     
      ############### Devices ##################
      
-    def initialize_devices(self):
+    def _initialize_devices(self):
         '''
         All the devices are initialized here, that allow rerun like operations
         '''
@@ -303,7 +313,7 @@ class ExperimentControl(object):
         if self.config.PLATFORM == 'mes':
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
 
-    def close_devices(self):
+    def _close_devices(self):
         self.parallel_port.release_instrument()
         if self.config.OS == 'win':
             for filterwheel in self.filterwheels:
@@ -312,7 +322,7 @@ class ExperimentControl(object):
         self.stage.release_instrument()
 
     ############### File handling ##################
-    def prepare_files(self):
+    def _prepare_files(self):
         self._generate_filenames()
         self._create_files()
         self.stimulus_frame_info_pointer = 0
@@ -367,7 +377,7 @@ class ExperimentControl(object):
         if self.config.EXPERIMENT_FILE_FORMAT  == 'mat':
             pass
 
-    def initialize_experiment_log(self):
+    def _initialize_experiment_log(self):
         date = utils.date_string()
         self.filenames['experiment_log'] = \
             file.generate_filename(os.path.join(self.config.EXPERIMENT_LOG_PATH, 'log_{0}_{1}.txt' .format(self.experiment_name, date)))
@@ -417,19 +427,19 @@ class ExperimentControl(object):
                 stimulus_frame_info = self.stimulus_frame_info
             if self.config.PLATFORM == 'mes':
                 data_to_file['mes_data_path'] = os.path.split(self.filenames['mes_fragments'][fragment_id])[-1]
+                if hasattr(self, 'cell_locations'):
+                    data_to_file['rois'] = self.cell_locations
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             stimulus_frame_info = stimulus_frame_info_with_data_series_index
         data_to_file['stimulus_frame_info'] = stimulus_frame_info
         self.stimulus_frame_info_pointer = len(self.stimulus_frame_info)
         if self.config.PLATFORM == 'mes':
-            result,  laser_intensity = self.mes_interface.read_laser_intensity()
-            if result:
-                data_to_file['laser_intensity'] = laser_intensity
-            else:
-                self.printl('Laser intensity is not available')
+            if hasattr(self, 'laser_intensity'):
+                data_to_file['laser_intensity'] = self.laser_intensity
+            
         return data_to_file
             
-    def save_fragment_data(self, fragment_id):
+    def _save_fragment_data(self, fragment_id):
         data_to_file = self._prepare_fragment_data(fragment_id)
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             #Save experiment calling parameters:
@@ -448,9 +458,9 @@ class ExperimentControl(object):
             shutil.copy(self.filenames['local_fragments'][fragment_id], self.filenames['fragments'][fragment_id])
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             self.fragment_data[self.filenames['local_fragments'][fragment_id]] = data_to_file
-        self.printl('Measurement data saved to: {0}'.format(self.filenames['fragments'][fragment_id]))
+        self.printl('Measurement data saved to: {0}'.format(os.path.split(self.filenames['fragments'][fragment_id])[1]))
 
-    def finish_data_fragments(self):
+    def _finish_data_fragments(self):
         #Experiment log, source code, module versions
         experiment_log_dict = self.log.log_dict
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
@@ -483,58 +493,48 @@ class ExperimentControl(object):
         '''
         Not tested, might not be necessary
         '''
-        if self.parameters.has_key('roi_file') and self.parameters.has_key('region_name'):
-            mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['roi_file'].replace('roi_', 'mouse_'))
-            scan_regions = hdf5io.read_item(mouse_file, 'scan_regions')
-            if hasattr(scan_regions, 'has_key'):
-                if scan_regions.has_key(context['region_name']):
-                    scan_parameter_file_binary = scan_regions[context['region_name']]['xy_scan_parameters']
-                    scan_parameter_file_binary.tofile(fragment_path)
+        if hasattr(self, 'scan_region'):
+            scan_parameter_file_binary = scan_region['xy_scan_parameters']
+            scan_parameter_file_binary.tofile(fragment_path)
 
     def _fetch_cell_locations(self, context):
         self.cell_locations = None
-        if self.parameters.has_key('roi_file') and self.parameters.has_key('region_name'):
-            roi_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['roi_file'])
-            if not os.path.exists(roi_file):
-                self.printl('Roi file does not exists: ' + roi_file)
-                return
-            rois = hdf5io.read_item(roi_file, 'rois')
-            if hasattr(rois, 'has_key'):
-                if rois.has_key(self.parameters['region_name']):
-                    roi_layers = rois[self.parameters['region_name']]
-                    if self.parameters['explore_cells'] == 'False' and self.parameters['scan_mode'] == 'xyz':
-                        #merge cell coordinates from different layers
-                        merged_list_of_cells = []
-                        for roi_layer in roi_layers:
-                            if roi_layer['ready']:
-                                for cell in roi_layer['positions']:
-                                    merged_list_of_cells.append(cell)
-                        #eliminate redundant cell locations
-                        filtered_cell_list = []
-                        for i in range(len(merged_list_of_cells)):
-                            keep_cell = True
-                            for j in range(i+1, len(merged_list_of_cells)):
-                                if abs(utils.rc_distance(merged_list_of_cells[i], merged_list_of_cells[j])) < self.config.CELL_MERGE_DISTANCE:
-                                    keep_cell = False
-                            if keep_cell:
-                                cell = merged_list_of_cells[i]
-                                filtered_cell_list.append((cell['row'], cell['col'], cell['depth']))
-                        self.cell_locations = utils.rcd(filtered_cell_list)
-                        self.cell_locations['depth'] += context['objective_origin']
-                    elif self.parameters['scan_mode'] == 'xz':
-                        if self.parameters['explore_cells']  == 'True':
-                            pass
-#                            for roi_layer in roi_layers:
-#                                if roi_layer['z'] == self.objective_position:
-#                                    self.cell_locations = roi_layer['positions']
-#                                    self.cell_locations['depth'] = self.objective_position * numpy.ones_like(self.cell_locations['depth'])#Ensure that objective is not moved
-#                                    self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
-#                                    break
-                        else:
-                            self.cell_locations = experiment_data.read_rois(roi_file, self.parameters['region_name'], objective_position = self.objective_position, z_range = self.config.Z_PIXEL_SIZE, mouse_file = roi_file.replace('rois_', 'mouse_'))#TODO: filename has to be generated
-                            self.cell_locations = experiment_data.merge_cell_locations(self.cell_locations, self.config.CELL_MERGE_DISTANCE, True)
-                            self.cell_locations['depth'] = self.objective_position * numpy.ones_like(self.cell_locations['depth'])#Ensure that objective is not moved
-                            self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
+        if hasattr(self, 'scan_region'):
+            pass
+#                    roi_layers = self.scan_region[self.parameters['region_name']]
+#                    if self.parameters['explore_cells'] == 'False' and self.parameters['scan_mode'] == 'xyz':
+#                        #merge cell coordinates from different layers
+#                        merged_list_of_cells = []
+#                        for roi_layer in roi_layers:
+#                            if roi_layer['ready']:
+#                                for cell in roi_layer['positions']:
+#                                    merged_list_of_cells.append(cell)
+#                        #eliminate redundant cell locations
+#                        filtered_cell_list = []
+#                        for i in range(len(merged_list_of_cells)):
+#                            keep_cell = True
+#                            for j in range(i+1, len(merged_list_of_cells)):
+#                                if abs(utils.rc_distance(merged_list_of_cells[i], merged_list_of_cells[j])) < self.config.CELL_MERGE_DISTANCE:
+#                                    keep_cell = False
+#                            if keep_cell:
+#                                cell = merged_list_of_cells[i]
+#                                filtered_cell_list.append((cell['row'], cell['col'], cell['depth']))
+#                        self.cell_locations = utils.rcd(filtered_cell_list)
+#                        self.cell_locations['depth'] += context['objective_origin']
+#                    elif self.parameters['scan_mode'] == 'xz':
+#                        if self.parameters['explore_cells']  == 'True':
+#                            pass
+##                            for roi_layer in roi_layers:
+##                                if roi_layer['z'] == self.objective_position:
+##                                    self.cell_locations = roi_layer['positions']
+##                                    self.cell_locations['depth'] = self.objective_position * numpy.ones_like(self.cell_locations['depth'])#Ensure that objective is not moved
+##                                    self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
+##                                    break
+#                        else:
+#                            self.cell_locations = experiment_data.read_rois(roi_file, self.parameters['region_name'], objective_position = self.objective_position, z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], mouse_file = roi_file.replace('rois_', 'mouse_'))#TODO: filename has to be generated
+#                            self.cell_locations = experiment_data.merge_cell_locations(self.cell_locations, self.config.CELL_MERGE_DISTANCE, True)
+#                            self.cell_locations['depth'] = self.objective_position * numpy.ones_like(self.cell_locations['depth'])#Ensure that objective is not moved
+#                            self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
         if self.cell_locations != None:
             self.printl('Cell locations loaded')
             

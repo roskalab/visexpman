@@ -28,7 +28,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees        
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
-        self.REPEATS = 3
+        self.REPEATS = 2
         self.PDURATION = 0
         self.GRIDSTEP = 1.0/1.5 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
         self.NDOTS = 1
@@ -39,6 +39,12 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
         self._create_parameters_from_locals(locals())
+
+class MovingRectangleConfig(MovingDotConfig):
+    def _create_application_parameters(self):
+        MovingDotConfig._create_application_parameters(self)
+        self.WIDTH_UM = self.DIAMETER_UM
+        self.HEIGHT_UM = [1000]
 
 class ShortMovingDotConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
@@ -65,6 +71,8 @@ class ShortMovingDotConfig(experiment.ExperimentConfig):
 class MovingDotPre(experiment.PreExperiment):
     def run(self):
         self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
+class MovingRectanglePre(MovingDotPre):
+    pass
 
 class MovingDot(experiment.Experiment):
     def __init__(self, machine_config, experiment_config, queues, connections, application_log, parameters = {}):
@@ -341,7 +349,20 @@ class MovingDot(experiment.Experiment):
             # if stim is broken into blocks then angles in different blocks are shown in different order, shuffle angles now:
             allangles = allangles[permlist[(permlist>=b*allangles.shape[0]) * (permlist<(b+1)*allangles.shape[0])]%len(allangles)]
         pass
-    
+
+class MovingRectangle(MovingDot):
+    def run(self, fragment_id=0):
+        self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE_BEFORE_AFTER)
+        for pos in self.row_col[fragment_id]:
+            self.show_shape('r', pos=pos, orientation=self.shown_directions[fragment_id], size = rc([self.experiment_config.WIDTH[0],  self.experiment_config.HEIGHT[0]])) 
+    #            self.row_col[fragment_id], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+        self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE_BEFORE_AFTER)
+        self.experiment_specific_data ={}
+        if hasattr(self, 'shown_line_order'):
+            self.experiment_specific_data['shown_line_order'] = self.shown_line_order[fragment_id]
+        if hasattr(self,'shown_directions'):
+            self.experiment_specific_data['shown_directions']= self.shown_directions[fragment_id]
+
 def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
     ''' Calculates positions of the dot(s) for each movie frame along the lines dissecting the screen at 45 degrees'''
     cornerskip = numpy.ceil(diameter_pix/2)+diameter_pix # do not show dot where it would not be a full dot, i.e. in the screen corners
@@ -490,7 +511,8 @@ if __name__ == '__main__':
     import visexpman    
     import sys
     from visexpman.engine.vision_experiment import VisionExperimentRunner
-    vs_runner = VisionExperimentRunner('daniel', sys.argv[1]) #first argument should be a class name
+    cname= 'MBP'
+    vs_runner = VisionExperimentRunner('daniel', cname) #first argument should be a class name
 #     commands = [
 #                     [0.0,'SOCexecute_experimentEOC'],                    
 #                     [0.0,'SOCquitEOC'],
