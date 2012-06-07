@@ -106,7 +106,7 @@ class RC3DWindowsConfig(VisionExperimentConfig):
 class MBP(VisionExperimentConfig):
     def _set_user_parameters(self):        
         
-        EXPERIMENT_CONFIG = 'MovingDotConfig'
+        EXPERIMENT_CONFIG = 'MovingRectangleConfig'
         PLATFORM = 'standalone'
 
         #### Paths ####
