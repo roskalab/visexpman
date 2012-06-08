@@ -201,6 +201,7 @@ def check_png_hashes(fname,function,*args,**kwargs):
         import Image 
         from visexpA.engine.dataprocessors.generic import check_before_long_calculation
         print fname
+        fh=None;ah=None
         if os.path.exists(fname):
             oldpng = Image.open(fname)
             if 'function_hash' in oldpng.info:
