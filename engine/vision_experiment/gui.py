@@ -223,7 +223,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.move_to_region_options['checkboxes']['objective_origin_adjust'] = QtGui.QCheckBox(self)
         for k, v in self.move_to_region_options['checkboxes'].items():
 #            if 'origin_adjust' not in k and 'objective_move' not in k:
-            if 'stage_move' not in k:
+            if 'stage_move' in k:
                 v.setCheckState(2)
         self.xz_scan_button = QtGui.QPushButton('XZ scan',  self)
         self.xz_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
@@ -507,6 +507,7 @@ class Poller(QtCore.QThread):
         self.printc('poller stopped')
         
     def close(self):
+        hdf5io.save_item(self.config.CONTEXT_FILE, 'last_region_name',  self.parent.get_current_region_name(), overwrite = True)
         self.printc('Wait till server is closed')
         self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
@@ -531,7 +532,9 @@ class Poller(QtCore.QThread):
         self.scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions')
         self.parent.update_region_names_combobox()
         self.update_scan_regions()
-        self.update_jobhandler_process_status()
+        self.parent.update_jobhandler_process_status()
+        if self.last_region_name in self.scan_regions.keys():
+            self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setCurrentIndex(self.scan_regions.keys().index(self.last_region_name))
 
     def handle_events(self):
         for k, queue in self.queues.items():
@@ -721,7 +724,7 @@ class Poller(QtCore.QThread):
         self.select_cell(False)
         
     def select_cell(self, selection):
-        pass!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! CONTINUE HERE
+        pass#!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! CONTINUE HERE
 
     ############## Analysis ########################
     def set_mouse_file(self):
@@ -744,6 +747,7 @@ class Poller(QtCore.QThread):
             self.stage_origin = numpy.zeros(3)
         self.xy_scan = context_hdf5.findvar('xy_scan')
         self.xz_scan = context_hdf5.findvar('xz_scan')
+        self.last_region_name = context_hdf5.findvar('last_region_name')
         context_hdf5.close()
         self.stage_position_valid = False
         self.scan_regions = {}

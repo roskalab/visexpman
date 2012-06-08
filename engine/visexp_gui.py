@@ -116,8 +116,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.run_fragment_process_button, 'run_fragment_process')
         self.connect_and_map_signal(self.main_widget.show_fragment_process_status_button, 'show_fragment_process_status')
         #ROI
-        self.connect(self.roi_widget.accept_cell_button, QtCore.SIGNAL('clicked()'),  'accept_cell')
-        self.connect(self.roi_widget.ignore_cell_button, QtCore.SIGNAL('clicked()'),  'ignore_cell')
+        self.connect_and_map_signal(self.roi_widget.accept_cell_button, 'accept_cell')
+        self.connect_and_map_signal(self.roi_widget.ignore_cell_button, 'ignore_cell')
         self.connect_and_map_signal(self.roi_widget.next_button, 'next_cell')
         self.connect_and_map_signal(self.roi_widget.previous_button, 'previous_cell')
         self.connect(self.roi_widget.select_cell_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.select_cell_changed)
@@ -185,7 +185,7 @@ class VisionExperimentGui(QtGui.QWidget):
     ################### GUI updaters #################
     def update_mouse_files_combobox(self, set_to_value = None):
         new_mouse_files = file.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
-        new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_copy' not in mouse_file]
+        new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_copy' not in mouse_file and os.path.isfile(os.path.join(self.config.EXPERIMENT_DATA_PATH,mouse_file))]
         if self.mouse_files != new_mouse_files:
             self.mouse_files = new_mouse_files
             self.update_combo_box_list(self.main_widget.scan_region_groupbox.select_mouse_file, self.mouse_files)
@@ -215,7 +215,7 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_combo_box_list(self.main_widget.scan_region_groupbox.scan_regions_combobox, region_names, selected_item = selected_region)
         
     def update_scan_regions(self, selected_region = None):
-        if selected_region == None:
+        if selected_region is None:
             selected_region = self.get_current_region_name()
         no_scale = utils.rc((1.0, 1.0))
         if utils.safe_has_key(self.poller.scan_regions, selected_region):
@@ -275,7 +275,7 @@ class VisionExperimentGui(QtGui.QWidget):
                     status_text+='\n'
         else:
             status_text = ''
-        self.main_widget.scan_region_groupbox.process_status_label.setText()
+        self.main_widget.scan_region_groupbox.process_status_label.setText(status_text)
 
     def update_cell_list(self, cells = None):
         if cells is None:
@@ -291,13 +291,17 @@ class VisionExperimentGui(QtGui.QWidget):
         region_name = self.get_current_region_name()
         cell_id = self.get_current_cell_id()
         h=hdf5io.Hdf5io(self.poller.fetch_backup_mouse_file_path())
-        roi_curve = h.findvar(cell_id,path = '/roi_curves/'+region_name)
-        cell = h.findvar(cell_id,path = '/cells/'+region_name)
+        roi_curve = h.findvar(cell_id,path = 'root.roi_curves.'+region_name)
+        cell = h.findvar('cells')        
         h.close()
-        if roi_curve is not None and cell is not None:
-            if not cell['accepted']:
-                roi_curve = numpy.where(roi_curve == 255,  128, roi_curve)
-            self.show_image(roi_curve, 'roi_curve', utils.rc((1, 1)))
+        if cell.has_key(region_name):
+            cell = cell[region_name]
+            if cell.has_key(cell_id):
+                cell = cell[cell_id]#for some reason h.findvar(cell_id,path = 'root.cells.'+region_name) does not work
+                if roi_curve is not None and cell is not None:
+                    if not cell['accepted']:
+                        roi_curve = numpy.where(roi_curve == 255,  240, roi_curve)
+                    self.show_image(roi_curve, 'roi_curve', utils.rc((1, 1)))
 
     def update_cell_groups_display(self, cells = None):
         if cells is None:

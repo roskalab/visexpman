@@ -247,10 +247,6 @@ def parse_fragment_filename(path):
     fields['id'] = filename[-2]
     fields['fragment_id'] = filename[-1]
     return fields
-    
-def filename2hdf5node(filename):
-    fields = parse_fragment_filename(filename)
-    return '_'.join([fields['stimulus_name'], fields['id'], fields['fragment_id']])
 
 import unittest
 class TestUtils(unittest.TestCase):

@@ -53,7 +53,7 @@ def set_mes_mesaurement_save_flag(mat_file, flag):
     m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
     m.flush()   
 
-def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 'xy', autozigzag = False):
+def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 'xy', autozigzag = False, enable_scanner_signal_recording = False):
     '''
     scan_time: in ms
     reference_path: reference mat file that will be used as a template
@@ -70,7 +70,12 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
         ts = m.get_field(m.name2path('ts'))[0][0][0][0]
         ts = numpy.array([ts[0],ts[1],ts[2],numpy.round(float(1000*scan_time), 0)], dtype = numpy.float64)
         m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
-    
+    if enable_scanner_signal_recording:
+        m.raw_mat = data['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
+                    numpy.array(numpy.array([[u'pmtUGraw'], [u'ScX'], [u'ScY']]), dtype=object)
+    else:
+        m.raw_mat = data['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
+                    numpy.array(numpy.array([[u'pmtUGraw']]), dtype=object)
     if scan_mode == 'xz':
         try: #when field does not exists, just skip writing it
             m.raw_mat['DATA'][0]['breakFFregion'] = 0.0#Used to be 2.0-> split to rois
