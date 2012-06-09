@@ -120,6 +120,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.roi_widget.ignore_cell_button, 'ignore_cell')
         self.connect_and_map_signal(self.roi_widget.next_button, 'next_cell')
         self.connect_and_map_signal(self.roi_widget.previous_button, 'previous_cell')
+        self.connect_and_map_signal(self.roi_widget.save_button, 'save_cells')
         self.connect(self.roi_widget.select_cell_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.select_cell_changed)
         
         #Network debugger tools
@@ -132,6 +133,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
         self.connect_and_map_signal(self.helpers_widget.add_simulated_measurement_file_button, 'add_simulated_measurement_file')
+        self.connect_and_map_signal(self.helpers_widget.rebuild_cell_database_button, 'rebuild_cell_database')
                                     
         #Blocking functions, run by poller
         self.connect_and_map_signal(self.main_widget.read_stage_button, 'read_stage')
@@ -151,7 +153,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.next_depth_button, 'next_experiment')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.redo_depth_button, 'redo_experiment')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.previous_depth_button, 'previous_experiment')
-        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
+#        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.identify_flourescence_intensity_distribution_button, 'identify_flourescence_intensity_distribution')
         #connect mapped signals to poller's pass_signal method that forwards the signal IDs.
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
@@ -177,10 +179,20 @@ class VisionExperimentGui(QtGui.QWidget):
             
     def region_name_changed(self):
         self.update_scan_regions()
+        self.update_jobhandler_process_status()
         self.update_cell_list()
         
     def select_cell_changed(self):
         self.update_roi_curves_display()
+        #display cell status
+        region_name = self.get_current_region_name()
+        cell_id = self.get_current_cell_id()
+        if utils.safe_has_key(self.poller.cells, region_name) and utils.safe_has_key(self.poller.cells[region_name],  cell_id) and self.main_tab.currentIndex() == 1:
+            cell = self.poller.cells[region_name][cell_id]
+            if cell['accepted'] and cell.has_key('group'):
+                self.printc('cell group: '+str(cell['group']))
+            else:
+                self.printc('ignored')
         
     ################### GUI updaters #################
     def update_mouse_files_combobox(self, set_to_value = None):
@@ -223,8 +235,8 @@ class VisionExperimentGui(QtGui.QWidget):
             line = []
             #Update xz image if exists and collect xy line(s)
             if scan_regions[selected_region].has_key('xz'):
-                line = [[ scan_regions[selected_region]['xz']['p1']['col'] ,  scan_regions[selected_region]['xz']['p1']['row'] , 
-                             scan_regions[selected_region]['xz']['p2']['col'] ,  scan_regions[selected_region]['xz']['p2']['row'] ]]
+                line = [[ scan_regions[selected_region]['xz']['p1']['col'] , scan_regions[selected_region]['xz']['p1']['row'], 
+                             scan_regions[selected_region]['xz']['p2']['col'] , scan_regions[selected_region]['xz']['p2']['row'] ]]
                 self.show_image(scan_regions[selected_region]['xz']['scaled_image'], 3,
                                      scan_regions[selected_region]['xz']['scaled_scale'], 
                                      origin = scan_regions[selected_region]['xz']['origin'])
@@ -262,6 +274,10 @@ class VisionExperimentGui(QtGui.QWidget):
             item_counter = 0
             item_per_line = 3
             for id, status in scan_regions[region_name]['process_status'].items():
+                if status.has_key('info'):
+                    depth = int(status['info']['depth'])
+                else:
+                    depth = ''
                 if status['find_cells_ready']:
                     status = 'find cells ready'
                 elif status['mesextractor_ready']:
@@ -270,9 +286,12 @@ class VisionExperimentGui(QtGui.QWidget):
                     status = 'fragment check ready'
                 else:
                     status = 'not processed'
-                status_text += '{0}: {1}'.format(id, status_text)
+                status_text += '{0}/{2}: {1}'.format(id, status, depth)
                 if item_counter%item_per_line==item_per_line-1:
                     status_text+='\n'
+                else:
+                    status_text+='; '
+                item_counter += 1
         else:
             status_text = ''
         self.main_widget.scan_region_groupbox.process_status_label.setText(status_text)
@@ -286,21 +305,28 @@ class VisionExperimentGui(QtGui.QWidget):
             self.poller.cell_ids = self.poller.cells[region_name].keys()
             self.poller.cell_ids.sort()
             self.update_combo_box_list(self.roi_widget.select_cell_combobox,self.poller.cell_ids)
+            
+    def update_cell_group_combobox(self):
+        if hasattr(self.poller, 'cells'):
+            cell_groups = []
+            for cell_id, cell_info in self.poller.cells[self.get_current_region_name()].items():
+                if cell_info['accepted'] and not cell_info['group'] in cell_groups and cell_info['group'] != '':
+                    cell_groups.append(cell_info['group'])
+            self.update_combo_box_list(self.main_widget.experiment_control_groupbox.cell_group_combobox, cell_groups)
 
     def update_roi_curves_display(self):
         region_name = self.get_current_region_name()
         cell_id = self.get_current_cell_id()
         h=hdf5io.Hdf5io(self.poller.fetch_backup_mouse_file_path())
         roi_curve = h.findvar(cell_id,path = 'root.roi_curves.'+region_name)
-        cell = h.findvar('cells')        
         h.close()
-        if cell.has_key(region_name):
-            cell = cell[region_name]
-            if cell.has_key(cell_id):
-                cell = cell[cell_id]#for some reason h.findvar(cell_id,path = 'root.cells.'+region_name) does not work
+        if utils.safe_has_key(self.poller.cells, region_name):
+            cells = self.poller.cells[region_name]
+            if cells.has_key(cell_id):
+                cell = cells[cell_id]#for some reason h.findvar(cell_id,path = 'root.cells.'+region_name) does not work
                 if roi_curve is not None and cell is not None:
                     if not cell['accepted']:
-                        roi_curve = numpy.where(roi_curve == 255,  240, roi_curve)
+                        roi_curve = numpy.where(roi_curve == 255,  220, roi_curve)
                     self.show_image(roi_curve, 'roi_curve', utils.rc((1, 1)))
 
     def update_cell_groups_display(self, cells = None):
@@ -308,12 +334,8 @@ class VisionExperimentGui(QtGui.QWidget):
             cells  = hdf5io.read_item(self.poller.fetch_backup_mouse_file_path(), 'cells')
         cell_id = self.get_current_cell_id()
         region_name = self.get_current_region_name()
-        groups = cells[region_name][cell_id]['group'].keys()
-        if len(groups) == 0:
-            groups = ''
-        else:
-            groups = ','.join(groups)
-        self.update_combo_box_list(self.roi_widget.cell_group_combobox, groups)
+        group = [cells[region_name][cell_id]['group']]
+        self.update_combo_box_list(self.roi_widget.cell_group_combobox, group)
 
     def show_image(self, image, channel, scale, line = [], origin = None):
         if origin != None:
@@ -363,10 +385,12 @@ class VisionExperimentGui(QtGui.QWidget):
     def get_current_cell_id(self):
         return str(self.roi_widget.select_cell_combobox.currentText())
         
+    def get_current_cell_group(self):
+        return str(self.main_widget.experiment_control_groupbox.cell_group_combobox.currentText())
         
     def update_current_mouse_path(self):
         self.poller.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
-            
+        
     ########## GUI utilities, misc functions #############
     def show_verify_add_region_messagebox(self):
         utils.empty_queue(self.poller.gui_thread_queue)
