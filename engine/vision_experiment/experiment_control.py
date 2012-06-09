@@ -156,7 +156,8 @@ class ExperimentControl(object):
             self.stage_position = self.stage.read_position() - self.stage_origin
             result,  self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
             if utils.safe_has_key(self.parameters, 'scan_mode') and self.parameters['scan_mode'] != 'xy':
-                cells = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['mouse_file'].replace('.hdf5', '_copy.hdf5')), 'cells')
+                cells = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['mouse_file'].replace('.hdf5', '_copy.hdf5')), 
+                            'cells', safe = True)
                 self.rois = experiment_data.read_rois(cells, cell_group = self.parameters['cell_group'],
                                 region_name =  self.parameters['region_name'], 
                                 objective_position = self.objective_position, 

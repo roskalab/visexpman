@@ -122,6 +122,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.roi_widget.previous_button, 'previous_cell')
         self.connect_and_map_signal(self.roi_widget.save_button, 'save_cells')
         self.connect(self.roi_widget.select_cell_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.select_cell_changed)
+        self.connect(self.roi_widget.cell_filter_name_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_filtername_changed)
+        self.connect(self.roi_widget.cell_filter_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_filter_changed)
         
         #Network debugger tools
         self.connect_and_map_signal(self.helpers_widget.show_connected_clients_button, 'show_connected_clients')
@@ -193,6 +195,12 @@ class VisionExperimentGui(QtGui.QWidget):
                 self.printc('cell group: '+str(cell['group']))
             else:
                 self.printc('ignored')
+                
+    def cell_filtername_changed(self):
+        self.update_cell_filter_list()
+        
+    def cell_filter_changed(self):
+        self.update_cell_list()
         
     ################### GUI updaters #################
     def update_mouse_files_combobox(self, set_to_value = None):
@@ -304,7 +312,23 @@ class VisionExperimentGui(QtGui.QWidget):
         if utils.safe_has_key(self.poller.cells, region_name):
             self.poller.cell_ids = self.poller.cells[region_name].keys()
             self.poller.cell_ids.sort()
+            filter = str(self.roi_widget.cell_filter_combobox.currentText())
+            filtername = str(self.roi_widget.cell_filter_name_combobox.currentText())
+            if filtername == 'depth':
+                self.poller.cell_ids = [cell_id for cell_id, cell in self.poller.cells[region_name].items() if str(int(cell['depth'])) == filter]
             self.update_combo_box_list(self.roi_widget.select_cell_combobox,self.poller.cell_ids)
+            
+    def update_cell_filter_list(self):
+        if hasattr(self.poller, 'cells'):
+            filtername = str(self.roi_widget.cell_filter_name_combobox.currentText())
+            region_name = self.get_current_region_name()
+            filter_values = []
+            if filtername == 'depth':
+                for cell_id in self.poller.cells[region_name].keys():
+                    depth = str(int(self.poller.cells[region_name][cell_id]['depth']))
+                    if depth not in filter_values:
+                        filter_values.append(depth)
+            self.update_combo_box_list(self.roi_widget.cell_filter_combobox,filter_values)
             
     def update_cell_group_combobox(self):
         if hasattr(self.poller, 'cells'):

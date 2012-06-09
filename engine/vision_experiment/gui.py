@@ -262,7 +262,6 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
-
         
 class RoiWidget(QtGui.QWidget):
     def __init__(self, parent, config):
@@ -288,6 +287,9 @@ class RoiWidget(QtGui.QWidget):
         self.cell_group_combobox = QtGui.QComboBox(self)
         self.cell_group_combobox.setEditable(True)
         self.save_button = QtGui.QPushButton('Save',  self)
+        self.cell_filter_name_combobox = QtGui.QComboBox(self)
+        self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'date', 'depth&date', 'depth&stimulus']))
+        self.cell_filter_combobox = QtGui.QComboBox(self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -302,6 +304,8 @@ class RoiWidget(QtGui.QWidget):
         self.layout.addWidget(self.cell_group_label, 1, 9)
         self.layout.addWidget(self.cell_group_combobox, 1, 10, 1, 2)
         self.layout.addWidget(self.save_button, 1, 12, 1, 1)
+        self.layout.addWidget(self.cell_filter_name_combobox, 2, 0, 1, 2)
+        self.layout.addWidget(self.cell_filter_combobox, 2, 2, 1, 2)
         self.layout.setRowStretch(3, 3)
         self.layout.setColumnStretch(15, 15)
         self.setLayout(self.layout)
@@ -639,6 +643,7 @@ class Poller(QtCore.QThread):
         roi_centers = h_measurement.findvar('roi_centers')
         roi_curves= h_measurement.findvar('roi_curve_images')
         depth = int(h_measurement.findvar('position')['z'][0])
+        stimulus = h_measurement.findvar('stimulus_class')
         if soma_rois is None or len(soma_rois) == 0:
             number_of_new_cells = 0
         else:
@@ -653,6 +658,7 @@ class Poller(QtCore.QThread):
             h.cells[region_name][cell_id]['accepted'] = False
             h.cells[region_name][cell_id]['group'] = ''
             h.cells[region_name][cell_id]['add_date'] = utils.datetime_string().replace('_', ' ')
+            h.cells[region_name][cell_id]['stimulus'] = stimulus
             h.roi_curves[region_name][cell_id] = roi_curves[i]
         h_measurement.close()
         #Save changes
