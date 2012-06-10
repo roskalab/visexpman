@@ -149,7 +149,7 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
 def read_rois(cells, cell_group, region_name, objective_position, z_range):
     rois = []
     for cell in cells[region_name].values():
-        if cell['depth'] > objective_position - 0.5 * z_range and cell['depth'] < objective_position + 0.5 * z_range and cell['group'] ==cell_group:
+        if cell['depth'] > objective_position - 0.5 * z_range and cell['depth'] < objective_position + 0.5 * z_range and cell['group'] ==cell_group and cell['accepted']:
             rois.append(utils.nd(cell['roi_center']))
     if len(rois) == 0:
         return None

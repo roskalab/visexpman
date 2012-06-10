@@ -518,7 +518,9 @@ class MesInterface(object):
         else:
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
         if result:
-            set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, scan_mode = scan_mode, autozigzag = self.config.ENABLE_ZIGZAG_CORRECTION)
+            set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, 
+                                    scan_mode = scan_mode, autozigzag = self.config.ENABLE_ZIGZAG_CORRECTION, 
+                                    enable_scanner_signal_recording = (scan_mode == 'xz'))
             #previously sent garbage is removed from queue
             utils.empty_queue(self.queues['mes']['in'])        
             #Acquire line scan if MES is connected

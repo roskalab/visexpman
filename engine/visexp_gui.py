@@ -1,17 +1,18 @@
 import sys
 import os
+import io
 import time
 import socket
 import Queue
 import os.path
 import tempfile
-import Image
 import numpy
 import shutil
 import traceback
 import re
 import cPickle as pickle
 import unittest
+import Image
 import ImageDraw
 import ImageFont
 
@@ -101,13 +102,17 @@ class VisionExperimentGui(QtGui.QWidget):
         
     ####### Signals/functions ###############
     def connect_signals(self):
+        self.signal_mapper = QtCore.QSignalMapper(self)
         #Poller control
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
         #GUI events
+        
+#        self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
+        self.connect_and_map_signal(self.main_tab, 'save_cells', 'currentChanged')
+
         self.connect(self.main_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.mouse_file_changed)
         self.connect(self.main_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.region_name_changed)
-        
-        self.signal_mapper = QtCore.QSignalMapper(self)
+
         self.connect_and_map_signal(self.animal_parameters_widget.new_mouse_file_button, 'save_animal_parameters')
         #Experiment control
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment')
@@ -181,7 +186,7 @@ class VisionExperimentGui(QtGui.QWidget):
             
     def region_name_changed(self):
         self.update_scan_regions()
-        self.update_jobhandler_process_status()
+        self.update_jobhandler_process_status(self.poller.scan_regions)
         self.update_cell_list()
         
     def select_cell_changed(self):
@@ -200,7 +205,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_cell_filter_list()
         
     def cell_filter_changed(self):
-        self.update_cell_list()
+        self.update_cell_list()   
+            
         
     ################### GUI updaters #################
     def update_mouse_files_combobox(self, set_to_value = None):
@@ -281,7 +287,10 @@ class VisionExperimentGui(QtGui.QWidget):
             status_text = ''
             item_counter = 0
             item_per_line = 3
-            for id, status in scan_regions[region_name]['process_status'].items():
+            ids = scan_regions[region_name]['process_status'].keys()
+            ids.sort()
+            for id in ids:
+                status = scan_regions[region_name]['process_status'][id]
                 if status.has_key('info'):
                     depth = int(status['info']['depth'])
                 else:
@@ -349,9 +358,15 @@ class VisionExperimentGui(QtGui.QWidget):
             if cells.has_key(cell_id):
                 cell = cells[cell_id]#for some reason h.findvar(cell_id,path = 'root.cells.'+region_name) does not work
                 if roi_curve is not None and cell is not None:
+                    #convert from png file
+                    roi_curve_image = Image.open(io.BytesIO(roi_curve))
+                    #draw on image
+                    draw = ImageDraw.Draw(roi_curve_image)
+#                    draw.line([0, 0, 100, 100], width = 10)
+                    roi_curve_image = numpy.asarray(roi_curve_image)
                     if not cell['accepted']:
-                        roi_curve = numpy.where(roi_curve == 255,  220, roi_curve)
-                    self.show_image(roi_curve, 'roi_curve', utils.rc((1, 1)))
+                        roi_curve_image = numpy.where(roi_curve_image == 255,  210, roi_curve_image)
+                    self.show_image(roi_curve_image, 'roi_curve', utils.rc((1, 1)))
 
     def update_cell_groups_display(self, cells = None):
         if cells is None:

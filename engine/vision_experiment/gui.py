@@ -46,7 +46,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.previous_depth_button = QtGui.QPushButton('Prev',  self)
         self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful stop experiment',  self)
 #        self.identify_flourescence_intensity_distribution_button = QtGui.QPushButton('Fluorescence distribution',  self)
-        self.objective_positions_label = QtGui.QLabel('Objective range [um]\n start,end,step,[laser step %]',  self)
+        self.objective_positions_label = QtGui.QLabel('Objective range [um]\n start,end,step',  self)
         self.objective_positions_combobox = QtGui.QComboBox(self)
         self.objective_positions_combobox.setEditable(True)
         self.laser_intensities_label = QtGui.QLabel('Laser intensity (min, max) [%]',  self)
@@ -288,7 +288,7 @@ class RoiWidget(QtGui.QWidget):
         self.cell_group_combobox.setEditable(True)
         self.save_button = QtGui.QPushButton('Save',  self)
         self.cell_filter_name_combobox = QtGui.QComboBox(self)
-        self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'date', 'depth&date', 'depth&stimulus']))
+        self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'id', 'date', 'depth&date', 'depth&stimulus']))
         self.cell_filter_combobox = QtGui.QComboBox(self)
 
     def create_layout(self):
@@ -450,6 +450,7 @@ class Poller(QtCore.QThread):
         self.abort = False
         self.xz_scan_acquired = False
         self.stage_origin_set = False
+        self.cell_status_changed_in_cache = False
         self.connect_signals()
         self.init_network()
         self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections)
@@ -540,13 +541,16 @@ class Poller(QtCore.QThread):
         self.scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions')
         self.parent.update_region_names_combobox()
         self.update_scan_regions()
-        if self.last_region_name in self.scan_regions.keys():
-            self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setCurrentIndex(self.scan_regions.keys().index(self.last_region_name))
+        if hasattr(self.scan_regions, 'keys') and self.last_region_name in self.scan_regions.keys():
+            scan_region_names = self.scan_regions.keys()
+            scan_region_names.sort()#combo box items are in an alphabetic order  but  order of keys in a dict is random
+            self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setCurrentIndex(scan_region_names.index(self.last_region_name))
         self.parent.update_jobhandler_process_status()
         cells  = hdf5io.read_item(self.fetch_backup_mouse_file_path(), 'cells')
         if cells is not None:
             self.cells = cells
             self.parent.update_cell_group_combobox()
+        
 
     def handle_events(self):
         for k, queue in self.queues.items():
@@ -642,6 +646,8 @@ class Poller(QtCore.QThread):
         soma_rois = h_measurement.findvar('soma_rois')
         roi_centers = h_measurement.findvar('roi_centers')
         roi_curves= h_measurement.findvar('roi_curve_images')
+        if hasattr(roi_curves, 'shape'):
+            roi_curves = [roi_curves]
         depth = int(h_measurement.findvar('position')['z'][0])
         stimulus = h_measurement.findvar('stimulus_class')
         if soma_rois is None or len(soma_rois) == 0:
@@ -660,6 +666,7 @@ class Poller(QtCore.QThread):
             h.cells[region_name][cell_id]['add_date'] = utils.datetime_string().replace('_', ' ')
             h.cells[region_name][cell_id]['stimulus'] = stimulus
             h.roi_curves[region_name][cell_id] = roi_curves[i]
+            
         h_measurement.close()
         #Save changes
         h.scan_regions = scan_regions
@@ -741,11 +748,16 @@ class Poller(QtCore.QThread):
     def clear_process_status(self):
         h = hdf5io.Hdf5io(self.mouse_file)
         self.backup_mouse_file(self.mouse_file)
+        h.load('roi_curves')
+        h.roi_curves = {}
+        h.load('cells')
+        h.cells = {}
         h.load('scan_regions')
         for region_name in h.scan_regions.keys():
             h.scan_regions[region_name]['process_status'] = {}
-        h.save('scan_regions', overwrite=True)
+        h.save(['scan_regions', 'roi_curves', 'cells'], overwrite=True)
         h.close()
+        self.cells = {}
 
     def next_cell(self):
         current_index = self.parent.roi_widget.select_cell_combobox.currentIndex()
@@ -771,9 +783,10 @@ class Poller(QtCore.QThread):
         self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['accepted'] = selection
         self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['group'] = str(self.parent.roi_widget.cell_group_combobox.currentText())
         self.next_cell()
+        self.cell_status_changed_in_cache = True
         
     def save_cells(self):
-        if hasattr(self, 'cells'):
+        if hasattr(self, 'cells') and self.cell_status_changed_in_cache:
             h = hdf5io.Hdf5io(self.mouse_file)
             h.load('cells')
             if hasattr(h, 'cells') and hasattr(h.cells, 'items'):
@@ -786,6 +799,7 @@ class Poller(QtCore.QThread):
             self.backup_mouse_file()
             self.printc('Cell settings saved')
             self.parent.update_cell_group_combobox()
+            self.cell_status_changed_in_cache = False
             
     ############## Analysis ########################
     def set_mouse_file(self):
@@ -1015,14 +1029,17 @@ class Poller(QtCore.QThread):
             return
         if os.path.exists(self.mouse_file):
             cell_locations = experiment_data.read_rois(self.cells, cell_group = self.parent.get_current_cell_group(), region_name = region_name, objective_position = self.objective_position, z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'])
+            initial_roi_n = cell_locations.shape[0]
             cell_locations = experiment_data.merge_cell_locations(cell_locations, self.config.CELL_MERGE_DISTANCE, True)
             if cell_locations is not None:
+                if cell_locations.shape[0] != initial_roi_n:
+                    self.printc('{0} roi merged to {1}'.format(initial_roi_n, cell_locations.shape[0]))
                 cell_locations['depth'] = numpy.ones_like(cell_locations['depth']) * self.objective_position + self.objective_origin
                 line_length = str(self.parent.main_widget.experiment_control_groupbox.xz_scan_parameters_combobox.currentText())
                 xz_config = copy.deepcopy(self.config.XZ_SCAN_CONFIG)
                 if line_length != '':
                     xz_config['LINE_LENGTH'] = float(line_length)
-                if not self.mes_interface.create_XZline_from_points(cell_locations, xz_config, False):
+                if not self.mes_interface.create_XZline_from_points(cell_locations, xz_config, True):
                         selfprintc('Creating xz lines did not succeed')
                 else:
                     self.printc('{0} xz lines created'.format(cell_locations.shape[0]))
@@ -1184,9 +1201,9 @@ class Poller(QtCore.QThread):
         hdf5_handler.scan_regions = self.scan_regions
         hdf5_handler.save('scan_regions', overwrite = True)
         hdf5_handler.close()
+        self.backup_mouse_file()
         self.parent.update_region_names_combobox(region_name)
         self.update_scan_regions()
-        self.backup_mouse_file()
         self.printc('{0} scan region saved'.format(region_name))
 
     def remove_scan_region(self):
@@ -1413,7 +1430,6 @@ class Poller(QtCore.QThread):
     def start_experiment(self):
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
-        self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
         self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
         region_name = self.parent.get_current_region_name()
         if len(region_name)>0:
@@ -1443,10 +1459,6 @@ class Poller(QtCore.QThread):
                                                                                             self.experiment_parameters['laser_intensities'][1], 
                                                                                             self.experiment_parameters['number_of_depths'])
             #generic.expspace(self.experiment_parameters['laser_intensities'][0], self.experiment_parameters['laser_intensities'][1],  self.experiment_parameters['objective_positions'].shape[0])
-        if self.experiment_parameters['scan_mode'] == 'xz':
-            params = str(self.parent.main_widget.experiment_control_groupbox.xz_scan_parameters_combobox.currentText())
-            if params != '':
-                self.experiment_parameters['xz_line_length'] = params
         #Set back next/prev/redo button texts
         self.parent.main_widget.experiment_control_groupbox.next_depth_button.setText('Next')
         self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
@@ -1457,6 +1469,11 @@ class Poller(QtCore.QThread):
     def generate_experiment_start_command(self, experiment_parameters):
         #Ensure that user can switch between different stimulations during the experiment batch
         self.experiment_parameters['experiment_config'] = str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
+        self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
+        if self.experiment_parameters['scan_mode'] == 'xz':
+            params = str(self.parent.main_widget.experiment_control_groupbox.xz_scan_parameters_combobox.currentText())
+            if params != '':
+                self.experiment_parameters['xz_line_length'] = params
         parameters = 'experiment_config={0},scan_mode={1}' \
                         .format(experiment_parameters['experiment_config'], experiment_parameters['scan_mode'])
         if experiment_parameters.has_key('mouse_file') and experiment_parameters.has_key('mouse_file') != '':
@@ -1627,7 +1644,7 @@ class Poller(QtCore.QThread):
             mouse_file = self.mouse_file
         copy_path = mouse_file.replace('.hdf5', '_copy.hdf5')
         shutil.copyfile(mouse_file, copy_path)
-        time.sleep(0.1)#Wait to make sure that file is completely copied
+        time.sleep(0.2)#Wait to make sure that file is completely copied
         
     def create_parameterfile_from_region_info(self, parameter_file_path, scan_type):
         selected_region = self.parent.get_current_region_name()
