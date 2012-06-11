@@ -402,7 +402,7 @@ def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
         swap = 1
     dfl =0
     if dfl:
-        full = QPlotWindow(None, visible=False)
+        full = Qt4Plot(None, visible=False)
     for d1 in range(len(pos_diag)):
         for d2 in range(len(pos_diag[d1])):
             dlines_len.append(numpy.sqrt((diag_start_row[d1][d2]+offs-(diag_end_row[d1][d2]-offs))**2+

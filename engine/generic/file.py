@@ -19,6 +19,7 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
             return path
 
 def mkstemp(suffix):
+    '''Creates a temporary file with suffix as extension, e.g. .pdf. Closes the file so that other methods can open it and do what they need.'''
     f,filename = tempfile.mkstemp(suffix=suffix)
     os.close(f)
     return filename
