@@ -53,11 +53,15 @@ class ExperimentControl(object):
         else:
             self.scan_mode = 'xy'
         if self.parameters.has_key('mouse_file') and self.parameters.has_key('region_name'):
-            mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['mouse_file'])
+            mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['mouse_file'].replace('.hdf5', '_stim.hdf5'))
             if not os.path.exists(mouse_file):
                 self.printl('Mouse file does not exists: ' + mouse_file)
             else:
-                self.scan_region = hdf5io.read_item(mouse_file, 'scan_regions', safe=True)[self.parameters['region_name']]#TODO: reading the whole database may lead to memory problems
+                h = hdf5io.Hdf5io(mouse_file)                
+                self.scan_region = h.findvar('scan_regions')[self.parameters['region_name']]
+                self.cells = h.findvar('cells')[self.parameters['region_name']]
+                h.close()
+                os.remove(mouse_file)
 
     def run_experiment(self, context):
         message_to_screen = ''
@@ -156,13 +160,12 @@ class ExperimentControl(object):
             self.stage_position = self.stage.read_position() - self.stage_origin
             result,  self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
             if utils.safe_has_key(self.parameters, 'scan_mode') and self.parameters['scan_mode'] != 'xy':
-                cells = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['mouse_file'].replace('.hdf5', '_copy.hdf5')), 
-                            'cells', safe = True)
-                self.rois = experiment_data.read_rois(cells, cell_group = self.parameters['cell_group'],
+                self.rois = experiment_data.read_rois(self.cells, cell_group = self.parameters['cell_group'],
                                 region_name =  self.parameters['region_name'], 
                                 objective_position = self.objective_position, 
                                 z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'])
-                self.rois['depth'] = numpy.ones_like(self.rois['depth']) * self.objective_position + self.objective_origin
+                if self.rois is not None:
+                    self.rois['depth'] = numpy.ones_like(self.rois['depth']) * self.objective_position + self.objective_origin
         self._prepare_files()
         return message_to_screen 
         
@@ -209,6 +212,9 @@ class ExperimentControl(object):
                     if self.parameters.has_key('z_resolution'):
                         xz_scan_config['Z_RESOLUTION'] = float(self.parameters['z_resolution'])
                         xz_scan_config['Z_PIXEL_SIZE'] = int(float(xz_scan_config['Z_RANGE'])/xz_scan_config['Z_RESOLUTION'])#Always 100 um depth is used
+                    if self.rois is None:
+                        self.printl('No ROIs found')
+                        return False
                     if not self.mes_interface.create_XZline_from_points(self.rois, xz_scan_config):
                         self.printl('Creating XZ lines did not succeed')
                         return False

@@ -58,6 +58,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.xz_scan_parameters_combobox = QtGui.QComboBox(self)
         self.xz_scan_parameters_combobox.setEditable(True)
         self.cell_group_combobox = QtGui.QComboBox(self)
+        self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -74,8 +75,9 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.objective_positions_label, 2, 4)
         self.layout.addWidget(self.objective_positions_combobox, 2, 5, 1, 2)
         self.layout.addWidget(self.cell_group_combobox, 3, 0, 1, 2)
-        self.layout.addWidget(self.laser_intensities_label, 3, 2, 1, 2)
-        self.layout.addWidget(self.laser_intensities_combobox, 3, 4, 1, 2)
+        self.layout.addWidget(self.create_xz_lines_button, 3, 2, 1, 1)
+        self.layout.addWidget(self.laser_intensities_label, 3, 3, 1, 2)
+        self.layout.addWidget(self.laser_intensities_combobox, 3, 5, 1, 1)
         self.setLayout(self.layout)
 
 class AnimalParametersWidget(QtGui.QWidget):
@@ -230,7 +232,6 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.xz_scan_button = QtGui.QPushButton('XZ scan',  self)
         self.xz_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.process_status_label = QtGui.QLabel('', self)
-        self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -242,7 +243,6 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.get_xy_scan_button, 3, 3, 1, 1)
         self.layout.addWidget(self.xz_scan_button, 3, 2, 1, 1)
         self.layout.addWidget(self.add_button, 3, 0, 1, 1)
-        self.layout.addWidget(self.create_xz_lines_button, 3, 1, 1, 1)
         self.layout.addWidget(self.scan_regions_combobox, 4, 0, 1, 2)
         self.layout.addWidget(self.region_info, 4, 3, 1, 1)
         self.layout.addWidget(self.remove_button, 5, 0, 1, 1)
@@ -288,7 +288,7 @@ class RoiWidget(QtGui.QWidget):
         self.cell_group_combobox.setEditable(True)
         self.save_button = QtGui.QPushButton('Save',  self)
         self.cell_filter_name_combobox = QtGui.QComboBox(self)
-        self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'id', 'date', 'depth&date', 'depth&stimulus']))
+        self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'id', 'date', 'stimulus']))
         self.cell_filter_combobox = QtGui.QComboBox(self)
 
     def create_layout(self):
@@ -530,6 +530,7 @@ class Poller(QtCore.QThread):
     def init_job(self):
         '''
         Functions that need to be called only once at application start
+        The order of the function calls is very important.
         '''
         self.connect_signals_to_widgets()
         if utils.safe_has_key(self.xy_scan, self.config.DEFAULT_PMT_CHANNEL):
@@ -538,71 +539,83 @@ class Poller(QtCore.QThread):
             self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], origin = self.xz_scan['origin'])
         self.parent.update_mouse_files_combobox()
         self.parent.update_current_mouse_path()
-        self.scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions')
+        h = hdf5io.Hdf5io(self.mouse_file)
+        images  = h.findvar('images')
+        if images is not None:
+            self.images = images
+        self.scan_regions = h.findvar('scan_regions')
         self.parent.update_region_names_combobox()
-        self.update_scan_regions()
         if hasattr(self.scan_regions, 'keys') and self.last_region_name in self.scan_regions.keys():
             scan_region_names = self.scan_regions.keys()
             scan_region_names.sort()#combo box items are in an alphabetic order  but  order of keys in a dict is random
             self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setCurrentIndex(scan_region_names.index(self.last_region_name))
         self.parent.update_jobhandler_process_status()
-        cells  = hdf5io.read_item(self.fetch_backup_mouse_file_path(), 'cells')
+        cells  = h.findvar('cells')
         if cells is not None:
             self.cells = cells
             self.parent.update_cell_group_combobox()
-        
+        h.close()
 
     def handle_events(self):
         for k, queue in self.queues.items():
             if not queue['in'].empty():
-                message = queue['in'].get()
-                command = command_extract.findall(message)
-                if len(command) > 0:
-                    command = command[0]
-                parameter = parameter_extract.findall(message)
-                if len(parameter) > 0:
-                    parameter = parameter[0]
-                if command == 'connection':
-                    message = command
-                elif command == 'echo' and parameter == 'GUI':
-                    message = ''
-                elif message == 'connected to server':
-                    #This is sent by the local queued client and its meaning can be confusing, therefore not shown
-                    message = ''
-                elif message == 'SOCacquire_z_stackEOCOKEOP':
-                    message = 'Z stack acquisition complete.'
-                elif message == 'SOCacquire_z_stackEOCsaveOKEOP' and os.path.exists(self.z_stack_path):
-                    time.sleep(0.1)
-                    self.z_stack = matlabfile.read_z_stack(self.z_stack_path)
-                    self.read_stage(display_coords = False)
-                    self.z_stack['stage_position'] = utils.pack_position(self.stage_position-self.stage_origin, 0)
-                    self.z_stack['add_date'] = utils.datetime_string().replace('_', ' ')
-                    hdf5io.save_item(self.mouse_file.replace('.hdf5', '_z_stack.hdf5'), 'z_stack', self.z_stack)
-                    self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
-                    os.remove(self.z_stack_path)
-                elif command == 'jobhandler_started':
-                    self.set_mouse_file()
-                elif command == 'measurement_ready':
-                    self.add_measurement_id(parameter)
-                elif command == 'fragment_check_ready':
-                    #ID is saved, flag will be updated in mouse later when the measurement file is closed
-                    self.fragment_check_ready_id = parameter
-                elif command == 'mesextractor_ready':
-                    flags = [command]
-                    if hasattr(self, 'fragment_check_ready_id') and self.fragment_check_ready_id is not None and parameter == self.fragment_check_ready_id:
-                        #Assuming that by this time the measurement file is closed
-                        flags.append('fragment_check_ready')
-                        self.fragment_check_ready_id = None
-                    else:#Not handled situation: consecutive fragment_check_ready and mesextractor_ready flags are associated to different ids
-                        pass
-                    self.set_process_status_flag(parameter, flags)
-                elif command == 'find_cells_ready':
-                    self.add_cells_to_database(parameter)
-                elif command == 'jobhandler_mouse_file_access':
-                    self.queues['analysis']['out'].put('SOCaccess_grantedEOCEOP')
-                    time.sleep(0.2)
+                messages = queue['in'].get()
+                if 'EOPSOC' in messages:
+                    messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
                 else:
-                    self.printc(k.upper() + ' '  + message)
+                    messages = [messages]
+                for message in messages:
+                    command = command_extract.findall(message)
+                    if len(command) > 0:
+                        command = command[0]
+                    parameter = parameter_extract.findall(message)
+                    if len(parameter) > 0:
+                        parameter = parameter[0]
+                    if command == 'connection':
+                        message = command
+                    elif command == 'echo' and parameter == 'GUI':
+                        message = ''
+                    elif message == 'connected to server':
+                        #This is sent by the local queued client and its meaning can be confusing, therefore not shown
+                        message = ''
+                    elif message == 'SOCacquire_z_stackEOCOKEOP':
+                        message = 'Z stack acquisition complete.'
+                    elif message == 'SOCacquire_z_stackEOCsaveOKEOP' and os.path.exists(self.z_stack_path):
+                        time.sleep(0.1)
+                        self.z_stack = matlabfile.read_z_stack(self.z_stack_path)
+                        self.read_stage(display_coords = False)
+                        self.z_stack['stage_position'] = utils.pack_position(self.stage_position-self.stage_origin, 0)
+                        self.z_stack['add_date'] = utils.datetime_string().replace('_', ' ')
+                        hdf5io.save_item(self.mouse_file.replace('.hdf5', '_z_stack.hdf5'), 'z_stack', self.z_stack)
+                        self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
+                        os.remove(self.z_stack_path)
+                    elif command == 'jobhandler_started':
+                        self.set_mouse_file()
+                    elif command == 'measurement_ready':
+                        self.add_measurement_id(parameter)
+                    elif command == 'fragment_check_ready':
+                        #ID is saved, flag will be updated in mouse later when the measurement file is closed
+                        self.fragment_check_ready_id = parameter
+                    elif command == 'mesextractor_ready':
+                        flags = [command]
+                        if hasattr(self, 'fragment_check_ready_id') and self.fragment_check_ready_id is not None and parameter == self.fragment_check_ready_id:
+                            #Assuming that by this time the measurement file is closed
+                            flags.append('fragment_check_ready')
+                            self.fragment_check_ready_id = None
+                        else:#Not handled situation: consecutive fragment_check_ready and mesextractor_ready flags are associated to different ids
+                            pass
+                        self.set_process_status_flag(parameter, flags)
+                    elif command == 'find_cells_ready':
+                        self.add_cells_to_database(parameter)
+                    elif command == 'mouse_file_copy':
+                        if parameter == '':
+                            tag = 'jobhandler'
+                        else:
+                            tag = parameter
+                        self.backup_mouse_file(tag = tag)
+                        self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCEOP')
+                    else:
+                        self.printc(k.upper() + ' '  + message)
 
     def handle_commands(self):
         if not self.signal_id_queue.empty():
@@ -633,6 +646,9 @@ class Poller(QtCore.QThread):
         h.images[id] = {}
         h.images[id]['meanimage'] = h_measurement.findvar('meanimage')
         h.images[id]['accepted_somaimage'] = h_measurement.findvar('accepted_somaimage')
+        h.images[id]['scale'] = h_measurement.findvar('image_scale')
+        h.images[id]['origin'] = h_measurement.findvar('image_origin')
+        self.images = copy.deepcopy(h.images)
         h.load('cells')
         if not hasattr(h,  'cells'):
             h.cells = {}
@@ -659,7 +675,7 @@ class Poller(QtCore.QThread):
             h.cells[region_name][cell_id] = {}
             h.cells[region_name][cell_id]['depth'] = depth
             h.cells[region_name][cell_id]['id'] = id
-            h.cells[region_name][cell_id]['soma_rois'] = soma_rois[i]
+            h.cells[region_name][cell_id]['soma_roi'] = soma_rois[i]
             h.cells[region_name][cell_id]['roi_center'] = roi_centers[i]
             h.cells[region_name][cell_id]['accepted'] = False
             h.cells[region_name][cell_id]['group'] = ''
@@ -678,6 +694,7 @@ class Poller(QtCore.QThread):
         if update_gui:
             self.parent.update_cell_list(copy.deepcopy(h.cells))
             self.parent.update_jobhandler_process_status(scan_regions)
+#            self.update_cell_group_combobox()
         
     def set_process_status_flag(self, id, flag_names):
         scan_regions, region_name, h, measurement_file_path, depth = self.read_scan_regions(id)
@@ -804,7 +821,7 @@ class Poller(QtCore.QThread):
     ############## Analysis ########################
     def set_mouse_file(self):
         self.printc('Mouse file sent to jobhandler')
-        self.queues['analysis']['out'].put('SOCset_mouse_fileEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_copy.hdf5')))
+        self.queues['analysis']['out'].put('SOCset_mouse_fileEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
                                            
     ########## Manage context ###############
     def init_variables(self):
@@ -1029,7 +1046,8 @@ class Poller(QtCore.QThread):
             return
         if os.path.exists(self.mouse_file):
             cell_locations = experiment_data.read_rois(self.cells, cell_group = self.parent.get_current_cell_group(), region_name = region_name, objective_position = self.objective_position, z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'])
-            initial_roi_n = cell_locations.shape[0]
+            if cell_locations is not None:
+                initial_roi_n = cell_locations.shape[0]
             cell_locations = experiment_data.merge_cell_locations(cell_locations, self.config.CELL_MERGE_DISTANCE, True)
             if cell_locations is not None:
                 if cell_locations.shape[0] != initial_roi_n:
@@ -1502,6 +1520,7 @@ class Poller(QtCore.QThread):
                 parameters += ',z_resolution='+experiment_parameters['z_resolution']
             parameters += ',cell_group='+self.parent.get_current_cell_group()
         command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
+        self.backup_mouse_file(tag = 'stim')
         self.queues['stim']['out'].put(command)
         self.printc(parameters)
         
@@ -1639,10 +1658,12 @@ class Poller(QtCore.QThread):
         hdf5_handler.close()
             
     ############# Helpers #############
-    def backup_mouse_file(self, mouse_file = None):
+    def backup_mouse_file(self, mouse_file = None, tag = None):
         if mouse_file is None:
             mouse_file = self.mouse_file
-        copy_path = mouse_file.replace('.hdf5', '_copy.hdf5')
+        if tag is None:
+            tag = 'copy'
+        copy_path = mouse_file.replace('.hdf5', '_' +tag+'.hdf5')
         shutil.copyfile(mouse_file, copy_path)
         time.sleep(0.2)#Wait to make sure that file is completely copied
         

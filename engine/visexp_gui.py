@@ -10,6 +10,7 @@ import numpy
 import shutil
 import traceback
 import re
+import copy
 import cPickle as pickle
 import unittest
 import Image
@@ -33,6 +34,7 @@ from visexpman.engine.generic import log
 from visexpman.users.zoltan.test import unit_test_runner
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as generic_visexpA
+from visexpA.engine.datadisplay import imaged
 
 parameter_extract = re.compile('EOC(.+)EOP')
 
@@ -155,7 +157,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.add_button, 'add_scan_region')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.move_to_button, 'move_to_region')
-        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.create_xz_lines_button, 'create_xz_lines')
+        self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.create_xz_lines_button, 'create_xz_lines')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.next_depth_button, 'next_experiment')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.redo_depth_button, 'redo_experiment')
@@ -205,13 +207,12 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_cell_filter_list()
         
     def cell_filter_changed(self):
-        self.update_cell_list()   
-            
+        self.update_cell_list(self.poller.cells)
         
     ################### GUI updaters #################
     def update_mouse_files_combobox(self, set_to_value = None):
         new_mouse_files = file.filtered_file_list(self.config.EXPERIMENT_DATA_PATH,  'mouse')
-        new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_copy' not in mouse_file and os.path.isfile(os.path.join(self.config.EXPERIMENT_DATA_PATH,mouse_file))]
+        new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_jobhandler' not in mouse_file and '_stim' not in mouse_file and '_copy' not in mouse_file and os.path.isfile(os.path.join(self.config.EXPERIMENT_DATA_PATH,mouse_file))]
         if self.mouse_files != new_mouse_files:
             self.mouse_files = new_mouse_files
             self.update_combo_box_list(self.main_widget.scan_region_groupbox.select_mouse_file, self.mouse_files)
@@ -267,12 +268,9 @@ class VisionExperimentGui(QtGui.QWidget):
                 region_add_date = scan_regions[selected_region]['add_date']
             else:
                 region_add_date = 'unknown'
-            self.main_widget.scan_region_groupbox.region_info.setText(\
-                                                                           '{3}\n{0:.2f}, {1:.2f}, {2:.2f}' \
-                                                                           .format(scan_regions[selected_region]['position']['x'][0], 
-                                                                                   scan_regions[selected_region]['position']['y'][0], 
-                                                                                   scan_regions[selected_region]['position']['z'][0], 
-                                                                                   region_add_date))
+            self.main_widget.scan_region_groupbox.region_info.setText('{3}\n{0:.2f}, {1:.2f}, {2:.2f}' 
+                                                                      .format(scan_regions[selected_region]['position']['x'][0], scan_regions[selected_region]['position']['y'][0], 
+                                                                              scan_regions[selected_region]['position']['z'][0], region_add_date))
         else:
                 self.show_image(self.images_widget.blank_image, 1, no_scale)
                 self.show_image(self.images_widget.blank_image, 3, no_scale)
@@ -323,8 +321,12 @@ class VisionExperimentGui(QtGui.QWidget):
             self.poller.cell_ids.sort()
             filter = str(self.roi_widget.cell_filter_combobox.currentText())
             filtername = str(self.roi_widget.cell_filter_name_combobox.currentText())
-            if filtername == 'depth':
-                self.poller.cell_ids = [cell_id for cell_id, cell in self.poller.cells[region_name].items() if str(int(cell['depth'])) == filter]
+            if filtername != 'No filter':
+                if filtername == 'date':
+                    key_name = 'add_date'
+                else:
+                    key_name = filtername
+                self.poller.cell_ids = [cell_id for cell_id, cell in self.poller.cells[region_name].items() if filter in str(cell[key_name])]
             self.update_combo_box_list(self.roi_widget.select_cell_combobox,self.poller.cell_ids)
             
     def update_cell_filter_list(self):
@@ -332,11 +334,17 @@ class VisionExperimentGui(QtGui.QWidget):
             filtername = str(self.roi_widget.cell_filter_name_combobox.currentText())
             region_name = self.get_current_region_name()
             filter_values = []
-            if filtername == 'depth':
-                for cell_id in self.poller.cells[region_name].keys():
-                    depth = str(int(self.poller.cells[region_name][cell_id]['depth']))
-                    if depth not in filter_values:
-                        filter_values.append(depth)
+            if filtername == 'date':
+                key_name = 'add_date'
+            else:
+                key_name = filtername
+            for cell_id in self.poller.cells[region_name].keys():
+                if self.poller.cells[region_name][cell_id].has_key(key_name):
+                    value = str(self.poller.cells[region_name][cell_id][key_name])
+                    if key_name =='add_date':
+                        value = value.split(' ')[0]
+                    if value not in filter_values:
+                        filter_values.append(value)
             self.update_combo_box_list(self.roi_widget.cell_filter_combobox,filter_values)
             
     def update_cell_group_combobox(self):
@@ -360,12 +368,26 @@ class VisionExperimentGui(QtGui.QWidget):
                 if roi_curve is not None and cell is not None:
                     #convert from png file
                     roi_curve_image = Image.open(io.BytesIO(roi_curve))
-                    #draw on image
-                    draw = ImageDraw.Draw(roi_curve_image)
-#                    draw.line([0, 0, 100, 100], width = 10)
                     roi_curve_image = numpy.asarray(roi_curve_image)
+                    roi_curve_image.flags.writeable = True
+                    #draw on image
                     if not cell['accepted']:
                         roi_curve_image = numpy.where(roi_curve_image == 255,  210, roi_curve_image)
+                    #Draw mean images and put selected rois on it
+                    if hasattr(self.poller, 'images') and self.poller.images.has_key(cell['id']):
+                        scale = self.poller.images[cell['id']]['scale']
+                        origin = self.poller.images[cell['id']]['origin']
+                        cell_group = str(self.roi_widget.cell_group_combobox.currentText())
+                        cells_to_display = []
+                        soma_rois_to_display = []
+                        for cell_i in self.poller.cells[region_name].values():
+                            if cell_i['group'] == cell_group and cell_i['accepted']:
+                                cells_to_display.append(cell_i['roi_center'])
+                                soma_rois_to_display.append(cell_i['soma_roi'])
+                        if len(soma_rois_to_display)>0:
+                            meanimage = imaged.draw_on_meanimage(self.poller.images[cell['id']]['meanimage'], origin, scale, soma_rois = soma_rois_to_display, 
+                                                             used_rois = cells_to_display)
+                            roi_curve_image[-meanimage.shape[0]:,-meanimage.shape[1]:,:] = meanimage
                     self.show_image(roi_curve_image, 'roi_curve', utils.rc((1, 1)))
 
     def update_cell_groups_display(self, cells = None):
