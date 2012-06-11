@@ -71,10 +71,10 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
         ts = numpy.array([ts[0],ts[1],ts[2],numpy.round(float(1000*scan_time), 0)], dtype = numpy.float64)
         m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
     if enable_scanner_signal_recording:
-        m.raw_mat = data['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
+        m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
                     numpy.array(numpy.array([[u'pmtUGraw'], [u'ScX'], [u'ScY']]), dtype=object)
     else:
-        m.raw_mat = data['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
+        m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
                     numpy.array(numpy.array([[u'pmtUGraw']]), dtype=object)
     if scan_mode == 'xz':
         try: #when field does not exists, just skip writing it
@@ -325,8 +325,8 @@ class MesInterface(object):
         data_to_mes_mat['DATA']['params'] = {}
         data_to_mes_mat['DATA']['params']['LineLength'] = xz_scan_config['LINE_LENGTH']
         data_to_mes_mat['DATA']['params']['zshift'] = 1.0
-        data_to_mes_mat['DATA']['params']['Tpixnum'] = xz_scan_config['Z_PIXEL_SIZE']
-        data_to_mes_mat['DATA']['params']['Tpixwidth'] = xz_scan_config['Z_RESOLUTION']
+#        data_to_mes_mat['DATA']['params']['Tpixnum'] = xz_scan_config['Z_PIXEL_SIZE']
+#        data_to_mes_mat['DATA']['params']['Tpixwidth'] = xz_scan_config['Z_RESOLUTION']
 #        temp_path = str(tempfile.mkstemp(suffix='.mat')[1])
         scipy.io.savemat(parameter_path, data_to_mes_mat, oned_as = 'column') 
 #        shutil.copyfile(temp_path, parameter_path)
@@ -518,7 +518,9 @@ class MesInterface(object):
         else:
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
         if result:
-            set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, scan_mode = scan_mode, autozigzag = self.config.ENABLE_ZIGZAG_CORRECTION)
+            set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, 
+                                    scan_mode = scan_mode, autozigzag = self.config.ENABLE_ZIGZAG_CORRECTION, 
+                                    enable_scanner_signal_recording = (scan_mode == 'xz'))
             #previously sent garbage is removed from queue
             utils.empty_queue(self.queues['mes']['in'])        
             #Acquire line scan if MES is connected

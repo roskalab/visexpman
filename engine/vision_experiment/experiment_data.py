@@ -146,35 +146,16 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
         fragment_handle.close()
     return result, messages
     
-def read_rois(roi_file, region_name, objective_position = None, z_range = None, mouse_file = None):
-    if not os.path.exists(roi_file):
-        return
-    tmp_path = tempfile.mkstemp(suffix='.hdf5')[1]
-    shutil.copyfile(roi_file, tmp_path)
-    rois = hdf5io.read_item(tmp_path, 'rois')
-    if mouse_file is not None:
-        selected_rois = hdf5io.read_item(mouse_file, 'selected_rois')
-    cell_locations = []
-    if rois.has_key(region_name):
-        for id,  roi_layer in rois[region_name].items():
-            if roi_layer.has_key('cell_locations'):
-                cell_counter = 0
-                for location in roi_layer['cell_locations']:
-                    if objective_position != None and z_range != None and mouse_file != None:
-                        append = False
-                        if selected_rois[region_name].has_key(id):
-                            if location['depth'] > objective_position - 0.5*z_range and location['depth'] < objective_position + 0.5*z_range and mouse_file is not None and selected_rois[region_name][id][cell_counter] :
-                                append = True
-                    else:
-                        append = True
-                    if append:
-                        cell_locations.append(utils.nd(location))
-                    cell_counter += 1
-        if len(cell_locations) == 0:
-            return None
-        else:
-            cell_locations = utils.rcd(numpy.array(cell_locations)[:, 0, :])
-            return cell_locations
+def read_rois(cells, cell_group, region_name, objective_position, z_range):
+    rois = []
+    for cell in cells[region_name].values():
+        if cell['depth'] > objective_position - 0.5 * z_range and cell['depth'] < objective_position + 0.5 * z_range and cell['group'] ==cell_group and cell['accepted']:
+            rois.append(utils.nd(cell['roi_center']))
+    if len(rois) == 0:
+        return None
+    else:
+        rois = utils.rcd(numpy.array(rois)[:, 0, :])
+        return rois
             
 def merge_cell_locations(cell_locations, merge_distance, xy_distance_only = False):
     if cell_locations != None:

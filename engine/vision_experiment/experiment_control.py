@@ -13,6 +13,7 @@ import cPickle as pickle
 import traceback
 import gc
 import shutil
+import copy
 
 import experiment
 import experiment_data
@@ -153,10 +154,15 @@ class ExperimentControl(object):
                 else:
                     self.printl('Objective is set to {0} um' .format(context['objective_position']))
             self.stage_position = self.stage.read_position() - self.stage_origin
-            result,  self.objective_position, context['objective_origin'] = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
-            if utils.safe_has_key(self.parameters, 'scan_mode'):
-                if self.parameters.has_key('scan_mode') != 'xy':
-                    self._fetch_cell_locations(context)
+            result,  self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
+            if utils.safe_has_key(self.parameters, 'scan_mode') and self.parameters['scan_mode'] != 'xy':
+                cells = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['mouse_file'].replace('.hdf5', '_copy.hdf5')), 
+                            'cells', safe = True)
+                self.rois = experiment_data.read_rois(cells, cell_group = self.parameters['cell_group'],
+                                region_name =  self.parameters['region_name'], 
+                                objective_position = self.objective_position, 
+                                z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'])
+                self.rois['depth'] = numpy.ones_like(self.rois['depth']) * self.objective_position + self.objective_origin
         self._prepare_files()
         return message_to_screen 
         
@@ -189,21 +195,21 @@ class ExperimentControl(object):
             self.printl('Fragment duration is {0} s'.format(int(mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
             #start two photon recording
-            if self.scan_mode == 'xyz' and hasattr(self, 'cell_locations'):
-                scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.cell_locations, 
+            if self.scan_mode == 'xyz' and hasattr(self, 'rois'):
+                scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.rois, 
                                                                                       parameter_file = self.filenames['mes_fragments'][fragment_id], 
                                                                                       scan_time = mes_record_time)
             else:
-                if self.scan_mode == 'xz' and hasattr(self, 'cell_locations'):
+                if self.scan_mode == 'xz' and hasattr(self, 'rois'):
                     #Before starting scan, set xz lines
-                    xz_scan_config = self.config.XZ_SCAN_CONFIG
-                    if self.parameters.has_key('xz_line_lenght'):
-                        xz_scan_config['LINE_LENGTH'] = self.parameters['xz_line_lenght']
+                    xz_scan_config = copy.deepcopy(self.config.XZ_SCAN_CONFIG)
+                    if self.parameters.has_key('xz_line_length'):
+                        xz_scan_config['LINE_LENGTH'] = float(self.parameters['xz_line_length'])
+                        
                     if self.parameters.has_key('z_resolution'):
                         xz_scan_config['Z_RESOLUTION'] = float(self.parameters['z_resolution'])
                         xz_scan_config['Z_PIXEL_SIZE'] = int(float(xz_scan_config['Z_RANGE'])/xz_scan_config['Z_RESOLUTION'])#Always 100 um depth is used
-                    
-                    if not self.mes_interface.create_XZline_from_points(self.cell_locations, xz_scan_config):
+                    if not self.mes_interface.create_XZline_from_points(self.rois, xz_scan_config):
                         self.printl('Creating XZ lines did not succeed')
                         return False
                     else:
@@ -427,8 +433,8 @@ class ExperimentControl(object):
                 stimulus_frame_info = self.stimulus_frame_info
             if self.config.PLATFORM == 'mes':
                 data_to_file['mes_data_path'] = os.path.split(self.filenames['mes_fragments'][fragment_id])[-1]
-                if hasattr(self, 'cell_locations'):
-                    data_to_file['rois'] = self.cell_locations
+                if hasattr(self, 'rois'):
+                    data_to_file['rois'] = self.rois
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             stimulus_frame_info = stimulus_frame_info_with_data_series_index
         data_to_file['stimulus_frame_info'] = stimulus_frame_info
@@ -496,47 +502,6 @@ class ExperimentControl(object):
         if hasattr(self, 'scan_region'):
             scan_parameter_file_binary = scan_region['xy_scan_parameters']
             scan_parameter_file_binary.tofile(fragment_path)
-
-    def _fetch_cell_locations(self, context):
-        self.cell_locations = None
-        if hasattr(self, 'scan_region'):
-            pass
-#                    roi_layers = self.scan_region[self.parameters['region_name']]
-#                    if self.parameters['explore_cells'] == 'False' and self.parameters['scan_mode'] == 'xyz':
-#                        #merge cell coordinates from different layers
-#                        merged_list_of_cells = []
-#                        for roi_layer in roi_layers:
-#                            if roi_layer['ready']:
-#                                for cell in roi_layer['positions']:
-#                                    merged_list_of_cells.append(cell)
-#                        #eliminate redundant cell locations
-#                        filtered_cell_list = []
-#                        for i in range(len(merged_list_of_cells)):
-#                            keep_cell = True
-#                            for j in range(i+1, len(merged_list_of_cells)):
-#                                if abs(utils.rc_distance(merged_list_of_cells[i], merged_list_of_cells[j])) < self.config.CELL_MERGE_DISTANCE:
-#                                    keep_cell = False
-#                            if keep_cell:
-#                                cell = merged_list_of_cells[i]
-#                                filtered_cell_list.append((cell['row'], cell['col'], cell['depth']))
-#                        self.cell_locations = utils.rcd(filtered_cell_list)
-#                        self.cell_locations['depth'] += context['objective_origin']
-#                    elif self.parameters['scan_mode'] == 'xz':
-#                        if self.parameters['explore_cells']  == 'True':
-#                            pass
-##                            for roi_layer in roi_layers:
-##                                if roi_layer['z'] == self.objective_position:
-##                                    self.cell_locations = roi_layer['positions']
-##                                    self.cell_locations['depth'] = self.objective_position * numpy.ones_like(self.cell_locations['depth'])#Ensure that objective is not moved
-##                                    self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
-##                                    break
-#                        else:
-#                            self.cell_locations = experiment_data.read_rois(roi_file, self.parameters['region_name'], objective_position = self.objective_position, z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], mouse_file = roi_file.replace('rois_', 'mouse_'))#TODO: filename has to be generated
-#                            self.cell_locations = experiment_data.merge_cell_locations(self.cell_locations, self.config.CELL_MERGE_DISTANCE, True)
-#                            self.cell_locations['depth'] = self.objective_position * numpy.ones_like(self.cell_locations['depth'])#Ensure that objective is not moved
-#                            self.cell_locations['depth'] += context['objective_origin']#convert to absolute objective value
-        if self.cell_locations != None:
-            self.printl('Cell locations loaded')
             
     ############### Helpers ##################
     def _get_elapsed_time(self):

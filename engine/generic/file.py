@@ -18,11 +18,14 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
         else:
             return path
 
-def mkstemp(suffix):
-    '''Creates a temporary file with suffix as extension, e.g. .pdf. Closes the file so that other methods can open it and do what they need.'''
-    f,filename = tempfile.mkstemp(suffix=suffix)
-    os.close(f)
-    return filename
+def mkstemp(suffix=None, filename = None):
+	'''Creates a temporary file with suffix as extension, e.g. .pdf. Closes the file so that other methods can open it and do what they need.'''        
+	if filename is not None:
+        return os.path.join(tempfile.gettempdir(), filename)
+    else:
+        f,filename = tempfile.mkstemp(suffix=suffix)
+        os.close(f)
+        return filename
     
 def set_file_dates(path, file_info):
     os.utime(path, (file_info.st_atime, file_info.st_mtime))
