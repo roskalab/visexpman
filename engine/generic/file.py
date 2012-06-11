@@ -19,7 +19,8 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
             return path
 
 def mkstemp(suffix=None, filename = None):
-    if filename is not None:
+    '''Creates a temporary file with suffix as extension, e.g. .pdf. Closes the file so that other methods can open it and do what they need.'''        
+    if filename is not None:             
         return os.path.join(tempfile.gettempdir(), filename)
     else:
         f,filename = tempfile.mkstemp(suffix=suffix)
