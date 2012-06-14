@@ -265,14 +265,13 @@ class TestUtils(unittest.TestCase):
         pass
     
     def test_pngsave(self):
-        import numpy, Image, hashlib
+        import numpy, Image
+        from visexpman.engine.generic.introspect import hash_variables
         pic = numpy.zeros((233,234),numpy.uint8)
         pic[0,233]=255
-        h = hashlib.md5()
-        h.update(pic)
         pilpic = Image.fromarray(pic)
         pilpic.info['mycomment']='my text is short'
-        pilpic.info['myhash']= h.digest()
+        pilpic.info['myhash']= hash_variables(pic)
         pngsave(pilpic,self.filename)
         pilconfirm = Image.open(self.filename)
         self.assertTrue((pilconfirm.info['mycomment']==pilpic.info['mycomment']) and (pilconfirm.info['myhash']==pilpic.info['myhash']))

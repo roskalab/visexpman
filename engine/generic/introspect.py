@@ -7,9 +7,20 @@ import inspect
 import time
 import re
 import numpy
+import hashlib
 ## {{{ http://code.activestate.com/recipes/519621/ (r4)
 import weakref
 
+def hash_variables(variables):
+        import hashlib
+        import cPickle
+        myhash = hashlib.md5()
+        if not isinstance(variables, (list, tuple)): variables = [ variables]
+        for v in variables:
+            myhash.update(cPickle.dumps(v))
+        return myhash.digest()
+        
+        
 class Finalizable(object):
     """
     Base class enabling the use a __finalize__ method without all the problems
