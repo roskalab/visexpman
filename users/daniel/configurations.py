@@ -354,7 +354,7 @@ class Debug(VisionExperimentConfig):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         
         #=== screen ===
-        FULLSCREEN = not True
+        FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800, 600])
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False

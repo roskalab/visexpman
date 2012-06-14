@@ -359,7 +359,7 @@ class VisionExperimentGui(QtGui.QWidget):
         region_name = self.get_current_region_name()
         cell_id = self.get_current_cell_id()
         h=hdf5io.Hdf5io(self.poller.fetch_backup_mouse_file_path())
-        roi_curve = h.findvar(cell_id,path = 'root.roi_curves.'+region_name)
+        roi_curve = h.findvar('roi_curves')[region_name][cell_id]#cell_id,path = 'root.roi_curves.'+region_name)
         h.close()
         if utils.safe_has_key(self.poller.cells, region_name):
             cells = self.poller.cells[region_name]

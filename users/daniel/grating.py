@@ -24,27 +24,27 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.ORIENTATIONS = range(0, 360, 45)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1200.0]#1800
-        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.DUTY_CYCLES = [2.5] #put 1.0 to a different config
         self.REPEATS = 3
         self.PAUSE_BEFORE_AFTER = 5.0
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
         
-class QuickStimulationMovingGratingConfig(experiment.ExperimentConfig):
+class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing
-        self.NUMBER_OF_MARCHING_PHASES = 3
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
-        self.MARCH_TIME = 1.0
-        self.GRATING_STAND_TIME = 1.0
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME = 4.0
+        self.GRATING_STAND_TIME = 4.0
         #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 90)
+        self.ORIENTATIONS = range(0, 360, 45)
         self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [1200.0]#1800
+        self.VELOCITIES = [1000.0]#1800
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 2
-        self.PAUSE_BEFORE_AFTER = 0.0
+        self.REPEATS = 3
+        self.PAUSE_BEFORE_AFTER = 5.0
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
@@ -203,7 +203,7 @@ class PixelSizeCalibration(experiment.Experiment):
                     pattern = 0
                 self.command_buffer = ''
                 
-class LedStimulationConfig(experiment.ExperimentConfig):
+class Led1min5x100msStimulationConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.PAUSE_BETWEEN_FLASHES = 60.0 #10.0
         self.NUMBER_OF_FLASHES = 5.0
@@ -213,6 +213,18 @@ class LedStimulationConfig(experiment.ExperimentConfig):
         self.runnable = 'LedStimulation'
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
+
+class Led2min3x10msStimulationConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.PAUSE_BETWEEN_FLASHES = 120.0 #10.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 10e-3
+        self.FLASH_AMPLITUDE = 10.0 #10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 15.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+
         
 class LedPre(experiment.PreExperiment):
     def run(self):
@@ -234,6 +246,8 @@ class LedStimulation(experiment.Experiment):
         number_of_flashes_in_fragment = self.fragment_repeats[fragment_id]
         fragment_duration = self.fragment_durations[fragment_id]
         offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)
+	if len(offsets)>1: offsets[2] = offsets[2]-5.0 # add a little jitter to check if brain respons periodically and not to the acutual stimulation
+	if len(offsets)>3: offsets[4] = offsets[4] +5.0 
         self.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
         self.led_controller.start()
         for i in range(int(numpy.ceil(fragment_duration))):

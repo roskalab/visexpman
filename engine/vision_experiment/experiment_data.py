@@ -175,9 +175,16 @@ def merge_cell_locations(cell_locations, merge_distance, xy_distance_only = Fals
 
    
 class TestExperimentData(unittest.TestCase):
+    @unittest.skip("")
     def test_01_read_merge_rois(self):
         cell_locations = read_rois('/mnt/rzws/debug/data/rois_test1_1-1-2012_1-1-2012_0_0.hdf5', 'r_0_0', objective_position = 0.0, z_range = 100.0, mouse_file = '/mnt/rzws/debug/data/mouse_test1_1-1-2012_1-1-2012_0_0.hdf5')
         cell_locations = merge_cell_locations(cell_locations, 10, True)
+        
+    def test_02_read_rois(self):
+        path = '/mnt/datafast/debug/data/mouse_chat_11-9-2012_22-5-2012_1_1_stim.hdf5'
+        cells = hdf5io.read_item(path, 'cells')
+        read_rois(cells, 'g1', 'upper_right_-291_-196', -100, 80)
+        
 if __name__=='__main__':
     unittest.main()
         

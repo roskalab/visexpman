@@ -59,9 +59,13 @@ class ExperimentControl(object):
             else:
                 h = hdf5io.Hdf5io(mouse_file)                
                 self.scan_region = h.findvar('scan_regions')[self.parameters['region_name']]
-                self.cells = h.findvar('cells')[self.parameters['region_name']]
+                self.cells = h.findvar('cells')
+                if utils.safe_has_key(self.cells, self.parameters['region_name']):
+                    self.cells = h.findvar('cells')
+                else:
+                    del self.cells
                 h.close()
-                os.remove(mouse_file)
+#                os.remove(mouse_file)
 
     def run_experiment(self, context):
         message_to_screen = ''
@@ -158,8 +162,8 @@ class ExperimentControl(object):
                 else:
                     self.printl('Objective is set to {0} um' .format(context['objective_position']))
             self.stage_position = self.stage.read_position() - self.stage_origin
-            result,  self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
-            if utils.safe_has_key(self.parameters, 'scan_mode') and self.parameters['scan_mode'] != 'xy':
+            result, self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
+            if utils.safe_has_key(self.parameters, 'scan_mode') and self.parameters['scan_mode'] != 'xy' and hasattr(self, 'cells'):
                 self.rois = experiment_data.read_rois(self.cells, cell_group = self.parameters['cell_group'],
                                 region_name =  self.parameters['region_name'], 
                                 objective_position = self.objective_position, 
