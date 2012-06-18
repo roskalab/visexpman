@@ -201,14 +201,14 @@ class DebugOnLaptop(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
 #        EXPERIMENT_CONFIG = 'Dummy'
         #=== paths/data handling ===
-        use_drive = 'v'
+        use_drive = 'c'
         if os.name == 'nt':
             if use_drive == 'g':
                 root_folder = 'g:\\User\\Zoltan'
             elif use_drive =='v':
                 root_folder = 'V:\\'
             elif use_drive =='c':
-                root_folder = 'c:\\_del'
+                root_folder = 'c:\\visexp'
         else:
             root_folder = '/home/zoltan/visexp/' 
         drive_data_folder = os.path.join(root_folder, 'debug', 'data')
@@ -219,6 +219,8 @@ class DebugOnLaptop(VisionExperimentConfig):
             MES_DATA_FOLDER = 'g:\\User\\Zoltan\\data'
         elif use_drive =='v':
             MES_DATA_FOLDER = 'V:\\debug\\data'
+        elif use_drive =='c':
+            MES_DATA_FOLDER = 'c:\\visexp\\debug\\data'
         self.CONTEXT_NAME = 'gui_dev.hdf5'
         CONTEXT_PATH = os.path.join(root_folder, 'context')
         CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
@@ -354,7 +356,7 @@ class Debug(VisionExperimentConfig):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         
         #=== screen ===
-        FULLSCREEN = True
+        FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False

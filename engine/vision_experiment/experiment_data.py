@@ -146,44 +146,44 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
         fragment_handle.close()
     return result, messages
     
-def read_rois(cells, cell_group, region_name, objective_position, z_range):
-    rois = []
+def read_merge_rois(cells, cell_group, region_name, objective_position, objective_origin, z_range, merge_distance):
+    '''
+    Reads rois of selected group, performs filtering based on objective position and merge distance
+    '''
     if not cells.has_key(region_name):
-        return None
+        return None, None
+    roi_locations = []
+    roi_locations_rcd = []
+    rois = []
     for cell in cells[region_name].values():
-        if cell['depth'] > objective_position - 0.5 * z_range and cell['depth'] < objective_position + 0.5 * z_range and cell['group'] ==cell_group and cell['accepted']:
-            rois.append(utils.nd(cell['roi_center']))
-    if len(rois) == 0:
-        return None
+        #Calculate minimal distance of current cell from all the already selected cells
+        distances = [abs(utils.rc_distance(roi_location, cell['roi_center'], rc_distance_only = True)) for roi_location in roi_locations_rcd]
+        if cell['depth'] > objective_position - 0.5 * z_range and cell['depth'] < objective_position + 0.5 * z_range\
+        and cell['group'] == cell_group and cell['accepted']:
+            if len(distances) == 0 or min(distances) > merge_distance:
+                rois.append(cell)
+                roi_locations.append(utils.nd(cell['roi_center'])[0])
+                roi_locations_rcd.append(cell['roi_center'])
+            else:
+                #find indexes
+                merge_to_index = ((numpy.array(distances)<merge_distance).tolist()).index(True)
+                if not rois[merge_to_index].has_key('merged_rois'):
+                    rois[merge_to_index]['merged_rois'] = []
+                rois[merge_to_index]['merged_rois'].append(cell)
+    if len(roi_locations) == 0:
+        return None, None
     else:
-        rois = utils.rcd(numpy.array(rois)[:, 0, :])
-        return rois
-            
-def merge_cell_locations(cell_locations, merge_distance, xy_distance_only = False):
-    if cell_locations != None:
-        filtered_cell_locations = []
-        for i in range(cell_locations.shape[0]):
-            keep_cell = True
-            for j in range(i+1, cell_locations.shape[0]):
-                if abs(utils.rc_distance(cell_locations[i], cell_locations[j], rc_distance_only = xy_distance_only)) < merge_distance:
-                    keep_cell = False
-            if keep_cell:
-                cell = cell_locations[i]
-                filtered_cell_locations.append((cell['row'], cell['col'], cell['depth']))
-        filtered_cell_locations = utils.rcd(numpy.array(filtered_cell_locations))
-        return filtered_cell_locations
-
+        roi_locations = utils.rcd(numpy.array(roi_locations))
+        roi_locations['depth'] = objective_position + objective_origin
+        return roi_locations, rois
    
 class TestExperimentData(unittest.TestCase):
-    @unittest.skip("")
+#    @unittest.skip("")
     def test_01_read_merge_rois(self):
-        cell_locations = read_rois('/mnt/rzws/debug/data/rois_test1_1-1-2012_1-1-2012_0_0.hdf5', 'r_0_0', objective_position = 0.0, z_range = 100.0, mouse_file = '/mnt/rzws/debug/data/mouse_test1_1-1-2012_1-1-2012_0_0.hdf5')
-        cell_locations = merge_cell_locations(cell_locations, 10, True)
-        
-    def test_02_read_rois(self):
-        path = '/mnt/datafast/debug/data/mouse_chat_11-9-2012_22-5-2012_1_1_stim.hdf5'
+        path = '/mnt/databig/testdata/read_merge_rois/mouse_test_1-1-2012_1-1-2012_0_0.hdf5'
         cells = hdf5io.read_item(path, 'cells')
-        read_rois(cells, 'g1', 'upper_right_-291_-196', -100, 80)
+        roi_locations, rois = read_merge_rois(cells, 'g2', 'scanned_2vessels_0_0', -130, 0, 80, 100)
+        pass
         
 if __name__=='__main__':
     unittest.main()
