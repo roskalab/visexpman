@@ -25,6 +25,31 @@ from visexpA.engine.datahandlers import hdf5io
 
 BUTTON_HIGHLIGHT = 'color: red'
 
+class MeasurementDatafileStatusGroupbox(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, 'Measurement data file status', parent)
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        self.process_status_label = QtGui.QLabel('', self)
+        self.ids_combobox = QtGui.QComboBox(self)
+        self.remove_measurement_button = QtGui.QPushButton('Remove measurement',  self)
+        self.set_state_to_button = QtGui.QPushButton('Set state to',  self)
+        self.set_to_state_combobox = QtGui.QComboBox(self)
+        self.set_to_state_combobox.addItems(QtCore.QStringList(['not processed', 'mesextractor_ready', 'find_cells_ready']))
+        self.run_fragment_process_button = QtGui.QPushButton('Run fragment process',  self)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.ids_combobox, 0, 0)
+        self.layout.addWidget(self.remove_measurement_button, 0, 1)
+        self.layout.addWidget(self.set_state_to_button, 1, 0)
+        self.layout.addWidget(self.set_to_state_combobox, 1, 1)
+        self.layout.addWidget(self.run_fragment_process_button, 2, 0)
+        self.layout.addWidget(self.process_status_label, 3, 0, 4, 2)
+        self.setLayout(self.layout)   
+
 class ExperimentControlGroupBox(QtGui.QGroupBox):
     def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, 'Experiment control', parent)
@@ -65,10 +90,10 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.next_depth_button, 1, 4, 1, 1)
         self.layout.addWidget(self.redo_depth_button, 1, 2, 1, 2)
         self.layout.addWidget(self.scan_mode, 2, 0)
-        self.layout.addWidget(self.objective_positions_label, 2, 4)
-        self.layout.addWidget(self.objective_positions_combobox, 2, 5, 1, 2)
-        self.layout.addWidget(self.laser_intensities_label, 3, 3, 1, 2)
-        self.layout.addWidget(self.laser_intensities_combobox, 3, 5, 1, 1)
+        self.layout.addWidget(self.objective_positions_label, 2, 1)
+        self.layout.addWidget(self.objective_positions_combobox, 2, 2, 1, 2)
+        self.layout.addWidget(self.laser_intensities_label, 2, 4, 1, 2)
+        self.layout.addWidget(self.laser_intensities_combobox, 2, 6, 1, 1)
         self.setLayout(self.layout)        
 
 class AnimalParametersWidget(QtGui.QWidget):
@@ -134,7 +159,7 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
-
+        
 ################### Image display #######################
 class ImagesWidget(QtGui.QWidget):
     def __init__(self, parent, config):
@@ -221,8 +246,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
             if 'stage_move' in k:
                 v.setCheckState(2)
         self.xz_scan_button = QtGui.QPushButton('XZ scan',  self)
-        self.xz_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
-        self.process_status_label = QtGui.QLabel('', self)
+        self.xz_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))        
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -249,7 +273,6 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 7, 1, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 7, 2, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_origin_adjust'], 7, 3, 1, 1)
-        self.layout.addWidget(self.process_status_label, 8, 0, 2, 4)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -342,9 +365,8 @@ class MainWidget(QtGui.QWidget):
         #Development
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
+        self.measurement_datafile_status_groupbox = MeasurementDatafileStatusGroupbox(self)
         self.set_objective_button = QtGui.QPushButton('Set objective', self)
-        self.run_fragment_process_button = QtGui.QPushButton('Run fragment process',  self)
-        self.show_fragment_process_status_button = QtGui.QPushButton('Show fragment process status',  self)
         #Network related
         self.connected_clients_label = QtGui.QLabel('', self)
         
@@ -353,12 +375,11 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 2, 4)
 #        self.layout.addWidget(self.set_objective_value_button, 2, 8, 1, 1)        
         self.layout.addWidget(self.scan_region_groupbox, 4, 0, 2, 4)
+        self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 6, 2)
         
         self.layout.addWidget(self.connected_clients_label, 8, 0, 1, 4)
         
         self.layout.addWidget(self.z_stack_button, 9, 0, 1, 1)
-        self.layout.addWidget(self.run_fragment_process_button, 11, 0, 1, 1)
-        self.layout.addWidget(self.show_fragment_process_status_button, 11, 1, 1, 1)
 
         self.layout.addWidget(self.set_stage_origin_button, 10, 0, 1, 1)
         self.layout.addWidget(self.read_stage_button, 10, 1, 1, 1)
@@ -562,7 +583,8 @@ class Poller(QtCore.QThread):
                 scan_region_names = self.scan_regions.keys()
                 scan_region_names.sort()#combo box items are in an alphabetic order  but  order of keys in a dict is random
                 self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setCurrentIndex(scan_region_names.index(self.last_region_name))
-            self.parent.update_jobhandler_process_status()
+            self.parent.update_jobhandler_process_status(self.scan_regions)
+            self.parent.update_file_id_combobox(self.scan_regions)
             cells  = h.findvar('cells')
             if cells is not None:
                 self.cells = cells
@@ -743,6 +765,7 @@ class Poller(QtCore.QThread):
         self.backup_mouse_file(h.filename)
         self.printc('Measurement ID added: {0}'.format(id))
         self.parent.update_jobhandler_process_status(scan_regions)
+        self.parent.update_file_id_combobox(scan_regions)
         
     def read_scan_regions(self, id):
         #read call parameters
@@ -789,6 +812,65 @@ class Poller(QtCore.QThread):
         h.save(['scan_regions', 'roi_curves', 'cells'], overwrite=True)
         h.close()
         self.cells = {}
+        
+    def remove_measurement_file_from_database(self, id_to_remove = None, process_status_update = False):
+        if id_to_remove is None:
+            id_to_remove = self.parent.get_current_file_id()
+        region_name = self.parent.get_current_region_name()
+        h = hdf5io.Hdf5io(self.mouse_file)
+        h.load('scan_regions')
+        if utils.safe_has_key(h.scan_regions, region_name) and not process_status_update and h.scan_regions[region_name]['process_status'].has_key(id_to_remove):
+            del h.scan_regions[region_name]['process_status'][id_to_remove]
+        h.load('images')
+        if utils.safe_has_key(h.images, id_to_remove):
+            del h.images[id_to_remove]
+        h.load('roi_curves')
+        if utils.safe_has_key(h.roi_curves, region_name):
+            for cell_id in h.roi_curves[region_name].keys():
+                if id_to_remove in cell_id:
+                    del h.roi_curves[region_name][cell_id]
+        h.load('cells')
+        if utils.safe_has_key(h.cells, region_name):
+            for cell_id in h.cells[region_name].keys():
+                if id_to_remove in cell_id:
+                    del h.cells[region_name][cell_id]
+        h.save(['scan_regions', 'images', 'roi_curves', 'cells'], overwrite = True)
+        if not process_status_update:
+            scan_regions = copy.deepcopy(h.scan_regions)
+            h.close()
+            self.backup_mouse_file()
+            self.parent.update_jobhandler_process_status(scan_regions)
+            self.parent.update_file_id_combobox(scan_regions)
+            self.printc('{0} measurement is removed'.format(id_to_remove))
+        else:
+            return h
+        
+    def set_measurement_file_process_state(self):
+        selected_id = self.parent.get_current_file_id()
+        target_state = str(self.parent.main_widget.measurement_datafile_status_groupbox.set_to_state_combobox.currentText())
+        region_name = self.parent.get_current_region_name()
+        if target_state == any(['not processed', 'mesextractor_ready']):#remove cells, mean images and roi curves
+            h = self.remove_measurement_file_from_database(id_to_remove = selected_id, keep_process_status_entry = True)
+        else:
+            h = hdf5io.Hdf5io(self.mouse_file)
+            h.load('scan_regions')
+        #Modify process status
+        if utils.safe_has_key(h.scan_regions, region_name) and h.scan_regions[region_name]['process_status'].has_key(selected_id):
+            if target_state == 'not processed':
+                h.scan_regions[region_name]['process_status'][selected_id]['mesextractor_ready'] = False
+                h.scan_regions[region_name]['process_status'][selected_id]['fragment_check_ready'] = False
+                h.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = False
+            elif target_state == 'mesextractor_ready':
+                h.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = False
+            elif target_state == 'find_cells_ready':
+                h.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = True
+            h.save(['scan_regions'], overwrite = True)
+        scan_regions = copy.deepcopy(h.scan_regions)
+        h.close()
+        self.backup_mouse_file()
+        self.parent.update_jobhandler_process_status(scan_regions)
+        self.parent.update_file_id_combobox(scan_regions)
+        self.printc('Measurement file status is updated')
 
     def next_cell(self):
         current_index = self.parent.roi_widget.select_cell_combobox.currentIndex()
@@ -1588,11 +1670,6 @@ class Poller(QtCore.QThread):
         command = 'SOCrun_fragment_status_checkEOCEOP'
         self.queues['analysis']['out'].put(command)
         self.printc('Run fragment process')
-        
-    def show_fragment_process_status(self):
-        command = 'SOCrun_fragment_status_checkEOCstatus_only=TrueEOP'
-        self.queues['analysis']['out'].put(command)
-        self.printc('Read fragment process status')
             
     ########### Network debugger tools #################
     def send_command(self):

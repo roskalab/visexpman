@@ -109,8 +109,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
         #GUI events
         
-#        self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
-        self.connect_and_map_signal(self.main_tab, 'save_cells', 'currentChanged')
+        self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
+#        self.connect_and_map_signal(self.main_tab, 'save_cells', 'currentChanged')
 
         self.connect(self.main_widget.scan_region_groupbox.select_mouse_file, QtCore.SIGNAL('currentIndexChanged(int)'),  self.mouse_file_changed)
         self.connect(self.main_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.region_name_changed)
@@ -120,8 +120,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.graceful_stop_experiment_button, 'graceful_stop_experiment')
         #Data processing
-        self.connect_and_map_signal(self.main_widget.run_fragment_process_button, 'run_fragment_process')
-        self.connect_and_map_signal(self.main_widget.show_fragment_process_status_button, 'show_fragment_process_status')
+        
+        
         #ROI
         self.connect_and_map_signal(self.roi_widget.accept_cell_button, 'accept_cell')
         self.connect_and_map_signal(self.roi_widget.ignore_cell_button, 'ignore_cell')
@@ -143,7 +143,13 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
         self.connect_and_map_signal(self.helpers_widget.add_simulated_measurement_file_button, 'add_simulated_measurement_file')
+        
         self.connect_and_map_signal(self.helpers_widget.rebuild_cell_database_button, 'rebuild_cell_database')
+        
+        
+        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.remove_measurement_button, 'remove_measurement_file_from_database')
+        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.set_state_to_button, 'set_measurement_file_process_state')
+        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.run_fragment_process_button, 'run_fragment_process')
                                     
         #Blocking functions, run by poller
         self.connect_and_map_signal(self.main_widget.read_stage_button, 'read_stage')
@@ -176,6 +182,18 @@ class VisionExperimentGui(QtGui.QWidget):
             self.printc('{0} method does not exists'.format(mapped_signal_parameter))
             
     ############ GUI events ############
+    def tab_changed(self, currentIndex):
+        if currentIndex != 1:
+            self.poller.signal_id_queue.put('save_cells')
+        #Load meanimages or scan region images
+        if currentIndex == 0:
+            self.update_scan_regions()
+        elif currentIndex == 1:
+            measurement_id = self.get_current_cell_id().split('_')[-1]
+            if hasattr(self.poller, 'images') and utils.safe_has_key(self.poller.images, measurement_id):
+                image_record = self.poller.images[measurement_id]
+                self.show_image(image_record['meanimage'], 1, utils.cr(utils.nd(image_record['scale'])[0]), origin = utils.rcd(utils.nd(image_record['origin'])[0]))
+
     def show_soma_roi_checkbox_changed(self):
         self.update_roi_curves_display()
         
@@ -282,6 +300,13 @@ class VisionExperimentGui(QtGui.QWidget):
                 self.show_image(self.images_widget.blank_image, 'overview', no_scale)
                 self.main_widget.scan_region_groupbox.region_info.setText('')
                 
+    def update_file_id_combobox(self, scan_regions):
+        region_name = self.get_current_region_name()
+        if scan_regions.has_key(region_name):
+            ids = scan_regions[region_name]['process_status'].keys()
+            ids.sort()
+            self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,ids)
+                
     def update_jobhandler_process_status(self, scan_regions = None):
         if scan_regions is None:
             scan_regions  = hdf5io.read_item(self.poller.fetch_backup_mouse_file_path(), 'scan_regions')
@@ -289,7 +314,7 @@ class VisionExperimentGui(QtGui.QWidget):
         if utils.safe_has_key(scan_regions, region_name) and scan_regions[region_name].has_key('process_status'):
             status_text = ''
             item_counter = 0
-            item_per_line = 3
+            item_per_line = 2
             ids = scan_regions[region_name]['process_status'].keys()
             ids.sort()
             for id in ids:
@@ -314,7 +339,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 item_counter += 1
         else:
             status_text = ''
-        self.main_widget.scan_region_groupbox.process_status_label.setText(status_text)
+        self.main_widget.measurement_datafile_status_groupbox.process_status_label.setText(status_text)
 
     def update_cell_list(self, cells = None):
         if cells is None:
@@ -353,9 +378,10 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_combo_box_list(self.roi_widget.cell_filter_combobox,filter_values)
             
     def update_cell_group_combobox(self):
-        if hasattr(self.poller, 'cells'):
+        region_name = self.get_current_region_name()
+        if hasattr(self.poller, 'cells') and self.poller.cells.has_key(region_name):
             cell_groups = []
-            for cell_id, cell_info in self.poller.cells[self.get_current_region_name()].items():
+            for cell_id, cell_info in self.poller.cells[region_name].items():
                 if cell_info['accepted'] and not cell_info['group'] in cell_groups and cell_info['group'] != '':
                     cell_groups.append(cell_info['group'])
             self.update_combo_box_list(self.roi_widget.cell_group_combobox, cell_groups)
@@ -381,7 +407,7 @@ class VisionExperimentGui(QtGui.QWidget):
                         if hasattr(self.poller, 'images') and self.poller.images.has_key(cell['id']):
                             scale = self.poller.images[cell['id']]['scale']
                             origin = self.poller.images[cell['id']]['origin']
-                            cell_group = str(self.roi_widget.cell_group_combobox.currentText())
+                            cell_group = self.get_current_cell_group()
                             cells_to_display = []
                             soma_rois_to_display = []
                             for cell_i in self.poller.cells[region_name].values():
@@ -400,7 +426,7 @@ class VisionExperimentGui(QtGui.QWidget):
 
     def show_image(self, image, channel, scale, line = [], origin = None):
         if origin != None:
-            division = numpy.round(min(image.shape) *  scale['row']/ 5.0, -1)
+            division = numpy.round(min(image.shape[:2]) *  scale['row']/ 5.0, -1)
         else:
             division = 0
         image_in = {}
@@ -448,6 +474,9 @@ class VisionExperimentGui(QtGui.QWidget):
         
     def get_current_cell_group(self):
         return str(self.roi_widget.cell_group_combobox.currentText())
+        
+    def get_current_file_id(self):
+        return str(self.main_widget.measurement_datafile_status_groupbox.ids_combobox.currentText())
         
     def update_current_mouse_path(self):
         self.poller.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
@@ -530,11 +559,15 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0):
         pass
     image_area = utils.rc_add(size,  utils.cr((2*config.SIDEBAR_SIZE, 2*config.SIDEBAR_SIZE)), '-')
     #calculate scaling factor for rescaling image to required image size
-    rescale = (numpy.cast['float64'](utils.nd(image_area)) / merged_image['image'].shape).min()
+    rescale = (numpy.cast['float64'](utils.nd(image_area)) / merged_image['image'].shape[:2]).min()
     rescaled_image = generic.rescale_numpy_array_image(merged_image['image'], rescale)
     #Draw lines
-    image_with_line = numpy.array([rescaled_image, rescaled_image, rescaled_image])
-    image_with_line = numpy.rollaxis(image_with_line, 0, 3)
+    if len(rescaled_image.shape) == 2:
+        image_with_line = numpy.array([rescaled_image, rescaled_image, rescaled_image])
+        image_with_line = numpy.rollaxis(image_with_line, 0, 3)
+    else:
+        image_with_line = rescaled_image
+        image_with_line = numpy.rollaxis(image_with_line, 0, 2)
     for line in lines:
         #Line: x1,y1,x2, y2 - x - col, y = row
         #Considering MES/Image origin
