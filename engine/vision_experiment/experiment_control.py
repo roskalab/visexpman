@@ -368,9 +368,9 @@ class ExperimentControl(object):
         self.fragment_names = []
         for fragment_id in range(self.number_of_fragments):
             if self.config.EXPERIMENT_FILE_FORMAT == 'mat':
-                fragment_name = 'fragment_{0}' .format(self.experiment_name)
+                fragment_name = 'fragment_{0}' .format(self.name_tag)
             elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-                fragment_name = 'fragment_{0}_{1}_{2}' .format(self.experiment_name, self.timestamp, fragment_id)
+                fragment_name = 'fragment_{0}_{1}_{2}' .format(self.name_tag, self.timestamp, fragment_id)
             fragment_filename = os.path.join(self.config.EXPERIMENT_DATA_PATH, '{0}.{1}' .format(fragment_name, self.config.EXPERIMENT_FILE_FORMAT))
             if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5' and  self.config.PLATFORM == 'mes':
                 if hasattr(self, 'objective_position'):
@@ -400,7 +400,7 @@ class ExperimentControl(object):
     def _initialize_experiment_log(self):
         date = utils.date_string()
         self.filenames['experiment_log'] = \
-            file.generate_filename(os.path.join(self.config.EXPERIMENT_LOG_PATH, 'log_{0}_{1}.txt' .format(self.experiment_name, date)))
+            file.generate_filename(os.path.join(self.config.EXPERIMENT_LOG_PATH, 'log_{0}_{1}.txt' .format(self.name_tag, date)))
         self.log = log.Log('experiment log' + uuid.uuid4().hex, self.filenames['experiment_log'], write_mode = 'user control', timestamp = 'elapsed_time')
 
     ########## Fragment data ############
@@ -439,6 +439,8 @@ class ExperimentControl(object):
                                     'generated_data' : self.experiment_specific_data, 
                                     'experiment_source' : experiment_source, 
                                     'software_environment' : software_environment, 
+                                    'machine_config': experiment_data.pickle_config(self.config), 
+                                    'experiment_config': experiment_data.pickle_config(self.experiment_config), 
                                     }
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             data_to_file['experiment_log'] = numpy.fromstring(pickle.dumps(self.log.log_dict), numpy.uint8)
@@ -469,12 +471,13 @@ class ExperimentControl(object):
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             #Save experiment calling parameters:
             self.fragment_files[fragment_id].call_parameters = self.parameters
-            experiment_data.save_config(self.fragment_files[fragment_id], self.config, self.experiment_config)
+            self.fragment_files[fragment_id].experiment_name = self.experiment_name
+#            experiment_data.save_config(self.fragment_files[fragment_id], self.config, self.experiment_config)
             #Save stage and objective position
             if self.config.PLATFORM == 'mes':
                 experiment_data.save_position(self.fragment_files[fragment_id], self.stage_position, self.objective_position)
             setattr(self.fragment_files[fragment_id], self.fragment_names[fragment_id], data_to_file)
-            self.fragment_files[fragment_id].save([self.fragment_names[fragment_id], 'call_parameters'])
+            self.fragment_files[fragment_id].save([self.fragment_names[fragment_id], 'call_parameters', 'experiment_name'])
             self.fragment_files[fragment_id].close()
             if hasattr(self, 'fragment_durations'):
                 time.sleep(1.0 + 0.01 * self.fragment_durations[fragment_id])#Wait till data is written to disk

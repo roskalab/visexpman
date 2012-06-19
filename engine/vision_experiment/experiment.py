@@ -72,6 +72,7 @@ class Experiment(stimulation_library.Stimulations):
             self.source_code = source_code
         self.experiment_name = self.__class__.__name__.split('_')[0]
         self.experiment_config_name = self.experiment_config.__class__.__name__
+        self.name_tag = self.experiment_config_name.replace('Config', '').replace('config', '')
         self.prepare()
         stimulation_library.Stimulations.__init__(self, self.machine_config, application_log)
 
