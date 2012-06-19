@@ -53,7 +53,7 @@ def set_mes_mesaurement_save_flag(mat_file, flag):
     m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
     m.flush()   
 
-def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 'xy', autozigzag = False, enable_scanner_signal_recording = False):
+def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 'xy', autozigzag = False, channels = None):
     '''
     scan_time: in ms
     reference_path: reference mat file that will be used as a template
@@ -61,7 +61,6 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
 
     Parameter file shall be modified via a local copy avoid file errors occuring  on fetwork shares
     '''
-
     reference_path_local = str(tempfile.mkstemp(suffix='.mat')[1])
     target_path_local = str(tempfile.mkstemp(suffix='.mat')[1])
     shutil.copy(reference_path, reference_path_local)
@@ -70,12 +69,18 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
         ts = m.get_field(m.name2path('ts'))[0][0][0][0]
         ts = numpy.array([ts[0],ts[1],ts[2],numpy.round(float(1000*scan_time), 0)], dtype = numpy.float64)
         m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
-    if enable_scanner_signal_recording:
-        m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
-                    numpy.array(numpy.array([[u'pmtUGraw'], [u'ScX'], [u'ScY']]), dtype=object)
+    if channels is None:
+        channels = numpy.array(numpy.array([[u'pmtUGraw']]), dtype=object)
     else:
-        m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
-                    numpy.array(numpy.array([[u'pmtUGraw']]), dtype=object)
+        channels = numpy.array([[channel] for channel in channels], dtype = object)
+    m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = channels
+#    if enable_scanner_signal_recording:
+#        m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
+#                    numpy.array(numpy.array([[u'pmtUGraw'], [u'ScX'], [u'ScY']]), dtype=object)
+#    else:
+#        m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
+#                    numpy.array(numpy.array([[u'pmtUGraw']]), dtype=object)
+    
     if scan_mode == 'xz':
         try: #when field does not exists, just skip writing it
             m.raw_mat['DATA'][0]['breakFFregion'] = 0.0#Used to be 2.0-> split to rois
@@ -85,6 +90,7 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
         try:
             m.raw_mat['DATA'][0]['breakFFregion'] = 0.0
             m.raw_mat['DATA'][0]['antizigzag'] = float(autozigzag)
+            #TODO set average: m.raw_mat['DATA'][0]['Average'][0][0][0] = 1
         except ValueError:
             pass
     if scan_mode == 'xyz':
@@ -477,6 +483,26 @@ class MesInterface(object):
         vertical_scan = matlabfile.read_vertical_scan(line_scan_path, self.config)[0]
         return vertical_scan, True
         
+    def line_scan(self, parameter_file='', scan_time=None, scan_mode='xy', channels=None, timeout = None, autozigzag = None):
+        result, line_scan_path = self.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file, 
+                                                      scan_time = scan_time,  scan_mode = scan_mode, channels = channels, autozigzag = autozigzag)
+        if not result:
+            return False, {}
+        if timeout is None:
+            if scan_time != None:
+                timeout = max(1.5 * scan_time, 2 * self.config.MES_TIMEOUT)
+            else:
+                timeout = 2 * self.config.MES_TIMEOUT
+        if scan_time is not None:
+            time.sleep(scan_time)
+        result = self.wait_for_line_scan_complete(timeout = timeout)
+        if not result:
+            return False, {}
+        result = self.wait_for_line_scan_save_complete(timeout = timeout)
+        if not result:
+            return False, {}
+        return True, line_scan_path
+        
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
         if timeout == -1:
             timeout = self.config.MES_TIMEOUT
@@ -500,13 +526,15 @@ class MesInterface(object):
         time.sleep(1.5)#This delay is nccessary to ensure that the parameter file is completely written to the disk
         return result, line_scan_path, line_scan_path_on_mes
         
-    def start_line_scan(self, timeout = -1, parameter_file = '', scan_time = None, scan_mode = 'xy'):
+    def start_line_scan(self, timeout = -1, parameter_file = '', scan_time = None, scan_mode = 'xy', channels = None, autozigzag = None):
         '''
         parameter_file:
         valid, but nonexistent: generate lines scan parameter file
         existing: just use it as a parameter file
         not provided: use default mes settings, generate filename
         '''
+        if autozigzag is None:
+            autozigzag = self.config.ENABLE_ZIGZAG_CORRECTION
         if parameter_file == '':
             line_scan_path = file.generate_filename(os.path.join(self.config.MES_DATA_FOLDER, 'line_scan.mat'))
             line_scan_path_on_mes =  file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
@@ -519,8 +547,7 @@ class MesInterface(object):
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
         if result:
             set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, 
-                                    scan_mode = scan_mode, autozigzag = self.config.ENABLE_ZIGZAG_CORRECTION, 
-                                    enable_scanner_signal_recording = (scan_mode == 'xz'))
+                                    scan_mode = scan_mode, autozigzag = autozigzag, channels = channels)
             #previously sent garbage is removed from queue
             utils.empty_queue(self.queues['mes']['in'])        
             #Acquire line scan if MES is connected

@@ -303,8 +303,13 @@ class RoiWidget(QtGui.QWidget):
         self.cell_filter_name_combobox = QtGui.QComboBox(self)
         self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'id', 'date', 'stimulus']))
         self.cell_filter_combobox = QtGui.QComboBox(self)
-        self.show_soma_roi_label = QtGui.QLabel('Show soma roi',  self)
-        self.show_soma_roi_checkbox = QtGui.QCheckBox(self)
+        self.show_current_soma_roi_label = QtGui.QLabel('Show current soma roi',  self)
+        self.show_current_soma_roi_checkbox = QtGui.QCheckBox(self)
+        self.show_current_soma_roi_checkbox.setCheckState(2)
+        self.show_selected_soma_rois_label = QtGui.QLabel('Show selected soma rois',  self)
+        self.show_selected_soma_rois_checkbox = QtGui.QCheckBox(self)
+        self.show_selected_roi_centers_label = QtGui.QLabel('Show selected roi centers',  self)
+        self.show_selected_roi_centers_checkbox = QtGui.QCheckBox(self)
         self.xz_line_length_label = QtGui.QLabel('XZ line length',  self)
         self.xz_line_length_combobox = QtGui.QComboBox(self)
         self.xz_line_length_combobox.setEditable(True)
@@ -327,11 +332,14 @@ class RoiWidget(QtGui.QWidget):
         self.layout.addWidget(self.next_button, 1, 8)
         self.layout.addWidget(self.cell_group_label, 1, 9)
         self.layout.addWidget(self.cell_group_edit_combobox, 1, 10, 1, 2)
-        self.layout.addWidget(self.cell_filter_name_combobox, 2, 0, 1, 2)
-        self.layout.addWidget(self.cell_filter_combobox, 2, 2, 1, 2)
-        self.layout.addWidget(self.show_soma_roi_label, 2, 4, 1, 2)
-        self.layout.addWidget(self.show_soma_roi_checkbox, 2, 5, 1, 1)
-        self.layout.addWidget(self.xy_scan_button, 2, 6, 1, 1)
+        self.layout.addWidget(self.cell_filter_name_combobox, 2, 0, 1, 1)
+        self.layout.addWidget(self.cell_filter_combobox, 2, 1, 1, 2)
+        self.layout.addWidget(self.show_current_soma_roi_label, 2, 4)
+        self.layout.addWidget(self.show_current_soma_roi_checkbox, 2, 5)
+        self.layout.addWidget(self.show_selected_soma_rois_label, 2, 6)
+        self.layout.addWidget(self.show_selected_soma_rois_checkbox, 2, 7)
+        self.layout.addWidget(self.show_selected_roi_centers_label, 2, 8)
+        self.layout.addWidget(self.show_selected_roi_centers_checkbox, 2, 9)
         
         self.layout.addWidget(self.create_xz_lines_button, 3, 0, 1, 1)
         self.layout.addWidget(self.cell_group_combobox, 3, 1, 1, 1)
@@ -339,7 +347,8 @@ class RoiWidget(QtGui.QWidget):
         self.layout.addWidget(self.xz_line_length_combobox, 3, 3, 1, 1)
         self.layout.addWidget(self.cell_merge_distance_label, 3, 4, 1, 1)
         self.layout.addWidget(self.cell_merge_distance_combobox, 3, 5, 1, 1)
-        
+        self.layout.addWidget(self.xy_scan_button, 3, 6, 1, 1)
+
         self.layout.setRowStretch(3, 3)
         self.layout.setColumnStretch(15, 15)
         self.setLayout(self.layout)
@@ -696,9 +705,10 @@ class Poller(QtCore.QThread):
             h.roi_curves[region_name] = {}
         soma_rois = h_measurement.findvar('soma_rois')
         roi_centers = h_measurement.findvar('roi_centers')
-        roi_curves= h_measurement.findvar('roi_curve_images')
-        if hasattr(roi_curves, 'shape'):
-            roi_curves = [roi_curves]
+        roi_curve_images = h_measurement.findvar('roi_curve_images')
+        if hasattr(roi_curve_images, 'shape'):
+            roi_curve_images = [roi_curve_images]
+        roi_curves= h_measurement.findvar('roi_curves')
         depth = int(h_measurement.findvar('position')['z'][0])
         stimulus = h_measurement.findvar('stimulus_class')
         if soma_rois is None or len(soma_rois) == 0:
@@ -716,7 +726,8 @@ class Poller(QtCore.QThread):
             h.cells[region_name][cell_id]['group'] = ''
             h.cells[region_name][cell_id]['add_date'] = utils.datetime_string().replace('_', ' ')
             h.cells[region_name][cell_id]['stimulus'] = stimulus
-            h.roi_curves[region_name][cell_id] = roi_curves[i]
+            h.cells[region_name][cell_id]['roi_curve'] = roi_curves[i]
+            h.roi_curves[region_name][cell_id] = roi_curve_images[i]
             
         h_measurement.close()
         #Save changes
@@ -730,7 +741,6 @@ class Poller(QtCore.QThread):
             self.parent.update_cell_list(copy.deepcopy(h.cells))
             self.parent.update_cell_filter_list()
             self.parent.update_jobhandler_process_status(scan_regions)
-#            self.update_cell_group_combobox()
         
     def set_process_status_flag(self, id, flag_names):
         scan_regions, region_name, h, measurement_file_path, depth = self.read_scan_regions(id)
@@ -1231,10 +1241,8 @@ class Poller(QtCore.QThread):
             return
         if self.xy_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
             self.printc('Brain surface image averaging is only {0}, set it to {1}' .format(self.xy_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
-            return
         if hasattr(self, 'xz_scan') and self.xz_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
             self.printc('Number of frames is only {0}, set it to {1}' .format(self.xz_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
-            return
         if not (os.path.exists(self.mouse_file) and '.hdf5' in self.mouse_file):
             self.printc('mouse file not found')
             return

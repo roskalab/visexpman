@@ -29,10 +29,10 @@ import visexpA.engine.datahandlers.hdf5io as hdf5io
 import visexpA.engine.datahandlers.importers as importers
 
 class ExperimentControl(object):
-    
+
     def __init__(self, config, application_log):
         '''
-        
+
         '''
         self.application_log = application_log
         self.config = config
@@ -52,7 +52,7 @@ class ExperimentControl(object):
             self.scan_mode = self.parameters['scan_mode']
         else:
             self.scan_mode = 'xy'
-                
+
     def run_experiment(self, context):
         message_to_screen = ''
         if hasattr(self, 'objective_positions'):
@@ -115,7 +115,7 @@ class ExperimentControl(object):
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'
         self.application_log.flush()
         return message_to_screen
-        
+
     def _prepare_experiment(self, context):
         message_to_screen = ''
         self.frame_counter = 0
@@ -171,9 +171,13 @@ class ExperimentControl(object):
                                     objective_origin = self.objective_origin, 
                                     z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], 
                                     merge_distance = merge_distance)
+                    #Pack xz scan config
+                    self.xz_scan_config = copy.deepcopy(self.config.XZ_SCAN_CONFIG)
+                    if self.parameters.has_key('xz_line_length'):
+                        self.xz_scan_config['LINE_LENGTH'] = float(self.parameters['xz_line_length'])
         self._prepare_files()
         return message_to_screen 
-        
+
     def _finish_experiment(self):
         self._finish_data_fragments()
         #Set back laser
@@ -194,6 +198,9 @@ class ExperimentControl(object):
         self.stimulus_frame_info_pointer = 0
         self.frame_counter = 0
         self.stimulus_frame_info = []
+        if self.config.PLATFORM == 'mes':
+            if not self._pre_post_experiment_scan(is_pre=True):
+                return False
         # Start ai recording
         self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time)
         if self.analog_input.start_daq_activity():
@@ -203,23 +210,17 @@ class ExperimentControl(object):
             self.printl('Fragment duration is {0} s'.format(int(mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
             #start two photon recording
-            if self.scan_mode == 'xyz' and hasattr(self, 'roi_locations'):
+            if self.scan_mode == 'xyz':
                 scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
                                                                                       parameter_file = self.filenames['mes_fragments'][fragment_id], 
                                                                                       scan_time = mes_record_time)
             else:
                 if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
                     #Before starting scan, set xz lines
-                    xz_scan_config = copy.deepcopy(self.config.XZ_SCAN_CONFIG)
-                    if self.parameters.has_key('xz_line_length'):
-                        xz_scan_config['LINE_LENGTH'] = float(self.parameters['xz_line_length'])
-                    if self.parameters.has_key('z_resolution'):
-                        xz_scan_config['Z_RESOLUTION'] = float(self.parameters['z_resolution'])
-                        xz_scan_config['Z_PIXEL_SIZE'] = int(float(xz_scan_config['Z_RANGE'])/xz_scan_config['Z_RESOLUTION'])#Always 100 um depth is used
                     if self.roi_locations is None:
                         self.printl('No ROIs found')
                         return False
-                    if not self.mes_interface.create_XZline_from_points(self.roi_locations, xz_scan_config):
+                    if not self.mes_interface.create_XZline_from_points(self.roi_locations, self.xz_scan_config):
                         self.printl('Creating XZ lines did not succeed')
                         return False
                     else:
@@ -238,7 +239,7 @@ class ExperimentControl(object):
         elif self.config.PLATFORM == 'standalone':
             return True
         return False
-        
+
     def _stop_data_acquisition(self, fragment_id):
         '''
         Stops data acquisition processes:
@@ -269,7 +270,7 @@ class ExperimentControl(object):
         if self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
             self.printl('Analog acquisition finished')
         return data_acquisition_stop_success
-        
+
     def _finish_fragment(self, fragment_id):
         result = True
         aborted = False
@@ -291,6 +292,9 @@ class ExperimentControl(object):
             else:
                 pass
             if not aborted and result:
+                if self.config.PLATFORM == 'mes':
+                    if not self._pre_post_experiment_scan(is_pre=False):
+                        return False
                 self._save_fragment_data(fragment_id)
                 if self.config.PLATFORM == 'mes':
                     for i in range(5):#Workaround for the temporary failure of queue.put().
@@ -307,9 +311,9 @@ class ExperimentControl(object):
         if not aborted:
             self.finished_fragment_index = fragment_id
         return result
-    
+
      ############### Devices ##################
-     
+
     def _initialize_devices(self):
         '''
         All the devices are initialized here, that allow rerun like operations
@@ -342,7 +346,7 @@ class ExperimentControl(object):
         self._generate_filenames()
         self._create_files()
         self.stimulus_frame_info_pointer = 0
-        
+
     def _generate_filenames(self):
         ''''
         Generates the necessary filenames for the experiment. The following files are generated during an experiment:
@@ -351,7 +355,7 @@ class ExperimentControl(object):
             source code
             module versions
             experiment log
-            
+
         Fragment file name formats:
         1) mes/hdf5: experiment_name_timestamp_fragment_id
         2) elphys/mat: experiment_name_fragment_id_index
@@ -447,6 +451,10 @@ class ExperimentControl(object):
                     data_to_file['rois'] = self.rois
                 if hasattr(self, 'roi_locations'):
                     data_to_file['roi_locations'] = self.roi_locations
+                if hasattr(self, 'static_red_green_channel_image'):
+                    data_to_file['static_red_green_channel_image'] = self.static_red_green_channel_image
+                if hasattr(self, 'scanner_trajectory'):
+                    data_to_file['scanner_trajectory'] = self.scanner_trajectory
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             stimulus_frame_info = stimulus_frame_info_with_data_series_index
         data_to_file['stimulus_frame_info'] = stimulus_frame_info
@@ -454,9 +462,8 @@ class ExperimentControl(object):
         if self.config.PLATFORM == 'mes':
             if hasattr(self, 'laser_intensity'):
                 data_to_file['laser_intensity'] = self.laser_intensity
-            
         return data_to_file
-            
+
     def _save_fragment_data(self, fragment_id):
         data_to_file = self._prepare_fragment_data(fragment_id)
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
@@ -506,15 +513,54 @@ class ExperimentControl(object):
         software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
         zipfile_handler.close()
         return software_environment
-        
-    def _load_xy_scan_parameter_file(self, context, fragment_path):
+
+    def _pre_post_experiment_scan(self, is_pre):
         '''
-        Not tested, might not be necessary
+        Performs a short scans before and after experiment to save scanner signals and/or red channel static image
         '''
+        initial_mes_line_scan_settings_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'initial_mes_line_scan_settings.mat'))
+        xy_static_scan_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_red_green_channel_xy.mat'))
+        scanner_trajectory_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_scanner_signals.mat'))
+        #Save initial line scan settings
+        result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters(parameter_file = initial_mes_line_scan_settings_filename)
+        if not result:
+            self.printl('Saving initial line scan parameter was NOT successful. Please check MES-STIM connection')
+            return False
+        #Measure red channel
+        self.printl('Recording red and green channel')
         if hasattr(self, 'scan_region'):
-            scan_parameter_file_binary = scan_region['xy_scan_parameters']
-            scan_parameter_file_binary.tofile(fragment_path)
-            
+            self.scan_region['xy_scan_parameters'].tofile(xy_static_scan_filename)
+        result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,
+                                                                           scan_mode='xy', channels=['pmtUGraw'])#,'pmtURraw'])
+        if not result:
+            self.printl('Recording red and green channel was NOT successful')
+            return False
+        if not hasattr(self, 'static_red_green_channel_image'):
+            self.static_red_green_channel_image = {}
+        if is_pre:
+            self.static_red_green_channel_image['pre'] = utils.file_to_binary_array(red_channel_data_filename)
+        else:
+            self.static_red_green_channel_image['post'] = utils.file_to_binary_array(red_channel_data_filename)
+        if self.parameters.has_key('scan_mode') and self.parameters['scan_mode'] == 'xz':
+            #Measure scanner signal
+            self.printl('Recording scanner signals')
+            shutil.copy(initial_mes_line_scan_settings_filename, scanner_trajectory_filename)
+            result, scanner_trajectory_filename = self.mes_interface.line_scan(parameter_file = scanner_trajectory_filename, scan_time=2.0,
+                                                                               scan_mode='xz', channels=['ScX', 'ScY'], autozigzag = False)
+            if not result:
+                self.printl('Recording scanner signals was NOT successful')
+                return False
+            if not hasattr(self, 'scanner_trajectory'):
+                self.scanner_trajectory = {}
+            if is_pre:
+                self.scanner_trajectory['pre'] = utils.file_to_binary_array(scanner_trajectory_filename)
+            else:
+                self.scanner_trajectory['post'] = utils.file_to_binary_array(scanner_trajectory_filename)
+            os.remove(scanner_trajectory_filename)
+        os.remove(initial_mes_line_scan_settings_filename)
+        os.remove(xy_static_scan_filename)
+        return True
+
     ############### Helpers ##################
     def _get_elapsed_time(self):
         return time.time() - self.start_time
