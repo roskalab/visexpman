@@ -58,9 +58,9 @@ def find_files_and_folders(start_path,  extension = None, filter = None):
 def getziphandler(zipstream):
     '''convenience wrapper that returns the zipreader object for both a byte array and a string containing 
     the filename of the zip file'''
-    import StringIO,  zipfile
+    import cStringIO,  zipfile
     if hasattr(zipstream, 'data'):
-        sstream = StringIO.StringIO(zipstream.data) # zipfile as byte stream
+        sstream = cStringIO.StringIO(zipstream.data) # zipfile as byte stream
     else:
         sstream = zipstream #filename
     return zipfile.ZipFile(sstream)
@@ -252,6 +252,7 @@ def parse_fragment_filename(path):
     fields['id'] = filename[-2]
     fields['fragment_id'] = filename[-1]
     return fields
+
 
 import unittest
 class TestUtils(unittest.TestCase):
