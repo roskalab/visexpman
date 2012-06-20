@@ -81,6 +81,7 @@ class VisionExperimentGui(QtGui.QWidget):
         experiment_config_names = []
         for experiment_config in experiment_config_list:
             experiment_config_names.append(experiment_config[1].__name__)
+        experiment_config_names.sort()
         self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
         self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index('ShortMovingGratingConfig'))
         
@@ -134,6 +135,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.roi_widget.show_selected_soma_rois_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
         self.connect(self.roi_widget.show_current_soma_roi_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
         self.connect(self.roi_widget.show_selected_roi_centers_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
+        self.connect(self.roi_widget.cell_group_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_group_changed)
+        
                 
         #Network debugger tools
         self.connect_and_map_signal(self.helpers_widget.show_connected_clients_button, 'show_connected_clients')
@@ -196,6 +199,9 @@ class VisionExperimentGui(QtGui.QWidget):
     def show_soma_roi_checkbox_changed(self):
         self.update_meanimage()
         
+    def cell_group_changed(self):
+        self.update_meanimage()
+        
     def mouse_file_changed(self):
         #Update mouse file path and animal parameters
         self.poller.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
@@ -212,6 +218,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_scan_regions()
         self.update_jobhandler_process_status(self.poller.scan_regions)
         self.update_cell_list()
+        self.update_file_id_combobox(self.poller.scan_regions)
         
     def select_cell_changed(self):
         self.update_roi_curves_display()
@@ -303,7 +310,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 
     def update_file_id_combobox(self, scan_regions):
         region_name = self.get_current_region_name()
-        if scan_regions.has_key(region_name):
+        if scan_regions.has_key(region_name) and scan_regions[region_name].has_key('process_status'):
             ids = scan_regions[region_name]['process_status'].keys()
             ids.sort()
             self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,ids)
@@ -349,7 +356,6 @@ class VisionExperimentGui(QtGui.QWidget):
         region_name = self.get_current_region_name()
         if utils.safe_has_key(self.poller.cells, region_name):
             self.poller.cell_ids = self.poller.cells[region_name].keys()
-            self.poller.cell_ids.sort()
             filter = str(self.roi_widget.cell_filter_combobox.currentText())
             filtername = str(self.roi_widget.cell_filter_name_combobox.currentText())
             if filtername != 'No filter':
@@ -358,6 +364,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 else:
                     key_name = filtername
                 self.poller.cell_ids = [cell_id for cell_id, cell in self.poller.cells[region_name].items() if filter in str(cell[key_name])]
+            self.poller.cell_ids.sort()
             self.update_combo_box_list(self.roi_widget.select_cell_combobox,self.poller.cell_ids)
             
     def update_cell_filter_list(self):
@@ -388,9 +395,13 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_combo_box_list(self.roi_widget.cell_group_combobox, cell_groups)
             
     def update_meanimage(self):
-        measurement_id = self.get_current_cell_id().split('_')[-1]
+        measurement_id = self.get_current_cell_id().split('_')
+        if len(measurement_id) < 2:
+            return
+        else:
+            measurement_id = measurement_id[1]
         region_name = self.get_current_region_name()
-        if utils.safe_has_key(self.poller.images, measurement_id) and utils.safe_has_key(self.poller.cells, region_name) and self.main_tab.currentIndex() == 1:
+        if hasattr(self.poller, 'images') and utils.safe_has_key(self.poller.images, measurement_id) and utils.safe_has_key(self.poller.cells, region_name) and self.main_tab.currentIndex() == 1:
             cell_group = self.get_current_cell_group()
             image_record = self.poller.images[measurement_id]
             scale = utils.cr(utils.nd(image_record['scale'])[0])
@@ -406,7 +417,8 @@ class VisionExperimentGui(QtGui.QWidget):
             if self.roi_widget.show_current_soma_roi_checkbox.checkState() != 0:
                 soma_rois_to_display.append(self.poller.cells[region_name][self.get_current_cell_id()]['soma_roi'])
             meanimage = imaged.draw_on_meanimage(image_record['meanimage'], origin, scale, soma_rois = soma_rois_to_display, used_rois = cells_to_display)
-            self.show_image(meanimage, 1, scale, origin = origin)
+            import scipy.ndimage
+            self.show_image(scipy.ndimage.rotate(meanimage,-90), 1, scale, origin = origin)
 
     def update_roi_curves_display(self):
         region_name = self.get_current_region_name()

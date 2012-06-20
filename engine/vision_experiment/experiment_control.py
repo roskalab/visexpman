@@ -206,14 +206,14 @@ class ExperimentControl(object):
         if self.analog_input.start_daq_activity():
             self.printl('Analog signal recording started')
         if self.config.PLATFORM == 'mes':
-            mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
-            self.printl('Fragment duration is {0} s'.format(int(mes_record_time)))
+            self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
+            self.printl('Fragment duration is {0} s'.format(int(self.mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
             #start two photon recording
             if self.scan_mode == 'xyz':
                 scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
                                                                                       parameter_file = self.filenames['mes_fragments'][fragment_id], 
-                                                                                      scan_time = mes_record_time)
+                                                                                      scan_time = self.mes_record_time)
             else:
                 if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
                     #Before starting scan, set xz lines
@@ -225,7 +225,7 @@ class ExperimentControl(object):
                         return False
                     else:
                         self.printl('{0} xz lines created' .format(len(self.roi_locations)))
-                scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = mes_record_time, 
+                scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                     parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
             if scan_start_success:
                 time.sleep(1.0)
@@ -293,8 +293,9 @@ class ExperimentControl(object):
                 pass
             if not aborted and result:
                 if self.config.PLATFORM == 'mes':
-                    if not self._pre_post_experiment_scan(is_pre=False):
-                        return False
+                    if self.mes_record_time > 30.0:
+                        if not self._pre_post_experiment_scan(is_pre=False):
+                            return False
                 self._save_fragment_data(fragment_id)
                 if self.config.PLATFORM == 'mes':
                     for i in range(5):#Workaround for the temporary failure of queue.put().
@@ -534,7 +535,7 @@ class ExperimentControl(object):
         if hasattr(self, 'scan_region'):
             self.scan_region['xy_scan_parameters'].tofile(xy_static_scan_filename)
         result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,
-                                                                           scan_mode='xy', channels=['pmtUGraw'])#,'pmtURraw'])
+                                                                           scan_mode='xy', channels=['pmtUGraw','pmtURraw'])
         if not result:
             self.printl('Recording red and green channel was NOT successful')
             return False
@@ -549,7 +550,7 @@ class ExperimentControl(object):
             self.printl('Recording scanner signals')
             shutil.copy(initial_mes_line_scan_settings_filename, scanner_trajectory_filename)
             result, scanner_trajectory_filename = self.mes_interface.line_scan(parameter_file = scanner_trajectory_filename, scan_time=2.0,
-                                                                               scan_mode='xz', channels=['ScX', 'ScY'], autozigzag = False)
+                                                                               scan_mode='xz', channels=['pmtURraw','ScX', 'ScY'], autozigzag = False)
             if not result:
                 self.printl('Recording scanner signals was NOT successful')
                 return False

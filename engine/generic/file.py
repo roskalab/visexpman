@@ -8,7 +8,7 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
         folder = config.EXPERIMENT_DATA_PATH
     else:
         folder = config
-    if isinstance(folder,  str) and os.path.exists(folder ):
+    if isinstance(folder, str) and os.path.exists(folder):
         path = filtered_file_list(folder,  [id, '.'+extension], fullpath = True, filter_condition = 'and')
         if len(path)==0:
             return
@@ -248,6 +248,7 @@ def parse_fragment_filename(path):
         return fields
     filename = filename.split('_')
     fields['scan_mode'] = filename[1]
+    fields['depth'] = filename[-4]
     fields['stimulus_name'] = filename[-3]
     fields['id'] = filename[-2]
     fields['fragment_id'] = filename[-1]
