@@ -81,6 +81,7 @@ class VisionExperimentGui(QtGui.QWidget):
         experiment_config_names = []
         for experiment_config in experiment_config_list:
             experiment_config_names.append(experiment_config[1].__name__)
+        experiment_config_names.sort()
         self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
         self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index('ShortMovingGratingConfig'))
         
@@ -131,7 +132,11 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.roi_widget.cell_filter_name_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_filtername_changed)
         self.connect(self.roi_widget.cell_filter_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_filter_changed)
         self.connect(self.roi_widget.cell_filter_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_filter_changed)
-        self.connect(self.roi_widget.show_soma_roi_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
+        self.connect(self.roi_widget.show_selected_soma_rois_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
+        self.connect(self.roi_widget.show_current_soma_roi_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
+        self.connect(self.roi_widget.show_selected_roi_centers_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
+        self.connect(self.roi_widget.cell_group_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_group_changed)
+        
                 
         #Network debugger tools
         self.connect_and_map_signal(self.helpers_widget.show_connected_clients_button, 'show_connected_clients')
@@ -189,13 +194,13 @@ class VisionExperimentGui(QtGui.QWidget):
         if currentIndex == 0:
             self.update_scan_regions()
         elif currentIndex == 1:
-            measurement_id = self.get_current_cell_id().split('_')[-1]
-            if hasattr(self.poller, 'images') and utils.safe_has_key(self.poller.images, measurement_id):
-                image_record = self.poller.images[measurement_id]
-                self.show_image(image_record['meanimage'], 1, utils.cr(utils.nd(image_record['scale'])[0]), origin = utils.rcd(utils.nd(image_record['origin'])[0]))
+            self.update_meanimage()
 
     def show_soma_roi_checkbox_changed(self):
-        self.update_roi_curves_display()
+        self.update_meanimage()
+        
+    def cell_group_changed(self):
+        self.update_meanimage()
         
     def mouse_file_changed(self):
         #Update mouse file path and animal parameters
@@ -213,9 +218,12 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_scan_regions()
         self.update_jobhandler_process_status(self.poller.scan_regions)
         self.update_cell_list()
+        self.update_file_id_combobox(self.poller.scan_regions)
         
     def select_cell_changed(self):
         self.update_roi_curves_display()
+        self.update_meanimage()
+        self.update_cell_group_combobox()
         #display cell status
         region_name = self.get_current_region_name()
         cell_id = self.get_current_cell_id()
@@ -302,7 +310,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 
     def update_file_id_combobox(self, scan_regions):
         region_name = self.get_current_region_name()
-        if scan_regions.has_key(region_name):
+        if scan_regions.has_key(region_name) and scan_regions[region_name].has_key('process_status'):
             ids = scan_regions[region_name]['process_status'].keys()
             ids.sort()
             self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,ids)
@@ -348,7 +356,6 @@ class VisionExperimentGui(QtGui.QWidget):
         region_name = self.get_current_region_name()
         if utils.safe_has_key(self.poller.cells, region_name):
             self.poller.cell_ids = self.poller.cells[region_name].keys()
-            self.poller.cell_ids.sort()
             filter = str(self.roi_widget.cell_filter_combobox.currentText())
             filtername = str(self.roi_widget.cell_filter_name_combobox.currentText())
             if filtername != 'No filter':
@@ -357,6 +364,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 else:
                     key_name = filtername
                 self.poller.cell_ids = [cell_id for cell_id, cell in self.poller.cells[region_name].items() if filter in str(cell[key_name])]
+            self.poller.cell_ids.sort()
             self.update_combo_box_list(self.roi_widget.select_cell_combobox,self.poller.cell_ids)
             
     def update_cell_filter_list(self):
@@ -385,13 +393,40 @@ class VisionExperimentGui(QtGui.QWidget):
                 if cell_info['accepted'] and not cell_info['group'] in cell_groups and cell_info['group'] != '':
                     cell_groups.append(cell_info['group'])
             self.update_combo_box_list(self.roi_widget.cell_group_combobox, cell_groups)
+            
+    def update_meanimage(self):
+        measurement_id = self.get_current_cell_id().split('_')
+        if len(measurement_id) < 2:
+            return
+        else:
+            measurement_id = measurement_id[1]
+        region_name = self.get_current_region_name()
+        if hasattr(self.poller, 'images') and utils.safe_has_key(self.poller.images, measurement_id) and utils.safe_has_key(self.poller.cells, region_name) and self.main_tab.currentIndex() == 1:
+            cell_group = self.get_current_cell_group()
+            image_record = self.poller.images[measurement_id]
+            scale = utils.cr(utils.nd(image_record['scale'])[0])
+            origin = utils.rcd(utils.nd(image_record['origin'])[0])
+            cells_to_display = []
+            soma_rois_to_display = []
+            for cell_i in self.poller.cells[region_name].values():
+                if cell_i['group'] == cell_group and cell_i['accepted']:
+                    if self.roi_widget.show_selected_roi_centers_checkbox.checkState() != 0:
+                        cells_to_display.append(cell_i['roi_center'])
+                    if self.roi_widget.show_selected_soma_rois_checkbox.checkState() != 0:
+                        soma_rois_to_display.append(cell_i['soma_roi'])
+            if self.roi_widget.show_current_soma_roi_checkbox.checkState() != 0:
+                soma_rois_to_display.append(self.poller.cells[region_name][self.get_current_cell_id()]['soma_roi'])
+            meanimage = imaged.draw_on_meanimage(image_record['meanimage'], origin, scale, soma_rois = soma_rois_to_display, used_rois = cells_to_display)
+            import scipy.ndimage
+            self.show_image(scipy.ndimage.rotate(meanimage,-90), 1, scale, origin = origin)
 
     def update_roi_curves_display(self):
         region_name = self.get_current_region_name()
         cell_id = self.get_current_cell_id()
         if cell_id != '':
-            roi_curve = hdf5io.read_item(self.poller.fetch_backup_mouse_file_path(), 'roi_curves')[region_name][cell_id]
-            if utils.safe_has_key(self.poller.cells, region_name):
+            roi_curve = hdf5io.read_item(self.poller.fetch_backup_mouse_file_path(), 'roi_curves')
+            if utils.safe_has_key(self.poller.cells, region_name) and utils.safe_has_key(roi_curve, region_name):
+                roi_curve = roi_curve[region_name][cell_id]
                 cells = self.poller.cells[region_name]
                 if cells.has_key(cell_id):
                     cell = cells[cell_id]#for some reason h.findvar(cell_id,path = 'root.cells.'+region_name) does not work
@@ -403,25 +438,6 @@ class VisionExperimentGui(QtGui.QWidget):
                         #draw on image
                         if not cell['accepted']:
                             roi_curve_image = numpy.where(roi_curve_image == 255,  210, roi_curve_image)
-                        #Draw mean images and put selected rois on it
-                        if hasattr(self.poller, 'images') and self.poller.images.has_key(cell['id']):
-                            scale = self.poller.images[cell['id']]['scale']
-                            origin = self.poller.images[cell['id']]['origin']
-                            cell_group = self.get_current_cell_group()
-                            cells_to_display = []
-                            soma_rois_to_display = []
-                            for cell_i in self.poller.cells[region_name].values():
-                                if cell_i['group'] == cell_group and cell_i['accepted']:
-                                    cells_to_display.append(cell_i['roi_center'])
-                                    soma_rois_to_display.append(cell_i['soma_roi'])
-                            if len(soma_rois_to_display)>0:
-                                if self.roi_widget.show_soma_roi_checkbox.checkState() != 0:
-                                    cells_to_display = None
-                                else:
-                                    soma_rois_to_display = None
-                                meanimage = imaged.draw_on_meanimage(self.poller.images[cell['id']]['meanimage'], origin, scale, soma_rois = soma_rois_to_display, 
-                                                                 used_rois = cells_to_display)
-                                roi_curve_image[-meanimage.shape[0]:,-meanimage.shape[1]:,:] = meanimage
                         self.show_image(roi_curve_image, 'roi_curve', utils.rc((1, 1)))
 
     def show_image(self, image, channel, scale, line = [], origin = None):

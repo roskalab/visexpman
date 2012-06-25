@@ -94,7 +94,7 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
     data_node_name =  os.path.split(path)[-1].replace('.hdf5', '').split('_')
     data_node_name = data_node_name[-3:]
     data_node_name = string.join(data_node_name).replace(' ', '_')
-    expected_top_level_nodes = ['experiment_config', 'machine_config', 'call_parameters']
+    expected_top_level_nodes = ['call_parameters']
     expected_top_level_nodes.append('position')
     expected_top_level_nodes.append(data_node_name)
     import time
@@ -132,7 +132,8 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
                 messages.append('unexpected data type in {0}'.format(node_name))
         elif node_name == expected_top_level_nodes[-1]:
             expected_subnodes = ['rising_edges_indexes', 'number_of_fragments', 'stimulus_frame_info', 'generated_data', \
-        'sync_data', 'actual_fragment',  'current_fragment', 'experiment_source', 'experiment_log', 'software_environment']#, 'laser_intensity']
+        'sync_data', 'actual_fragment',  'current_fragment', 'experiment_source', 'experiment_log', 'software_environment', \
+        'laser_intensity', 'static_red_green_channel_image', 'experiment_config', 'machine_config']
             if not hasattr(node,  'has_key'):
                 result = False
                 messages.append('unexpected data type in {0}'.format(node_name))

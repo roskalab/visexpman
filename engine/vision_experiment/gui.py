@@ -8,6 +8,7 @@ import os
 import os.path
 import webbrowser
 import copy
+import traceback
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -303,8 +304,14 @@ class RoiWidget(QtGui.QWidget):
         self.cell_filter_name_combobox = QtGui.QComboBox(self)
         self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'id', 'date', 'stimulus']))
         self.cell_filter_combobox = QtGui.QComboBox(self)
-        self.show_soma_roi_label = QtGui.QLabel('Show soma roi',  self)
-        self.show_soma_roi_checkbox = QtGui.QCheckBox(self)
+        self.show_current_soma_roi_label = QtGui.QLabel('Show current soma roi',  self)
+        self.show_current_soma_roi_checkbox = QtGui.QCheckBox(self)
+        self.show_current_soma_roi_checkbox.setCheckState(2)
+        self.show_selected_soma_rois_label = QtGui.QLabel('Show selected soma rois',  self)
+        self.show_selected_soma_rois_checkbox = QtGui.QCheckBox(self)
+        self.show_selected_roi_centers_label = QtGui.QLabel('Show selected roi centers',  self)
+        self.show_selected_roi_centers_checkbox = QtGui.QCheckBox(self)
+        self.show_selected_roi_centers_checkbox.setCheckState(2)
         self.xz_line_length_label = QtGui.QLabel('XZ line length',  self)
         self.xz_line_length_combobox = QtGui.QComboBox(self)
         self.xz_line_length_combobox.setEditable(True)
@@ -319,19 +326,22 @@ class RoiWidget(QtGui.QWidget):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.roi_info_image_display, 0, 0, 1, 13)
         self.layout.addWidget(self.select_cell_label, 1, 0)
-        self.layout.addWidget(self.select_cell_combobox, 1, 1, 1, 2)
-        self.layout.addWidget(self.cell_id_display_label, 1, 3, 1, 2)
+        self.layout.addWidget(self.select_cell_combobox, 1, 1, 1, 3)
+        self.layout.addWidget(self.cell_id_display_label, 1, 4, 1, 2)
         self.layout.addWidget(self.previous_button, 1, 5)
         self.layout.addWidget(self.accept_cell_button, 1, 6)
         self.layout.addWidget(self.ignore_cell_button, 1, 7)
         self.layout.addWidget(self.next_button, 1, 8)
         self.layout.addWidget(self.cell_group_label, 1, 9)
         self.layout.addWidget(self.cell_group_edit_combobox, 1, 10, 1, 2)
-        self.layout.addWidget(self.cell_filter_name_combobox, 2, 0, 1, 2)
-        self.layout.addWidget(self.cell_filter_combobox, 2, 2, 1, 2)
-        self.layout.addWidget(self.show_soma_roi_label, 2, 4, 1, 2)
-        self.layout.addWidget(self.show_soma_roi_checkbox, 2, 5, 1, 1)
-        self.layout.addWidget(self.xy_scan_button, 2, 6, 1, 1)
+        self.layout.addWidget(self.cell_filter_name_combobox, 2, 0, 1, 1)
+        self.layout.addWidget(self.cell_filter_combobox, 2, 1, 1, 2)
+        self.layout.addWidget(self.show_current_soma_roi_label, 2, 4)
+        self.layout.addWidget(self.show_current_soma_roi_checkbox, 2, 5)
+        self.layout.addWidget(self.show_selected_soma_rois_label, 2, 6)
+        self.layout.addWidget(self.show_selected_soma_rois_checkbox, 2, 7)
+        self.layout.addWidget(self.show_selected_roi_centers_label, 2, 8)
+        self.layout.addWidget(self.show_selected_roi_centers_checkbox, 2, 9)
         
         self.layout.addWidget(self.create_xz_lines_button, 3, 0, 1, 1)
         self.layout.addWidget(self.cell_group_combobox, 3, 1, 1, 1)
@@ -339,7 +349,8 @@ class RoiWidget(QtGui.QWidget):
         self.layout.addWidget(self.xz_line_length_combobox, 3, 3, 1, 1)
         self.layout.addWidget(self.cell_merge_distance_label, 3, 4, 1, 1)
         self.layout.addWidget(self.cell_merge_distance_combobox, 3, 5, 1, 1)
-        
+        self.layout.addWidget(self.xy_scan_button, 3, 6, 1, 1)
+
         self.layout.setRowStretch(3, 3)
         self.layout.setColumnStretch(15, 15)
         self.setLayout(self.layout)
@@ -647,8 +658,8 @@ class Poller(QtCore.QThread):
                             tag = 'jobhandler'
                         else:
                             tag = parameter
-                        self.backup_mouse_file(tag = tag)
-                        self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCEOP')
+                        if self.backup_mouse_file(tag = tag):
+                            self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
                     else:
                         self.printc(k.upper() + ' '  + message)
 
@@ -674,7 +685,23 @@ class Poller(QtCore.QThread):
             return
         #read cell info from measurement file
         h_measurement = hdf5io.Hdf5io(measurement_file_path)
+        scan_mode = h_measurement.findvar('call_parameters')['scan_mode']
         scan_regions[region_name]['process_status'][id]['find_cells_ready'] = True
+        print scan_mode
+        if scan_mode == 'xz':
+            soma_rois = h_measurement.findvar('soma_rois')
+            if soma_rois is not None:
+                number_of_new_cells = len(soma_rois)
+            else:
+                number_of_new_cells = 0
+            h_measurement.close()
+            #Save changes
+            h.scan_regions = scan_regions
+            h.save(['scan_regions'], overwrite=True)
+            h.close()
+            self.printc('{1} cells found in {0} but not added because it is an xz scan'.format(id, number_of_new_cells))
+            return
+        print 'adding cells'
         h.load('images')
         if not hasattr(h,  'images'):
             h.images = {}
@@ -696,9 +723,10 @@ class Poller(QtCore.QThread):
             h.roi_curves[region_name] = {}
         soma_rois = h_measurement.findvar('soma_rois')
         roi_centers = h_measurement.findvar('roi_centers')
-        roi_curves= h_measurement.findvar('roi_curve_images')
-        if hasattr(roi_curves, 'shape'):
-            roi_curves = [roi_curves]
+        roi_curve_images = h_measurement.findvar('roi_curve_images')
+        if hasattr(roi_curve_images, 'shape'):
+            roi_curve_images = [roi_curve_images]
+        roi_curves= h_measurement.findvar('roi_curves')
         depth = int(h_measurement.findvar('position')['z'][0])
         stimulus = h_measurement.findvar('stimulus_class')
         if soma_rois is None or len(soma_rois) == 0:
@@ -706,7 +734,7 @@ class Poller(QtCore.QThread):
         else:
             number_of_new_cells = len(soma_rois)
         for i in range(number_of_new_cells):
-            cell_id = ('{0}_{1:2}_{2}_{3}'.format(depth, i, stimulus, id)).replace(' ', '0')
+            cell_id = ('{0}_{1}_{2:2}_{3}'.format(depth, id,  i, stimulus)).replace(' ', '0')
             h.cells[region_name][cell_id] = {}
             h.cells[region_name][cell_id]['depth'] = depth
             h.cells[region_name][cell_id]['id'] = id
@@ -716,8 +744,8 @@ class Poller(QtCore.QThread):
             h.cells[region_name][cell_id]['group'] = ''
             h.cells[region_name][cell_id]['add_date'] = utils.datetime_string().replace('_', ' ')
             h.cells[region_name][cell_id]['stimulus'] = stimulus
-            h.roi_curves[region_name][cell_id] = roi_curves[i]
-            
+            h.cells[region_name][cell_id]['roi_curve'] = roi_curves[i]
+            h.roi_curves[region_name][cell_id] = roi_curve_images[i]
         h_measurement.close()
         #Save changes
         h.scan_regions = scan_regions
@@ -730,7 +758,6 @@ class Poller(QtCore.QThread):
             self.parent.update_cell_list(copy.deepcopy(h.cells))
             self.parent.update_cell_filter_list()
             self.parent.update_jobhandler_process_status(scan_regions)
-#            self.update_cell_group_combobox()
         
     def set_process_status_flag(self, id, flag_names):
         scan_regions, region_name, h, measurement_file_path, depth = self.read_scan_regions(id)
@@ -772,7 +799,7 @@ class Poller(QtCore.QThread):
         measurement_file_path = file.get_measurement_file_path_from_id(id, self.config)
         if measurement_file_path is None or not os.path.exists(measurement_file_path):
             self.printc('Measurement file not found: {0}, {1}' .format(measurement_file_path,  id))
-            return 4*[None]
+            return 5*[None]
         fromfile = hdf5io.read_item(measurement_file_path, ['call_parameters', 'position'])
         call_parameters = fromfile[0]
         depth = fromfile[1]['z'][0]
@@ -780,13 +807,13 @@ class Poller(QtCore.QThread):
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
         if not os.path.exists(mouse_file):
             self.printc('Mouse file ({0}) assigned to measurement ({1}) is missing' .format(mouse_file,  id))
-            return 4*[None]
+            return 5*[None]
         h = hdf5io.Hdf5io(mouse_file)
         scan_regions = h.findvar('scan_regions')
         if scan_regions[call_parameters['region_name']].has_key(id):
             self.printc('ID already exists: {0}'.format(id))
             h.close()
-            return 4*[None]
+            return 5*[None]
         return scan_regions, call_parameters['region_name'], h, measurement_file_path, depth
  
     def rebuild_cell_database(self):
@@ -814,6 +841,7 @@ class Poller(QtCore.QThread):
         self.cells = {}
         
     def remove_measurement_file_from_database(self, id_to_remove = None, process_status_update = False):
+        self.printc('Removing measurement id...')
         if id_to_remove is None:
             id_to_remove = self.parent.get_current_file_id()
         region_name = self.parent.get_current_region_name()
@@ -846,6 +874,7 @@ class Poller(QtCore.QThread):
             return h
         
     def set_measurement_file_process_state(self):
+        self.printc('Setting state of measurement id...')
         selected_id = self.parent.get_current_file_id()
         target_state = str(self.parent.main_widget.measurement_datafile_status_groupbox.set_to_state_combobox.currentText())
         region_name = self.parent.get_current_region_name()
@@ -870,7 +899,9 @@ class Poller(QtCore.QThread):
         self.backup_mouse_file()
         self.parent.update_jobhandler_process_status(scan_regions)
         self.parent.update_file_id_combobox(scan_regions)
+        self.queues['analysis']['out'].put('SOCclear_joblistEOCEOP')
         self.printc('Measurement file status is updated')
+        
 
     def next_cell(self):
         current_index = self.parent.roi_widget.select_cell_combobox.currentIndex()
@@ -916,6 +947,7 @@ class Poller(QtCore.QThread):
             
     ############## Analysis ########################
     def set_mouse_file(self):
+        return
         self.printc('Mouse file sent to jobhandler')
         self.queues['analysis']['out'].put('SOCset_mouse_fileEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
                                            
@@ -1231,10 +1263,8 @@ class Poller(QtCore.QThread):
             return
         if self.xy_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
             self.printc('Brain surface image averaging is only {0}, set it to {1}' .format(self.xy_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
-            return
         if hasattr(self, 'xz_scan') and self.xz_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
             self.printc('Number of frames is only {0}, set it to {1}' .format(self.xz_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
-            return
         if not (os.path.exists(self.mouse_file) and '.hdf5' in self.mouse_file):
             self.printc('mouse file not found')
             return
@@ -1324,7 +1354,7 @@ class Poller(QtCore.QThread):
         hdf5_handler.close()
         self.backup_mouse_file()
         self.parent.update_region_names_combobox(region_name)
-        self.update_scan_regions()
+        self.update_scan_regions()#This is probably redundant
         self.printc('{0} scan region saved'.format(region_name))
 
     def remove_scan_region(self):
@@ -1762,13 +1792,23 @@ class Poller(QtCore.QThread):
             
     ############# Helpers #############
     def backup_mouse_file(self, mouse_file = None, tag = None):
+        result = False
         if mouse_file is None:
             mouse_file = self.mouse_file
         if tag is None:
             tag = 'copy'
         copy_path = mouse_file.replace('.hdf5', '_' +tag+'.hdf5')
-        shutil.copyfile(mouse_file, copy_path)
+        try:
+            if os.path.exists(mouse_file) and os.path.isfile(mouse_file):
+                shutil.copyfile(mouse_file, copy_path)
+                print 'Trying to open copied hdf5 file'
+                h = hdf5io.Hdf5io(copy_path)#Does not help either
+                h.close()
+                result = True
+        except:
+            self.printc(traceback.format_exc())
         time.sleep(0.2)#Wait to make sure that file is completely copied
+        return result
         
     def create_parameterfile_from_region_info(self, parameter_file_path, scan_type):
         selected_region = self.parent.get_current_region_name()
@@ -1854,17 +1894,6 @@ class Poller(QtCore.QThread):
             return mouse_file_copy
         else:
             return self.mouse_file
-        
-    
-
-# Test cases:
-# 1. move stage - set stage origin - including read stage
-# 2. set / read objective
-# 3. acquire z stack
-# 4. add region with vertical scan test
-# 5. move to region, register and realign
-# 6. vertical realign
-
 
 if __name__ == '__main__':
     pass
