@@ -204,7 +204,6 @@ def check_png_hashes(fname,function,*args,**kwargs):
         '''Checks whether the function code and argument hashes exist in the png file and updates them if necessary'''
         import Image 
         from visexpA.engine.dataprocessors.generic import check_before_long_calculation
-        print fname
         fh=None;ah=None
         if os.path.exists(fname):
             oldpng = Image.open(fname)
