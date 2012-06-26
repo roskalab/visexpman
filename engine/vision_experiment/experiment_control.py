@@ -105,9 +105,11 @@ class ExperimentControl(object):
                         break #Do not record further fragments in case of error
             else:
                 self.abort = True
-                if self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
+                if not hasattr(self, 'analog_input') or not hasattr(self.analog_input, 'finish_daq_activity'):
+                    break
+                elif self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
                     self.printl('Analog acquisition finished')
-                break
+                    break
             if self.abort:
                 break
         self._finish_experiment()

@@ -274,6 +274,7 @@ class MesInterface(object):
                                 time.sleep(1.0)
                                 image = matlabfile.read_two_photon_image(two_photon_image_path)
                                 result = True
+                            os.remove(two_photon_image_path)
 #        import Image
 #        im = numpy.cast['uint8'](image['pmtUGraw']/2)
 #        im  = Image.fromarray(im)
@@ -502,7 +503,7 @@ class MesInterface(object):
         if not result:
             return False, {}
         return True, line_scan_path
-        
+
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
         if timeout == -1:
             timeout = self.config.MES_TIMEOUT
