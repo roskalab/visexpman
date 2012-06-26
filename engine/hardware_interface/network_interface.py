@@ -195,7 +195,8 @@ class CommandRelayServer(object):
                 for endpoint, server in connection.items():
                     server.shutdown()
             self.log.queue(self.log_queue)
-        self.log.copy()
+        if hasattr(self, 'log'):
+            self.log.copy()
                 
     def get_debug_info(self, time_format = True):
         debug_info = []
