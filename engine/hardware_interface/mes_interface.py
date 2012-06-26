@@ -503,7 +503,7 @@ class MesInterface(object):
         if not result:
             return False, {}
         return True, line_scan_path
-        
+
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
         if timeout == -1:
             timeout = self.config.MES_TIMEOUT

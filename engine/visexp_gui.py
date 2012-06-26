@@ -95,14 +95,15 @@ class VisionExperimentGui(QtGui.QWidget):
         self.layout.addWidget(self.main_tab, 0, 0, 1, 1)
         self.layout.addWidget(self.common_widget, 1, 0, 1, 1)
         self.layout.addWidget(self.standard_io_widget, 2, 0, 1, 1)
-        self.layout.addWidget(self.image_tab, 0, 1, 3, 1)
+        self.layout.addWidget(self.image_tab, 0, 1, 5, 1)
         self.layout.setRowStretch(3, 3)
         self.layout.setColumnStretch(2, 1)
         self.setLayout(self.layout)
         
     def init_widget_content(self):
         self.update_widgets_when_mouse_file_changed(selected_region = self.poller.last_region_name)
-        self.update_mouse_files_combobox(os.path.split(self.poller.mouse_file)[1])#Ensuring that the filename coming from the last session is set
+        if hasattr(self.poller, 'mouse_file'):
+            self.update_mouse_files_combobox(os.path.split(self.poller.mouse_file)[1])#Ensuring that the filename coming from the last session is set
         if utils.safe_has_key(self.poller.xy_scan, self.config.DEFAULT_PMT_CHANNEL):
             self.show_image(self.poller.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.poller.xy_scan['scale'], origin = self.poller.xy_scan['origin'])
         if utils.safe_has_key(self.poller.xz_scan, 'scaled_image'):
@@ -378,7 +379,7 @@ class VisionExperimentGui(QtGui.QWidget):
 
     def update_cell_list(self):
         region_name = self.get_current_region_name()
-        if utils.safe_has_key(self.poller.cells, region_name):
+        if hasattr(self.poller, 'cells') and utils.safe_has_key(self.poller.cells, region_name):
             self.poller.cell_ids = self.poller.cells[region_name].keys()
             filter = str(self.roi_widget.cell_filter_combobox.currentText())
             filtername = str(self.roi_widget.cell_filter_name_combobox.currentText())
@@ -410,6 +411,7 @@ class VisionExperimentGui(QtGui.QWidget):
                     if value not in filter_values:
                         filter_values.append(value)
             self.update_combo_box_list(self.roi_widget.cell_filter_combobox,filter_values)
+            self.update_cell_list()#This is necessary to update cell list if  'No filter' is selected but reason unknown
             
     def update_cell_group_combobox(self):
         region_name = self.get_current_region_name()
@@ -487,7 +489,7 @@ class VisionExperimentGui(QtGui.QWidget):
         else:
             division = 0
         image_in = {}
-        image_in['image'] = image
+        image_in['image'] = generic_visexpA.normalize(image, outtype=numpy.uint8, std_range = 2)
         image_in['scale'] = scale
         image_in['origin'] = origin
         if channel == 'overview':
@@ -519,7 +521,7 @@ class VisionExperimentGui(QtGui.QWidget):
             
             
     def update_gridlined_images(self):
-        for i in range(2):
+        for i in range(4):
             image_widget = self.images_widget.image_display[i]
             self.show_image(image_widget.raw_image, i, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
         
@@ -658,7 +660,7 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0, 
     out_image[0:image_with_sidebar.shape[0], 0:image_with_sidebar.shape[1], :] = image_with_sidebar
     return out_image
 
-def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 0, 0),  mes = True, gridlines = False):
+def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 0, 0), gridlines = False):
     if frame_size == None:
         frame_size = 0.05 * min(image.shape)
     if not isinstance(scale,  numpy.ndarray) and not isinstance(scale,  numpy.void):
@@ -683,19 +685,13 @@ def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 
     else:
         font = ImageFont.truetype("/usr/share/fonts/truetype/msttcorefonts/arial.ttf", fontsize)
     image_size = utils.cr((image.shape[0]*float(scale['row']), image.shape[1]*float(scale['col'])))
-    if mes:
-        number_of_divisions = int(image_size['row'] / division)
-    else:
-        number_of_divisions = int(image_size['col'] / division)
-    col_labels = numpy.linspace(numpy.round(origin['col'], 1), numpy.round(origin['col'] + number_of_divisions * division, 1), number_of_divisions+1)
-    if mes:
-        number_of_divisions = int(image_size['col'] / division)
-        row_labels = numpy.linspace(numpy.round(origin['row'], 1),  numpy.round(origin['row'] - number_of_divisions * division, 1), number_of_divisions+1)
-    else:
-        number_of_divisions = int(image_size['row'] / division)
-        row_labels = numpy.linspace(origin['row'],  origin['row'] + number_of_divisions * division, number_of_divisions+1)
-    row_labels = numpy.round(row_labels, -1)
-    col_labels = numpy.round(col_labels, -1)
+    number_of_divisions = int(image_size['row'] / division)
+    col_labels = numpy.linspace(origin['col'], origin['col'] + number_of_divisions * division, number_of_divisions+1)
+    col_labels = 10*numpy.floor(0.1 * col_labels)
+    number_of_divisions = int(image_size['col'] / division)
+    row_labels = numpy.linspace(origin['row'], origin['row'] + number_of_divisions * division, number_of_divisions+1)
+    row_labels = 10*numpy.floor(0.1 * row_labels)
+    
     #Overlay labels
     for label in col_labels:
         position = int((label-origin['col'])/scale['col']) + frame_size
@@ -709,10 +705,7 @@ def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 
             draw.line((position,  image_with_frame.shape[0] - int(0.75*frame_size), position,  image_with_frame.shape[0] - frame_size), fill = fill, width = 0)
         
     for label in row_labels:
-        if mes:
-            position = int((-label+origin['row'])/scale['row']) + frame_size
-        else:
-            position = int((label-origin['row'])/scale) + frame_size
+        position = image.shape[0] +frame_size - int((label-origin['row'])/scale['row'])
         draw.text((5, position), str(int(label)), fill = fill, font = font)
         if gridlines:
             draw.line((frame_size, position, image.shape[1]+frame_size, position), fill = fill, width = 0)
