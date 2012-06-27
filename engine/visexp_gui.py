@@ -247,9 +247,12 @@ class VisionExperimentGui(QtGui.QWidget):
                 
     def cell_filtername_changed(self):
         self.update_cell_filter_list()
+        self.update_cell_list()
+        self.update_meanimage()
         
     def cell_filter_changed(self):
         self.update_cell_list()
+        self.update_meanimage()
 
     ################### GUI updaters #################
     def update_widgets_when_mouse_file_changed(self, selected_region=None):
@@ -298,6 +301,7 @@ class VisionExperimentGui(QtGui.QWidget):
         no_scale = utils.rc((1.0, 1.0))
         if utils.safe_has_key(self.poller.scan_regions, selected_region):
             scan_regions = self.poller.scan_regions
+            self.roi_widget.scan_region_name_label.setText('Current scan region is {0}'.format(selected_region))
             line = []
             #Update xz image if exists and collect xy line(s)
             if scan_regions[selected_region].has_key('xz'):

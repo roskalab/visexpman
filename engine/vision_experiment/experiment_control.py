@@ -475,6 +475,7 @@ class ExperimentControl(object):
             #Save experiment calling parameters:
             self.fragment_files[fragment_id].call_parameters = self.parameters
             self.fragment_files[fragment_id].experiment_name = self.experiment_name
+            self.fragment_files[fragment_id].experiment_config_name = self.experiment_config_name
 #            experiment_data.save_config(self.fragment_files[fragment_id], self.config, self.experiment_config)
             #Save stage and objective position
             if self.config.PLATFORM == 'mes':

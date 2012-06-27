@@ -223,7 +223,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.get_xy_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.use_saved_scan_settings_label = QtGui.QLabel('Use saved scan settings', self)
         self.use_saved_scan_settings_settings_checkbox = QtGui.QCheckBox(self)
-        self.add_button = QtGui.QPushButton('Add',  self)
+        self.add_button = QtGui.QPushButton('Add scan region',  self)
         self.scan_regions_combobox = QtGui.QComboBox(self)
         self.scan_regions_combobox.setEditable(True)
         self.remove_button = QtGui.QPushButton('Remove',  self)
@@ -286,6 +286,7 @@ class RoiWidget(QtGui.QWidget):
         self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
         
     def create_widgets(self):
+        self.scan_region_name_label = QtGui.QLabel()
         self.roi_info_image_display = QtGui.QLabel()
         blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['col'], self.config.ROI_INFO_IMAGE_SIZE['row']), dtype = numpy.uint8)
         self.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
@@ -325,38 +326,40 @@ class RoiWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         image_height_in_rows = 3
-        self.layout.addWidget(self.roi_info_image_display, 0, 0, image_height_in_rows, 13)
         
-        self.layout.addWidget(self.show_current_soma_roi_label, image_height_in_rows + 1, 8)
-        self.layout.addWidget(self.show_current_soma_roi_checkbox, image_height_in_rows + 1, 9)
-        self.layout.addWidget(self.show_selected_soma_rois_label, image_height_in_rows + 2, 8)
-        self.layout.addWidget(self.show_selected_soma_rois_checkbox, image_height_in_rows + 2, 9)
-        self.layout.addWidget(self.show_selected_roi_centers_label, image_height_in_rows + 3, 8)
-        self.layout.addWidget(self.show_selected_roi_centers_checkbox, image_height_in_rows + 3, 9)
-        self.layout.addWidget(self.xy_scan_button, image_height_in_rows + 4, 8)
+        self.layout.addWidget(self.scan_region_name_label, 0, 0, 1, 5)
+        self.layout.addWidget(self.roi_info_image_display, 1, 0, image_height_in_rows, 13)
         
-        self.layout.addWidget(self.select_cell_label, image_height_in_rows + 1, 0)
-        self.layout.addWidget(self.select_cell_combobox, image_height_in_rows + 1, 1, 1, 3)        
+        self.layout.addWidget(self.show_current_soma_roi_label, image_height_in_rows + 2, 8)
+        self.layout.addWidget(self.show_current_soma_roi_checkbox, image_height_in_rows + 2, 9)
+        self.layout.addWidget(self.show_selected_soma_rois_label, image_height_in_rows + 3, 8)
+        self.layout.addWidget(self.show_selected_soma_rois_checkbox, image_height_in_rows + 3, 9)
+        self.layout.addWidget(self.show_selected_roi_centers_label, image_height_in_rows + 4, 8)
+        self.layout.addWidget(self.show_selected_roi_centers_checkbox, image_height_in_rows + 4, 9)
+        self.layout.addWidget(self.xy_scan_button, image_height_in_rows + 5, 8)
+        
+        self.layout.addWidget(self.select_cell_label, image_height_in_rows + 2, 0)
+        self.layout.addWidget(self.select_cell_combobox, image_height_in_rows + 2, 1, 1, 3)        
         
         
-        self.layout.addWidget(self.previous_button, image_height_in_rows + 1, 4)
-        self.layout.addWidget(self.accept_cell_button, image_height_in_rows + 1, 5)
-        self.layout.addWidget(self.ignore_cell_button, image_height_in_rows + 1, 6)
-        self.layout.addWidget(self.next_button, image_height_in_rows + 1, 7)
+        self.layout.addWidget(self.previous_button, image_height_in_rows + 2, 4)
+        self.layout.addWidget(self.accept_cell_button, image_height_in_rows + 2, 5)
+        self.layout.addWidget(self.ignore_cell_button, image_height_in_rows + 2, 6)
+        self.layout.addWidget(self.next_button, image_height_in_rows + 2, 7)
         
-        self.layout.addWidget(self.cell_filter_name_combobox, image_height_in_rows + 2, 0, 1, 1)
-        self.layout.addWidget(self.cell_filter_combobox, image_height_in_rows + 2, 1, 1, 2)
-        self.layout.addWidget(self.cell_group_edit_label, image_height_in_rows + 2, 4)
-        self.layout.addWidget(self.cell_group_edit_combobox, image_height_in_rows + 2, 5)
-        self.layout.addWidget(self.suggested_depth_label, image_height_in_rows + 2, 6)
+        self.layout.addWidget(self.cell_filter_name_combobox, image_height_in_rows + 3, 0, 1, 1)
+        self.layout.addWidget(self.cell_filter_combobox, image_height_in_rows + 3, 1, 1, 2)
+        self.layout.addWidget(self.cell_group_edit_label, image_height_in_rows + 3, 4)
+        self.layout.addWidget(self.cell_group_edit_combobox, image_height_in_rows + 3, 5)
+        self.layout.addWidget(self.suggested_depth_label, image_height_in_rows + 3, 6)
         
-        self.layout.addWidget(self.cell_group_label, image_height_in_rows + 4, 0)
-        self.layout.addWidget(self.cell_group_combobox, image_height_in_rows + 4, 1)
-        self.layout.addWidget(self.xz_line_length_label, image_height_in_rows + 4, 2)
-        self.layout.addWidget(self.xz_line_length_combobox, image_height_in_rows + 4, 3)
-        self.layout.addWidget(self.cell_merge_distance_label, image_height_in_rows + 4, 4)
-        self.layout.addWidget(self.cell_merge_distance_combobox, image_height_in_rows + 4, 5)
-        self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 4, 6)
+        self.layout.addWidget(self.cell_group_label, image_height_in_rows + 5, 0)
+        self.layout.addWidget(self.cell_group_combobox, image_height_in_rows + 5, 1)
+        self.layout.addWidget(self.xz_line_length_label, image_height_in_rows + 5, 2)
+        self.layout.addWidget(self.xz_line_length_combobox, image_height_in_rows + 5, 3)
+        self.layout.addWidget(self.cell_merge_distance_label, image_height_in_rows + 5, 4)
+        self.layout.addWidget(self.cell_merge_distance_combobox, image_height_in_rows + 5, 5)
+        self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 5, 6)
         
         self.layout.setRowStretch(15, 15)
         self.layout.setColumnStretch(15, 15)
@@ -894,7 +897,7 @@ class Poller(QtCore.QThread):
         if measurement_file_path is None or not os.path.exists(measurement_file_path):
             self.printc('Measurement file not found: {0}, {1}' .format(measurement_file_path,  id))
             return 5*[None]
-        fromfile = hdf5io.read_item(measurement_file_path, ['call_parameters', 'position', 'experiment_name'])
+        fromfile = hdf5io.read_item(measurement_file_path, ['call_parameters', 'position', 'experiment_config_name'])
         call_parameters = fromfile[0]
         info = {'depth': fromfile[1]['z'][0], 'stimulus':fromfile[2], 'scan_mode':fromfile[0]['scan_mode']}
         #Read the database from the mouse file pointed by the measurement file
@@ -961,11 +964,18 @@ class Poller(QtCore.QThread):
                     del h.cells[region_name][cell_id]
                 h.save('cells', overwrite = True)
         self.scan_regions = copy.deepcopy(h.scan_regions)
+        self.cells = copy.deepcopy(h.cells)
+        self.cells = copy.deepcopy(h.cells)
+        self.images = copy.deepcopy(h.images)
         h.close()
         if not process_status_update:
             self.backup_mouse_file()
             self.parent.update_jobhandler_process_status()
             self.parent.update_file_id_combobox()
+            self.parent.update_cell_list()
+            self.parent.update_cell_filter_list()
+            self.parent.update_roi_curves_display()
+            self.parent.update_meanimage()
             self.printc('{0} measurement is removed'.format(id_to_remove))
         else:
             return h
@@ -991,7 +1001,7 @@ class Poller(QtCore.QThread):
             elif target_state == 'find_cells_ready':
                 h.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = True
             h.save(['scan_regions'], overwrite = True)
-        scan_regions = copy.deepcopy(h.scan_regions)
+        self.scan_regions = copy.deepcopy(h.scan_regions)
         h.close()
         self.backup_mouse_file()
         self.parent.update_jobhandler_process_status()
@@ -1003,7 +1013,7 @@ class Poller(QtCore.QThread):
         current_index = self.parent.roi_widget.select_cell_combobox.currentIndex()
         current_index += 1
         if current_index >= len(self.cell_ids):
-            current_index = 0
+            current_index = len(self.cell_ids)-1
         self.parent.roi_widget.select_cell_combobox.setCurrentIndex(current_index)
         
     def previous_cell(self):
@@ -1386,7 +1396,7 @@ class Poller(QtCore.QThread):
         scan_region['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
         scan_region['xy']['scale'] = self.xy_scan['scale']
         scan_region['xy']['origin'] = self.xy_scan['origin']
-        scan_region['xy']['mes_parameters']  = utils.file_to_binary_array(self.xy_scan['path'].tostring())
+        scan_region['xy']['mes_parameters']  = self.xy_scan['mes_parameters']
         #Save xy line scan parameters
         if hasattr(self, 'xz_scan') and False:
             #Ask for verification wheather line scan is set back to xy
