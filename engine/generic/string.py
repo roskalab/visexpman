@@ -88,6 +88,7 @@ def get_recent_file(flist, ref_date = None, mode = 'earlier', interval=numpy.Inf
     If ref_date is provided then returns the file closest in time. If interval is set then only returns files
     that were created within time limit from ref_date.
     '''
+    import time
     if len(flist) == 0:
         raise StandardError("Empty list provided")
     lastmod_date = []
