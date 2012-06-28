@@ -481,7 +481,7 @@ class ExperimentControl(object):
             if self.config.PLATFORM == 'mes':
                 experiment_data.save_position(self.fragment_files[fragment_id], self.stage_position, self.objective_position)
             setattr(self.fragment_files[fragment_id], self.fragment_names[fragment_id], data_to_file)
-            self.fragment_files[fragment_id].save([self.fragment_names[fragment_id], 'call_parameters', 'experiment_name'])
+            self.fragment_files[fragment_id].save([self.fragment_names[fragment_id], 'call_parameters', 'experiment_name', 'experiment_config_name'])
             self.fragment_files[fragment_id].close()
             if hasattr(self, 'fragment_durations'):
                 time.sleep(1.0 + 0.01 * self.fragment_durations[fragment_id])#Wait till data is written to disk
@@ -564,6 +564,12 @@ class ExperimentControl(object):
             else:
                 self.scanner_trajectory['post'] = utils.file_to_binary_array(scanner_trajectory_filename)
             os.remove(scanner_trajectory_filename)
+            self.printl('Setting back green channel')
+            shutil.copy(initial_mes_line_scan_settings_filename, scanner_trajectory_filename)
+            result, scanner_trajectory_filename = self.mes_interface.line_scan(parameter_file = scanner_trajectory_filename, scan_time=1.5,
+                                                                               scan_mode='xz', channels=['pmtUGraw'], autozigzag = False)
+            if not result:
+                self.printl('Setting back green channel was NOT successful')
         os.remove(initial_mes_line_scan_settings_filename)
         os.remove(xy_static_scan_filename)
         return True

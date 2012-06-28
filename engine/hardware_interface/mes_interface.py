@@ -332,8 +332,8 @@ class MesInterface(object):
         data_to_mes_mat['DATA']['params'] = {}
         data_to_mes_mat['DATA']['params']['LineLength'] = xz_scan_config['LINE_LENGTH']
         data_to_mes_mat['DATA']['params']['zshift'] = 1.0
-#        data_to_mes_mat['DATA']['params']['Tpixnum'] = xz_scan_config['Z_PIXEL_SIZE']
-#        data_to_mes_mat['DATA']['params']['Tpixwidth'] = xz_scan_config['Z_RESOLUTION']
+        data_to_mes_mat['DATA']['params']['Tpixnum'] = xz_scan_config['Z_PIXEL_SIZE']
+        data_to_mes_mat['DATA']['params']['Tpixwidth'] = xz_scan_config['Z_RESOLUTION']
 #        temp_path = str(tempfile.mkstemp(suffix='.mat')[1])
         scipy.io.savemat(parameter_path, data_to_mes_mat, oned_as = 'column') 
 #        shutil.copyfile(temp_path, parameter_path)

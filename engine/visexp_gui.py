@@ -651,9 +651,9 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0, 
         #Line: x1,y1,x2, y2 - x - col, y = row
         #Considering MES/Image origin
         line_in_pixel  = [(line[0] - merged_image['origin']['col'])/merged_image['scale']['col'],
-                            (-line[1] + merged_image['origin']['row'])/merged_image['scale']['row'],
+                            (line[1] - merged_image['origin']['row'])/merged_image['scale']['row'],
                             (line[2] - merged_image['origin']['col'])/merged_image['scale']['col'],
-                            (-line[3] + merged_image['origin']['row'])/merged_image['scale']['row']]
+                            (line[3] - merged_image['origin']['row'])/merged_image['scale']['row']]
         line_in_pixel = (numpy.cast['int32'](numpy.array(line_in_pixel)*rescale)).tolist()
         image_with_line = generic.draw_line_numpy_array(image_with_line, line_in_pixel)
     #create sidebar

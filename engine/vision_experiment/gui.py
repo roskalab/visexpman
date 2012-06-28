@@ -297,9 +297,9 @@ class RoiWidget(QtGui.QWidget):
         self.previous_button = QtGui.QPushButton('<<',  self)
         self.accept_cell_button = QtGui.QPushButton('Accept cell',  self)
         self.ignore_cell_button = QtGui.QPushButton('Ignore cell',  self)
-        self.cell_group_edit_label = QtGui.QLabel('Assign to cell group',  self)
-        self.cell_group_edit_combobox = QtGui.QComboBox(self)
-        self.cell_group_edit_combobox.setEditable(True)
+#        self.cell_group_edit_label = QtGui.QLabel('Assign to cell group',  self)
+#        self.cell_group_edit_combobox = QtGui.QComboBox(self)
+#        self.cell_group_edit_combobox.setEditable(True)
         self.cell_filter_name_combobox = QtGui.QComboBox(self)
         self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'id', 'date', 'stimulus']))
         self.cell_filter_combobox = QtGui.QComboBox(self)
@@ -314,11 +314,14 @@ class RoiWidget(QtGui.QWidget):
         self.xz_line_length_label = QtGui.QLabel('XZ line length',  self)
         self.xz_line_length_combobox = QtGui.QComboBox(self)
         self.xz_line_length_combobox.setEditable(True)
+        self.xz_line_length_combobox.setEditText(str(self.config.XZ_SCAN_CONFIG['LINE_LENGTH']))
         self.cell_merge_distance_label =  QtGui.QLabel('Cell merge distance [um]',  self)
         self.cell_merge_distance_combobox = QtGui.QComboBox(self)
         self.cell_merge_distance_combobox.setEditable(True)
+        self.cell_merge_distance_combobox.setEditText(str(self.config.CELL_MERGE_DISTANCE))
         self.cell_group_label =  QtGui.QLabel('Cell group',  self)
         self.cell_group_combobox = QtGui.QComboBox(self)
+        self.cell_group_combobox.setEditable(True)
         self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
         self.xy_scan_button = QtGui.QPushButton('XY scan',  self)
         self.suggested_depth_label = QtGui.QLabel('',  self)
@@ -340,8 +343,7 @@ class RoiWidget(QtGui.QWidget):
         
         self.layout.addWidget(self.select_cell_label, image_height_in_rows + 2, 0)
         self.layout.addWidget(self.select_cell_combobox, image_height_in_rows + 2, 1, 1, 3)        
-        
-        
+
         self.layout.addWidget(self.previous_button, image_height_in_rows + 2, 4)
         self.layout.addWidget(self.accept_cell_button, image_height_in_rows + 2, 5)
         self.layout.addWidget(self.ignore_cell_button, image_height_in_rows + 2, 6)
@@ -349,8 +351,8 @@ class RoiWidget(QtGui.QWidget):
         
         self.layout.addWidget(self.cell_filter_name_combobox, image_height_in_rows + 3, 0, 1, 1)
         self.layout.addWidget(self.cell_filter_combobox, image_height_in_rows + 3, 1, 1, 2)
-        self.layout.addWidget(self.cell_group_edit_label, image_height_in_rows + 3, 4)
-        self.layout.addWidget(self.cell_group_edit_combobox, image_height_in_rows + 3, 5)
+#        self.layout.addWidget(self.cell_group_edit_label, image_height_in_rows + 3, 4)
+#        self.layout.addWidget(self.cell_group_edit_combobox, image_height_in_rows + 3, 5)
         self.layout.addWidget(self.suggested_depth_label, image_height_in_rows + 3, 6)
         
         self.layout.addWidget(self.cell_group_label, image_height_in_rows + 5, 0)
@@ -1031,7 +1033,7 @@ class Poller(QtCore.QThread):
         
     def select_cell(self, selection):
         self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['accepted'] = selection
-        self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['group'] = str(self.parent.roi_widget.cell_group_edit_combobox.currentText())
+        self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['group'] = str(self.parent.roi_widget.cell_group_combobox.currentText())
         self.next_cell()
         self.cell_status_changed_in_cache = True
         
@@ -1335,9 +1337,9 @@ class Poller(QtCore.QThread):
             self.printc('No brain surface image is acquired')
             return
         if self.xy_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
-            self.printc('Brain surface image averaging is only {0}, set it to {1}' .format(self.xy_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
+            self.printc('Brain surface image averaging is only {0}' .format(self.xy_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
         if hasattr(self, 'xz_scan') and self.xz_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
-            self.printc('Number of frames is only {0}, set it to {1}' .format(self.xz_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
+            self.printc('Number of frames is only {0}' .format(self.xz_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
         if not (os.path.exists(self.mouse_file) and '.hdf5' in self.mouse_file):
             self.printc('mouse file not found')
             return
