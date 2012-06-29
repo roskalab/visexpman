@@ -203,6 +203,9 @@ def um2pixel(data, origin, scale):
 #        in_pixel[axis] = numpy.where(in_pixel[axis] < 0,  0,  in_pixel[axis])
     return in_pixel
     
+def pixel2um(data, origin, scale):
+    in_um = rc((data['row']*scale['row'] + origin['row'],data['col']*scale['col']+origin['col']))
+    return in_um
 
 def argsort(seq):
     '''same as numpy.argsort but works on sequences'''

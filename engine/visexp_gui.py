@@ -493,7 +493,7 @@ class VisionExperimentGui(QtGui.QWidget):
         else:
             division = 0
         image_in = {}
-        image_in['image'] = generic_visexpA.normalize(image, outtype=numpy.uint8, std_range = 2)
+        image_in['image'] = generic_visexpA.normalize(image, outtype=numpy.uint8, std_range = 10)
         image_in['scale'] = scale
         image_in['origin'] = origin
         if channel == 'overview':

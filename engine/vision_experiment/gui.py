@@ -325,6 +325,8 @@ class RoiWidget(QtGui.QWidget):
         self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
         self.xy_scan_button = QtGui.QPushButton('XY scan',  self)
         self.suggested_depth_label = QtGui.QLabel('',  self)
+        self.roi_pattern_parameters_label = QtGui.QLabel('ROI pattern parameters: pattern size, distance from center [um]',  self)
+        self.roi_pattern_parameters_lineedit = QtGui.QLineEdit(self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -362,6 +364,9 @@ class RoiWidget(QtGui.QWidget):
         self.layout.addWidget(self.cell_merge_distance_label, image_height_in_rows + 5, 4)
         self.layout.addWidget(self.cell_merge_distance_combobox, image_height_in_rows + 5, 5)
         self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 5, 6)
+        self.layout.addWidget(self.roi_pattern_parameters_label, image_height_in_rows + 6, 0, 1, 4)
+        self.layout.addWidget(self.roi_pattern_parameters_lineedit, image_height_in_rows +6, 4)
+        
         
         self.layout.setRowStretch(15, 15)
         self.layout.setColumnStretch(15, 15)
@@ -604,6 +609,9 @@ class Poller(QtCore.QThread):
             h.last_mouse_file_name = os.path.split(self.mouse_file)[1]
             h.save(['last_region_name', 'last_mouse_file_name'], overwrite = True)
             h.close()
+            mouse_file_copy = self.mouse_file.replace('.hdf5', '_copy.hdf5')
+            if os.path.exists(mouse_file_copy):
+                os.remove(mouse_file_copy)
         self.printc('Wait till server is closed')
         self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
@@ -793,8 +801,13 @@ class Poller(QtCore.QThread):
             #Save changes
             h.scan_regions = scan_regions
             h.save(['scan_regions'], overwrite=True)
+            self.scan_regions = copy.deepcopy(h.scan_regions)
             h.close()
             self.printc('{1} cells found in {0} but not added to database because it is an xz scan'.format(id, number_of_new_cells))
+            if update_gui:
+                self.parent.update_cell_list()
+                self.parent.update_cell_filter_list()
+                self.parent.update_jobhandler_process_status()
             return
         h.load('images')
         if not hasattr(h,  'images'):
@@ -802,8 +815,10 @@ class Poller(QtCore.QThread):
         h.images[id] = {}
         h.images[id]['meanimage'] = h_measurement.findvar('meanimage')
         h.images[id]['accepted_somaimage'] = h_measurement.findvar('accepted_somaimage')
-        h.images[id]['scale'] = h_measurement.findvar('image_scale')
-        h.images[id]['origin'] = h_measurement.findvar('image_origin')
+        scale = h_measurement.findvar('image_scale')
+        h.images[id]['scale'] = scale
+        origin = h_measurement.findvar('image_origin')
+        h.images[id]['origin'] = origin
         self.images = copy.deepcopy(h.images)
         h.load('cells')
         if not hasattr(h,  'cells'):
@@ -838,6 +853,8 @@ class Poller(QtCore.QThread):
             h.cells[region_name][cell_id]['group'] = ''
             h.cells[region_name][cell_id]['add_date'] = utils.datetime_string().replace('_', ' ')
             h.cells[region_name][cell_id]['stimulus'] = stimulus
+            h.cells[region_name][cell_id]['scale'] = scale
+            h.cells[region_name][cell_id]['origin'] = origin
             h.cells[region_name][cell_id]['roi_curve'] = roi_curves[i]
             h.roi_curves[region_name][cell_id] = roi_curve_images[i]
         h_measurement.close()
@@ -1261,6 +1278,16 @@ class Poller(QtCore.QThread):
                                 objective_origin = self.objective_origin, 
                                 z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], 
                                 merge_distance = merge_distance)
+            params = str(self.parent.roi_widget.roi_pattern_parameters_lineedit.displayText()).replace(' ', '')
+            if len(params)==0:
+                roi_pattern_size = 0
+                aux_roi_distance = 0
+            else:
+                roi_pattern_size = int(params.split(',')[0])
+                aux_roi_distance = float(params.split(',')[1])
+            if roi_pattern_size > 1:
+                roi_locations, rois = experiment_data.add_auxiliary_rois(rois, roi_pattern_size, self.objective_position, self.objective_origin, 
+                                                                     aux_roi_distance = aux_roi_distance, soma_size_ratio = None)
             if roi_locations is not None:
                 line_length = str(self.parent.roi_widget.xz_line_length_combobox.currentText())
                 xz_config = copy.deepcopy(self.config.XZ_SCAN_CONFIG)
@@ -1391,6 +1418,9 @@ class Poller(QtCore.QThread):
                 self.printc('Setting origin did not succeed')
                 hdf5_handler.close()
                 return
+           else:
+                relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
+                region_name = 'master_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
         scan_region = {}
         scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
         scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
@@ -1703,6 +1733,10 @@ class Poller(QtCore.QThread):
             merge_distance = str(self.parent.roi_widget.cell_merge_distance_combobox.currentText())
             if merge_distance != '':
                 self.experiment_parameters['merge_distance'] = merge_distance
+            roi_pattern_params = str(self.parent.roi_widget.roi_pattern_parameters_lineedit.displayText()).replace(' ', '')
+            if roi_pattern_params !='':
+                self.experiment_parameters['roi_pattern_size'] = roi_pattern_params.split(',')[0]
+                self.experiment_parameters['aux_roi_distance'] = roi_pattern_params.split(',')[1]
         parameters = 'experiment_config={0},scan_mode={1}' \
                         .format(experiment_parameters['experiment_config'], experiment_parameters['scan_mode'])
         if experiment_parameters.has_key('mouse_file') and experiment_parameters.has_key('mouse_file') != '':
@@ -1731,6 +1765,10 @@ class Poller(QtCore.QThread):
                 parameters += ',z_resolution='+experiment_parameters['z_resolution']
             if experiment_parameters.has_key('merge_distance'):
                 parameters += ',merge_distance='+experiment_parameters['merge_distance']
+            if self.experiment_parameters.has_key('roi_pattern_size'):
+                parameters += ',roi_pattern_size='+self.experiment_parameters['roi_pattern_size']
+            if self.experiment_parameters.has_key('aux_roi_distance'):
+                parameters += ',aux_roi_distance='+self.experiment_parameters['aux_roi_distance']
             parameters += ',cell_group='+self.parent.get_current_cell_group()
         command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
         self.backup_mouse_file(tag = 'stim')
