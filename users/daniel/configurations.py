@@ -306,6 +306,7 @@ class DebugOnLaptop(VisionExperimentConfig):
         
         self._create_parameters_from_locals(locals())
         
+
 class Debug(VisionExperimentConfig):
     '''
     Windows development machine
@@ -324,7 +325,7 @@ class Debug(VisionExperimentConfig):
         ENABLE_FRAGMENT_CHECK = True
         ENABLE_MESEXTRACTOR = True
         #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3, 'Z_RANGE':80.0}
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE':80.0}
         #=== paths/data handling ===
         use_drive = 'v'
         if os.name == 'nt':
@@ -356,7 +357,7 @@ class Debug(VisionExperimentConfig):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         
         #=== screen ===
-        FULLSCREEN = not True
+        FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800, 600])
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
@@ -448,6 +449,7 @@ class Debug(VisionExperimentConfig):
 
         self._create_parameters_from_locals(locals())
         
+        
 class RcMicroscopeSetup(VisionExperimentConfig):
     '''
     Visual stimulation machine of 3D microscope setup
@@ -462,7 +464,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         PARSE_PERIOD = 2.0
         CELL_MERGE_DISTANCE = 3.0
         #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3, 'Z_RANGE':80.0}
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE':80.0}
         ENABLE_ZIGZAG_CORRECTION = True
         #=== paths/data handling ===
         if os.name == 'nt':            

@@ -133,7 +133,7 @@ class ExperimentControl(object):
                 self.initial_laser_intensity = laser_intensity
                 self.laser_intensity = laser_intensity
             else:
-                self.printl('Laser intensity cannot be read')
+                self.printl('Laser intensity CANNOT be read')
             if context.has_key('laser_intensity'):
                 result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(context['laser_intensity'])
                 if not result:
@@ -173,6 +173,11 @@ class ExperimentControl(object):
                                     objective_origin = self.objective_origin, 
                                     z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], 
                                     merge_distance = merge_distance)
+                    if self.parameters.has_key('roi_pattern_size') and self.parameters.has_key('aux_roi_distance'):
+                        self.roi_locations, self.rois = experiment_data.add_auxiliary_rois(self.rois, int(self.parameters['roi_pattern_size']), 
+                                                                                           self.objective_position, self.objective_origin, 
+                                                                     aux_roi_distance = float(self.parameters['aux_roi_distance']), 
+                                                                     soma_size_ratio = None)
                     #Pack xz scan config
                     self.xz_scan_config = copy.deepcopy(self.config.XZ_SCAN_CONFIG)
                     if self.parameters.has_key('xz_line_length'):
@@ -456,8 +461,8 @@ class ExperimentControl(object):
                     data_to_file['rois'] = self.rois
                 if hasattr(self, 'roi_locations'):
                     data_to_file['roi_locations'] = self.roi_locations
-                if hasattr(self, 'static_red_green_channel_image'):
-                    data_to_file['static_red_green_channel_image'] = self.static_red_green_channel_image
+                if hasattr(self, 'prepost_scan_image'):
+                    data_to_file['prepost_scan_image'] = self.prepost_scan_image
                 if hasattr(self, 'scanner_trajectory'):
                     data_to_file['scanner_trajectory'] = self.scanner_trajectory
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
@@ -475,12 +480,13 @@ class ExperimentControl(object):
             #Save experiment calling parameters:
             self.fragment_files[fragment_id].call_parameters = self.parameters
             self.fragment_files[fragment_id].experiment_name = self.experiment_name
+            self.fragment_files[fragment_id].experiment_config_name = self.experiment_config_name
 #            experiment_data.save_config(self.fragment_files[fragment_id], self.config, self.experiment_config)
             #Save stage and objective position
             if self.config.PLATFORM == 'mes':
                 experiment_data.save_position(self.fragment_files[fragment_id], self.stage_position, self.objective_position)
             setattr(self.fragment_files[fragment_id], self.fragment_names[fragment_id], data_to_file)
-            self.fragment_files[fragment_id].save([self.fragment_names[fragment_id], 'call_parameters', 'experiment_name'])
+            self.fragment_files[fragment_id].save([self.fragment_names[fragment_id], 'call_parameters', 'experiment_name', 'experiment_config_name'])
             self.fragment_files[fragment_id].close()
             if hasattr(self, 'fragment_durations'):
                 time.sleep(1.0 + 0.01 * self.fragment_durations[fragment_id])#Wait till data is written to disk
@@ -541,12 +547,12 @@ class ExperimentControl(object):
         if not result:
             self.printl('Recording red and green channel was NOT successful')
             return False
-        if not hasattr(self, 'static_red_green_channel_image'):
-            self.static_red_green_channel_image = {}
+        if not hasattr(self, 'prepost_scan_image'):
+            self.prepost_scan_image = {}
         if is_pre:
-            self.static_red_green_channel_image['pre'] = utils.file_to_binary_array(red_channel_data_filename)
+            self.prepost_scan_image['pre'] = utils.file_to_binary_array(red_channel_data_filename)
         else:
-            self.static_red_green_channel_image['post'] = utils.file_to_binary_array(red_channel_data_filename)
+            self.prepost_scan_image['post'] = utils.file_to_binary_array(red_channel_data_filename)
         if self.parameters.has_key('scan_mode') and self.parameters['scan_mode'] == 'xz':
             #Measure scanner signal
             self.printl('Recording scanner signals')
@@ -563,6 +569,13 @@ class ExperimentControl(object):
             else:
                 self.scanner_trajectory['post'] = utils.file_to_binary_array(scanner_trajectory_filename)
             os.remove(scanner_trajectory_filename)
+            if not is_pre:
+                self.printl('Setting back green channel')
+                shutil.copy(initial_mes_line_scan_settings_filename, scanner_trajectory_filename)
+                result, scanner_trajectory_filename = self.mes_interface.line_scan(parameter_file = scanner_trajectory_filename, scan_time=1.5,
+                                                                               scan_mode='xz', channels=['pmtUGraw'], autozigzag = False)
+            if not result:
+                self.printl('Setting back green channel was NOT successful')
         os.remove(initial_mes_line_scan_settings_filename)
         os.remove(xy_static_scan_filename)
         return True

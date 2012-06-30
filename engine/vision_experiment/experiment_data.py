@@ -177,13 +177,89 @@ def read_merge_rois(cells, cell_group, region_name, objective_position, objectiv
         roi_locations = utils.rcd(numpy.array(roi_locations))
         roi_locations['depth'] = objective_position + objective_origin
         return roi_locations, rois
+        
+def add_auxiliary_rois(rois, roi_pattern_size, objective_position, objective_origin, aux_roi_distance = None, soma_size_ratio = None):
+    '''
+    aux_roi_distance: fixed distance from soma center
+    soma_size_ratio: distance from soma center as fraction of longer radius of soma
+    '''
+    debug = False
+    if debug:
+        im = numpy.zeros((1000, 1000, 3),  dtype = numpy.uint8)
+    expanded_rois = []
+    for roi in rois:
+        if debug:
+            im[roi['soma_roi']['row'], roi['soma_roi']['col'], :] = 128
+        #Center
+        roi_center_in_pixels = utils.rc((roi['soma_roi']['row'].mean(), roi['soma_roi']['col'].mean()))        
+        #Find two furthest point
+        max_distance = 0
+        for i in range(roi['soma_roi'].shape[0]):
+            for j in range(i, roi['soma_roi'].shape[0]):
+                distance = utils.rc_distance(roi['soma_roi'][i], roi['soma_roi'][j])
+                if distance > max_distance:
+                    max_distance = distance
+                    furthest_points = [i, j]
+        #"direction" of soma
+        point1 = roi['soma_roi'][furthest_points[0]]
+        point2 = roi['soma_roi'][furthest_points[1]]
+        direction = numpy.arctan2(float(point1['row']-point2['row']), float(point1['col']-point2['col']))
+        #Pick from the furthest points the one which distance from roi center is bigger
+        if abs(utils.rc_distance(roi_center_in_pixels, point1)) > abs(utils.rc_distance(roi_center_in_pixels, point2)):
+            point = point1
+        else:
+            point = point2
+        #determine  point halfway between center and picked point
+        if soma_size_ratio is not None:
+            aux_roi_distance_pix = soma_size_ratio * utils.rc_distance(roi_center_in_pixels, point)
+        else:
+            aux_roi_distance_pix = aux_roi_distance / roi['scale']['row']
+        roi_to_add = copy.deepcopy(roi)
+        roi_to_add['auxiliary'] = False
+        expanded_rois.append(roi_to_add)
+        if roi_pattern_size == 3:
+            angles = [0, numpy.pi/2]
+        else:
+            angles = numpy.linspace(0, numpy.pi*2, roi_pattern_size)[:-1]
+        for angle in angles:
+            aux_roi_pix = utils.rc((roi_center_in_pixels['row'] - aux_roi_distance_pix * numpy.sin(direction + angle),
+                                     roi_center_in_pixels['col'] - aux_roi_distance_pix * numpy.cos(direction + angle)))
+            aux_roi = utils.pixel2um(aux_roi_pix, roi['origin'], roi['scale'])
+            roi_to_add = copy.deepcopy(roi)
+            roi_to_add['auxiliary'] = True
+            roi_to_add['roi_center'] = utils.rcd((aux_roi['row'][0], aux_roi['col'][0], roi['roi_center']['depth']))
+            expanded_rois.append(roi_to_add)
+            if debug:
+                im[int(numpy.round(aux_roi_pix['row'], 0)), int(numpy.round(aux_roi_pix['col'], 0)), 1] = 255
+        if debug:
+            im[int(roi_center_in_pixels['row']), int(roi_center_in_pixels['col']), :] = 255
+    if debug:
+        import Image
+#        im = im[100:, 100:, :]
+        im = Image.fromarray(im)
+        try:
+            im.save('/mnt/datafast/debug/somaroi.png')
+        except:
+            im.save('v:\\debug\\somaroi.png')
+        pass
+    return rois_to_roi_locations(expanded_rois, objective_position, objective_origin), expanded_rois
+        
+def rois_to_roi_locations(rois, objective_position, objective_origin):
+    roi_locations = []
+    for roi in rois:
+        roi_locations.append(utils.nd(roi['roi_center'])[0])
+    roi_locations = utils.rcd(numpy.array(roi_locations))
+    roi_locations['depth'] = objective_position + objective_origin
+    return roi_locations
+   
    
 class TestExperimentData(unittest.TestCase):
 #    @unittest.skip("")
     def test_01_read_merge_rois(self):
         path = '/mnt/databig/testdata/read_merge_rois/mouse_test_1-1-2012_1-1-2012_0_0.hdf5'
         cells = hdf5io.read_item(path, 'cells')
-        roi_locations, rois = read_merge_rois(cells, 'g2', 'scanned_2vessels_0_0', -130, 0, 80, 100)
+        roi_locations, rois = read_merge_rois(cells, 'g2', 'scanned_2vessels_0_0', -130, 0, 80, 4)
+        roi_locations, rois = add_auxiliary_rois(rois, 9, -130, -100, aux_roi_distance = 5.0)
         pass
         
 if __name__=='__main__':

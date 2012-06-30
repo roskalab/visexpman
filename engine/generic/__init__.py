@@ -31,6 +31,7 @@ def draw_line_numpy_array(image, line, fill = (255, 0, 0)):
 def expspace(start,  end,  number_of_points):
     exponent = numpy.log(end-start+1)
     return numpy.exp(numpy.linspace(0.0,  1.0,  number_of_points)*exponent)+start-1
+    
 def iterate_parameter_space(parameters):
     iterable_parameters = []
     for parameter_name, parameter_values in parameters.items():

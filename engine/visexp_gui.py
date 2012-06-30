@@ -247,9 +247,12 @@ class VisionExperimentGui(QtGui.QWidget):
                 
     def cell_filtername_changed(self):
         self.update_cell_filter_list()
+        self.update_cell_list()
+        self.update_meanimage()
         
     def cell_filter_changed(self):
         self.update_cell_list()
+        self.update_meanimage()
 
     ################### GUI updaters #################
     def update_widgets_when_mouse_file_changed(self, selected_region=None):
@@ -298,6 +301,7 @@ class VisionExperimentGui(QtGui.QWidget):
         no_scale = utils.rc((1.0, 1.0))
         if utils.safe_has_key(self.poller.scan_regions, selected_region):
             scan_regions = self.poller.scan_regions
+            self.roi_widget.scan_region_name_label.setText('Current scan region is {0}'.format(selected_region))
             line = []
             #Update xz image if exists and collect xy line(s)
             if scan_regions[selected_region].has_key('xz'):
@@ -489,7 +493,7 @@ class VisionExperimentGui(QtGui.QWidget):
         else:
             division = 0
         image_in = {}
-        image_in['image'] = generic_visexpA.normalize(image, outtype=numpy.uint8, std_range = 2)
+        image_in['image'] = generic_visexpA.normalize(image, outtype=numpy.uint8, std_range = 10)
         image_in['scale'] = scale
         image_in['origin'] = origin
         if channel == 'overview':
@@ -647,9 +651,9 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0, 
         #Line: x1,y1,x2, y2 - x - col, y = row
         #Considering MES/Image origin
         line_in_pixel  = [(line[0] - merged_image['origin']['col'])/merged_image['scale']['col'],
-                            (-line[1] + merged_image['origin']['row'])/merged_image['scale']['row'],
+                            (line[1] - merged_image['origin']['row'])/merged_image['scale']['row'],
                             (line[2] - merged_image['origin']['col'])/merged_image['scale']['col'],
-                            (-line[3] + merged_image['origin']['row'])/merged_image['scale']['row']]
+                            (line[3] - merged_image['origin']['row'])/merged_image['scale']['row']]
         line_in_pixel = (numpy.cast['int32'](numpy.array(line_in_pixel)*rescale)).tolist()
         image_with_line = generic.draw_line_numpy_array(image_with_line, line_in_pixel)
     #create sidebar

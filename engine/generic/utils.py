@@ -203,6 +203,9 @@ def um2pixel(data, origin, scale):
 #        in_pixel[axis] = numpy.where(in_pixel[axis] < 0,  0,  in_pixel[axis])
     return in_pixel
     
+def pixel2um(data, origin, scale):
+    in_um = rc((data['row']*scale['row'] + origin['row'],data['col']*scale['col']+origin['col']))
+    return in_um
 
 def argsort(seq):
     '''same as numpy.argsort but works on sequences'''
@@ -224,7 +227,7 @@ def nd(rcarray, squeeze=False, dim_order=None):
     return res
 
 def rcd(raw):
-    warning('todo:rcd should be merged with rc and detect automatically the number of dimensions')
+#    warning('todo:rcd should be merged with rc and detect automatically the number of dimensions')
     return rcd_pack(raw, dim_order = [0, 1, 2])
     
 def rc(raw,**kwargs):

@@ -223,7 +223,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.get_xy_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.use_saved_scan_settings_label = QtGui.QLabel('Use saved scan settings', self)
         self.use_saved_scan_settings_settings_checkbox = QtGui.QCheckBox(self)
-        self.add_button = QtGui.QPushButton('Add',  self)
+        self.add_button = QtGui.QPushButton('Add scan region',  self)
         self.scan_regions_combobox = QtGui.QComboBox(self)
         self.scan_regions_combobox.setEditable(True)
         self.remove_button = QtGui.QPushButton('Remove',  self)
@@ -286,6 +286,7 @@ class RoiWidget(QtGui.QWidget):
         self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
         
     def create_widgets(self):
+        self.scan_region_name_label = QtGui.QLabel()
         self.roi_info_image_display = QtGui.QLabel()
         blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['col'], self.config.ROI_INFO_IMAGE_SIZE['row']), dtype = numpy.uint8)
         self.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
@@ -296,9 +297,9 @@ class RoiWidget(QtGui.QWidget):
         self.previous_button = QtGui.QPushButton('<<',  self)
         self.accept_cell_button = QtGui.QPushButton('Accept cell',  self)
         self.ignore_cell_button = QtGui.QPushButton('Ignore cell',  self)
-        self.cell_group_edit_label = QtGui.QLabel('Assign to cell group',  self)
-        self.cell_group_edit_combobox = QtGui.QComboBox(self)
-        self.cell_group_edit_combobox.setEditable(True)
+#        self.cell_group_edit_label = QtGui.QLabel('Assign to cell group',  self)
+#        self.cell_group_edit_combobox = QtGui.QComboBox(self)
+#        self.cell_group_edit_combobox.setEditable(True)
         self.cell_filter_name_combobox = QtGui.QComboBox(self)
         self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'id', 'date', 'stimulus']))
         self.cell_filter_combobox = QtGui.QComboBox(self)
@@ -313,50 +314,59 @@ class RoiWidget(QtGui.QWidget):
         self.xz_line_length_label = QtGui.QLabel('XZ line length',  self)
         self.xz_line_length_combobox = QtGui.QComboBox(self)
         self.xz_line_length_combobox.setEditable(True)
+        self.xz_line_length_combobox.setEditText(str(self.config.XZ_SCAN_CONFIG['LINE_LENGTH']))
         self.cell_merge_distance_label =  QtGui.QLabel('Cell merge distance [um]',  self)
         self.cell_merge_distance_combobox = QtGui.QComboBox(self)
         self.cell_merge_distance_combobox.setEditable(True)
+        self.cell_merge_distance_combobox.setEditText(str(self.config.CELL_MERGE_DISTANCE))
         self.cell_group_label =  QtGui.QLabel('Cell group',  self)
         self.cell_group_combobox = QtGui.QComboBox(self)
+        self.cell_group_combobox.setEditable(True)
         self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
         self.xy_scan_button = QtGui.QPushButton('XY scan',  self)
         self.suggested_depth_label = QtGui.QLabel('',  self)
+        self.roi_pattern_parameters_label = QtGui.QLabel('ROI pattern parameters: pattern size, distance from center [um]',  self)
+        self.roi_pattern_parameters_lineedit = QtGui.QLineEdit(self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         image_height_in_rows = 3
-        self.layout.addWidget(self.roi_info_image_display, 0, 0, image_height_in_rows, 13)
         
-        self.layout.addWidget(self.show_current_soma_roi_label, image_height_in_rows + 1, 8)
-        self.layout.addWidget(self.show_current_soma_roi_checkbox, image_height_in_rows + 1, 9)
-        self.layout.addWidget(self.show_selected_soma_rois_label, image_height_in_rows + 2, 8)
-        self.layout.addWidget(self.show_selected_soma_rois_checkbox, image_height_in_rows + 2, 9)
-        self.layout.addWidget(self.show_selected_roi_centers_label, image_height_in_rows + 3, 8)
-        self.layout.addWidget(self.show_selected_roi_centers_checkbox, image_height_in_rows + 3, 9)
-        self.layout.addWidget(self.xy_scan_button, image_height_in_rows + 4, 8)
+        self.layout.addWidget(self.scan_region_name_label, 0, 0, 1, 5)
+        self.layout.addWidget(self.roi_info_image_display, 1, 0, image_height_in_rows, 13)
         
-        self.layout.addWidget(self.select_cell_label, image_height_in_rows + 1, 0)
-        self.layout.addWidget(self.select_cell_combobox, image_height_in_rows + 1, 1, 1, 3)        
+        self.layout.addWidget(self.show_current_soma_roi_label, image_height_in_rows + 2, 8)
+        self.layout.addWidget(self.show_current_soma_roi_checkbox, image_height_in_rows + 2, 9)
+        self.layout.addWidget(self.show_selected_soma_rois_label, image_height_in_rows + 3, 8)
+        self.layout.addWidget(self.show_selected_soma_rois_checkbox, image_height_in_rows + 3, 9)
+        self.layout.addWidget(self.show_selected_roi_centers_label, image_height_in_rows + 4, 8)
+        self.layout.addWidget(self.show_selected_roi_centers_checkbox, image_height_in_rows + 4, 9)
+        self.layout.addWidget(self.xy_scan_button, image_height_in_rows + 5, 8)
         
+        self.layout.addWidget(self.select_cell_label, image_height_in_rows + 2, 0)
+        self.layout.addWidget(self.select_cell_combobox, image_height_in_rows + 2, 1, 1, 3)        
+
+        self.layout.addWidget(self.previous_button, image_height_in_rows + 2, 4)
+        self.layout.addWidget(self.accept_cell_button, image_height_in_rows + 2, 5)
+        self.layout.addWidget(self.ignore_cell_button, image_height_in_rows + 2, 6)
+        self.layout.addWidget(self.next_button, image_height_in_rows + 2, 7)
         
-        self.layout.addWidget(self.previous_button, image_height_in_rows + 1, 4)
-        self.layout.addWidget(self.accept_cell_button, image_height_in_rows + 1, 5)
-        self.layout.addWidget(self.ignore_cell_button, image_height_in_rows + 1, 6)
-        self.layout.addWidget(self.next_button, image_height_in_rows + 1, 7)
+        self.layout.addWidget(self.cell_filter_name_combobox, image_height_in_rows + 3, 0, 1, 1)
+        self.layout.addWidget(self.cell_filter_combobox, image_height_in_rows + 3, 1, 1, 2)
+#        self.layout.addWidget(self.cell_group_edit_label, image_height_in_rows + 3, 4)
+#        self.layout.addWidget(self.cell_group_edit_combobox, image_height_in_rows + 3, 5)
+        self.layout.addWidget(self.suggested_depth_label, image_height_in_rows + 3, 6)
         
-        self.layout.addWidget(self.cell_filter_name_combobox, image_height_in_rows + 2, 0, 1, 1)
-        self.layout.addWidget(self.cell_filter_combobox, image_height_in_rows + 2, 1, 1, 2)
-        self.layout.addWidget(self.cell_group_edit_label, image_height_in_rows + 2, 4)
-        self.layout.addWidget(self.cell_group_edit_combobox, image_height_in_rows + 2, 5)
-        self.layout.addWidget(self.suggested_depth_label, image_height_in_rows + 2, 6)
+        self.layout.addWidget(self.cell_group_label, image_height_in_rows + 5, 0)
+        self.layout.addWidget(self.cell_group_combobox, image_height_in_rows + 5, 1)
+        self.layout.addWidget(self.xz_line_length_label, image_height_in_rows + 5, 2)
+        self.layout.addWidget(self.xz_line_length_combobox, image_height_in_rows + 5, 3)
+        self.layout.addWidget(self.cell_merge_distance_label, image_height_in_rows + 5, 4)
+        self.layout.addWidget(self.cell_merge_distance_combobox, image_height_in_rows + 5, 5)
+        self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 5, 6)
+        self.layout.addWidget(self.roi_pattern_parameters_label, image_height_in_rows + 6, 0, 1, 4)
+        self.layout.addWidget(self.roi_pattern_parameters_lineedit, image_height_in_rows +6, 4)
         
-        self.layout.addWidget(self.cell_group_label, image_height_in_rows + 4, 0)
-        self.layout.addWidget(self.cell_group_combobox, image_height_in_rows + 4, 1)
-        self.layout.addWidget(self.xz_line_length_label, image_height_in_rows + 4, 2)
-        self.layout.addWidget(self.xz_line_length_combobox, image_height_in_rows + 4, 3)
-        self.layout.addWidget(self.cell_merge_distance_label, image_height_in_rows + 4, 4)
-        self.layout.addWidget(self.cell_merge_distance_combobox, image_height_in_rows + 4, 5)
-        self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 4, 6)
         
         self.layout.setRowStretch(15, 15)
         self.layout.setColumnStretch(15, 15)
@@ -599,6 +609,9 @@ class Poller(QtCore.QThread):
             h.last_mouse_file_name = os.path.split(self.mouse_file)[1]
             h.save(['last_region_name', 'last_mouse_file_name'], overwrite = True)
             h.close()
+            mouse_file_copy = self.mouse_file.replace('.hdf5', '_copy.hdf5')
+            if os.path.exists(mouse_file_copy):
+                os.remove(mouse_file_copy)
         self.printc('Wait till server is closed')
         self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
@@ -788,8 +801,13 @@ class Poller(QtCore.QThread):
             #Save changes
             h.scan_regions = scan_regions
             h.save(['scan_regions'], overwrite=True)
+            self.scan_regions = copy.deepcopy(h.scan_regions)
             h.close()
             self.printc('{1} cells found in {0} but not added to database because it is an xz scan'.format(id, number_of_new_cells))
+            if update_gui:
+                self.parent.update_cell_list()
+                self.parent.update_cell_filter_list()
+                self.parent.update_jobhandler_process_status()
             return
         h.load('images')
         if not hasattr(h,  'images'):
@@ -797,8 +815,10 @@ class Poller(QtCore.QThread):
         h.images[id] = {}
         h.images[id]['meanimage'] = h_measurement.findvar('meanimage')
         h.images[id]['accepted_somaimage'] = h_measurement.findvar('accepted_somaimage')
-        h.images[id]['scale'] = h_measurement.findvar('image_scale')
-        h.images[id]['origin'] = h_measurement.findvar('image_origin')
+        scale = h_measurement.findvar('image_scale')
+        h.images[id]['scale'] = scale
+        origin = h_measurement.findvar('image_origin')
+        h.images[id]['origin'] = origin
         self.images = copy.deepcopy(h.images)
         h.load('cells')
         if not hasattr(h,  'cells'):
@@ -833,6 +853,8 @@ class Poller(QtCore.QThread):
             h.cells[region_name][cell_id]['group'] = ''
             h.cells[region_name][cell_id]['add_date'] = utils.datetime_string().replace('_', ' ')
             h.cells[region_name][cell_id]['stimulus'] = stimulus
+            h.cells[region_name][cell_id]['scale'] = scale
+            h.cells[region_name][cell_id]['origin'] = origin
             h.cells[region_name][cell_id]['roi_curve'] = roi_curves[i]
             h.roi_curves[region_name][cell_id] = roi_curve_images[i]
         h_measurement.close()
@@ -894,7 +916,7 @@ class Poller(QtCore.QThread):
         if measurement_file_path is None or not os.path.exists(measurement_file_path):
             self.printc('Measurement file not found: {0}, {1}' .format(measurement_file_path,  id))
             return 5*[None]
-        fromfile = hdf5io.read_item(measurement_file_path, ['call_parameters', 'position', 'experiment_name'])
+        fromfile = hdf5io.read_item(measurement_file_path, ['call_parameters', 'position', 'experiment_config_name'])
         call_parameters = fromfile[0]
         info = {'depth': fromfile[1]['z'][0], 'stimulus':fromfile[2], 'scan_mode':fromfile[0]['scan_mode']}
         #Read the database from the mouse file pointed by the measurement file
@@ -961,11 +983,18 @@ class Poller(QtCore.QThread):
                     del h.cells[region_name][cell_id]
                 h.save('cells', overwrite = True)
         self.scan_regions = copy.deepcopy(h.scan_regions)
+        self.cells = copy.deepcopy(h.cells)
+        self.cells = copy.deepcopy(h.cells)
+        self.images = copy.deepcopy(h.images)
         h.close()
         if not process_status_update:
             self.backup_mouse_file()
             self.parent.update_jobhandler_process_status()
             self.parent.update_file_id_combobox()
+            self.parent.update_cell_list()
+            self.parent.update_cell_filter_list()
+            self.parent.update_roi_curves_display()
+            self.parent.update_meanimage()
             self.printc('{0} measurement is removed'.format(id_to_remove))
         else:
             return h
@@ -991,7 +1020,7 @@ class Poller(QtCore.QThread):
             elif target_state == 'find_cells_ready':
                 h.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = True
             h.save(['scan_regions'], overwrite = True)
-        scan_regions = copy.deepcopy(h.scan_regions)
+        self.scan_regions = copy.deepcopy(h.scan_regions)
         h.close()
         self.backup_mouse_file()
         self.parent.update_jobhandler_process_status()
@@ -1003,7 +1032,7 @@ class Poller(QtCore.QThread):
         current_index = self.parent.roi_widget.select_cell_combobox.currentIndex()
         current_index += 1
         if current_index >= len(self.cell_ids):
-            current_index = 0
+            current_index = len(self.cell_ids)-1
         self.parent.roi_widget.select_cell_combobox.setCurrentIndex(current_index)
         
     def previous_cell(self):
@@ -1021,7 +1050,7 @@ class Poller(QtCore.QThread):
         
     def select_cell(self, selection):
         self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['accepted'] = selection
-        self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['group'] = str(self.parent.roi_widget.cell_group_edit_combobox.currentText())
+        self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['group'] = str(self.parent.roi_widget.cell_group_combobox.currentText())
         self.next_cell()
         self.cell_status_changed_in_cache = True
         
@@ -1249,6 +1278,16 @@ class Poller(QtCore.QThread):
                                 objective_origin = self.objective_origin, 
                                 z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], 
                                 merge_distance = merge_distance)
+            params = str(self.parent.roi_widget.roi_pattern_parameters_lineedit.displayText()).replace(' ', '')
+            if len(params)==0:
+                roi_pattern_size = 0
+                aux_roi_distance = 0
+            else:
+                roi_pattern_size = int(params.split(',')[0])
+                aux_roi_distance = float(params.split(',')[1])
+            if roi_pattern_size > 1:
+                roi_locations, rois = experiment_data.add_auxiliary_rois(rois, roi_pattern_size, self.objective_position, self.objective_origin, 
+                                                                     aux_roi_distance = aux_roi_distance, soma_size_ratio = None)
             if roi_locations is not None:
                 line_length = str(self.parent.roi_widget.xz_line_length_combobox.currentText())
                 xz_config = copy.deepcopy(self.config.XZ_SCAN_CONFIG)
@@ -1325,9 +1364,9 @@ class Poller(QtCore.QThread):
             self.printc('No brain surface image is acquired')
             return
         if self.xy_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
-            self.printc('Brain surface image averaging is only {0}, set it to {1}' .format(self.xy_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
+            self.printc('Brain surface image averaging is only {0}' .format(self.xy_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
         if hasattr(self, 'xz_scan') and self.xz_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
-            self.printc('Number of frames is only {0}, set it to {1}' .format(self.xz_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
+            self.printc('Number of frames is only {0}' .format(self.xz_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
         if not (os.path.exists(self.mouse_file) and '.hdf5' in self.mouse_file):
             self.printc('mouse file not found')
             return
@@ -1379,6 +1418,9 @@ class Poller(QtCore.QThread):
                 self.printc('Setting origin did not succeed')
                 hdf5_handler.close()
                 return
+           else:
+                relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
+                region_name = 'master_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
         scan_region = {}
         scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
         scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
@@ -1386,7 +1428,7 @@ class Poller(QtCore.QThread):
         scan_region['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
         scan_region['xy']['scale'] = self.xy_scan['scale']
         scan_region['xy']['origin'] = self.xy_scan['origin']
-        scan_region['xy']['mes_parameters']  = utils.file_to_binary_array(self.xy_scan['path'].tostring())
+        scan_region['xy']['mes_parameters']  = self.xy_scan['mes_parameters']
         #Save xy line scan parameters
         if hasattr(self, 'xz_scan') and False:
             #Ask for verification wheather line scan is set back to xy
@@ -1691,6 +1733,10 @@ class Poller(QtCore.QThread):
             merge_distance = str(self.parent.roi_widget.cell_merge_distance_combobox.currentText())
             if merge_distance != '':
                 self.experiment_parameters['merge_distance'] = merge_distance
+            roi_pattern_params = str(self.parent.roi_widget.roi_pattern_parameters_lineedit.displayText()).replace(' ', '')
+            if roi_pattern_params !='':
+                self.experiment_parameters['roi_pattern_size'] = roi_pattern_params.split(',')[0]
+                self.experiment_parameters['aux_roi_distance'] = roi_pattern_params.split(',')[1]
         parameters = 'experiment_config={0},scan_mode={1}' \
                         .format(experiment_parameters['experiment_config'], experiment_parameters['scan_mode'])
         if experiment_parameters.has_key('mouse_file') and experiment_parameters.has_key('mouse_file') != '':
@@ -1719,6 +1765,10 @@ class Poller(QtCore.QThread):
                 parameters += ',z_resolution='+experiment_parameters['z_resolution']
             if experiment_parameters.has_key('merge_distance'):
                 parameters += ',merge_distance='+experiment_parameters['merge_distance']
+            if self.experiment_parameters.has_key('roi_pattern_size'):
+                parameters += ',roi_pattern_size='+self.experiment_parameters['roi_pattern_size']
+            if self.experiment_parameters.has_key('aux_roi_distance'):
+                parameters += ',aux_roi_distance='+self.experiment_parameters['aux_roi_distance']
             parameters += ',cell_group='+self.parent.get_current_cell_group()
         command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
         self.backup_mouse_file(tag = 'stim')
