@@ -383,6 +383,8 @@ class VisionExperimentGui(QtGui.QWidget):
 
     def update_cell_list(self):
         region_name = self.get_current_region_name()
+        if region_name == '':
+                return
         if hasattr(self.poller, 'cells') and utils.safe_has_key(self.poller.cells, region_name):
             self.poller.cell_ids = self.poller.cells[region_name].keys()
             filter = str(self.roi_widget.cell_filter_combobox.currentText())
@@ -402,6 +404,8 @@ class VisionExperimentGui(QtGui.QWidget):
         if hasattr(self.poller, 'cells'):
             filtername = str(self.roi_widget.cell_filter_name_combobox.currentText())
             region_name = self.get_current_region_name()
+            if region_name == '':
+                return
             filter_values = []
             if filtername == 'date':
                 key_name = 'add_date'
@@ -419,6 +423,8 @@ class VisionExperimentGui(QtGui.QWidget):
             
     def update_cell_group_combobox(self):
         region_name = self.get_current_region_name()
+        if region_name == '':
+                return
         if hasattr(self.poller, 'cells') and self.poller.cells.has_key(region_name):
             cell_groups = []
             for cell_id, cell_info in self.poller.cells[region_name].items():
@@ -527,7 +533,8 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_gridlined_images(self):
         for i in range(4):
             image_widget = self.images_widget.image_display[i]
-            self.show_image(image_widget.raw_image, i, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
+            if hasattr(image_widget, 'raw_image'):#This check is necessary because unintialized xz images does not have raw_image attribute
+                self.show_image(image_widget.raw_image, i, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
         
     def update_combo_box_list(self, widget, new_list,  selected_item = None):
         current_value = widget.currentText()

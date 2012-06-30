@@ -77,8 +77,8 @@ class MovingGrating(experiment.Experiment):
             for white_bar_width in self.experiment_config.WHITE_BAR_WIDTHS:
                 for velocity in self.experiment_config.VELOCITIES:
                     for duty_cycle in self.experiment_config.DUTY_CYCLES:
-                        if repeat > 0:
-                            random.shuffle(orientations)
+#                        if repeat > 0:
+#                            random.shuffle(orientations)
                         for orientation in orientations:
                             stimulus_unit = {}
                             stimulus_unit['white_bar_width'] = white_bar_width

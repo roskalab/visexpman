@@ -984,7 +984,7 @@ class Poller(QtCore.QThread):
                 h.save('cells', overwrite = True)
         self.scan_regions = copy.deepcopy(h.scan_regions)
         self.cells = copy.deepcopy(h.cells)
-        self.cells = copy.deepcopy(h.cells)
+        self.roi_curves = copy.deepcopy(h.roi_curves)
         self.images = copy.deepcopy(h.images)
         h.close()
         if not process_status_update:
