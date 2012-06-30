@@ -124,6 +124,17 @@ def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter =
                     filtered_files.append(file)
     return filtered_files
 
+def find_file_from_timestamp(dir, timestamp):
+    from visexpman.engine.generic.string import dirListing
+    from visexpA.engine.component_guesser import get_mes_name_timestamp
+    files = dirListing(dir, ['.hdf5'], dir)
+    matching = [f for f in files if str(int(timestamp)) in f]
+    if len(matching)==0: # no filename contained the timestamp, go and open those hdf5 files that have no timestamp in their names
+        stamps = [get_mes_name_timestamp(f)[1] for f in files]
+        matching = [s for s in stamps if str(int(stamp))==str(int(timestamp))]
+    if len(matching)==0: return None
+    else: return matching[0]
+
 def read_text_file(path):
     f = open(path,  'rt')
     txt =  f.read(os.path.getsize(path))
