@@ -327,6 +327,7 @@ class RoiWidget(QtGui.QWidget):
         self.suggested_depth_label = QtGui.QLabel('',  self)
         self.roi_pattern_parameters_label = QtGui.QLabel('ROI pattern parameters: pattern size, distance from center [um]',  self)
         self.roi_pattern_parameters_lineedit = QtGui.QLineEdit(self)
+        self.roi_pattern_parameters_lineedit.setPlaceholderText('{0},{1}'.format(self.config.ROI_PATTERN_SIZE, self.config.ROI_PATTERN_RADIUS))
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()

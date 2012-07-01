@@ -1,3 +1,4 @@
+from __future__ import generators
 import numpy
 import unittest
 import utils
@@ -11,7 +12,7 @@ from visexpA.engine.datadisplay.imaged import imshow
 # convex hull (Graham scan by x-coordinate) and diameter of a set of points
 # David Eppstein, UC Irvine, 7 Mar 2002
 
-from __future__ import generators
+
 
 def orientation(p,q,r):
     '''Return positive if p-q-r are clockwise, neg if ccw, zero if colinear.'''

@@ -243,6 +243,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE' : 100.0}
         XZ_FRAME_CLIPPING = {'top': 4,  'bottom':3}
+        ROI_PATTERN_SIZE = [2, [1, 10]]
+        ROI_PATTERN_RADIUS = [1, [0, 50]]
         
         MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
         #this function call is compulsory
