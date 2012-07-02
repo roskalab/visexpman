@@ -228,7 +228,6 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.scan_regions_combobox.setEditable(True)
         self.remove_button = QtGui.QPushButton('Remove',  self)
         self.move_to_button = QtGui.QPushButton('Move to',  self)
-        self.move_to_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.region_info = QtGui.QLabel('',  self)
         self.move_to_region_options = {}
         self.move_to_region_options['header_labels'] = [ QtGui.QLabel('Move', self), QtGui.QLabel('Realign', self), QtGui.QLabel('Adjust origin', self)]
@@ -246,7 +245,6 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
             if 'stage_move' in k:
                 v.setCheckState(2)
         self.xz_scan_button = QtGui.QPushButton('XZ scan',  self)
-        self.xz_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))        
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -296,6 +294,7 @@ class RoiWidget(QtGui.QWidget):
         self.next_button = QtGui.QPushButton('>>',  self)
         self.previous_button = QtGui.QPushButton('<<',  self)
         self.accept_cell_button = QtGui.QPushButton('Accept cell',  self)
+        self.accept_cell_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.ignore_cell_button = QtGui.QPushButton('Ignore cell',  self)
 #        self.cell_group_edit_label = QtGui.QLabel('Assign to cell group',  self)
 #        self.cell_group_edit_combobox = QtGui.QComboBox(self)
@@ -323,7 +322,9 @@ class RoiWidget(QtGui.QWidget):
         self.cell_group_combobox = QtGui.QComboBox(self)
         self.cell_group_combobox.setEditable(True)
         self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
+        self.create_xz_lines_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.xy_scan_button = QtGui.QPushButton('XY scan',  self)
+        self.xy_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.suggested_depth_label = QtGui.QLabel('',  self)
         self.roi_pattern_parameters_label = QtGui.QLabel('ROI pattern parameters: pattern size, distance from center [um]',  self)
         self.roi_pattern_parameters_lineedit = QtGui.QLineEdit(self)
@@ -885,7 +886,7 @@ class Poller(QtCore.QThread):
         self.scan_regions = copy.deepcopy(scan_regions)
         h.close()
         self.backup_mouse_file(h.filename)
-        self.printc('Process status flag set: {1}/{0}'.format(flag_names,  id))
+        self.printc('Process status flag set: {1}/{0}'.format(flag_names[0],  id))
         self.parent.update_jobhandler_process_status()
     
     def add_measurement_id(self, id):

@@ -12,6 +12,7 @@ import unittest
 import tempfile
 import copy
 import select
+import subprocess
 if os.name == 'nt':
     import win32process
     import win32api
@@ -401,6 +402,17 @@ def calculate_trajectory(start_point,  end_point,  spatial_resolution,  curve = 
         
     
 #== Application management ==    
+def system_command(command):
+    pid = subprocess.Popen(command,  shell = False, stdout = subprocess.PIPE)
+    return pid.communicate()[0]
+    
+def is_file_open(path):
+    if os.name == 'nt':
+        raise RuntimeError('This function is not supported on Windows operating system')
+    else:
+        res = system_command('lsof')
+        return path in res
+
 def class_name(object):
     name = str(object.__class__)
     return name.split('\'')[1]
@@ -457,7 +469,6 @@ def class_list_in_string(class_list):
     for item in class_list:
         class_list_string.append(item[1].__name__)
     return class_list_string
-        
 
 def keep_closest_ancestors(class_list,  required_ancestors):
     '''From the result of fetch_classes method, if class_list contains multiple items, this routine
@@ -619,8 +630,7 @@ def system_memory():
             return 0, 0
     else:
         return 0, 0
-    
-    
+       
 def module_versions(modules):    
     module_version = ''
     module_version_dict = {}
@@ -784,8 +794,7 @@ def periodic_caller(period, call, args = None, idle_time = 0.1):
                 if call(*args):
                     break
         time.sleep(idle_time)
-        
-        
+
 ##### Queue #########
 def empty_queue(queue):
     results = []

@@ -233,7 +233,6 @@ class VisionExperimentGui(QtGui.QWidget):
     def select_cell_changed(self):
         self.update_roi_curves_display()
         self.update_meanimage()
-        self.update_cell_group_combobox()
         self.update_suggested_depth_label()
         #display cell status
         region_name = self.get_current_region_name()
@@ -249,10 +248,12 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_cell_filter_list()
         self.update_cell_list()
         self.update_meanimage()
+        self.update_roi_curves_display()
         
     def cell_filter_changed(self):
         self.update_cell_list()
         self.update_meanimage()
+        self.update_roi_curves_display()
 
     ################### GUI updaters #################
     def update_widgets_when_mouse_file_changed(self, selected_region=None):

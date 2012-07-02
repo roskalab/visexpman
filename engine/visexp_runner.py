@@ -14,9 +14,6 @@ import random
 import zipfile
 import numpy
 import re
-import visexpman
-
-
 
 #Visexpman modules
 import visexpman
