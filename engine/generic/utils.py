@@ -20,8 +20,12 @@ if os.name == 'nt':
 import file
 
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+
 #== Coordinate geometry ==
 #TODO: check for redundant functions in this section
+def roi_center(roi):
+    return rc((roi['row'].mean(), roi['col'].mean()))
+    
 def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100)):
     radius_sq = (diameter * 0.5) ** 2
     circle = numpy.ones(array_size)
@@ -371,9 +375,9 @@ def arc_perimeter(radius,  angle):
     
 def rc_distance(point1,  point2, rc_distance_only = False):
     if 'depth' in point1.dtype.names and 'depth' in point2.dtype.names and not rc_distance:
-        return numpy.sqrt((float(point1['col'])-float(point2['col']))**2 + (float(point1['row'])-float(point2['row']))**2 + (float(point1['depth'])-float(point2['depth']))**2)
+        return numpy.sqrt((numpy.cast['float'](point1['col'])-numpy.cast['float'](point2['col']))**2 + (numpy.cast['float'](point1['row'])-numpy.cast['float'](point2['row']))**2 + (numpy.cast['float'](point1['depth'])-numpy.cast['float'](point2['depth']))**2)
     else:
-        return numpy.sqrt((float(point1['col'])-float(point2['col']))**2 + (float(point1['row'])-float(point2['row']))**2)
+        return numpy.sqrt((numpy.cast['float'](point1['col'])-numpy.cast['float'](point2['col']))**2 + (numpy.cast['float'](point1['row'])-numpy.cast['float'](point2['row']))**2)
 
 def rc_point_curve_distance(point, curve):
     distance = numpy.zeros_like(curve['row'])

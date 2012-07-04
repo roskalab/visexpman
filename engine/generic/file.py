@@ -3,7 +3,7 @@ import os.path
 import numpy
 import tempfile
 
-def get_measurement_file_path_from_id(id, config, filename_only = False, extension = 'hdf5'):
+def get_measurement_file_path_from_id(id, config, filename_only = False, extension = 'hdf5', subfolders =  False):
     if hasattr(config, 'EXPERIMENT_DATA_PATH'):
         folder = config.EXPERIMENT_DATA_PATH
     else:
@@ -17,6 +17,7 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
             return os.path.split(path)[1]
         else:
             return path
+
 
 def mkstemp(suffix=None, filename = None):
     '''Creates a temporary file with suffix as extension, e.g. .pdf. Closes the file so that other methods can open it and do what they need.'''        
@@ -115,8 +116,7 @@ def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter =
                     found = True
             else:
                 if filter in file:
-                    found = True                    
-                    
+                    found = True
             if found:
                 if fullpath:
                     filtered_files.append(os.path.join(folder_name, file))

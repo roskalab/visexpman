@@ -300,7 +300,7 @@ class ExperimentControl(object):
                 if self.config.PLATFORM == 'mes':
                     if self.mes_record_time > 30.0:
                         if not self._pre_post_experiment_scan(is_pre=False):
-                            return False
+                            self.printl('Post experiment scan was NOT successful')
                 self._save_fragment_data(fragment_id)
                 if self.config.PLATFORM == 'mes':
                     for i in range(5):#Workaround for the temporary failure of queue.put().

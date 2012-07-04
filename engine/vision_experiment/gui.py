@@ -890,7 +890,7 @@ class Poller(QtCore.QThread):
         self.scan_regions = copy.deepcopy(scan_regions)
         h.close()
         self.backup_mouse_file(h.filename)
-        self.printc('Process status flag set: {1}/{0}'.format(flag_names[0],  id))
+        self.printc('Process status flag set: {1} / {0}'.format(flag_names[0],  id))
         self.parent.update_jobhandler_process_status()
     
     def add_measurement_id(self, id):
