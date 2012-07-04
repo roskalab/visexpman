@@ -318,7 +318,7 @@ class RoiWidget(QtGui.QWidget):
         self.cell_merge_distance_combobox = QtGui.QComboBox(self)
         self.cell_merge_distance_combobox.setEditable(True)
         self.cell_merge_distance_combobox.setEditText(str(self.config.CELL_MERGE_DISTANCE))
-        self.cell_group_label =  QtGui.QLabel('Cell group',  self)
+        self.cell_group_label =  QtGui.QLabel('Cell group name',  self)
         self.cell_group_combobox = QtGui.QComboBox(self)
         self.cell_group_combobox.setEditable(True)
         self.create_xz_lines_button = QtGui.QPushButton('XZ lines',  self)
@@ -327,8 +327,9 @@ class RoiWidget(QtGui.QWidget):
         self.xy_scan_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.suggested_depth_label = QtGui.QLabel('',  self)
         self.roi_pattern_parameters_label = QtGui.QLabel('ROI pattern parameters: pattern size, distance from center [um]',  self)
-        self.roi_pattern_parameters_lineedit = QtGui.QLineEdit(self)
-        self.roi_pattern_parameters_lineedit.setPlaceholderText('{0},{1}'.format(self.config.ROI_PATTERN_SIZE, self.config.ROI_PATTERN_RADIUS))
+        self.roi_pattern_parameters_lineedit = QtGui.QComboBox(self)
+        self.roi_pattern_parameters_lineedit.setEditable(True)
+        self.roi_pattern_parameters_lineedit.setEditText('{0},{1}'.format(self.config.ROI_PATTERN_SIZE, self.config.ROI_PATTERN_RADIUS))
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -360,14 +361,14 @@ class RoiWidget(QtGui.QWidget):
         self.layout.addWidget(self.suggested_depth_label, image_height_in_rows + 3, 6)
         
         self.layout.addWidget(self.cell_group_label, image_height_in_rows + 5, 0)
-        self.layout.addWidget(self.cell_group_combobox, image_height_in_rows + 5, 1)
-        self.layout.addWidget(self.xz_line_length_label, image_height_in_rows + 5, 2)
-        self.layout.addWidget(self.xz_line_length_combobox, image_height_in_rows + 5, 3)
-        self.layout.addWidget(self.cell_merge_distance_label, image_height_in_rows + 5, 4)
-        self.layout.addWidget(self.cell_merge_distance_combobox, image_height_in_rows + 5, 5)
-        self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 5, 6)
-        self.layout.addWidget(self.roi_pattern_parameters_label, image_height_in_rows + 6, 0, 1, 4)
-        self.layout.addWidget(self.roi_pattern_parameters_lineedit, image_height_in_rows +6, 4)
+        self.layout.addWidget(self.cell_group_combobox, image_height_in_rows + 5, 1, 1, 2)
+        self.layout.addWidget(self.xz_line_length_label, image_height_in_rows + 6, 0)
+        self.layout.addWidget(self.xz_line_length_combobox, image_height_in_rows + 6, 1)
+        self.layout.addWidget(self.cell_merge_distance_label, image_height_in_rows + 6, 2)
+        self.layout.addWidget(self.cell_merge_distance_combobox, image_height_in_rows + 6, 3)
+        self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 6, 4)
+        self.layout.addWidget(self.roi_pattern_parameters_label, image_height_in_rows + 7, 0, 1, 4)
+        self.layout.addWidget(self.roi_pattern_parameters_lineedit, image_height_in_rows + 7, 4)
         
         
         self.layout.setRowStretch(15, 15)
@@ -386,16 +387,9 @@ class MainWidget(QtGui.QWidget):
         #MES related
         self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
         #Stage related
-        self.set_stage_origin_button = QtGui.QPushButton('Set stage origin', self)
-        self.set_stage_origin_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
-        self.read_stage_button = QtGui.QPushButton('Read stage', self)
-        self.move_stage_button = QtGui.QPushButton('Move stage', self)
-        self.stop_stage_button = QtGui.QPushButton('Stop stage', self)
-        self.current_position_label = QtGui.QLabel('', self)
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
         self.measurement_datafile_status_groupbox = MeasurementDatafileStatusGroupbox(self)
-        self.set_objective_button = QtGui.QPushButton('Set objective', self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -405,13 +399,6 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 6, 2)
         
         self.layout.addWidget(self.z_stack_button, 9, 0, 1, 1)
-
-        self.layout.addWidget(self.set_stage_origin_button, 10, 0, 1, 1)
-        self.layout.addWidget(self.read_stage_button, 10, 1, 1, 1)
-        self.layout.addWidget(self.move_stage_button, 10, 2, 1, 1)
-        self.layout.addWidget(self.stop_stage_button, 10, 3, 1, 1)
-        self.layout.addWidget(self.set_objective_button, 10, 4, 1, 1)
-        self.layout.addWidget(self.current_position_label, 10, 5, 1, 2)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -480,11 +467,28 @@ class CommonWidget(QtGui.QWidget):
         self.show_gridlines_checkbox = QtGui.QCheckBox(self)
         self.connected_clients_label = QtGui.QLabel('', self)
         
+        self.set_stage_origin_button = QtGui.QPushButton('Set stage origin', self)
+        self.set_stage_origin_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
+        self.read_stage_button = QtGui.QPushButton('Read stage', self)
+        self.move_stage_button = QtGui.QPushButton('Move stage', self)
+        self.stop_stage_button = QtGui.QPushButton('Stop stage', self)
+        self.set_objective_button = QtGui.QPushButton('Set objective', self)
+        self.current_position_label = QtGui.QLabel('', self)
+        
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.show_gridlines_label, 0, 0)
-        self.layout.addWidget(self.show_gridlines_checkbox, 0, 1)
-        self.layout.addWidget(self.connected_clients_label, 0,2, 1, 4)
+        self.layout.addWidget(self.show_gridlines_label, 1, 0)
+        self.layout.addWidget(self.show_gridlines_checkbox, 1, 1)
+        self.layout.addWidget(self.connected_clients_label, 1,2, 1, 4)
+        
+        self.layout.addWidget(self.set_stage_origin_button, 0, 0, 1, 1)
+        self.layout.addWidget(self.read_stage_button, 0, 1, 1, 1)
+        self.layout.addWidget(self.move_stage_button, 0, 2, 1, 1)
+        self.layout.addWidget(self.stop_stage_button, 0, 3, 1, 1)
+        self.layout.addWidget(self.set_objective_button, 0, 4, 1, 1)
+        self.layout.addWidget(self.current_position_label, 0, 5, 1, 2)
+        
+        
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -1052,7 +1056,8 @@ class Poller(QtCore.QThread):
         
     def select_cell(self, selection):
         self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['accepted'] = selection
-        self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['group'] = str(self.parent.roi_widget.cell_group_combobox.currentText())
+        if selection:
+            self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['group'] = str(self.parent.roi_widget.cell_group_combobox.currentText())
         self.next_cell()
         self.cell_status_changed_in_cache = True
         
@@ -1137,7 +1142,7 @@ class Poller(QtCore.QThread):
         else:
             self.printc('invalid coordinates')
             return
-        self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setEditText('')
+        #Disbaled: self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setEditText('')
         self.move_stage_relative(movement)
 
     def move_stage_relative(self, movement):
@@ -1280,7 +1285,7 @@ class Poller(QtCore.QThread):
                                 objective_origin = self.objective_origin, 
                                 z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], 
                                 merge_distance = merge_distance)
-            params = str(self.parent.roi_widget.roi_pattern_parameters_lineedit.displayText()).replace(' ', '')
+            params = str(self.parent.roi_widget.roi_pattern_parameters_lineedit.currentText()).replace(' ', '')
             if len(params)==0:
                 roi_pattern_size = 0
                 aux_roi_distance = 0
@@ -1344,6 +1349,7 @@ class Poller(QtCore.QThread):
             time.sleep(0.1)#Wait till file is created
             #set selected mouse file to this one
             self.parent.update_mouse_files_combobox(set_to_value = os.path.split(self.mouse_file)[-1])
+            self.parent.update_cell_group_combobox()
             #Clear image displays showing regions
             self.emit(QtCore.SIGNAL('clear_image_display'), 1)
             self.emit(QtCore.SIGNAL('clear_image_display'), 3)
@@ -1735,7 +1741,7 @@ class Poller(QtCore.QThread):
             merge_distance = str(self.parent.roi_widget.cell_merge_distance_combobox.currentText())
             if merge_distance != '':
                 self.experiment_parameters['merge_distance'] = merge_distance
-            roi_pattern_params = str(self.parent.roi_widget.roi_pattern_parameters_lineedit.displayText()).replace(' ', '')
+            roi_pattern_params = str(self.parent.roi_widget.roi_pattern_parameters_lineedit.currentText()).replace(' ', '')
             if roi_pattern_params !='':
                 self.experiment_parameters['roi_pattern_size'] = roi_pattern_params.split(',')[0]
                 self.experiment_parameters['aux_roi_distance'] = roi_pattern_params.split(',')[1]

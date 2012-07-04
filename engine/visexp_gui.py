@@ -170,11 +170,11 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.run_fragment_process_button, 'run_fragment_process')
 
         #Blocking functions, run by poller
-        self.connect_and_map_signal(self.main_widget.read_stage_button, 'read_stage')
-        self.connect_and_map_signal(self.main_widget.set_stage_origin_button, 'set_stage_origin')
-        self.connect_and_map_signal(self.main_widget.move_stage_button, 'move_stage')
-        self.connect_and_map_signal(self.main_widget.stop_stage_button, 'stop_stage')
-        self.connect_and_map_signal(self.main_widget.set_objective_button, 'set_objective')
+        self.connect_and_map_signal(self.common_widget.read_stage_button, 'read_stage')
+        self.connect_and_map_signal(self.common_widget.set_stage_origin_button, 'set_stage_origin')
+        self.connect_and_map_signal(self.common_widget.move_stage_button, 'move_stage')
+        self.connect_and_map_signal(self.common_widget.stop_stage_button, 'stop_stage')
+        self.connect_and_map_signal(self.common_widget.set_objective_button, 'set_objective')
 #        self.connect_and_map_signal(self.main_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.main_widget.z_stack_button, 'acquire_z_stack')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.get_xy_scan_button, 'acquire_xy_scan')
@@ -277,7 +277,7 @@ class VisionExperimentGui(QtGui.QWidget):
         display_position = numpy.round(self.poller.stage_position - self.poller.stage_origin, 2)
         if hasattr(self.poller, 'objective_position'):
             display_position[-1] = self.poller.objective_position
-        self.main_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
+        self.common_widget.current_position_label.setText('{0:.2f}, {1:.2f}, {2:.2f}' .format(display_position[0], display_position[1], display_position[2]))
         
     def update_animal_parameter_display(self):
         if hasattr(self.poller, 'animal_parameters'):

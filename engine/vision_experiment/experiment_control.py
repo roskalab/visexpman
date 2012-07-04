@@ -227,11 +227,9 @@ class ExperimentControl(object):
                     if self.roi_locations is None:
                         self.printl('No ROIs found')
                         return False
-                    if not self.mes_interface.create_XZline_from_points(self.roi_locations, self.xz_scan_config):
-                        self.printl('Creating XZ lines did not succeed')
-                        return False
-                    else:
-                        self.printl('{0} xz lines created' .format(len(self.roi_locations)))
+#                    if not self.mes_interface.create_XZline_from_points(self.roi_locations, self.xz_scan_config):
+#                        self.printl('Creating XZ lines did not succeed')
+#                        return False
                 scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                     parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
             if scan_start_success:
@@ -348,6 +346,7 @@ class ExperimentControl(object):
                 filterwheel.release_instrument()
         self.led_controller.release_instrument()
         self.stage.release_instrument()
+
 
     ############### File handling ##################
     def _prepare_files(self):
