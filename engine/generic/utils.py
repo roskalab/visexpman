@@ -26,6 +26,11 @@ import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 def roi_center(roi):
     return rc((roi['row'].mean(), roi['col'].mean()))
     
+def toRGBarray(array):
+    rgb_array = numpy.array([array, array, array])
+    rgb_array = numpy.rollaxis(rgb_array, 0, len(array.shape))
+    return rgb_array
+ 
 def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100)):
     radius_sq = (diameter * 0.5) ** 2
     circle = numpy.ones(array_size)

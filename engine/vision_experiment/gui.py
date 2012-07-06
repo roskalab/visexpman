@@ -131,7 +131,7 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.anesthesia_protocol.setEditable(True)
         self.mouse_strain_label = QtGui.QLabel('Mouse strain',  self)
         self.mouse_strain = QtGui.QComboBox(self)
-        self.mouse_strain.addItems(QtCore.QStringList(['chat', 'chatdtr', 'bl6', 'grik4']))
+        self.mouse_strain.addItems(QtCore.QStringList(['chatdtr', 'chat', 'bl6', 'grik4']))
         self.mouse_strain.setEditable(True)
         self.comments = QtGui.QComboBox(self)
         self.comments.setEditable(True)
