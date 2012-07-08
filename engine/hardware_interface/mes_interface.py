@@ -491,7 +491,7 @@ class MesInterface(object):
             return False, {}
         if timeout is None:
             if scan_time != None:
-                timeout = max(1.5 * scan_time, 2 * self.config.MES_TIMEOUT)
+                timeout = max(1.5 * scan_time, 2.5 * self.config.MES_TIMEOUT)
             else:
                 timeout = 2 * self.config.MES_TIMEOUT
         if scan_time is not None:

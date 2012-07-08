@@ -133,7 +133,7 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
         elif node_name == expected_top_level_nodes[-1]:
             expected_subnodes = ['rising_edges_indexes', 'number_of_fragments', 'stimulus_frame_info', 'generated_data', \
         'sync_data', 'actual_fragment',  'current_fragment', 'experiment_source', 'experiment_log', 'software_environment', \
-        'laser_intensity', 'prepost_scan_image', 'experiment_config', 'machine_config']
+        'laser_intensity', 'prepost_scan_image', 'experiment_config', 'machine_config', 'animal_parameters']
             if not hasattr(node,  'has_key'):
                 result = False
                 messages.append('unexpected data type in {0}'.format(node_name))

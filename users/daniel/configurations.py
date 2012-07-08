@@ -233,7 +233,7 @@ class DebugOnLaptop(VisionExperimentConfig):
         FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
         COORDINATE_SYSTEM='ulcorner'
-        ENABLE_FRAME_CAPTURE = False
+        ENABLE_FRAME_CAPTURE =  False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
         
@@ -243,7 +243,7 @@ class DebugOnLaptop(VisionExperimentConfig):
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
-        MAXIMUM_RECORDING_DURATION = [100, [0, 10000]] #100
+        MAXIMUM_RECORDING_DURATION = [1000, [0, 10000]] #100
         MES_TIMEOUT = 10.0
         PLATFORM = 'standalone'
 #        PLATFORM = 'mes'
@@ -342,7 +342,7 @@ class Debug(VisionExperimentConfig):
                 root_folder = '/mnt/rzws/'
                     
         drive_data_folder = os.path.join(root_folder, 'debug', 'data')
-        LOG_PATH = os.path.join(drive_data_folder, 'log')
+        LOG_PATH = os.path.join(root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = drive_data_folder
         if use_drive == 'g':
@@ -353,7 +353,7 @@ class Debug(VisionExperimentConfig):
             MES_DATA_FOLDER = 'R:\\debug\\data'
         self.CONTEXT_NAME = 'gui_dev.hdf5'
         CONTEXT_PATH = os.path.join(root_folder, 'context')
-        CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
+        CAPTURE_PATH = os.path.join(root_folder, 'log')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         
         #=== screen ===
@@ -472,7 +472,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         else:            
             v_drive_folder = '/mnt/datafast'
         v_drive_data_folder = os.path.join(v_drive_folder,  'experiment_data')
-        LOG_PATH = os.path.join(v_drive_data_folder, 'log')
+        LOG_PATH = os.path.join(v_drive_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = v_drive_data_folder
         MES_DATA_FOLDER = 'V:\\experiment_data'

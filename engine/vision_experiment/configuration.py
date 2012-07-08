@@ -100,7 +100,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
             'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
-            'STIM_ANALYSIS'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}}, 
+#            'STIM_ANALYSIS'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}}, 
             }
         }
         #TODO: probably IP addresses are not necessary here

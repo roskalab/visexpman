@@ -119,11 +119,9 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         if unit_test_runner.TEST_enable_network:
             self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
             self.queues['gui']['out'].put('SOCclose_connectionEOCstop_clientEOP')
-            self.queues['analysis']['out'].put('SOCclose_connectionEOCstop_clientEOP')
             time.sleep(3.0)
             self.log.queue(self.connections['mes'].log_queue, 'mes connection')
             self.log.queue(self.connections['gui'].log_queue, 'gui connection')
-            self.log.queue(self.connections['analysis'].log_queue, 'analysis connection')
             self.log.info('Network connections terminated')
         
     def _init_network(self):
@@ -135,13 +133,9 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         self.queues['mes'] = {}
         self.queues['mes']['out'] = Queue.Queue()
         self.queues['mes']['in'] = Queue.Queue()
-        self.queues['analysis'] = {}
-        self.queues['analysis']['out'] = Queue.Queue()
-        self.queues['analysis']['in'] = Queue.Queue()
         self.queues['udp'] = {'in' : Queue.Queue() }
         self.connections['gui'] = network_interface.start_client(self.config, 'STIM', 'GUI_STIM', self.queues['gui']['in'], self.queues['gui']['out'])
         self.connections['mes'] = network_interface.start_client(self.config, 'STIM', 'STIM_MES', self.queues['mes']['in'], self.queues['mes']['out'])
-        self.connections['analysis'] = network_interface.start_client(self.config, 'STIM', 'STIM_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
         if self.config.ENABLE_UDP:
             server_address = ''
             self.udp_listener = network_interface.NetworkListener(server_address, self.queues['udp']['in'], socket.SOCK_DGRAM, self.config.UDP_PORT)

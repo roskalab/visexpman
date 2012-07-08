@@ -23,6 +23,7 @@ from visexpman.engine.generic import file
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
+import visexpA.engine.component_guesser as cg
 
 BUTTON_HIGHLIGHT = 'color: red'
 
@@ -803,6 +804,7 @@ class Poller(QtCore.QThread):
                 number_of_new_cells = len(soma_rois)
             else:
                 number_of_new_cells = 0
+            scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
             h_measurement.close()
             #Save changes
             h.scan_regions = scan_regions
@@ -848,6 +850,7 @@ class Poller(QtCore.QThread):
             number_of_new_cells = 0
         else:
             number_of_new_cells = len(soma_rois)
+        scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
         for i in range(number_of_new_cells):
             cell_id = ('{0}_{1}_{2:2}_{3}'.format(depth, id,  i, stimulus)).replace(' ', '0')
             h.cells[region_name][cell_id] = {}
@@ -868,8 +871,6 @@ class Poller(QtCore.QThread):
         h.scan_regions = scan_regions
         h.save(['scan_regions', 'images', 'cells', 'roi_curves'], overwrite=True)
         self.printc('{1} cells added from {0}'.format(id, number_of_new_cells))
-        #Create copy of mouse file that can be read by other applications
-        self.backup_mouse_file(h.filename)
         self.cells = copy.deepcopy(h.cells)
         self.scan_regions = copy.deepcopy(h.scan_regions)
         self.roi_curves = copy.deepcopy(h.roi_curves)
@@ -889,7 +890,6 @@ class Poller(QtCore.QThread):
         h.save('scan_regions', overwrite=True)
         self.scan_regions = copy.deepcopy(scan_regions)
         h.close()
-        self.backup_mouse_file(h.filename)
         self.printc('Process status flag set: {1} / {0}'.format(flag_names[0],  id))
         self.parent.update_jobhandler_process_status()
     
@@ -911,7 +911,6 @@ class Poller(QtCore.QThread):
         self.scan_regions = copy.deepcopy(scan_regions)
         h.save('scan_regions', overwrite=True)
         h.close()
-        self.backup_mouse_file(h.filename)
         self.printc('Measurement ID added: {0}'.format(id))
         self.parent.update_jobhandler_process_status()
         self.parent.update_file_id_combobox()
@@ -922,9 +921,12 @@ class Poller(QtCore.QThread):
         if measurement_file_path is None or not os.path.exists(measurement_file_path):
             self.printc('Measurement file not found: {0}, {1}' .format(measurement_file_path,  id))
             return 5*[None]
-        fromfile = hdf5io.read_item(measurement_file_path, ['call_parameters', 'position', 'experiment_config_name'])
+        measurement_hdfhandler = hdf5io.Hdf5io(measurement_file_path)
+        fromfile = measurement_hdfhandler.findvar(['call_parameters', 'position', 'experiment_config_name'])
         call_parameters = fromfile[0]
-        info = {'depth': fromfile[1]['z'][0], 'stimulus':fromfile[2], 'scan_mode':fromfile[0]['scan_mode']}
+        laser_intensity = measurement_hdfhandler.findvar('laser_intensity', path = 'root.'+ '_'.join(cg.get_mes_name_timestamp(measurement_hdfhandler)))
+        measurement_hdfhandler.close()
+        info = {'depth': fromfile[1]['z'][0], 'stimulus':fromfile[2], 'scan_mode':fromfile[0]['scan_mode'], 'laser_intensity':laser_intensity}
         #Read the database from the mouse file pointed by the measurement file
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
         if not os.path.exists(mouse_file):
@@ -950,7 +952,6 @@ class Poller(QtCore.QThread):
         
     def clear_process_status(self):
         h = hdf5io.Hdf5io(self.mouse_file)
-        self.backup_mouse_file(self.mouse_file)
         h.load('roi_curves')
         h.roi_curves = {}
         h.load('cells')
@@ -994,7 +995,6 @@ class Poller(QtCore.QThread):
         self.images = copy.deepcopy(h.images)
         h.close()
         if not process_status_update:
-            self.backup_mouse_file()
             self.parent.update_jobhandler_process_status()
             self.parent.update_file_id_combobox()
             self.parent.update_cell_list()
@@ -1028,7 +1028,6 @@ class Poller(QtCore.QThread):
             h.save(['scan_regions'], overwrite = True)
         self.scan_regions = copy.deepcopy(h.scan_regions)
         h.close()
-        self.backup_mouse_file()
         self.parent.update_jobhandler_process_status()
         self.parent.update_file_id_combobox()
         self.queues['analysis']['out'].put('SOCclear_joblistEOCEOP')
@@ -1081,7 +1080,6 @@ class Poller(QtCore.QThread):
                 h.save('cells', overwrite=True)
                 self.cells = copy.deepcopy(h.cells)
             h.close()
-            self.backup_mouse_file()
             self.printc('Cell settings saved')
             self.parent.update_cell_group_combobox()
             self.cell_status_changed_in_cache = False
@@ -1334,6 +1332,7 @@ class Poller(QtCore.QThread):
             'ear_punch_r' : str(self.parent.animal_parameters_widget.ear_punch_r.currentText()),
             'strain' : str(self.parent.animal_parameters_widget.mouse_strain.currentText()),
             'comments' : str(self.parent.animal_parameters_widget.comments.currentText()),
+            'add_date' : utils.datetime_string().replace('_', ' ')
         }        
         name = '{0}_{1}_{2}_{3}_{4}' .format(self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])
@@ -1353,8 +1352,8 @@ class Poller(QtCore.QThread):
             #Clear image displays showing regions
             self.emit(QtCore.SIGNAL('clear_image_display'), 1)
             self.emit(QtCore.SIGNAL('clear_image_display'), 3)
+            self.parent.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.setCheckState(0)
             self.printc('Animal parameter file saved')
-            self.backup_mouse_file()
             
     
     ################### Regions #######################
@@ -1465,7 +1464,6 @@ class Poller(QtCore.QThread):
         hdf5_handler.scan_regions = self.scan_regions
         hdf5_handler.save('scan_regions', overwrite = True)
         hdf5_handler.close()
-        self.backup_mouse_file()
         self.parent.update_region_names_combobox(region_name)
         self.update_scan_regions()#This is probably redundant
         self.printc('{0} scan region saved'.format(region_name))
@@ -1476,7 +1474,6 @@ class Poller(QtCore.QThread):
             if self.scan_regions.has_key(selected_region):
                 del self.scan_regions[selected_region]
             hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions, overwrite=True)
-            self.backup_mouse_file()
             self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setCurrentIndex(0)
             self.parent.update_region_names_combobox()
             self.update_scan_regions()
@@ -1814,7 +1811,7 @@ class Poller(QtCore.QThread):
             p.figure(2)
             p.plot(scanned_trajectory['masked_line'][::undersample])
             p.plot(scanned_trajectory['roi'][::undersample])
-            p.show()      
+            p.show()
             
     ############ Data processing control ##################
     def run_fragment_process(self):
@@ -1868,9 +1865,6 @@ class Poller(QtCore.QThread):
                 n_connected += 1
             if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
                 connected += 'ANALYSIS  '
-                n_connected += 1
-            if connection_status['STIM_ANALYSIS/ANALYSIS'] and connection_status['STIM_ANALYSIS/STIM']:
-                connected += 'STIM-ANALYSIS'
                 n_connected += 1
             n_connections = len(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].keys())
             connected = 'Alive connections ({0}/{1}): '.format(n_connected, n_connections) + connected
@@ -2010,13 +2004,6 @@ class Poller(QtCore.QThread):
         name = '{5}_{0}_{1}_{2}_{3}_{4}.{6}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
                                          animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], tag, extension)
         return name
-        
-    def fetch_backup_mouse_file_path(self):
-        mouse_file_copy = self.mouse_file.replace('.hdf5', '_copy.hdf5')
-        if os.path.exists(mouse_file_copy):
-            return mouse_file_copy
-        else:
-            return self.mouse_file
 
 def update_mouse_files_list(config, current_mouse_files = []):
     new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  'mouse')

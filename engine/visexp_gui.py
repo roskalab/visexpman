@@ -51,6 +51,9 @@ class VisionExperimentGui(QtGui.QWidget):
         self.queues = self.poller.queues
         QtGui.QWidget.__init__(self)
         self.setWindowTitle('Vision Experiment Manager GUI - {0} - {1}' .format(user,  config_class))
+        icon_path = os.path.join(os.path.split(visexpman.__file__)[0],'data','images','grabowsky.png')
+        if os.path.exists(icon_path):
+            self.setWindowIcon(Qt.QIcon(icon_path))
         self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
         self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
         self.create_gui()
@@ -357,22 +360,29 @@ class VisionExperimentGui(QtGui.QWidget):
                 else:
                     depth = ''
                 if status['info'].has_key('stimulus'):
-                    stimulus = status['info']['stimulus']
+                    stimulus = status['info']['stimulus'].replace('Config', '')
                 else:
                     stimulus = ''
                 if status['info'].has_key('scan_mode'):
                     scan_mode = status['info']['scan_mode']
                 else:
                     scan_mode = ''
+                if status['info'].has_key('laser_intensity'):
+                    laser_intensity = status['info']['laser_intensity']
+                else:
+                    laser_intensity = 0.0
                 if status['find_cells_ready']:
                     status = 'find cells ready'
                 elif status['mesextractor_ready']:
                     status = 'mesextractor ready'
                 elif status['fragment_check_ready']:
-                    status = 'fragment check ready'
+                    if status.has_key('number_of_cells'):
+                        status = '{0} cells' .format(status['number_of_cells'])
+                    else:
+                        status = 'fragment check ready'
                 else:
                     status = 'not processed'
-                status_text += '{0}, {1}, {2}, {3}: {4}\n'.format(scan_mode, stimulus, depth,  id, status)
+                status_text += '{0}, {1}, {2}, {3}, {4:0.0f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
 #                if item_counter%item_per_line==item_per_line-1:
 #                    status_text+='\n'
 #                else:
@@ -419,6 +429,7 @@ class VisionExperimentGui(QtGui.QWidget):
                         value = value.split(' ')[0]
                     if value not in filter_values:
                         filter_values.append(value)
+            filter_values.sort()
             self.update_combo_box_list(self.roi_widget.cell_filter_combobox,filter_values)
             self.update_cell_list()#This is necessary to update cell list if  'No filter' is selected but reason unknown
             
@@ -431,6 +442,7 @@ class VisionExperimentGui(QtGui.QWidget):
             for cell_id, cell_info in self.poller.cells[region_name].items():
                 if cell_info['accepted'] and not cell_info['group'] in cell_groups and cell_info['group'] != '':
                     cell_groups.append(cell_info['group'])
+            cell_groups.sort()
             self.update_combo_box_list(self.roi_widget.cell_group_combobox, cell_groups)
         else:
             self.update_combo_box_list(self.roi_widget.cell_group_combobox, [])
@@ -518,6 +530,7 @@ class VisionExperimentGui(QtGui.QWidget):
             gridlines = (self.common_widget.show_gridlines_checkbox.checkState() != 0)
             if gridlines:
                 sidebar_fill = (100, 50, 0)
+                line = [] #Do not  show any lines when gridlines are displayed
             else:
                 sidebar_fill = (0, 0, 0)
             image_with_sidebar = generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, sidebar_division = division,
