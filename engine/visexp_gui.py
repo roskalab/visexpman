@@ -507,16 +507,12 @@ class VisionExperimentGui(QtGui.QWidget):
             self.show_image(blank_image, 'roi_curve', utils.rc((1, 1)))
 
     def show_image(self, image, channel, scale, line = [], origin = None):
-        if origin != None:
-            division = numpy.round(min(image.shape[:2]) *  scale['row']/ 5.0, -1)
-        else:
-            division = 0
         image_in = {}
         image_in['image'] = generic_visexpA.normalize(image, outtype=numpy.uint8, std_range = 10)
         image_in['scale'] = scale
         image_in['origin'] = origin
         if channel == 'overview':
-            image_with_sidebar = generate_gui_image(image_in, self.config.OVERVIEW_IMAGE_SIZE, self.config, lines  = line, sidebar_division = division)
+            image_with_sidebar = generate_gui_image(image_in, self.config.OVERVIEW_IMAGE_SIZE, self.config, lines  = line)
             self.overview_widget.image_display.setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.OVERVIEW_IMAGE_SIZE))
             self.overview_widget.image_display.image = image_with_sidebar
             self.overview_widget.image_display.raw_image = image
@@ -533,7 +529,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 line = [] #Do not  show any lines when gridlines are displayed
             else:
                 sidebar_fill = (0, 0, 0)
-            image_with_sidebar = generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, sidebar_division = division,
+            image_with_sidebar = generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, 
                                                     sidebar_fill = sidebar_fill, 
                                                     gridlines = gridlines)
             self.images_widget.image_display[channel].setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.IMAGE_SIZE))
@@ -633,7 +629,7 @@ class VisionExperimentGui(QtGui.QWidget):
         time.sleep(5.0) #Enough time to close network connections
         sys.exit(0)
         
-def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0, gridlines = False, sidebar_fill = (0, 0, 0)):
+def generate_gui_image(images, size, config, lines  = [], gridlines = False, sidebar_fill = (0, 0, 0)):
     '''
     Combine images with widgets like lines, sidebars. 
     
@@ -678,14 +674,11 @@ def generate_gui_image(images, size, config, lines  = [], sidebar_division = 0, 
         line_in_pixel = (numpy.cast['int32'](numpy.array(line_in_pixel)*rescale)).tolist()
         image_with_line = generic.draw_line_numpy_array(image_with_line, line_in_pixel)
     #create sidebar
-    if sidebar_division != 0:
-        image_with_sidebar = draw_scalebar(image_with_line, merged_image['origin'], utils.rc_multiply_with_constant(merged_image['scale'], 1.0/rescale), sidebar_division, frame_size = config.SIDEBAR_SIZE, fill = sidebar_fill, gridlines = gridlines)
-    else:
-        image_with_sidebar = image_with_line
+    image_with_sidebar = draw_scalebar(image_with_line, merged_image['origin'], utils.rc_multiply_with_constant(merged_image['scale'], 1.0/rescale), frame_size = config.SIDEBAR_SIZE, fill = sidebar_fill, gridlines = gridlines)
     out_image[0:image_with_sidebar.shape[0], 0:image_with_sidebar.shape[1], :] = image_with_sidebar
     return out_image
 
-def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 0, 0), gridlines = False):
+def draw_scalebar(image, origin, scale, frame_size = None, fill = (0, 0, 0), gridlines = False):
     if frame_size == None:
         frame_size = 0.05 * min(image.shape)
     if not isinstance(scale,  numpy.ndarray) and not isinstance(scale,  numpy.void):
@@ -709,14 +702,14 @@ def draw_scalebar(image, origin, scale, division, frame_size = None, fill = (0, 
         font = ImageFont.truetype("arial.ttf", fontsize)
     else:
         font = ImageFont.truetype("/usr/share/fonts/truetype/msttcorefonts/arial.ttf", fontsize)
+    number_of_divisions = 5
     image_size = utils.cr((image.shape[0]*float(scale['row']), image.shape[1]*float(scale['col'])))
-    number_of_divisions = int(image_size['row'] / division)
-    col_labels = numpy.linspace(origin['col'], origin['col'] + number_of_divisions * division, number_of_divisions+1)
+    division_col = int(numpy.round(float(image_size['row']) / number_of_divisions, -1))
+    col_labels = numpy.linspace(origin['col'], origin['col'] + number_of_divisions * division_col, number_of_divisions+1)
     col_labels = 10*numpy.floor(0.1 * col_labels)
-    number_of_divisions = int(image_size['col'] / division)
-    row_labels = numpy.linspace(origin['row'], origin['row'] + number_of_divisions * division, number_of_divisions+1)
+    division_row = int(numpy.round(float(image_size['col']) / number_of_divisions, -1))
+    row_labels = numpy.linspace(origin['row'], origin['row'] + number_of_divisions * division_row, number_of_divisions+1)
     row_labels = 10*numpy.floor(0.1 * row_labels)
-    
     #Overlay labels
     for label in col_labels:
         position = int((label-origin['col'])/scale['col']) + frame_size
