@@ -120,7 +120,7 @@ def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  col
 def rectangle_vertices(size, orientation = 0):
     alpha = numpy.arctan(float(size['row'])/float(size['col']))
     angles = numpy.array([alpha, numpy.pi - alpha, numpy.pi + alpha, - alpha])
-    angles += orientation * numpy.pi / 180.0
+    angles -= orientation * numpy.pi / 180.0
     half_diagonal = 0.5 * numpy.sqrt(size['row'] ** 2 + size['col'] ** 2)
     vertices = []
     for angle in angles:
@@ -342,6 +342,15 @@ def rc_multiply_with_constant(rc_value, constant):
             rows = rc_value[:]['row'] * constant
             cols = rc_value[:]['col'] * constant
             return rc(numpy.array([rows, cols]))
+            
+def rc_angle(point1, point2, degree = False):
+    '''
+    Calculates the angle between two points
+    '''
+    angle = numpy.arctan2(point2['row']-point1['row'],point2['col']-point1['col'])
+    if degree:
+        angle *= 180/numpy.pi
+    return angle
     
 def coordinate_transform(coordinates, origo, horizontal_axis_positive_direction, vertical_axis_positive_direction):
     '''

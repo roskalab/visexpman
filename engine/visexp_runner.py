@@ -47,14 +47,14 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             self.config.user = user
         #== Fetch experiment classes ==
         if self.config.user != 'undefined':
-            self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig)
+            self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
         else:
             #In case of SafestartConfig, no experiment configs are loaded
             #TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig
             self.experiment_config_list = []
         #Since 0-9 buttons can be used for experiment config (experiment) selection, maximum 10 experiment configs are allowed.
         if len(self.experiment_config_list) > 10: 
-            raise RuntimeError('Maximum 10 different experiment types are allowed')
+            print 'Maximum 10 different experiment types are allowed'
             
         self._init_logging()
         self.log.info('Visexpman started')

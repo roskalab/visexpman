@@ -45,6 +45,8 @@ class MovingRectangleConfig(MovingDotConfig):
         MovingDotConfig._create_application_parameters(self)
         self.WIDTH_UM = self.DIAMETER_UM
         self.HEIGHT_UM = [1000]
+        self.runnable = 'MovingRectangle'
+        self.pre_runnable = 'MovingRectanglePre'
 
 class ShortMovingDotConfig(experiment.ExperimentConfig):
     def _create_application_parameters(self):
@@ -71,8 +73,10 @@ class ShortMovingDotConfig(experiment.ExperimentConfig):
 class MovingDotPre(experiment.PreExperiment):
     def run(self):
         self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
+        
 class MovingRectanglePre(MovingDotPre):
-    pass
+    def run(self):
+        self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
 
 class MovingDot(experiment.Experiment):
     def __init__(self, machine_config, experiment_config, queues, connections, application_log, parameters = {}):
@@ -92,7 +96,7 @@ class MovingDot(experiment.Experiment):
         if hasattr(self,'shown_directions'):
             self.experiment_specific_data['shown_directions']= self.shown_directions[fragment_id]
             
-    def cleanup(self):
+    def cleanup(self):#TODO: this is obsolete
         #add experiment identifier node to experiment hdf5
         experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.experiment_control.start_time))
         self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
@@ -334,6 +338,8 @@ class MovingDot(experiment.Experiment):
                     # show an extra dot trajectory at a direction so that when stimulations starts from black screen, this trajectory can be skipped
                     precond_ai = numpy.where(angleset==allangles[-1])[0][0] # take the previous angle to avoid eventual habituation by repeating the same direction
                     self.row_col[-1].extend([precond_lines[precond_ai][:, c_i]*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE for c_i in range(precond_lines[precond_ai].shape[1])])
+                    self.precond_frames = precond_lines[precond_ai].shape[1]
+                    self.precond_angle = precond_ai
                     # now continue with adding the trajectories actually used in the analysis:
             for a1 in range(len(allangles)):
                 cai = numpy.where(angleset==allangles[a1])[0]
@@ -353,9 +359,22 @@ class MovingDot(experiment.Experiment):
 class MovingRectangle(MovingDot):
     def run(self, fragment_id=0):
         self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE_BEFORE_AFTER)
+        frame_index = 0
+        block_index = 0
+        precond_shown = False
         for pos in self.row_col[fragment_id]:
-            self.show_shape('r', pos=pos, orientation=self.shown_directions[fragment_id], size = rc([self.experiment_config.WIDTH[0],  self.experiment_config.HEIGHT[0]])) 
-    #            self.row_col[fragment_id], self.experiment_config.NDOTS,  color = [1.0, 1.0, 1.0])
+            if not precond_shown:
+                orientation = self.precond_angle
+            else:
+                orientation = self.shown_directions[fragment_id]['block_end'][block_index][0]
+            self.show_shape('r', pos=pos, orientation=orientation, size = utils.rc([self.experiment_config.WIDTH_UM[0],  self.experiment_config.HEIGHT_UM[0]])) 
+            if hasattr(self,  'precond_frames') and hasattr(self, 'precond_angle') and self.precond_frames == frame_index:
+                precond_shown = True
+            if self.shown_directions[fragment_id]['block_end'][block_index][1] == frame_index:
+                block_index += 1
+            frame_index += 1
+            if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
+                break
         self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE_BEFORE_AFTER)
         self.experiment_specific_data ={}
         if hasattr(self, 'shown_line_order'):

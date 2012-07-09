@@ -18,13 +18,13 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         #Timing        
         self.NUMBER_OF_MARCHING_PHASES = 4
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
-        self.MARCH_TIME = 2.5#3.0
-        self.GRATING_STAND_TIME = 2.0#1.0        
+        self.MARCH_TIME = 2.5
+        self.GRATING_STAND_TIME = 2.0
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
-        self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [1200.0]#1800
-        self.DUTY_CYCLES = [2.5] #put 1.0 to a different config
+        self.WHITE_BAR_WIDTHS = [300.0]
+        self.VELOCITIES = [1200.0]
+        self.DUTY_CYCLES = [2.5] 
         self.REPEATS = 3
         self.PAUSE_BEFORE_AFTER = 5.0
         self.runnable = 'MovingGrating'
@@ -264,8 +264,8 @@ class LedStimulation(experiment.Experiment):
         number_of_flashes_in_fragment = self.fragment_repeats[fragment_id]
         fragment_duration = self.fragment_durations[fragment_id]
         offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)
-	if len(offsets)>1: offsets[2] = offsets[2]-5.0 # add a little jitter to check if brain respons periodically and not to the acutual stimulation
-	if len(offsets)>3: offsets[4] = offsets[4] +5.0 
+        if len(offsets)>1: offsets[2] = offsets[2]-5.0 # add a little jitter to check if brain respons periodically and not to the acutual stimulation
+        if len(offsets)>3: offsets[4] = offsets[4] +5.0 
         self.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
         self.led_controller.start()
         for i in range(int(numpy.ceil(fragment_duration))):
@@ -273,7 +273,7 @@ class LedStimulation(experiment.Experiment):
                 break
             else:
                 time.sleep(1.0)
-        
+
     def cleanup(self):
         #add experiment identifier node to experiment hdf5
         experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.experiment_control.start_time))

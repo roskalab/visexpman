@@ -198,7 +198,7 @@ class DebugOnLaptop(VisionExperimentConfig):
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'GratingConfig'
-        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
+        EXPERIMENT_CONFIG = 'MovingRectangleConfig'
 #        EXPERIMENT_CONFIG = 'Dummy'
         #=== paths/data handling ===
         use_drive = 'c'

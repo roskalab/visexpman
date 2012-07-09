@@ -630,68 +630,71 @@ class Poller(QtCore.QThread):
         are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
         if are_new_file:
             self.emit(QtCore.SIGNAL('mouse_file_list_changed'))
-            
+
     def handle_commands(self):
         '''
         Handle commands coming via queues (mainly from network thread
         '''
-        for k, queue in self.queues.items():
-            if not queue['in'].empty():
-                messages = queue['in'].get()
-                if 'EOPSOC' in messages:
-                    messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
-                else:
-                    messages = [messages]
-                for message in messages:
-                    command = command_extract.findall(message)
-                    if len(command) > 0:
-                        command = command[0]
-                    parameter = parameter_extract.findall(message)
-                    if len(parameter) > 0:
-                        parameter = parameter[0]
-                    if command == 'connection':
-                        message = command
-                    elif command == 'echo' and parameter == 'GUI':
-                        message = ''
-                    elif message == 'connected to server':
-                        #This is sent by the local queued client and its meaning can be confusing, therefore not shown
-                        message = ''
-                    elif message == 'SOCacquire_z_stackEOCOKEOP':
-                        message = 'Z stack acquisition complete.'
-                    elif message == 'SOCacquire_z_stackEOCsaveOKEOP' and os.path.exists(self.z_stack_path):
-                        time.sleep(0.1)
-                        self.z_stack = matlabfile.read_z_stack(self.z_stack_path)
-                        self.read_stage(display_coords = False)
-                        self.z_stack['stage_position'] = utils.pack_position(self.stage_position-self.stage_origin, 0)
-                        self.z_stack['add_date'] = utils.datetime_string().replace('_', ' ')
-                        hdf5io.save_item(self.mouse_file.replace('.hdf5', '_z_stack.hdf5'), 'z_stack', self.z_stack)
-                        self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
-                        os.remove(self.z_stack_path)
-                    elif command == 'measurement_ready':
-                        self.add_measurement_id(parameter)
-                    elif command == 'fragment_check_ready':
-                        #ID is saved, flag will be updated in mouse later when the measurement file is closed
-                        self.fragment_check_ready_id = parameter
-                    elif command == 'mesextractor_ready':
-                        flags = [command]
-                        if hasattr(self, 'fragment_check_ready_id') and self.fragment_check_ready_id is not None and parameter == self.fragment_check_ready_id:
-                            #Assuming that by this time the measurement file is closed
-                            flags.append('fragment_check_ready')
-                            self.fragment_check_ready_id = None
-                        else:#Not handled situation: consecutive fragment_check_ready and mesextractor_ready flags are associated to different ids
-                            pass
-                        self.set_process_status_flag(parameter, flags)
-                    elif command == 'find_cells_ready':
-                        self.add_cells_to_database(parameter)
-                    elif command == 'mouse_file_copy':
-                        if parameter == '':
-                            tag = 'jobhandler'
-                        else:
-                            tag = parameter
-                        if self.backup_mouse_file(tag = tag):
-                            self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
+        try:
+            for k, queue in self.queues.items():
+                if not queue['in'].empty():
+                    messages = queue['in'].get()
+                    if 'EOPSOC' in messages:
+                        messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
                     else:
-                        self.printc(k.upper() + ' '  + message)
+                        messages = [messages]
+                    for message in messages:
+                        command = command_extract.findall(message)
+                        if len(command) > 0:
+                            command = command[0]
+                        parameter = parameter_extract.findall(message)
+                        if len(parameter) > 0:
+                            parameter = parameter[0]
+                        if command == 'connection':
+                            message = command
+                        elif command == 'echo' and parameter == 'GUI':
+                            message = ''
+                        elif message == 'connected to server':
+                            #This is sent by the local queued client and its meaning can be confusing, therefore not shown
+                            message = ''
+                        elif message == 'SOCacquire_z_stackEOCOKEOP':
+                            message = 'Z stack acquisition complete.'
+                        elif message == 'SOCacquire_z_stackEOCsaveOKEOP' and os.path.exists(self.z_stack_path):
+                            time.sleep(0.1)
+                            self.z_stack = matlabfile.read_z_stack(self.z_stack_path)
+                            self.read_stage(display_coords = False)
+                            self.z_stack['stage_position'] = utils.pack_position(self.stage_position-self.stage_origin, 0)
+                            self.z_stack['add_date'] = utils.datetime_string().replace('_', ' ')
+                            hdf5io.save_item(self.mouse_file.replace('.hdf5', '_z_stack.hdf5'), 'z_stack', self.z_stack)
+                            self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
+                            os.remove(self.z_stack_path)
+                        elif command == 'measurement_ready':
+                            self.add_measurement_id(parameter)
+                        elif command == 'fragment_check_ready':
+                            #ID is saved, flag will be updated in mouse later when the measurement file is closed
+                            self.fragment_check_ready_id = parameter
+                        elif command == 'mesextractor_ready':
+                            flags = [command]
+                            if hasattr(self, 'fragment_check_ready_id') and self.fragment_check_ready_id is not None and parameter == self.fragment_check_ready_id:
+                                #Assuming that by this time the measurement file is closed
+                                flags.append('fragment_check_ready')
+                                self.fragment_check_ready_id = None
+                            else:#Not handled situation: consecutive fragment_check_ready and mesextractor_ready flags are associated to different ids
+                                pass
+                            self.set_process_status_flag(parameter, flags)
+                        elif command == 'find_cells_ready':
+                            self.add_cells_to_database(parameter)
+                        elif command == 'mouse_file_copy':
+                            if parameter == '':
+                                tag = 'jobhandler'
+                            else:
+                                tag = parameter
+                            if self.backup_mouse_file(tag = tag):
+                                self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
+                        else:
+                            self.printc(k.upper() + ' '  + message)
+        except:
+            self.printc(traceback.format_exc())
 
     def handle_events(self):
         '''

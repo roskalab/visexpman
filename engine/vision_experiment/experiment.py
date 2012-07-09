@@ -27,12 +27,12 @@ class ExperimentConfig(Config):
         else:
             if experiment_class == None and source_code == None:
                 self.runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = self.runnable,  
-                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment)[0][1]\
+                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment, direct=False)[0][1]\
                     (self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the actual stimulation
             else:
                 self.runnable = experiment_class(self.machine_config, self, self.queues, self.connections, self.application_log, source_code, parameters = parameters)
             if hasattr(self, 'pre_runnable'):
-                for pre_experiment_class in  utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.PreExperiment):
+                for pre_experiment_class in  utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.PreExperiment, direct=False):
                     if pre_experiment_class[1].__name__ == self.pre_runnable:
                         self.pre_runnable = pre_experiment_class[1](self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the pre experiment code
                         break

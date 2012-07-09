@@ -120,7 +120,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
                     'set_measurement_id' : {'key' : 'i', 'domain': ['keyboard', 'network interface', 'remote client']},
                     'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},#Perhaps this command shall be accepted from keyboard
                     }
-                    
+
         #By overriding this parameter, the user can define additional keyboard commands that are handled during experiment
         USER_EXPERIMENT_COMMANDS = {}
         
