@@ -973,22 +973,26 @@ class Poller(QtCore.QThread):
         if utils.safe_has_key(h.scan_regions, region_name) and not process_status_update and h.scan_regions[region_name]['process_status'].has_key(id_to_remove):
             del h.scan_regions[region_name]['process_status'][id_to_remove]
             h.save('scan_regions', overwrite = True)
+            self.printc('Scan regions updated')
         h.load('images')
         if hasattr(h, 'images') and utils.safe_has_key(h.images, id_to_remove):
             del h.images[id_to_remove]
             h.save('images', overwrite = True)
+            self.printc('Meanimages updated')
         h.load('roi_curves')
         if hasattr(h, 'roi_curves') and utils.safe_has_key(h.roi_curves, region_name):
             for cell_id in h.roi_curves[region_name].keys():
                 if id_to_remove in cell_id:
                     del h.roi_curves[region_name][cell_id]
             h.save('roi_curves', overwrite = True)
+            self.printc('Roi curves updated')
         h.load('cells')
         if hasattr(h, 'cells') and utils.safe_has_key(h.cells, region_name):
             for cell_id in h.cells[region_name].keys():
                 if id_to_remove in cell_id:
                     del h.cells[region_name][cell_id]
-                h.save('cells', overwrite = True)
+            h.save('cells', overwrite = True)
+            self.printc('Cells updated')
         self.scan_regions = copy.deepcopy(h.scan_regions)
         self.cells = copy.deepcopy(h.cells)
         self.roi_curves = copy.deepcopy(h.roi_curves)
