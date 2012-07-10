@@ -10,7 +10,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 
 class Log(object):
-    def __init__(self, name,  path, write_mode = 'automatic', timestamp = 'date_time', local_saving = False):
+    def __init__(self, name,  path, write_mode = 'automatic', timestamp = 'date_time', local_saving = False, format_string = '%(message)s'):
         '''
         write_mode: 'automatic', 'user controlled' - way of saving data to disk
         '''
@@ -23,7 +23,7 @@ class Log(object):
             
         self.log = logging.getLogger(name)
         self.handler = logging.FileHandler(self.log_path)
-        formatter = logging.Formatter('%(message)s')
+        formatter = logging.Formatter(format_string)
         self.handler.setFormatter(formatter)
         self.log.addHandler(self.handler)
         self.log.setLevel(logging.INFO)

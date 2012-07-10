@@ -47,7 +47,7 @@ def find_files_and_folders(start_path,  extension = None, filter = None):
                 directories.append(root + os.sep + dir)
             for file in files:
                 if extension != None:
-                    if file.split('.')[1] == extension:
+                    if file.split('.')[-1] == extension:
                         all_files.append(root + os.sep + file)
                 elif filter != None:
                     if filter in file:
@@ -131,7 +131,7 @@ def find_file_from_timestamp(dir, timestamp):
     matching = [f for f in files if str(int(timestamp)) in f]
     if len(matching)==0: # no filename contained the timestamp, go and open those hdf5 files that have no timestamp in their names
         stamps = [get_mes_name_timestamp(f)[1] for f in files]
-        matching = [s for s in stamps if str(int(stamp))==str(int(timestamp))]
+        matching = [s for s in stamps if str(int(s))==str(int(timestamp))]
     if len(matching)==0: return None
     else: return matching[0]
 

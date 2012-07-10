@@ -50,6 +50,9 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_sign
     return stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected
 
 #################### Saving/loading data to hdf5 ####################
+def load_config(numpy_array):
+    return pickle.loads(numpy_array.tostring())
+    
 def save_config(file_handle, machine_config, experiment_config = None):
     if hasattr(file_handle, 'save'):
         if 0:
