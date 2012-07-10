@@ -1,7 +1,17 @@
 import os
 import os.path
+import shutil
 import numpy
 import tempfile
+
+def copy_reference_fragment_files(reference_folder, target_folder):
+    if os.path.exists(target_folder):
+        shutil.rmtree(target_folder)
+    shutil.copytree(reference_folder, target_folder)
+    return find_files_and_folders(target_folder, extension = 'hdf5',filter='fragment')[1]
+    
+def get_id_node_name_from_path(path):#Using similar function from component guesser may result segmentation error.
+    return '_'.join(os.path.split(path)[1].split('.')[-2].split('_')[-3:])
 
 def get_measurement_file_path_from_id(id, config, filename_only = False, extension = 'hdf5', subfolders =  False):
     if hasattr(config, 'EXPERIMENT_DATA_PATH'):
@@ -17,7 +27,6 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
             return os.path.split(path)[1]
         else:
             return path
-
 
 def mkstemp(suffix=None, filename = None):
     '''Creates a temporary file with suffix as extension, e.g. .pdf. Closes the file so that other methods can open it and do what they need.'''        

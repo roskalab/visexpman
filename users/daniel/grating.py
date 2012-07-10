@@ -265,7 +265,7 @@ class LedStimulation(experiment.Experiment):
         fragment_duration = self.fragment_durations[fragment_id]
         offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)
         if len(offsets)>1: offsets[2] = offsets[2]-5.0 # add a little jitter to check if brain respons periodically and not to the acutual stimulation
-        if len(offsets)>3: offsets[4] = offsets[4] +5.0 
+        if len(offsets)>3: offsets[4] = offsets[4] + 5.0
         self.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
         self.led_controller.start()
         for i in range(int(numpy.ceil(fragment_duration))):
@@ -282,15 +282,19 @@ class LedStimulation(experiment.Experiment):
         self.hdf5.save(experiment_identifier)
 
 class Dummy(experiment.ExperimentConfig):
-    def _create_parameters(self):     
+    def _create_parameters(self):
         self.runnable = 'DummyExp'
         self._create_parameters_from_locals(locals())
-        
+
 class DummyExp(experiment.Experiment):
-    
+
     def prepare(self):
         self.fragment_durations = [1.0]
         self.number_of_fragments = len(self.fragment_durations)
 
     def run(self, fragment_id=0):
         pass
+
+#Support for old config classes
+class GratingConfig(MovingGratingConfig):
+    pass
