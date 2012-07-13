@@ -171,6 +171,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.remove_measurement_button, 'remove_measurement_file_from_database')
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.set_state_to_button, 'set_measurement_file_process_state')
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.run_fragment_process_button, 'run_fragment_process')
+        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.add_id_button, 'add_id')
+        add_id_button
 
         #Blocking functions, run by poller
         self.connect_and_map_signal(self.common_widget.read_stage_button, 'read_stage')

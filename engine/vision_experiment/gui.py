@@ -36,20 +36,23 @@ class MeasurementDatafileStatusGroupbox(QtGui.QGroupBox):
     def create_widgets(self):
         self.process_status_label = QtGui.QLabel('', self)
         self.ids_combobox = QtGui.QComboBox(self)
+        self.ids_combobox.setEditable(True)
         self.remove_measurement_button = QtGui.QPushButton('Remove measurement',  self)
         self.set_state_to_button = QtGui.QPushButton('Set state to',  self)
         self.set_to_state_combobox = QtGui.QComboBox(self)
         self.set_to_state_combobox.addItems(QtCore.QStringList(['not processed', 'mesextractor_ready', 'find_cells_ready']))
         self.run_fragment_process_button = QtGui.QPushButton('Run fragment process',  self)
+        self.add_id_button = QtGui.QPushButton('Add id',  self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.ids_combobox, 0, 0)
-        self.layout.addWidget(self.remove_measurement_button, 0, 1)
-        self.layout.addWidget(self.set_state_to_button, 1, 0)
-        self.layout.addWidget(self.set_to_state_combobox, 1, 1)
-        self.layout.addWidget(self.run_fragment_process_button, 2, 0)
+        self.layout.addWidget(self.ids_combobox, 1, 0)
+        self.layout.addWidget(self.remove_measurement_button, 1, 1)
+        self.layout.addWidget(self.set_state_to_button, 2, 0)
+        self.layout.addWidget(self.set_to_state_combobox, 2, 1)
+        self.layout.addWidget(self.run_fragment_process_button, 0, 1)
         self.layout.addWidget(self.process_status_label, 3, 0, 4, 2)
+        self.layout.addWidget(self.add_id_button, 0, 0)
         self.setLayout(self.layout)   
 
 class ExperimentControlGroupBox(QtGui.QGroupBox):
@@ -917,6 +920,9 @@ class Poller(QtCore.QThread):
         self.printc('Measurement ID added: {0}'.format(id))
         self.parent.update_jobhandler_process_status()
         self.parent.update_file_id_combobox()
+        
+    def add_id(self):
+        self.add_measurement_id(self.parent.get_current_file_id())
         
     def read_scan_regions(self, id):
         #read call parameters
@@ -2013,7 +2019,7 @@ class Poller(QtCore.QThread):
         return name
 
 def update_mouse_files_list(config, current_mouse_files = []):
-    new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  'mouse')
+    new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')
     new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_jobhandler' not in mouse_file and '_stim' not in mouse_file and '_copy' not in mouse_file and os.path.isfile(os.path.join(config.EXPERIMENT_DATA_PATH,mouse_file))]
     if current_mouse_files != new_mouse_files:
         are_new_files = True

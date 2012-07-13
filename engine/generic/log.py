@@ -54,6 +54,12 @@ class Log(object):
             self.log_messages.append(message_to_log)
             self.log_dict['time_'+str(key).replace('.', 'p')] = message
             self.entry_count += 1
+            
+    def error(self, message):
+        self.log.error(message)
+        
+    def warning(self, message):
+        self.log.warning(message)
 
     def flush(self):
         full_log = ''

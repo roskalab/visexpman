@@ -219,7 +219,7 @@ class ExperimentControl(object):
             self.printl('Analog signal recording started')
         if self.config.PLATFORM == 'mes':
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
-            self.printl('Fragment duration is {0} s'.format(int(self.mes_record_time)))
+            self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hms(time.time() + self.mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
             #start two photon recording
             if self.scan_mode == 'xyz':
@@ -235,6 +235,8 @@ class ExperimentControl(object):
 #                    if not self.mes_interface.create_XZline_from_points(self.roi_locations, self.xz_scan_config):
 #                        self.printl('Creating XZ lines did not succeed')
 #                        return False
+                elif self.scan_mode == 'xy':
+                    self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
                 scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                     parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
             if scan_start_success:
@@ -549,7 +551,7 @@ class ExperimentControl(object):
         if hasattr(self, 'scan_region'):
             self.scan_region['xy_scan_parameters'].tofile(xy_static_scan_filename)
         result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,
-                                                                           scan_mode='xy', channels=['pmtUGraw','pmtURraw'])
+                                                                           scan_mode='xy', channels=['pmtUGraw','pmtURraw', 'ScX', 'ScY'])
         if not result:
             self.printl('Recording red and green channel was NOT successful')
             return False
