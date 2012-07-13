@@ -25,6 +25,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         #path parameter: parameter name contains '_PATH'
         #string list: list[0] - empty        
         self.DIAMETER_UM = [300]
+        self.OFFSCREEN_PATH_LENGTH_UM = [300] # how long the dot is moving outside the screen, for circular dot this should equal to diameter, if no pause between directions is needed
         self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees        
         self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
         self.AMPLITUDE = 0.5
@@ -45,30 +46,32 @@ class MovingRectangleConfig(MovingDotConfig):
         MovingDotConfig._create_application_parameters(self)
         self.WIDTH_UM = self.DIAMETER_UM
         self.HEIGHT_UM = [1000]
+        self.OFFSCREEN_PATH_LENGTH_UM = [1000] # how long the dot is moving outside the screen, for circular dot this should equal to diameter, if no pause between directions is needed
         self.runnable = 'MovingRectangle'
         self.pre_runnable = 'MovingRectanglePre'
 
-class ShortMovingDotConfig(experiment.ExperimentConfig):
-    def _create_application_parameters(self):
-        #place for experiment parameters
-        #parameter with range: list[0] - value, list[0] - range
-        #path parameter: parameter name contains '_PATH'
-        #string list: list[0] - empty        
-        self.DIAMETER_UM = [300]        
-        self.ANGLES = [0, 45, 90] # degrees
-        self.ANGLES = [315] # degrees
-        self.SPEED = [4000] #[40deg/s] % deg/s should not be larger than screen size
-        self.AMPLITUDE = 0.5
-        self.REPEATS = 1
-        self.PDURATION = 0
-        self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
-        self.NDOTS = 1
-        self.RANDOMIZE = 1
-        self.PAUSE_BEFORE_AFTER = 0.0
-        self.runnable = 'MovingDot'
-        self.PRECOND='line from previous direction'
-        self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
-        self._create_parameters_from_locals(locals())
+if 0:
+    class ShortMovingDotConfig(experiment.ExperimentConfig):
+        def _create_application_parameters(self):
+            #place for experiment parameters
+            #parameter with range: list[0] - value, list[0] - range
+            #path parameter: parameter name contains '_PATH'
+            #string list: list[0] - empty        
+            self.DIAMETER_UM = [300]        
+            self.ANGLES = [0, 45, 90] # degrees
+            self.ANGLES = [315] # degrees
+            self.SPEED = [4000] #[40deg/s] % deg/s should not be larger than screen size
+            self.AMPLITUDE = 0.5
+            self.REPEATS = 1
+            self.PDURATION = 0
+            self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
+            self.NDOTS = 1
+            self.RANDOMIZE = 1
+            self.PAUSE_BEFORE_AFTER = 0.0
+            self.runnable = 'MovingDot'
+            self.PRECOND='line from previous direction'
+            self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
+            self._create_parameters_from_locals(locals())
 
 class MovingDotPre(experiment.PreExperiment):
     def run(self):
@@ -106,14 +109,15 @@ class MovingDot(experiment.Experiment):
     def prepare(self):
         diameter_pix = self.experiment_config.DIAMETER_UM[0]*self.experiment_config.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         self.diameter_pix = diameter_pix
+        self.offscreen_pix = self.experiment_config.OFFSCREEN_PATH_LENGTH_UM[0]*self.experiment_config.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         speed_pix = self.experiment_config.SPEED[0]*self.experiment_config.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         gridstep_pix = numpy.floor(self.experiment_config.GRIDSTEP*diameter_pix)
         movestep_pix = speed_pix/self.experiment_config.machine_config.SCREEN_EXPECTED_FRAME_RATE
         h=self.experiment_config.machine_config.SCREEN_RESOLUTION['row']#monitor.resolution.height
         w=self.experiment_config.machine_config.SCREEN_RESOLUTION['col']#monitor.resolution.width
-        hlines_c,hlines_r = numpy.meshgrid(numpy.arange(-diameter_pix, w+diameter_pix,movestep_pix),
+        hlines_c,hlines_r = numpy.meshgrid(numpy.arange(-self.offscreen_pix, w+self.offscreen_pix,movestep_pix),
             numpy.arange(numpy.ceil(diameter_pix/2), h-numpy.ceil(diameter_pix/2), gridstep_pix))
-        vlines_r,vlines_c = numpy.meshgrid(numpy.arange(-diameter_pix, h+diameter_pix,movestep_pix), 
+        vlines_r,vlines_c = numpy.meshgrid(numpy.arange(-self.offscreen_pix, h+self.offscreen_pix,movestep_pix), 
             numpy.arange(numpy.ceil(diameter_pix/2), w-numpy.ceil(diameter_pix/2), gridstep_pix))
         # we go along the diagonal from origin to bottom right and take perpicular diagonals' starting
         # and ing coords and lengths
@@ -122,11 +126,11 @@ class MovingDot(experiment.Experiment):
 
         diag_dur = 4*sum(dlines_len)/speed_pix/self.experiment_config.NDOTS #each diagonal is shown 4 times, this is not optimal, we should look into angles and check the number of diagonal directions
         diag_line_maxlength = max(dlines_len)
-        longest_line_dur = max([diag_line_maxlength, (w+diameter_pix*2)])/speed_pix/self.experiment_config.NDOTS # vertical direction has no chance to be longer than diagonal
+        longest_line_dur = max([diag_line_maxlength, (w+self.offscreen_pix*2)])/speed_pix/self.experiment_config.NDOTS # vertical direction has no chance to be longer than diagonal
         if longest_line_dur > self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION: #check if allowed block duration can accomodate the longest line
             raise ValueError('The longest trajectory cannot be shown within the time interval set as MAXIMUM RECORDING DURATION')
-        line_len={'hor0': (w+(diameter_pix*2))*numpy.ones((1,hlines_c.shape[0])),  # add 2*line_length to trajectory length, because the dot has to completely run in/out to/of the screen in both directions
-                        'ver0' : (h+(diameter_pix*2))*numpy.ones((1,vlines_c.shape[0]))}
+        line_len={'hor0': (w+(self.offscreen_pix*2))*numpy.ones((1,hlines_c.shape[0])),  # add 2*line_length to trajectory length, because the dot has to completely run in/out to/of the screen in both directions
+                        'ver0' : (h+(self.offscreen_pix*2))*numpy.ones((1,vlines_c.shape[0]))}
         ver_dur = 2*line_len['ver0'].sum()/speed_pix/self.experiment_config.NDOTS #2 vertical directions are to be shown
         hor_dur = 2*line_len['hor0'].sum()/speed_pix/self.experiment_config.NDOTS
         total_dur = (self.experiment_config.PDURATION*8+diag_dur+ver_dur+hor_dur)*self.experiment_config.REPEATS
@@ -165,8 +169,8 @@ class MovingDot(experiment.Experiment):
         from copy import deepcopy
         if self.experiment_config.NDOTS > 1:
             raise NotImplementedError('This algorithm is not yet working when multiple dots are to be shown on the screen')
-        nlines_in_block_hor = int(numpy.floor(self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION / ((w+diameter_pix*2)/speed_pix/self.experiment_config.NDOTS))) #how many horizontal trajectories fit into a block? 
-        nlines_in_block_ver = int(numpy.floor(self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION / ((h+diameter_pix*2)/speed_pix/self.experiment_config.NDOTS))) #how many horizontal trajectories fit into a block? 
+        nlines_in_block_hor = int(numpy.floor(self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION / ((w+self.offscreen_pix*2)/speed_pix/self.experiment_config.NDOTS))) #how many horizontal trajectories fit into a block? 
+        nlines_in_block_ver = int(numpy.floor(self.experiment_config.machine_config.MAXIMUM_RECORDING_DURATION / ((h+self.offscreen_pix*2)/speed_pix/self.experiment_config.NDOTS))) #how many horizontal trajectories fit into a block? 
         nblocks_hor = int(numpy.ceil(float(hlines_r.shape[0])/nlines_in_block_hor))
         nblocks_ver = int(numpy.ceil(float(vlines_r.shape[0])/nlines_in_block_ver))
         #nlines_in_block_diag=
@@ -282,7 +286,7 @@ class MovingDot(experiment.Experiment):
                             numpy.reshape(vc[:,dots_line_i[s1]],[1,dl])]) # reshape lines to a single list of coordinates
                         if s1>1 and dl < len(drc[s1-1]): # a dot will run shorter than the others
                         # the following line was not tested in python (works in matlab)
-                            drc[s1] = numpy.c_[drc[s1],-diameter_pix*numpy.ones(2,len(drc[s1-1])-dl)] # complete with coordinate outside of the screen
+                            drc[s1] = numpy.c_[drc[s1],-self.offscreen_pix*numpy.ones(2,len(drc[s1-1])-dl)] # complete with coordinate outside of the screen
                             
                     precond_lines[a] = numpy.c_[vr[vr.shape[0]/2], vc[vr.shape[0]/2]].T
                 else: # diagonal line
@@ -321,7 +325,7 @@ class MovingDot(experiment.Experiment):
                         ml.append(len(drc[s1]))
                     for s1 in range(self.experiment_config.NDOTS):
                         if len(drc[s1])<max(ml): # a dot will run shorter than the others
-                            drc[s1] = numpy.c_[drc[s1],-diameter_pix*numpy.ones(2,max(ml)-len(drc[s1]))] # complete with coordinate outside of the screen
+                            drc[s1] = numpy.c_[drc[s1],-self.offscreen_pix*numpy.ones(2,max(ml)-len(drc[s1]))] # complete with coordinate outside of the screen
                     
                     precond_lines[a] = row_col[row_col.shape[0]/2].T
                 arow_col[a][b] = drc
@@ -529,9 +533,9 @@ def run_stimulation(vs):
 if __name__ == '__main__':
     import visexpman    
     import sys
-    from visexpman.engine.vision_experiment import VisionExperimentRunner
+    from visexpman.engine import visexp_runner
     cname= 'MBP'
-    vs_runner = VisionExperimentRunner('daniel', cname) #first argument should be a class name
+    vs_runner = visexp_runner.VisionExperimentRunner('daniel', cname) #first argument should be a class name
 #     commands = [
 #                     [0.0,'SOCexecute_experimentEOC'],                    
 #                     [0.0,'SOCquitEOC'],
