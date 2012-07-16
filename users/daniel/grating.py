@@ -254,7 +254,7 @@ class LedStimulation(experiment.Experiment):
     
     '''
     def prepare(self):
-        self.period_time = self.experiment_config.FLASH_DURATION + self.experiment_config.PAUSE_BETWEEN_FLASHES
+        self.period_time = self.experiment_config.DELAY_BEFORE_FIRST_FLASH + self.experiment_config.FLASH_DURATION + self.experiment_config.PAUSE_BETWEEN_FLASHES
         self.stimulus_duration = self.experiment_config.NUMBER_OF_FLASHES * self.period_time
         self.fragment_durations, self.fragment_repeats = timing.schedule_fragments(self.period_time, self.experiment_config.NUMBER_OF_FLASHES, self.machine_config.MAXIMUM_RECORDING_DURATION)
         self.number_of_fragments = len(self.fragment_durations)
