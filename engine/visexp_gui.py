@@ -310,8 +310,8 @@ class VisionExperimentGui(QtGui.QWidget):
             line = []
             #Update xz image if exists and collect xy line(s)
             if scan_regions[selected_region].has_key('xz'):
-                line = [[ scan_regions[selected_region]['xz']['p1']['col'] , scan_regions[selected_region]['xz']['p1']['row'], 
-                             scan_regions[selected_region]['xz']['p2']['col'] , scan_regions[selected_region]['xz']['p2']['row'] ]]
+                line = [[ scan_regions[selected_region]['xz']['p1']['row'] , scan_regions[selected_region]['xz']['p1']['col'], 
+                             scan_regions[selected_region]['xz']['p2']['row'] , scan_regions[selected_region]['xz']['p2']['col'] ]]
                 self.show_image(scan_regions[selected_region]['xz']['scaled_image'], 3,
                                      scan_regions[selected_region]['xz']['scaled_scale'], 
                                      origin = scan_regions[selected_region]['xz']['origin'])
@@ -668,10 +668,11 @@ def generate_gui_image(images, size, config, lines  = [], gridlines = False, sid
     for line in lines:
         #Line: x1,y1,x2, y2 - x - col, y = row
         #Considering MES/Image origin
+        image_height = merged_image['image'].shape[0]*merged_image['scale']['row']
         line_in_pixel  = [(line[0] - merged_image['origin']['col'])/merged_image['scale']['col'],
-                            (line[1] - merged_image['origin']['row'])/merged_image['scale']['row'],
+                            (-line[1] + image_height + merged_image['origin']['row'])/merged_image['scale']['row'],
                             (line[2] - merged_image['origin']['col'])/merged_image['scale']['col'],
-                            (line[3] - merged_image['origin']['row'])/merged_image['scale']['row']]
+                            (-line[3] + image_height + merged_image['origin']['row'])/merged_image['scale']['row']]
         line_in_pixel = (numpy.cast['int32'](numpy.array(line_in_pixel)*rescale)).tolist()
         image_with_line = generic.draw_line_numpy_array(image_with_line, line_in_pixel)
     #create sidebar
