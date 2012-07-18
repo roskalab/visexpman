@@ -236,7 +236,8 @@ class ExperimentControl(object):
 #                        self.printl('Creating XZ lines did not succeed')
 #                        return False
                 elif self.scan_mode == 'xy':
-                    self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
+                    if hasattr(self, 'scan_region'):
+                        self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
                 scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                     parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
             if scan_start_success:

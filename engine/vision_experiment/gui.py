@@ -475,8 +475,13 @@ class CommonWidget(QtGui.QWidget):
         self.set_stage_origin_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.read_stage_button = QtGui.QPushButton('Read stage', self)
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
+        self.enable_xy_scan_with_move_stage_label = QtGui.QLabel('XY scan after move stage', self)
+        self.enable_xy_scan_with_move_checkbox = QtGui.QCheckBox(self)
+        
         self.stop_stage_button = QtGui.QPushButton('Stop stage', self)
         self.set_objective_button = QtGui.QPushButton('Set objective', self)
+        self.enable_reset_objective_origin_after_moving_label = QtGui.QLabel('Set objective to 0 after moving it', self)
+        self.enable_set_objective_origin_after_moving_checkbox = QtGui.QCheckBox(self)
         self.current_position_label = QtGui.QLabel('', self)
         
     def create_layout(self):
@@ -488,10 +493,13 @@ class CommonWidget(QtGui.QWidget):
         self.layout.addWidget(self.set_stage_origin_button, 0, 0, 1, 1)
         self.layout.addWidget(self.read_stage_button, 0, 1, 1, 1)
         self.layout.addWidget(self.move_stage_button, 0, 2, 1, 1)
-        self.layout.addWidget(self.stop_stage_button, 0, 3, 1, 1)
-        self.layout.addWidget(self.set_objective_button, 0, 4, 1, 1)
-        self.layout.addWidget(self.current_position_label, 0, 5, 1, 2)
-        
+        self.layout.addWidget(self.enable_xy_scan_with_move_stage_label, 0, 3, 1, 1)
+        self.layout.addWidget(self.enable_xy_scan_with_move_checkbox, 0, 4, 1, 1)
+        self.layout.addWidget(self.stop_stage_button, 0, 5, 1, 1)
+        self.layout.addWidget(self.set_objective_button, 0, 6, 1, 1)
+        self.layout.addWidget(self.enable_reset_objective_origin_after_moving_label, 0, 7, 1, 1)
+        self.layout.addWidget(self.enable_set_objective_origin_after_moving_checkbox, 0, 8, 1, 1)
+        self.layout.addWidget(self.current_position_label, 0, 9, 1, 2)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -933,9 +941,13 @@ class Poller(QtCore.QThread):
         measurement_hdfhandler = hdf5io.Hdf5io(measurement_file_path)
         fromfile = measurement_hdfhandler.findvar(['call_parameters', 'position', 'experiment_config_name'])
         call_parameters = fromfile[0]
+        if not call_parameters.has_key('scan_mode'):
+            self.printc('Scan mode does not exists')
+            measurement_hdfhandler.close()
+            return 5*[None]
         laser_intensity = measurement_hdfhandler.findvar('laser_intensity', path = 'root.'+ '_'.join(cg.get_mes_name_timestamp(measurement_hdfhandler)))
         measurement_hdfhandler.close()
-        info = {'depth': fromfile[1]['z'][0], 'stimulus':fromfile[2], 'scan_mode':fromfile[0]['scan_mode'], 'laser_intensity':laser_intensity}
+        info = {'depth': fromfile[1]['z'][0], 'stimulus':fromfile[2], 'scan_mode':call_parameters['scan_mode'], 'laser_intensity':laser_intensity}
         #Read the database from the mouse file pointed by the measurement file
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
         if not os.path.exists(mouse_file):
@@ -1155,6 +1167,8 @@ class Poller(QtCore.QThread):
             return
         #Disbaled: self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setEditText('')
         self.move_stage_relative(movement)
+        if self.parent.common_widget.enable_xy_scan_with_move_checkbox.checkState() != 0:
+            self.acquire_xy_scan()
 
     def move_stage_relative(self, movement):
         if hasattr(self, 'xy_scan'): #to avoid saving false data at saving regions
@@ -1192,6 +1206,9 @@ class Poller(QtCore.QThread):
             return
         if self.mes_interface.set_objective(position, self.config.MES_TIMEOUT):
             self.objective_position = position
+            if self.parent.common_widget.enable_set_objective_origin_after_moving_checkbox.checkState() != 0:
+                if not self.mes_interface.overwrite_relative_position(0, self.config.MES_TIMEOUT):
+                    self.printc('Setting objective to 0 did not succeed')
             self.parent.update_position_display()
             self.printc('Objective is set to {0} um'.format(position))
         else:

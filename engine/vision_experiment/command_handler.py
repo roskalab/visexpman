@@ -1,3 +1,4 @@
+import sys
 import time
 import Queue
 import os
@@ -18,7 +19,6 @@ from visexpA.engine.datahandlers import hdf5io
 
 find_experiment_class_name = re.compile('class (.+)\(experiment.Experiment\)')
 find_experiment_config_class_name = re.compile('class (.+)\(experiment.ExperimentConfig\)')
-                                                                            
 
 class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandler):
     def __init__(self):
@@ -135,6 +135,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             self.experiment_config = getattr(experiment_module, experiment_config_class_name+tag)(self.config, self.queues, \
                                                                                                   self.connections, self.log, getattr(experiment_module,experiment_class_name+tag), loadable_source_code)
         else:
+            #reload(sys.modules[self.experiment_config_list[int(self.selected_experiment_config_index)][1].__module__])#This results the failure of pickling config:
             self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log, parameters = kwargs)
         #Remove abort commands from queue
         utils.is_keyword_in_queue(self.queues['gui']['in'], 'abort', keep_in_queue = False)
