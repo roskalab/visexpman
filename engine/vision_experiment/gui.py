@@ -1313,6 +1313,9 @@ class Poller(QtCore.QThread):
                                 objective_origin = self.objective_origin, 
                                 z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], 
                                 merge_distance = merge_distance)
+            if rois is None:
+                self.printc('No rois found, check objective position')
+                return
             params = str(self.parent.roi_widget.roi_pattern_parameters_lineedit.currentText()).replace(' ', '')
             if len(params)==0:
                 roi_pattern_size = 0

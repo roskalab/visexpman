@@ -704,7 +704,7 @@ def draw_scalebar(image, origin, scale, frame_size = None, fill = (0, 0, 0), gri
         font = ImageFont.truetype("arial.ttf", fontsize)
     else:
         font = ImageFont.truetype("/usr/share/fonts/truetype/msttcorefonts/arial.ttf", fontsize)
-    number_of_divisions = 5
+    number_of_divisions = 6
     image_size = utils.cr((image.shape[0]*float(scale['row']), image.shape[1]*float(scale['col'])))
     division_col = int(numpy.round(float(image_size['row']) / number_of_divisions, -1))
     col_labels = numpy.linspace(origin['col'], origin['col'] + number_of_divisions * division_col, number_of_divisions+1)
