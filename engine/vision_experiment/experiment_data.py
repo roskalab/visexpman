@@ -51,7 +51,7 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_sign
 
 #################### Saving/loading data to hdf5 ####################
 def load_config(numpy_array):
-    return pickle.loads(numpy_array.tostring())
+    return utils.array2object(numpy_array)
     
 def save_config(file_handle, machine_config, experiment_config = None):
     if hasattr(file_handle, 'save'):
@@ -82,7 +82,7 @@ def pickle_config(config):
         config_modified.pre_runnable = config_modified.pre_runnable.__class__.__name__
     if hasattr(config_modified, 'queues'):
         config_modified.queues = 0
-    return numpy.fromstring(pickle.dumps(config_modified), numpy.uint8)
+    return utils.object2array(config_modified)
     
 def save_position(hdf5, stagexyz, objective_z = None):
     '''
@@ -136,7 +136,7 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
         elif node_name == expected_top_level_nodes[-1]:
             expected_subnodes = ['rising_edges_indexes', 'number_of_fragments', 'stimulus_frame_info', 'generated_data', \
         'sync_data', 'actual_fragment',  'current_fragment', 'experiment_source', 'experiment_log', 'software_environment', \
-        'laser_intensity', 'prepost_scan_image', 'experiment_config', 'machine_config', 'animal_parameters']
+        'laser_intensity', 'prepost_scan_image', 'experiment_config', 'machine_config', 'animal_parameters', 'anesthesia_history']
             if not hasattr(node,  'has_key'):
                 result = False
                 messages.append('unexpected data type in {0}'.format(node_name))

@@ -158,7 +158,7 @@ class ExperimentControl(object):
                     self.printl('Mouse file does not exists: ' + self.mouse_file)
                 else:
                     h = hdf5io.Hdf5io(self.mouse_file)
-                    self.scan_regions, self.cells = h.findvar(['scan_regions', 'cells'])
+                    self.scan_regions, self.cells, self.anesthesia_history = h.findvar(['scan_regions', 'cells', 'anesthesia_history'])
                     vname = h.find_variable_in_h5f('animal_parameters', regexp=True)
                     if len(vname) == 1:
                         self.animal_parameters = h.findvar(vname[0])
@@ -463,7 +463,7 @@ class ExperimentControl(object):
             if stimulus_frame_info_with_data_series_index != 0:
                 stimulus_frame_info = self.stimulus_frame_info
             if hasattr(self, 'animal_parameters'):
-                 data_to_file['animal_parameters'] = self.animal_parameters
+                data_to_file['animal_parameters'] = self.animal_parameters
             if self.config.PLATFORM == 'mes':
                 data_to_file['mes_data_path'] = os.path.split(self.filenames['mes_fragments'][fragment_id])[-1]
                 if hasattr(self, 'rois'):
@@ -474,6 +474,8 @@ class ExperimentControl(object):
                     data_to_file['prepost_scan_image'] = self.prepost_scan_image
                 if hasattr(self, 'scanner_trajectory'):
                     data_to_file['scanner_trajectory'] = self.scanner_trajectory
+                if hasattr(self, 'anesthesia_history'):
+                    data_to_file['anesthesia_history'] = self.anesthesia_history
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             stimulus_frame_info = stimulus_frame_info_with_data_series_index
         data_to_file['stimulus_frame_info'] = stimulus_frame_info

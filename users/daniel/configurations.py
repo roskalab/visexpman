@@ -197,7 +197,6 @@ class DebugOnLaptop(VisionExperimentConfig):
     Windows development machine
     '''
     def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'GratingConfig'
         EXPERIMENT_CONFIG = 'MovingRectangleConfig'
 #        EXPERIMENT_CONFIG = 'Dummy'
         #=== paths/data handling ===
@@ -211,7 +210,7 @@ class DebugOnLaptop(VisionExperimentConfig):
                 root_folder = 'c:\\visexp'
         else:
             root_folder = '/home/zoltan/visexp/' 
-        drive_data_folder = os.path.join(root_folder, 'debug', 'data')
+        drive_data_folder = os.path.join(root_folder, 'experiment_data')
         LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = drive_data_folder

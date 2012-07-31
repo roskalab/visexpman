@@ -139,6 +139,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.main_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.region_name_changed)
 
         self.connect_and_map_signal(self.animal_parameters_widget.new_mouse_file_button, 'save_animal_parameters')
+        self.connect_and_map_signal(self.animal_parameters_widget.anesthesia_history_groupbox.add_button, 'add_to_anesthesia_history')
+        self.connect_and_map_signal(self.animal_parameters_widget.anesthesia_history_groupbox.remove_button, 'remove_last_from_anesthesia_history')
         #Experiment control
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.graceful_stop_experiment_button, 'graceful_stop_experiment')
@@ -185,6 +187,9 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.xz_scan_button, 'acquire_xz_scan')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.add_button, 'add_scan_region')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.remove_button, 'remove_scan_region')
+        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.update_xy_button, 'save_xy_scan')
+        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.update_xz_button, 'save_xz_scan')
+        self.connect_and_map_signal(self.main_widget.scan_region_groupbox.update_xyt_button, 'save_xyt_scan')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.move_to_button, 'move_to_region')
         self.connect_and_map_signal(self.roi_widget.create_xz_lines_button, 'create_xz_lines')
         self.connect_and_map_signal(self.roi_widget.xy_scan_button, 'acquire_xy_scan')
@@ -215,6 +220,7 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_scan_regions()
         elif currentIndex == 1:
             self.update_meanimage()
+            self.update_cell_info()
             
     def gridline_checkbox_changed(self):
         self.update_gridlined_images()
@@ -230,6 +236,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_scan_regions()
         self.update_jobhandler_process_status()
         self.update_cell_list()
+        self.update_cell_group_combobox()
         self.update_file_id_combobox()
         self.update_roi_curves_display()
         self.update_suggested_depth_label()
@@ -238,15 +245,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_roi_curves_display()
         self.update_meanimage()
         self.update_suggested_depth_label()
-        #display cell status
-        region_name = self.get_current_region_name()
-        cell_id = self.get_current_cell_id()
-        if utils.safe_has_key(self.poller.cells, region_name) and utils.safe_has_key(self.poller.cells[region_name],  cell_id) and self.main_tab.currentIndex() == 1:
-            cell = self.poller.cells[region_name][cell_id]
-            if cell['accepted'] and cell.has_key('group'):
-                self.printc('cell group: '+str(cell['group']))
-            else:
-                self.printc('ignored')
+        self.update_cell_info()
                 
     def cell_filtername_changed(self):
         self.update_cell_filter_list()
@@ -260,6 +259,13 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_roi_curves_display()
 
     ################### GUI updaters #################
+    def update_anesthesia_history(self):
+        text = 'Time, substance, amount, comment\n'
+        if hasattr(self.poller, 'anesthesia_history'):
+            for entry in self.poller.anesthesia_history:
+                text += '{0}: {1} {2} | {3}\n' .format(utils.timestamp2ymdhms(entry['timestamp']), entry['substance'], entry['amount'], entry['comment'])
+        self.animal_parameters_widget.anesthesia_history_groupbox.history_label.setText(text)
+        
     def update_widgets_when_mouse_file_changed(self, selected_region=None):
         self.update_animal_parameter_display()
         self.update_region_names_combobox(selected_region = selected_region)
@@ -270,6 +276,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_roi_curves_display()
         self.update_cell_group_combobox()
         self.update_suggested_depth_label()
+        self.update_anesthesia_history()
         
     def update_mouse_files_combobox(self, set_to_value = None):
             self.update_combo_box_list(self.main_widget.scan_region_groupbox.select_mouse_file, self.poller.mouse_files)
@@ -286,9 +293,9 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_animal_parameter_display(self):
         if hasattr(self.poller, 'animal_parameters'):
             animal_parameters = self.poller.animal_parameters
-            self.animal_parameters_str = '{2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}, {6}'\
+            self.animal_parameters_str = '{2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}'\
             .format(animal_parameters['mouse_birth_date'], animal_parameters['gcamp_injection_date'], animal_parameters['strain'], 
-                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'],  animal_parameters['anesthesia_protocol'])
+                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'])
             self.main_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
             
     def update_region_names_combobox(self, selected_region = None):
@@ -332,9 +339,9 @@ class VisionExperimentGui(QtGui.QWidget):
                                                                       .format(scan_regions[selected_region]['position']['x'][0], scan_regions[selected_region]['position']['y'][0], 
                                                                               scan_regions[selected_region]['position']['z'][0], region_add_date))
         else:
-                self.show_image(self.images_widget.blank_image, 1, no_scale)
-                self.show_image(self.images_widget.blank_image, 3, no_scale)
-                self.show_image(self.images_widget.blank_image, 'overview', no_scale)
+                self.show_image(self.images_widget.blank_image, 1, no_scale, origin = utils.rc((0, 0)))
+                self.show_image(self.images_widget.blank_image, 3, no_scale, origin = utils.rc((0, 0)))
+                self.show_image(self.images_widget.blank_image, 'overview', no_scale, origin = utils.rc((0, 0)))
                 self.main_widget.scan_region_groupbox.region_info.setText('')
                 
     def update_file_id_combobox(self):
@@ -344,6 +351,8 @@ class VisionExperimentGui(QtGui.QWidget):
             ids = scan_regions[region_name]['process_status'].keys()
             ids.sort()
             self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,ids)
+        else:
+            self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,[])
                 
     def update_jobhandler_process_status(self):
         scan_regions = self.poller.scan_regions
@@ -434,6 +443,18 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_combo_box_list(self.roi_widget.cell_filter_combobox,filter_values)
             self.update_cell_list()#This is necessary to update cell list if  'No filter' is selected but reason unknown
             
+    def update_cell_info(self):
+        region_name = self.get_current_region_name()
+        text = ''
+        if hasattr(self.poller, 'cells') and self.poller.cells.has_key(region_name) and region_name != '':
+            cell_name = self.get_current_cell_id()
+            if not self.poller.cells[region_name][cell_name]['accepted']:
+                info = 'not selected'
+            else:
+                info = self.poller.cells[region_name][cell_name]['group']
+            text = '{0}: {1}'.format(cell_name, info)
+        self.roi_widget.cell_info.setText(text)
+            
     def update_cell_group_combobox(self):
         region_name = self.get_current_region_name()
         if region_name == '':
@@ -441,7 +462,7 @@ class VisionExperimentGui(QtGui.QWidget):
         if hasattr(self.poller, 'cells') and self.poller.cells.has_key(region_name):
             cell_groups = []
             for cell_id, cell_info in self.poller.cells[region_name].items():
-                if cell_info['accepted'] and not cell_info['group'] in cell_groups and cell_info['group'] != '':
+                if cell_info['accepted'] and not cell_info['group'] in cell_groups and cell_info['group'] != 'none' and cell_info['group'] != '':
                     cell_groups.append(cell_info['group'])
             cell_groups.sort()
             self.update_combo_box_list(self.roi_widget.cell_group_combobox, cell_groups)

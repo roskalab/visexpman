@@ -34,7 +34,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
     '''
     This class is responsible for running vision experiment.
     '''
-    def __init__(self, user, config_class):
+    def __init__(self, user, config_class, autostart = False):
         ########## Set up configurations ################
         try:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
@@ -53,8 +53,8 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             #TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig
             self.experiment_config_list = []
         #Since 0-9 buttons can be used for experiment config (experiment) selection, maximum 10 experiment configs are allowed.
-        if len(self.experiment_config_list) > 10: 
-            print 'Maximum 10 different experiment types are allowed'
+#        if len(self.experiment_config_list) > 10: 
+#            raise RuntimeError('Maximum 10 different experiment types are allowed')
             
         self._init_logging()
         self.log.info('Visexpman started')
@@ -62,10 +62,15 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         self._init_network()
         #Set up command handler
         command_handler.CommandHandler.__init__(self)
-        
+        if autostart:
+            self.keyboard_command_queue.put('SOCexecute_experimentEOCEOP')
+            self.keyboard_command_queue.put('SOCquitEOCEOP')
         #Select and instantiate stimulus as specified in machine config, This is necessary to ensure that pre-experiment will run immediately after startup
         if len(self.experiment_config_list) > 0:
-            self.experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self.queues, self.connections, self.log)
+            try:
+                self.experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self.queues, self.connections, self.log)
+            except IndexError:
+                raise RuntimeError('Experiment config does not exists: {0}'.format(self.config.EXPERIMENT_CONFIG))
         else:
             self.experiment_config = None
         #Determine default experiment config index from machine config
@@ -77,7 +82,6 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             user_folder = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user)
             for filename in file.filtered_file_list(user_folder,  'presentinator_experiment', fullpath = True):
                 os.remove(filename)
-
         self.loop_state = 'running' #This state variable is necessary to end the main loop of the program from the command handler
         self.log.info('Visexpman initialized')
 
@@ -159,6 +163,7 @@ def find_out_config():
     separators = [' ',  '.',  ',',  '/',  '\\']
     config_class = ''
     user = ''
+    autostart = False
     if len(sys.argv) == 0:
         raise RuntimeError('No command line arguments')
     elif len(sys.argv) == 1:
@@ -166,7 +171,7 @@ def find_out_config():
         user = 'default'
     elif len(sys.argv) == 2:
         for separator in separators:
-            if sys.argv[1].find(separator) != -1:
+            if separator in sys.argv[1]:
                 parameters = sys.argv[1].split(separator)
                 user = sys.argv[1].split(separator)[0]
                 config_class = sys.argv[1].split(separator)[1]
@@ -174,11 +179,16 @@ def find_out_config():
     elif len(sys.argv) == 3:
         config_class = sys.argv[2]
         user = sys.argv[1]
+    elif len(sys.argv) == 4:
+        config_class = sys.argv[2]
+        user = sys.argv[1]
+        if sys.argv[3] == 'autostart':
+            autostart = True
     else:
         raise RuntimeError('Unsupported command line arguments')
     if config_class =='' and user == '':
         raise RuntimeError('Invalid command line argument')
-    return user, config_class
+    return user, config_class, autostart
 
 class TestFindoutConfig(unittest.TestCase):
     #== Test cases of find_out_config() function ==

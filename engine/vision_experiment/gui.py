@@ -27,6 +27,40 @@ import visexpA.engine.component_guesser as cg
 
 BUTTON_HIGHLIGHT = 'color: red'
 
+class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, 'Anesthesia history', parent)
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        self.history_label = QtGui.QLabel('', self)
+        self.substance_label = QtGui.QLabel('Substance', self)
+        self.substance_combobox = QtGui.QComboBox(self)
+        self.substance_combobox.setEditable(True)
+        self.substance_combobox.addItems(QtCore.QStringList(['', 'CP', 'isofluorane']))
+        self.amount_label = QtGui.QLabel('Amount', self)
+        self.amount_combobox = QtGui.QComboBox(self)
+        self.amount_combobox.setEditable(True)
+        self.comment_label = QtGui.QLabel('Comment', self)
+        self.comment_combobox = QtGui.QComboBox(self)
+        self.comment_combobox.setEditable(True)
+        self.add_button = QtGui.QPushButton('Add',  self)
+        self.remove_button = QtGui.QPushButton('Remove last', self)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.history_label, 0, 0, 4, 2)
+        self.layout.addWidget(self.substance_label, 5, 0)
+        self.layout.addWidget(self.substance_combobox, 5, 1)
+        self.layout.addWidget(self.amount_label, 5, 2)
+        self.layout.addWidget(self.amount_combobox, 5, 3)
+        self.layout.addWidget(self.comment_label, 5, 4)
+        self.layout.addWidget(self.comment_combobox, 5, 5, 1, 3)
+        self.layout.addWidget(self.add_button, 5, 8)
+        self.layout.addWidget(self.remove_button, 5, 9)
+        self.setLayout(self.layout)   
+    
 class MeasurementDatafileStatusGroupbox(QtGui.QGroupBox):
     def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, 'Measurement data file status', parent)
@@ -129,10 +163,9 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.gender_label = QtGui.QLabel('Gender',  self)
         self.gender = QtGui.QComboBox(self)        
         self.gender.addItems(QtCore.QStringList(['male', 'female']))
-        self.anesthesia_protocol_label = QtGui.QLabel('Anesthesia protocol',  self)
-        self.anesthesia_protocol = QtGui.QComboBox(self)        
-        self.anesthesia_protocol.addItems(QtCore.QStringList(['isoflCP 0.5', 'isoflCP 1.0', 'isoflCP 1.5']))
-        self.anesthesia_protocol.setEditable(True)
+        self.id_label = QtGui.QLabel('ID',  self)
+        self.id = QtGui.QComboBox(self)
+        self.id.setEditable(True)
         self.mouse_strain_label = QtGui.QLabel('Mouse strain',  self)
         self.mouse_strain = QtGui.QComboBox(self)
         self.mouse_strain.addItems(QtCore.QStringList(['chatdtr', 'chat', 'bl6', 'grik4']))
@@ -141,6 +174,7 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.comments.setEditable(True)
         self.comments.setToolTip('Add comment')
         self.new_mouse_file_button = QtGui.QPushButton('Create new mouse file',  self)
+        self.anesthesia_history_groupbox = AnesthesiaHistoryGroupbox(self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -156,10 +190,11 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.layout.addWidget(self.gender, 1, 2)
         self.layout.addWidget(self.mouse_strain_label, 2, 2)
         self.layout.addWidget(self.mouse_strain, 3, 2)
-        self.layout.addWidget(self.anesthesia_protocol_label, 4, 0)
-        self.layout.addWidget(self.anesthesia_protocol, 4, 1)
+        self.layout.addWidget(self.id_label, 4, 0)
+        self.layout.addWidget(self.id, 4, 1)
         self.layout.addWidget(self.comments, 5, 0, 1, 3)
         self.layout.addWidget(self.new_mouse_file_button, 6, 0, 1, 2)
+        self.layout.addWidget(self.anesthesia_history_groupbox, 7, 0, 2, 4)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
@@ -231,6 +266,9 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.scan_regions_combobox = QtGui.QComboBox(self)
         self.scan_regions_combobox.setEditable(True)
         self.remove_button = QtGui.QPushButton('Remove',  self)
+        self.update_xy_button = QtGui.QPushButton('Update XY',  self)
+        self.update_xz_button = QtGui.QPushButton('Update XZ',  self)
+        self.update_xyt_button = QtGui.QPushButton('Update XYT',  self)
         self.move_to_button = QtGui.QPushButton('Move to',  self)
         self.region_info = QtGui.QLabel('',  self)
         self.move_to_region_options = {}
@@ -263,18 +301,21 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.scan_regions_combobox, 4, 0, 1, 2)
         self.layout.addWidget(self.region_info, 4, 3, 1, 1)
         self.layout.addWidget(self.remove_button, 5, 0, 1, 1)
+        self.layout.addWidget(self.update_xy_button, 5, 1, 1, 1)
+        self.layout.addWidget(self.update_xz_button, 5, 2, 1, 1)
+        self.layout.addWidget(self.update_xyt_button, 5, 3, 1, 1)
         self.layout.addWidget(self.move_to_button, 4, 2, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['header_labels'][0], 5, 1, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['header_labels'][1], 5, 2, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['header_labels'][2], 5, 3, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['row_labels'][0], 6, 0, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['row_labels'][1], 7, 0, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['checkboxes']['stage_move'], 6, 1, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['checkboxes']['stage_realign'], 6, 2, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['checkboxes']['stage_origin_adjust'], 6, 3, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 7, 1, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 7, 2, 1, 1)
-        self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_origin_adjust'], 7, 3, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['header_labels'][0], 6, 1, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['header_labels'][1], 6, 2, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['header_labels'][2], 6, 3, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['row_labels'][0], 7, 0, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['row_labels'][1], 8, 0, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['stage_move'], 7, 1, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['stage_realign'], 7, 2, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['stage_origin_adjust'], 7, 3, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 8, 1, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 8, 2, 1, 1)
+        self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_origin_adjust'], 8, 3, 1, 1)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -300,9 +341,6 @@ class RoiWidget(QtGui.QWidget):
         self.accept_cell_button = QtGui.QPushButton('Accept cell',  self)
         self.accept_cell_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.ignore_cell_button = QtGui.QPushButton('Ignore cell',  self)
-#        self.cell_group_edit_label = QtGui.QLabel('Assign to cell group',  self)
-#        self.cell_group_edit_combobox = QtGui.QComboBox(self)
-#        self.cell_group_edit_combobox.setEditable(True)
         self.cell_filter_name_combobox = QtGui.QComboBox(self)
         self.cell_filter_name_combobox.addItems(QtCore.QStringList(['No filter', 'depth', 'id', 'date', 'stimulus']))
         self.cell_filter_combobox = QtGui.QComboBox(self)
@@ -334,6 +372,7 @@ class RoiWidget(QtGui.QWidget):
         self.roi_pattern_parameters_lineedit = QtGui.QComboBox(self)
         self.roi_pattern_parameters_lineedit.setEditable(True)
         self.roi_pattern_parameters_lineedit.setEditText('{0},{1}'.format(self.config.ROI_PATTERN_SIZE, self.config.ROI_PATTERN_RADIUS))
+        self.cell_info = QtGui.QLabel('',  self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -373,7 +412,7 @@ class RoiWidget(QtGui.QWidget):
         self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 6, 4)
         self.layout.addWidget(self.roi_pattern_parameters_label, image_height_in_rows + 7, 0, 1, 4)
         self.layout.addWidget(self.roi_pattern_parameters_lineedit, image_height_in_rows + 7, 4)
-        
+        self.layout.addWidget(self.cell_info, image_height_in_rows + 8, 0, 1, 2)
         
         self.layout.setRowStretch(15, 15)
         self.layout.setColumnStretch(15, 15)
@@ -567,6 +606,7 @@ class Poller(QtCore.QThread):
         self.parent.connect(self, QtCore.SIGNAL('update_widgets_when_mouse_file_changed'),  self.parent.update_widgets_when_mouse_file_changed)
         self.parent.connect(self, QtCore.SIGNAL('show_overwrite_region_messagebox'),  self.parent.show_overwrite_region_messagebox)
         self.parent.connect(self, QtCore.SIGNAL('show_verify_add_region_messagebox'),  self.parent.show_verify_add_region_messagebox)
+        self.parent.connect(self, QtCore.SIGNAL('select_cell_changed'),  self.parent.select_cell_changed)
         
     def connect_signals_to_widgets(self):
         self.parent.connect(self, QtCore.SIGNAL('clear_image_display'), self.parent.images_widget.clear_image_display)
@@ -761,13 +801,16 @@ class Poller(QtCore.QThread):
             cells  = copy.deepcopy(h.findvar('cells'))#Takes long to load cells
             if cells is not None:
                 self.cells = cells
-                self.printc('Loading mean images')
+            self.printc('Loading mean images')
             images  = copy.deepcopy(h.findvar('images'))#Takes long to load images
             if images is not None:
                 self.images = images
             roi_curves = copy.deepcopy(h.findvar('roi_curves'))#Takes long to load images
             if roi_curves is not None:
                 self.roi_curves = copy.deepcopy(roi_curves)
+            anesthesia_history = copy.deepcopy(h.findvar('anesthesia_history'))#Takes long to load images
+            if anesthesia_history is not None:
+                self.anesthesia_history = copy.deepcopy(anesthesia_history)
             h.close()
         
     def load_context(self):
@@ -873,7 +916,7 @@ class Poller(QtCore.QThread):
             h.cells[region_name][cell_id]['soma_roi'] = soma_rois[i]
             h.cells[region_name][cell_id]['roi_center'] = roi_centers[i]
             h.cells[region_name][cell_id]['accepted'] = False
-            h.cells[region_name][cell_id]['group'] = ''
+            h.cells[region_name][cell_id]['group'] = 'none'
             h.cells[region_name][cell_id]['add_date'] = utils.datetime_string().replace('_', ' ')
             h.cells[region_name][cell_id]['stimulus'] = stimulus
             h.cells[region_name][cell_id]['scale'] = scale
@@ -883,7 +926,7 @@ class Poller(QtCore.QThread):
         h_measurement.close()
         #Save changes
         h.scan_regions = scan_regions
-        h.save(['scan_regions', 'images', 'cells', 'roi_curves'], overwrite=True)
+        h.save(['scan_regions', 'images', 'roi_curves'], overwrite=True)
         self.printc('{1} cells added from {0}'.format(id, number_of_new_cells))
         self.cells = copy.deepcopy(h.cells)
         self.scan_regions = copy.deepcopy(h.scan_regions)
@@ -1063,7 +1106,9 @@ class Poller(QtCore.QThread):
         current_index += 1
         if current_index >= len(self.cell_ids):
             current_index = len(self.cell_ids)-1
-        self.parent.roi_widget.select_cell_combobox.setCurrentIndex(current_index)
+            self.emit(QtCore.SIGNAL('select_cell_changed'))
+        else:
+            self.parent.roi_widget.select_cell_combobox.setCurrentIndex(current_index)
         
     def previous_cell(self):
         current_index = self.parent.roi_widget.select_cell_combobox.currentIndex()
@@ -1359,7 +1404,7 @@ class Poller(QtCore.QThread):
         self.animal_parameters = {
             'mouse_birth_date' : mouse_birth_date,
             'gcamp_injection_date' : gcamp_injection_date,
-            'anesthesia_protocol' : str(self.parent.animal_parameters_widget.anesthesia_protocol.currentText()),
+            'id' : str(self.parent.animal_parameters_widget.id.currentText()),
             'gender' : str(self.parent.animal_parameters_widget.gender.currentText()),
             'ear_punch_l' : str(self.parent.animal_parameters_widget.ear_punch_l.currentText()), 
             'ear_punch_r' : str(self.parent.animal_parameters_widget.ear_punch_r.currentText()),
@@ -1367,7 +1412,7 @@ class Poller(QtCore.QThread):
             'comments' : str(self.parent.animal_parameters_widget.comments.currentText()),
             'add_date' : utils.datetime_string().replace('_', ' ')
         }        
-        name = '{0}_{1}_{2}_{3}_{4}' .format(self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
+        name = '{0}_{1}_{2}_{3}_{4}_{5}' .format(self.animal_parameters['id'], self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])
 
         self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.generate_animal_filename('mouse', self.animal_parameters))
@@ -1385,10 +1430,40 @@ class Poller(QtCore.QThread):
             #Clear image displays showing regions
             self.emit(QtCore.SIGNAL('clear_image_display'), 1)
             self.emit(QtCore.SIGNAL('clear_image_display'), 3)
-            self.parent.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.setCheckState(0)
+            self.parent.main_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.setCheckState(0)
+            self.parent.main_tab.setCurrentIndex(0)#Switch to main tab
             self.printc('Animal parameter file saved')
             
-    
+    def add_to_anesthesia_history(self):
+        if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file):
+            h  =hdf5io.Hdf5io(self.mouse_file)
+            h.load('anesthesia_history')
+            if not hasattr(h, 'anesthesia_history'):
+                h.anesthesia_history = []
+            entry = {}
+            entry['timestamp'] = time.time()
+            entry['substance'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.substance_combobox.currentText())
+            entry['amount'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.amount_combobox.currentText())
+            entry['comment'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.comment_combobox.currentText())
+            h.anesthesia_history.append(entry)
+            self.anesthesia_history = copy.deepcopy(h.anesthesia_history)
+            h.save('anesthesia_history', overwrite = True)
+            h.close()
+            self.parent.update_anesthesia_history()
+        
+    def remove_last_from_anesthesia_history(self):
+        if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file):
+            h  =hdf5io.Hdf5io(self.mouse_file)
+            h.load('anesthesia_history')
+            if not hasattr(h, 'anesthesia_history'):
+                h.anesthesia_history = []
+            elif len(h.anesthesia_history) > 0:
+                h.anesthesia_history.pop()
+                h.save('anesthesia_history', overwrite = True)
+            self.anesthesia_history = copy.deepcopy(h.anesthesia_history)
+            h.close()
+            self.parent.update_anesthesia_history()
+        
     ################### Regions #######################
     def add_scan_region(self):
         '''
@@ -1500,6 +1575,33 @@ class Poller(QtCore.QThread):
         self.parent.update_region_names_combobox(region_name)
         self.update_scan_regions()#This is probably redundant
         self.printc('{0} scan region saved'.format(region_name))
+        
+    def save_xy_scan(self):
+        region_name = self.parent.get_current_region_name()
+        if not self.xy_scan is None:
+            self.scan_regions[region_name]['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
+            self.scan_regions[region_name]['xy']['scale'] = self.xy_scan['scale']
+            self.scan_regions[region_name]['xy']['origin'] = self.xy_scan['origin']
+            hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions)
+            self.update_scan_regions()#This is probably redundant
+            self.printc('XY scan updated')
+        
+    def save_xz_scan(self):
+        region_name = self.parent.get_current_region_name()
+        if not self.xz_scan is None:
+            self.scan_regions[region_name]['xz'] = self.xz_scan
+            self.scan_regions[region_name]['xz']['mes_parameters'] = utils.file_to_binary_array(self.xz_scan['path'].tostring())
+            hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions)
+            self.update_scan_regions()#This is probably redundant
+            self.printc('XZ scan updated')
+        
+    def save_xyt_scan(self):
+        region_name = self.parent.get_current_region_name()
+        if not self.xy_scan is None:
+            self.scan_regions[region_name]['xy']['mes_parameters']  = self.xy_scan['mes_parameters']
+            hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions)
+            self.update_scan_regions()#This is probably redundant
+            self.printc('XYT scan updated')
 
     def remove_scan_region(self):
         selected_region = self.parent.get_current_region_name()
@@ -1950,8 +2052,19 @@ class Poller(QtCore.QThread):
         copy_path = mouse_file.replace('.hdf5', '_' +tag+'.hdf5')
         try:
             if os.path.exists(mouse_file) and os.path.isfile(mouse_file):
-                shutil.copyfile(mouse_file, copy_path)
-#                print 'Trying to open copied hdf5 file'
+                time.sleep(1.0)
+                if 'jobhandler' in tag:#Stim uses other nodes of mouse file
+                    if os.path.exists(copy_path):
+                        os.remove(copy_path)
+                        time.sleep(0.1)
+                    h1=hdf5io.Hdf5io(copy_path)
+                    h1.scan_regions = copy.deepcopy(self.scan_regions)
+                    h1.save('scan_regions', overwrite=True)
+                    h1.close()
+                else:
+                    shutil.copyfile(mouse_file, copy_path)
+                time.sleep(1.0)
+				# Trying to open copied hdf5 file
                 h = hdf5io.Hdf5io(copy_path)#Does not help either
                 h.close()
                 result = True
@@ -2034,8 +2147,8 @@ class Poller(QtCore.QThread):
         return master_position_name
             
     def generate_animal_filename(self, tag, animal_parameters, extension = 'hdf5'):
-        name = '{5}_{0}_{1}_{2}_{3}_{4}.{6}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
-                                         animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], tag, extension)
+        name = '{5}_{7}_{0}_{1}_{2}_{3}_{4}.{6}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
+                                         animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], tag, extension, animal_parameters['id'])
         return name
 
 def update_mouse_files_list(config, current_mouse_files = []):

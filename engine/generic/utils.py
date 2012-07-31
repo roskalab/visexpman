@@ -13,6 +13,7 @@ import tempfile
 import copy
 import select
 import subprocess
+import cPickle as pickle
 if os.name == 'nt':
     import win32process
     import win32api
@@ -701,6 +702,28 @@ def list_stdlib():
             if nm != '__init__.py' and nm[-3:] == '.py':
                 lib_members.append(os.path.join(top, nm)[len(std_lib)+1:-3].replace('\\','.'))
     return lib_members
+
+#object <-> numpy array
+def array2object(numpy_array):
+    return pickle.loads(numpy_array.tostring())
+    
+def object2array(obj):
+    return numpy.fromstring(pickle.dumps(obj), numpy.uint8)
+    
+def object2hdf5(h, vn):
+    if hasattr(h, vn):
+        setattr(h, vn, object2array(getattr(h, vn)))
+        h.save(vn, overwrite=True)
+    return copy.deepcopy(getattr(h, vn))
+    
+def hdf52object(h, vn, default_value = None):
+    h.load(vn)
+    if hasattr(h, vn) and hasattr(getattr(h, vn), 'dtype'):
+        return array2object(getattr(h, vn))
+    else:
+        return default_value
+    
+
 
 #== Experiment specific ==
 def um_to_normalized_display(value, config):

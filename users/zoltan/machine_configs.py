@@ -1,283 +1,108 @@
-from visexpman.engine.vision_experiment import configuration
-from visexpman.engine.generic import utils
-import visexpman.engine.vision_experiment.experiment as experiment
 import time
 import numpy
 import serial
 import visexpman
 import os.path
 import os
-import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+import tempfile
 
-class Debug(configuration.VisionExperimentConfig):
-    '''
-    Visual stimulation machine of 3D microscope setup
-    '''
-    def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'MESExperimentConfig'
+from visexpman.engine.vision_experiment import configuration
+from visexpman.engine.generic import configuration as config
+from visexpman.engine.generic import utils
+from visexpman.engine.generic import file
+from visexpman.engine.vision_experiment import experiment
+from visexpman.engine.hardware_interface import daq_instrument
+from visexpman.users.zoltan.test import unit_test_runner
+from visexpman.users.daniel import grating
 
-        #=== paths/data handling ===
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
-        CAPTURE_PATH = os.path.join(unit_test_runner.TEST_working_folder,'Capture')
+GEOMETRY_PRECISION = 3
+
+class GraphicsTestConfig(config.Config):
+    def _create_application_parameters(self):
+        FPS_RANGE = (1.0,  200.0) 
+        COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         
-        ARCHIVE_FORMAT = 'hdf5'
-        
-        #=== screen ===
+        SCREEN_RESOLUTION = utils.rc([768, 1024])        
         FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.cr([800, 600])
-        COORDINATE_SYSTEM='center'
+        SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
+        SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]        
+        BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
+        FRAME_WAIT_FACTOR = [1.0,  [0.0,  1.0]]
+        FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]
+        COORDINATE_SYSTEM = 'center' #ulcorner
+#        COORDINATE_SYSTEM = 'ulcorner'
+        CAPTURE_PATH = '/media/Common/visexpman_data'
+        SIMULATION_DATA_PATH = '/media/Common/visexpman_data'
+        self.N_CORES = 4
         ENABLE_FRAME_CAPTURE = False
-        SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0
-        if not os.path.exists(CAPTURE_PATH) and ENABLE_FRAME_CAPTURE:
-            os.mkdir(CAPTURE_PATH)
-
-        #=== Network ===
-        ENABLE_UDP = False        
-        
-        #=== hardware ===
-        ENABLE_PARALLEL_PORT = True
-        ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 2
-        
-        #=== stage ===
-        motor_serial_port = {
-                                    'port' :  unit_test_runner.TEST_stage_com_port,
-                                    'baudrate' : 19200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    }
-                                    
-        STAGE = [[{'serial_port' : motor_serial_port,
-                 'enable': self.OS == 'win',
-                 'speed': 1000000,
-                 'acceleration' : 1000000,
-                 'move_timeout' : 45.0,
-                 'um_per_ustep' : numpy.ones(3, dtype = numpy.float)
-                 }]]
-                 
-        #=== Filterwheel ===
-        
-        ENABLE_FILTERWHEEL = False
-        
-                                                
-        #=== LED controller ===
-        DAQ_CONFIG = [
-                    {
-                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
-                    'DAQ_TIMEOUT' : 1.0,
-                    'AI_SAMPLE_RATE' : 1000,                    
-                    'AI_CHANNEL' : 'Dev1/ai0:1',
-                    'MAX_VOLTAGE' : 5.0,
-                    'MIN_VOLTAGE' : 0.0,
-                    'DURATION_OF_AI_READ' : 1.0,
-                    'ENABLE' :  self.OS == 'win'
-                    }
-                    ]
-        
-        #=== Others ===
-        
-        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
-        
-        
         self._create_parameters_from_locals(locals())
+        
+    def _calculate_parameters(self):
+        self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
 
-
-class VS3DUS(configuration.VisionExperimentConfig):
+class Stimulus2video(configuration.VisionExperimentConfig):
     '''
-    Visual stimulation machine of 3D microscope setup
+    Converting stimulus to video file
     '''
     def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'MESExperimentConfig'
-        
+        EXPERIMENT_CONFIG = 'MovingGratingConfig'
+        PLATFORM = 'standalone'
         #=== paths/data handling ===
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
-        CAPTURE_PATH = os.path.join(unit_test_runner.TEST_working_folder,'Capture')
-        
-        ARCHIVE_FORMAT = 'hdf5'
+        use_drive = 'tmp'
+        if use_drive =='v':
+            root_folder = 'V:\\'
+        elif use_drive =='c':
+            root_folder = 'c:\\visexp'
+        elif use_drive == 'tmp':
+            root_folder = tempfile.gettempdir()
+        else:
+            root_folder = '/home/zoltan/visexp/' 
+        drive_data_folder = os.path.join(root_folder, 'experiment_data')
+        LOG_PATH = os.path.join(drive_data_folder, 'log')
+        EXPERIMENT_LOG_PATH = LOG_PATH        
+        EXPERIMENT_DATA_PATH = drive_data_folder
+        VIDEO_PATH = drive_data_folder
+        if use_drive == 'g':
+            MES_DATA_FOLDER = 'g:\\User\\Zoltan\\data'
+        elif use_drive =='v':
+            MES_DATA_FOLDER = 'V:\\debug\\data'
+        elif use_drive =='c':
+            MES_DATA_FOLDER = 'c:\\visexp\\debug\\data'
+        elif use_drive == 'tmp':
+            MES_DATA_FOLDER = drive_data_folder
+            VIDEO_PATH = 'c:\\visexp'
+        self.CONTEXT_NAME = 'gui_dev.hdf5'
+        CONTEXT_PATH = os.path.join(root_folder, 'context')
+        CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        #Create folders that does not exists
+        for folder in [drive_data_folder, LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, MES_DATA_FOLDER, CONTEXT_PATH, CAPTURE_PATH]:
+            file.mkdir_notexists(folder)
         
         #=== screen ===
-        FULLSCREEN = False
+        FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
-        COORDINATE_SYSTEM='center'
-        ENABLE_FRAME_CAPTURE = False
+        COORDINATE_SYSTEM='ulcorner'
+        ENABLE_FRAME_CAPTURE =  False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0
-        if not os.path.exists(CAPTURE_PATH) and ENABLE_FRAME_CAPTURE:
-            os.mkdir(CAPTURE_PATH)
         
         #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
-        SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
+        SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
+        degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
+        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
+        MAXIMUM_RECORDING_DURATION = [1000, [0, 10000]] #100
+        MES_TIMEOUT = 10.0
         
         #=== Network ===
-        ENABLE_UDP = False        
-        
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         #=== hardware ===
-        ENABLE_PARALLEL_PORT = True
-        ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 2
-        
-        #=== stage ===
-        motor_serial_port = {
-                                    'port' :  unit_test_runner.TEST_stage_com_port,
-                                    'baudrate' : 19200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    }
-                                    
-        STAGE = [[{'serial_port' : motor_serial_port,
-                 'enable': not True,
-                 'speed': 1000000,
-                 'acceleration' : 1000000,
-                 'move_timeout' : 45.0,
-                 'um_per_ustep' : numpy.ones(3, dtype = numpy.float)
-                 }]]
-                 
-        #=== Filterwheel ===
-        
-        ENABLE_FILTERWHEEL = False
-        
-        FILTERWHEEL_SERIAL_PORT = [[{
-                                    'port' :  unit_test_runner.TEST_com_port,
-                                    'baudrate' : 115200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    }]]        
-                                    
-        FILTERWHEEL_FILTERS = [[{
-                                                'ND0': 1, 
-                                                'ND10': 2, 
-                                                'ND20': 3, 
-                                                'ND30': 4, 
-                                                'ND40': 5, 
-                                                'ND50': 6, 
-                                                }]]
-                                                
-        #=== LED controller ===
-        DAQ_CONFIG = [[
-                    {
-                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
-                    'DAQ_TIMEOUT' : 1.0,
-                    'AI_SAMPLE_RATE' : 1000,                    
-                    'AI_CHANNEL' : 'Dev1/ai0:1',
-                    'MAX_VOLTAGE' : 5.0,
-                    'MIN_VOLTAGE' : 0.0,
-                    'DURATION_OF_AI_READ' : 1.0,
-                    'ENABLE' : False
-                    }
-                    ]]
-        
-        #=== Others ===
-        
-        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }
-        
-        
-        self._create_parameters_from_locals(locals())
-
-class AEPHVS(configuration.VisionExperimentConfig):
-    '''
-    Antona's Electrophisology visual stimulation
-    '''
-    def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'TestExperimentConfig'
-        
-        #=== paths/data handling ===
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
-        ARCHIVE_FORMAT = 'zip'
-        
-        #=== screen ===
-        FULLSCREEN = True
-        SCREEN_RESOLUTION = utils.cr([800,600])
-        SCREEN_RESOLUTION = utils.cr([1024, 768])
-        COORDINATE_SYSTEM='center'
-        ENABLE_FRAME_CAPTURE = False
-        SCREEN_EXPECTED_FRAME_RATE = 120.0
-        SCREEN_MAX_FRAME_RATE = 120.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.5
-        
-        #=== hardware ===
-        ENABLE_PARALLEL_PORT = True
-        ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 2
-        
-        #=== network ===
-        SERVER_IP = ''
-        ENABLE_UDP = True        
-  
-        #=== Filterwheel ===
-        
-        ENABLE_FILTERWHEEL = False
-        
-        FILTERWHEEL_SERIAL_PORT = [[{
-                                    'port' :  'COM1',
-                                    'baudrate' : 115200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    },
-                                    {
-                                    'port' :  'COM2',
-                                    'baudrate' : 115200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    }
-                                    ]]        
-                                    
-        FILTERWHEEL_FILTERS = [[{
-                                                'ND0': 1, 
-                                                'ND10': 2, 
-                                                'ND20': 3, 
-                                                'ND30': 4, 
-                                                'ND40': 5, 
-                                                'ND50': 6, 
-                                                }]]
-                                                
-        self.FILTERWHEEL1_IR = (0, 1)
-        self.FILTERWHEEL1_ND50 = (0, 2)
-        self.FILTERWHEEL1_ND0 = (0, 3)
-        self.FILTER_530 = (0, 4) #green 530,590
-        self.FILTER_470 = (0, 5) #blue 470
-        self.FILTERWHEEL1_ND0_SECONDARY = (0, 6)
-        
-        self.FILTERWHEEL2_ND10 = (1, 1)
-        self.FILTERWHEEL2_ND20 = (1, 2)
-        self.FILTERWHEEL2_ND30 = (1, 3)
-        self.FILTERWHEEL2_ND40 = (1, 4)
-        self.FILTERWHEEL2_ND_INFINITY = (1, 5)
-        self.FILTERWHEEL2_ND0 = (1, 6)
-                                                
-        #=== LED controller ===
-        DAQ_CONFIG = [[
-                    {
-                    'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
-                    'DAQ_TIMEOUT' : 1.0,
-                    'AO_SAMPLE_RATE' : 10000,
-                    'AO_CHANNEL' : 'Dev1/ao0:1',
-                    'AI_CHANNEL' : 'Dev1/ai9:0',
-                    'MAX_VOLTAGE' : 10.0,
-                    'MIN_VOLTAGE' : 0.0,
-                    'DURATION_OF_AI_READ' : 1.0,
-                    'ENABLE' : True
-                    }
-                    ]]
-        
-        #=== Others ===
-        
-        USER_EXPERIMENT_COMMANDS = {'dummy': {'key': 'd', 'domain': ['running experiment']}, }        
+        ENABLE_PARALLEL_PORT = False
+        ACQUISITION_TRIGGER_PIN = 2
+        FRAME_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
         
         self._create_parameters_from_locals(locals())
