@@ -364,6 +364,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
     def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
+        If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
         '''
         #Generate log messages
         self.log_on_flip_message_initial = 'show_shape(' + str(shape)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color)  + ', ' + str(background_color)  + ', ' + str(orientation)  + ', ' + str(size)  + ', ' + str(ring_size) + ')'
@@ -396,10 +397,21 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             vertices = numpy.zeros(shape = (vertices_outer_ring.shape[0] * 2, 2))
             vertices[:vertices_outer_ring.shape[0]] = vertices_outer_ring
             vertices[vertices_outer_ring.shape[0]:] = vertices_inner_ring
-            shape_type = 'annulus'            
-        vertices = vertices + numpy.array([pos_pixel['col'], pos_pixel['row']])
+            shape_type = 'annulus'
         n_vertices = vertices.shape[0]
-
+        if len(pos_pixel.shape) == 0:
+            number_of_positions = 1
+            vertices = vertices + numpy.array([pos_pixel['col'], pos_pixel['row']])
+        elif len(pos_pixel.shape) == 1:
+            if shape_type == 'annulus':
+                raise RuntimeError('Moving annulus stimulus is not supported')
+            else:
+                n_frames = pos_pixel.shape[0]
+                number_of_positions = pos_pixel.shape[0]
+                packed_vertices = numpy.zeros((number_of_positions * n_vertices, 2), dtype = numpy.float64)
+                for i in range(number_of_positions):
+                    packed_vertices[i * n_vertices: (i+1) * n_vertices, :] = vertices + numpy.array([pos_pixel['col'][i], pos_pixel['row'][i]])
+                vertices = packed_vertices
         #Set color
         glColor3fv(colors.convert_color(color, self.config))
         if background_color != None:
@@ -417,7 +429,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         for frame_i in range(n_frames):            
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if shape_type != 'annulus':
-                glDrawArrays(GL_POLYGON,  0, n_vertices)
+                if number_of_positions == 1:
+                    glDrawArrays(GL_POLYGON,  0, n_vertices)
+                else:
+                    glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices)
             else:
                 n = int(n_vertices/2)                
                 glColor3fv(colors.convert_color(converted_background_color, self.config))

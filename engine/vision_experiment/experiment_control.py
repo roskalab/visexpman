@@ -398,7 +398,10 @@ class ExperimentControl(object):
                 self.filenames['mes_fragments'].append(fragment_filename.replace('hdf5', 'mat'))
             elif self.config.EXPERIMENT_FILE_FORMAT == 'mat' and self.config.PLATFORM == 'elphys':
                 fragment_filename = file.generate_filename(fragment_filename, last_tag = str(fragment_id))
-            local_fragment_file_name = os.path.join(tempfile.mkdtemp(), os.path.split(fragment_filename)[-1])
+            local_folder = 'd:\\tmp'
+            if not os.path.exists(local_folder):
+                local_folder = tempfile.mkdtemp()
+            local_fragment_file_name = os.path.join(local_folder, os.path.split(fragment_filename)[-1])
             self.filenames['local_fragments'].append(local_fragment_file_name)
             self.filenames['fragments'].append(fragment_filename )
             self.fragment_names.append(fragment_name.replace('fragment_', ''))

@@ -46,7 +46,7 @@ class MovingRectangleConfig(MovingDotConfig):
         MovingDotConfig._create_application_parameters(self)
         self.WIDTH_UM = self.DIAMETER_UM
         self.HEIGHT_UM = [1000]
-        self.OFFSCREEN_PATH_LENGTH_UM = [1000] # how long the dot is moving outside the screen, for circular dot this should equal to diameter, if no pause between directions is needed
+        self.OFFSCREEN_PATH_LENGTH_UM = [500] # how long the dot is moving outside the screen, for circular dot this should equal to diameter, if no pause between directions is needed
         self.runnable = 'MovingRectangle'
         self.pre_runnable = 'MovingRectanglePre'
 
@@ -122,7 +122,7 @@ class MovingDot(experiment.Experiment):
         # we go along the diagonal from origin to bottom right and take perpicular diagonals' starting
         # and ing coords and lengths
         # diagonals run from bottom left to top right
-        dlines,dlines_len = diagonal_tr(45,diameter_pix,gridstep_pix,movestep_pix,w,h)
+        dlines,dlines_len = diagonal_tr(45,diameter_pix,gridstep_pix,movestep_pix,w,h, self.offscreen_pix)
 
         diag_dur = 4*sum(dlines_len)/speed_pix/self.experiment_config.NDOTS #each diagonal is shown 4 times, this is not optimal, we should look into angles and check the number of diagonal directions
         diag_line_maxlength = max(dlines_len)
@@ -192,7 +192,7 @@ class MovingDot(experiment.Experiment):
         for a1 in diag_angles:
             line_order[a1]=[]
             lines_rowcol[a1] = []
-            row_col_f,linelengths_f = diagonal_tr(a1,diameter_pix,gridstep_pix,movestep_pix,w, h)
+            row_col_f,linelengths_f = diagonal_tr(a1,diameter_pix,gridstep_pix,movestep_pix,w, h, self.offscreen_pix)
             linelengths_f = numpy.squeeze(linelengths_f) # .shape[1] = NDOTS
             # for diagonal lines we need to find a good combination of lines that fill the available recording time
             while linelengths_f.sum()>0:
@@ -290,7 +290,7 @@ class MovingDot(experiment.Experiment):
                             
                     precond_lines[a] = numpy.c_[vr[vr.shape[0]/2], vc[vr.shape[0]/2]].T
                 else: # diagonal line
-                    row_col_f,linelengths_f = diagonal_tr(angleset[a],diameter_pix,gridstep_pix,movestep_pix,w, h)
+                    row_col_f,linelengths_f = diagonal_tr(angleset[a],diameter_pix,gridstep_pix,movestep_pix,w, h, self.offscreen_pix)
                     row_col =row_col_f[b::nblocks]
                     linelengths = linelengths_f[b:: nblocks]
                     segm_len = linelengths.sum()/self.experiment_config.NDOTS
@@ -343,7 +343,6 @@ class MovingDot(experiment.Experiment):
                     precond_ai = numpy.where(angleset==allangles[-1])[0][0] # take the previous angle to avoid eventual habituation by repeating the same direction
                     self.row_col[-1].extend([precond_lines[precond_ai][:, c_i]*self.experiment_config.machine_config.SCREEN_PIXEL_TO_UM_SCALE for c_i in range(precond_lines[precond_ai].shape[1])])
                     self.precond_frames = precond_lines[precond_ai].shape[1]
-                    self.precond_angle = precond_ai
                     # now continue with adding the trajectories actually used in the analysis:
             for a1 in range(len(allangles)):
                 cai = numpy.where(angleset==allangles[a1])[0]
@@ -362,23 +361,39 @@ class MovingDot(experiment.Experiment):
 
 class MovingRectangle(MovingDot):
     def run(self, fragment_id=0):
+        number_of_blocks = len(self.shown_directions[fragment_id]['block_start'])
         self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE_BEFORE_AFTER)
-        frame_index = 0
-        block_index = 0
-        precond_shown = False
-        for pos in self.row_col[fragment_id]:
-            if not precond_shown:
-                orientation = self.precond_angle
+        for block_index in range(-1, number_of_blocks):
+            if block_index == -1:
+                orientation = 0
+                start_index = 0
+                end_index = self.shown_directions[fragment_id]['block_start'][0][1]
             else:
                 orientation = self.shown_directions[fragment_id]['block_end'][block_index][0]
+                start_index = self.shown_directions[fragment_id]['block_start'][block_index][1]
+                end_index = self.shown_directions[fragment_id]['block_end'][block_index][1]
+            pos = self.row_col[fragment_id][start_index:end_index]
             self.show_shape('r', pos=pos, orientation=orientation, size = utils.rc([self.experiment_config.WIDTH_UM[0],  self.experiment_config.HEIGHT_UM[0]])) 
-            if hasattr(self,  'precond_frames') and hasattr(self, 'precond_angle') and self.precond_frames == frame_index:
-                precond_shown = True
-            if self.shown_directions[fragment_id]['block_end'][block_index][1] == frame_index:
-                block_index += 1
-            frame_index += 1
             if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
                 break
+#        
+#        
+#        frame_index = 0
+#        block_index = 0
+#        precond_shown = False
+#        for pos in self.row_col[fragment_id]:
+#            if not precond_shown:
+#                orientation = self.precond_angle
+#            else:
+#                orientation = self.shown_directions[fragment_id]['block_end'][block_index][0]
+#            self.show_shape('r', pos=pos, orientation=orientation, size = utils.rc([self.experiment_config.WIDTH_UM[0],  self.experiment_config.HEIGHT_UM[0]])) 
+#            if hasattr(self,  'precond_frames') and hasattr(self, 'precond_angle') and self.precond_frames == frame_index:
+#                precond_shown = True
+#            if self.shown_directions[fragment_id]['block_end'][block_index][1] == frame_index:
+#                block_index += 1
+#            frame_index += 1
+#            if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
+#                break
         self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE_BEFORE_AFTER)
         self.experiment_specific_data ={}
         if hasattr(self, 'shown_line_order'):
@@ -386,7 +401,7 @@ class MovingRectangle(MovingDot):
         if hasattr(self,'shown_directions'):
             self.experiment_specific_data['shown_directions']= self.shown_directions[fragment_id]
 
-def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
+def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h, offscreen_pix):
     ''' Calculates positions of the dot(s) for each movie frame along the lines dissecting the screen at 45 degrees'''
     cornerskip = numpy.ceil(diameter_pix/2)+diameter_pix # do not show dot where it would not be a full dot, i.e. in the screen corners
     pos_diag = [0 for i in range(3)] #preallocate list. Using this prealloc we can assign elements explicitly (not with append) that makes the code clearer for this algorithm
@@ -416,7 +431,7 @@ def  diagonal_tr(angle,diameter_pix,gridstep_pix,movestep_pix,w,h):
 
     dlines_len=[]
     dlines=[]
-    offs= diameter_pix*1/numpy.sqrt(2)
+    offs= offscreen_pix*numpy.sqrt(2)#diameter_pix*1/numpy.sqrt(2)
     swap=0
     oppositedir=0 # 45 degrees
     if numpy.any(angle == [45+180,135+180]):
