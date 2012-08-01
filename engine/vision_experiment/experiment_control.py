@@ -151,42 +151,42 @@ class ExperimentControl(object):
                     self.printl('Objective is set to {0} um' .format(context['objective_position']))
             self.stage_position = self.stage.read_position() - self.stage_origin
             result, self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
-            if utils.safe_has_key(self.parameters, 'scan_mode') and self.parameters['scan_mode'] != 'xy' and\
-                utils.safe_has_key(self.parameters, 'mouse_file') and utils.safe_has_key(self.parameters,'region_name'):
+            if utils.safe_has_key(self.parameters, 'mouse_file'):
                 self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['mouse_file'].replace('.hdf5', '_stim.hdf5'))
                 if not os.path.exists(self.mouse_file):
                     self.printl('Mouse file does not exists: ' + self.mouse_file)
                 else:
                     h = hdf5io.Hdf5io(self.mouse_file)
-                    self.scan_regions, self.cells, self.anesthesia_history = h.findvar(['scan_regions', 'cells', 'anesthesia_history'])
                     vname = h.find_variable_in_h5f('animal_parameters', regexp=True)
                     if len(vname) == 1:
                         self.animal_parameters = h.findvar(vname[0])
+                    if utils.safe_has_key(self.parameters, 'scan_mode') and self.parameters['scan_mode'] != 'xy' and utils.safe_has_key(self.parameters,'region_name'):
+                        self.scan_regions, self.cells, self.anesthesia_history = h.findvar(['scan_regions', 'cells', 'anesthesia_history'])
+                        if utils.safe_has_key(self.scan_regions, self.parameters['region_name']):
+                            self.scan_region = self.scan_regions[self.parameters['region_name']]
+                        if not utils.safe_has_key(self.cells, self.parameters['region_name']):
+                            del self.cells
+                        if self.parameters.has_key('merge_distance'):
+                            merge_distance = float(self.parameters['merge_distance'])
+                        else:
+                            merge_distance = self.config.CELL_MERGE_DISTANCE
+                        self.roi_locations, self.rois = experiment_data.read_merge_rois(self.cells, cell_group = self.parameters['cell_group'],
+                                        region_name =  self.parameters['region_name'], 
+                                        objective_position = self.objective_position, 
+                                        objective_origin = self.objective_origin, 
+                                        z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], 
+                                        merge_distance = merge_distance)
+                        if self.parameters.has_key('roi_pattern_size') and self.parameters.has_key('aux_roi_distance'):
+                            self.roi_locations, self.rois = experiment_data.add_auxiliary_rois(self.rois, int(self.parameters['roi_pattern_size']), 
+                                                                                               self.objective_position, self.objective_origin, 
+                                                                         aux_roi_distance = float(self.parameters['aux_roi_distance']), 
+                                                                         soma_size_ratio = None)
+                        #Pack xz scan config
+                        self.xz_scan_config = copy.deepcopy(self.config.XZ_SCAN_CONFIG)
+                        if self.parameters.has_key('xz_line_length'):
+                            self.xz_scan_config['LINE_LENGTH'] = float(self.parameters['xz_line_length'])
                     h.close()
-                    if utils.safe_has_key(self.scan_regions, self.parameters['region_name']):
-                        self.scan_region = self.scan_regions[self.parameters['region_name']]
-                    if not utils.safe_has_key(self.cells, self.parameters['region_name']):
-                        del self.cells
-                    os.remove(self.mouse_file)#????
-                    if self.parameters.has_key('merge_distance'):
-                        merge_distance = float(self.parameters['merge_distance'])
-                    else:
-                        merge_distance = self.config.CELL_MERGE_DISTANCE
-                    self.roi_locations, self.rois = experiment_data.read_merge_rois(self.cells, cell_group = self.parameters['cell_group'],
-                                    region_name =  self.parameters['region_name'], 
-                                    objective_position = self.objective_position, 
-                                    objective_origin = self.objective_origin, 
-                                    z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], 
-                                    merge_distance = merge_distance)
-                    if self.parameters.has_key('roi_pattern_size') and self.parameters.has_key('aux_roi_distance'):
-                        self.roi_locations, self.rois = experiment_data.add_auxiliary_rois(self.rois, int(self.parameters['roi_pattern_size']), 
-                                                                                           self.objective_position, self.objective_origin, 
-                                                                     aux_roi_distance = float(self.parameters['aux_roi_distance']), 
-                                                                     soma_size_ratio = None)
-                    #Pack xz scan config
-                    self.xz_scan_config = copy.deepcopy(self.config.XZ_SCAN_CONFIG)
-                    if self.parameters.has_key('xz_line_length'):
-                        self.xz_scan_config['LINE_LENGTH'] = float(self.parameters['xz_line_length'])
+                    os.remove(self.mouse_file)
         self._prepare_files()
         return message_to_screen 
 
@@ -552,6 +552,10 @@ class ExperimentControl(object):
         if not result:
             self.printl('Saving initial line scan parameter was NOT successful. Please check MES-STIM connection')
             return False
+        if hasattr(self, 'animal_parameters') and self.parameters.has_key('scan_mode') and self.parameters['scan_mode'] == 'xy':
+            if (self.animal_parameters.has_key('red_labeling') and self.animal_parameters.red_labeling == 'no') or not self.animal_parameters.has_key('red_labeling'):
+                self.printl('No red labeling,  pre/post scan is skipped')
+                return True
         #Measure red channel
         self.printl('Recording red and green channel')
         if hasattr(self, 'scan_region'):

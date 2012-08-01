@@ -170,6 +170,13 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.mouse_strain = QtGui.QComboBox(self)
         self.mouse_strain.addItems(QtCore.QStringList(['chatdtr', 'chat', 'bl6', 'grik4']))
         self.mouse_strain.setEditable(True)
+        self.green_labeling_label = QtGui.QLabel('Green labeling',  self)
+        self.green_labeling = QtGui.QComboBox(self)
+        self.green_labeling.setEditable(True)
+        self.red_labeling_label = QtGui.QLabel('Red labeling',  self)
+        self.red_labeling = QtGui.QComboBox(self)
+        self.red_labeling.setEditable(True)
+        self.red_labeling.addItems(QtCore.QStringList(['yes',  'no']))
         self.comments = QtGui.QComboBox(self)
         self.comments.setEditable(True)
         self.comments.setToolTip('Add comment')
@@ -192,9 +199,13 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.layout.addWidget(self.mouse_strain, 3, 2)
         self.layout.addWidget(self.id_label, 4, 0)
         self.layout.addWidget(self.id, 4, 1)
-        self.layout.addWidget(self.comments, 5, 0, 1, 3)
-        self.layout.addWidget(self.new_mouse_file_button, 6, 0, 1, 2)
-        self.layout.addWidget(self.anesthesia_history_groupbox, 7, 0, 2, 4)
+        self.layout.addWidget(self.green_labeling_label, 5, 0)
+        self.layout.addWidget(self.green_labeling, 5, 1)
+        self.layout.addWidget(self.red_labeling_label, 5, 2)
+        self.layout.addWidget(self.red_labeling, 5, 3)
+        self.layout.addWidget(self.comments, 6, 0, 1, 3)
+        self.layout.addWidget(self.new_mouse_file_button, 7, 0, 1, 2)
+        self.layout.addWidget(self.anesthesia_history_groupbox, 8, 0, 2, 4)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
@@ -1409,6 +1420,8 @@ class Poller(QtCore.QThread):
             'ear_punch_l' : str(self.parent.animal_parameters_widget.ear_punch_l.currentText()), 
             'ear_punch_r' : str(self.parent.animal_parameters_widget.ear_punch_r.currentText()),
             'strain' : str(self.parent.animal_parameters_widget.mouse_strain.currentText()),
+            'green_labeling' : str(self.parent.animal_parameters_widget.green_labeling.currentText()),
+            'red_labeling' : str(self.parent.animal_parameters_widget.red_labeling.currentText()),
             'comments' : str(self.parent.animal_parameters_widget.comments.currentText()),
             'add_date' : utils.datetime_string().replace('_', ' ')
         }        
