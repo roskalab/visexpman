@@ -164,7 +164,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.helpers_widget.send_command_button, 'send_command')
         #Helpers
         self.connect_and_map_signal(self.helpers_widget.help_button, 'show_help')
-        self.connect(self.helpers_widget.save_xy_scan_button, QtCore.SIGNAL('clicked()'),  self.poller.save_xy_scan)
+        self.connect(self.helpers_widget.save_xy_scan_button, QtCore.SIGNAL('clicked()'),  self.poller.save_xy_scan_to_file)
         self.connect(self.standard_io_widget.execute_python_button, QtCore.SIGNAL('clicked()'),  self.execute_python)
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
         self.connect_and_map_signal(self.helpers_widget.add_simulated_measurement_file_button, 'add_simulated_measurement_file')
@@ -432,15 +432,16 @@ class VisionExperimentGui(QtGui.QWidget):
                 key_name = 'add_date'
             else:
                 key_name = filtername
-            for cell_id in self.poller.cells[region_name].keys():
-                if self.poller.cells[region_name][cell_id].has_key(key_name):
-                    value = str(self.poller.cells[region_name][cell_id][key_name])
-                    if key_name =='add_date':
-                        value = value.split(' ')[0]
-                    if value not in filter_values:
-                        filter_values.append(value)
-            filter_values.sort()
-            self.update_combo_box_list(self.roi_widget.cell_filter_combobox,filter_values)
+            if utils.safe_has_key(self.poller.cells, region_name):
+                for cell_id in self.poller.cells[region_name].keys():
+                    if self.poller.cells[region_name][cell_id].has_key(key_name):
+                        value = str(self.poller.cells[region_name][cell_id][key_name])
+                        if key_name =='add_date':
+                            value = value.split(' ')[0]
+                        if value not in filter_values:
+                            filter_values.append(value)
+                filter_values.sort()
+                self.update_combo_box_list(self.roi_widget.cell_filter_combobox,filter_values)
             self.update_cell_list()#This is necessary to update cell list if  'No filter' is selected but reason unknown
             
     def update_cell_info(self):

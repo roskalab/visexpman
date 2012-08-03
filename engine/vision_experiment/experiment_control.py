@@ -160,11 +160,12 @@ class ExperimentControl(object):
                     vname = h.find_variable_in_h5f('animal_parameters', regexp=True)
                     if len(vname) == 1:
                         self.animal_parameters = h.findvar(vname[0])
+                    self.scan_regions, self.anesthesia_history = h.findvar(['scan_regions', 'anesthesia_history'])
+                    if utils.safe_has_key(self.scan_regions, self.parameters['region_name']):
+                        self.scan_region = self.scan_regions[self.parameters['region_name']]
                     if utils.safe_has_key(self.parameters, 'scan_mode') and self.parameters['scan_mode'] != 'xy' and utils.safe_has_key(self.parameters,'region_name'):
-                        self.scan_regions, self.cells, self.anesthesia_history = h.findvar(['scan_regions', 'cells', 'anesthesia_history'])
-                        if utils.safe_has_key(self.scan_regions, self.parameters['region_name']):
-                            self.scan_region = self.scan_regions[self.parameters['region_name']]
-                        if not utils.safe_has_key(self.cells, self.parameters['region_name']):
+                        self.cells = h.findvar('cells')
+                        if not utils.safe_has_key(self.cells, self.parameters['region_name']):#This is probably overworried
                             del self.cells
                         if self.parameters.has_key('merge_distance'):
                             merge_distance = float(self.parameters['merge_distance'])
@@ -232,9 +233,6 @@ class ExperimentControl(object):
                     if self.roi_locations is None:
                         self.printl('No ROIs found')
                         return False
-#                    if not self.mes_interface.create_XZline_from_points(self.roi_locations, self.xz_scan_config):
-#                        self.printl('Creating XZ lines did not succeed')
-#                        return False
                 elif self.scan_mode == 'xy':
                     if hasattr(self, 'scan_region'):
                         self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])

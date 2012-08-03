@@ -412,7 +412,7 @@ class RoiWidget(QtGui.QWidget):
         self.layout.addWidget(self.cell_filter_combobox, image_height_in_rows + 3, 1, 1, 2)
 #        self.layout.addWidget(self.cell_group_edit_label, image_height_in_rows + 3, 4)
 #        self.layout.addWidget(self.cell_group_edit_combobox, image_height_in_rows + 3, 5)
-        self.layout.addWidget(self.suggested_depth_label, image_height_in_rows + 3, 6)
+        self.layout.addWidget(self.suggested_depth_label, image_height_in_rows + 3, 6, 1, 2)
         
         self.layout.addWidget(self.cell_group_label, image_height_in_rows + 5, 0)
         self.layout.addWidget(self.cell_group_combobox, image_height_in_rows + 5, 1, 1, 2)
@@ -1295,12 +1295,12 @@ class Poller(QtCore.QThread):
             #Load scan settings from parameter file
             parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'scan_region_parameters.mat')
             if self.create_parameterfile_from_region_info(parameter_file_path, 'xy'):
-                self.xy_scan,  result = self.mes_interface.acquire_xy_scan(self.config.MES_TIMEOUT, parameter_file = parameter_file_path)
+                self.xy_scan, result = self.mes_interface.acquire_xy_scan(self.config.MES_TIMEOUT, parameter_file = parameter_file_path)
             else:
                 self.xy_scan = {}
                 result = False
         elif self.parent.main_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() == 0:
-            self.xy_scan,  result = self.mes_interface.acquire_xy_scan(self.config.MES_TIMEOUT)
+            self.xy_scan, result = self.mes_interface.acquire_xy_scan(self.config.MES_TIMEOUT)
         if hasattr(self.xy_scan, 'has_key'):
             if self.xy_scan.has_key('path'):#For unknown reason this key is not found sometimes
                 self.files_to_delete.append(self.xy_scan['path'])
@@ -1595,7 +1595,7 @@ class Poller(QtCore.QThread):
             self.scan_regions[region_name]['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
             self.scan_regions[region_name]['xy']['scale'] = self.xy_scan['scale']
             self.scan_regions[region_name]['xy']['origin'] = self.xy_scan['origin']
-            hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions)
+            hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions, overwrite = True)
             self.update_scan_regions()#This is probably redundant
             self.printc('XY scan updated')
         
@@ -1604,17 +1604,23 @@ class Poller(QtCore.QThread):
         if not self.xz_scan is None:
             self.scan_regions[region_name]['xz'] = self.xz_scan
             self.scan_regions[region_name]['xz']['mes_parameters'] = utils.file_to_binary_array(self.xz_scan['path'].tostring())
-            hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions)
+            hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions, overwrite = True)
             self.update_scan_regions()#This is probably redundant
             self.printc('XZ scan updated')
         
     def save_xyt_scan(self):
         region_name = self.parent.get_current_region_name()
         if not self.xy_scan is None:
-            self.scan_regions[region_name]['xy']['mes_parameters']  = self.xy_scan['mes_parameters']
-            hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions)
-            self.update_scan_regions()#This is probably redundant
-            self.printc('XYT scan updated')
+            self.printc('Reading XYT line scan parameters')
+            result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters()
+            if result and os.path.exists(line_scan_path):
+                self.scan_regions[region_name]['xy_scan_parameters'] = utils.file_to_binary_array(line_scan_path)
+                hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions, overwrite = True)
+                os.remove(line_scan_path)
+                self.update_scan_regions()#This is probably redundant
+                self.printc('XYT scan updated')
+            else:
+                self.printl('XYT scan parameters cannot be read')
 
     def remove_scan_region(self):
         selected_region = self.parent.get_current_region_name()
@@ -2046,7 +2052,7 @@ class Poller(QtCore.QThread):
         self.queues['analysis']['out'].put('SOCclear_joblistEOCEOP')
         self.printc('Done')
             
-    def save_xy_scan(self):
+    def save_xy_scan_to_file(self):
         hdf5_handler = hdf5io.Hdf5io(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xy_scan.hdf5')))
         hdf5_handler.xy_scan = self.xy_scan
         hdf5_handler.stage_position = self.stage_position

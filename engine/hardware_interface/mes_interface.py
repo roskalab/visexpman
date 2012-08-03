@@ -104,7 +104,6 @@ def get_line_scan_time(path):
     m = matlabfile.MatData(path)
     return m.get_field(m.name2path('ts'))[0][0][0][0][-1]
 
-
 class MesInterface(object):
     '''
     Protocol:
@@ -334,8 +333,12 @@ class MesInterface(object):
         data_to_mes_mat['DATA']['params']['zshift'] = 1.0
         data_to_mes_mat['DATA']['params']['Tpixnum'] = xz_scan_config['Z_PIXEL_SIZE']
         data_to_mes_mat['DATA']['params']['Tpixwidth'] = xz_scan_config['Z_RESOLUTION']
-        data_to_mes_mat['DATA']['params']['scaqnspeed'] = 4
-        data_to_mes_mat['DATA']['params']['pixwidth'] = 0.4
+        data_to_mes_mat['DATA']['params']['scanspeed'] = 4
+        if cell_centers.shape[0] <= 4:
+            line_resolution = 0.05
+        else:
+            line_resolution = cell_centers.shape[0] * 0.05 -0.2
+        data_to_mes_mat['DATA']['params']['pixwidth'] = line_resolution
         
 #        temp_path = str(tempfile.mkstemp(suffix='.mat')[1])
         scipy.io.savemat(parameter_path, data_to_mes_mat, oned_as = 'column') 
