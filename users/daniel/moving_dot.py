@@ -41,6 +41,18 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
         self._create_parameters_from_locals(locals())
 
+class MovingDot200umConfig(MovingDotConfig):
+    def _create_application_parameters(self):
+        MovingDotConfig._create_application_parameters(self)
+        self.DIAMETER_UM = [200]
+        self.OFFSCREEN_PATH_LENGTH_UM = [150] # how long the dot is moving outside the screen, for circular dot this should equal to diameter, if no pause between directions is needed
+        self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees        
+        self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
+        self.AMPLITUDE = 0.5
+        self.REPEATS = 2
+        self.PDURATION = 0
+        self.GRIDSTEP = 1.0 # 
+
 class MovingRectangleConfig(MovingDotConfig):
     def _create_application_parameters(self):
         MovingDotConfig._create_application_parameters(self)

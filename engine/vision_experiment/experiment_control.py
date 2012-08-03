@@ -548,21 +548,27 @@ class ExperimentControl(object):
         xy_static_scan_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_red_green_channel_xy.mat'))
         scanner_trajectory_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_scanner_signals.mat'))
         #Save initial line scan settings
-        result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters(parameter_file = initial_mes_line_scan_settings_filename)
-        if not result:
-            self.printl('Saving initial line scan parameter was NOT successful. Please check MES-STIM connection')
-            return False
         if hasattr(self, 'animal_parameters') and self.parameters.has_key('scan_mode') and self.parameters['scan_mode'] == 'xy':
-            if (self.animal_parameters.has_key('red_labeling') and self.animal_parameters.red_labeling == 'no') or not self.animal_parameters.has_key('red_labeling'):
+            if (self.animal_parameters.has_key('red_labeling') and self.animal_parameters['red_labeling'] == 'no') or not self.animal_parameters.has_key('red_labeling'):
                 self.printl('No red labeling,  pre/post scan is skipped')
                 return True
+        result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters(parameter_file = initial_mes_line_scan_settings_filename)
+        if not result:
+            if os.path.exists(initial_mes_line_scan_settings_filename):
+                os.remove(initial_mes_line_scan_settings_filename)
+            self.printl('Saving initial line scan parameter was NOT successful. Please check MES-STIM connection')
+            return False
         #Measure red channel
         self.printl('Recording red and green channel')
         if hasattr(self, 'scan_region'):
             self.scan_region['xy_scan_parameters'].tofile(xy_static_scan_filename)
         result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,
-                                                                           scan_mode='xy', channels=['pmtUGraw','pmtURraw', 'ScX', 'ScY'])
+                                                                           scan_mode='xy', channels=['pmtUGraw','pmtURraw'])
         if not result:
+            if os.path.exists(initial_mes_line_scan_settings_filename):
+                os.remove(initial_mes_line_scan_settings_filename)
+            if os.path.exists(red_channel_data_filename):
+                os.remove(red_channel_data_filename)
             self.printl('Recording red and green channel was NOT successful')
             return False
         if not hasattr(self, 'prepost_scan_image'):
@@ -578,6 +584,12 @@ class ExperimentControl(object):
             result, scanner_trajectory_filename = self.mes_interface.line_scan(parameter_file = scanner_trajectory_filename, scan_time=2.0,
                                                                                scan_mode='xz', channels=['pmtURraw','ScX', 'ScY'], autozigzag = False)
             if not result:
+                if os.path.exists(initial_mes_line_scan_settings_filename):
+                    os.remove(initial_mes_line_scan_settings_filename)
+                if os.path.exists(red_channel_data_filename):
+                    os.remove(red_channel_data_filename)
+                if os.path.exists(scanner_trajectory_filename):
+                    os.remove(scanner_trajectory_filename)
                 self.printl('Recording scanner signals was NOT successful')
                 return False
             if not hasattr(self, 'scanner_trajectory'):

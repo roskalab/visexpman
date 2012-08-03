@@ -2069,7 +2069,7 @@ class Poller(QtCore.QThread):
                 if 'jobhandler' in tag:#Stim uses other nodes of mouse file
                     if os.path.exists(copy_path):
                         os.remove(copy_path)
-                        time.sleep(0.1)
+                        time.sleep(1.0)
                     h1=hdf5io.Hdf5io(copy_path)
                     h1.scan_regions = copy.deepcopy(self.scan_regions)
                     h1.save('scan_regions', overwrite=True)
