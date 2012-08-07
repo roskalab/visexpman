@@ -220,7 +220,7 @@ class ExperimentControl(object):
             self.printl('Analog signal recording started')
         if self.config.PLATFORM == 'mes':
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
-            self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hms(time.time() + self.mes_record_time)))
+            self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
             #start two photon recording
             if self.scan_mode == 'xyz':
@@ -547,7 +547,7 @@ class ExperimentControl(object):
         scanner_trajectory_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_scanner_signals.mat'))
         #Save initial line scan settings
         if hasattr(self, 'animal_parameters') and self.parameters.has_key('scan_mode') and self.parameters['scan_mode'] == 'xy':
-            if (self.animal_parameters.has_key('red_labeling') and self.animal_parameters['red_labeling'] == 'no') or not self.animal_parameters.has_key('red_labeling'):
+            if (utils.safe_has_key(self.animal_parameters, 'red_labeling') and self.animal_parameters['red_labeling'] == 'no') or not self.animal_parameters.has_key('red_labeling'):
                 self.printl('No red labeling,  pre/post scan is skipped')
                 return True
         result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters(parameter_file = initial_mes_line_scan_settings_filename)

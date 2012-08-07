@@ -382,17 +382,17 @@ class VisionExperimentGui(QtGui.QWidget):
                 else:
                     laser_intensity = 0.0
                 if status['find_cells_ready']:
-                    status = 'find cells ready'
+                    if status['info'].has_key('number_of_cells'):
+                        status = '{0} cells' .format(status['info']['number_of_cells'])
+                    else:
+                        status = 'find cells ready'
                 elif status['mesextractor_ready']:
                     status = 'mesextractor ready'
                 elif status['fragment_check_ready']:
-                    if status.has_key('number_of_cells'):
-                        status = '{0} cells' .format(status['number_of_cells'])
-                    else:
-                        status = 'fragment check ready'
+                    status = 'fragment check ready'
                 else:
                     status = 'not processed'
-                status_text += '{0}, {1}, {2}, {3}, {4:0.0f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
+                status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
 #                if item_counter%item_per_line==item_per_line-1:
 #                    status_text+='\n'
 #                else:
@@ -449,11 +449,12 @@ class VisionExperimentGui(QtGui.QWidget):
         text = ''
         if hasattr(self.poller, 'cells') and self.poller.cells.has_key(region_name) and region_name != '':
             cell_name = self.get_current_cell_id()
-            if not self.poller.cells[region_name][cell_name]['accepted']:
-                info = 'not selected'
-            else:
-                info = self.poller.cells[region_name][cell_name]['group']
-            text = '{0}: {1}'.format(cell_name, info)
+            if self.poller.cells[region_name].has_key(cell_name):
+                if not self.poller.cells[region_name][cell_name]['accepted']:
+                    info = 'not selected'
+                else:
+                    info = self.poller.cells[region_name][cell_name]['group']
+                text = '{0}: {1}'.format(cell_name, info)
         self.roi_widget.cell_info.setText(text)
             
     def update_cell_group_combobox(self):
@@ -691,10 +692,10 @@ def generate_gui_image(images, size, config, lines  = [], gridlines = False, sid
         #Line: x1,y1,x2, y2 - x - col, y = row
         #Considering MES/Image origin
         image_height = merged_image['image'].shape[0]*merged_image['scale']['row']
-        line_in_pixel  = [(line[0] - merged_image['origin']['col'])/merged_image['scale']['col'],
-                            (-line[1] + image_height + merged_image['origin']['row'])/merged_image['scale']['row'],
-                            (line[2] - merged_image['origin']['col'])/merged_image['scale']['col'],
-                            (-line[3] + image_height + merged_image['origin']['row'])/merged_image['scale']['row']]
+        line_in_pixel  = [(line[1] - merged_image['origin']['col'])/merged_image['scale']['col'],
+                            (-line[0] + image_height + merged_image['origin']['row'])/merged_image['scale']['row'],
+                            (line[3] - merged_image['origin']['col'])/merged_image['scale']['col'],
+                            (-line[2] + image_height + merged_image['origin']['row'])/merged_image['scale']['row']]
         line_in_pixel = (numpy.cast['int32'](numpy.array(line_in_pixel)*rescale)).tolist()
         image_with_line = generic.draw_line_numpy_array(image_with_line, line_in_pixel)
     #create sidebar
@@ -729,10 +730,12 @@ def draw_scalebar(image, origin, scale, frame_size = None, fill = (0, 0, 0), gri
     number_of_divisions = 6
     image_size = utils.cr((image.shape[0]*float(scale['row']), image.shape[1]*float(scale['col'])))
     division_col = int(numpy.round(float(image_size['row']) / number_of_divisions, -1))
-    col_labels = numpy.linspace(origin['col'], origin['col'] + number_of_divisions * division_col, number_of_divisions+1)
+    number_of_divisions_modified = int(float(image_size['row']) / division_col)
+    col_labels = numpy.linspace(origin['col'], origin['col'] + number_of_divisions_modified * division_col, number_of_divisions_modified+1)
     col_labels = 10*numpy.floor(0.1 * col_labels)
     division_row = int(numpy.round(float(image_size['col']) / number_of_divisions, -1))
-    row_labels = numpy.linspace(origin['row'], origin['row'] + number_of_divisions * division_row, number_of_divisions+1)
+    number_of_divisions_modified = int(float(image_size['col']) / division_row)
+    row_labels = numpy.linspace(origin['row'], origin['row'] + number_of_divisions_modified * division_row, number_of_divisions_modified+1)
     row_labels = 10*numpy.floor(0.1 * row_labels)
     #Overlay labels
     for label in col_labels:

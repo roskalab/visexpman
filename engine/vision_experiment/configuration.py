@@ -137,7 +137,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
                
 
         MENU_POSITION = utils.cr((-0.48, 0.45))
-        MESSAGE_POSITION = utils.cr((-0.48,0.0))
+        MESSAGE_POSITION = utils.cr((-0.48,-0.15))
         NUMBER_OF_MESSAGE_ROWS = [20, [1, 40]]
         MAX_MESSAGE_LENGTH = [200,  [10,  1000]] #length of message displayed on screen
         
@@ -246,6 +246,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ROI_PATTERN_SIZE = [2, [1, 10]]
         ROI_PATTERN_RADIUS = [1, [0, 50]]
         
+        GREEN_LABELING = ['']
         MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
         #this function call is compulsory
         self._create_parameters_from_locals(locals())

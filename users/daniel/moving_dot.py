@@ -62,28 +62,16 @@ class MovingRectangleConfig(MovingDotConfig):
         self.runnable = 'MovingRectangle'
         self.pre_runnable = 'MovingRectanglePre'
 
-if 0:
-    class ShortMovingDotConfig(experiment.ExperimentConfig):
-        def _create_application_parameters(self):
-            #place for experiment parameters
-            #parameter with range: list[0] - value, list[0] - range
-            #path parameter: parameter name contains '_PATH'
-            #string list: list[0] - empty        
-            self.DIAMETER_UM = [300]        
-            self.ANGLES = [0, 45, 90] # degrees
-            self.ANGLES = [315] # degrees
-            self.SPEED = [4000] #[40deg/s] % deg/s should not be larger than screen size
-            self.AMPLITUDE = 0.5
-            self.REPEATS = 1
-            self.PDURATION = 0
-            self.GRIDSTEP = 1.0/3 # how much to step the dot's position between each sweep (GRIDSTEP*diameter)
-            self.NDOTS = 1
-            self.RANDOMIZE = 1
-            self.PAUSE_BEFORE_AFTER = 0.0
-            self.runnable = 'MovingDot'
-            self.PRECOND='line from previous direction'
-            self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
-            self._create_parameters_from_locals(locals())
+class ShortMovingDotConfig(MovingDotConfig):
+    def _create_application_parameters(self):
+        MovingDotConfig._create_application_parameters(self)
+        self.DIAMETER_UM = [300]        
+        self.ANGLES = [0, 45, 90] # degrees
+        self.ANGLES = [315] # degrees
+        self.SPEED = [4000] #[40deg/s] % deg/s should not be larger than screen size
+        self.REPEATS = 1
+        self.PAUSE_BEFORE_AFTER = 0.0
+        self._create_parameters_from_locals(locals())
 
 class MovingDotPre(experiment.PreExperiment):
     def run(self):

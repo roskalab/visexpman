@@ -792,6 +792,10 @@ def time_stamp_to_hms(timestamp):
     time_struct = time.localtime(timestamp)
     return ('%2i:%2i:%2.3f'%(time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec + numpy.modf(timestamp)[0])).replace(' ', '0')
     
+def time_stamp_to_hm(timestamp):
+    time_struct = time.localtime(timestamp)
+    return ('%2i:%2i'%(time_struct.tm_hour, time_struct.tm_min)).replace(' ', '0')
+    
 def timestamp2ymdhms(timestamp):
     time_struct = time.localtime(timestamp)
     return '{0}-{1}-{2}+{3:2}:{4:2}:{5:2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec).replace(' ','0').replace('+',' ')

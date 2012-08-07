@@ -325,10 +325,7 @@ class Debug(VisionExperimentConfig):
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':15.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE':80.0}
         #=== paths/data handling ===
-        if os.name == 'nt':
-            use_drive = 'v'
-        else:
-            use_drive = 'r'
+        use_drive = 'v'
         if os.name == 'nt':
             if use_drive == 'g':
                 root_folder = 'g:\\User\\Zoltan'
@@ -447,7 +444,7 @@ class Debug(VisionExperimentConfig):
             'spatial_connectivity':1, 
             'transfermode': 'file'
                                      }
-
+        GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
         self._create_parameters_from_locals(locals())
         
         
@@ -564,7 +561,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             'spatial_connectivity':1, 
             'transfermode': 'file'
                                      }
-        
+        GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
         self._create_parameters_from_locals(locals())        
         
 class VS3DUS(RcMicroscopeSetup):

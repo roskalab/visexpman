@@ -140,6 +140,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         #Change screen to pre expriment visual pattern
         if hasattr(self.experiment_config, 'pre_runnable') and self.experiment_config.pre_runnable is not None:
             self.experiment_config.pre_runnable.run()
+            self.flip()
         #Remove abort commands from queue
         utils.is_keyword_in_queue(self.queues['gui']['in'], 'abort', keep_in_queue = False)
         context = {}

@@ -137,9 +137,9 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
 class AnimalParametersWidget(QtGui.QWidget):
     def __init__(self, parent, config):
         QtGui.QWidget.__init__(self, parent)
+        self.config = config
         self.create_widgets()
         self.create_layout()
-        self.config = config
         self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
 
     def create_widgets(self):
@@ -173,10 +173,11 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.green_labeling_label = QtGui.QLabel('Green labeling',  self)
         self.green_labeling = QtGui.QComboBox(self)
         self.green_labeling.setEditable(True)
+        self.green_labeling.addItems(QtCore.QStringList(self.config.GREEN_LABELING))
         self.red_labeling_label = QtGui.QLabel('Red labeling',  self)
         self.red_labeling = QtGui.QComboBox(self)
         self.red_labeling.setEditable(True)
-        self.red_labeling.addItems(QtCore.QStringList(['yes',  'no']))
+        self.red_labeling.addItems(QtCore.QStringList(['no','yes']))
         self.comments = QtGui.QComboBox(self)
         self.comments.setEditable(True)
         self.comments.setToolTip('Add comment')
@@ -519,6 +520,7 @@ class CommonWidget(QtGui.QWidget):
     def create_widgets(self):
         self.show_gridlines_label = QtGui.QLabel('Show gridlines', self)
         self.show_gridlines_checkbox = QtGui.QCheckBox(self)
+        self.show_gridlines_checkbox.setCheckState(2)
         self.connected_clients_label = QtGui.QLabel('', self)
         
         self.set_stage_origin_button = QtGui.QPushButton('Set stage origin', self)
@@ -937,7 +939,7 @@ class Poller(QtCore.QThread):
         h_measurement.close()
         #Save changes
         h.scan_regions = scan_regions
-        h.save(['scan_regions', 'images', 'roi_curves'], overwrite=True)
+        h.save(['cells', 'scan_regions', 'images', 'roi_curves'], overwrite=True)
         self.printc('{1} cells added from {0}'.format(id, number_of_new_cells))
         self.cells = copy.deepcopy(h.cells)
         self.scan_regions = copy.deepcopy(h.scan_regions)
@@ -1001,7 +1003,7 @@ class Poller(QtCore.QThread):
             return 5*[None]
         laser_intensity = measurement_hdfhandler.findvar('laser_intensity', path = 'root.'+ '_'.join(cg.get_mes_name_timestamp(measurement_hdfhandler)))
         measurement_hdfhandler.close()
-        info = {'depth': fromfile[1]['z'][0], 'stimulus':fromfile[2], 'scan_mode':call_parameters['scan_mode'], 'laser_intensity':laser_intensity}
+        info = {'depth': fromfile[1]['z'][0], 'stimulus':fromfile[2], 'scan_mode':call_parameters['scan_mode'], 'laser_intensity': laser_intensity}
         #Read the database from the mouse file pointed by the measurement file
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
         if not os.path.exists(mouse_file):
@@ -1412,10 +1414,14 @@ class Poller(QtCore.QThread):
         gcamp_injection_date = self.parent.animal_parameters_widget.gcamp_injection_date.date()
         gcamp_injection_date = '{0}-{1}-{2}'.format(gcamp_injection_date.day(),  gcamp_injection_date.month(),  gcamp_injection_date.year())                
 
+        id_text = str(self.parent.animal_parameters_widget.id.currentText())
+        if id_text == '':
+            self.printc('Providing ID is mandatory')
+            return
         self.animal_parameters = {
             'mouse_birth_date' : mouse_birth_date,
             'gcamp_injection_date' : gcamp_injection_date,
-            'id' : str(self.parent.animal_parameters_widget.id.currentText()),
+            'id' : id_text,
             'gender' : str(self.parent.animal_parameters_widget.gender.currentText()),
             'ear_punch_l' : str(self.parent.animal_parameters_widget.ear_punch_l.currentText()), 
             'ear_punch_r' : str(self.parent.animal_parameters_widget.ear_punch_r.currentText()),
@@ -2084,8 +2090,8 @@ class Poller(QtCore.QThread):
                     shutil.copyfile(mouse_file, copy_path)
                 time.sleep(1.0)
 				# Trying to open copied hdf5 file
-                h = hdf5io.Hdf5io(copy_path)#Does not help either
-                h.close()
+#                h = hdf5io.Hdf5io(copy_path)#Does not help either
+#                h.close()
                 result = True
         except:
             self.printc(traceback.format_exc())

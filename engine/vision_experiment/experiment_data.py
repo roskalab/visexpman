@@ -1,4 +1,5 @@
 import os
+import os.path
 import copy
 import numpy
 import scipy.io
@@ -10,6 +11,7 @@ import shutil
 import tempfile
 
 from visexpman.engine.generic import utils
+from visexpman.engine.generic import file
 from visexpman.engine import generic
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as gen
@@ -101,7 +103,7 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
     expected_top_level_nodes.append('position')
     expected_top_level_nodes.append(data_node_name)
     import time
-#        time.sleep(10.0)#TMP, to be removed
+    scan_mode = file.parse_fragment_filename(os.path.split(path)[1])['scan_mode']
     if fragment_hdf5_handle == None:
         fragment_handle = hdf5io.Hdf5io(path)
     else:
@@ -136,7 +138,19 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
         elif node_name == expected_top_level_nodes[-1]:
             expected_subnodes = ['rising_edges_indexes', 'number_of_fragments', 'stimulus_frame_info', 'generated_data', \
         'sync_data', 'actual_fragment',  'current_fragment', 'experiment_source', 'experiment_log', 'software_environment', \
-        'laser_intensity', 'prepost_scan_image', 'experiment_config', 'machine_config', 'animal_parameters', 'anesthesia_history']
+        'laser_intensity', 'experiment_config', 'machine_config', 'anesthesia_history']
+            #load animal parameters
+            vname = fragment_handle.find_variable_in_h5f('animal_parameters', regexp=True, path = 'root.' + node_name)
+            if len(vname) == 1:
+                animal_parameters = fragment_handle.findvar(vname[0], path = 'root.'+node_name)
+                expected_subnodes.append(vname[0])
+            if scan_mode == 'xy' and\
+                ((utils.safe_has_key(animal_parameters, 'red_labeling') and animal_parameters['red_labeling'] == 'no') \
+                or not animal_parameters.has_key('red_labeling')):
+                #prepost_scan_image is not expected when scan mode is xy and red labeling is set to no or no red labeling key in animal parameters
+                pass
+            else:
+                expected_subnodes.append('prepost_scan_image')
             if not hasattr(node,  'has_key'):
                 result = False
                 messages.append('unexpected data type in {0}'.format(node_name))
