@@ -530,7 +530,7 @@ class VisionExperimentGui(QtGui.QWidget):
             blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['row'], self.config.ROI_INFO_IMAGE_SIZE['col']), dtype = numpy.uint8)
             self.show_image(blank_image, 'roi_curve', utils.rc((1, 1)))
 
-    def show_image(self, image, channel, scale, line = [], origin = None):
+    def show_image(self, image, channel, scale, line = [], origin = utils.rc((0, 0))):
         image_in = {}
         image_in['image'] = generic_visexpA.normalize(image, outtype=numpy.uint8, std_range = 10)
         image_in['scale'] = scale

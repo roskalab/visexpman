@@ -920,6 +920,8 @@ class Poller(QtCore.QThread):
             number_of_new_cells = 0
         else:
             number_of_new_cells = len(soma_rois)
+            if number_of_new_cells > 100:
+                number_of_new_cells = 100
         scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
         for i in range(number_of_new_cells):
             cell_id = ('{0}_{1}_{2:2}_{3}'.format(depth, id,  i, stimulus)).replace(' ', '0')

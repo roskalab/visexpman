@@ -60,6 +60,9 @@ class Log(object):
         
     def warning(self, message):
         self.log.warning(message)
+        
+    def debug(self, message):
+        self.log.debug(message)
 
     def flush(self):
         full_log = ''

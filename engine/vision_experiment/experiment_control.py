@@ -207,7 +207,7 @@ class ExperimentControl(object):
 
 ########## Fragment related ############
     def _start_fragment(self, fragment_id):
-        self.printl('Start fragment {0}/{1}'. format(fragment_id+1,  self.number_of_fragments))
+        self.printl('Start fragment {0}/{1} '. format(fragment_id+1,  self.number_of_fragments))
         self.stimulus_frame_info_pointer = 0
         self.frame_counter = 0
         self.stimulus_frame_info = []
