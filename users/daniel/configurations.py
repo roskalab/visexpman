@@ -318,7 +318,6 @@ class Debug(VisionExperimentConfig):
 #        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
         PLATFORM = 'standalone'
         PLATFORM = 'mes'
-        PARSE_PERIOD = 2.0
         CELL_MERGE_DISTANCE = 3.0
         ENABLE_FRAGMENT_CHECK = True
         ENABLE_MESEXTRACTOR = True
@@ -428,7 +427,7 @@ class Debug(VisionExperimentConfig):
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
                                     
-        MAX_REALIGNMENT_OFFSET = 100.0
+        MAX_REALIGNMENT_OFFSET = 50.0
         ACCEPTABLE_REALIGNMENT_OFFSET = 5.0
         REALIGNMENT_XY_THRESHOLD = 2.0
         REALIGNMENT_Z_THRESHOLD = 1.0
@@ -459,7 +458,6 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MovingDotConfig'
         
         MES_TIMEOUT = 15.0
-        PARSE_PERIOD = 2.0
         CELL_MERGE_DISTANCE = 3.0
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':15.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE':80.0}
@@ -544,7 +542,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
 
-        MAX_REALIGNMENT_OFFSET = 500.0
+        MAX_REALIGNMENT_OFFSET = 50.0
         ACCEPTABLE_REALIGNMENT_OFFSET = 5.0
         REALIGNMENT_XY_THRESHOLD = 2.0
         REALIGNMENT_Z_THRESHOLD = 1.0

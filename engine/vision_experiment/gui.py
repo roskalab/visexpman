@@ -38,7 +38,7 @@ class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
         self.substance_label = QtGui.QLabel('Substance', self)
         self.substance_combobox = QtGui.QComboBox(self)
         self.substance_combobox.setEditable(True)
-        self.substance_combobox.addItems(QtCore.QStringList(['', 'CP', 'isofluorane']))
+        self.substance_combobox.addItems(QtCore.QStringList(['', 'chlorprothixene', 'isofluorane']))
         self.amount_label = QtGui.QLabel('Amount', self)
         self.amount_combobox = QtGui.QComboBox(self)
         self.amount_combobox.setEditable(True)
@@ -610,6 +610,7 @@ class Poller(QtCore.QThread):
         self.init_variables()
         self.load_context()
         self.initialize_mouse_file()
+        self.init_jobhandler()
         
     def connect_signals(self):
         self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
@@ -641,6 +642,9 @@ class Poller(QtCore.QThread):
         self.queues['analysis']['in'] = Queue.Queue()
         self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
     
+    def init_jobhandler(self):
+        self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
+    
     def abort_poller(self):
         self.abort = True
     
@@ -664,8 +668,6 @@ class Poller(QtCore.QThread):
                 last_time = now
                 self.periodic()
             self.update_network_connection_status()
-#            if self.init_job_run:
-#                self.connect_signals_to_widgets()
             self.handle_commands()
             self.handle_events()
             time.sleep(1e-2)

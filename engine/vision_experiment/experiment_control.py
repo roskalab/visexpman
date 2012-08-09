@@ -582,12 +582,15 @@ class ExperimentControl(object):
             result, scanner_trajectory_filename = self.mes_interface.line_scan(parameter_file = scanner_trajectory_filename, scan_time=2.0,
                                                                                scan_mode='xz', channels=['pmtURraw','ScX', 'ScY'], autozigzag = False)
             if not result:
-                if os.path.exists(initial_mes_line_scan_settings_filename):
-                    os.remove(initial_mes_line_scan_settings_filename)
-                if os.path.exists(red_channel_data_filename):
-                    os.remove(red_channel_data_filename)
-                if os.path.exists(scanner_trajectory_filename):
-                    os.remove(scanner_trajectory_filename)
+                try:
+                    if os.path.exists(initial_mes_line_scan_settings_filename):
+                        os.remove(initial_mes_line_scan_settings_filename)
+                    if os.path.exists(red_channel_data_filename):
+                        os.remove(red_channel_data_filename)
+                    if os.path.exists(scanner_trajectory_filename):
+                        os.remove(scanner_trajectory_filename)
+                except:
+                    self.printl(('removing unnecessary files failed:', initial_mes_line_scan_settings_filename, red_channel_data_filename, scanner_trajectory_filename))
                 self.printl('Recording scanner signals was NOT successful')
                 return False
             if not hasattr(self, 'scanner_trajectory'):

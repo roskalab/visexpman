@@ -39,14 +39,36 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #parameter with range: list[0] - value, list[1] - range
         #path parameter: parameter name contains '_PATH'
         #string list: list[1] - empty
-        #ranges
+        ############## Ranges ###############
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         PIN_RANGE = [0,  7]        
         PLATFORM = ['undefined', ['mes', 'elphys', 'mea', 'standalone', 'undefined']]
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         
-        #Mes parameters
+        ############# Network #####################      
+        WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
+        CLIENT_UDP_IP = ''
+        ENABLE_UDP = False
+        UDP_PORT =[446,  [200,  65000]] #RZ Why dont you like 446  Since this is used only in Presentinator setups and there the 446 port is used, this can be 446 instead of 9999
+        UDP_BUFFER_SIZE = [65536,  [1,  100000000]]        
+        #naming: server - client
+        self.BASE_PORT = 10000
+        COMMAND_RELAY_SERVER  = {
+        'RELAY_SERVER_IP' : '172.27.25.220',
+        'ENABLE' : False,
+        'CLIENTS_ENABLE': False, 
+        'TIMEOUT':6.0,#6
+        'CONNECTION_MATRIX':
+            {#TODO: probably IP addresses are not necessary here
+            'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
+            'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
+            'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
+            'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
+            }
+        }
+        
+        ################ Mes parameters #############
         ENABLE_MES = False
         MES_TIMEOUT = [10.0, [1.0, 100.0]]
         MES_RECORD_START_DELAY = [3.0, [1.0, 10.0]]
@@ -54,8 +76,49 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         MES_Z_SCAN_SCOPE = [100.0, [0.0, 200.0]]
         DEFAULT_Z_SCAN_OVERLAP = [10.0, [0.0,  50]]
         OBJECTIVE_TRANSIENT_SMOOTHING_TIME = [13, [0, 20]]
+        #default XZ scanning config
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE' : 100.0}
+        XZ_FRAME_CLIPPING = {'top': 4,  'bottom':3}
+        ROI_PATTERN_SIZE = [2, [1, 10]]
+        ROI_PATTERN_RADIUS = [1, [0, 50]]
         
-        #display parameters:
+        ########### Vision experiment manager GUI #################
+        screen_size = utils.cr((800, 600))
+        if len(sys.argv) > 0:
+            if 'gui' in sys.argv[0]: #if gui is the main module
+                screen_size = QtGui.QDesktopWidget().screenGeometry()
+                screen_size = utils.cr((0.75*screen_size.width(), 0.9*screen_size.height()))
+        MAX_REGISTRATION_TIME = [30.0, [0.5, 600.0]]
+        GUI_STAGE_TIMEOUT = [30.0, [0.5, 60.0]]
+        DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
+        GUI_POSITION = utils.cr((5, 5))
+        GUI_SIZE = screen_size
+        TAB_SIZE = utils.cr((0.27 * screen_size['col'], 0.6 * screen_size['row']))
+        COMMON_TAB_SIZE = utils.cr((0.3 * screen_size['col'], 0.1 * screen_size['row']))
+        STANDARDIO_WIDGET_TAB_SIZE = utils.cr((0.3 * screen_size['col'], 0.3 * screen_size['row']))
+        IMAGE_SIZE = utils.cr((0.33 * screen_size['col'], 0.33 * screen_size['col']))
+        OVERVIEW_IMAGE_SIZE = utils.cr((0.6 * screen_size['col'], 0.6* screen_size['col']))
+        ROI_INFO_IMAGE_SIZE = utils.rc((int(1.55*IMAGE_SIZE['row']), int(1.35*OVERVIEW_IMAGE_SIZE['col'])))#FIXME: this is not reasonable but working
+        ROI_CURVE_IMAGE_CUTOUT = [1600, [0, 2000]]
+        SIDEBAR_SIZE = [30, [10, 100]]
+        GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
+        GREEN_LABELING = ['']
+        MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
+        #realignment parameters
+        MAX_REALIGNMENT_OFFSET = [50.0, [10.0, 1000.0]]
+        ACCEPTABLE_REALIGNMENT_OFFSET = [2.0, [0.1, 10.0]]
+        REALIGNMENT_XY_THRESHOLD = [1.0, [0.1, 10.0]]
+        REALIGNMENT_Z_THRESHOLD = [1.0, [0.1, 10.0]]
+        CELL_MERGE_DISTANCE = [3.0, [1.0, 20.0]]
+        MIN_SCAN_REGION_AVERAGING = [3, [1, 10]]
+        
+        #############  Jobhandler  ############
+        PARSE_PERIOD = [5.0, [0.0, 10.0]]
+        ENABLE_MESEXTRACTOR = True
+        ENABLE_CELL_DETECTION = True
+        ENABLE_ZIGZAG_CORRECTION = True
+        
+        ############### Display/graphics parameters: ################
         SCREEN_RESOLUTION = utils.rc([600, 800])        
         FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
@@ -65,45 +128,20 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         GAMMA = [1.0,  [1e-2,  10]]
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
         FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]
+        ENABLE_FRAME_CAPTURE = False
+        MAX_LOG_COLORS = [3,  [0,  100000]]        
         
-        #Coordinate system selection
+        ########  Coordinate system selection ########
         COORDINATE_SYSTEM = ['undefined', ['ulcorner','center', 'undefined']] 
         ORIGO = utils.rc((numpy.inf, numpy.inf))
         HORIZONTAL_AXIS_POSITIVE_DIRECTION = ['undefined',  ['left', 'right', 'undefined']]
         VERTICAL_AXIS_POSITIVE_DIRECTION = ['undefined',  ['up', 'down', 'undefined']]
         
-        #pixel scaling
+        ####### Pixel scaling #################
         IMAGE_PROJECTED_ON_RETINA = True
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #converts um to pixel [pixel/um]
         
-        #UDP interface        
-        WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
-        CLIENT_UDP_IP = ''
-        ENABLE_UDP = False
-        UDP_PORT =[446,  [200,  65000]] #RZ Why dont you like 446  Since this is used only in Presentinator setups and there the 446 port is used, this can be 446 instead of 9999
-        UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
-        
-        #Command interface
-        #SERVER_IP = ''
-        #COMMAND_INTERFACE_PORT = [10000, [1100,  65000]]        
-        
-        #naming: server - client
-        self.BASE_PORT = 10000
-        COMMAND_RELAY_SERVER  = {
-        'RELAY_SERVER_IP' : '172.27.25.220',
-        'ENABLE' : False,
-        'CLIENTS_ENABLE': False, 
-        'TIMEOUT':6.0,#6
-        'CONNECTION_MATRIX':
-            {
-            'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
-            'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
-            'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
-            'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
-#            'STIM_ANALYSIS'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}}, 
-            }
-        }
-        #TODO: probably IP addresses are not necessary here
+        ########## Commands #############
         COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
         #Currently the keyboard and running experiment domains are considered:
         #-keyboard: at generating menu for hotkeys
@@ -120,43 +158,29 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
                     'set_measurement_id' : {'key' : 'i', 'domain': ['keyboard', 'network interface', 'remote client']},
                     'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},#Perhaps this command shall be accepted from keyboard
                     }
-
         #By overriding this parameter, the user can define additional keyboard commands that are handled during experiment
         USER_EXPERIMENT_COMMANDS = {}
         
-        #debug
-        ENABLE_FRAME_CAPTURE = False
-        
-        #logging 
-        MAX_LOG_COLORS = [3,  [0,  100000]]        
-        
-        #user interface
+        ############## Vision experiment maganer user interface ##########
         ENABLE_TEXT = True
         TEXT_COLOR = [[1.0,  0.0,  0.0] ,  [[0.0, 0.0, 0.0],  [1.0,  1.0,  1.0]]]
-#        TEXT_SIZE = [12,  [2,  20]]
-               
-
         MENU_POSITION = utils.cr((-0.48, 0.45))
         MESSAGE_POSITION = utils.cr((-0.48,-0.15))
-        NUMBER_OF_MESSAGE_ROWS = [20, [1, 40]]
-        MAX_MESSAGE_LENGTH = [200,  [10,  1000]] #length of message displayed on screen
-        
-        #stimulus control
-        SEGMENT_DURATION = [100,  [1,  100000]]
-        ACTION_BETWEEN_STIMULUS = 'no' #keystroke, wait_xx in sec. no =  off
-        
-        #== External hardware ==        
+        NUMBER_OF_MESSAGE_ROWS = [15, [1, 40]]
+        MAX_MESSAGE_LENGTH = [180,  [10,  1000]] #length of message displayed on screen
+#TODO obsolete        SEGMENT_DURATION = [100,  [1,  100000]]
+#TODO obsolete        ACTION_BETWEEN_STIMULUS = 'no' #keystroke, wait_xx in sec. no =  off
+
+        ############# External hardware ######################
         #parallel port
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
-        
         #filterwheel settings
         ENABLE_FILTERWHEEL = False
         FILTERWHEEL_SETTLING_TIME = [0.4,  [0,  20]]
-        FILTERWHEEL_VALID_POSITIONS = [[1, 6],  [[0, 0],  [100, 100]]]
-        
+        FILTERWHEEL_VALID_POSITIONS = [[1, 6],  [[0, 0],  [100, 100]]]        
 #        FILTERWHEEL_SERIAL_PORT = [[{
 #                                    'port' :  port,
 #                                    'baudrate' : 115200,
@@ -172,13 +196,10 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #                                                'ND40': 5, 
 #                                                'ND50': 6, 
 #                                                }]]
-                                                
         ENABLE_SHUTTER = False
-        
         LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
         SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
-        
 #                 DAQ_CONFIG = [[
 #         {
 #         'ANALOG_CONFIG' : 'aio', #'ai', 'ao', 'aio', 'undefined'
@@ -205,49 +226,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         'ENABLE' : True
 #         }
 #         ]]
-        #GUI
-        screen_size = utils.cr((800, 600))
-        if len(sys.argv) > 0:
-            if 'gui' in sys.argv[0]: #if gui is the main module
-                screen_size = QtGui.QDesktopWidget().screenGeometry()
-                screen_size = utils.cr((0.75*screen_size.width(), 0.9*screen_size.height()))
-        MAX_REGISTRATION_TIME = [30.0, [0.5, 600.0]]
-        GUI_STAGE_TIMEOUT = [30.0, [0.5, 60.0]]
-        DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
-        GUI_POSITION = utils.cr((5, 5))
-        GUI_SIZE = screen_size
-        TAB_SIZE = utils.cr((0.27 * screen_size['col'], 0.6 * screen_size['row']))
-        COMMON_TAB_SIZE = utils.cr((0.3 * screen_size['col'], 0.1 * screen_size['row']))
-        STANDARDIO_WIDGET_TAB_SIZE = utils.cr((0.3 * screen_size['col'], 0.3 * screen_size['row']))
-        IMAGE_SIZE = utils.cr((0.33 * screen_size['col'], 0.33 * screen_size['col']))
-        OVERVIEW_IMAGE_SIZE = utils.cr((0.6 * screen_size['col'], 0.6* screen_size['col']))
-        ROI_INFO_IMAGE_SIZE = utils.rc((int(1.55*IMAGE_SIZE['row']), int(1.35*OVERVIEW_IMAGE_SIZE['col'])))#FIXME: this is not reasonable but working
-        ROI_CURVE_IMAGE_CUTOUT = [1600, [0, 2000]]
-        SIDEBAR_SIZE = [30, [10, 100]]
-        GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
-        #jobhandler
-        PARSE_PERIOD = [2.0, [0.0, 10.0]]
-        
-        MAX_REALIGNMENT_OFFSET = [50.0, [10.0, 1000.0]]
-        ACCEPTABLE_REALIGNMENT_OFFSET = [2.0, [0.1, 10.0]]
-        REALIGNMENT_XY_THRESHOLD = [1.0, [0.1, 10.0]]
-        REALIGNMENT_Z_THRESHOLD = [1.0, [0.1, 10.0]]
-        CELL_MERGE_DISTANCE = [3.0, [1.0, 20.0]]
-        MIN_SCAN_REGION_AVERAGING = [3, [1, 10]]
-        
-        ENABLE_FRAGMENT_CHECK = True
-        ENABLE_MESEXTRACTOR = True
-        ENABLE_CELL_DETECTION = True
-        ENABLE_ZIGZAG_CORRECTION = True
-        
-        #MES scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE' : 100.0}
-        XZ_FRAME_CLIPPING = {'top': 4,  'bottom':3}
-        ROI_PATTERN_SIZE = [2, [1, 10]]
-        ROI_PATTERN_RADIUS = [1, [0, 50]]
-        
-        GREEN_LABELING = ['']
-        MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 
