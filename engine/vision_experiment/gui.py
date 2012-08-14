@@ -299,6 +299,9 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
             if 'stage_move' in k:
                 v.setCheckState(2)
         self.xz_scan_button = QtGui.QPushButton('XZ scan',  self)
+        self.registration_subimage_label = QtGui.QLabel('Registration subimage, center (x,y), size (x,y) [um]', self)
+        self.registration_subimage_combobox = QtGui.QComboBox(self)
+        self.registration_subimage_combobox.setEditable(True)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -328,6 +331,8 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 8, 1, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 8, 2, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_origin_adjust'], 8, 3, 1, 1)
+        self.layout.addWidget(self.registration_subimage_label, 9, 0, 3, 1)
+        self.layout.addWidget(self.registration_subimage_combobox, 9, 2, 3, 1)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -1551,7 +1556,7 @@ class Poller(QtCore.QThread):
             self.printc('Master position has to be defined')
             hdf5_handler.close()
             return
-        if 'master' in region_name:
+        if 'master' == region_name.replace(region_name_tag, ''):
            if not self.set_stage_origin():
                 self.printc('Setting origin did not succeed')
                 hdf5_handler.close()

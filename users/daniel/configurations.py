@@ -373,6 +373,7 @@ class Debug(VisionExperimentConfig):
         #=== Network ===
         ENABLE_UDP = False
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'#'172.27.25.220' .1: production
+#        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
         #=== hardware ===
