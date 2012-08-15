@@ -34,7 +34,6 @@ from visexpman.engine.generic import log
 from visexpman.users.zoltan.test import unit_test_runner
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as generic_visexpA
-from visexpA.engine.datadisplay import imaged
 
 parameter_extract = re.compile('EOC(.+)EOP')
 
@@ -133,7 +132,8 @@ class VisionExperimentGui(QtGui.QWidget):
         #GUI events
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
 #        self.connect_and_map_signal(self.main_tab, 'save_cells', 'currentChanged')
-        self.connect(self.common_widget.show_gridlines_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.gridline_checkbox_changed)        
+        self.connect(self.common_widget.show_gridlines_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.gridline_checkbox_changed)
+        self.connect(self.main_widget.scan_region_groupbox.registration_subimage_combobox, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.subimage_parameters_changed)
         
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.select_mouse_file, 'mouse_file_changed', 'currentIndexChanged')
         self.connect(self.main_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.region_name_changed)
@@ -225,6 +225,9 @@ class VisionExperimentGui(QtGui.QWidget):
     def gridline_checkbox_changed(self):
         self.update_gridlined_images()
 
+    def subimage_parameters_changed(self):
+        self.update_xy_images()
+        
     def show_soma_roi_checkbox_changed(self):
         self.update_meanimage()
         
@@ -547,10 +550,14 @@ class VisionExperimentGui(QtGui.QWidget):
             self.roi_widget.roi_info_image_display.raw_image = image
             self.roi_widget.roi_info_image_display.scale = scale
         else:
+            box = self.get_subimage_box()
             gridlines = (self.common_widget.show_gridlines_checkbox.checkState() != 0)
             if gridlines:
                 sidebar_fill = (100, 50, 0)
-                line = [] #Do not  show any lines when gridlines are displayed
+                if (channel == 0 or channel ==1) and len(box) == 4:
+                    line = generic.box_to_lines(box)
+                else:
+                    line = [] #Do not  show any lines when gridlines are displayed
             else:
                 sidebar_fill = (0, 0, 0)
             image_with_sidebar = generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, 
@@ -563,11 +570,16 @@ class VisionExperimentGui(QtGui.QWidget):
             self.images_widget.image_display[channel].origin = origin
             self.images_widget.image_display[channel].line = line
             
-            
     def update_gridlined_images(self):
         for i in range(4):
             image_widget = self.images_widget.image_display[i]
             if hasattr(image_widget, 'raw_image'):#This check is necessary because unintialized xz images does not have raw_image attribute
+                self.show_image(image_widget.raw_image, i, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
+                
+    def update_xy_images(self):
+        for i in range(2):
+            image_widget = self.images_widget.image_display[i]
+            if hasattr(image_widget, 'raw_image'):
                 self.show_image(image_widget.raw_image, i, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
         
     def update_combo_box_list(self, widget, new_list,  selected_item = None):
@@ -599,7 +611,17 @@ class VisionExperimentGui(QtGui.QWidget):
     def get_current_file_id(self):
         return str(self.main_widget.measurement_datafile_status_groupbox.ids_combobox.currentText())
         
-    
+    def get_subimage_box(self):
+        subimage_parameters = self.main_widget.scan_region_groupbox.registration_subimage_combobox.currentText()
+        box = subimage_parameters.split(',')
+        if len(box) != 4:
+            box = []
+        else:
+            try:
+                box = map(float, box)
+            except:
+                box = []
+        return box
         
     ########## GUI utilities, misc functions #############
     def show_verify_add_region_messagebox(self):

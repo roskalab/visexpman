@@ -32,6 +32,14 @@ def draw_line_numpy_array(image, line, fill = (255, 0, 0)):
     draw = ImageDraw.Draw(im)
     draw.line(line, fill, width = 1)
     return numpy.asarray(im)
+    
+def box_to_lines(box):
+    lines = []
+    lines.append([box[0], box[1], box[0], box[3]])
+    lines.append([box[0], box[1], box[2], box[1]])
+    lines.append([box[0], box[3], box[2], box[3]])
+    lines.append([box[2], box[1], box[2], box[3]])
+    return lines
 
 def expspace(start,  end,  number_of_points):
     exponent = numpy.log(end-start+1)

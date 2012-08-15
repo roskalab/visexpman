@@ -299,7 +299,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
             if 'stage_move' in k:
                 v.setCheckState(2)
         self.xz_scan_button = QtGui.QPushButton('XZ scan',  self)
-        self.registration_subimage_label = QtGui.QLabel('Registration subimage, center (x,y), size (x,y) [um]', self)
+        self.registration_subimage_label = QtGui.QLabel('Registration subimage, upper left (x,y), bottom right (x,y) [um]', self)
         self.registration_subimage_combobox = QtGui.QComboBox(self)
         self.registration_subimage_combobox.setEditable(True)
 
@@ -331,8 +331,8 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 8, 1, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 8, 2, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_origin_adjust'], 8, 3, 1, 1)
-        self.layout.addWidget(self.registration_subimage_label, 9, 0, 3, 1)
-        self.layout.addWidget(self.registration_subimage_combobox, 9, 2, 3, 1)
+        self.layout.addWidget(self.registration_subimage_label, 9, 0, 1, 2)
+        self.layout.addWidget(self.registration_subimage_combobox, 9, 2, 1, 3)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -1690,7 +1690,7 @@ class Poller(QtCore.QThread):
                 return
             self.printc('Register with saved image.')
             #calculate translation between current and saved brain surface image
-            if not self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['xy']['image'], self.xy_scan['scale']):
+            if not self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['xy']['image'], self.xy_scan['scale'], self.xy_scan['origin']):
                 return
             if abs(self.suggested_translation['col'])  > self.config.MAX_REALIGNMENT_OFFSET or abs(self.suggested_translation['row']) > self.config.MAX_REALIGNMENT_OFFSET:
                 self.printc('Suggested translation is not plausible')
@@ -1707,7 +1707,7 @@ class Poller(QtCore.QThread):
             #Get a two photon image and register again, to see whether realignment was successful
             if not self.acquire_xy_scan(use_region_parameters = True):
                 return
-            if not self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['xy']['image'], self.xy_scan['scale']):
+            if not self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['xy']['image'], self.xy_scan['scale'], , self.xy_scan['origin']):
                 return
             if abs(self.suggested_translation['col']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET or abs(self.suggested_translation['row']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET:
                 self.printc('Realignment was not successful {0}' .format(self.suggested_translation)) #Process not interrupted, but moves to vertical realignment
@@ -2129,11 +2129,24 @@ class Poller(QtCore.QThread):
         image_hdf5_handler.save(['f1', 'f2'], overwrite = True)
         image_hdf5_handler.close()
         
-    def register_images(self, f1, f2, scale,  print_result = True):
-        import Image
-#        from visexpA.engine.dataprocessors import generic
-#        Image.fromarray(generic.normalize(f1,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f1.png')))
-#        Image.fromarray(generic.normalize(f2,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f2.png')))
+    def cutout_subimage(self, image, box, scale, origin):
+        upper_leftx = int((box[0] - origin['col'])/scale['col'])
+        upper_lefty = int((box[1] - origin['row'])/scale['row'])
+        bottom_rightx = int((box[2] - origin['col'])/scale['col'])
+        bottom_righty = int((box[3] - origin['row'])/scale['row'])
+        subimage = image[upper_lefty:bottom_righty, upper_leftx:bottom_rightx]
+        return subimage
+        
+        
+    def register_images(self, f1, f2, scale, origin = None, print_result = True):
+        box = self.parent.get_subimage_box()
+        if not origin is None and len(box) ==4:
+            f1 = self.cutout_subimage(f1, box, scale, origin)
+            f2 = self.cutout_subimage(f2, box, scale, origin)
+            import Image
+            from visexpA.engine.dataprocessors import generic
+            Image.fromarray(generic.normalize(f1,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f1.png')))
+            Image.fromarray(generic.normalize(f2,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f2.png')))
         self.create_image_registration_data_file(f1, f2)
         utils.empty_queue(self.queues['analysis']['in'])
         arguments = ''
