@@ -21,6 +21,14 @@ find_experiment_class_name = re.compile('class (.+)\(experiment.Experiment\)')
 find_experiment_config_class_name = re.compile('class (.+)\(experiment.ExperimentConfig\)')
 
 class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandler):
+    '''
+    Handles all the commands related to vision experiment manager (aka stimulation software, visexp_runner). Commands are received from keyboard and network
+    interface. The network interface is connected to a gui application of the framework (visexp_gui).
+    
+    There are two groups of commands:
+    -adjustments: like show bullseye, change background color, set filterwheel, stage read/write. These are executed in up to a couple of seconds
+    -experiment control: start_experiment, execution time can be several minutes depending on the experiment/stimulus configuration
+    '''
     def __init__(self):
         self.keyboard_command_queue = Queue.Queue()
         #Here the set of queues are defined from commands are parsed
@@ -110,6 +118,12 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         return 'selected experiment: ' + str(experiment_index) + ' '
 
     def execute_experiment(self, **kwargs):
+        '''
+        There are two ways of executing and experiment:
+        1. source code of experiment and experiment config classes are received from a remote machine. These classes are instantiated and the experiment
+        starting method is called
+        2. Only parameters of the experiment are sent and its run method is called. Such parameters can be provided: experiment config name, scan region name, scan mode, xz scan parameters ...
+        '''
         if kwargs.has_key('source_code'):
             source_code = kwargs['source_code']
         else:
@@ -150,6 +164,9 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         return result
 
 class CommandSender(QtCore.QThread):
+    '''
+    A thread that can be configured to send commands via keyboard command queue with a predefined timing
+    '''
     def __init__(self, config, caller, commands):
         self.config = config
         self.caller = caller

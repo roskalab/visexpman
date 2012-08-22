@@ -29,10 +29,20 @@ import visexpA.engine.datahandlers.hdf5io as hdf5io
 import visexpA.engine.datahandlers.importers as importers
 
 class ExperimentControl(object):
+    '''
+    Provides methods for running a single experiment or a series of experiments at different depths. These methods are inherited by experiment classes
+    that contain the user defined stimulations and other experiment specific functions.
+    
+    This class supports the following platforms:
+    1. MES - RC microscope for in vivo cortical Ca imaging/stimulation
+    2. [NOT TESTED] Electrophysiology setup for single cell recordings: stimulation and recording electrophysiology data
+    3. [PLANNED] Virtual reality /behavioral experiments
+    4. [PLANNED] Multielectrode array experiments / stimulation
+    '''
 
     def __init__(self, config, application_log):
         '''
-
+        Performs some basic checks and sets call parameters
         '''
         self.application_log = application_log
         self.config = config
@@ -54,6 +64,11 @@ class ExperimentControl(object):
             self.scan_mode = 'xy'
 
     def run_experiment(self, context):
+        '''
+        Runs a series or a single experiment depending on the call parameters
+        
+        Objective positions and/or laser intensity is adjusted at a series or experiments.
+        '''
         message_to_screen = ''
         if hasattr(self, 'objective_positions'):
             for i in range(len(self.objective_positions)):
@@ -73,6 +88,9 @@ class ExperimentControl(object):
         return message_to_screen
 
     def run_single_experiment(self, context):
+        '''
+        Runs a single experiment which parameters are determined by the context parameter and the self.parameters attribute
+        '''
         if context.has_key('stage_origin'):
             self.stage_origin = context['stage_origin']
         message_to_screen = ''
@@ -421,6 +439,19 @@ class ExperimentControl(object):
 
     ########## Fragment data ############
     def _prepare_fragment_data(self, fragment_id):
+        '''
+        Collects and packs all the recorded and generated experiment data, depending on the platform but the following data is handled here:
+        - stimulus-recording synchron signal
+        - experiment log
+        - electrophysiology data
+        - user data from stimulation
+        - stimulation function call info
+        - source code of called software
+        - roi data
+        - animal parameters
+        - anesthesia history
+        - pre/post scan data
+        '''
         if hasattr(self.analog_input, 'ai_data'):
             analog_input_data = self.analog_input.ai_data
         else:

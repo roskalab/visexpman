@@ -532,6 +532,9 @@ class CommonWidget(QtGui.QWidget):
         self.set_stage_origin_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.read_stage_button = QtGui.QPushButton('Read stage', self)
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
+        self.move_goniometer_button = QtGui.QPushButton('Move goniometer', self)
+        self.enable_goniometer_label = QtGui.QLabel('Enable goniometer', self)
+        self.enable_goniometer_checkbox = QtGui.QCheckBox(self)
         self.enable_xy_scan_with_move_stage_label = QtGui.QLabel('XY scan after move stage', self)
         self.enable_xy_scan_with_move_checkbox = QtGui.QCheckBox(self)
         
@@ -556,7 +559,11 @@ class CommonWidget(QtGui.QWidget):
         self.layout.addWidget(self.set_objective_button, 0, 6, 1, 1)
         self.layout.addWidget(self.enable_reset_objective_origin_after_moving_label, 0, 7, 1, 1)
         self.layout.addWidget(self.enable_set_objective_origin_after_moving_checkbox, 0, 8, 1, 1)
-        self.layout.addWidget(self.current_position_label, 0, 9, 1, 2)
+        self.layout.addWidget(self.current_position_label, 1, 7, 1, 2)
+        self.layout.addWidget(self.move_goniometer_button, 2, 8, 1, 1)
+        self.layout.addWidget(self.enable_goniometer_label, 2, 0, 1, 1)
+        self.layout.addWidget(self.enable_goniometer_checkbox, 2, 1, 1, 1)
+        
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -1224,6 +1231,23 @@ class Poller(QtCore.QThread):
         self.parent.update_position_display()
         return result
         
+    def move_goniometer(self):
+        if self.parent.common_widget.enable_goniometer_checkbox.checkState() != 2:
+            self.printc('Goniometer not enabled')
+            return
+        movement = map(float, self.parent.scanc().split(','))
+        if len(movement) != 2:
+            self.printc('invalid coordinates')
+            return
+        mg = MotorizedGoniometer(self.config, id = 1)
+        if mg.set_speed(300):
+            result = mg.move(numpy.array(movement))
+            if not result:
+                self.printc('Moving goniometer was NOT successful')
+        else:
+            self.printc('Setting goniometer speed was NOT successful')
+        mg.release_instrument()
+        
     def move_stage(self):
         movement = self.parent.scanc().split(',')
         if len(movement) == 2:
@@ -1707,7 +1731,7 @@ class Poller(QtCore.QThread):
             #Get a two photon image and register again, to see whether realignment was successful
             if not self.acquire_xy_scan(use_region_parameters = True):
                 return
-            if not self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['xy']['image'], self.xy_scan['scale'], , self.xy_scan['origin']):
+            if not self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['xy']['image'], self.xy_scan['scale'], self.xy_scan['origin']):
                 return
             if abs(self.suggested_translation['col']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET or abs(self.suggested_translation['row']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET:
                 self.printc('Realignment was not successful {0}' .format(self.suggested_translation)) #Process not interrupted, but moves to vertical realignment
@@ -1943,7 +1967,7 @@ class Poller(QtCore.QThread):
                 parameters += ',roi_pattern_size='+self.experiment_parameters['roi_pattern_size']
             if self.experiment_parameters.has_key('aux_roi_distance'):
                 parameters += ',aux_roi_distance='+self.experiment_parameters['aux_roi_distance']
-            parameters += ',cell_group='+self.parent.get_current_cell_group()
+            parameters += ',cell_group='+self.parent.get_current_cell_group().replace(',', '<comma>')
         command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
         self.backup_mouse_file(tag = 'stim')
         self.queues['stim']['out'].put(command)

@@ -41,9 +41,9 @@ class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
         self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [1000.0]#1800
+        self.VELOCITIES = [1200.0]#1800
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 3
+        self.REPEATS = 2
         self.PAUSE_BEFORE_AFTER = 5.0
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
@@ -232,6 +232,17 @@ class Led1min5x100msStimulationConfig(experiment.ExperimentConfig):
         self.runnable = 'LedStimulation'
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
+        
+class Led1min3x100ms7VStimulationConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.PAUSE_BETWEEN_FLASHES = 60.0 #10.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 100e-3
+        self.FLASH_AMPLITUDE = 7.0 #10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 15.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
 
 class Led2min3x10msStimulationConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -254,6 +265,18 @@ class Led3x100ms1VStimulationConfig(experiment.ExperimentConfig):
         self.runnable = 'LedStimulation'
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
+
+class Led3x100ms2VStimulationConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.PAUSE_BETWEEN_FLASHES = 15.0 #10.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 100e-3
+        self.FLASH_AMPLITUDE = 2.0 #10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 15.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+
 
 class Led3x100ms4VStimulationConfig(experiment.ExperimentConfig):
     def _create_parameters(self):

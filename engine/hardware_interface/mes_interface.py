@@ -144,9 +144,9 @@ class MesInterface(object):
             if os.path.exists(line_scan_path):
                 os.remove(line_scan_path)
             if with_origin:
-                return False,  None, None
+                return False,  0, 0
             else:
-                return False,  None
+                return False,  0
 
     def set_objective(self, position, timeout = None):
         if timeout == None:

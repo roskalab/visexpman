@@ -39,6 +39,9 @@ parameter_extract = re.compile('EOC(.+)EOP')
 
 ################### Main widget #######################
 class VisionExperimentGui(QtGui.QWidget):
+    '''
+    Main Qt GUI class of vision experiment manager gui.
+    '''
     def __init__(self, user, config_class):
         #Fetching classes takes long time
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
@@ -179,6 +182,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.common_widget.read_stage_button, 'read_stage')
         self.connect_and_map_signal(self.common_widget.set_stage_origin_button, 'set_stage_origin')
         self.connect_and_map_signal(self.common_widget.move_stage_button, 'move_stage')
+        self.connect_and_map_signal(self.common_widget.move_goniometer_button, 'move_goniometer')
         self.connect_and_map_signal(self.common_widget.stop_stage_button, 'stop_stage')
         self.connect_and_map_signal(self.common_widget.set_objective_button, 'set_objective')
 #        self.connect_and_map_signal(self.main_widget.set_objective_value_button, 'set_objective_relative_value')
