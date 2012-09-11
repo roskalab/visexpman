@@ -770,7 +770,7 @@ class Poller(QtCore.QThread):
                             if self.backup_mouse_file(tag = tag):
                                 self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
                         else:
-                            self.printc(k.upper() + ' '  + message)
+                            self.printc(time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
         except:
             self.printc(traceback.format_exc())
 

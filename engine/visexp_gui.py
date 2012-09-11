@@ -413,7 +413,7 @@ class VisionExperimentGui(QtGui.QWidget):
         region_name = self.get_current_region_name()
         if region_name == '':
                 return
-        if hasattr(self.poller, 'cells') and utils.safe_has_key(self.poller.cells, region_name):
+        if hasattr(self.poller, 'cells') and utils.safe_has_key(self.poller.cells, region_name): #To handle situations when region name is being edited by user
             self.poller.cell_ids = self.poller.cells[region_name].keys()
             filter = str(self.roi_widget.cell_filter_combobox.currentText())
             filtername = str(self.roi_widget.cell_filter_name_combobox.currentText())
@@ -588,10 +588,15 @@ class VisionExperimentGui(QtGui.QWidget):
         
     def update_combo_box_list(self, widget, new_list,  selected_item = None):
         current_value = widget.currentText()
-        if current_value in new_list:
-            current_index = new_list.index(current_value)
-        else:
+        try:
+            if current_value in new_list:
+                current_index = new_list.index(current_value)
+            else:
+                current_index = 0
+        except:
             current_index = 0
+            self.printc((current_value, new_list))
+            self.printc(traceback.format_exc())
         items_list = QtCore.QStringList(new_list)
         widget.blockSignals(True)
         widget.clear()
