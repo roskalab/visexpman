@@ -195,6 +195,7 @@ def nameless_dummy_object_with_methods(*methods):
     return type("",(object,),d)()
     
 def flatten(l, ltypes=(list, tuple)):
+    #consider using itertools.chain(*mylist)
     ltype = type(l)
     l = list(l)
     i = 0
@@ -209,7 +210,8 @@ def flatten(l, ltypes=(list, tuple)):
         i += 1
     return ltype(l)
 
-
+def list_of_empty_lists(n):
+    return [list() for _ in range(n)]
     
 def traverse(obj,  attrchain):
     '''Walks trough the attribute chain starting from obj and returns the last element of the chain. E.g.
