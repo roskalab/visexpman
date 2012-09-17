@@ -257,7 +257,7 @@ class Led2min3x10msStimulationConfig(experiment.ExperimentConfig):
 
 class Led3x100ms1VStimulationConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 15.0 #10.0
+        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
         self.NUMBER_OF_FLASHES = 3.0
         self.FLASH_DURATION = 100e-3
         self.FLASH_AMPLITUDE = 1.0 #10.0
@@ -268,7 +268,7 @@ class Led3x100ms1VStimulationConfig(experiment.ExperimentConfig):
 
 class Led3x100ms2VStimulationConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 15.0 #10.0
+        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
         self.NUMBER_OF_FLASHES = 3.0
         self.FLASH_DURATION = 100e-3
         self.FLASH_AMPLITUDE = 2.0 #10.0
@@ -280,7 +280,7 @@ class Led3x100ms2VStimulationConfig(experiment.ExperimentConfig):
 
 class Led3x100ms4VStimulationConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 15.0 #10.0
+        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
         self.NUMBER_OF_FLASHES = 3.0
         self.FLASH_DURATION = 100e-3
         self.FLASH_AMPLITUDE = 4.0 #10.0
@@ -291,7 +291,7 @@ class Led3x100ms4VStimulationConfig(experiment.ExperimentConfig):
         
 class Led3x100ms7VStimulationConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 15.0 #10.0
+        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
         self.NUMBER_OF_FLASHES = 3.0
         self.FLASH_DURATION = 100e-3
         self.FLASH_AMPLITUDE = 7.0 #10.0
@@ -302,7 +302,7 @@ class Led3x100ms7VStimulationConfig(experiment.ExperimentConfig):
 
 class Led3x100ms10VStimulationConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 15.0 #10.0
+        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
         self.NUMBER_OF_FLASHES = 3.0
         self.FLASH_DURATION = 100e-3
         self.FLASH_AMPLITUDE = 10.0 #10.0
@@ -311,6 +311,16 @@ class Led3x100ms10VStimulationConfig(experiment.ExperimentConfig):
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
 
+class Led3x100ms0p4VStimulationConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 100e-3
+        self.FLASH_AMPLITUDE = 0.4 #10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 30.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
 
 class LedPre(experiment.PreExperiment):
     def run(self):

@@ -906,7 +906,6 @@ class Poller(QtCore.QThread):
             h.images = {}
         h.images[id] = {}
         h.images[id]['meanimage'] = h_measurement.findvar('meanimage')
-        h.images[id]['accepted_somaimage'] = h_measurement.findvar('accepted_somaimage')
         scale = h_measurement.findvar('image_scale')
         h.images[id]['scale'] = scale
         origin = h_measurement.findvar('image_origin')
@@ -986,7 +985,7 @@ class Poller(QtCore.QThread):
         if not scan_regions[region_name].has_key('process_status'):
             scan_regions[region_name]['process_status'] = {}
         if scan_regions[region_name]['process_status'].has_key(id):
-            self.printc('ID alread exists')
+            self.printc('ID already exists')
         scan_regions[region_name]['process_status'][id] = {}
         scan_regions[region_name]['process_status'][id]['fragment_check_ready'] = False
         scan_regions[region_name]['process_status'][id]['mesextractor_ready'] = False
@@ -1533,7 +1532,7 @@ class Poller(QtCore.QThread):
         if self.xy_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
             self.printc('Brain surface image averaging is only {0}' .format(self.xy_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
         if hasattr(self, 'xz_scan') and self.xz_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
-            self.printc('Number of frames is only {0}' .format(self.xz_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
+            self.printc('Number of frames is only {0}' .format(self.xz_scan['averaging']))
         if not (os.path.exists(self.mouse_file) and '.hdf5' in self.mouse_file):
             self.printc('mouse file not found')
             return

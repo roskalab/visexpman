@@ -29,3 +29,4 @@ for x in table.iterrows():
 h5file.close()
 pass
 #Open question: store arrays, rec arrays, 
+#plan: def save_cells, def load_cells

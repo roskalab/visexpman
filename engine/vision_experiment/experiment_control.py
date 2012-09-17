@@ -97,7 +97,11 @@ class ExperimentControl(object):
         if not self.connections['mes'].connected_to_remote_client() and self.config.PLATFORM == 'mes':
             message_to_screen = self.printl('No connection with MES')
             return message_to_screen
-        message_to_screen += self._prepare_experiment(context)
+        message = self._prepare_experiment(context)
+        if message is None:
+            return message_to_screen
+        else:
+            message_to_screen += message
         message = '{0}/{1} started at {2}' .format(self.experiment_name, self.experiment_config_name, utils.datetime_string())
         if context.has_key('experiment_count'):
             message = '{0} {1}'.format( context['experiment_count'],  message)
@@ -169,6 +173,9 @@ class ExperimentControl(object):
                     self.printl('Objective is set to {0} um' .format(context['objective_position']))
             self.stage_position = self.stage.read_position() - self.stage_origin
             result, self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
+            if not result:
+                self.printl('Objective position cannot be read, check STIM-MES connection')
+                return None
             if utils.safe_has_key(self.parameters, 'mouse_file'):
                 self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['mouse_file'].replace('.hdf5', '_stim.hdf5'))
                 if not os.path.exists(self.mouse_file):
@@ -323,6 +330,7 @@ class ExperimentControl(object):
             if not aborted and result:
                 if self.config.PLATFORM == 'mes':
                     if self.mes_record_time > 30.0:
+                        time.sleep(1.0)#Ensure that scanner starts???
                         if not self._pre_post_experiment_scan(is_pre=False):
                             self.printl('Post experiment scan was NOT successful')
                 self._save_fragment_data(fragment_id)

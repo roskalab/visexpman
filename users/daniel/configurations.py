@@ -319,6 +319,8 @@ class Debug(VisionExperimentConfig):
         PLATFORM = 'standalone'
         PLATFORM = 'mes'
         CELL_MERGE_DISTANCE = 3.0
+        ROI_PATTERN_SIZE = 4
+        ROI_PATTERN_RADIUS = 3
         ENABLE_FRAGMENT_CHECK = True
         ENABLE_MESEXTRACTOR = True
         #MES scanning config
@@ -363,7 +365,7 @@ class Debug(VisionExperimentConfig):
         
         #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
@@ -477,6 +479,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         
         MES_TIMEOUT = 15.0
         CELL_MERGE_DISTANCE = 3.0
+        ROI_PATTERN_SIZE = 4
+        ROI_PATTERN_RADIUS = 3
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':15.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE':80.0}
         ENABLE_ZIGZAG_CORRECTION = True
