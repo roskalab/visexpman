@@ -38,7 +38,7 @@ class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
         self.substance_label = QtGui.QLabel('Substance', self)
         self.substance_combobox = QtGui.QComboBox(self)
         self.substance_combobox.setEditable(True)
-        self.substance_combobox.addItems(QtCore.QStringList(['', 'CP', 'isofluorane']))
+        self.substance_combobox.addItems(QtCore.QStringList(['', 'chlorprothixene', 'isofluorane']))
         self.amount_label = QtGui.QLabel('Amount', self)
         self.amount_combobox = QtGui.QComboBox(self)
         self.amount_combobox.setEditable(True)
@@ -299,6 +299,9 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
             if 'stage_move' in k:
                 v.setCheckState(2)
         self.xz_scan_button = QtGui.QPushButton('XZ scan',  self)
+        self.registration_subimage_label = QtGui.QLabel('Registration subimage, upper left (x,y), bottom right (x,y) [um]', self)
+        self.registration_subimage_combobox = QtGui.QComboBox(self)
+        self.registration_subimage_combobox.setEditable(True)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -328,6 +331,8 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 8, 1, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 8, 2, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_origin_adjust'], 8, 3, 1, 1)
+        self.layout.addWidget(self.registration_subimage_label, 9, 0, 1, 2)
+        self.layout.addWidget(self.registration_subimage_combobox, 9, 2, 1, 3)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -527,6 +532,9 @@ class CommonWidget(QtGui.QWidget):
         self.set_stage_origin_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.read_stage_button = QtGui.QPushButton('Read stage', self)
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
+        self.move_goniometer_button = QtGui.QPushButton('Move goniometer', self)
+        self.enable_goniometer_label = QtGui.QLabel('Enable goniometer', self)
+        self.enable_goniometer_checkbox = QtGui.QCheckBox(self)
         self.enable_xy_scan_with_move_stage_label = QtGui.QLabel('XY scan after move stage', self)
         self.enable_xy_scan_with_move_checkbox = QtGui.QCheckBox(self)
         
@@ -551,7 +559,11 @@ class CommonWidget(QtGui.QWidget):
         self.layout.addWidget(self.set_objective_button, 0, 6, 1, 1)
         self.layout.addWidget(self.enable_reset_objective_origin_after_moving_label, 0, 7, 1, 1)
         self.layout.addWidget(self.enable_set_objective_origin_after_moving_checkbox, 0, 8, 1, 1)
-        self.layout.addWidget(self.current_position_label, 0, 9, 1, 2)
+        self.layout.addWidget(self.current_position_label, 1, 7, 1, 2)
+        self.layout.addWidget(self.move_goniometer_button, 2, 8, 1, 1)
+        self.layout.addWidget(self.enable_goniometer_label, 2, 0, 1, 1)
+        self.layout.addWidget(self.enable_goniometer_checkbox, 2, 1, 1, 1)
+        
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -610,6 +622,7 @@ class Poller(QtCore.QThread):
         self.init_variables()
         self.load_context()
         self.initialize_mouse_file()
+        self.init_jobhandler()
         
     def connect_signals(self):
         self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
@@ -641,6 +654,9 @@ class Poller(QtCore.QThread):
         self.queues['analysis']['in'] = Queue.Queue()
         self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
     
+    def init_jobhandler(self):
+        self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
+    
     def abort_poller(self):
         self.abort = True
     
@@ -664,8 +680,6 @@ class Poller(QtCore.QThread):
                 last_time = now
                 self.periodic()
             self.update_network_connection_status()
-#            if self.init_job_run:
-#                self.connect_signals_to_widgets()
             self.handle_commands()
             self.handle_events()
             time.sleep(1e-2)
@@ -756,7 +770,7 @@ class Poller(QtCore.QThread):
                             if self.backup_mouse_file(tag = tag):
                                 self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
                         else:
-                            self.printc(k.upper() + ' '  + message)
+                            self.printc(time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
         except:
             self.printc(traceback.format_exc())
 
@@ -892,7 +906,6 @@ class Poller(QtCore.QThread):
             h.images = {}
         h.images[id] = {}
         h.images[id]['meanimage'] = h_measurement.findvar('meanimage')
-        h.images[id]['accepted_somaimage'] = h_measurement.findvar('accepted_somaimage')
         scale = h_measurement.findvar('image_scale')
         h.images[id]['scale'] = scale
         origin = h_measurement.findvar('image_origin')
@@ -972,7 +985,7 @@ class Poller(QtCore.QThread):
         if not scan_regions[region_name].has_key('process_status'):
             scan_regions[region_name]['process_status'] = {}
         if scan_regions[region_name]['process_status'].has_key(id):
-            self.printc('ID alread exists')
+            self.printc('ID already exists')
         scan_regions[region_name]['process_status'][id] = {}
         scan_regions[region_name]['process_status'][id]['fragment_check_ready'] = False
         scan_regions[region_name]['process_status'][id]['mesextractor_ready'] = False
@@ -1216,6 +1229,23 @@ class Poller(QtCore.QThread):
         self.origin_set = True
         self.parent.update_position_display()
         return result
+        
+    def move_goniometer(self):
+        if self.parent.common_widget.enable_goniometer_checkbox.checkState() != 2:
+            self.printc('Goniometer not enabled')
+            return
+        movement = map(float, self.parent.scanc().split(','))
+        if len(movement) != 2:
+            self.printc('invalid coordinates')
+            return
+        mg = MotorizedGoniometer(self.config, id = 1)
+        if mg.set_speed(300):
+            result = mg.move(numpy.array(movement))
+            if not result:
+                self.printc('Moving goniometer was NOT successful')
+        else:
+            self.printc('Setting goniometer speed was NOT successful')
+        mg.release_instrument()
         
     def move_stage(self):
         movement = self.parent.scanc().split(',')
@@ -1502,7 +1532,7 @@ class Poller(QtCore.QThread):
         if self.xy_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
             self.printc('Brain surface image averaging is only {0}' .format(self.xy_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
         if hasattr(self, 'xz_scan') and self.xz_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
-            self.printc('Number of frames is only {0}' .format(self.xz_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
+            self.printc('Number of frames is only {0}' .format(self.xz_scan['averaging']))
         if not (os.path.exists(self.mouse_file) and '.hdf5' in self.mouse_file):
             self.printc('mouse file not found')
             return
@@ -1549,7 +1579,7 @@ class Poller(QtCore.QThread):
             self.printc('Master position has to be defined')
             hdf5_handler.close()
             return
-        if 'master' in region_name:
+        if 'master' == region_name.replace(region_name_tag, ''):
            if not self.set_stage_origin():
                 self.printc('Setting origin did not succeed')
                 hdf5_handler.close()
@@ -1683,7 +1713,7 @@ class Poller(QtCore.QThread):
                 return
             self.printc('Register with saved image.')
             #calculate translation between current and saved brain surface image
-            if not self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['xy']['image'], self.xy_scan['scale']):
+            if not self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['xy']['image'], self.xy_scan['scale'], self.xy_scan['origin']):
                 return
             if abs(self.suggested_translation['col'])  > self.config.MAX_REALIGNMENT_OFFSET or abs(self.suggested_translation['row']) > self.config.MAX_REALIGNMENT_OFFSET:
                 self.printc('Suggested translation is not plausible')
@@ -1700,7 +1730,7 @@ class Poller(QtCore.QThread):
             #Get a two photon image and register again, to see whether realignment was successful
             if not self.acquire_xy_scan(use_region_parameters = True):
                 return
-            if not self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['xy']['image'], self.xy_scan['scale']):
+            if not self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[selected_region]['xy']['image'], self.xy_scan['scale'], self.xy_scan['origin']):
                 return
             if abs(self.suggested_translation['col']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET or abs(self.suggested_translation['row']) > self.config.ACCEPTABLE_REALIGNMENT_OFFSET:
                 self.printc('Realignment was not successful {0}' .format(self.suggested_translation)) #Process not interrupted, but moves to vertical realignment
@@ -1936,7 +1966,7 @@ class Poller(QtCore.QThread):
                 parameters += ',roi_pattern_size='+self.experiment_parameters['roi_pattern_size']
             if self.experiment_parameters.has_key('aux_roi_distance'):
                 parameters += ',aux_roi_distance='+self.experiment_parameters['aux_roi_distance']
-            parameters += ',cell_group='+self.parent.get_current_cell_group()
+            parameters += ',cell_group='+self.parent.get_current_cell_group().replace(',', '<comma>')
         command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
         self.backup_mouse_file(tag = 'stim')
         self.queues['stim']['out'].put(command)
@@ -2122,11 +2152,24 @@ class Poller(QtCore.QThread):
         image_hdf5_handler.save(['f1', 'f2'], overwrite = True)
         image_hdf5_handler.close()
         
-    def register_images(self, f1, f2, scale,  print_result = True):
-        import Image
-#        from visexpA.engine.dataprocessors import generic
-#        Image.fromarray(generic.normalize(f1,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f1.png')))
-#        Image.fromarray(generic.normalize(f2,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f2.png')))
+    def cutout_subimage(self, image, box, scale, origin):
+        upper_leftx = int((box[0] - origin['col'])/scale['col'])
+        upper_lefty = int((box[1] - origin['row'])/scale['row'])
+        bottom_rightx = int((box[2] - origin['col'])/scale['col'])
+        bottom_righty = int((box[3] - origin['row'])/scale['row'])
+        subimage = image[upper_lefty:bottom_righty, upper_leftx:bottom_rightx]
+        return subimage
+        
+        
+    def register_images(self, f1, f2, scale, origin = None, print_result = True):
+        box = self.parent.get_subimage_box()
+        if not origin is None and len(box) ==4:
+            f1 = self.cutout_subimage(f1, box, scale, origin)
+            f2 = self.cutout_subimage(f2, box, scale, origin)
+            import Image
+            from visexpA.engine.dataprocessors import generic
+            Image.fromarray(generic.normalize(f1,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f1.png')))
+            Image.fromarray(generic.normalize(f2,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f2.png')))
         self.create_image_registration_data_file(f1, f2)
         utils.empty_queue(self.queues['analysis']['in'])
         arguments = ''

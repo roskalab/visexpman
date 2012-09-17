@@ -29,10 +29,20 @@ import visexpA.engine.datahandlers.hdf5io as hdf5io
 import visexpA.engine.datahandlers.importers as importers
 
 class ExperimentControl(object):
+    '''
+    Provides methods for running a single experiment or a series of experiments at different depths. These methods are inherited by experiment classes
+    that contain the user defined stimulations and other experiment specific functions.
+    
+    This class supports the following platforms:
+    1. MES - RC microscope for in vivo cortical Ca imaging/stimulation
+    2. [NOT TESTED] Electrophysiology setup for single cell recordings: stimulation and recording electrophysiology data
+    3. [PLANNED] Virtual reality /behavioral experiments
+    4. [PLANNED] Multielectrode array experiments / stimulation
+    '''
 
     def __init__(self, config, application_log):
         '''
-
+        Performs some basic checks and sets call parameters
         '''
         self.application_log = application_log
         self.config = config
@@ -54,6 +64,11 @@ class ExperimentControl(object):
             self.scan_mode = 'xy'
 
     def run_experiment(self, context):
+        '''
+        Runs a series or a single experiment depending on the call parameters
+        
+        Objective positions and/or laser intensity is adjusted at a series or experiments.
+        '''
         message_to_screen = ''
         if hasattr(self, 'objective_positions'):
             for i in range(len(self.objective_positions)):
@@ -73,13 +88,20 @@ class ExperimentControl(object):
         return message_to_screen
 
     def run_single_experiment(self, context):
+        '''
+        Runs a single experiment which parameters are determined by the context parameter and the self.parameters attribute
+        '''
         if context.has_key('stage_origin'):
             self.stage_origin = context['stage_origin']
         message_to_screen = ''
         if not self.connections['mes'].connected_to_remote_client() and self.config.PLATFORM == 'mes':
             message_to_screen = self.printl('No connection with MES')
             return message_to_screen
-        message_to_screen += self._prepare_experiment(context)
+        message = self._prepare_experiment(context)
+        if message is None:
+            return message_to_screen
+        else:
+            message_to_screen += message
         message = '{0}/{1} started at {2}' .format(self.experiment_name, self.experiment_config_name, utils.datetime_string())
         if context.has_key('experiment_count'):
             message = '{0} {1}'.format( context['experiment_count'],  message)
@@ -151,6 +173,9 @@ class ExperimentControl(object):
                     self.printl('Objective is set to {0} um' .format(context['objective_position']))
             self.stage_position = self.stage.read_position() - self.stage_origin
             result, self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
+            if not result:
+                self.printl('Objective position cannot be read, check STIM-MES connection')
+                return None
             if utils.safe_has_key(self.parameters, 'mouse_file'):
                 self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['mouse_file'].replace('.hdf5', '_stim.hdf5'))
                 if not os.path.exists(self.mouse_file):
@@ -305,6 +330,7 @@ class ExperimentControl(object):
             if not aborted and result:
                 if self.config.PLATFORM == 'mes':
                     if self.mes_record_time > 30.0:
+                        time.sleep(1.0)#Ensure that scanner starts???
                         if not self._pre_post_experiment_scan(is_pre=False):
                             self.printl('Post experiment scan was NOT successful')
                 self._save_fragment_data(fragment_id)
@@ -421,6 +447,19 @@ class ExperimentControl(object):
 
     ########## Fragment data ############
     def _prepare_fragment_data(self, fragment_id):
+        '''
+        Collects and packs all the recorded and generated experiment data, depending on the platform but the following data is handled here:
+        - stimulus-recording synchron signal
+        - experiment log
+        - electrophysiology data
+        - user data from stimulation
+        - stimulation function call info
+        - source code of called software
+        - roi data
+        - animal parameters
+        - anesthesia history
+        - pre/post scan data
+        '''
         if hasattr(self.analog_input, 'ai_data'):
             analog_input_data = self.analog_input.ai_data
         else:
@@ -582,12 +621,15 @@ class ExperimentControl(object):
             result, scanner_trajectory_filename = self.mes_interface.line_scan(parameter_file = scanner_trajectory_filename, scan_time=2.0,
                                                                                scan_mode='xz', channels=['pmtURraw','ScX', 'ScY'], autozigzag = False)
             if not result:
-                if os.path.exists(initial_mes_line_scan_settings_filename):
-                    os.remove(initial_mes_line_scan_settings_filename)
-                if os.path.exists(red_channel_data_filename):
-                    os.remove(red_channel_data_filename)
-                if os.path.exists(scanner_trajectory_filename):
-                    os.remove(scanner_trajectory_filename)
+                try:
+                    if os.path.exists(initial_mes_line_scan_settings_filename):
+                        os.remove(initial_mes_line_scan_settings_filename)
+                    if os.path.exists(red_channel_data_filename):
+                        os.remove(red_channel_data_filename)
+                    if os.path.exists(scanner_trajectory_filename):
+                        os.remove(scanner_trajectory_filename)
+                except:
+                    self.printl(('removing unnecessary files failed:', initial_mes_line_scan_settings_filename, red_channel_data_filename, scanner_trajectory_filename))
                 self.printl('Recording scanner signals was NOT successful')
                 return False
             if not hasattr(self, 'scanner_trajectory'):

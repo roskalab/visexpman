@@ -318,8 +318,9 @@ class Debug(VisionExperimentConfig):
 #        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
         PLATFORM = 'standalone'
         PLATFORM = 'mes'
-        PARSE_PERIOD = 2.0
         CELL_MERGE_DISTANCE = 3.0
+        ROI_PATTERN_SIZE = 4
+        ROI_PATTERN_RADIUS = 3
         ENABLE_FRAGMENT_CHECK = True
         ENABLE_MESEXTRACTOR = True
         #MES scanning config
@@ -374,6 +375,7 @@ class Debug(VisionExperimentConfig):
         #=== Network ===
         ENABLE_UDP = False
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'#'172.27.25.220' .1: production
+#        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
         #=== hardware ===
@@ -391,12 +393,29 @@ class Debug(VisionExperimentConfig):
                                     'bytesize' : serial.EIGHTBITS,                    
                                     }
                                     
+        goniometer_serial_port = {
+                                    'port' :  'COM3',
+                                    'baudrate' : 9600,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,
+                                    }
+        degree_factor = 0.9/(8*252)
+        degree_factor = 0.00045*4 #According to manufacturer
+        
         STAGE = [{'SERIAL_PORT' : motor_serial_port,
                  'ENABLE': (self.OS == 'win'),
                  'SPEED': 2000,
                  'ACCELERATION' : 1000,
                  'MOVE_TIMEOUT' : 45.0,
                  'UM_PER_USTEP' : numpy.ones(3, dtype = numpy.float)*(1.0/51.0)
+                 },
+                 {'SERIAL_PORT' : goniometer_serial_port,
+                 'ENABLE':True,
+                 'SPEED': 1000000,
+                 'ACCELERATION' : 1000000,
+                 'MOVE_TIMEOUT' : 15.0,
+                 'DEGREE_PER_USTEP' : degree_factor * numpy.ones(2, dtype = numpy.float)
                  }]
 
         #=== DAQ ===
@@ -428,7 +447,7 @@ class Debug(VisionExperimentConfig):
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
                                     
-        MAX_REALIGNMENT_OFFSET = 100.0
+        MAX_REALIGNMENT_OFFSET = 50.0
         ACCEPTABLE_REALIGNMENT_OFFSET = 5.0
         REALIGNMENT_XY_THRESHOLD = 2.0
         REALIGNMENT_Z_THRESHOLD = 1.0
@@ -459,8 +478,9 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MovingDotConfig'
         
         MES_TIMEOUT = 15.0
-        PARSE_PERIOD = 2.0
         CELL_MERGE_DISTANCE = 3.0
+        ROI_PATTERN_SIZE = 4
+        ROI_PATTERN_RADIUS = 3
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':15.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE':80.0}
         ENABLE_ZIGZAG_CORRECTION = True
@@ -487,7 +507,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         SCREEN_MAX_FRAME_RATE = 60.0
         #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
@@ -544,7 +564,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
 
-        MAX_REALIGNMENT_OFFSET = 500.0
+        MAX_REALIGNMENT_OFFSET = 50.0
         ACCEPTABLE_REALIGNMENT_OFFSET = 5.0
         REALIGNMENT_XY_THRESHOLD = 2.0
         REALIGNMENT_Z_THRESHOLD = 1.0

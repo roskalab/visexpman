@@ -52,10 +52,22 @@ class MovingDot200umConfig(MovingDotConfig):
         self.REPEATS = 2
         self.PDURATION = 0
         self.GRIDSTEP = 1.0 # 
-
-class MovingRectangleConfig(MovingDotConfig):
+        
+class MovingDot500umConfig(MovingDotConfig):
     def _create_application_parameters(self):
         MovingDotConfig._create_application_parameters(self)
+        self.DIAMETER_UM = [500]
+        self.OFFSCREEN_PATH_LENGTH_UM = [150] # how long the dot is moving outside the screen, for circular dot this should equal to diameter, if no pause between directions is needed
+        self.ANGLES = [0,  90,  180,  270, 45,  135,  225,  315] # degrees        
+        self.SPEED = [1200] #[40deg/s] % deg/s should not be larger than screen size
+        self.AMPLITUDE = 0.5
+        self.REPEATS = 2
+        self.PDURATION = 0
+        self.GRIDSTEP = 1.0 # 
+
+class MovingRectangleConfig(MovingDot200umConfig):
+    def _create_application_parameters(self):
+        MovingDot200umConfig._create_application_parameters(self)
         self.WIDTH_UM = self.DIAMETER_UM
         self.HEIGHT_UM = [1000]
         self.OFFSCREEN_PATH_LENGTH_UM = [500] # how long the dot is moving outside the screen, for circular dot this should equal to diameter, if no pause between directions is needed
@@ -72,6 +84,16 @@ class ShortMovingDotConfig(MovingDotConfig):
         self.REPEATS = 1
         self.PAUSE_BEFORE_AFTER = 0.0
         self._create_parameters_from_locals(locals())
+
+class MovingRectangle500umConfig(MovingDot500umConfig):
+    def _create_application_parameters(self):
+        MovingDotConfig._create_application_parameters(self)
+        self.WIDTH_UM = self.DIAMETER_UM
+        self.HEIGHT_UM = [1000]
+        self.OFFSCREEN_PATH_LENGTH_UM = [500] # how long the dot is moving outside the screen, for circular dot this should equal to diameter, if no pause between directions is needed
+        self.runnable = 'MovingRectangle'
+        self.pre_runnable = 'MovingRectanglePre'
+
 
 class MovingDotPre(experiment.PreExperiment):
     def run(self):
