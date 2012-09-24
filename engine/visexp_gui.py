@@ -47,10 +47,11 @@ class VisionExperimentGui(QtGui.QWidget):
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
         self.config.user = user
         self.console_text = ''
-        self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True) 
-        self.poller = gui.Poller(self)
-        self.gui_tester = GuiTest(self)
+        self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True)
+        self.poller = gui.MainPoller(self)
         self.queues = self.poller.queues
+        self.mouse_file_handler = gui.MouseFileHandler(self)
+        self.gui_tester = GuiTest(self)
         QtGui.QWidget.__init__(self)
         self.setWindowTitle('Vision Experiment Manager GUI - {0} - {1}' .format(user,  config_class))
         icon_path = os.path.join(os.path.split(visexpman.__file__)[0],'data','images','grabowsky.png')
@@ -64,6 +65,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_signals()
         self.init_variables()
         self.poller.start()
+        self.mouse_file_handler.start()
         self.show()
         self.init_widget_content()
         self.block_widgets(False)
@@ -130,7 +132,6 @@ class VisionExperimentGui(QtGui.QWidget):
     def connect_signals(self):
         self.signal_mapper = QtCore.QSignalMapper(self)
         #Poller control
-        self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
         self.connect(self.helpers_widget.gui_test_button, QtCore.SIGNAL('clicked()'), self.gui_tester.start_test)
         #GUI events
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
@@ -218,7 +219,8 @@ class VisionExperimentGui(QtGui.QWidget):
             
     def tab_changed(self, currentIndex):
         if currentIndex != 1:
-            self.poller.signal_id_queue.put('save_cells')
+            pass
+#            self.poller.signal_id_queue.put('save_cells')
         #Load meanimages or scan region images
         if currentIndex == 0:
             self.update_scan_regions()
@@ -300,9 +302,9 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_animal_parameter_display(self):
         if hasattr(self.poller, 'animal_parameters'):
             animal_parameters = self.poller.animal_parameters
-            self.animal_parameters_str = '{2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}'\
+            self.animal_parameters_str = '{6}, {2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}'\
             .format(animal_parameters['mouse_birth_date'], animal_parameters['gcamp_injection_date'], animal_parameters['strain'], 
-                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'])
+                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'], animal_parameters['id'])
             self.main_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
             
     def update_region_names_combobox(self, selected_region = None):
@@ -676,7 +678,8 @@ class VisionExperimentGui(QtGui.QWidget):
     def closeEvent(self, e):
         e.accept()
         self.log.copy()
-        self.emit(QtCore.SIGNAL('abort'))
+        self.poller.abort = True
+        self.mouse_file_handler.abort = True
         #delete files:
         for file_path in self.poller.files_to_delete:
             if os.path.exists(file_path):

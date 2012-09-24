@@ -27,6 +27,69 @@ import visexpA.engine.component_guesser as cg
 
 BUTTON_HIGHLIGHT = 'color: red'
 
+class Poller(QtCore.QThread):
+    '''
+    Generic poller thread that receives commands via queues and executes them. Additionally can access gui
+    '''
+    #Initializing, loader methods
+    def __init__(self, parent):
+        self.parent = parent
+        self.config = self.parent.config
+        QtCore.QThread.__init__(self)
+        self.abort = False
+        self.connect_signals()
+
+    def connect_signals(self):
+        self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
+
+    def init_run(self):
+        pass
+
+    def printc(self, text):
+        self.emit(QtCore.SIGNAL('printc'), text)
+
+    def run(self):
+        self.init_run()
+        last_time = time.time()
+        startup_time = last_time
+        while not self.abort:
+            now = time.time()
+            elapsed_time = now - last_time
+            if elapsed_time > self.config.GUI_REFRESH_PERIOD:
+                last_time = now
+                self.periodic()
+            self.run_in_all_iterations()
+            self.handle_commands()
+            self.handle_events()
+            time.sleep(1e-2)
+        self.close()
+        self.printc('poller stopped')
+
+    def run_in_all_iterations(self):
+        pass
+        
+    def close(self):
+        pass
+
+    def periodic(self):
+        pass
+
+    def handle_commands(self):
+        '''
+        Handle commands coming via queues (mainly from network thread)
+        '''
+        pass
+
+    def handle_events(self):
+        '''
+        Handle mapped signals that are connected to gui widgets
+        '''
+        pass
+        
+    def pass_signal(self, signal_id):
+        self.signal_id_queue.put(str(signal_id))
+
+
 class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
     def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, 'Anesthesia history', parent)
@@ -604,19 +667,17 @@ parameter_extract = re.compile('EOC(.+)EOP')
 command_extract = re.compile('SOC(.+)EOC')
 
 ################### Poller #######################
-class Poller(QtCore.QThread):
+class MainPoller(Poller):
     #Initializing, loader methods
     def __init__(self, parent):
         self.signal_id_queue = Queue.Queue() #signal parameter is passed to handler
         self.gui_thread_queue = Queue.Queue()
-        self.parent = parent
-        self.config = self.parent.config
-        QtCore.QThread.__init__(self)
-        self.abort = False
+        Poller.__init__(self, parent)
         self.xz_scan_acquired = False
         self.stage_origin_set = False
         self.cell_status_changed_in_cache = False
-        self.connect_signals()
+        self.queues = {}
+        self.queues['mouse_file_handler'] = Queue.Queue()
         self.init_network()
         self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections)
         self.init_variables()
@@ -625,7 +686,7 @@ class Poller(QtCore.QThread):
         self.init_jobhandler()
         
     def connect_signals(self):
-        self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
+        Poller.connect_signals(self)
         self.parent.connect(self, QtCore.SIGNAL('mouse_file_list_changed'),  self.parent.mouse_file_list_changed)
         self.parent.connect(self, QtCore.SIGNAL('update_scan_regions'),  self.parent.update_scan_regions)
         self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
@@ -633,6 +694,9 @@ class Poller(QtCore.QThread):
         self.parent.connect(self, QtCore.SIGNAL('show_overwrite_region_messagebox'),  self.parent.show_overwrite_region_messagebox)
         self.parent.connect(self, QtCore.SIGNAL('show_verify_add_region_messagebox'),  self.parent.show_verify_add_region_messagebox)
         self.parent.connect(self, QtCore.SIGNAL('select_cell_changed'),  self.parent.select_cell_changed)
+    
+    def init_run(self):
+        self.connect_signals_to_widgets()
         
     def connect_signals_to_widgets(self):
         self.parent.connect(self, QtCore.SIGNAL('clear_image_display'), self.parent.images_widget.clear_image_display)
@@ -640,7 +704,6 @@ class Poller(QtCore.QThread):
     def init_network(self):
         self.command_relay_server = network_interface.CommandRelayServer(self.config)
         self.connections = {}
-        self.queues = {}
         self.queues['mes'] = {}
         self.queues['mes']['out'] = Queue.Queue()
         self.queues['mes']['in'] = Queue.Queue()
@@ -656,35 +719,15 @@ class Poller(QtCore.QThread):
     
     def init_jobhandler(self):
         self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
-    
-    def abort_poller(self):
-        self.abort = True
-    
-    def printc(self, text):
-        self.emit(QtCore.SIGNAL('printc'), text)
         
     def show_image(self, image, channel, scale, line = [], origin = None):
         self.emit(QtCore.SIGNAL('show_image'), image, channel, scale, line, origin)
         
     def update_scan_regions(self):
         self.emit(QtCore.SIGNAL('update_scan_regions'))
-
-    def run(self):
-        self.connect_signals_to_widgets()
-        last_time = time.time()
-        startup_time = last_time
-        while not self.abort:
-            now = time.time()
-            elapsed_time = now - last_time
-            if elapsed_time > self.config.GUI_REFRESH_PERIOD:
-                last_time = now
-                self.periodic()
-            self.update_network_connection_status()
-            self.handle_commands()
-            self.handle_events()
-            time.sleep(1e-2)
-        self.close()
-        self.printc('poller stopped')
+        
+    def run_in_all_iterations(self):
+        self.update_network_connection_status()
         
     def close(self):
         self.save_cells()
@@ -714,8 +757,8 @@ class Poller(QtCore.QThread):
         Handle commands coming via queues (mainly from network thread
         '''
         try:
-            for k, queue in self.queues.items():
-                if not queue['in'].empty():
+            for k, queue in self.queues.items():                
+                if hasattr(queue, 'has_key') and queue.has_key('in') and not queue['in'].empty():
                     messages = queue['in'].get()
                     if 'EOPSOC' in messages:
                         messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
@@ -770,7 +813,7 @@ class Poller(QtCore.QThread):
                             if self.backup_mouse_file(tag = tag):
                                 self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
                         else:
-                            self.printc(time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
+                            self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
         except:
             self.printc(traceback.format_exc())
 
@@ -827,7 +870,7 @@ class Poller(QtCore.QThread):
             self.printc('Loading cells')
             cells  = copy.deepcopy(h.findvar('cells'))#Takes long to load cells
             if cells is not None:
-                self.cells = cells
+                self.cells = utils.array2object(cells)
             self.printc('Loading mean images')
             images  = copy.deepcopy(h.findvar('images'))#Takes long to load images
             if images is not None:
@@ -874,53 +917,45 @@ class Poller(QtCore.QThread):
         
     ############## Measurement file handling ########################
     def add_cells_to_database(self, id, update_gui = True):
-        self.save_cells()
-        scan_regions, region_name, h, measurement_file_path, info = self.read_scan_regions(id)
-        if scan_regions is None:
-            return
+#        self.save_cells()
+        region_name, measurement_file_path, info = self.read_scan_regions(id)
         #read cell info from measurement file
         h_measurement = hdf5io.Hdf5io(measurement_file_path)
         scan_mode = h_measurement.findvar('call_parameters')['scan_mode']
-        scan_regions[region_name]['process_status'][id]['find_cells_ready'] = True
+        self.scan_regions[region_name]['process_status'][id]['find_cells_ready'] = True
         if scan_mode == 'xz':
             soma_rois = h_measurement.findvar('soma_rois')
             if soma_rois is not None:
                 number_of_new_cells = len(soma_rois)
             else:
                 number_of_new_cells = 0
-            scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
+            self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
             h_measurement.close()
             #Save changes
-            h.scan_regions = scan_regions
-            h.save(['scan_regions'], overwrite=True)
-            self.scan_regions = copy.deepcopy(h.scan_regions)
-            h.close()
+            self.save2mouse_file('scan_regins')
             self.printc('{1} cells found in {0} but not added to database because it is an xz scan'.format(id, number_of_new_cells))
             if update_gui:
                 self.parent.update_cell_list()
                 self.parent.update_cell_filter_list()
                 self.parent.update_jobhandler_process_status()
             return
-        h.load('images')
-        if not hasattr(h,  'images'):
-            h.images = {}
-        h.images[id] = {}
-        h.images[id]['meanimage'] = h_measurement.findvar('meanimage')
+        if not hasattr(self,  'images'):
+            self.images = {}
+        self.images[id] = {}
+        self.images[id]['meanimage'] = h_measurement.findvar('meanimage')
         scale = h_measurement.findvar('image_scale')
-        h.images[id]['scale'] = scale
+        self.images[id]['scale'] = scale
         origin = h_measurement.findvar('image_origin')
-        h.images[id]['origin'] = origin
-        self.images = copy.deepcopy(h.images)
-        h.load('cells')
-        if not hasattr(h,  'cells'):
-            h.cells = {}
-        if not h.cells.has_key(region_name):
-            h.cells[region_name] = {}
-        h.load('roi_curves')
-        if not hasattr(h,  'roi_curves'):
-            h.roi_curves = {}
-        if not h.roi_curves.has_key(region_name):
-            h.roi_curves[region_name] = {}
+        self.images[id]['origin'] = origin
+        self.images = copy.deepcopy(self.images)
+        if not hasattr(self,  'cells'):
+            self.cells = {}
+        if not self.cells.has_key(region_name):
+            self.cells[region_name] = {}
+        if not hasattr(self,  'roi_curves'):
+            self.roi_curves = {}
+        if not self.roi_curves.has_key(region_name):
+            self.roi_curves[region_name] = {}
         soma_rois = h_measurement.findvar('soma_rois')
         roi_centers = h_measurement.findvar('roi_centers')
         roi_curve_images = h_measurement.findvar('roi_curve_images')
@@ -935,67 +970,52 @@ class Poller(QtCore.QThread):
             number_of_new_cells = len(soma_rois)
             if number_of_new_cells > 100:
                 number_of_new_cells = 100
-        scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
+        self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
         for i in range(number_of_new_cells):
             cell_id = ('{0}_{1}_{2:2}_{3}'.format(depth, id,  i, stimulus)).replace(' ', '0')
-            h.cells[region_name][cell_id] = {}
-            h.cells[region_name][cell_id]['depth'] = depth
-            h.cells[region_name][cell_id]['id'] = id
-            h.cells[region_name][cell_id]['soma_roi'] = soma_rois[i]
-            h.cells[region_name][cell_id]['roi_center'] = roi_centers[i]
-            h.cells[region_name][cell_id]['accepted'] = False
-            h.cells[region_name][cell_id]['group'] = 'none'
-            h.cells[region_name][cell_id]['add_date'] = utils.datetime_string().replace('_', ' ')
-            h.cells[region_name][cell_id]['stimulus'] = stimulus
-            h.cells[region_name][cell_id]['scale'] = scale
-            h.cells[region_name][cell_id]['origin'] = origin
-            h.cells[region_name][cell_id]['roi_curve'] = roi_curves[i]
-            h.roi_curves[region_name][cell_id] = roi_curve_images[i]
+            self.cells[region_name][cell_id] = {}
+            self.cells[region_name][cell_id]['depth'] = depth
+            self.cells[region_name][cell_id]['id'] = id
+            self.cells[region_name][cell_id]['soma_roi'] = soma_rois[i]
+            self.cells[region_name][cell_id]['roi_center'] = roi_centers[i]
+            self.cells[region_name][cell_id]['accepted'] = False
+            self.cells[region_name][cell_id]['group'] = 'none'
+            self.cells[region_name][cell_id]['add_date'] = utils.datetime_string().replace('_', ' ')
+            self.cells[region_name][cell_id]['stimulus'] = stimulus
+            self.cells[region_name][cell_id]['scale'] = scale
+            self.cells[region_name][cell_id]['origin'] = origin
+            self.cells[region_name][cell_id]['roi_curve'] = roi_curves[i]
+            self.roi_curves[region_name][cell_id] = roi_curve_images[i]
         h_measurement.close()
         #Save changes
-        h.scan_regions = scan_regions
-        h.save(['cells', 'scan_regions', 'images', 'roi_curves'], overwrite=True)
+        self.save2mouse_file(['cells', 'scan_regions', 'images', 'roi_curves'])
         self.printc('{1} cells added from {0}'.format(id, number_of_new_cells))
-        self.cells = copy.deepcopy(h.cells)
-        self.scan_regions = copy.deepcopy(h.scan_regions)
-        self.roi_curves = copy.deepcopy(h.roi_curves)
-        h.close()
         if update_gui:
             self.parent.update_cell_list()
             self.parent.update_cell_filter_list()
             self.parent.update_jobhandler_process_status()
-        
+
     def set_process_status_flag(self, id, flag_names):
-        scan_regions, region_name, h, measurement_file_path, info = self.read_scan_regions(id)
-        if scan_regions is None:
-            return
+        region_name, measurement_file_path, info = self.read_scan_regions(id)
         for flag_name in flag_names:
-            scan_regions[region_name]['process_status'][id][flag_name] = True
-        h.scan_regions = scan_regions
-        h.save('scan_regions', overwrite=True)
-        self.scan_regions = copy.deepcopy(scan_regions)
-        h.close()
+            self.scan_regions[region_name]['process_status'][id][flag_name] = True
+        self.save2mouse_file('scan_regions')
         self.printc('Process status flag set: {1} / {0}'.format(flag_names[0],  id))
         self.parent.update_jobhandler_process_status()
     
     def add_measurement_id(self, id):
-        scan_regions, region_name, h, measurement_file_path, info = self.read_scan_regions(id)
-        if scan_regions is None:
-            return
-        if not scan_regions[region_name].has_key('process_status'):
-            scan_regions[region_name]['process_status'] = {}
-        if scan_regions[region_name]['process_status'].has_key(id):
+        region_name, measurement_file_path, info = self.read_scan_regions(id)
+        if not self.scan_regions[region_name].has_key('process_status'):
+            self.scan_regions[region_name]['process_status'] = {}
+        if self.scan_regions[region_name]['process_status'].has_key(id):
             self.printc('ID already exists')
-        scan_regions[region_name]['process_status'][id] = {}
-        scan_regions[region_name]['process_status'][id]['fragment_check_ready'] = False
-        scan_regions[region_name]['process_status'][id]['mesextractor_ready'] = False
-        scan_regions[region_name]['process_status'][id]['find_cells_ready'] = False
-        scan_regions[region_name]['process_status'][id]['info'] = {}
-        scan_regions[region_name]['process_status'][id]['info'] = info
-        h.scan_regions = scan_regions
-        self.scan_regions = copy.deepcopy(scan_regions)
-        h.save('scan_regions', overwrite=True)
-        h.close()
+        self.scan_regions[region_name]['process_status'][id] = {}
+        self.scan_regions[region_name]['process_status'][id]['fragment_check_ready'] = False
+        self.scan_regions[region_name]['process_status'][id]['mesextractor_ready'] = False
+        self.scan_regions[region_name]['process_status'][id]['find_cells_ready'] = False
+        self.scan_regions[region_name]['process_status'][id]['info'] = {}
+        self.scan_regions[region_name]['process_status'][id]['info'] = info
+        self.save2mouse_file('scan_regions')
         self.printc('Measurement ID added: {0}'.format(id))
         self.parent.update_jobhandler_process_status()
         self.parent.update_file_id_combobox()
@@ -1024,13 +1044,10 @@ class Poller(QtCore.QThread):
         if not os.path.exists(mouse_file):
             self.printc('Mouse file ({0}) assigned to measurement ({1}) is missing' .format(mouse_file,  id))
             return 5*[None]
-        h = hdf5io.Hdf5io(mouse_file)
-        scan_regions = h.findvar('scan_regions')
-        if scan_regions[call_parameters['region_name']].has_key(id):
+        if self.scan_regions[call_parameters['region_name']].has_key(id):
             self.printc('ID already exists: {0}'.format(id))
-            h.close()
             return 5*[None]
-        return scan_regions, call_parameters['region_name'], h, measurement_file_path, info
+        return call_parameters['region_name'], measurement_file_path, info
  
     def rebuild_cell_database(self):
         self.clear_process_status()
@@ -1043,53 +1060,39 @@ class Poller(QtCore.QThread):
             self.add_cells_to_database(id, update_gui = (measurement_file_paths[-1] == measurement_path))
         
     def clear_process_status(self):
-        h = hdf5io.Hdf5io(self.mouse_file)
-        h.load('roi_curves')
-        h.roi_curves = {}
-        h.load('cells')
-        h.cells = {}
-        h.load('scan_regions')
-        for region_name in h.scan_regions.keys():
-            h.scan_regions[region_name]['process_status'] = {}
-        h.save(['scan_regions', 'roi_curves', 'cells'], overwrite=True)
-        h.close()
+        self.roi_curves = {}
         self.cells = {}
+        for region_name in self.scan_regions.keys():
+            self.scan_regions[region_name]['process_status'] = {}
+        self.save2mouse_file(['scan_regions', 'roi_curves', 'cells'])
         
     def remove_measurement_file_from_database(self, id_to_remove = None, process_status_update = False):
         self.printc('Removing measurement id...')
+        fields_to_save = []
         if id_to_remove is None:
             id_to_remove = self.parent.get_current_file_id()
         region_name = self.parent.get_current_region_name()
-        h = hdf5io.Hdf5io(self.mouse_file)
-        h.load('scan_regions')
-        if utils.safe_has_key(h.scan_regions, region_name) and not process_status_update and h.scan_regions[region_name]['process_status'].has_key(id_to_remove):
-            del h.scan_regions[region_name]['process_status'][id_to_remove]
-            h.save('scan_regions', overwrite = True)
+        if utils.safe_has_key(self.scan_regions, region_name) and not process_status_update and self.scan_regions[region_name]['process_status'].has_key(id_to_remove):
+            del self.scan_regions[region_name]['process_status'][id_to_remove]
+            fields_to_save.append('scan_regions')
             self.printc('Scan regions updated')
-        h.load('images')
-        if hasattr(h, 'images') and utils.safe_has_key(h.images, id_to_remove):
-            del h.images[id_to_remove]
-            h.save('images', overwrite = True)
+        if hasattr(self, 'images') and utils.safe_has_key(self.images, id_to_remove):
+            del self.images[id_to_remove]
+            fields_to_save.append('images')
             self.printc('Meanimages updated')
-        h.load('roi_curves')
-        if hasattr(h, 'roi_curves') and utils.safe_has_key(h.roi_curves, region_name):
-            for cell_id in h.roi_curves[region_name].keys():
+        if hasattr(self, 'roi_curves') and utils.safe_has_key(self.roi_curves, region_name):
+            for cell_id in self.roi_curves[region_name].keys():
                 if id_to_remove in cell_id:
-                    del h.roi_curves[region_name][cell_id]
-            h.save('roi_curves', overwrite = True)
+                    del self.roi_curves[region_name][cell_id]
+            fields_to_save.append('roi_curves')
             self.printc('Roi curves updated')
-        h.load('cells')
-        if hasattr(h, 'cells') and utils.safe_has_key(h.cells, region_name):
-            for cell_id in h.cells[region_name].keys():
+        if hasattr(self, 'cells') and utils.safe_has_key(self.cells, region_name):
+            for cell_id in self.cells[region_name].keys():
                 if id_to_remove in cell_id:
-                    del h.cells[region_name][cell_id]
-            h.save('cells', overwrite = True)
+                    del self.cells[region_name][cell_id]
+            fields_to_save.append('cells')
             self.printc('Cells updated')
-        self.scan_regions = copy.deepcopy(h.scan_regions)
-        self.cells = copy.deepcopy(h.cells)
-        self.roi_curves = copy.deepcopy(h.roi_curves)
-        self.images = copy.deepcopy(h.images)
-        h.close()
+        self.save2mouse_file(fields_to_save)
         if not process_status_update:
             self.parent.update_jobhandler_process_status()
             self.parent.update_file_id_combobox()
@@ -1098,32 +1101,25 @@ class Poller(QtCore.QThread):
             self.parent.update_roi_curves_display()
             self.parent.update_meanimage()
             self.printc('{0} measurement is removed'.format(id_to_remove))
-        else:
-            return h
-        
+            
     def set_measurement_file_process_state(self):
         self.printc('Setting state of measurement id...')
         selected_id = self.parent.get_current_file_id()
         target_state = str(self.parent.main_widget.measurement_datafile_status_groupbox.set_to_state_combobox.currentText())
         region_name = self.parent.get_current_region_name()
         if target_state == any(['not processed', 'mesextractor_ready']):#remove cells, mean images and roi curves
-            h = self.remove_measurement_file_from_database(id_to_remove = selected_id, keep_process_status_entry = True)
-        else:
-            h = hdf5io.Hdf5io(self.mouse_file)
-            h.load('scan_regions')
+            self.remove_measurement_file_from_database(id_to_remove = selected_id, keep_process_status_entry = True)
         #Modify process status
-        if utils.safe_has_key(h.scan_regions, region_name) and h.scan_regions[region_name]['process_status'].has_key(selected_id):
+        if utils.safe_has_key(self.scan_regions, region_name) and self.scan_regions[region_name]['process_status'].has_key(selected_id):
             if target_state == 'not processed':
-                h.scan_regions[region_name]['process_status'][selected_id]['mesextractor_ready'] = False
-                h.scan_regions[region_name]['process_status'][selected_id]['fragment_check_ready'] = False
-                h.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = False
+                self.scan_regions[region_name]['process_status'][selected_id]['mesextractor_ready'] = False
+                self.scan_regions[region_name]['process_status'][selected_id]['fragment_check_ready'] = False
+                self.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = False
             elif target_state == 'mesextractor_ready':
-                h.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = False
+                self.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = False
             elif target_state == 'find_cells_ready':
-                h.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = True
-            h.save(['scan_regions'], overwrite = True)
-        self.scan_regions = copy.deepcopy(h.scan_regions)
-        h.close()
+                self.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = True
+        self.save2mouse_file('scan_regions')
         self.parent.update_jobhandler_process_status()
         self.parent.update_file_id_combobox()
         self.queues['analysis']['out'].put('SOCclear_joblistEOCEOP')
@@ -1169,16 +1165,7 @@ class Poller(QtCore.QThread):
         
     def save_cells(self):
         if hasattr(self, 'cells') and self.cell_status_changed_in_cache:
-            h = hdf5io.Hdf5io(self.mouse_file)
-            h.load('cells')
-            if hasattr(h, 'cells') and hasattr(h.cells, 'items'):
-                for region_name, cells_in_region in self.cells.items():
-                    for cell_id, cell in cells_in_region.items():
-                        h.cells[region_name][cell_id] = cell
-                h.save('cells', overwrite=True)
-                self.cells = copy.deepcopy(h.cells)
-            h.close()
-            self.printc('Cell settings saved')
+            self.save2mouse_file('cells')
             self.parent.update_cell_group_combobox()
             self.cell_status_changed_in_cache = False
 
@@ -1487,32 +1474,24 @@ class Poller(QtCore.QThread):
             
     def add_to_anesthesia_history(self):
         if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file):
-            h  =hdf5io.Hdf5io(self.mouse_file)
-            h.load('anesthesia_history')
-            if not hasattr(h, 'anesthesia_history'):
-                h.anesthesia_history = []
+            if not hasattr(self, 'anesthesia_history'):
+                self.anesthesia_history = []
             entry = {}
             entry['timestamp'] = time.time()
             entry['substance'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.substance_combobox.currentText())
             entry['amount'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.amount_combobox.currentText())
             entry['comment'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.comment_combobox.currentText())
-            h.anesthesia_history.append(entry)
-            self.anesthesia_history = copy.deepcopy(h.anesthesia_history)
-            h.save('anesthesia_history', overwrite = True)
-            h.close()
+            self.anesthesia_history.append(entry)
+            self.save2mouse_file('anesthesia_history')
             self.parent.update_anesthesia_history()
         
     def remove_last_from_anesthesia_history(self):
         if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file):
-            h  =hdf5io.Hdf5io(self.mouse_file)
-            h.load('anesthesia_history')
-            if not hasattr(h, 'anesthesia_history'):
-                h.anesthesia_history = []
-            elif len(h.anesthesia_history) > 0:
-                h.anesthesia_history.pop()
-                h.save('anesthesia_history', overwrite = True)
-            self.anesthesia_history = copy.deepcopy(h.anesthesia_history)
-            h.close()
+            if not hasattr(self, 'anesthesia_history'):
+                self.anesthesia_history = []
+            elif len(self.anesthesia_history) > 0:
+                self.anesthesia_history.pop()
+                self.save2mouse_file('anesthesia_history')
             self.parent.update_anesthesia_history()
         
     ################### Regions #######################
@@ -1543,9 +1522,6 @@ class Poller(QtCore.QThread):
         if not self.read_stage(display_coords = False):
             self.printc('Stage cannot be accessed')
             return
-        #Read scan regions
-        hdf5_handler = hdf5io.Hdf5io(self.mouse_file)
-        self.scan_regions = hdf5_handler.findvar('scan_regions')
         if self.scan_regions == None:
             self.scan_regions = {}
         region_name = self.parent.get_current_region_name()
@@ -1558,7 +1534,6 @@ class Poller(QtCore.QThread):
                 time.sleep(0.1) 
             if not self.gui_thread_queue.get():
                 self.printc('Region not saved')
-                hdf5_handler.close()
                 return
         else:
             relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
@@ -1573,16 +1548,13 @@ class Poller(QtCore.QThread):
                     time.sleep(0.1) 
                 if not self.gui_thread_queue.get():
                     self.printc('Region not saved')
-                    hdf5_handler.close()
                     return
         if not('master' in region_name or '0_0' in region_name or self.has_master_position(self.scan_regions)):
             self.printc('Master position has to be defined')
-            hdf5_handler.close()
             return
         if 'master' == region_name.replace(region_name_tag, ''):
            if not self.set_stage_origin():
                 self.printc('Setting origin did not succeed')
-                hdf5_handler.close()
                 return
            else:
                 relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
@@ -1603,7 +1575,6 @@ class Poller(QtCore.QThread):
                 time.sleep(0.1) 
             if not self.gui_thread_queue.get():
                 self.printc('Region not saved')
-                hdf5_handler.close()
                 return
         result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters()
         if result and os.path.exists(line_scan_path):
@@ -1620,9 +1591,7 @@ class Poller(QtCore.QThread):
             self.printc('Vertical scan is not available')
         #Save new scan region to hdf5 file
         self.scan_regions[region_name] = scan_region
-        hdf5_handler.scan_regions = self.scan_regions
-        hdf5_handler.save('scan_regions', overwrite = True)
-        hdf5_handler.close()
+        self.save2mouse_file('scan_regions')
         self.parent.update_region_names_combobox(region_name)
         self.update_scan_regions()#This is probably redundant
         self.printc('{0} scan region saved'.format(region_name))
@@ -1633,7 +1602,7 @@ class Poller(QtCore.QThread):
             self.scan_regions[region_name]['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
             self.scan_regions[region_name]['xy']['scale'] = self.xy_scan['scale']
             self.scan_regions[region_name]['xy']['origin'] = self.xy_scan['origin']
-            hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions, overwrite = True)
+            self.save2mouse_file('scan_regions')
             self.update_scan_regions()#This is probably redundant
             self.printc('XY scan updated')
         
@@ -1642,7 +1611,7 @@ class Poller(QtCore.QThread):
         if not self.xz_scan is None:
             self.scan_regions[region_name]['xz'] = self.xz_scan
             self.scan_regions[region_name]['xz']['mes_parameters'] = utils.file_to_binary_array(self.xz_scan['path'].tostring())
-            hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions, overwrite = True)
+            self.save2mouse_file('scan_regions')
             self.update_scan_regions()#This is probably redundant
             self.printc('XZ scan updated')
         
@@ -1653,7 +1622,7 @@ class Poller(QtCore.QThread):
             result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters()
             if result and os.path.exists(line_scan_path):
                 self.scan_regions[region_name]['xy_scan_parameters'] = utils.file_to_binary_array(line_scan_path)
-                hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions, overwrite = True)
+                self.save2mouse_file('scan_regions')
                 os.remove(line_scan_path)
                 self.update_scan_regions()#This is probably redundant
                 self.printc('XYT scan updated')
@@ -1665,7 +1634,7 @@ class Poller(QtCore.QThread):
         if selected_region != 'master' and 'r_0_0' not in selected_region:
             if self.scan_regions.has_key(selected_region):
                 del self.scan_regions[selected_region]
-            hdf5io.save_item(self.mouse_file, 'scan_regions', self.scan_regions, overwrite=True)
+            self.save2mouse_file('scan_regions')
             self.parent.main_widget.scan_region_groupbox.scan_regions_combobox.setCurrentIndex(0)
             self.parent.update_region_names_combobox()
             self.update_scan_regions()
@@ -1867,7 +1836,7 @@ class Poller(QtCore.QThread):
         mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
         #TMP:
         mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xz_scans-{0}.hdf5'.format(tag))
-        hdf5io.save_item(mouse_file_path,  'intensity_calibration_data', xz_scans, overwrite = False)
+        self.save2mouse_file('intensity_calibration_data')
         self.printc('Done')
         
     def stop_experiment(self):
@@ -2119,7 +2088,15 @@ class Poller(QtCore.QThread):
                     h1.save('scan_regions', overwrite=True)
                     h1.close()
                 else:
-                    shutil.copyfile(mouse_file, copy_path)
+                    if os.path.exists(copy_path):
+                        os.remove(copy_path)
+                        time.sleep(1.0)
+                    h1=hdf5io.Hdf5io(copy_path)
+                    h1.scan_regions = copy.deepcopy(self.scan_regions)
+                    h1.cells = copy.deepcopy(self.cells)
+                    h1.animal_parameters = copy.deepcopy(self.animal_parameters)
+                    h1.save(['scan_regions', 'cells', 'animal_parameters'], overwrite=True)
+                    h1.close()
                 time.sleep(1.0)
 				# Trying to open copied hdf5 file
 #                h = hdf5io.Hdf5io(copy_path)#Does not help either
@@ -2159,7 +2136,6 @@ class Poller(QtCore.QThread):
         bottom_righty = int((box[3] - origin['row'])/scale['row'])
         subimage = image[upper_lefty:bottom_righty, upper_leftx:bottom_rightx]
         return subimage
-        
         
     def register_images(self, f1, f2, scale, origin = None, print_result = True):
         box = self.parent.get_subimage_box()
@@ -2207,7 +2183,7 @@ class Poller(QtCore.QThread):
                 master_position_exists = True
                 break
         return master_position_exists
-        
+
     def get_master_position_name(self, scan_regions):
         master_position_name = ''
         for saved_region_name in scan_regions.keys():
@@ -2215,11 +2191,69 @@ class Poller(QtCore.QThread):
                 master_position_name = saved_region_name
                 break
         return master_position_name
-            
+
     def generate_animal_filename(self, tag, animal_parameters, extension = 'hdf5'):
         name = '{5}_{7}_{0}_{1}_{2}_{3}_{4}.{6}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
                                          animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], tag, extension, animal_parameters['id'])
         return name
+        
+    def save2mouse_file(self, fields):
+        #Wait till mouse file handler finishes with copying data fields
+        while self.parent.mouse_file_handler.lock:
+            pass
+        if not isinstance(fields, list):
+            fields = [fields]
+        #create copy of saveable data in mouse file handler
+        for field in fields:
+            setattr(self.parent.mouse_file_handler, field, copy.deepcopy(getattr(self, field)))
+        self.queues['mouse_file_handler'].put(fields)
+
+class MouseFileHandler(Poller):
+    '''
+    Performs all write operations to the moouse file, ensuring that this time consuming procedure does not increase
+    main poller's response time.
+    '''
+    def __init__(self, parent):
+        Poller.__init__(self, parent)
+        self.lock = False
+        
+    def handle_commands(self):
+        '''
+        Receives commands from main poller to save data to mouse file
+        '''
+        if os.path.exists(self.parent.poller.mouse_file) and utils.safe_has_key(self.parent.queues, 'mouse_file_handler') and not self.parent.queues['mouse_file_handler'].empty():
+            self.lock = True
+            fields = self.parent.queues['mouse_file_handler'].get()
+            h = hdf5io.Hdf5io(self.parent.poller.mouse_file)
+            for field in fields:
+                if hasattr(self.poller, field):
+                    if field == 'animal_parameters':
+                        field += str(int(time.time()))
+                    if field == 'cells':
+                        self.cells2pickled_ready()
+                        setattr(h, field, object2array(getattr(h, field)))
+                    else:
+                        setattr(h, field, copy.deepcopy(getattr(self, field)))
+            self.lock = False
+            h.save(fields, ovewrite = True)
+            h.close()
+            if len(fields) == 1:
+                field_names = fields[0]
+            else:
+                field_names = ', '.join(fields)
+            self.printc('{0} saved to mouse file'.format(field_names))
+        else:
+            time.sleep(1.0)
+            
+    def cells2pickled_ready(self):
+        '''
+        This is a workaround for a couple of compatibility problems between pickle and hdf5io
+        '''
+        for sr in self.cells.values():
+            for cell in sr.values():
+                if cell['group'] == '':
+                    cell['group'] = 'none'
+                cell['roi_center'] = utils.rcd((cell['roi_center']['row'], cell['roi_center']['col'], cell['roi_center']['depth']))
 
 def update_mouse_files_list(config, current_mouse_files = []):
     new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')
