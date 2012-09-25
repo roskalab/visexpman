@@ -151,10 +151,13 @@ class ExperimentControl(object):
                 self.id = self.parameters['id']
                 if self.scan_mode == 'xz':
                     fields_to_load += ['xz_config', 'rois', 'roi_locations']
+            elif field == 'scan_regions':
+                self.scan_region = value[self.parameters['region_name']]
             else:
                 setattr(self, field,  value)
         h.close()
         os.remove(self.parameter_file)
+        return True
 
     def _prepare_experiment(self, context):
         message_to_screen = ''
@@ -166,6 +169,8 @@ class ExperimentControl(object):
             self.abort = True
         self._initialize_experiment_log()
         self._initialize_devices()
+        if self.abort:
+            return
         if self.config.PLATFORM == 'mes':
             result,  laser_intensity = self.mes_interface.read_laser_intensity()
             if result:
