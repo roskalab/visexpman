@@ -54,14 +54,6 @@ class ExperimentControl(object):
             if hasattr(self, 'fragment_durations'):
                 if not hasattr(self.fragment_durations, 'index') and not hasattr(self.fragment_durations, 'shape'):
                     self.fragment_durations = [self.fragment_durations]
-        if self.parameters.has_key('objective_positions'):
-            self.objective_positions = map(float, self.parameters['objective_positions'].split('<comma>'))
-        if self.parameters.has_key('laser_intensities'):
-            self.laser_intensities = map(float, self.parameters['laser_intensities'].split('<comma>'))
-        if self.parameters.has_key('scan_mode'):
-            self.scan_mode = self.parameters['scan_mode']
-        else:
-            self.scan_mode = 'xy'
 
     def run_experiment(self, context):
         '''
@@ -98,55 +90,80 @@ class ExperimentControl(object):
             message_to_screen = self.printl('No connection with MES')
             return message_to_screen
         message = self._prepare_experiment(context)
-        if message is None:
-            return message_to_screen
-        else:
+        if message is not None:
             message_to_screen += message
-        message = '{0}/{1} started at {2}' .format(self.experiment_name, self.experiment_config_name, utils.datetime_string())
-        if context.has_key('experiment_count'):
-            message = '{0} {1}'.format( context['experiment_count'],  message)
-        message_to_screen += self.printl(message,  application_log = True) + '\n'
-        self.finished_fragment_index = 0
-        for fragment_id in range(self.number_of_fragments):
-            if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
-                message_to_screen += self.printl('Experiment aborted',  application_log = True) + '\n'
-                self.abort = True
-                break
-            elif utils.is_graceful_stop_in_queue(self.queues['gui']['in'], False):
-                message_to_screen += self.printl('Graceful stop requested',  application_log = True) + '\n'
-                break
-            elif self._start_fragment(fragment_id):
-                    if self.number_of_fragments == 1:
-                        self.run()
-                    else:
-                        self.run(fragment_id)
-                    if not self._finish_fragment(fragment_id):
-                        self.abort = True
-                        #close fragment files
-                        self.fragment_files[fragment_id].close()
-                        break #Do not record further fragments in case of error
-            else:
-                self.abort = True
-                if not hasattr(self, 'analog_input') or not hasattr(self.analog_input, 'finish_daq_activity'):
+            message = '{0}/{1} started at {2}' .format(self.experiment_name, self.experiment_config_name, utils.datetime_string())
+            if context.has_key('experiment_count'):
+                message = '{0} {1}'.format( context['experiment_count'],  message)
+            message_to_screen += self.printl(message,  application_log = True) + '\n'
+            self.finished_fragment_index = 0
+            for fragment_id in range(self.number_of_fragments):
+                if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
+                    message_to_screen += self.printl('Experiment aborted',  application_log = True) + '\n'
+                    self.abort = True
                     break
-                elif self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
-                    self.printl('Analog acquisition finished')
+                elif utils.is_graceful_stop_in_queue(self.queues['gui']['in'], False):
+                    message_to_screen += self.printl('Graceful stop requested',  application_log = True) + '\n'
                     break
-            if self.abort:
-                break
+                elif self._start_fragment(fragment_id):
+                        if self.number_of_fragments == 1:
+                            self.run()
+                        else:
+                            self.run(fragment_id)
+                        if not self._finish_fragment(fragment_id):
+                            self.abort = True
+                            #close fragment files
+                            self.fragment_files[fragment_id].close()
+                            break #Do not record further fragments in case of error
+                else:
+                    self.abort = True
+                    if not hasattr(self, 'analog_input') or not hasattr(self.analog_input, 'finish_daq_activity'):
+                        break
+                    elif self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
+                        self.printl('Analog acquisition finished')
+                        break
+                if self.abort:
+                    break
         self._finish_experiment()
         #Send message to screen, log experiment completition
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'
         self.application_log.flush()
         return message_to_screen
+        
+    def _load_experiment_parameters(self):
+        if not self.parameters.has_key('id'):
+            self.printl('Measurement ID is NOT provided')
+            return False
+        self.parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['id']+'.hdf5')
+        if not os.path.exists(self.parameter_file):
+            self.printl('Parameter file does NOT exists')
+            return False
+        h = hdf5io.Hdf5io(self.parameter_file)
+        fields_to_load = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
+        for field in fields_to_load:
+            value = h.findvar(field)
+            if value is None:
+                self.printl('{0} is NOT found in parameter file'.format(field))
+                return False
+            if field == 'parameters':
+                self.parameters = dict(self.parameters.items() + value.items())
+                self.scan_mode = self.parameters['scan_mode']
+                self.id = self.parameters['id']
+                if self.scan_mode == 'xz':
+                    fields_to_load += ['xz_config', 'rois', 'roi_locations']
+            else:
+                setattr(self, field,  value)
+        h.close()
+        os.remove(self.parameter_file)
 
     def _prepare_experiment(self, context):
         message_to_screen = ''
         self.frame_counter = 0
         self.stimulus_frame_info = []
         self.start_time = time.time()
-        self.timestamp = str(int(self.start_time))
         self.filenames = {}
+        if not self._load_experiment_parameters():
+            self.abort = True
         self._initialize_experiment_log()
         self._initialize_devices()
         if self.config.PLATFORM == 'mes':
@@ -176,43 +193,6 @@ class ExperimentControl(object):
             if not result:
                 self.printl('Objective position cannot be read, check STIM-MES connection')
                 return None
-            if utils.safe_has_key(self.parameters, 'mouse_file'):
-                self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['mouse_file'].replace('.hdf5', '_stim.hdf5'))
-                if not os.path.exists(self.mouse_file):
-                    self.printl('Mouse file does not exists: ' + self.mouse_file)
-                else:
-                    h = hdf5io.Hdf5io(self.mouse_file)
-                    vname = h.find_variable_in_h5f('animal_parameters', regexp=True)
-                    if len(vname) == 1:
-                        self.animal_parameters = h.findvar(vname[0])
-                    self.scan_regions, self.anesthesia_history = h.findvar(['scan_regions', 'anesthesia_history'])
-                    if utils.safe_has_key(self.scan_regions, self.parameters['region_name']):
-                        self.scan_region = self.scan_regions[self.parameters['region_name']]
-                    if utils.safe_has_key(self.parameters, 'scan_mode') and self.parameters['scan_mode'] != 'xy' and utils.safe_has_key(self.parameters,'region_name'):
-                        self.cells = h.findvar('cells')
-                        if not utils.safe_has_key(self.cells, self.parameters['region_name']):#This is probably overworried
-                            del self.cells
-                        if self.parameters.has_key('merge_distance'):
-                            merge_distance = float(self.parameters['merge_distance'])
-                        else:
-                            merge_distance = self.config.CELL_MERGE_DISTANCE
-                        self.roi_locations, self.rois = experiment_data.read_merge_rois(self.cells, cell_group = self.parameters['cell_group'],
-                                        region_name =  self.parameters['region_name'], 
-                                        objective_position = self.objective_position, 
-                                        objective_origin = self.objective_origin, 
-                                        z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], 
-                                        merge_distance = merge_distance)
-                        if self.parameters.has_key('roi_pattern_size') and self.parameters.has_key('aux_roi_distance'):
-                            self.roi_locations, self.rois = experiment_data.add_auxiliary_rois(self.rois, int(self.parameters['roi_pattern_size']), 
-                                                                                               self.objective_position, self.objective_origin, 
-                                                                         aux_roi_distance = float(self.parameters['aux_roi_distance']), 
-                                                                         soma_size_ratio = None)
-                        #Pack xz scan config
-                        self.xz_scan_config = copy.deepcopy(self.config.XZ_SCAN_CONFIG)
-                        if self.parameters.has_key('xz_line_length'):
-                            self.xz_scan_config['LINE_LENGTH'] = float(self.parameters['xz_line_length'])
-                    h.close()
-                    os.remove(self.mouse_file)
         self._prepare_files()
         return message_to_screen 
 
@@ -338,8 +318,8 @@ class ExperimentControl(object):
                     for i in range(5):#Workaround for the temporary failure of queue.put().
                         time.sleep(0.1)
                         self.queues['gui']['out'].put('queue_put_problem_dummy_message')
-                    #Notify gui about the new file
-                    self.printl('SOCmeasurement_readyEOC{0}EOP'.format(self.timestamp))
+                    time.sleep(0.1)
+                    self.printl('SOCmeasurement_readyEOC{0}EOP'.format(self.id))#Notify gui about the new file
                     for i in range(5):
                         time.sleep(0.1)
                         self.queues['gui']['out'].put('queue_put_problem_dummy_message')
@@ -396,7 +376,7 @@ class ExperimentControl(object):
             experiment log
 
         Fragment file name formats:
-        1) mes/hdf5: experiment_name_timestamp_fragment_id
+        1) mes/hdf5: experiment_name_id_fragment_id
         2) elphys/mat: experiment_name_fragment_id_index
 
         fragment file(s): measurement results, stimulus info, configs, zip
@@ -409,7 +389,7 @@ class ExperimentControl(object):
             if self.config.EXPERIMENT_FILE_FORMAT == 'mat':
                 fragment_name = 'fragment_{0}' .format(self.name_tag)
             elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-                fragment_name = 'fragment_{0}_{1}_{2}' .format(self.name_tag, self.timestamp, fragment_id)
+                fragment_name = 'fragment_{0}_{1}_{2}' .format(self.name_tag, self.id, fragment_id)
             fragment_filename = os.path.join(self.config.EXPERIMENT_DATA_PATH, '{0}.{1}' .format(fragment_name, self.config.EXPERIMENT_FILE_FORMAT))
             if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5' and  self.config.PLATFORM == 'mes':
                 if hasattr(self, 'objective_position'):
@@ -504,12 +484,16 @@ class ExperimentControl(object):
                 stimulus_frame_info = self.stimulus_frame_info
             if hasattr(self, 'animal_parameters'):
                 data_to_file['animal_parameters'] = self.animal_parameters
+            else:
+                self.printl('NO animal parameters saved')
             if self.config.PLATFORM == 'mes':
                 data_to_file['mes_data_path'] = os.path.split(self.filenames['mes_fragments'][fragment_id])[-1]
                 if hasattr(self, 'rois'):
                     data_to_file['rois'] = self.rois
                 if hasattr(self, 'roi_locations'):
                     data_to_file['roi_locations'] = self.roi_locations
+                if hasattr(self, 'xz_config'):
+                    data_to_file['xz_config'] = self.xz_config
                 if hasattr(self, 'prepost_scan_image'):
                     data_to_file['prepost_scan_image'] = self.prepost_scan_image
                 if hasattr(self, 'scanner_trajectory'):

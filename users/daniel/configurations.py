@@ -315,7 +315,7 @@ class Debug(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'PixelSizeCalibrationConfig'
         EXPERIMENT_CONFIG = 'LedStimulationConfig'
         EXPERIMENT_CONFIG = 'MovingDotConfig'
-#        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
+        GUI_REFRESH_PERIOD = 3.0
         PLATFORM = 'standalone'
         PLATFORM = 'mes'
         CELL_MERGE_DISTANCE = 3.0
@@ -472,7 +472,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
     Visual stimulation machine of 3D microscope setup
     '''
     def _set_user_parameters(self):
-        GUI_REFRESH_PERIOD = 5
+        GUI_REFRESH_PERIOD = 5.0
         ENABLE_MESEXTRACTOR = True
         ENABLE_CELL_DETECTION = True
         EXPERIMENT_CONFIG = 'MovingDotConfig'

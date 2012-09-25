@@ -249,20 +249,20 @@ class AnimalParametersWidget(QtGui.QWidget):
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.mouse_birth_date_label, 0, 0)
-        self.layout.addWidget(self.mouse_birth_date, 1, 0)
-        self.layout.addWidget(self.gcamp_injection_date_label, 2, 0)
-        self.layout.addWidget(self.gcamp_injection_date, 3, 0)
-        self.layout.addWidget(self.ear_punch_l_label, 0, 1)
-        self.layout.addWidget(self.ear_punch_l, 1, 1)
-        self.layout.addWidget(self.ear_punch_r_label, 2, 1)
-        self.layout.addWidget(self.ear_punch_r, 3, 1)
-        self.layout.addWidget(self.gender_label, 0, 2)
-        self.layout.addWidget(self.gender, 1, 2)
-        self.layout.addWidget(self.mouse_strain_label, 2, 2)
-        self.layout.addWidget(self.mouse_strain, 3, 2)
-        self.layout.addWidget(self.id_label, 4, 0)
-        self.layout.addWidget(self.id, 4, 1)
+        self.layout.addWidget(self.id_label, 0, 0)
+        self.layout.addWidget(self.id, 0, 1)
+        self.layout.addWidget(self.mouse_birth_date_label, 1, 0)
+        self.layout.addWidget(self.mouse_birth_date, 2, 0)
+        self.layout.addWidget(self.gcamp_injection_date_label, 3, 0)
+        self.layout.addWidget(self.gcamp_injection_date, 4, 0)
+        self.layout.addWidget(self.ear_punch_l_label, 1, 1)
+        self.layout.addWidget(self.ear_punch_l, 2, 1)
+        self.layout.addWidget(self.ear_punch_r_label, 3, 1)
+        self.layout.addWidget(self.ear_punch_r, 4, 1)
+        self.layout.addWidget(self.gender_label, 1, 2)
+        self.layout.addWidget(self.gender, 2, 2)
+        self.layout.addWidget(self.mouse_strain_label, 3, 2)
+        self.layout.addWidget(self.mouse_strain, 4, 2)
         self.layout.addWidget(self.green_labeling_label, 5, 0)
         self.layout.addWidget(self.green_labeling, 5, 1)
         self.layout.addWidget(self.red_labeling_label, 5, 2)
@@ -362,7 +362,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
             if 'stage_move' in k:
                 v.setCheckState(2)
         self.xz_scan_button = QtGui.QPushButton('XZ scan',  self)
-        self.registration_subimage_label = QtGui.QLabel('Registration subimage, upper left (x,y), bottom right (x,y) [um]', self)
+        self.registration_subimage_label = QtGui.QLabel('Registration subimage, upper left (x,y),\nbottom right (x,y) [um]', self)
         self.registration_subimage_combobox = QtGui.QComboBox(self)
         self.registration_subimage_combobox.setEditable(True)
 
@@ -598,12 +598,12 @@ class CommonWidget(QtGui.QWidget):
         self.move_goniometer_button = QtGui.QPushButton('Move goniometer', self)
         self.enable_goniometer_label = QtGui.QLabel('Enable goniometer', self)
         self.enable_goniometer_checkbox = QtGui.QCheckBox(self)
-        self.enable_xy_scan_with_move_stage_label = QtGui.QLabel('XY scan after move stage', self)
+        self.enable_xy_scan_with_move_stage_label = QtGui.QLabel('XY scan after\n move stage', self)
         self.enable_xy_scan_with_move_checkbox = QtGui.QCheckBox(self)
         
         self.stop_stage_button = QtGui.QPushButton('Stop stage', self)
         self.set_objective_button = QtGui.QPushButton('Set objective', self)
-        self.enable_reset_objective_origin_after_moving_label = QtGui.QLabel('Set objective to 0 after moving it', self)
+        self.enable_reset_objective_origin_after_moving_label = QtGui.QLabel('Set objective to 0\n after moving it', self)
         self.enable_set_objective_origin_after_moving_checkbox = QtGui.QCheckBox(self)
         self.current_position_label = QtGui.QLabel('', self)
         
@@ -683,7 +683,6 @@ class MainPoller(Poller):
         self.init_variables()
         self.load_context()
         self.initialize_mouse_file()
-        self.init_jobhandler()
         
     def connect_signals(self):
         Poller.connect_signals(self)
@@ -718,7 +717,11 @@ class MainPoller(Poller):
         self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
     
     def init_jobhandler(self):
-        self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
+        if not self.jobhandler_reset_issued:
+            status = self.command_relay_server.get_connection_status()
+            if status['GUI_ANALYSIS/GUI'] and status['GUI_ANALYSIS/ANALYSIS']:
+                self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
+                self.jobhandler_reset_issued = True
         
     def show_image(self, image, channel, scale, line = [], origin = None):
         self.emit(QtCore.SIGNAL('show_image'), image, channel, scale, line, origin)
@@ -737,9 +740,9 @@ class MainPoller(Poller):
             h.last_mouse_file_name = os.path.split(self.mouse_file)[1]
             h.save(['last_region_name', 'last_mouse_file_name'], overwrite = True)
             h.close()
-            mouse_file_copy = self.mouse_file.replace('.hdf5', '_copy.hdf5')
-            if os.path.exists(mouse_file_copy):
-                os.remove(mouse_file_copy)
+#            mouse_file_copy = self.mouse_file.replace('.hdf5', '_copy.hdf5')
+#            if os.path.exists(mouse_file_copy):
+#                os.remove(mouse_file_copy)
         self.printc('Wait till server is closed')
         self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
@@ -751,6 +754,7 @@ class MainPoller(Poller):
         are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
         if are_new_file:
             self.emit(QtCore.SIGNAL('mouse_file_list_changed'))
+        self.init_jobhandler()
 
     def handle_commands(self):
         '''
@@ -842,7 +846,7 @@ class MainPoller(Poller):
     ########## Manage context ###############
     def init_variables(self):
         self.files_to_delete = []
-        self.init_job_run = False
+        self.jobhandler_reset_issued = False
         
     def initialize_mouse_file(self):
         '''
@@ -866,7 +870,11 @@ class MainPoller(Poller):
             varname = h.find_variable_in_h5f('animal_parameters', regexp=True)[0]
             h.load(varname)
             self.animal_parameters = getattr(h, varname)
-            self.scan_regions = copy.deepcopy(h.findvar('scan_regions'))
+            scan_regions = h.findvar('scan_regions')
+            if scan_regions is None:
+                self.scan_regions = {}
+            else:
+                self.scan_regions = copy.deepcopy(scan_regions)
             self.printc('Loading cells')
             cells  = copy.deepcopy(h.findvar('cells'))#Takes long to load cells
             if cells is not None:
@@ -1383,14 +1391,17 @@ class MainPoller(Poller):
                 merge_distance = self.config.CELL_MERGE_DISTANCE
             else:
                 merge_distance = float(merge_distance)
-            roi_locations, rois = experiment_data.read_merge_rois(self.cells, 
-                                cell_group = self.parent.get_current_cell_group(),
+            self.xz_config = {}
+            self.xz_config['merge_distance'] = merge_distance
+            self.xz_config['cell_group'] = self.parent.get_current_cell_group()
+            self.roi_locations, self.rois = experiment_data.read_merge_rois(self.cells, 
+                                cell_group = self.xz_config['cell_group'],
                                 region_name =  region_name, 
                                 objective_position = self.objective_position, 
                                 objective_origin = self.objective_origin, 
                                 z_range = self.config.XZ_SCAN_CONFIG['Z_RANGE'], 
                                 merge_distance = merge_distance)
-            if rois is None:
+            if self.rois is None:
                 self.printc('No rois found, check objective position')
                 return
             params = str(self.parent.roi_widget.roi_pattern_parameters_lineedit.currentText()).replace(' ', '')
@@ -1400,18 +1411,20 @@ class MainPoller(Poller):
             else:
                 roi_pattern_size = int(params.split(',')[0])
                 aux_roi_distance = float(params.split(',')[1])
+            self.xz_config['roi_pattern_size'] = roi_pattern_size
+            self.xz_config['aux_roi_distance'] = aux_roi_distance
             if roi_pattern_size > 1:
-                roi_locations, rois = experiment_data.add_auxiliary_rois(rois, roi_pattern_size, self.objective_position, self.objective_origin, 
+                self.roi_locations, self.rois = experiment_data.add_auxiliary_rois(self.rois, roi_pattern_size, self.objective_position, self.objective_origin, 
                                                                      aux_roi_distance = aux_roi_distance, soma_size_ratio = None)
-            if roi_locations is not None:
+            if self.roi_locations is not None:
                 line_length = str(self.parent.roi_widget.xz_line_length_combobox.currentText())
-                xz_config = copy.deepcopy(self.config.XZ_SCAN_CONFIG)
+                self.xz_config = dict(self.xz_config.items() + copy.deepcopy(self.config.XZ_SCAN_CONFIG).items())
                 if line_length != '':
-                    xz_config['LINE_LENGTH'] = float(line_length)
-                if not self.mes_interface.create_XZline_from_points(roi_locations, xz_config, True):
+                    self.xz_config['LINE_LENGTH'] = float(line_length)
+                if not self.mes_interface.create_XZline_from_points(self.roi_locations, self.xz_config, True):
                         selfprintc('Creating xz lines did not succeed')
                 else:
-                    self.printc('{0} xz lines created'.format(roi_locations.shape[0]))
+                    self.printc('{0} xz lines created'.format(self.roi_locations.shape[0]))
             else:
                 self.printc('No rois loaded')
     
@@ -1470,6 +1483,10 @@ class MainPoller(Poller):
             self.emit(QtCore.SIGNAL('clear_image_display'), 3)
             self.parent.main_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.setCheckState(0)
             self.parent.main_tab.setCurrentIndex(0)#Switch to main tab
+            #Initialize anesthesi history
+            self.anesthesia_history = []
+            self.save2mouse_file('anesthesia_history')
+            self.parent.update_anesthesia_history()
             self.printc('Animal parameter file saved')
             
     def add_to_anesthesia_history(self):
@@ -1886,75 +1903,71 @@ class MainPoller(Poller):
         self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
         self.parent.main_widget.experiment_control_groupbox.redo_depth_button.setText('Redo')
         #Start experiment batch
-        self.generate_experiment_start_command(self.experiment_parameters)
+        self.generate_experiment_start_command()
 
-    def generate_experiment_start_command(self, experiment_parameters):
+    def generate_experiment_start_command(self):
         #Ensure that user can switch between different stimulations during the experiment batch
         self.experiment_parameters['experiment_config'] = str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
         self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
-        if self.experiment_parameters['scan_mode'] == 'xz':
-            line_length = str(self.parent.roi_widget.xz_line_length_combobox.currentText())
-            if line_length != '':
-                self.experiment_parameters['xz_line_length'] = line_length
-            merge_distance = str(self.parent.roi_widget.cell_merge_distance_combobox.currentText())
-            if merge_distance != '':
-                self.experiment_parameters['merge_distance'] = merge_distance
-            roi_pattern_params = str(self.parent.roi_widget.roi_pattern_parameters_lineedit.currentText()).replace(' ', '')
-            if roi_pattern_params !='':
-                self.experiment_parameters['roi_pattern_size'] = roi_pattern_params.split(',')[0]
-                self.experiment_parameters['aux_roi_distance'] = roi_pattern_params.split(',')[1]
-        parameters = 'experiment_config={0},scan_mode={1}' \
-                        .format(experiment_parameters['experiment_config'], experiment_parameters['scan_mode'])
-        if experiment_parameters.has_key('mouse_file') and experiment_parameters.has_key('mouse_file') != '':
-            parameters += ',mouse_file={0}'.format(experiment_parameters['mouse_file'])
-        if experiment_parameters.has_key('current_objective_position_index') and experiment_parameters.has_key('objective_positions'):
-            objective_position = experiment_parameters['objective_positions'][experiment_parameters['current_objective_position_index']]
-            parameters += ',objective_positions={0}'.format(objective_position)
+        self.experiment_parameters['id'] = str(int(time.time()))
+        if self.experiment_parameters.has_key('current_objective_position_index') and self.experiment_parameters.has_key('objective_positions'):
+            self.experiment_parameters['objective_position'] = self.experiment_parameters['objective_positions'][self.experiment_parameters['current_objective_position_index']]
+            objective_position = self.experiment_parameters['objective_position']
             self.parent.main_widget.experiment_control_groupbox.redo_depth_button.setText('Redo {0} um'.format(objective_position))
             #Update redo and next buttons
             time.sleep(0.2)
-            if experiment_parameters['current_objective_position_index']+1 < experiment_parameters['objective_positions'].shape[0]:
-                objective_position = experiment_parameters['objective_positions'][experiment_parameters['current_objective_position_index']+1]
+            if self.experiment_parameters['current_objective_position_index']+1 < self.experiment_parameters['objective_positions'].shape[0]:
+                objective_position = self.experiment_parameters['objective_positions'][self.experiment_parameters['current_objective_position_index']+1]
                 self.parent.main_widget.experiment_control_groupbox.next_depth_button.setText('Next {0} um'.format(objective_position))
-            if experiment_parameters['current_objective_position_index'] > 0:
-                objective_position = experiment_parameters['objective_positions'][experiment_parameters['current_objective_position_index']-1]
+            if self.experiment_parameters['current_objective_position_index'] > 0:
+                objective_position = self.experiment_parameters['objective_positions'][self.experiment_parameters['current_objective_position_index']-1]
                 self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev {0} um'.format(objective_position))
-        if experiment_parameters.has_key('current_objective_position_index') and experiment_parameters.has_key('laser_intensities'):
-            laser_intensities = experiment_parameters['laser_intensities'][experiment_parameters['current_objective_position_index']]
-            parameters += ',laser_intensities={0}'.format(laser_intensities)
-        if experiment_parameters.has_key('region_name') and experiment_parameters['region_name'] != '':
-            parameters += ',region_name='+experiment_parameters['region_name']
-        if experiment_parameters['scan_mode'] == 'xz':
-            if experiment_parameters.has_key('xz_line_length'):
-                parameters += ',xz_line_length='+experiment_parameters['xz_line_length']
-            if experiment_parameters.has_key('z_resolution'):
-                parameters += ',z_resolution='+experiment_parameters['z_resolution']
-            if experiment_parameters.has_key('merge_distance'):
-                parameters += ',merge_distance='+experiment_parameters['merge_distance']
-            if self.experiment_parameters.has_key('roi_pattern_size'):
-                parameters += ',roi_pattern_size='+self.experiment_parameters['roi_pattern_size']
-            if self.experiment_parameters.has_key('aux_roi_distance'):
-                parameters += ',aux_roi_distance='+self.experiment_parameters['aux_roi_distance']
-            parameters += ',cell_group='+self.parent.get_current_cell_group().replace(',', '<comma>')
-        command = 'SOCexecute_experimentEOC{0}EOP' .format(parameters)
-        self.backup_mouse_file(tag = 'stim')
+        if self.experiment_parameters.has_key('current_objective_position_index') and self.experiment_parameters.has_key('laser_intensities'):
+            self.experiment_parameters['laser_intensity'] = self.experiment_parameters['laser_intensities'][self.experiment_parameters['current_objective_position_index']]
+        #generate parameter file
+        parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
+        if os.path.exists(parameter_file):
+            time.sleep(1.1)
+            self.experiment_parameters['id'] = str(int(time.time()))
+            parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
+            if os.path.exists(parameter_file):
+                self.printc('Experiment ID already exists')
+                return
+        self.printc('Generating parameter file')
+        h = hdf5io.Hdf5io(parameter_file)
+        h.parameters = copy.deepcopy(self.experiment_parameters)
+        if h.parameters.has_key('laser_intensities'):
+            del h.parameters['laser_intensities']
+        if h.parameters.has_key('objective_positions'):
+            del h.parameters['objective_positions']
+        h.scan_regions = copy.deepcopy(self.scan_regions)
+        h.animal_parameters = copy.deepcopy(self.animal_parameters)
+        h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
+        fields_to_save = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
+        if self.experiment_parameters['scan_mode'] == 'xz':
+            h.xz_config = copy.deepcopy(self.xz_config)
+            h.rois = copy.deepcopy(sellf.rois)
+            h.roi_locations = copy.deepcopy(sellf.roi_locations)
+            fields_to_save += ['xz_config', 'rois', 'roi_locations']
+        h.save(fields_to_save)
+        h.close()
+        command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
         self.queues['stim']['out'].put(command)
-        self.printc(parameters)
         
     def previous_experiment(self):
         if self.experiment_parameters.has_key('current_objective_position_index') and \
             self.experiment_parameters['current_objective_position_index'] > 0:
             self.experiment_parameters['current_objective_position_index'] -= 1
-            self.generate_experiment_start_command(self.experiment_parameters)
+            self.generate_experiment_start_command()
         
     def redo_experiment(self):
-        self.generate_experiment_start_command(self.experiment_parameters)
+        self.generate_experiment_start_command()
         
     def next_experiment(self):
         if self.experiment_parameters.has_key('current_objective_position_index'):
             self.experiment_parameters['current_objective_position_index'] += 1
             if self.experiment_parameters['current_objective_position_index'] < self.experiment_parameters['objective_positions'].shape[0]:
-                self.generate_experiment_start_command(self.experiment_parameters)
+                self.generate_experiment_start_command()
        
     ############ 3d scan test ###############
     def show_rc_scan_results(self):
@@ -2082,20 +2095,25 @@ class MainPoller(Poller):
                 if 'jobhandler' in tag:#Stim uses other nodes of mouse file
                     if os.path.exists(copy_path):
                         os.remove(copy_path)
-                        time.sleep(1.0)
+                        time.sleep(0.4)
                     h1=hdf5io.Hdf5io(copy_path)
                     h1.scan_regions = copy.deepcopy(self.scan_regions)
                     h1.save('scan_regions', overwrite=True)
                     h1.close()
-                else:
+                elif 'stim' in tag:
                     if os.path.exists(copy_path):
                         os.remove(copy_path)
-                        time.sleep(1.0)
+                        time.sleep(0.4)
                     h1=hdf5io.Hdf5io(copy_path)
                     h1.scan_regions = copy.deepcopy(self.scan_regions)
-                    h1.cells = copy.deepcopy(self.cells)
                     h1.animal_parameters = copy.deepcopy(self.animal_parameters)
-                    h1.save(['scan_regions', 'cells', 'animal_parameters'], overwrite=True)
+                    h1.save(['scan_regions', 'animal_parameters'], overwrite=True)
+                    if hasattr(self, 'cells'):
+                        h1.cells = copy.deepcopy(self.cells)
+                        h1.save('cells', overwrite=True)
+                    if hasattr(self, 'anesthesia_history'):
+                        h1.anesthesia_history = copy.deepcopy(self.anesthesia_history)
+                        h1.save('anesthesia_history', overwrite=True)
                     h1.close()
                 time.sleep(1.0)
 				# Trying to open copied hdf5 file
@@ -2221,21 +2239,21 @@ class MouseFileHandler(Poller):
         '''
         Receives commands from main poller to save data to mouse file
         '''
-        if os.path.exists(self.parent.poller.mouse_file) and utils.safe_has_key(self.parent.queues, 'mouse_file_handler') and not self.parent.queues['mouse_file_handler'].empty():
+        if hasattr(self.parent.poller, 'mouse_file') and os.path.exists(self.parent.poller.mouse_file) and utils.safe_has_key(self.parent.queues, 'mouse_file_handler') and not self.parent.queues['mouse_file_handler'].empty():
             self.lock = True
             fields = self.parent.queues['mouse_file_handler'].get()
             h = hdf5io.Hdf5io(self.parent.poller.mouse_file)
             for field in fields:
-                if hasattr(self.poller, field):
+                if hasattr(self, field):
                     if field == 'animal_parameters':
                         field += str(int(time.time()))
                     if field == 'cells':
                         self.cells2pickled_ready()
-                        setattr(h, field, object2array(getattr(h, field)))
+                        setattr(h, field, utils.object2array(getattr(self, field)))
                     else:
                         setattr(h, field, copy.deepcopy(getattr(self, field)))
             self.lock = False
-            h.save(fields, ovewrite = True)
+            h.save(fields, overwrite = True)
             h.close()
             if len(fields) == 1:
                 field_names = fields[0]
