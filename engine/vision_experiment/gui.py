@@ -1008,7 +1008,7 @@ class MainPoller(Poller):
         for flag_name in flag_names:
             self.scan_regions[region_name]['process_status'][id][flag_name] = True
         self.save2mouse_file('scan_regions')
-        self.printc('Process status flag set: {1} / {0}'.format(flag_names[0],  id))
+        self.printc('Process status flag set: {1} -> {0}'.format(flag_names[0],  id))
         self.parent.update_jobhandler_process_status()
     
     def add_measurement_id(self, id):
@@ -1108,6 +1108,7 @@ class MainPoller(Poller):
             self.parent.update_cell_filter_list()
             self.parent.update_roi_curves_display()
             self.parent.update_meanimage()
+            self.parent.update_cell_group_combobox()
             self.printc('{0} measurement is removed'.format(id_to_remove))
             
     def set_measurement_file_process_state(self):
@@ -1127,7 +1128,7 @@ class MainPoller(Poller):
                 self.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = False
             elif target_state == 'find_cells_ready':
                 self.scan_regions[region_name]['process_status'][selected_id]['find_cells_ready'] = True
-        self.save2mouse_file('scan_regions')
+        self.save2mouse_file('scan_regions', wait_save = True)
         self.parent.update_jobhandler_process_status()
         self.parent.update_file_id_combobox()
         self.queues['analysis']['out'].put('SOCclear_joblistEOCEOP')
@@ -1176,6 +1177,7 @@ class MainPoller(Poller):
             self.save2mouse_file('cells')
             self.parent.update_cell_group_combobox()
             self.cell_status_changed_in_cache = False
+            self.printc('Cells saved')
 
 ################### Stage #######################
     def read_stage(self, display_coords = False):
@@ -1876,6 +1878,9 @@ class MainPoller(Poller):
         objective_range_string = str(self.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
         if len(objective_range_string)>0:
             objective_positions = map(float, objective_range_string.split(','))
+            if len(objective_positions) != 3:
+                self.printc('Objective range is not in correct format')
+                return
             if objective_positions[0] > objective_positions[1]:
                 reverse = True
                 tmp = objective_positions[0]
@@ -1894,6 +1899,9 @@ class MainPoller(Poller):
         laser_intensities_string =  str(self.parent.main_widget.experiment_control_groupbox.laser_intensities_combobox.currentText())
         if len(laser_intensities_string) > 0:
             self.experiment_parameters['laser_intensities'] = map(float, laser_intensities_string.replace(' ', '').split(','))
+            if len(self.experiment_parameters['laser_intensities']) != 2:
+                self.printc('Laser intensity range is not in correct format')
+                return
             self.experiment_parameters['laser_intensities'] = numpy.linspace(self.experiment_parameters['laser_intensities'][0],
                                                                                             self.experiment_parameters['laser_intensities'][1], 
                                                                                             self.experiment_parameters['number_of_depths'])
@@ -1933,7 +1941,6 @@ class MainPoller(Poller):
             if os.path.exists(parameter_file):
                 self.printc('Experiment ID already exists')
                 return
-        self.printc('Generating parameter file')
         h = hdf5io.Hdf5io(parameter_file)
         h.parameters = copy.deepcopy(self.experiment_parameters)
         if h.parameters.has_key('laser_intensities'):
@@ -1946,11 +1953,12 @@ class MainPoller(Poller):
         fields_to_save = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
         if self.experiment_parameters['scan_mode'] == 'xz':
             h.xz_config = copy.deepcopy(self.xz_config)
-            h.rois = copy.deepcopy(sellf.rois)
-            h.roi_locations = copy.deepcopy(sellf.roi_locations)
+            h.rois = copy.deepcopy(self.rois)
+            h.roi_locations = copy.deepcopy(self.roi_locations)
             fields_to_save += ['xz_config', 'rois', 'roi_locations']
         h.save(fields_to_save)
         h.close()
+        self.printc('{0} parameter file generated'.format(self.experiment_parameters['id']))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
         self.queues['stim']['out'].put(command)
         
@@ -2215,16 +2223,56 @@ class MainPoller(Poller):
                                          animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], tag, extension, animal_parameters['id'])
         return name
         
-    def save2mouse_file(self, fields):
-        #Wait till mouse file handler finishes with copying data fields
-        while self.parent.mouse_file_handler.lock:
-            pass
+    def save2mouse_file(self, fields, wait_save = False):
+#        #Wait till mouse file handler finishes with copying data fields
+#        while self.parent.mouse_file_handler.lock:
+#            pass
         if not isinstance(fields, list):
             fields = [fields]
         #create copy of saveable data in mouse file handler
         for field in fields:
-            setattr(self.parent.mouse_file_handler, field, copy.deepcopy(getattr(self, field)))
-        self.queues['mouse_file_handler'].put(fields)
+            self.queues['mouse_file_handler'].put([field, getattr(self, field)])
+        self.s2m()#TMP111
+        if wait_save:
+            while self.parent.mouse_file_handler.running:
+                time.sleep(0.1)
+                
+    def s2m(self):#TMP111
+        '''
+        Receives commands from main poller to save data to mouse file
+        '''
+        if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file) and utils.safe_has_key(self.queues, 'mouse_file_handler') and not self.queues['mouse_file_handler'].empty():
+            self.running = True
+            h = hdf5io.Hdf5io(self.mouse_file)
+            field_names_to_save = []
+            while not self.queues['mouse_file_handler'].empty():
+                field_name, field_value = self.queues['mouse_file_handler'].get()
+                if field_name == 'animal_parameters':
+                    field_name += str(int(time.time()))
+                if field_name == 'cells':
+                    field_value = utils.object2array(self.cells2pickled_ready(field_value))
+                setattr(h, field_name, field_value)
+                if not field_name in field_names_to_save:
+                    field_names_to_save.append(field_name)
+            h.save(field_names_to_save, overwrite = True)
+            h.close()
+            self.running = False
+            self.printc('{0} saved to mouse file'.format(', '.join(field_names_to_save)))
+        else:
+            time.sleep(1.0)
+            
+    def cells2pickled_ready(self, cells):#TMP111
+        '''
+        This is a workaround for a couple of compatibility problems between pickle and hdf5io
+        '''
+        for sr in cells.values():
+            for cell in sr.values():
+                if cell['group'] == '':
+                    cell['group'] = 'none'
+                cell['roi_center'] = utils.rcd((cell['roi_center']['row'], cell['roi_center']['col'], cell['roi_center']['depth']))
+        return cells
+
+            
 
 class MouseFileHandler(Poller):
     '''
@@ -2233,45 +2281,42 @@ class MouseFileHandler(Poller):
     '''
     def __init__(self, parent):
         Poller.__init__(self, parent)
-        self.lock = False
+        self.running = False
         
     def handle_commands(self):
         '''
         Receives commands from main poller to save data to mouse file
         '''
         if hasattr(self.parent.poller, 'mouse_file') and os.path.exists(self.parent.poller.mouse_file) and utils.safe_has_key(self.parent.queues, 'mouse_file_handler') and not self.parent.queues['mouse_file_handler'].empty():
-            self.lock = True
-            fields = self.parent.queues['mouse_file_handler'].get()
+            self.running = True
             h = hdf5io.Hdf5io(self.parent.poller.mouse_file)
-            for field in fields:
-                if hasattr(self, field):
-                    if field == 'animal_parameters':
-                        field += str(int(time.time()))
-                    if field == 'cells':
-                        self.cells2pickled_ready()
-                        setattr(h, field, utils.object2array(getattr(self, field)))
-                    else:
-                        setattr(h, field, copy.deepcopy(getattr(self, field)))
-            self.lock = False
-            h.save(fields, overwrite = True)
+            field_names_to_save = []
+            while not self.parent.queues['mouse_file_handler'].empty():
+                field_name, field_value = self.parent.queues['mouse_file_handler'].get()
+                if field_name == 'animal_parameters':
+                    field_name += str(int(time.time()))
+                if field_name == 'cells':
+                    field_value = utils.object2array(self.cells2pickled_ready(field_value))
+                setattr(h, field_name, field_value)
+                if not field_name in field_names_to_save:
+                    field_names_to_save.append(field_name)
+            h.save(field_names_to_save, overwrite = True)
             h.close()
-            if len(fields) == 1:
-                field_names = fields[0]
-            else:
-                field_names = ', '.join(fields)
-            self.printc('{0} saved to mouse file'.format(field_names))
+            self.running = False
+            self.printc('{0} saved to mouse file'.format(', '.join(field_names_to_save)))
         else:
             time.sleep(1.0)
             
-    def cells2pickled_ready(self):
+    def cells2pickled_ready(self, cells):
         '''
         This is a workaround for a couple of compatibility problems between pickle and hdf5io
         '''
-        for sr in self.cells.values():
+        for sr in cells.values():
             for cell in sr.values():
                 if cell['group'] == '':
                     cell['group'] = 'none'
                 cell['roi_center'] = utils.rcd((cell['roi_center']['row'], cell['roi_center']['col'], cell['roi_center']['depth']))
+        return cells
 
 def update_mouse_files_list(config, current_mouse_files = []):
     new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')

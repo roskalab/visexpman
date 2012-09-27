@@ -50,7 +50,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True)
         self.poller = gui.MainPoller(self)
         self.queues = self.poller.queues
-        self.mouse_file_handler = gui.MouseFileHandler(self)
+        #TMP111self.mouse_file_handler = gui.MouseFileHandler(self)
         self.gui_tester = GuiTest(self)
         QtGui.QWidget.__init__(self)
         self.setWindowTitle('Vision Experiment Manager GUI - {0} - {1}' .format(user,  config_class))
@@ -65,7 +65,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_signals()
         self.init_variables()
         self.poller.start()
-        self.mouse_file_handler.start()
+        #TMP111self.mouse_file_handler.start()
         self.show()
         self.init_widget_content()
         self.block_widgets(False)
@@ -218,9 +218,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_mouse_files_combobox(set_to_value = os.path.split(self.poller.mouse_file)[1])
             
     def tab_changed(self, currentIndex):
-        if currentIndex != 1:
-            pass
-#            self.poller.signal_id_queue.put('save_cells')
+        if currentIndex != 1:#If user switched from ROI tab, save cell selections
+            self.poller.signal_id_queue.put('save_cells')
         #Load meanimages or scan region images
         if currentIndex == 0:
             self.update_scan_regions()
@@ -379,7 +378,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 else:
                     depth = ''
                 if status['info'].has_key('stimulus'):
-                    stimulus = status['info']['stimulus'].replace('Config', '')
+                    stimulus = str(status['info']['stimulus']).replace('Config', '')#For unknown reason this is not always string type
                 else:
                     stimulus = ''
                 if status['info'].has_key('scan_mode'):
@@ -387,21 +386,24 @@ class VisionExperimentGui(QtGui.QWidget):
                 else:
                     scan_mode = ''
                 if status['info'].has_key('laser_intensity'):
-                    laser_intensity = status['info']['laser_intensity']
+                    try:
+                        laser_intensity = float(status['info']['laser_intensity'])
+                    except ValueError:
+                        laser_intensity = 0.0
                 else:
                     laser_intensity = 0.0
                 if status['find_cells_ready']:
                     if status['info'].has_key('number_of_cells'):
                         status = '{0} cells' .format(status['info']['number_of_cells'])
                     else:
-                        status = 'find cells ready'
+                        status = 'ready'
                 elif status['mesextractor_ready']:
-                    status = 'mesextractor ready'
+                    status = 'preproc'
                 elif status['fragment_check_ready']:
-                    status = 'fragment check ready'
+                    status = 'checked'
                 else:
-                    status = 'not processed'
-                status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
+                    status = 'unproc'
+                status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)#TMP111
 #                if item_counter%item_per_line==item_per_line-1:
 #                    status_text+='\n'
 #                else:
@@ -520,6 +522,8 @@ class VisionExperimentGui(QtGui.QWidget):
         if cell_id != '':
             if utils.safe_has_key(self.poller.cells, region_name) and hasattr(self.poller, 'roi_curves') and \
                                 utils.safe_has_key(self.poller.roi_curves, region_name):
+                if not utils.safe_has_key(self.poller.roi_curves[region_name], cell_id):
+                    self.printc('Roi curve is missing')
                 roi_curve = self.poller.roi_curves[region_name][cell_id]
                 cells = self.poller.cells[region_name]
                 if cells.has_key(cell_id):
@@ -679,7 +683,8 @@ class VisionExperimentGui(QtGui.QWidget):
         e.accept()
         self.log.copy()
         self.poller.abort = True
-        self.mouse_file_handler.abort = True
+        time.sleep(3.0)
+        #TMP111self.mouse_file_handler.abort = True
         #delete files:
         for file_path in self.poller.files_to_delete:
             if os.path.exists(file_path):

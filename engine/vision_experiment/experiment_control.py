@@ -178,21 +178,23 @@ class ExperimentControl(object):
                 self.laser_intensity = laser_intensity
             else:
                 self.printl('Laser intensity CANNOT be read')
-            if context.has_key('laser_intensity'):
-                result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(context['laser_intensity'])
-                if not result:
-                    self.abort = True
-                    self.printl('Laser intensity is not set')
+            parameters2set = ['laser_intensity', 'objective_position']
+            for parameter_name2set in parameters2set:                
+                if self.parameters.has_key(parameter_name2set):
+                    value = self.parameters[parameter_name2set]
+                elif context.has_key(parameter_name2set) :
+                    value = context[parameter_name2set]
                 else:
-                    self.printl('Laser is set to {0} %'.format(adjusted_laser_intensity))
-                    self.laser_intensity = adjusted_laser_intensity
+                    value = None
+                if not value is None:
+                    result, adjusted_value= getattr(self.mes_interface, 'set_'+parameter_name2set)(value)
+                    if not result:
+                        self.abort = True
+                        self.printl('{0} is not set'.format(parameter_name2set.replace('_', ' ').capitalize()))
+                    else:
+                        self.printl('{0} is set to {1}'.format(parameter_name2set.replace('_', ' ').capitalize(), value))
+                        setattr(self,  parameter_name2set,  value)
             #read stage and objective
-            if context.has_key('objective_position'):
-                if not self.mes_interface.set_objective(context['objective_position'], self.config.MES_TIMEOUT):
-                    self.abort = True
-                    self.printl('Objective not set')
-                else:
-                    self.printl('Objective is set to {0} um' .format(context['objective_position']))
             self.stage_position = self.stage.read_position() - self.stage_origin
             result, self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
             if not result:
