@@ -597,7 +597,7 @@ version_paths = {
     'tables': '__version__', 
     'serial': 'VERSION', 
     'parallel': 'VERSION', 
-    'PyQt4':' QtCore.QT_VERSION_STR', 
+    'PyQt4.QtCore':' QtCore.PYQT_VERSION_STR', 
     'OpenGL': 'version.__version__', 
     'pygame': 'version.ver', 
     'PyDAQmx' : '__version__',

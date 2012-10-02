@@ -35,6 +35,7 @@ from visexpman.users.zoltan.test import unit_test_runner
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as generic_visexpA
 
+MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS = 40
 parameter_extract = re.compile('EOC(.+)EOP')
 
 ################### Main widget #######################
@@ -50,7 +51,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True)
         self.poller = gui.MainPoller(self)
         self.queues = self.poller.queues
-        #TMP111self.mouse_file_handler = gui.MouseFileHandler(self)
+        self.mouse_file_handler = gui.MouseFileHandler(self)
         self.gui_tester = GuiTest(self)
         QtGui.QWidget.__init__(self)
         self.setWindowTitle('Vision Experiment Manager GUI - {0} - {1}' .format(user,  config_class))
@@ -65,7 +66,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_signals()
         self.init_variables()
         self.poller.start()
-        #TMP111self.mouse_file_handler.start()
+        self.mouse_file_handler.start()
         self.show()
         self.init_widget_content()
         self.block_widgets(False)
@@ -176,14 +177,14 @@ class VisionExperimentGui(QtGui.QWidget):
 
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.remove_measurement_button, 'remove_measurement_file_from_database')
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.set_state_to_button, 'set_measurement_file_process_state')
-        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.run_fragment_process_button, 'run_fragment_process')
+        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.reset_jobhandler_button, 'reset_jobhandler')
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.add_id_button, 'add_id')
 
         #Blocking functions, run by poller
         self.connect_and_map_signal(self.common_widget.read_stage_button, 'read_stage')
         self.connect_and_map_signal(self.common_widget.set_stage_origin_button, 'set_stage_origin')
         self.connect_and_map_signal(self.common_widget.move_stage_button, 'move_stage')
-        self.connect_and_map_signal(self.common_widget.move_goniometer_button, 'move_goniometer')
+        self.connect_and_map_signal(self.common_widget.tilt_brain_surface_button, 'tilt_brain_surface')
         self.connect_and_map_signal(self.common_widget.stop_stage_button, 'stop_stage')
         self.connect_and_map_signal(self.common_widget.set_objective_button, 'set_objective')
 #        self.connect_and_map_signal(self.main_widget.set_objective_value_button, 'set_objective_relative_value')
@@ -367,10 +368,9 @@ class VisionExperimentGui(QtGui.QWidget):
         region_name = self.get_current_region_name()
         if utils.safe_has_key(scan_regions, region_name) and scan_regions[region_name].has_key('process_status'):
             status_text = ''
-            item_counter = 0
-            item_per_line = 2
             ids = scan_regions[region_name]['process_status'].keys()
             ids.sort()
+            ids = ids[-MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS:]
             for id in ids:
                 status = scan_regions[region_name]['process_status'][id]
                 if status['info'].has_key('depth'):
@@ -398,17 +398,12 @@ class VisionExperimentGui(QtGui.QWidget):
                     else:
                         status = 'ready'
                 elif status['mesextractor_ready']:
-                    status = 'preproc'
+                    status = '**'
                 elif status['fragment_check_ready']:
-                    status = 'checked'
+                    status = '*'
                 else:
-                    status = 'unproc'
-                status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)#TMP111
-#                if item_counter%item_per_line==item_per_line-1:
-#                    status_text+='\n'
-#                else:
-#                    status_text+='; '
-                item_counter += 1
+                    status = '*'
+                status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
         else:
             status_text = ''
         self.main_widget.measurement_datafile_status_groupbox.process_status_label.setText(status_text)
@@ -416,6 +411,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_cell_list(self):
         region_name = self.get_current_region_name()
         if region_name == '':
+                self.update_combo_box_list(self.roi_widget.select_cell_combobox, [])
                 return
         if hasattr(self.poller, 'cells') and utils.safe_has_key(self.poller.cells, region_name): #To handle situations when region name is being edited by user
             self.poller.cell_ids = self.poller.cells[region_name].keys()
@@ -671,6 +667,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.console_text  += text + '\n'
         self.standard_io_widget.text_out.setPlainText(self.console_text)
         self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
+#        print text
         try:
             self.log.info(text)
         except:

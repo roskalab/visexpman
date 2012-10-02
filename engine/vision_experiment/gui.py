@@ -17,6 +17,7 @@ import PyQt4.QtCore as QtCore
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.hardware_interface import network_interface
+from visexpman.engine.hardware_interface import stage_control
 from visexpman.engine import generic
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
@@ -138,7 +139,7 @@ class MeasurementDatafileStatusGroupbox(QtGui.QGroupBox):
         self.set_state_to_button = QtGui.QPushButton('Set state to',  self)
         self.set_to_state_combobox = QtGui.QComboBox(self)
         self.set_to_state_combobox.addItems(QtCore.QStringList(['not processed', 'mesextractor_ready', 'find_cells_ready']))
-        self.run_fragment_process_button = QtGui.QPushButton('Run fragment process',  self)
+        self.reset_jobhandler_button = QtGui.QPushButton('Reset jobhandler',  self)
         self.add_id_button = QtGui.QPushButton('Add id',  self)
         
     def create_layout(self):
@@ -147,7 +148,7 @@ class MeasurementDatafileStatusGroupbox(QtGui.QGroupBox):
         self.layout.addWidget(self.remove_measurement_button, 1, 1)
         self.layout.addWidget(self.set_state_to_button, 2, 0)
         self.layout.addWidget(self.set_to_state_combobox, 2, 1)
-        self.layout.addWidget(self.run_fragment_process_button, 0, 1)
+        self.layout.addWidget(self.reset_jobhandler_button, 0, 1)
         self.layout.addWidget(self.process_status_label, 3, 0, 4, 2)
         self.layout.addWidget(self.add_id_button, 0, 0)
         self.setLayout(self.layout)   
@@ -595,9 +596,9 @@ class CommonWidget(QtGui.QWidget):
         self.set_stage_origin_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.read_stage_button = QtGui.QPushButton('Read stage', self)
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
-        self.move_goniometer_button = QtGui.QPushButton('Move goniometer', self)
-        self.enable_goniometer_label = QtGui.QLabel('Enable goniometer', self)
-        self.enable_goniometer_checkbox = QtGui.QCheckBox(self)
+        self.tilt_brain_surface_button = QtGui.QPushButton('Tilt brain surface', self)
+        self.enable_tilting_label = QtGui.QLabel('Enable tilting', self)
+        self.enable_tilting_checkbox = QtGui.QCheckBox(self)
         self.enable_xy_scan_with_move_stage_label = QtGui.QLabel('XY scan after\n move stage', self)
         self.enable_xy_scan_with_move_checkbox = QtGui.QCheckBox(self)
         
@@ -623,9 +624,9 @@ class CommonWidget(QtGui.QWidget):
         self.layout.addWidget(self.enable_reset_objective_origin_after_moving_label, 0, 7, 1, 1)
         self.layout.addWidget(self.enable_set_objective_origin_after_moving_checkbox, 0, 8, 1, 1)
         self.layout.addWidget(self.current_position_label, 1, 7, 1, 2)
-        self.layout.addWidget(self.move_goniometer_button, 2, 8, 1, 1)
-        self.layout.addWidget(self.enable_goniometer_label, 2, 0, 1, 1)
-        self.layout.addWidget(self.enable_goniometer_checkbox, 2, 1, 1, 1)
+        self.layout.addWidget(self.tilt_brain_surface_button, 2, 8, 1, 1)
+        self.layout.addWidget(self.enable_tilting_label, 2, 0, 1, 1)
+        self.layout.addWidget(self.enable_tilting_checkbox, 2, 1, 1, 1)
         
         
         self.layout.setRowStretch(10, 10)
@@ -720,8 +721,12 @@ class MainPoller(Poller):
         if not self.jobhandler_reset_issued:
             status = self.command_relay_server.get_connection_status()
             if status['GUI_ANALYSIS/GUI'] and status['GUI_ANALYSIS/ANALYSIS']:
-                self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
+                self.reset_jobhandler()
                 self.jobhandler_reset_issued = True
+            
+    def reset_jobhandler(self):
+        self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
+        
         
     def show_image(self, image, channel, scale, line = [], origin = None):
         self.emit(QtCore.SIGNAL('show_image'), image, channel, scale, line, origin)
@@ -836,8 +841,10 @@ class MainPoller(Poller):
                 self.printc('{0} method does not exists'.format(function_call))
                 
     def mouse_file_changed(self):
+        self.wait_mouse_file_save()
         self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
         self.load_mouse_file()
+        self.reset_jobhandler()
         self.emit(QtCore.SIGNAL('update_widgets_when_mouse_file_changed'))
         
     def pass_signal(self, signal_id):
@@ -866,6 +873,11 @@ class MainPoller(Poller):
         Loads scan region, cell and meanimage data from mouse file
         '''
         if os.path.isfile(self.mouse_file):
+            #clean out attributes
+            attributes = ['scan_regions', 'cells', 'images', 'roi_curves', 'animal_parameters']
+            for attribute in attributes:
+                if hasattr(self, attribute):
+                    setattr(self, attribute,  {})
             h = hdf5io.Hdf5io(self.mouse_file)
             varname = h.find_variable_in_h5f('animal_parameters', regexp=True)[0]
             h.load(varname)
@@ -885,7 +897,7 @@ class MainPoller(Poller):
                 self.images = images
             roi_curves = copy.deepcopy(h.findvar('roi_curves'))#Takes long to load images
             if roi_curves is not None:
-                self.roi_curves = copy.deepcopy(roi_curves)
+                self.roi_curves = utils.array2object(copy.deepcopy(roi_curves))
             anesthesia_history = copy.deepcopy(h.findvar('anesthesia_history'))#Takes long to load images
             if anesthesia_history is not None:
                 self.anesthesia_history = copy.deepcopy(anesthesia_history)
@@ -940,7 +952,7 @@ class MainPoller(Poller):
             self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
             h_measurement.close()
             #Save changes
-            self.save2mouse_file('scan_regins')
+            self.save2mouse_file('scan_regions')
             self.printc('{1} cells found in {0} but not added to database because it is an xz scan'.format(id, number_of_new_cells))
             if update_gui:
                 self.parent.update_cell_list()
@@ -976,8 +988,8 @@ class MainPoller(Poller):
             number_of_new_cells = 0
         else:
             number_of_new_cells = len(soma_rois)
-            if number_of_new_cells > 100:
-                number_of_new_cells = 100
+            if number_of_new_cells > 200:
+                number_of_new_cells = 50
         self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
         for i in range(number_of_new_cells):
             cell_id = ('{0}_{1}_{2:2}_{3}'.format(depth, id,  i, stimulus)).replace(' ', '0')
@@ -1005,10 +1017,17 @@ class MainPoller(Poller):
 
     def set_process_status_flag(self, id, flag_names):
         region_name, measurement_file_path, info = self.read_scan_regions(id)
+        id_not_found = False
         for flag_name in flag_names:
-            self.scan_regions[region_name]['process_status'][id][flag_name] = True
+            if self.scan_regions[region_name]['process_status'].has_key(id):
+                self.scan_regions[region_name]['process_status'][id][flag_name] = True
+            else:
+                id_not_found = True
         self.save2mouse_file('scan_regions')
-        self.printc('Process status flag set: {1} -> {0}'.format(flag_names[0],  id))
+        if id_not_found:
+            self.printc('Unknown id ({0}), probably mouse file is changed', format(id))
+        else:
+            self.printc('Process status flag set: {1} -> {0}'.format(flag_names[0],  id))
         self.parent.update_jobhandler_process_status()
     
     def add_measurement_id(self, id):
@@ -1227,19 +1246,27 @@ class MainPoller(Poller):
         self.parent.update_position_display()
         return result
         
-    def move_goniometer(self):
-        if self.parent.common_widget.enable_goniometer_checkbox.checkState() != 2:
-            self.printc('Goniometer not enabled')
+    def tilt_brain_surface(self):
+        if self.parent.common_widget.enable_tilting_checkbox.checkState() != 2:
+            self.printc('Tilting NOT enabled')
             return
         movement = map(float, self.parent.scanc().split(','))
         if len(movement) != 2:
-            self.printc('invalid coordinates')
+            self.printc('Invalid coordinates')
             return
-        mg = MotorizedGoniometer(self.config, id = 1)
-        if mg.set_speed(300):
+        mg = stage_control.MotorizedGoniometer(self.config, id = 1)
+        speed = 250#IDEA: speed may depend on movement
+        if mg.set_speed(speed):
             result = mg.move(numpy.array(movement))
             if not result:
-                self.printc('Moving goniometer was NOT successful')
+                self.printc('Tilting was NOT successful')
+            else:
+                self.printc('Tilting mouse successful')
+                position, result = mg.read_position()
+                if not result:
+                    self.printc('New position is unknown')
+                else:
+                    self.printc('{0} degree'.format(position))
         else:
             self.printc('Setting goniometer speed was NOT successful')
         mg.release_instrument()
@@ -1672,7 +1699,7 @@ class MainPoller(Poller):
         if self.parent.helpers_widget.override_enforcing_set_stage_origin_checkbox.checkState() != 0:
             self.stage_origin_set = True
         if not self.stage_origin_set:
-            self.printc('Origin not set')
+            self.printc('WARNING: origin not set')
             #return When origin is not set, only a notification will be shown, but stage is moved to region
         if self.parent.main_widget.scan_region_groupbox.move_to_region_options['checkboxes']['objective_move'] .checkState() != 0:
             self.printc('Move objective to saved position')
@@ -1995,12 +2022,6 @@ class MainPoller(Poller):
             p.plot(scanned_trajectory['roi'][::undersample])
             p.show()
             
-    ############ Data processing control ##################
-    def run_fragment_process(self):
-        command = 'SOCrun_fragment_status_checkEOCEOP'
-        self.queues['analysis']['out'].put(command)
-        self.printc('Run fragment process')
-            
     ########### Network debugger tools #################
     def send_command(self):
         connection = str(self.parent.helpers_widget.select_connection_list.currentText())
@@ -2168,10 +2189,11 @@ class MainPoller(Poller):
         if not origin is None and len(box) ==4:
             f1 = self.cutout_subimage(f1, box, scale, origin)
             f2 = self.cutout_subimage(f2, box, scale, origin)
-            import Image
-            from visexpA.engine.dataprocessors import generic
-            Image.fromarray(generic.normalize(f1,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f1.png')))
-            Image.fromarray(generic.normalize(f2,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f2.png')))
+            if False:
+                import Image
+                from visexpA.engine.dataprocessors import generic
+                Image.fromarray(generic.normalize(f1,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f1.png')))
+                Image.fromarray(generic.normalize(f2,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f2.png')))
         self.create_image_registration_data_file(f1, f2)
         utils.empty_queue(self.queues['analysis']['in'])
         arguments = ''
@@ -2182,9 +2204,13 @@ class MainPoller(Poller):
         if 'SOCregisterEOCstartedEOP' not in self.queues['analysis']['in'].get():
             self.printc('Image registration did not start')
             return False
+        mouse_file_copy_requested = False
         if utils.wait_data_appear_in_queue(self.queues['analysis']['in'], timeout = self.config.MAX_REGISTRATION_TIME):#TODO: the content of the queue also need to be checked
             while not self.queues['analysis']['in'].empty():
                     response = self.queues['analysis']['in'].get()
+                    if 'SOCmouse_file_copyEOCjobhandlerEOP' in response:
+                        response = response.replace('SOCmouse_file_copyEOCjobhandlerEOP', '')
+                        mouse_file_copy_requested = True
                     if 'error' in response:
                         self.printc('Image registration resulted error')
                         return False
@@ -2197,6 +2223,8 @@ class MainPoller(Poller):
                         return True
         else:
             self.printc('Analysis does not respond')
+        if mouse_file_copy_requested:
+            self.queues['analysis']['in'].put('SOCmouse_file_copyEOCjobhandlerEOP')
         return False
 
     def parse_list_response(self, response):
@@ -2231,37 +2259,43 @@ class MainPoller(Poller):
             fields = [fields]
         #create copy of saveable data in mouse file handler
         for field in fields:
-            self.queues['mouse_file_handler'].put([field, getattr(self, field)])
-        self.s2m()#TMP111
+            field_value = copy.deepcopy(getattr(self, field))
+            if field == 'cells':
+                field_value = utils.object2array(self.cells2pickled_ready(field_value))
+            elif field == 'roi_curves':
+                field_value = utils.object2array(field_value)
+            self.queues['mouse_file_handler'].put([field, field_value])
+#TMP111        self.mouse_file_saver()
         if wait_save:
-            while self.parent.mouse_file_handler.running:
-                time.sleep(0.1)
+            self.wait_mouse_file_save()
                 
-    def s2m(self):#TMP111
-        '''
-        Receives commands from main poller to save data to mouse file
-        '''
-        if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file) and utils.safe_has_key(self.queues, 'mouse_file_handler') and not self.queues['mouse_file_handler'].empty():
-            self.running = True
-            h = hdf5io.Hdf5io(self.mouse_file)
-            field_names_to_save = []
-            while not self.queues['mouse_file_handler'].empty():
-                field_name, field_value = self.queues['mouse_file_handler'].get()
-                if field_name == 'animal_parameters':
-                    field_name += str(int(time.time()))
-                if field_name == 'cells':
-                    field_value = utils.object2array(self.cells2pickled_ready(field_value))
-                setattr(h, field_name, field_value)
-                if not field_name in field_names_to_save:
-                    field_names_to_save.append(field_name)
-            h.save(field_names_to_save, overwrite = True)
-            h.close()
-            self.running = False
-            self.printc('{0} saved to mouse file'.format(', '.join(field_names_to_save)))
-        else:
-            time.sleep(1.0)
-            
-    def cells2pickled_ready(self, cells):#TMP111
+    def wait_mouse_file_save(self):
+        if hasattr(self.parent, 'mouse_file_handler'):
+            while self.parent.mouse_file_handler.running:
+                    time.sleep(0.1)
+                
+#    def mouse_file_saver(self):
+#        if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file) and utils.safe_has_key(self.queues, 'mouse_file_handler') and not self.queues['mouse_file_handler'].empty():
+#            self.running = True
+#            h = hdf5io.Hdf5io(self.mouse_file)
+#            field_names_to_save = []
+#            while not self.queues['mouse_file_handler'].empty():
+#                field_name, field_value = self.queues['mouse_file_handler'].get()
+#                if field_name == 'animal_parameters':
+#                    field_name += str(int(time.time()))
+#                if field_name == 'cells':
+#                    field_value = utils.object2array(self.cells2pickled_ready(field_value))
+#                setattr(h, field_name, field_value)
+#                if not field_name in field_names_to_save:
+#                    field_names_to_save.append(field_name)
+#            h.save(field_names_to_save, overwrite = True)
+#            h.close()
+#            self.running = False
+#            self.printc('{0} saved to mouse file'.format(', '.join(field_names_to_save)))
+#        else:
+#            time.sleep(1.0)
+#            
+    def cells2pickled_ready(self, cells):
         '''
         This is a workaround for a couple of compatibility problems between pickle and hdf5io
         '''
@@ -2271,9 +2305,7 @@ class MainPoller(Poller):
                     cell['group'] = 'none'
                 cell['roi_center'] = utils.rcd((cell['roi_center']['row'], cell['roi_center']['col'], cell['roi_center']['depth']))
         return cells
-
-            
-
+        
 class MouseFileHandler(Poller):
     '''
     Performs all write operations to the moouse file, ensuring that this time consuming procedure does not increase
@@ -2295,11 +2327,17 @@ class MouseFileHandler(Poller):
                 field_name, field_value = self.parent.queues['mouse_file_handler'].get()
                 if field_name == 'animal_parameters':
                     field_name += str(int(time.time()))
-                if field_name == 'cells':
-                    field_value = utils.object2array(self.cells2pickled_ready(field_value))
+#                if field_name == 'cells':
+#                    field_value = utils.object2array(self.cells2pickled_ready(field_value))
                 setattr(h, field_name, field_value)
                 if not field_name in field_names_to_save:
                     field_names_to_save.append(field_name)
+#            try:
+#                field_names_to_save.remove('roi_curves')
+#            except:
+#                pass
+#            for f in field_names_to_save:
+#                print f
             h.save(field_names_to_save, overwrite = True)
             h.close()
             self.running = False
