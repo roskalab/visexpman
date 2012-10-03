@@ -24,6 +24,7 @@ from visexpman.engine.generic import file
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
+from visexpA.engine.datadisplay.plot import Qt4Plot
 import visexpA.engine.component_guesser as cg
 
 BUTTON_HIGHLIGHT = 'color: red'
@@ -412,8 +413,10 @@ class RoiWidget(QtGui.QWidget):
     def create_widgets(self):
         self.scan_region_name_label = QtGui.QLabel()
         self.roi_info_image_display = QtGui.QLabel()
-        blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['col'], self.config.ROI_INFO_IMAGE_SIZE['row']), dtype = numpy.uint8)
-        self.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
+#        blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['col'], self.config.ROI_INFO_IMAGE_SIZE['row']), dtype = numpy.uint8)
+#        self.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
+        self.roi_plot = Qt4Plot()
+        self.roi_plot.setMinimumHeight(230)
         self.select_cell_label = QtGui.QLabel('Select cell',  self)
         self.select_cell_combobox = QtGui.QComboBox(self)
         self.select_cell_combobox.setEditable(False)
@@ -460,7 +463,8 @@ class RoiWidget(QtGui.QWidget):
         image_height_in_rows = 3
         
         self.layout.addWidget(self.scan_region_name_label, 0, 0, 1, 5)
-        self.layout.addWidget(self.roi_info_image_display, 1, 0, image_height_in_rows, 13)
+#        self.layout.addWidget(self.roi_info_image_display, 1, 0, image_height_in_rows, 13)
+        self.layout.addWidget(self.roi_plot, 1, 0, image_height_in_rows, 13)
         
         self.layout.addWidget(self.show_current_soma_roi_label, image_height_in_rows + 2, 8)
         self.layout.addWidget(self.show_current_soma_roi_checkbox, image_height_in_rows + 2, 9)
@@ -591,12 +595,12 @@ class CommonWidget(QtGui.QWidget):
         self.show_gridlines_checkbox = QtGui.QCheckBox(self)
         self.show_gridlines_checkbox.setCheckState(2)
         self.connected_clients_label = QtGui.QLabel('', self)
-        
         self.set_stage_origin_button = QtGui.QPushButton('Set stage origin', self)
         self.set_stage_origin_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.read_stage_button = QtGui.QPushButton('Read stage', self)
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
         self.tilt_brain_surface_button = QtGui.QPushButton('Tilt brain surface', self)
+        self.tilt_brain_surface_button.setToolTip('Provide tilt degrees in text input box in the following format: x axis [degree],y axis [degree]')
         self.enable_tilting_label = QtGui.QLabel('Enable tilting', self)
         self.enable_tilting_checkbox = QtGui.QCheckBox(self)
         self.enable_xy_scan_with_move_stage_label = QtGui.QLabel('XY scan after\n move stage', self)
@@ -650,13 +654,13 @@ class StandardIOWidget(QtGui.QWidget):
         self.text_out.setCursorWidth(5)
         self.text_in = QtGui.QTextEdit(self)
         self.text_in.setToolTip('self.printc()')
-        
+        self.text_in.setFixedHeight(50)
         self.execute_python_button = QtGui.QPushButton('Execute python code',  self)
         self.clear_console_button = QtGui.QPushButton('Clear console',  self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.text_out, 0, 0, 4, 3)
+        self.layout.addWidget(self.text_out, 0, 0, 30, 3)
         self.layout.addWidget(self.text_in, 1, 3, 1, 2)
         self.layout.addWidget(self.execute_python_button, 0, 3, 1, 1)#, alignment = QtCore.Qt.AlignTop)
         self.layout.addWidget(self.clear_console_button, 0, 4, 1, 1)#, alignment = QtCore.Qt.AlignTop)
@@ -691,8 +695,7 @@ class MainPoller(Poller):
         self.parent.connect(self, QtCore.SIGNAL('update_scan_regions'),  self.parent.update_scan_regions)
         self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
         self.parent.connect(self, QtCore.SIGNAL('update_widgets_when_mouse_file_changed'),  self.parent.update_widgets_when_mouse_file_changed)
-        self.parent.connect(self, QtCore.SIGNAL('show_overwrite_region_messagebox'),  self.parent.show_overwrite_region_messagebox)
-        self.parent.connect(self, QtCore.SIGNAL('show_verify_add_region_messagebox'),  self.parent.show_verify_add_region_messagebox)
+        self.parent.connect(self, QtCore.SIGNAL('ask4confirmation'),  self.parent.ask4confirmation)
         self.parent.connect(self, QtCore.SIGNAL('select_cell_changed'),  self.parent.select_cell_changed)
     
     def init_run(self):
@@ -890,7 +893,10 @@ class MainPoller(Poller):
             self.printc('Loading cells')
             cells  = copy.deepcopy(h.findvar('cells'))#Takes long to load cells
             if cells is not None:
-                self.cells = utils.array2object(cells)
+                if hasattr(cells, 'dtype'):
+                    self.cells = utils.array2object(cells)
+                else:
+                    self.cells = cells
             self.printc('Loading mean images')
             images  = copy.deepcopy(h.findvar('images'))#Takes long to load images
             if images is not None:
@@ -978,10 +984,7 @@ class MainPoller(Poller):
             self.roi_curves[region_name] = {}
         soma_rois = h_measurement.findvar('soma_rois')
         roi_centers = h_measurement.findvar('roi_centers')
-        roi_curve_images = h_measurement.findvar('roi_curve_images')
-        if hasattr(roi_curve_images, 'shape'):
-            roi_curve_images = [roi_curve_images]
-        roi_curves= h_measurement.findvar('roi_curves')
+        roi_plots = h_measurement.findvar('roi_plots')
         depth = int(h_measurement.findvar('position')['z'][0])
         stimulus = h_measurement.findvar('stimulus_class')
         if soma_rois is None or len(soma_rois) == 0:
@@ -1004,8 +1007,7 @@ class MainPoller(Poller):
             self.cells[region_name][cell_id]['stimulus'] = stimulus
             self.cells[region_name][cell_id]['scale'] = scale
             self.cells[region_name][cell_id]['origin'] = origin
-            self.cells[region_name][cell_id]['roi_curve'] = roi_curves[i]
-            self.roi_curves[region_name][cell_id] = roi_curve_images[i]
+            self.cells[region_name][cell_id]['roi_plot'] = roi_plots[i]
         h_measurement.close()
         #Save changes
         self.save2mouse_file(['cells', 'scan_regions', 'images', 'roi_curves'])
@@ -1250,6 +1252,7 @@ class MainPoller(Poller):
         if self.parent.common_widget.enable_tilting_checkbox.checkState() != 2:
             self.printc('Tilting NOT enabled')
             return
+        self.parent.common_widget.enable_tilting_checkbox.setCheckState(0)
         movement = map(float, self.parent.scanc().split(','))
         if len(movement) != 2:
             self.printc('Invalid coordinates')
@@ -1586,15 +1589,10 @@ class MainPoller(Poller):
             region_name_tag = '_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
             region_name = region_name + region_name_tag
             region_name = region_name.replace(' ', '_')
-            #Check if generated region name exists
-            if self.scan_regions.has_key(region_name):
-                #Ask for confirmation to overwrite if region name already exists
-                self.emit(QtCore.SIGNAL('show_overwrite_region_messagebox'))
-                while self.gui_thread_queue.empty():
-                    time.sleep(0.1) 
-                if not self.gui_thread_queue.get():
-                    self.printc('Region not saved')
-                    return
+            #Ask for confirmation to overwrite if region name already exists
+            if self.scan_regions.has_key(region_name) and not self.ask4confirmation('Overwriting scan region'):
+                self.printc('Region not saved')
+                return
         if not('master' in region_name or '0_0' in region_name or self.has_master_position(self.scan_regions)):
             self.printc('Master position has to be defined')
             return
@@ -1614,14 +1612,6 @@ class MainPoller(Poller):
         scan_region['xy']['origin'] = self.xy_scan['origin']
         scan_region['xy']['mes_parameters']  = self.xy_scan['mes_parameters']
         #Save xy line scan parameters
-        if hasattr(self, 'xz_scan') and False:
-            #Ask for verification wheather line scan is set back to xy
-            self.emit(QtCore.SIGNAL('show_verify_add_region_messagebox'))
-            while self.gui_thread_queue.empty():
-                time.sleep(0.1) 
-            if not self.gui_thread_queue.get():
-                self.printc('Region not saved')
-                return
         result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters()
         if result and os.path.exists(line_scan_path):
             scan_region['xy_scan_parameters'] = utils.file_to_binary_array(line_scan_path)
@@ -1643,6 +1633,8 @@ class MainPoller(Poller):
         self.printc('{0} scan region saved'.format(region_name))
         
     def save_xy_scan(self):
+        if not self.ask4confirmation('XY scan config will be overwritten'):
+            return
         region_name = self.parent.get_current_region_name()
         if not self.xy_scan is None:
             self.scan_regions[region_name]['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
@@ -1653,6 +1645,8 @@ class MainPoller(Poller):
             self.printc('XY scan updated')
         
     def save_xz_scan(self):
+        if not self.ask4confirmation('XZ scan config will be overwritten'):
+            return
         region_name = self.parent.get_current_region_name()
         if not self.xz_scan is None:
             self.scan_regions[region_name]['xz'] = self.xz_scan
@@ -1662,6 +1656,8 @@ class MainPoller(Poller):
             self.printc('XZ scan updated')
         
     def save_xyt_scan(self):
+        if not self.ask4confirmation('XYT scan config will be overwritten'):
+            return
         region_name = self.parent.get_current_region_name()
         if not self.xy_scan is None:
             self.printc('Reading XYT line scan parameters')
@@ -2251,6 +2247,12 @@ class MainPoller(Poller):
                                          animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], tag, extension, animal_parameters['id'])
         return name
         
+    def ask4confirmation(self, action2confirm):
+        self.emit(QtCore.SIGNAL('ask4confirmation'), action2confirm)
+        while self.gui_thread_queue.empty() :
+            time.sleep(0.1) 
+        return self.gui_thread_queue.get()
+        
     def save2mouse_file(self, fields, wait_save = False):
 #        #Wait till mouse file handler finishes with copying data fields
 #        while self.parent.mouse_file_handler.lock:
@@ -2336,9 +2338,9 @@ class MouseFileHandler(Poller):
 #                field_names_to_save.remove('roi_curves')
 #            except:
 #                pass
-#            for f in field_names_to_save:
-#                print f
-            h.save(field_names_to_save, overwrite = True)
+            for f in field_names_to_save:
+                print f
+                h.save(f, overwrite = True)
             h.close()
             self.running = False
             self.printc('{0} saved to mouse file'.format(', '.join(field_names_to_save)))

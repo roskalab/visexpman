@@ -512,32 +512,17 @@ class VisionExperimentGui(QtGui.QWidget):
         self.roi_widget.suggested_depth_label.setText('Suggested depth: {0:.0f} um'.format(self.poller.suggested_depth))
 
     def update_roi_curves_display(self):
+        #setdata(blockplotpoints["full"], ylabel='Fluorescence', vlines = vlines, xlabel =tlabels, vlinelimits=vlinelimits, penwidth=w,  color=Qt.Qt.black,  axisscale=axislims )
         region_name = self.get_current_region_name()
         cell_id = self.get_current_cell_id()
-        roi_curve_drawn = False
-        if cell_id != '':
-            if utils.safe_has_key(self.poller.cells, region_name) and hasattr(self.poller, 'roi_curves') and \
-                                utils.safe_has_key(self.poller.roi_curves, region_name):
-                if not utils.safe_has_key(self.poller.roi_curves[region_name], cell_id):
-                    self.printc('Roi curve is missing')
-                roi_curve = self.poller.roi_curves[region_name][cell_id]
-                cells = self.poller.cells[region_name]
-                if cells.has_key(cell_id):
-                    cell = cells[cell_id]#for some reason h.findvar(cell_id,path = 'root.cells.'+region_name) does not work
-                    if roi_curve is not None and cell is not None:
-                        #convert from png file
-                        roi_curve_image = Image.open(io.BytesIO(roi_curve))
-                        roi_curve_image = numpy.asarray(roi_curve_image)
-                        roi_curve_image.flags.writeable = True
-                        roi_curve_image = roi_curve_image[300:600,:,:]
-                        #draw on image
-                        if not cell['accepted']:
-                            roi_curve_image = numpy.where(roi_curve_image == 255,  210, roi_curve_image)
-                        self.show_image(roi_curve_image, 'roi_curve', utils.rc((1, 1)))
-                        roi_curve_drawn = True
-        if not roi_curve_drawn:
-            blank_image = 128*numpy.ones((self.config.ROI_INFO_IMAGE_SIZE['row'], self.config.ROI_INFO_IMAGE_SIZE['col']), dtype = numpy.uint8)
-            self.show_image(blank_image, 'roi_curve', utils.rc((1, 1)))
+        if cell_id != '' and utils.safe_has_key(self.poller.cells, region_name) and utils.safe_has_key(self.poller.cells[region_name], cell_id) and \
+                    utils.safe_has_key(self.poller.cells[region_name][cell_id], 'roi_plot'):
+            plot_info = self.poller.cells[region_name][cell_id]['roi_plot']
+            self.roi_widget.roi_plot.setdata(plot_info['curve'], vlines = plot_info['vlines'][::2], penwidth=1, color=Qt.Qt.black)
+            self.roi_widget.roi_plot.adddata(plot_info['curve'].mean(axis=-1),color=[Qt.Qt.darkRed, Qt.Qt.darkGreen], penwidth=3)
+            self.roi_widget.roi_plot.setaxisscale([0, plot_info['curve'].shape[0], plot_info['curve'].min(), plot_info['curve'].max()])
+        else:
+            self.roi_widget.roi_plot.clear()
 
     def show_image(self, image, channel, scale, line = [], origin = utils.rc((0, 0))):
         image_in = {}
@@ -635,22 +620,14 @@ class VisionExperimentGui(QtGui.QWidget):
         return box
         
     ########## GUI utilities, misc functions #############
-    def show_verify_add_region_messagebox(self):
+    def ask4confirmation(self, action2confirm):
         utils.empty_queue(self.poller.gui_thread_queue)
-        reply = QtGui.QMessageBox.question(self, 'Are you sure that line scan is set back to xy?', "Do you want to continue?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        reply = QtGui.QMessageBox.question(self, 'Confirm following action', action2confirm, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
         if reply == QtGui.QMessageBox.No:
             self.poller.gui_thread_queue.put(False)
         else:
             self.poller.gui_thread_queue.put(True)
-            
-    def show_overwrite_region_messagebox(self):
-        utils.empty_queue(self.poller.gui_thread_queue)
-        reply = QtGui.QMessageBox.question(self, 'Overwriting scan region', "Do you want to overwrite scan region?", QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
-        if reply == QtGui.QMessageBox.No:
-            self.poller.gui_thread_queue.put(False)
-        else:
-            self.poller.gui_thread_queue.put(True)
-            
+
     def execute_python(self):
         try:
             exec(str(self.scanc()))
