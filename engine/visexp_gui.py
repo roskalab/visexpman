@@ -35,6 +35,7 @@ from visexpman.users.zoltan.test import unit_test_runner
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as generic_visexpA
 
+MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS = 40
 parameter_extract = re.compile('EOC(.+)EOP')
 
 ################### Main widget #######################
@@ -47,10 +48,11 @@ class VisionExperimentGui(QtGui.QWidget):
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
         self.config.user = user
         self.console_text = ''
-        self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True) 
-        self.poller = gui.Poller(self)
-        self.gui_tester = GuiTest(self)
+        self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True)
+        self.poller = gui.MainPoller(self)
         self.queues = self.poller.queues
+        self.mouse_file_handler = gui.MouseFileHandler(self)
+        self.gui_tester = GuiTest(self)
         QtGui.QWidget.__init__(self)
         self.setWindowTitle('Vision Experiment Manager GUI - {0} - {1}' .format(user,  config_class))
         icon_path = os.path.join(os.path.split(visexpman.__file__)[0],'data','images','grabowsky.png')
@@ -64,6 +66,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_signals()
         self.init_variables()
         self.poller.start()
+        self.mouse_file_handler.start()
         self.show()
         self.init_widget_content()
         self.block_widgets(False)
@@ -130,7 +133,6 @@ class VisionExperimentGui(QtGui.QWidget):
     def connect_signals(self):
         self.signal_mapper = QtCore.QSignalMapper(self)
         #Poller control
-        self.connect(self, QtCore.SIGNAL('abort'), self.poller.abort_poller)
         self.connect(self.helpers_widget.gui_test_button, QtCore.SIGNAL('clicked()'), self.gui_tester.start_test)
         #GUI events
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
@@ -175,14 +177,14 @@ class VisionExperimentGui(QtGui.QWidget):
 
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.remove_measurement_button, 'remove_measurement_file_from_database')
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.set_state_to_button, 'set_measurement_file_process_state')
-        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.run_fragment_process_button, 'run_fragment_process')
+        self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.reset_jobhandler_button, 'reset_jobhandler')
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.add_id_button, 'add_id')
 
         #Blocking functions, run by poller
         self.connect_and_map_signal(self.common_widget.read_stage_button, 'read_stage')
         self.connect_and_map_signal(self.common_widget.set_stage_origin_button, 'set_stage_origin')
         self.connect_and_map_signal(self.common_widget.move_stage_button, 'move_stage')
-        self.connect_and_map_signal(self.common_widget.move_goniometer_button, 'move_goniometer')
+        self.connect_and_map_signal(self.common_widget.tilt_brain_surface_button, 'tilt_brain_surface')
         self.connect_and_map_signal(self.common_widget.stop_stage_button, 'stop_stage')
         self.connect_and_map_signal(self.common_widget.set_objective_button, 'set_objective')
 #        self.connect_and_map_signal(self.main_widget.set_objective_value_button, 'set_objective_relative_value')
@@ -217,7 +219,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_mouse_files_combobox(set_to_value = os.path.split(self.poller.mouse_file)[1])
             
     def tab_changed(self, currentIndex):
-        if currentIndex != 1:
+        if currentIndex != 1:#If user switched from ROI tab, save cell selections
             self.poller.signal_id_queue.put('save_cells')
         #Load meanimages or scan region images
         if currentIndex == 0:
@@ -300,9 +302,9 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_animal_parameter_display(self):
         if hasattr(self.poller, 'animal_parameters'):
             animal_parameters = self.poller.animal_parameters
-            self.animal_parameters_str = '{2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}'\
+            self.animal_parameters_str = '{6}, {2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}'\
             .format(animal_parameters['mouse_birth_date'], animal_parameters['gcamp_injection_date'], animal_parameters['strain'], 
-                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'])
+                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'], animal_parameters['id'])
             self.main_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
             
     def update_region_names_combobox(self, selected_region = None):
@@ -366,10 +368,9 @@ class VisionExperimentGui(QtGui.QWidget):
         region_name = self.get_current_region_name()
         if utils.safe_has_key(scan_regions, region_name) and scan_regions[region_name].has_key('process_status'):
             status_text = ''
-            item_counter = 0
-            item_per_line = 2
             ids = scan_regions[region_name]['process_status'].keys()
             ids.sort()
+            ids = ids[-MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS:]
             for id in ids:
                 status = scan_regions[region_name]['process_status'][id]
                 if status['info'].has_key('depth'):
@@ -377,7 +378,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 else:
                     depth = ''
                 if status['info'].has_key('stimulus'):
-                    stimulus = status['info']['stimulus'].replace('Config', '')
+                    stimulus = str(status['info']['stimulus']).replace('Config', '')#For unknown reason this is not always string type
                 else:
                     stimulus = ''
                 if status['info'].has_key('scan_mode'):
@@ -385,26 +386,24 @@ class VisionExperimentGui(QtGui.QWidget):
                 else:
                     scan_mode = ''
                 if status['info'].has_key('laser_intensity'):
-                    laser_intensity = status['info']['laser_intensity']
+                    try:
+                        laser_intensity = float(status['info']['laser_intensity'])
+                    except ValueError:
+                        laser_intensity = 0.0
                 else:
                     laser_intensity = 0.0
                 if status['find_cells_ready']:
                     if status['info'].has_key('number_of_cells'):
                         status = '{0} cells' .format(status['info']['number_of_cells'])
                     else:
-                        status = 'find cells ready'
+                        status = 'ready'
                 elif status['mesextractor_ready']:
-                    status = 'mesextractor ready'
+                    status = '**'
                 elif status['fragment_check_ready']:
-                    status = 'fragment check ready'
+                    status = '*'
                 else:
-                    status = 'not processed'
+                    status = '*'
                 status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
-#                if item_counter%item_per_line==item_per_line-1:
-#                    status_text+='\n'
-#                else:
-#                    status_text+='; '
-                item_counter += 1
         else:
             status_text = ''
         self.main_widget.measurement_datafile_status_groupbox.process_status_label.setText(status_text)
@@ -412,6 +411,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_cell_list(self):
         region_name = self.get_current_region_name()
         if region_name == '':
+                self.update_combo_box_list(self.roi_widget.select_cell_combobox, [])
                 return
         if hasattr(self.poller, 'cells') and utils.safe_has_key(self.poller.cells, region_name): #To handle situations when region name is being edited by user
             self.poller.cell_ids = self.poller.cells[region_name].keys()
@@ -518,6 +518,8 @@ class VisionExperimentGui(QtGui.QWidget):
         if cell_id != '':
             if utils.safe_has_key(self.poller.cells, region_name) and hasattr(self.poller, 'roi_curves') and \
                                 utils.safe_has_key(self.poller.roi_curves, region_name):
+                if not utils.safe_has_key(self.poller.roi_curves[region_name], cell_id):
+                    self.printc('Roi curve is missing')
                 roi_curve = self.poller.roi_curves[region_name][cell_id]
                 cells = self.poller.cells[region_name]
                 if cells.has_key(cell_id):
@@ -665,6 +667,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.console_text  += text + '\n'
         self.standard_io_widget.text_out.setPlainText(self.console_text)
         self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
+#        print text
         try:
             self.log.info(text)
         except:
@@ -676,7 +679,9 @@ class VisionExperimentGui(QtGui.QWidget):
     def closeEvent(self, e):
         e.accept()
         self.log.copy()
-        self.emit(QtCore.SIGNAL('abort'))
+        self.poller.abort = True
+        time.sleep(3.0)
+        #TMP111self.mouse_file_handler.abort = True
         #delete files:
         for file_path in self.poller.files_to_delete:
             if os.path.exists(file_path):

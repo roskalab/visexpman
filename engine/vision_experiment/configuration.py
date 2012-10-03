@@ -36,6 +36,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         '''        
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
         
+        self.enable_celery = True
+        
         #parameter with range: list[0] - value, list[1] - range
         #path parameter: parameter name contains '_PATH'
         #string list: list[1] - empty
@@ -288,6 +290,10 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ########### Context file #########
         if hasattr(self, 'CONTEXT_PATH') and hasattr(self, 'CONTEXT_NAME'):
             self.CONTEXT_FILE_p = visexpman.engine.generic.parameter.Parameter(os.path.join(self.CONTEXT_PATH, self.CONTEXT_NAME))
+            
+        self.cachepath = self.EXPERIMENT_DATA_PATH#To ensure compatibility with analysis config class #TODO: visexpA and visexpman config classes shall be merged into one class
+        self.cacheext = 'hdf5'
+        self.packagepath = 'visexpA.users.daniel'
 
     def _merge_commands(self, command_list, user_command_list):        
         commands = dict(command_list.items() + user_command_list.items())

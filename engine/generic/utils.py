@@ -209,9 +209,10 @@ def arrays_equal(a1, a2):
     return (abs(a1_-a2_)).sum() == 0
     
 def um2pixel(data, origin, scale):
-    in_pixel = rc((numpy.cast['int']((data['row']-origin['row'])/scale['row']), numpy.cast['int']((data['col']-origin['col'])/scale['col'])))
-#    for axis in ['row', 'col']:
-#        in_pixel[axis] = numpy.where(in_pixel[axis] < 0,  0,  in_pixel[axis])
+    if scale['col'] == 0.0 or scale['row'] == 0.0:
+        raise RuntimeError('Scaling is incorrect {0}'.format(scale))
+    else:
+        in_pixel = rc((numpy.cast['int']((data['row']-origin['row'])/scale['row']), numpy.cast['int']((data['col']-origin['col'])/scale['col'])))
     return in_pixel
     
 def pixel2um(data, origin, scale):
@@ -596,7 +597,7 @@ version_paths = {
     'tables': '__version__', 
     'serial': 'VERSION', 
     'parallel': 'VERSION', 
-    'PyQt4':' QtCore.QT_VERSION_STR', 
+    'PyQt4.QtCore':' QtCore.PYQT_VERSION_STR', 
     'OpenGL': 'version.__version__', 
     'pygame': 'version.ver', 
     'PyDAQmx' : '__version__',
@@ -719,7 +720,7 @@ def object2hdf5(h, vn):
 def hdf52object(h, vn, default_value = None):
     h.load(vn)
     if hasattr(h, vn) and hasattr(getattr(h, vn), 'dtype'):
-        return array2object(getattr(h, vn))
+        return copy.deepcopy(array2object(getattr(h, vn)))
     else:
         return default_value
     

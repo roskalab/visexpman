@@ -166,6 +166,9 @@ class MesInterface(object):
             os.remove(parameter_path)
         return result
         
+    def set_objective_position(self, position,  timeout = None):
+        return self.set_objective(position, timeout), position
+        
     def overwrite_relative_position(self, position_value, timeout = None):
         '''
         The value of the relative objective position is changed without moving the objective. The origin value is changed

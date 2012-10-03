@@ -315,7 +315,7 @@ class Debug(VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'PixelSizeCalibrationConfig'
         EXPERIMENT_CONFIG = 'LedStimulationConfig'
         EXPERIMENT_CONFIG = 'MovingDotConfig'
-#        EXPERIMENT_CONFIG = 'ShortMovingDotConfig'
+        GUI_REFRESH_PERIOD = 3.0
         PLATFORM = 'standalone'
         PLATFORM = 'mes'
         CELL_MERGE_DISTANCE = 3.0
@@ -374,7 +374,7 @@ class Debug(VisionExperimentConfig):
         
         #=== Network ===
         ENABLE_UDP = False
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'#'172.27.25.220' .1: production
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'#'172.27.27.221' .: production, 192: rlvivo1
 #        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
@@ -394,7 +394,7 @@ class Debug(VisionExperimentConfig):
                                     }
                                     
         goniometer_serial_port = {
-                                    'port' :  'COM3',
+                                    'port' :  'COM5',
                                     'baudrate' : 9600,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
@@ -472,7 +472,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
     Visual stimulation machine of 3D microscope setup
     '''
     def _set_user_parameters(self):
-        GUI_REFRESH_PERIOD = 5
+        GUI_REFRESH_PERIOD = 5.0
         ENABLE_MESEXTRACTOR = True
         ENABLE_CELL_DETECTION = True
         EXPERIMENT_CONFIG = 'MovingDotConfig'
