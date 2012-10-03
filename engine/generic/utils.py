@@ -606,7 +606,7 @@ version_paths = {
     'Helpers' : 'version', 
     'visexpman': 'version', 
     'visexpA': 'version', 
-    'scikits.learn':'__version__',
+    'sklearn':'__version__',
     'Polygon':'__version__'
     }    
     
