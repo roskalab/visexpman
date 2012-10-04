@@ -310,11 +310,8 @@ class Debug(VisionExperimentConfig):
     '''
     Windows development machine
     '''
-    def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'GratingConfig'
-        EXPERIMENT_CONFIG = 'PixelSizeCalibrationConfig'
-        EXPERIMENT_CONFIG = 'LedStimulationConfig'
-        EXPERIMENT_CONFIG = 'MovingDotConfig'
+    def _set_user_parameters(self):
+        EXPERIMENT_CONFIG = 'MovingGratingWithFlashConfig'
         GUI_REFRESH_PERIOD = 3.0
         PLATFORM = 'standalone'
         PLATFORM = 'mes'

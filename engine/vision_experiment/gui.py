@@ -600,7 +600,7 @@ class CommonWidget(QtGui.QWidget):
         self.read_stage_button = QtGui.QPushButton('Read stage', self)
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
         self.tilt_brain_surface_button = QtGui.QPushButton('Tilt brain surface', self)
-        self.tilt_brain_surface_button.setToolTip('Provide tilt degrees in text input box in the following format: x axis [degree],y axis [degree]')
+        self.tilt_brain_surface_button.setToolTip('Provide tilt degrees in text input box in the following format: horizontal axis [degree],vertical axis [degree]')
         self.enable_tilting_label = QtGui.QLabel('Enable tilting', self)
         self.enable_tilting_checkbox = QtGui.QCheckBox(self)
         self.enable_xy_scan_with_move_stage_label = QtGui.QLabel('XY scan after\n move stage', self)
@@ -2267,7 +2267,7 @@ class MainPoller(Poller):
             elif field == 'roi_curves':
                 field_value = utils.object2array(field_value)
             self.queues['mouse_file_handler'].put([field, field_value])
-#TMP111        self.mouse_file_saver()
+        self.mouse_file_saver()
         if wait_save:
             self.wait_mouse_file_save()
                 
@@ -2276,27 +2276,23 @@ class MainPoller(Poller):
             while self.parent.mouse_file_handler.running:
                     time.sleep(0.1)
                 
-#    def mouse_file_saver(self):
-#        if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file) and utils.safe_has_key(self.queues, 'mouse_file_handler') and not self.queues['mouse_file_handler'].empty():
-#            self.running = True
-#            h = hdf5io.Hdf5io(self.mouse_file)
-#            field_names_to_save = []
-#            while not self.queues['mouse_file_handler'].empty():
-#                field_name, field_value = self.queues['mouse_file_handler'].get()
-#                if field_name == 'animal_parameters':
-#                    field_name += str(int(time.time()))
-#                if field_name == 'cells':
-#                    field_value = utils.object2array(self.cells2pickled_ready(field_value))
-#                setattr(h, field_name, field_value)
-#                if not field_name in field_names_to_save:
-#                    field_names_to_save.append(field_name)
-#            h.save(field_names_to_save, overwrite = True)
-#            h.close()
-#            self.running = False
-#            self.printc('{0} saved to mouse file'.format(', '.join(field_names_to_save)))
-#        else:
-#            time.sleep(1.0)
-#            
+    def mouse_file_saver(self):
+        if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file) and utils.safe_has_key(self.queues, 'mouse_file_handler') and not self.queues['mouse_file_handler'].empty():
+            self.running = True
+            h = hdf5io.Hdf5io(self.mouse_file)
+            field_names_to_save = []
+            while not self.queues['mouse_file_handler'].empty():
+                field_name, field_value = self.queues['mouse_file_handler'].get()
+                if field_name == 'animal_parameters':
+                    field_name += str(int(time.time()))
+                setattr(h, field_name, field_value)
+                if not field_name in field_names_to_save:
+                    field_names_to_save.append(field_name)
+            h.save(field_names_to_save, overwrite = True)
+            h.close()
+            self.running = False
+            self.printc('{0} saved to mouse file'.format(', '.join(field_names_to_save)))
+
     def cells2pickled_ready(self, cells):
         '''
         This is a workaround for a couple of compatibility problems between pickle and hdf5io

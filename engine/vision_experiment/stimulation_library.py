@@ -869,6 +869,47 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
+class StimulationSequences(Stimulations):
+    def flash_stimulus(self, timing, flash_color = 1.0, background_color = 0.0, repeats = 1):
+        '''
+        timing: a series of durations have to be provided in seconds to define a flashing pattern. The first item is always displayed with background color
+        '''
+        for repeat in range(repeats):
+            state = False
+            for duration in timing:
+                if state:
+                    self.show_fullscreen(color = flash_color, duration = duration)
+                else:
+                    self.show_fullscreen(color = background_color, duration = duration)
+                state = not state
+            
+        
+    def moving_grating_stimulus(self):
+        pass
+        
+#class FlashConfig(experiment.ExperimentConfig):
+#    def _create_parameters(self):
+#        #Timing        
+#        self.WAIT_BEFORE_FLASH = 5.0
+#        self.FLASH_TIME = 10.0
+#        self.PERIOD_TIME = 60.0
+#        self.REPEATS = 3.0
+#        self.BLACK = 0.0
+#        self.WHITE = 1.0
+#        self.runnable = 'Flash'
+#        
+#        self._create_parameters_from_locals(locals())
+#        
+#class Flash(experiment.Experiment):
+#    
+#    def prepare(self):
+#        pass
+#
+#    def run(self, fragment_id=0):
+#        for repeat in range(self.experiment_config.REPEATS):
+#            self.show_fullscreen(color = self.experiment_config.BLACK, duration = self.experiment_config.WAIT_BEFORE_FLASH)
+#            self.show_fullscreen(color = self.experiment_config.WHITE, duration = self.experiment_config.FLASH_TIME)
+#            self.show_fullscreen(color = self.experiment_config.BLACK, duration = self.experiment_config.PERIOD_TIME - self.experiment_config.WAIT_BEFORE_FLASH - self.experiment_config.FLASH_TIME)
 
 if __name__ == "__main__":
     pass

@@ -38,6 +38,8 @@ from visexpA.engine.dataprocessors import generic as generic_visexpA
 MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS = 40
 parameter_extract = re.compile('EOC(.+)EOP')
 
+ENABLE_MOUSE_FILE_HANDLER = False
+
 ################### Main widget #######################
 class VisionExperimentGui(QtGui.QWidget):
     '''
@@ -51,7 +53,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True)
         self.poller = gui.MainPoller(self)
         self.queues = self.poller.queues
-        self.mouse_file_handler = gui.MouseFileHandler(self)
+        if ENABLE_MOUSE_FILE_HANDLER:
+            self.mouse_file_handler = gui.MouseFileHandler(self)
         self.gui_tester = GuiTest(self)
         QtGui.QWidget.__init__(self)
         self.setWindowTitle('Vision Experiment Manager GUI - {0} - {1}' .format(user,  config_class))
@@ -66,7 +69,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_signals()
         self.init_variables()
         self.poller.start()
-        self.mouse_file_handler.start()
+        if ENABLE_MOUSE_FILE_HANDLER:
+            self.mouse_file_handler.start()
         self.show()
         self.init_widget_content()
         self.block_widgets(False)

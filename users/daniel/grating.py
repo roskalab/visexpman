@@ -49,6 +49,17 @@ class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
         
+class MovingGratingWithFlashConfig(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        #Flash config
+        self.ENABLE_FLASH = True
+        self.FLASH_DURATION = 1.0
+        self.TIMING = [3.0, self.FLASH_DURATION, 7.0, self.FLASH_DURATION, 14.0]
+        self.FLASH_REPEATS = 1
+        self.BLACK = 0.0
+        self.WHITE = 1.0
+        
 if 0:
     class MovingGratingNoMarchingNoStandingConfig(experiment.ExperimentConfig):
         def _create_parameters(self):
@@ -64,12 +75,15 @@ if 0:
             self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
             self.REPEATS = 1
             self.PAUSE_BEFORE_AFTER = 0.0
+            
             self.runnable = 'MovingGrating'
             self.pre_runnable = 'MovingGratingPre'
             self._create_parameters_from_locals(locals())
 
-class ShortMovingGratingConfig(experiment.ExperimentConfig):
+class ShortMovingGratingConfig(MovingGratingWithFlashConfig):
     def _create_parameters(self):
+        MovingGratingWithFlashConfig._create_parameters(self)
+        self.ENABLE_FLASH = False
         #Timing
         self.NUMBER_OF_MARCHING_PHASES = 1
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1
@@ -78,9 +92,6 @@ class ShortMovingGratingConfig(experiment.ExperimentConfig):
         #Grating parameters        
         self.ORIENTATIONS = [0]
         self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [1800.0]#1800
-        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 1
         self.PAUSE_BEFORE_AFTER = 0.0
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
@@ -118,7 +129,7 @@ class MovingGrating(experiment.Experiment):
         self.period_time = self.overall_duration / self.experiment_config.REPEATS
         if self.period_time > self.machine_config.MAXIMUM_RECORDING_DURATION:
             raise RuntimeError('Stimulus too long')
-        self.fragment_durations = [self.period_time*self.experiment_config.REPEATS + 2 * self.experiment_config.PAUSE_BEFORE_AFTER] 
+        self.fragment_durations = [self.period_time*self.experiment_config.REPEATS + 2 * self.experiment_config.PAUSE_BEFORE_AFTER + self.experiment_config.FLASH_REPEATS * numpy.array(self.experiment_config.TIMING).sum()] 
         self.number_of_fragments = len(self.fragment_durations)
         #Group stimulus units into fragments
         segment_pointer = 0
@@ -126,6 +137,10 @@ class MovingGrating(experiment.Experiment):
         self.experiment_specific_data = {}
 
     def run(self, fragment_id = 0):
+        #Flash
+        if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
+            self.flash_stimulus(self.experiment_config.TIMING, flash_color = self.experiment_config.WHITE, background_color = self.experiment_config.BLACK, repeats = self.experiment_config.FLASH_REPEATS)
+        #moving grating
         frame_counter = 0
         segment_counter = 0
         self.experiment_specific_data['segment_info'] = {} 
@@ -184,7 +199,10 @@ class MovingGrating(experiment.Experiment):
                 
 class MovingGratingPre(experiment.PreExperiment):    
     def run(self):
-        self.show_grating(duration = 0, 
+        if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
+            self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
+        else:
+            self.show_grating(duration = 0, 
                             orientation = self.experiment_config.ORIENTATIONS[0], 
                             velocity = 0, white_bar_width = self.experiment_config.WHITE_BAR_WIDTHS[0],
                             duty_cycle = self.experiment_config.DUTY_CYCLES[0], part_of_drawing_sequence = True)

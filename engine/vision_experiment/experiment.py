@@ -57,7 +57,7 @@ class ExperimentConfig(Config):
     def set_experiment_control_context(self):
         self.runnable.set_experiment_control_context()
 
-class Experiment(stimulation_library.Stimulations):
+class Experiment(stimulation_library.StimulationSequences):
     '''
     The usage of experiment fragments assumes the existence of number_of_fragments variable
     The floowing variable is saved to the output file: self.experiment_specific_data
