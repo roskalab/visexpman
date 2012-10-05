@@ -36,6 +36,7 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as generic_visexpA
 
 MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS = 40
+MAX_ANESTHESIA_ENTRIES = 25
 parameter_extract = re.compile('EOC(.+)EOP')
 
 ENABLE_MOUSE_FILE_HANDLER = False
@@ -142,7 +143,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
 #        self.connect_and_map_signal(self.main_tab, 'save_cells', 'currentChanged')
         self.connect(self.common_widget.show_gridlines_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.gridline_checkbox_changed)
-        self.connect(self.main_widget.scan_region_groupbox.registration_subimage_combobox, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.subimage_parameters_changed)
+        self.connect(self.common_widget.registration_subimage_combobox, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.subimage_parameters_changed)
         
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.select_mouse_file, 'mouse_file_changed', 'currentIndexChanged')
         self.connect(self.main_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.region_name_changed)
@@ -191,6 +192,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect_and_map_signal(self.common_widget.tilt_brain_surface_button, 'tilt_brain_surface')
         self.connect_and_map_signal(self.common_widget.stop_stage_button, 'stop_stage')
         self.connect_and_map_signal(self.common_widget.set_objective_button, 'set_objective')
+        self.connect_and_map_signal(self.common_widget.register_button, 'register')
 #        self.connect_and_map_signal(self.main_widget.set_objective_value_button, 'set_objective_relative_value')
         self.connect_and_map_signal(self.main_widget.z_stack_button, 'acquire_z_stack')
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.get_xy_scan_button, 'acquire_xy_scan')
@@ -230,6 +232,8 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_scan_regions()
         elif currentIndex == 1:
             self.update_meanimage()
+            image_widget = self.images_widget.image_display[0]
+            self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
             self.update_cell_info()
             
     def gridline_checkbox_changed(self):
@@ -273,11 +277,15 @@ class VisionExperimentGui(QtGui.QWidget):
 
     ################### GUI updaters #################
     def update_anesthesia_history(self):
-        text = 'Time, substance, amount, comment\n'
+        text = 'Time\tsubstance\tamount\tcomment\n'
         if hasattr(self.poller, 'anesthesia_history'):
-            for entry in self.poller.anesthesia_history:
-                text += '{0}: {1} {2} | {3}\n' .format(utils.timestamp2ymdhms(entry['timestamp']), entry['substance'], entry['amount'], entry['comment'])
+            for entry in self.poller.anesthesia_history[-MAX_ANESTHESIA_ENTRIES:]:
+                text += '{0}: {1}\t{2}\t{3}\n' .format(utils.timestamp2ymdhm(entry['timestamp']), entry['substance'], entry['amount'], entry['comment'])
         self.animal_parameters_widget.anesthesia_history_groupbox.history_label.setText(text)
+        
+    def update_anesthesia_history_date_widget(self):
+        now = time.localtime()
+        self.animal_parameters_widget.anesthesia_history_groupbox.date.setDateTime(QtCore.QDateTime(QtCore.QDate(now.tm_year, now.tm_mon, now.tm_mday), QtCore.QTime(now.tm_hour, now.tm_min)))
         
     def update_widgets_when_mouse_file_changed(self, selected_region=None):
         self.update_animal_parameter_display()
@@ -504,10 +512,11 @@ class VisionExperimentGui(QtGui.QWidget):
                         soma_rois_to_display.append(cell_i['soma_roi'])
             if self.roi_widget.show_current_soma_roi_checkbox.checkState() != 0:
                 soma_rois_to_display.append(self.poller.cells[region_name][self.get_current_cell_id()]['soma_roi'])
+            mi = numpy.take(image_record['meanimage'], [0, 0, 0], axis=2).copy()
             try:
-                meanimage = imaged.draw_on_meanimage(image_record['meanimage'], origin, scale, soma_rois = soma_rois_to_display, used_rois = cells_to_display)
+                meanimage = imaged.draw_on_meanimage(mi, origin, scale, soma_rois = soma_rois_to_display, used_rois = cells_to_display)
             except:
-                meanimage = image_record['meanimage']
+                meanimage = mi
                 self.printc(traceback.format_exc())
             self.show_image(scipy.ndimage.rotate(meanimage,-90), 1, scale, origin = origin)
 
@@ -522,7 +531,7 @@ class VisionExperimentGui(QtGui.QWidget):
         if cell_id != '' and utils.safe_has_key(self.poller.cells, region_name) and utils.safe_has_key(self.poller.cells[region_name], cell_id) and \
                     utils.safe_has_key(self.poller.cells[region_name][cell_id], 'roi_plot'):
             plot_info = self.poller.cells[region_name][cell_id]['roi_plot']
-            self.roi_widget.roi_plot.setdata(plot_info['curve'], vlines = plot_info['vlines'][::2], penwidth=1, color=Qt.Qt.black)
+            self.roi_widget.roi_plot.setdata(plot_info['curve'], vlines = plot_info['vlines'], penwidth=1.5, color=Qt.Qt.black)
             self.roi_widget.roi_plot.adddata(plot_info['curve'].mean(axis=-1),color=[Qt.Qt.darkRed, Qt.Qt.darkGreen], penwidth=3)
             self.roi_widget.roi_plot.setaxisscale([0, plot_info['curve'].shape[0], plot_info['curve'].min(), plot_info['curve'].max()])
         else:
@@ -539,17 +548,12 @@ class VisionExperimentGui(QtGui.QWidget):
             self.overview_widget.image_display.image = image_with_sidebar
             self.overview_widget.image_display.raw_image = image
             self.overview_widget.image_display.scale = scale
-        elif channel == 'roi_curve':
-            self.roi_widget.roi_info_image_display.setPixmap(imaged.array_to_qpixmap(image, self.config.ROI_INFO_IMAGE_SIZE))
-            self.roi_widget.roi_info_image_display.image = image
-            self.roi_widget.roi_info_image_display.raw_image = image
-            self.roi_widget.roi_info_image_display.scale = scale
         else:
             box = self.get_subimage_box()
             gridlines = (self.common_widget.show_gridlines_checkbox.checkState() != 0)
             if gridlines:
                 sidebar_fill = (100, 50, 0)
-                if (channel == 0 or channel ==1) and len(box) == 4:
+                if (channel == 0 or channel ==1) and len(box) == 4 and self.main_tab.currentIndex() != 1:
                     line = generic.box_to_lines(box)
                 else:
                     line = [] #Do not  show any lines when gridlines are displayed
@@ -612,7 +616,7 @@ class VisionExperimentGui(QtGui.QWidget):
         return str(self.main_widget.measurement_datafile_status_groupbox.ids_combobox.currentText())
         
     def get_subimage_box(self):
-        subimage_parameters = self.main_widget.scan_region_groupbox.registration_subimage_combobox.currentText()
+        subimage_parameters = self.common_widget.registration_subimage_combobox.currentText()
         box = subimage_parameters.split(',')
         if len(box) != 4:
             box = []
@@ -648,7 +652,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.console_text  += text + '\n'
         self.standard_io_widget.text_out.setPlainText(self.console_text)
         self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
-#        print text
+        print text
         try:
             self.log.info(text)
         except:
@@ -705,18 +709,18 @@ def generate_gui_image(images, size, config, lines  = [], gridlines = False, sid
     else:
         image_with_line = rescaled_image
         image_with_line = numpy.rollaxis(image_with_line, 0, 2)
+    #create sidebar
+    image_with_sidebar = draw_scalebar(image_with_line, merged_image['origin'], utils.rc_multiply_with_constant(merged_image['scale'], 1.0/rescale), frame_size = config.SIDEBAR_SIZE, fill = sidebar_fill, gridlines = gridlines)
     for line in lines:
         #Line: x1,y1,x2, y2 - x - col, y = row
         #Considering MES/Image origin
         image_height = merged_image['image'].shape[0]*merged_image['scale']['row']
-        line_in_pixel  = [(line[1] - merged_image['origin']['col'])/merged_image['scale']['col'],
-                            (-line[0] + image_height + merged_image['origin']['row'])/merged_image['scale']['row'],
-                            (line[3] - merged_image['origin']['col'])/merged_image['scale']['col'],
-                            (-line[2] + image_height + merged_image['origin']['row'])/merged_image['scale']['row']]
+        line_in_pixel  = [(line[1] - merged_image['origin']['col'])/merged_image['scale']['col'] + config.SIDEBAR_SIZE,
+                            (-line[0] + image_height + merged_image['origin']['row'])/merged_image['scale']['row'] + config.SIDEBAR_SIZE,
+                            (line[3] - merged_image['origin']['col'])/merged_image['scale']['col'] + config.SIDEBAR_SIZE,
+                            (-line[2] + image_height + merged_image['origin']['row'])/merged_image['scale']['row'] + config.SIDEBAR_SIZE]
         line_in_pixel = (numpy.cast['int32'](numpy.array(line_in_pixel)*rescale)).tolist()
-        image_with_line = generic.draw_line_numpy_array(image_with_line, line_in_pixel)
-    #create sidebar
-    image_with_sidebar = draw_scalebar(image_with_line, merged_image['origin'], utils.rc_multiply_with_constant(merged_image['scale'], 1.0/rescale), frame_size = config.SIDEBAR_SIZE, fill = sidebar_fill, gridlines = gridlines)
+        image_with_sidebar = generic.draw_line_numpy_array(image_with_sidebar, line_in_pixel)
     out_image[0:image_with_sidebar.shape[0], 0:image_with_sidebar.shape[1], :] = image_with_sidebar
     return out_image
 
@@ -758,7 +762,7 @@ def draw_scalebar(image, origin, scale, frame_size = None, fill = (0, 0, 0), gri
     for label in col_labels:
         position = int((label-origin['col'])/scale['col']) + frame_size
         draw.text((position, 5),  str(int(label)), fill = fill, font = font)
-        if gridlines:
+        if gridlines and position > frame_size and position < image.shape[1]+frame_size:
             draw.line((position, frame_size, position, image.shape[0]+frame_size), fill = fill, width = 0)
         draw.line((position, int(0.75*frame_size), position, frame_size), fill = fill, width = 0)
         #Opposite side
@@ -769,7 +773,7 @@ def draw_scalebar(image, origin, scale, frame_size = None, fill = (0, 0, 0), gri
     for label in row_labels:
         position = image.shape[0] +frame_size - int((label-origin['row'])/scale['row'])
         draw.text((5, position), str(int(label)), fill = fill, font = font)
-        if gridlines:
+        if gridlines and position > frame_size and position < image.shape[0]+frame_size:
             draw.line((frame_size, position, image.shape[1]+frame_size, position), fill = fill, width = 0)
         draw.line((int(0.75*frame_size), position, frame_size, position), fill = fill, width = 0)
         #Opposite side

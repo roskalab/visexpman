@@ -1,15 +1,7 @@
-from visexpman.users.zoltan.test import unit_test_runner
-from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
-from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import timing
-import os
-import serial
 import numpy
 import time
-import shutil
 import random
 import copy
 
@@ -54,8 +46,8 @@ class MovingGratingWithFlashConfig(MovingGratingNoMarchingConfig):
         MovingGratingNoMarchingConfig._create_parameters(self)
         #Flash config
         self.ENABLE_FLASH = True
-        self.FLASH_DURATION = 1.0
-        self.TIMING = [3.0, self.FLASH_DURATION, 7.0, self.FLASH_DURATION, 14.0]
+        self.FLASH_DURATION = 0.1
+        self.TIMING = [2.0, self.FLASH_DURATION, 7.0, self.FLASH_DURATION, 14.0]
         self.FLASH_REPEATS = 1
         self.BLACK = 0.0
         self.WHITE = 1.0
@@ -129,7 +121,10 @@ class MovingGrating(experiment.Experiment):
         self.period_time = self.overall_duration / self.experiment_config.REPEATS
         if self.period_time > self.machine_config.MAXIMUM_RECORDING_DURATION:
             raise RuntimeError('Stimulus too long')
-        self.fragment_durations = [self.period_time*self.experiment_config.REPEATS + 2 * self.experiment_config.PAUSE_BEFORE_AFTER + self.experiment_config.FLASH_REPEATS * numpy.array(self.experiment_config.TIMING).sum()] 
+        self.fragment_durations = self.period_time*self.experiment_config.REPEATS + 2 * self.experiment_config.PAUSE_BEFORE_AFTER 
+        if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
+            self.fragment_durations+= self.experiment_config.FLASH_REPEATS * numpy.array(self.experiment_config.TIMING).sum()
+        self.fragment_durations = [self.fragment_durations]
         self.number_of_fragments = len(self.fragment_durations)
         #Group stimulus units into fragments
         segment_pointer = 0
@@ -189,13 +184,6 @@ class MovingGrating(experiment.Experiment):
                 self.experiment_specific_data['segment_info'][segment_id] = segment_info
                 segment_counter += 1
         time.sleep(self.experiment_config.PAUSE_BEFORE_AFTER)
-
-    def cleanup(self):
-        #add experiment identifier node to experiment hdf5
-        experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.experiment_control.start_time))
-        self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
-        setattr(self.hdf5, experiment_identifier, {'id': None})
-        self.hdf5.save(experiment_identifier)
                 
 class MovingGratingPre(experiment.PreExperiment):    
     def run(self):
@@ -240,146 +228,7 @@ class PixelSizeCalibration(experiment.Experiment):
                     pattern = 0
                 self.command_buffer = ''
                 
-class Led1min5x100msStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 60.0 #10.0
-        self.NUMBER_OF_FLASHES = 5.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 10.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class Led1min3x100ms7VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 60.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 7.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
 
-class Led2min3x10msStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 120.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 10e-3
-        self.FLASH_AMPLITUDE = 10.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-class Led3x100ms1VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 1.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-class Led3x100ms2VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 2.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-
-class Led3x100ms4VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 4.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class Led3x100ms7VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 7.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-class Led3x100ms10VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 10.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-class Led3x100ms0p4VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 0.4 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 30.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-class LedPre(experiment.PreExperiment):
-    def run(self):
-        self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
-                
-class LedStimulation(experiment.Experiment):
-    '''
-    
-    '''
-    def prepare(self):
-        self.period_time = self.experiment_config.FLASH_DURATION + self.experiment_config.PAUSE_BETWEEN_FLASHES
-#        self.stimulus_duration = self.experiment_config.NUMBER_OF_FLASHES * self.period_time
-#        self.fragment_durations, self.fragment_repeats = timing.schedule_fragments(self.period_time, self.experiment_config.NUMBER_OF_FLASHES, self.machine_config.MAXIMUM_RECORDING_DURATION)
-        self.fragment_repeats = [self.experiment_config.NUMBER_OF_FLASHES]
-        self.fragment_durations = [self.experiment_config.DELAY_BEFORE_FIRST_FLASH + self.experiment_config.NUMBER_OF_FLASHES*self.period_time]
-        self.number_of_fragments = len(self.fragment_durations)
-    
-    def run(self, fragment_id = 0):
-        self.show_fullscreen(color = 0.0, duration = 0.0)
-        number_of_flashes_in_fragment = self.fragment_repeats[fragment_id]
-        fragment_duration = self.fragment_durations[fragment_id]
-        offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)
-        if len(offsets)>1:
-            offsets[2] = offsets[2]-5.0 # add a little jitter to check if brain respons periodically and not to the acutual stimulation
-        if len(offsets)>3:
-            offsets[4] = offsets[4] +5.0 
-        time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
-        self.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
-        self.led_controller.start()
-        for i in range(int(numpy.ceil(fragment_duration))):
-            if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
-                break
-            else:
-                time.sleep(1.0)
-        
-    def cleanup(self):
-        #add experiment identifier node to experiment hdf5
-        experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.experiment_control.start_time))
-        self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
-        setattr(self.hdf5, experiment_identifier, {'id': None})
-        self.hdf5.save(experiment_identifier)
 
 #Support for old config classes
 class GratingConfig(MovingGratingConfig):

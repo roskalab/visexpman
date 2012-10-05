@@ -28,6 +28,7 @@ from visexpA.engine.datadisplay.plot import Qt4Plot
 import visexpA.engine.component_guesser as cg
 
 BUTTON_HIGHLIGHT = 'color: red'
+ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
 
 class Poller(QtCore.QThread):
     '''
@@ -100,6 +101,10 @@ class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
         
     def create_widgets(self):
         self.history_label = QtGui.QLabel('', self)
+        
+        date_format = QtCore.QString('yyyy-MM-dd hh:mm')
+        self.date = QtGui.QDateTimeEdit(self)
+        self.date.setDisplayFormat(date_format)
         self.substance_label = QtGui.QLabel('Substance', self)
         self.substance_combobox = QtGui.QComboBox(self)
         self.substance_combobox.setEditable(True)
@@ -116,14 +121,15 @@ class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.history_label, 0, 0, 4, 2)
-        self.layout.addWidget(self.substance_label, 5, 0)
-        self.layout.addWidget(self.substance_combobox, 5, 1)
-        self.layout.addWidget(self.amount_label, 5, 2)
-        self.layout.addWidget(self.amount_combobox, 5, 3)
-        self.layout.addWidget(self.comment_label, 5, 4)
-        self.layout.addWidget(self.comment_combobox, 5, 5, 1, 3)
-        self.layout.addWidget(self.add_button, 5, 8)
-        self.layout.addWidget(self.remove_button, 5, 9)
+        self.layout.addWidget(self.date, 5, 0, 1, 1)
+        self.layout.addWidget(self.substance_label, 5, 1)
+        self.layout.addWidget(self.substance_combobox, 5, 2)
+        self.layout.addWidget(self.amount_label, 5, 3)
+        self.layout.addWidget(self.amount_combobox, 5, 4)
+        self.layout.addWidget(self.comment_label, 6, 0)
+        self.layout.addWidget(self.comment_combobox, 6, 1, 1, 3)
+        self.layout.addWidget(self.add_button, 6, 4)
+        self.layout.addWidget(self.remove_button, 6, 5)
         self.setLayout(self.layout)   
     
 class MeasurementDatafileStatusGroupbox(QtGui.QGroupBox):
@@ -177,7 +183,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.objective_positions_label = QtGui.QLabel('Objective range [um]\n start,end,step',  self)
         self.objective_positions_combobox = QtGui.QComboBox(self)
         self.objective_positions_combobox.setEditable(True)
-        self.laser_intensities_label = QtGui.QLabel('Laser intensity (min, max) [%]',  self)
+        self.laser_intensities_label = QtGui.QLabel('Laser intensity \n(min, max) [%]',  self)
         self.laser_intensities_combobox = QtGui.QComboBox(self)
         self.laser_intensities_combobox.setEditable(True)
         self.scan_mode = QtGui.QComboBox(self)
@@ -195,8 +201,8 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.scan_mode, 2, 0)
         self.layout.addWidget(self.objective_positions_label, 2, 1)
         self.layout.addWidget(self.objective_positions_combobox, 2, 2, 1, 2)
-        self.layout.addWidget(self.laser_intensities_label, 2, 4, 1, 2)
-        self.layout.addWidget(self.laser_intensities_combobox, 2, 6, 1, 1)
+        self.layout.addWidget(self.laser_intensities_label, 2, 4, 1, 1)
+        self.layout.addWidget(self.laser_intensities_combobox, 2, 5, 1, 1)
         self.setLayout(self.layout)        
 
 class AnimalParametersWidget(QtGui.QWidget):
@@ -364,9 +370,6 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
             if 'stage_move' in k:
                 v.setCheckState(2)
         self.xz_scan_button = QtGui.QPushButton('XZ scan',  self)
-        self.registration_subimage_label = QtGui.QLabel('Registration subimage, upper left (x,y),\nbottom right (x,y) [um]', self)
-        self.registration_subimage_combobox = QtGui.QComboBox(self)
-        self.registration_subimage_combobox.setEditable(True)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -396,8 +399,6 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_move'], 8, 1, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_realign'], 8, 2, 1, 1)
         self.layout.addWidget(self.move_to_region_options['checkboxes']['objective_origin_adjust'], 8, 3, 1, 1)
-        self.layout.addWidget(self.registration_subimage_label, 9, 0, 1, 2)
-        self.layout.addWidget(self.registration_subimage_combobox, 9, 2, 1, 3)
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
@@ -612,26 +613,34 @@ class CommonWidget(QtGui.QWidget):
         self.enable_set_objective_origin_after_moving_checkbox = QtGui.QCheckBox(self)
         self.current_position_label = QtGui.QLabel('', self)
         
+        self.registration_subimage_label = QtGui.QLabel('Registration subimage, upper left (x,y),\nbottom right (x,y) [um]', self)
+        self.registration_subimage_combobox = QtGui.QComboBox(self)
+        self.registration_subimage_combobox.setEditable(True)
+        self.register_button = QtGui.QPushButton('Register', self)
+        
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.show_gridlines_label, 1, 0)
-        self.layout.addWidget(self.show_gridlines_checkbox, 1, 1)
-        self.layout.addWidget(self.connected_clients_label, 1,2, 1, 4)
+        self.layout.addWidget(self.show_gridlines_label, 0, 0)
+        self.layout.addWidget(self.show_gridlines_checkbox, 0, 1)
+        self.layout.addWidget(self.connected_clients_label, 0,2, 1, 4)
         
-        self.layout.addWidget(self.set_stage_origin_button, 0, 0, 1, 1)
-        self.layout.addWidget(self.read_stage_button, 0, 1, 1, 1)
-        self.layout.addWidget(self.move_stage_button, 0, 2, 1, 1)
-        self.layout.addWidget(self.enable_xy_scan_with_move_stage_label, 0, 3, 1, 1)
-        self.layout.addWidget(self.enable_xy_scan_with_move_checkbox, 0, 4, 1, 1)
-        self.layout.addWidget(self.stop_stage_button, 0, 5, 1, 1)
-        self.layout.addWidget(self.set_objective_button, 0, 6, 1, 1)
-        self.layout.addWidget(self.enable_reset_objective_origin_after_moving_label, 0, 7, 1, 1)
-        self.layout.addWidget(self.enable_set_objective_origin_after_moving_checkbox, 0, 8, 1, 1)
-        self.layout.addWidget(self.current_position_label, 1, 7, 1, 2)
-        self.layout.addWidget(self.tilt_brain_surface_button, 2, 8, 1, 1)
-        self.layout.addWidget(self.enable_tilting_label, 2, 0, 1, 1)
-        self.layout.addWidget(self.enable_tilting_checkbox, 2, 1, 1, 1)
+        self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
+        self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
+        self.layout.addWidget(self.move_stage_button, 2, 2, 1, 1)
+        self.layout.addWidget(self.enable_xy_scan_with_move_stage_label, 2, 3, 1, 1)
+        self.layout.addWidget(self.enable_xy_scan_with_move_checkbox, 2, 4, 1, 1)
+        self.layout.addWidget(self.stop_stage_button, 2, 5, 1, 1)
+        self.layout.addWidget(self.set_objective_button, 2, 6, 1, 1)
+        self.layout.addWidget(self.enable_reset_objective_origin_after_moving_label, 2, 7, 1, 1)
+        self.layout.addWidget(self.enable_set_objective_origin_after_moving_checkbox, 2, 8, 1, 1)
+        self.layout.addWidget(self.current_position_label, 0, 7, 1, 2)
+        self.layout.addWidget(self.tilt_brain_surface_button, 1, 5, 1, 1)
+        self.layout.addWidget(self.enable_tilting_label, 1, 0, 1, 1)
+        self.layout.addWidget(self.enable_tilting_checkbox, 1, 1, 1, 1)
         
+        self.layout.addWidget(self.registration_subimage_label, 1, 6, 1, 2)
+        self.layout.addWidget(self.registration_subimage_combobox, 1, 8, 1, 3)
+        self.layout.addWidget(self.register_button, 1, 11)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
@@ -763,6 +772,10 @@ class MainPoller(Poller):
         if are_new_file:
             self.emit(QtCore.SIGNAL('mouse_file_list_changed'))
         self.init_jobhandler()
+        now = time.time()
+        if now - self.prev_date_updated > ANESTHESIA_HISTORY_UPDATE_PERIOD:
+            self.parent.update_anesthesia_history_date_widget()
+            self.prev_date_updated = now
 
     def handle_commands(self):
         '''
@@ -857,6 +870,7 @@ class MainPoller(Poller):
     def init_variables(self):
         self.files_to_delete = []
         self.jobhandler_reset_issued = False
+        self.prev_date_updated = 0.0
         
     def initialize_mouse_file(self):
         '''
@@ -877,7 +891,7 @@ class MainPoller(Poller):
         '''
         if os.path.isfile(self.mouse_file):
             #clean out attributes
-            attributes = ['scan_regions', 'cells', 'images', 'roi_curves', 'animal_parameters']
+            attributes = ['scan_regions', 'cells', 'images', 'animal_parameters']
             for attribute in attributes:
                 if hasattr(self, attribute):
                     setattr(self, attribute,  {})
@@ -901,9 +915,6 @@ class MainPoller(Poller):
             images  = copy.deepcopy(h.findvar('images'))#Takes long to load images
             if images is not None:
                 self.images = images
-            roi_curves = copy.deepcopy(h.findvar('roi_curves'))#Takes long to load images
-            if roi_curves is not None:
-                self.roi_curves = utils.array2object(copy.deepcopy(roi_curves))
             anesthesia_history = copy.deepcopy(h.findvar('anesthesia_history'))#Takes long to load images
             if anesthesia_history is not None:
                 self.anesthesia_history = copy.deepcopy(anesthesia_history)
@@ -978,10 +989,6 @@ class MainPoller(Poller):
             self.cells = {}
         if not self.cells.has_key(region_name):
             self.cells[region_name] = {}
-        if not hasattr(self,  'roi_curves'):
-            self.roi_curves = {}
-        if not self.roi_curves.has_key(region_name):
-            self.roi_curves[region_name] = {}
         soma_rois = h_measurement.findvar('soma_rois')
         roi_centers = h_measurement.findvar('roi_centers')
         roi_plots = h_measurement.findvar('roi_plots')
@@ -1010,7 +1017,7 @@ class MainPoller(Poller):
             self.cells[region_name][cell_id]['roi_plot'] = roi_plots[i]
         h_measurement.close()
         #Save changes
-        self.save2mouse_file(['cells', 'scan_regions', 'images', 'roi_curves'])
+        self.save2mouse_file(['cells', 'scan_regions', 'images'])
         self.printc('{1} cells added from {0}'.format(id, number_of_new_cells))
         if update_gui:
             self.parent.update_cell_list()
@@ -1037,7 +1044,8 @@ class MainPoller(Poller):
         if not self.scan_regions[region_name].has_key('process_status'):
             self.scan_regions[region_name]['process_status'] = {}
         if self.scan_regions[region_name]['process_status'].has_key(id):
-            self.printc('ID already exists')
+            if not self.ask4confirmation('ID ({0} already exists, do you want to reimport this measurement?' .format(id)):
+                return
         self.scan_regions[region_name]['process_status'][id] = {}
         self.scan_regions[region_name]['process_status'][id]['fragment_check_ready'] = False
         self.scan_regions[region_name]['process_status'][id]['mesextractor_ready'] = False
@@ -1089,11 +1097,10 @@ class MainPoller(Poller):
             self.add_cells_to_database(id, update_gui = (measurement_file_paths[-1] == measurement_path))
         
     def clear_process_status(self):
-        self.roi_curves = {}
         self.cells = {}
         for region_name in self.scan_regions.keys():
             self.scan_regions[region_name]['process_status'] = {}
-        self.save2mouse_file(['scan_regions', 'roi_curves', 'cells'])
+        self.save2mouse_file(['scan_regions', 'cells'])
         
     def remove_measurement_file_from_database(self, id_to_remove = None, process_status_update = False):
         self.printc('Removing measurement id...')
@@ -1109,12 +1116,6 @@ class MainPoller(Poller):
             del self.images[id_to_remove]
             fields_to_save.append('images')
             self.printc('Meanimages updated')
-        if hasattr(self, 'roi_curves') and utils.safe_has_key(self.roi_curves, region_name):
-            for cell_id in self.roi_curves[region_name].keys():
-                if id_to_remove in cell_id:
-                    del self.roi_curves[region_name][cell_id]
-            fields_to_save.append('roi_curves')
-            self.printc('Roi curves updated')
         if hasattr(self, 'cells') and utils.safe_has_key(self.cells, region_name):
             for cell_id in self.cells[region_name].keys():
                 if id_to_remove in cell_id:
@@ -1324,8 +1325,11 @@ class MainPoller(Poller):
         if self.mes_interface.set_objective(position, self.config.MES_TIMEOUT):
             self.objective_position = position
             if self.parent.common_widget.enable_set_objective_origin_after_moving_checkbox.checkState() != 0:
+                self.parent.common_widget.enable_set_objective_origin_after_moving_checkbox.setCheckState(0) 
                 if not self.mes_interface.overwrite_relative_position(0, self.config.MES_TIMEOUT):
                     self.printc('Setting objective to 0 did not succeed')
+                else:
+                    self.objective_position = 0.0
             self.parent.update_position_display()
             self.printc('Objective is set to {0} um'.format(position))
         else:
@@ -1526,11 +1530,17 @@ class MainPoller(Poller):
             if not hasattr(self, 'anesthesia_history'):
                 self.anesthesia_history = []
             entry = {}
-            entry['timestamp'] = time.time()
+            date = self.parent.animal_parameters_widget.anesthesia_history_groupbox.date.date()
+            tme = self.parent.animal_parameters_widget.anesthesia_history_groupbox.date.time()
+            timestamp = time.mktime(time.struct_time((date.year(),date.month(),date.day(),tme.hour(),tme.minute(),0,0,0,-1)))
+#        mouse_birth_date = '{0}-{1}-{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
+            entry['timestamp'] = timestamp
             entry['substance'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.substance_combobox.currentText())
             entry['amount'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.amount_combobox.currentText())
             entry['comment'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.comment_combobox.currentText())
             self.anesthesia_history.append(entry)
+            import operator
+            self.anesthesia_history.sort(key = operator.itemgetter('timestamp'))
             self.save2mouse_file('anesthesia_history')
             self.parent.update_anesthesia_history()
         
@@ -2180,6 +2190,9 @@ class MainPoller(Poller):
         subimage = image[upper_lefty:bottom_righty, upper_leftx:bottom_rightx]
         return subimage
         
+    def register(self):
+        self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[self.parent.get_current_region_name()]['xy']['image'], self.xy_scan['scale'], self.xy_scan['origin'])
+        
     def register_images(self, f1, f2, scale, origin = None, print_result = True):
         box = self.parent.get_subimage_box()
         if not origin is None and len(box) ==4:
@@ -2194,12 +2207,12 @@ class MainPoller(Poller):
         utils.empty_queue(self.queues['analysis']['in'])
         arguments = ''
         self.queues['analysis']['out'].put('SOCregisterEOC' + arguments + 'EOP')
-        if not utils.wait_data_appear_in_queue(self.queues['analysis']['in'], 10.0):
+        if not utils.wait_data_appear_in_queue(self.queues['analysis']['in'], 15.0):
             self.printc('Analysis not connected')
             return False
-        if 'SOCregisterEOCstartedEOP' not in self.queues['analysis']['in'].get():
-            self.printc('Image registration did not start')
-            return False
+        p = self.queues['analysis']['in'].get()
+        if 'SOCregisterEOCstartedEOP' not in p:
+            self.printc('Image registration did not start,{0}'.format(p))
         mouse_file_copy_requested = False
         if utils.wait_data_appear_in_queue(self.queues['analysis']['in'], timeout = self.config.MAX_REGISTRATION_TIME):#TODO: the content of the queue also need to be checked
             while not self.queues['analysis']['in'].empty():
@@ -2264,8 +2277,6 @@ class MainPoller(Poller):
             field_value = copy.deepcopy(getattr(self, field))
             if field == 'cells':
                 field_value = utils.object2array(self.cells2pickled_ready(field_value))
-            elif field == 'roi_curves':
-                field_value = utils.object2array(field_value)
             self.queues['mouse_file_handler'].put([field, field_value])
         self.mouse_file_saver()
         if wait_save:

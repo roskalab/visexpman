@@ -178,6 +178,7 @@ class ExperimentControl(object):
                 self.laser_intensity = laser_intensity
             else:
                 self.printl('Laser intensity CANNOT be read')
+                return None
             parameters2set = ['laser_intensity', 'objective_position']
             for parameter_name2set in parameters2set:                
                 if self.parameters.has_key(parameter_name2set):
@@ -578,7 +579,6 @@ class ExperimentControl(object):
         #Save initial line scan settings
         if hasattr(self, 'animal_parameters') and self.parameters.has_key('scan_mode') and self.parameters['scan_mode'] == 'xy':
             if (utils.safe_has_key(self.animal_parameters, 'red_labeling') and self.animal_parameters['red_labeling'] == 'no') or not self.animal_parameters.has_key('red_labeling'):
-                self.printl('No red labeling,  pre/post scan is skipped')
                 return True
         result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters(parameter_file = initial_mes_line_scan_settings_filename)
         if not result:
