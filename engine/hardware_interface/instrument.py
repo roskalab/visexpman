@@ -15,7 +15,7 @@ import logging
 import visexpman
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
-class Instrument():
+class Instrument(object):
     '''
     The basic concept of enabling/disabling instruments: classes can be instantiated when the corresponding instrument is disabled. All the instrument classes shall be implemented in a way,
     that hardware calls are executed only in enabled state. The rationale behind this, is to ensure that the user do not have to take care of ENABLE* parameters at experiment level.
