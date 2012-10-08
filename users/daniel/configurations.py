@@ -405,7 +405,7 @@ class Debug(VisionExperimentConfig):
                  'SPEED': 2000,
                  'ACCELERATION' : 1000,
                  'MOVE_TIMEOUT' : 45.0,
-                 'UM_PER_USTEP' : numpy.ones(3, dtype = numpy.float)*(1.0/51.0)
+                 'UM_PER_USTEP' : numpy.ones(3, dtype = numpy.float)*(0.75/51.0)
                  },
                  {'SERIAL_PORT' : goniometer_serial_port,
                  'ENABLE':True,
@@ -532,7 +532,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
                  'SPEED': 2000,
                  'ACCELERATION' : 1000,
                  'MOVE_TIMEOUT' : 45.0,
-                 'UM_PER_USTEP' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
+                 'UM_PER_USTEP' : (0.75/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]
         #=== DAQ ===
         SYNC_CHANNEL_INDEX = 1

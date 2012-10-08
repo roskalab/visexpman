@@ -1128,7 +1128,6 @@ class MainPoller(Poller):
             self.parent.update_file_id_combobox()
             self.parent.update_cell_list()
             self.parent.update_cell_filter_list()
-            self.parent.update_roi_curves_display()
             self.parent.update_meanimage()
             self.parent.update_cell_group_combobox()
             self.printc('{0} measurement is removed'.format(id_to_remove))
@@ -2223,7 +2222,7 @@ class MainPoller(Poller):
                     if 'error' in response:
                         self.printc('Image registration resulted error')
                         return False
-                    elif 'register' in response:
+                    elif 'register' in response and not 'started' in response:
                         self.registration_result = self.parse_list_response(response) #rotation in angle, center or rotation, translation
                         self.suggested_translation = utils.cr(utils.nd(scale) * self.registration_result[-2:]*numpy.array([-1, 1]))
                         if print_result:

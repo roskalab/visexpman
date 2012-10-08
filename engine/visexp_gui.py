@@ -371,6 +371,7 @@ class VisionExperimentGui(QtGui.QWidget):
         if utils.safe_has_key(scan_regions, region_name) and utils.safe_has_key(scan_regions[region_name], 'process_status'):
             ids = scan_regions[region_name]['process_status'].keys()
             ids.sort()
+            ids.reverse()
             self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,ids)
         else:
             self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,[])
@@ -652,7 +653,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.console_text  += text + '\n'
         self.standard_io_widget.text_out.setPlainText(self.console_text)
         self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
-        print text
+#        print text
         try:
             self.log.info(text)
         except:
