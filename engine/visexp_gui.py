@@ -228,11 +228,12 @@ class VisionExperimentGui(QtGui.QWidget):
         if currentIndex != 1:#If user switched from ROI tab, save cell selections
             self.poller.signal_id_queue.put('save_cells')
         #Load meanimages or scan region images
+        image_widget = self.images_widget.image_display[0]
         if currentIndex == 0:
             self.update_scan_regions()
+            self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
         elif currentIndex == 1:
             self.update_meanimage()
-            image_widget = self.images_widget.image_display[0]
             self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
             self.update_cell_info()
             
@@ -347,6 +348,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 self.show_image(self.images_widget.blank_image, 3, no_scale)
             #Display xy image
             image_to_display = scan_regions[selected_region]['xy']
+            self.xz_line = line
             self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
             #update overwiew
             image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
@@ -574,7 +576,11 @@ class VisionExperimentGui(QtGui.QWidget):
         for i in range(4):
             image_widget = self.images_widget.image_display[i]
             if hasattr(image_widget, 'raw_image'):#This check is necessary because unintialized xz images does not have raw_image attribute
-                self.show_image(image_widget.raw_image, i, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
+                if i == 1 and (self.common_widget.show_gridlines_checkbox.checkState() == 0):
+                    line = self.xz_line
+                else:
+                    line = image_widget.line
+                self.show_image(image_widget.raw_image, i, image_widget.scale, line = line, origin = image_widget.origin)
                 
     def update_xy_images(self):
         for i in range(2):

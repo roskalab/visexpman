@@ -498,7 +498,7 @@ class RoiWidget(QtGui.QWidget):
         self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 6, 4)
         self.layout.addWidget(self.roi_pattern_parameters_label, image_height_in_rows + 7, 0, 1, 4)
         self.layout.addWidget(self.roi_pattern_parameters_lineedit, image_height_in_rows + 7, 4)
-        self.layout.addWidget(self.cell_info, image_height_in_rows + 8, 0, 1, 2)
+        self.layout.addWidget(self.cell_info, image_height_in_rows + 8, 0, 1, 3)
         
         self.layout.setRowStretch(15, 15)
         self.layout.setColumnStretch(15, 15)
@@ -2187,6 +2187,17 @@ class MainPoller(Poller):
         bottom_rightx = int((box[2] - origin['col'])/scale['col'])
         bottom_righty = int((box[3] - origin['row'])/scale['row'])
         subimage = image[upper_lefty:bottom_righty, upper_leftx:bottom_rightx]
+        if any(subimage.shape) < 128:
+            new_size = []
+            for i in range(2):
+                if subimage.shape[i] < 128:
+                    s = 128
+                else:
+                    s = subimage.shape[i]
+                new_size.append(s)
+            extended_image = numpy.zeros(new_size, dtype = subimage.dtype)
+            extended_image[0:subimage.shape[0], 0: subimage.shape[1]]= subimage
+            subimage = extended_image
         return subimage
         
     def register(self):
@@ -2209,9 +2220,12 @@ class MainPoller(Poller):
         if not utils.wait_data_appear_in_queue(self.queues['analysis']['in'], 15.0):
             self.printc('Analysis not connected')
             return False
+        messages_to_put_back = []
         p = self.queues['analysis']['in'].get()
         if 'SOCregisterEOCstartedEOP' not in p:
             self.printc('Image registration did not start,{0}'.format(p))
+            messages_to_put_back.append(p)
+            return False
         mouse_file_copy_requested = False
         if utils.wait_data_appear_in_queue(self.queues['analysis']['in'], timeout = self.config.MAX_REGISTRATION_TIME):#TODO: the content of the queue also need to be checked
             while not self.queues['analysis']['in'].empty():
@@ -2226,9 +2240,12 @@ class MainPoller(Poller):
                         self.registration_result = self.parse_list_response(response) #rotation in angle, center or rotation, translation
                         self.suggested_translation = utils.cr(utils.nd(scale) * self.registration_result[-2:]*numpy.array([-1, 1]))
                         if print_result:
-                            self.printc(self.registration_result[-2:])
-                            self.printc('Suggested translation: {0}'.format(self.suggested_translation))
+                            self.printc('Suggested translation: {0:.2f}, {1:.2f}'.format(-self.suggested_translation['row'][0], -self.suggested_translation['col'][0]))
                         return True
+                    else:
+                        messages_to_put_back.append(response)
+            for msg in messages_to_put_back:
+                self.queues['analysis']['in'].put(msg)
         else:
             self.printc('Analysis does not respond')
         if mouse_file_copy_requested:
