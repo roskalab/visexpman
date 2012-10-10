@@ -1,8 +1,8 @@
 import os
 import os.path
 import shutil
-import numpy
 import tempfile
+from distutils import file_util,  dir_util
 
 def copy_reference_fragment_files(reference_folder, target_folder):
     if os.path.exists(target_folder):
@@ -43,6 +43,25 @@ def set_file_dates(path, file_info):
 def mkdir_notexists(folder):
     if not os.path.exists(folder):
         os.mkdir(folder)
+
+def copy(src, dst, update=1):
+    if os.path.isfile(src): 
+        dir_util.mkpath(os.path.split(dst)[0])
+        return file_util.copy_file(src, dst, update=1)
+    else: 
+        dir_util.mkpath(dst)
+        return dir_util.copy_tree(src, dst, update=1)
+
+def total_size(source):
+        total_size_bytes = os.path.getsize(source)
+        if not os.path.isfile(source):
+            for item in os.listdir(source):
+                itempath = os.path.join(source, item)
+                if os.path.isfile(itempath):
+                    total_size_bytes += os.path.getsize(itempath)
+                elif os.path.isdir(itempath):
+                    total_size_bytes += self._total_size(itempath)
+        return total_size_bytes
 
 def find_files_and_folders(start_path,  extension = None, filter = None):
         '''
@@ -98,6 +117,7 @@ def parsefilename(filename, regexdict):
     return regexdict
 
 def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False, filter_condition = None):    
+    import numpy
     files = os.listdir(folder_name)    
     filtered_files = []
     for file in files:
@@ -299,4 +319,8 @@ class TestUtils(unittest.TestCase):
         pass
         
 if __name__=='__main__':
-    unittest.main()
+    import sys
+    if len(sys.argv)==3 and sys.argv[1] == 'total_size':
+        print total_size(sys.argv[2])
+    else:
+        unittest.main()
