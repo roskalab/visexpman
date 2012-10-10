@@ -36,6 +36,7 @@ class Poller(QtCore.QThread):
     '''
     #Initializing, loader methods
     def __init__(self, parent):
+        self.signal_id_queue = Queue.Queue() #signal parameter is passed to handler
         self.parent = parent
         self.config = self.parent.config
         QtCore.QThread.__init__(self)
@@ -87,11 +88,39 @@ class Poller(QtCore.QThread):
         '''
         Handle mapped signals that are connected to gui widgets
         '''
-        pass
+        if not self.signal_id_queue.empty():
+            function_call = self.signal_id_queue.get()
+            if hasattr(self, function_call):
+                try:
+                    getattr(self, function_call)()
+                except:
+                    self.printc(traceback.format_exc())
+            else:
+                self.printc('{0} method does not exists'.format(function_call))
         
     def pass_signal(self, signal_id):
         self.signal_id_queue.put(str(signal_id))
-
+        
+        
+class FlowmeterControl(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, 'Flowmeter control', parent)
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        self.start_button = QtGui.QPushButton('Start', self)
+        self.stop_button = QtGui.QPushButton('Stop', self)
+        self.reset_button = QtGui.QPushButton('Reset', self)
+        self.status_label = QtGui.QLabel('', self)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.start_button, 0, 0)
+        self.layout.addWidget(self.stop_button, 0, 1)
+        self.layout.addWidget(self.reset_button, 0, 2)
+        self.layout.addWidget(self.status_label, 0, 3)
+        self.setLayout(self.layout)
 
 class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
     def __init__(self, parent):
@@ -684,7 +713,6 @@ command_extract = re.compile('SOC(.+)EOC')
 class MainPoller(Poller):
     #Initializing, loader methods
     def __init__(self, parent):
-        self.signal_id_queue = Queue.Queue() #signal parameter is passed to handler
         self.gui_thread_queue = Queue.Queue()
         Poller.__init__(self, parent)
         self.xz_scan_acquired = False
@@ -841,20 +869,6 @@ class MainPoller(Poller):
                             self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
         except:
             self.printc(traceback.format_exc())
-
-    def handle_events(self):
-        '''
-        Handle mapped signals that are connected to gui widgets
-        '''
-        if not self.signal_id_queue.empty():
-            function_call = self.signal_id_queue.get()
-            if hasattr(self, function_call):
-                try:
-                    getattr(self, function_call)()
-                except:
-                    self.printc(traceback.format_exc())
-            else:
-                self.printc('{0} method does not exists'.format(function_call))
                 
     def mouse_file_changed(self):
         self.wait_mouse_file_save()

@@ -1,5 +1,5 @@
-        
-class PetersConfig(Configuration.PresentinatorConfig):
+from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
+class PetersConfig(VisionExperimentConfig):
     
     def _set_user_specific_parameters(self):
         ACQUISITION_TRIGGER_PIN = 4

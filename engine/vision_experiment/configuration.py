@@ -31,7 +31,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
             
             
-            MEASUREMENT_PLATFORM = 'mes', 'elphys', 'mea'
+            MEASUREMENT_PLATFORM = 'mes', 'elphys', 'mea', 'smallapp'
            
         '''        
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
@@ -45,7 +45,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         PIN_RANGE = [0,  7]        
-        PLATFORM = ['undefined', ['mes', 'elphys', 'mea', 'standalone', 'undefined']]
+        PLATFORM = ['undefined', ['mes', 'elphys', 'mea', 'standalone', 'smallapp', 'undefined']]
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         
         ############# Network #####################      
@@ -264,13 +264,13 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         self.SCREEN_UM_TO_NORM_SCALE_p = visexpman.engine.generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
         self.SCREEN_SIZE_UM_p = visexpman.engine.generic.parameter.Parameter(utils.cr((self.SCREEN_RESOLUTION['col'] / self.SCREEN_UM_TO_PIXEL_SCALE, self.SCREEN_RESOLUTION['row'] / self.SCREEN_UM_TO_PIXEL_SCALE)))
         
-        #== Coordinate system ==        
+        ######################### Coordinate system #########################
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
         elif unit_test_runner.TEST_test:
             #In test mode we do not check for raised exception but test for the existence of certain variables
             pass
-        else:
+        elif self.PLATFORM != 'smallapp':
             raise ValueError('No coordinate system selected in config,  nor explicit settings for origo and axes was given.')
             
         self.SCREEN_CENTER_p = visexpman.engine.generic.parameter.Parameter(utils.rc((0,0)))
@@ -291,8 +291,9 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ########### Context file #########
         if hasattr(self, 'CONTEXT_PATH') and hasattr(self, 'CONTEXT_NAME'):
             self.CONTEXT_FILE_p = visexpman.engine.generic.parameter.Parameter(os.path.join(self.CONTEXT_PATH, self.CONTEXT_NAME))
-            
-        self.cachepath = self.EXPERIMENT_DATA_PATH#To ensure compatibility with analysis config class #TODO: visexpA and visexpman config classes shall be merged into one class
+        
+        if hasattr(self, 'EXPERIMENT_DATA_PATH'):
+            self.cachepath = self.EXPERIMENT_DATA_PATH#To ensure compatibility with analysis config class #TODO: visexpA and visexpman config classes shall be merged into one class
         self.cacheext = 'hdf5'
         self.packagepath = 'visexpA.users.daniel'
 
