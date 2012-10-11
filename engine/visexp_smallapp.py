@@ -139,18 +139,23 @@ class SerialportPulseGenerator(SmallApp):
     def generate_pulse(self):
         pulse_width = str(self.pulse_width_combobox.currentText())
         try:
-            pulse_width = float(pulse_width) / 1000.0
+            pulse_width = float(pulse_width) / 1000.0 - self.config.PULSE_OVERHEAD
             if pulse_width > self.config.MAX_PULSE_WIDTH:
                 self.printc('Pulse is too long')
                 return
-            if pulse_width < self.config.MIN_PULSE_WIDTH:
+            if pulse_width + self.config.PULSE_OVERHEAD < self.config.MIN_PULSE_WIDTH:
                 self.printc('This pulse might take longer than requested, hardware cannot generate shorter pulses than {0} ms'.format(int(1000*self.config.MIN_PULSE_WIDTH)))
         except:
             self.printc('Provide pulse width in numeric format')
             return
         try:
             s = digital_io.SerialPulse(self.config.SERIAL_PORT)
-            s.pulse_with_power_supply(pulse_width)
+            for i in range(1):
+                if pulse_width > 0:
+                    s.pulse(pulse_width)
+                else:
+                    self.printc('Pulse width is too short')
+                time.sleep(0.1)
             s.close()
         except:
             self.printc(traceback.format_exc())

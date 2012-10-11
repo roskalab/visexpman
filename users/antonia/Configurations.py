@@ -23,7 +23,8 @@ class SPC(VisionExperimentConfig):
         else:
             SERIAL_PORT = '/dev/ttyS0'
         self.MAX_PULSE_WIDTH = 3.0 #in seconds
-        self.MIN_PULSE_WIDTH = 1.0e-3 #in seconds
+        self.MIN_PULSE_WIDTH = 20.0e-3 #in seconds
+        self.PULSE_OVERHEAD = 10.0e-3 #in seconds
         self._create_parameters_from_locals(locals())
         
 class Debug(VisionExperimentConfig):
