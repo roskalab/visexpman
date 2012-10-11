@@ -45,6 +45,8 @@ def mkdir_notexists(folder):
         os.mkdir(folder)
 
 def copy(src, dst, update=1):
+    if not os.path.exists(src):
+        raise OSError('File or directory to be copied does not exist')
     if os.path.isfile(src): 
         dir_util.mkpath(os.path.split(dst)[0])
         return file_util.copy_file(src, dst, update=1)
@@ -321,6 +323,6 @@ class TestUtils(unittest.TestCase):
 if __name__=='__main__':
     import sys
     if len(sys.argv)==3 and sys.argv[1] == 'total_size':
-        print total_size(sys.argv[2])
+        print 'Total size:'+str(total_size(sys.argv[2]))
     else:
         unittest.main()
