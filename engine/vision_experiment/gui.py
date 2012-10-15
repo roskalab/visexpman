@@ -149,7 +149,7 @@ class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.history_label, 0, 0, 4, 2)
+        self.layout.addWidget(self.history_label, 0, 0, 4, 4)
         self.layout.addWidget(self.date, 5, 0, 1, 1)
         self.layout.addWidget(self.substance_label, 5, 1)
         self.layout.addWidget(self.substance_combobox, 5, 2)
@@ -630,7 +630,7 @@ class CommonWidget(QtGui.QWidget):
         self.read_stage_button = QtGui.QPushButton('Read stage', self)
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
         self.tilt_brain_surface_button = QtGui.QPushButton('Tilt brain surface', self)
-        self.tilt_brain_surface_button.setToolTip('Provide tilt degrees in text input box in the following format: horizontal axis [degree],vertical axis [degree]')
+        self.tilt_brain_surface_button.setToolTip('Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]')
         self.enable_tilting_label = QtGui.QLabel('Enable tilting', self)
         self.enable_tilting_checkbox = QtGui.QCheckBox(self)
         self.enable_xy_scan_with_move_stage_label = QtGui.QLabel('XY scan after\n move stage', self)
@@ -952,19 +952,22 @@ class MainPoller(Poller):
         self.stage_position_valid = False
         self.scan_regions = {}
         
-    def save_context(self):        
-        context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE)
-        context_hdf5.stage_origin = self.stage_origin
-        context_hdf5.stage_position = self.stage_position        
-        context_hdf5.save('stage_origin',overwrite = True)
-        context_hdf5.save('stage_position', overwrite = True)
-        if hasattr(self,  'xy_scan'):
-            context_hdf5.xy_scan = self.xy_scan
-            context_hdf5.save('xy_scan', overwrite = True)
-        if hasattr(self, 'xz_scan'):
-            context_hdf5.xz_scan = self.xz_scan
-            context_hdf5.save('xz_scan', overwrite = True)
-        context_hdf5.close()
+    def save_context(self):
+        try:
+            context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE)
+            context_hdf5.stage_origin = self.stage_origin
+            context_hdf5.stage_position = self.stage_position        
+            context_hdf5.save('stage_origin',overwrite = True)
+            context_hdf5.save('stage_position', overwrite = True)
+            if hasattr(self,  'xy_scan'):
+                context_hdf5.xy_scan = self.xy_scan
+                context_hdf5.save('xy_scan', overwrite = True)
+            if hasattr(self, 'xz_scan'):
+                context_hdf5.xz_scan = self.xz_scan
+                context_hdf5.save('xz_scan', overwrite = True)
+            context_hdf5.close()
+        except:
+            self.printc('Context file NOT updated')
         
     ############## Measurement file handling ########################
     def add_cells_to_database(self, id, update_gui = True):
@@ -1194,7 +1197,11 @@ class MainPoller(Poller):
     def select_cell(self, selection):
         self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['accepted'] = selection
         if selection:
-            self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['group'] = str(self.parent.roi_widget.cell_group_combobox.currentText())
+            cell_group_name = str(self.parent.roi_widget.cell_group_combobox.currentText())
+            if cell_group_name == '':
+                self.printc('No cell group name provided')
+                return
+            self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['group'] = cell_group_name
         self.next_cell()
         self.cell_status_changed_in_cache = True
         
@@ -1270,6 +1277,11 @@ class MainPoller(Poller):
         movement = map(float, self.parent.scanc().split(','))
         if len(movement) != 2:
             self.printc('Invalid coordinates')
+            return
+        if abs(movement[0]) > self.config.TILTING_LIMIT or abs(movement[1]) > self.config.TILTING_LIMIT:
+            self.printc('Requested tilting is too big')
+            return
+        if not self.ask4confirmation('Make surre that anesthesia tube not touching mouse nose'):
             return
         mg = stage_control.MotorizedGoniometer(self.config, id = 1)
         speed = 250#IDEA: speed may depend on movement
@@ -1591,6 +1603,10 @@ class MainPoller(Poller):
         if not result:
             self.printc('MES does not respond')
             return
+        result, laser_intensity = self.mes_interface.read_laser_intensity()
+        if not result:
+            self.printc('MES does not respond')
+            return
         if not self.read_stage(display_coords = False):
             self.printc('Stage cannot be accessed')
             return
@@ -1629,6 +1645,7 @@ class MainPoller(Poller):
         scan_region = {}
         scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
         scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
+        scan_region['laser_intensity'] = laser_intensity
         scan_region['xy'] = {}
         scan_region['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
         scan_region['xy']['scale'] = self.xy_scan['scale']
@@ -1696,6 +1713,8 @@ class MainPoller(Poller):
 
     def remove_scan_region(self):
         selected_region = self.parent.get_current_region_name()
+        if not self.ask4confirmation('Do you want to remove {0} scan region?' .format(selected_region)):
+            return
         if selected_region != 'master' and 'r_0_0' not in selected_region:
             if self.scan_regions.has_key(selected_region):
                 del self.scan_regions[selected_region]

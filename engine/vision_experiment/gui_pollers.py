@@ -47,7 +47,7 @@ class FlowmeterPoller(flowmeter.Flowmeter, gui.Poller):
                 self.last_file_write = now
             self.recording.extend(data[1].tolist())
             #Sound alarm
-            if now - self.last_flowrate_check > self.config.FLOW_STUCKED_CHECK_PERIOD and any(abs(data[1])) < self.config.FLOW_STUCKED_LIMIT and hasattr(winsound, 'PlaySound'):
+            if now - self.last_flowrate_check > self.config.FLOW_STUCKED_CHECK_PERIOD and abs(data[1]).mean() < self.config.FLOW_STUCKED_LIMIT and hasattr(winsound, 'PlaySound'):
                 self.last_flowrate_check = now
                 self.printc('Low flowrate')
                 winsound.PlaySound('SystemHand',winsound.SND_ALIAS)

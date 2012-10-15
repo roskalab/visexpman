@@ -339,7 +339,7 @@ class MesInterface(object):
         data_to_mes_mat['DATA']['params']['zshift'] = 1.0
         data_to_mes_mat['DATA']['params']['Tpixnum'] = xz_scan_config['Z_PIXEL_SIZE']
         data_to_mes_mat['DATA']['params']['Tpixwidth'] = xz_scan_config['Z_RESOLUTION']
-        data_to_mes_mat['DATA']['params']['scanspeed'] = 4
+        data_to_mes_mat['DATA']['params']['scanspeed'] = 1
         if cell_centers.shape[0] <= 4:
             line_resolution = 0.05
         else:

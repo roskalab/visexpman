@@ -199,6 +199,7 @@ class ExperimentControl(object):
             self.stage_position = self.stage.read_position() - self.stage_origin
             result, self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
             if not result:
+                time.time.sleep(0.4)#This message does not reach gui, perhaps a small delay will ensure it
                 self.printl('Objective position cannot be read, check STIM-MES connection')
                 return None
         self._prepare_files()

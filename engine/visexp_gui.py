@@ -264,6 +264,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_meanimage()
         self.update_suggested_depth_label()
         self.update_cell_info()
+        self.update_cell_group_combobox()
                 
     def cell_filtername_changed(self):
         self.update_cell_filter_list()
@@ -278,10 +279,10 @@ class VisionExperimentGui(QtGui.QWidget):
 
     ################### GUI updaters #################
     def update_anesthesia_history(self):
-        text = 'Time\tsubstance\tamount\tcomment\n'
+        text = 'Time\t\tsubstance\t\tamount\t\tcomment\n'
         if hasattr(self.poller, 'anesthesia_history'):
             for entry in self.poller.anesthesia_history[-MAX_ANESTHESIA_ENTRIES:]:
-                text += '{0}: {1}\t{2}\t{3}\n' .format(utils.timestamp2ymdhm(entry['timestamp']), entry['substance'], entry['amount'], entry['comment'])
+                text += '{0}:\t{1}\t\t{2}\t\t{3}\n' .format(utils.timestamp2ymdhm(entry['timestamp']), entry['substance'], entry['amount'], entry['comment'])
         self.animal_parameters_widget.anesthesia_history_groupbox.history_label.setText(text)
         
     def update_anesthesia_history_date_widget(self):

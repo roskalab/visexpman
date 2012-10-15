@@ -47,10 +47,11 @@ class MovingGratingWithFlashConfig(MovingGratingNoMarchingConfig):
         #Flash config
         self.ENABLE_FLASH = True
         self.FLASH_DURATION = 0.1
-        self.TIMING = [2.0, self.FLASH_DURATION, 7.0, self.FLASH_DURATION, 14.0]
+        self.TIMING = [2.0, self.FLASH_DURATION, 7.0, self.FLASH_DURATION, 7.0]
         self.FLASH_REPEATS = 1
         self.BLACK = 0.0
         self.WHITE = 1.0
+        self.PAUSE_BEFORE_AFTER = 12.0
         
 if 0:
     class MovingGratingNoMarchingNoStandingConfig(experiment.ExperimentConfig):
@@ -187,10 +188,7 @@ class MovingGrating(experiment.Experiment):
                 
 class MovingGratingPre(experiment.PreExperiment):    
     def run(self):
-        if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
-            self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
-        else:
-            self.show_grating(duration = 0, 
+        self.show_grating(duration = 0, 
                             orientation = self.experiment_config.ORIENTATIONS[0], 
                             velocity = 0, white_bar_width = self.experiment_config.WHITE_BAR_WIDTHS[0],
                             duty_cycle = self.experiment_config.DUTY_CYCLES[0], part_of_drawing_sequence = True)

@@ -16,7 +16,7 @@ class MEASetup(VisionExperimentConfig):
         LOG_PATH = root_folder
         DATA_PATH = root_folder
         GUI_SIZE = utils.rc((400, 400))
-        GUI_REFRESH_PERIOD = 1.0
+        GUI_REFRESH_PERIOD = 0.5
         ##### Flowmeter parameters #######
         
         flowmeter_serial_port = {
@@ -34,7 +34,7 @@ class MEASetup(VisionExperimentConfig):
                  'FACTOR': 7,
                  'TIMEOUT': 2.0,
                  }
-        self.FLOW_STUCKED_LIMIT = 1000.0
+        self.FLOW_STUCKED_LIMIT = 750.0
         self.FLOW_STUCKED_CHECK_PERIOD = 5.0
         self.FILEWRITE_PERIOD = 10.0
         
