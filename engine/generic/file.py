@@ -38,7 +38,10 @@ def mkstemp(suffix=None, filename = None):
         return filename
     
 def set_file_dates(path, file_info):
-    os.utime(path, (file_info.st_atime, file_info.st_mtime))
+    try:
+        os.utime(path, (file_info.st_atime, file_info.st_mtime))
+    except:
+        pass
 
 def mkdir_notexists(folder):
     if not os.path.exists(folder):

@@ -341,9 +341,9 @@ class MesInterface(object):
         data_to_mes_mat['DATA']['params']['Tpixwidth'] = xz_scan_config['Z_RESOLUTION']
         data_to_mes_mat['DATA']['params']['scanspeed'] = 1
         if cell_centers.shape[0] <= 4:
-            line_resolution = 0.05
+            line_resolution = 0.05/4
         else:
-            line_resolution = cell_centers.shape[0] * 0.05 -0.2
+            line_resolution = cell_centers.shape[0] * 0.05/4 -0.2
         data_to_mes_mat['DATA']['params']['pixwidth'] = line_resolution
         
 #        temp_path = str(tempfile.mkstemp(suffix='.mat')[1])

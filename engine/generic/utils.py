@@ -1008,7 +1008,7 @@ def pack_position(stagexyz, objective_z = None):
 #== Others ==
 def file_to_binary_array(path):
     if os.path.exists(path):
-        return numpy.fromfile(path, dtype = numpy.uint8)        
+        return numpy.fromfile(str(path), dtype = numpy.uint8)        
     else:
         return numpy.zeros(2)
     

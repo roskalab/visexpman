@@ -149,16 +149,16 @@ class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.history_label, 0, 0, 4, 4)
+        self.layout.addWidget(self.history_label, 0, 0, 4, 5)
         self.layout.addWidget(self.date, 5, 0, 1, 1)
         self.layout.addWidget(self.substance_label, 5, 1)
         self.layout.addWidget(self.substance_combobox, 5, 2)
         self.layout.addWidget(self.amount_label, 5, 3)
         self.layout.addWidget(self.amount_combobox, 5, 4)
         self.layout.addWidget(self.comment_label, 6, 0)
-        self.layout.addWidget(self.comment_combobox, 6, 1, 1, 3)
-        self.layout.addWidget(self.add_button, 6, 4)
-        self.layout.addWidget(self.remove_button, 6, 5)
+        self.layout.addWidget(self.comment_combobox, 6, 1, 1, 2)
+        self.layout.addWidget(self.add_button, 6, 3)
+        self.layout.addWidget(self.remove_button, 6, 4)
         self.setLayout(self.layout)   
     
 class MeasurementDatafileStatusGroupbox(QtGui.QGroupBox):
@@ -955,15 +955,15 @@ class MainPoller(Poller):
     def save_context(self):
         try:
             context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE)
-            context_hdf5.stage_origin = self.stage_origin
-            context_hdf5.stage_position = self.stage_position        
+            context_hdf5.stage_origin = copy.deepcopy(self.stage_origin)
+            context_hdf5.stage_position = copy.deepcopy(self.stage_position)
             context_hdf5.save('stage_origin',overwrite = True)
             context_hdf5.save('stage_position', overwrite = True)
             if hasattr(self,  'xy_scan'):
-                context_hdf5.xy_scan = self.xy_scan
+                context_hdf5.xy_scan = copy.deepcopy(self.xy_scan)
                 context_hdf5.save('xy_scan', overwrite = True)
             if hasattr(self, 'xz_scan'):
-                context_hdf5.xz_scan = self.xz_scan
+                context_hdf5.xz_scan = copy.deepcopy(self.xz_scan)
                 context_hdf5.save('xz_scan', overwrite = True)
             context_hdf5.close()
         except:
@@ -1660,7 +1660,7 @@ class MainPoller(Poller):
         if hasattr(self, 'xz_scan'):
             if self.xz_scan !=  None:
                 scan_region['xz'] = self.xz_scan
-                scan_region['xz']['mes_parameters'] = utils.file_to_binary_array(self.xz_scan['path'].tostring())
+                scan_region['xz']['mes_parameters'] = utils.file_to_binary_array(self.xz_scan['path'])
             else:
                 self.printc('Vertical scan is not available')
         else:
@@ -1690,7 +1690,7 @@ class MainPoller(Poller):
         region_name = self.parent.get_current_region_name()
         if not self.xz_scan is None:
             self.scan_regions[region_name]['xz'] = self.xz_scan
-            self.scan_regions[region_name]['xz']['mes_parameters'] = utils.file_to_binary_array(self.xz_scan['path'].tostring())
+            self.scan_regions[region_name]['xz']['mes_parameters'] = utils.file_to_binary_array(self.xz_scan['path'])
             self.save2mouse_file('scan_regions')
             self.update_scan_regions()#This is probably redundant
             self.printc('XZ scan updated')
