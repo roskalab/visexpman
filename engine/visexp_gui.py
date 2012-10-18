@@ -101,7 +101,10 @@ class VisionExperimentGui(QtGui.QWidget):
             experiment_config_names.append(experiment_config[1].__name__)
         experiment_config_names.sort()
         self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
-        self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index('ShortMovingGratingConfig'))
+        try:
+            self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
+        except ValueError:
+            pass
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -270,6 +273,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_meanimage()
         self.update_suggested_depth_label()
         self.update_cell_info()
+        self.update_cell_group_combobox()
                 
     def cell_filtername_changed(self):
         self.update_cell_filter_list()
@@ -483,6 +487,17 @@ class VisionExperimentGui(QtGui.QWidget):
                 else:
                     info = self.poller.cells[region_name][cell_name]['group']
                 text = '{0}: {1}'.format(cell_name, info)
+            #Generate list of cells in current cell group
+            if self.get_current_cell_group() != '':
+                number_of_columns = 3
+                cell_id_counter = 0
+                text += '\n'
+                for cell_id, cell in self.poller.cells[region_name].items():
+                    if cell['group'] == self.get_current_cell_group() :
+                        text += cell_id + ', '
+                        cell_id_counter += 1
+                        if cell_id_counter != 0 and cell_id_counter % number_of_columns == 0:
+                            text += '/n'
         self.roi_widget.cell_info.setText(text)
             
     def update_cell_group_combobox(self):
@@ -559,18 +574,17 @@ class VisionExperimentGui(QtGui.QWidget):
             self.overview_widget.image_display.scale = scale
         else:
             box = self.get_subimage_box()
+            if self.common_widget.show_xzlines_checkbox.checkState() == 0:
+                line = []
             gridlines = (self.common_widget.show_gridlines_checkbox.checkState() != 0)
             if gridlines:
                 sidebar_fill = (100, 50, 0)
                 if (channel == 0 or channel ==1) and len(box) == 4 and self.main_tab.currentIndex() != 1:
-                    if self.common_widget.show_xzlines_checkbox.checkState() != 0:
-                        line.extend(generic.box_to_lines(box))
-                    else:
-                        line = generic.box_to_lines(box)
-                else:
-                    line = [] #Do not  show any lines when gridlines are displayed
+                    line.extend(generic.box_to_lines(box))
             else:
                 sidebar_fill = (0, 0, 0)
+            if channel == 2 or channel == 3:#Scale xz images such that height is approximately equals with with
+                image_in['image'] = generic.rescale_numpy_array_image(image_in['image'], utils.cr((float(image_in['image'].shape[0])/image_in['image'].shape[1], 1.0)))
             image_with_sidebar = generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, 
                                                     sidebar_fill = sidebar_fill, 
                                                     gridlines = gridlines)
@@ -764,7 +778,7 @@ def draw_scalebar(image, origin, scale, frame_size = None, fill = (0, 0, 0), gri
         font = ImageFont.truetype("arial.ttf", fontsize)
     else:
         font = ImageFont.truetype("/usr/share/fonts/truetype/msttcorefonts/arial.ttf", fontsize)
-    number_of_divisions = 6
+    number_of_divisions = 7
     image_size = utils.cr((image.shape[0]*float(scale['row']), image.shape[1]*float(scale['col'])))
     division_col = int(numpy.round(float(image_size['row']) / number_of_divisions, -1))
     number_of_divisions_modified = int(float(image_size['row']) / division_col)

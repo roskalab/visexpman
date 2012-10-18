@@ -274,6 +274,7 @@ def parse_fragment_filename(path):
     fields['stimulus_name'] = filename[-3]
     fields['id'] = filename[-2]
     fields['fragment_id'] = filename[-1]
+    fields['region_name'] = '_'.join(filename[2:-4])
     return fields
 
 

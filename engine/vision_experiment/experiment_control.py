@@ -597,12 +597,17 @@ class ExperimentControl(object):
         result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,
                                                                            scan_mode='xy', channels=['pmtUGraw','pmtURraw'])
         if not result:
-            if os.path.exists(initial_mes_line_scan_settings_filename):
-                os.remove(initial_mes_line_scan_settings_filename)
-            if os.path.exists(red_channel_data_filename):
-                os.remove(red_channel_data_filename)
-            self.printl('Recording red and green channel was NOT successful')
-            return False
+            try:
+                if os.path.exists(initial_mes_line_scan_settings_filename):
+                    os.remove(initial_mes_line_scan_settings_filename)
+                if os.path.exists(red_channel_data_filename):
+                    os.remove(red_channel_data_filename)
+                self.printl('Recording red and green channel was NOT successful')
+                return False
+            except TypeError:
+                traceback_info = traceback.format_exc()
+                self.printl('{0},  {1}\n{2}'.format(initial_mes_line_scan_settings_filename, red_channel_data_filename, traceback_info))
+                return False
         if not hasattr(self, 'prepost_scan_image'):
             self.prepost_scan_image = {}
         if is_pre:

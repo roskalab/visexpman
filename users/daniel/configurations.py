@@ -311,7 +311,7 @@ class Debug(VisionExperimentConfig):
     Windows development machine
     '''
     def _set_user_parameters(self):
-        EXPERIMENT_CONFIG = 'MovingGratingWithFlashConfig'
+        EXPERIMENT_CONFIG = 'MovingGratingNoMarchingConfig'
         GUI_REFRESH_PERIOD = 3.0
         PLATFORM = 'standalone'
         PLATFORM = 'mes'
@@ -472,7 +472,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         GUI_REFRESH_PERIOD = 5.0
         ENABLE_MESEXTRACTOR = True
         ENABLE_CELL_DETECTION = True
-        EXPERIMENT_CONFIG = 'MovingDotConfig'
+        EXPERIMENT_CONFIG = 'MovingGratingNoMarchingConfig'
         
         MES_TIMEOUT = 15.0
         CELL_MERGE_DISTANCE = 3.0

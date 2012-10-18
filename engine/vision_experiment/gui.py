@@ -529,7 +529,7 @@ class RoiWidget(QtGui.QWidget):
         self.layout.addWidget(self.create_xz_lines_button, image_height_in_rows + 6, 4)
         self.layout.addWidget(self.roi_pattern_parameters_label, image_height_in_rows + 7, 0, 1, 4)
         self.layout.addWidget(self.roi_pattern_parameters_lineedit, image_height_in_rows + 7, 4)
-        self.layout.addWidget(self.cell_info, image_height_in_rows + 8, 0, 1, 3)
+        self.layout.addWidget(self.cell_info, image_height_in_rows + 8, 0, 1, 5)
         
         self.layout.setRowStretch(15, 15)
         self.layout.setColumnStretch(15, 15)
@@ -668,7 +668,7 @@ class CommonWidget(QtGui.QWidget):
         self.layout.addWidget(self.set_objective_button, 2, 6, 1, 1)
         self.layout.addWidget(self.enable_reset_objective_origin_after_moving_label, 2, 7, 1, 1)
         self.layout.addWidget(self.enable_set_objective_origin_after_moving_checkbox, 2, 8, 1, 1)
-        self.layout.addWidget(self.current_position_label, 0, 7, 1, 2)
+        self.layout.addWidget(self.current_position_label, 0, 8, 1, 2)
         self.layout.addWidget(self.tilt_brain_surface_button, 1, 5, 1, 1)
         self.layout.addWidget(self.enable_tilting_label, 1, 0, 1, 1)
         self.layout.addWidget(self.enable_tilting_checkbox, 1, 1, 1, 1)
@@ -1038,6 +1038,7 @@ class MainPoller(Poller):
             self.cells[region_name][cell_id]['scale'] = scale
             self.cells[region_name][cell_id]['origin'] = origin
             self.cells[region_name][cell_id]['roi_plot'] = roi_plots[i]
+            self.cells[region_name][cell_id]['cell_id'] = cell_id
         h_measurement.close()
         #Save changes
         self.save2mouse_file(['cells', 'scan_regions', 'images'])
@@ -1290,8 +1291,9 @@ class MainPoller(Poller):
         if not self.ask4confirmation('Make surre that anesthesia tube not touching mouse nose'):
             return
         mg = stage_control.MotorizedGoniometer(self.config, id = 1)
-        speed = 250#IDEA: speed may depend on movement
+        speed = 150#IDEA: speed may depend on movement
         if mg.set_speed(speed):
+            time.sleep(1.0)
             result = mg.move(numpy.array(movement))
             if not result:
                 self.printc('Tilting was NOT successful')
