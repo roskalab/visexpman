@@ -36,7 +36,7 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as generic_visexpA
 
 MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS = 40
-MAX_ANESTHESIA_ENTRIES = 25
+MAX_ANESTHESIA_ENTRIES = 20
 parameter_extract = re.compile('EOC(.+)EOP')
 
 ENABLE_MOUSE_FILE_HANDLER = False
@@ -143,6 +143,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
 #        self.connect_and_map_signal(self.main_tab, 'save_cells', 'currentChanged')
         self.connect(self.common_widget.show_gridlines_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.gridline_checkbox_changed)
+        self.connect(self.common_widget.show_xzlines_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.xzline_checkbox_changed)
         self.connect(self.common_widget.registration_subimage_combobox, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.subimage_parameters_changed)
         
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.select_mouse_file, 'mouse_file_changed', 'currentIndexChanged')
@@ -236,9 +237,14 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_meanimage()
             self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
             self.update_cell_info()
+            self.update_cell_group_combobox()
             
     def gridline_checkbox_changed(self):
         self.update_gridlined_images()
+        
+    def xzline_checkbox_changed(self):
+        self.update_gridlined_images()
+
 
     def subimage_parameters_changed(self):
         self.update_xy_images()
@@ -389,7 +395,7 @@ class VisionExperimentGui(QtGui.QWidget):
             for id in ids:
                 status = scan_regions[region_name]['process_status'][id]
                 if status['info'].has_key('depth'):
-                    depth = int(status['info']['depth'])
+                    depth = int(numpy.round(status['info']['depth'], 0))
                 else:
                     depth = ''
                 if status['info'].has_key('stimulus'):
@@ -557,7 +563,10 @@ class VisionExperimentGui(QtGui.QWidget):
             if gridlines:
                 sidebar_fill = (100, 50, 0)
                 if (channel == 0 or channel ==1) and len(box) == 4 and self.main_tab.currentIndex() != 1:
-                    line = generic.box_to_lines(box)
+                    if self.common_widget.show_xzlines_checkbox.checkState() != 0:
+                        line.extend(generic.box_to_lines(box))
+                    else:
+                        line = generic.box_to_lines(box)
                 else:
                     line = [] #Do not  show any lines when gridlines are displayed
             else:
@@ -576,7 +585,7 @@ class VisionExperimentGui(QtGui.QWidget):
         for i in range(4):
             image_widget = self.images_widget.image_display[i]
             if hasattr(image_widget, 'raw_image'):#This check is necessary because unintialized xz images does not have raw_image attribute
-                if i == 1 and (self.common_widget.show_gridlines_checkbox.checkState() == 0):
+                if i == 1:
                     line = self.xz_line
                 else:
                     line = image_widget.line

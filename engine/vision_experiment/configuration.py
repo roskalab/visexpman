@@ -229,7 +229,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         'ENABLE' : True
 #         }
 #         ]]
-        TILTING_LIMIT = [3.0, [0.0, 10.0]]
+        TILTING_LIMIT = [1.5, [0.0, 10.0]]
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 

@@ -29,6 +29,8 @@ import visexpA.engine.component_guesser as cg
 
 BUTTON_HIGHLIGHT = 'color: red'
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
+BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
+        Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
 
 class Poller(QtCore.QThread):
     '''
@@ -624,13 +626,15 @@ class CommonWidget(QtGui.QWidget):
         self.show_gridlines_label = QtGui.QLabel('Show gridlines', self)
         self.show_gridlines_checkbox = QtGui.QCheckBox(self)
         self.show_gridlines_checkbox.setCheckState(2)
+        self.show_xzlines_label = QtGui.QLabel('Show xz lines', self)
+        self.show_xzlines_checkbox = QtGui.QCheckBox(self)
         self.connected_clients_label = QtGui.QLabel('', self)
         self.set_stage_origin_button = QtGui.QPushButton('Set stage origin', self)
         self.set_stage_origin_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.read_stage_button = QtGui.QPushButton('Read stage', self)
         self.move_stage_button = QtGui.QPushButton('Move stage', self)
         self.tilt_brain_surface_button = QtGui.QPushButton('Tilt brain surface', self)
-        self.tilt_brain_surface_button.setToolTip('Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]')
+        self.tilt_brain_surface_button.setToolTip(BRAIN_TILT_HELP)
         self.enable_tilting_label = QtGui.QLabel('Enable tilting', self)
         self.enable_tilting_checkbox = QtGui.QCheckBox(self)
         self.enable_xy_scan_with_move_stage_label = QtGui.QLabel('XY scan after\n move stage', self)
@@ -651,7 +655,9 @@ class CommonWidget(QtGui.QWidget):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.show_gridlines_label, 0, 0)
         self.layout.addWidget(self.show_gridlines_checkbox, 0, 1)
-        self.layout.addWidget(self.connected_clients_label, 0,2, 1, 4)
+        self.layout.addWidget(self.show_xzlines_label, 0, 2)
+        self.layout.addWidget(self.show_xzlines_checkbox, 0, 3)
+        self.layout.addWidget(self.connected_clients_label, 0,4, 1, 4)
         
         self.layout.addWidget(self.set_stage_origin_button, 2, 0, 1, 1)
         self.layout.addWidget(self.read_stage_button, 2, 1, 1, 1)
@@ -1009,7 +1015,7 @@ class MainPoller(Poller):
         soma_rois = h_measurement.findvar('soma_rois')
         roi_centers = h_measurement.findvar('roi_centers')
         roi_plots = h_measurement.findvar('roi_plots')
-        depth = int(h_measurement.findvar('position')['z'][0])
+        depth = int(numpy.round(h_measurement.findvar('position')['z'][0], 0))
         stimulus = h_measurement.findvar('stimulus_class')
         if soma_rois is None or len(soma_rois) == 0:
             number_of_new_cells = 0
