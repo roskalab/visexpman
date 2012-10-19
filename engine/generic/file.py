@@ -269,6 +269,8 @@ def parse_fragment_filename(path):
     else:
         return fields
     filename = filename.split('_')
+    if len(filename) == 1:
+        return None
     fields['scan_mode'] = filename[1]
     fields['depth'] = filename[-4]
     fields['stimulus_name'] = filename[-3]
