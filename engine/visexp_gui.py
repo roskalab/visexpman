@@ -583,8 +583,8 @@ class VisionExperimentGui(QtGui.QWidget):
                     line.extend(generic.box_to_lines(box))
             else:
                 sidebar_fill = (0, 0, 0)
-            if channel == 2 or channel == 3:#Scale xz images such that height is approximately equals with with
-                image_in['image'] = generic.rescale_numpy_array_image(image_in['image'], utils.cr((float(image_in['image'].shape[0])/image_in['image'].shape[1], 1.0)))
+#            if channel == 2 or channel == 3:#Scale xz images such that height is approximately equals with with
+#                image_in['image'] = generic.rescale_numpy_array_image(image_in['image'], utils.cr((float(image_in['image'].shape[0])/(0.75*image_in['image'].shape[1]), 1.0)))
             image_with_sidebar = generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, 
                                                     sidebar_fill = sidebar_fill, 
                                                     gridlines = gridlines)

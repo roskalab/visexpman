@@ -78,8 +78,8 @@ class ShortMovingDotConfig(MovingDotConfig):
     def _create_application_parameters(self):
         MovingDotConfig._create_application_parameters(self)
         self.DIAMETER_UM = [300]        
-        self.ANGLES = [0, 45, 90] # degrees
-        self.ANGLES = [315] # degrees
+        self.ANGLES = [0,45,90,135,180,225,270,315] # degrees
+        self.RANDOMIZE=False
         self.SPEED = [4000] #[40deg/s] % deg/s should not be larger than screen size
         self.REPEATS = 1
         self.PAUSE_BEFORE_AFTER = 0.0
@@ -512,7 +512,7 @@ def getpermlist(veclength,RANDOMIZE):
     if RANDOMIZE:
         permlist = fullpermlist[fullpermlist<veclength] # pick only values that address the vector's values
     else:
-        permlist = numpy.arange(veclength)
+        permlist = numpy.arange(veclength).astype(int)
     return permlist
 
    

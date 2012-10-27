@@ -83,9 +83,10 @@ class ShortMovingGratingConfig(MovingGratingWithFlashConfig):
         self.MARCH_TIME = 0.5
         self.GRATING_STAND_TIME = 0.5
         #Grating parameters        
-        self.ORIENTATIONS = [0]
+        self.ORIENTATIONS = [0,45,90,135,180,225,270,315]
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.PAUSE_BEFORE_AFTER = 0.0
+        self.REPEATS = 1
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())

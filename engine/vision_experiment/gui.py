@@ -1038,7 +1038,7 @@ class MainPoller(Poller):
             self.cells[region_name][cell_id]['scale'] = scale
             self.cells[region_name][cell_id]['origin'] = origin
             self.cells[region_name][cell_id]['roi_plot'] = roi_plots[i]
-            self.cells[region_name][cell_id]['cell_id'] = cell_id
+            self.cells[region_name][cell_id]['cell_id'] = copy.deepcopy(cell_id)
         h_measurement.close()
         #Save changes
         self.save2mouse_file(['cells', 'scan_regions', 'images'])
