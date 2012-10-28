@@ -24,8 +24,10 @@ import PyQt4.QtCore as QtCore
 import visexpman
 from visexpA.engine.datadisplay import imaged
 from visexpman.engine.generic import utils
+from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.vision_experiment import gui
+from visexpman.engine.vision_experiment import gui_pollers
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
@@ -35,8 +37,8 @@ from visexpman.users.zoltan.test import unit_test_runner
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as generic_visexpA
 
-MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS = 40
-MAX_ANESTHESIA_ENTRIES = 25
+MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS = 30
+MAX_ANESTHESIA_ENTRIES = 20
 parameter_extract = re.compile('EOC(.+)EOP')
 
 ENABLE_MOUSE_FILE_HANDLER = False
@@ -48,11 +50,11 @@ class VisionExperimentGui(QtGui.QWidget):
     '''
     def __init__(self, user, config_class):
         #Fetching classes takes long time
-        self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
+        self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         self.config.user = user
         self.console_text = ''
         self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True)
-        self.poller = gui.MainPoller(self)
+        self.poller = gui_pollers.MainPoller(self)
         self.queues = self.poller.queues
         if ENABLE_MOUSE_FILE_HANDLER:
             self.mouse_file_handler = gui.MouseFileHandler(self)
@@ -101,7 +103,10 @@ class VisionExperimentGui(QtGui.QWidget):
             experiment_config_names.append(experiment_config[1].__name__)
         experiment_config_names.sort()
         self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
-        self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index('ShortMovingGratingConfig'))
+        try:
+            self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
+        except ValueError:
+            pass
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -114,9 +119,13 @@ class VisionExperimentGui(QtGui.QWidget):
         self.setLayout(self.layout)
         
     def init_widget_content(self):
+        if hasattr(self.poller,'widget_context_values'):
+            for ref_string, value in self.poller.widget_context_values.items():
+                ref = introspect.string2objectreference(self,ref_string.replace('parent.',''))
+                if hasattr(ref,'setEditText'):
+                    ref.setEditText(value)
+        self.update_mouse_files_combobox(set_to_value = self.poller.last_mouse_file_name)
         self.update_widgets_when_mouse_file_changed(selected_region = self.poller.last_region_name)
-        if hasattr(self.poller, 'mouse_file'):
-            self.update_mouse_files_combobox(os.path.split(self.poller.mouse_file)[1])#Ensuring that the filename coming from the last session is set
         if utils.safe_has_key(self.poller.xy_scan, self.config.DEFAULT_PMT_CHANNEL):
             self.show_image(self.poller.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.poller.xy_scan['scale'], origin = self.poller.xy_scan['origin'])
         if utils.safe_has_key(self.poller.xz_scan, 'scaled_image'):
@@ -143,6 +152,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.main_tab, QtCore.SIGNAL('currentChanged(int)'),  self.tab_changed)
 #        self.connect_and_map_signal(self.main_tab, 'save_cells', 'currentChanged')
         self.connect(self.common_widget.show_gridlines_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.gridline_checkbox_changed)
+        self.connect(self.common_widget.show_xzlines_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.xzline_checkbox_changed)
         self.connect(self.common_widget.registration_subimage_combobox, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.subimage_parameters_changed)
         
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.select_mouse_file, 'mouse_file_changed', 'currentIndexChanged')
@@ -222,22 +232,31 @@ class VisionExperimentGui(QtGui.QWidget):
             
     ############ GUI events ############
     def mouse_file_list_changed(self):
-        self.update_mouse_files_combobox(set_to_value = os.path.split(self.poller.mouse_file)[1])
+        if hasattr(self.poller, 'mouse_file'):
+            self.update_mouse_files_combobox(set_to_value = os.path.split(self.poller.mouse_file)[1])
+        else:
+            self.update_mouse_files_combobox()
             
     def tab_changed(self, currentIndex):
-        if currentIndex != 1:#If user switched from ROI tab, save cell selections
-            self.poller.signal_id_queue.put('save_cells')
+#        if currentIndex != 1:#If user switched from ROI tab, save cell selections
+#            self.poller.signal_id_queue.put('save_cells')
         #Load meanimages or scan region images
+        image_widget = self.images_widget.image_display[0]
         if currentIndex == 0:
             self.update_scan_regions()
+            self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
         elif currentIndex == 1:
             self.update_meanimage()
-            image_widget = self.images_widget.image_display[0]
             self.show_image(image_widget.raw_image, 0, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
             self.update_cell_info()
+            self.update_cell_group_combobox()
             
     def gridline_checkbox_changed(self):
         self.update_gridlined_images()
+        
+    def xzline_checkbox_changed(self):
+        self.update_gridlined_images()
+
 
     def subimage_parameters_changed(self):
         self.update_xy_images()
@@ -248,10 +267,11 @@ class VisionExperimentGui(QtGui.QWidget):
     def cell_group_changed(self):
         self.update_meanimage()
         self.update_suggested_depth_label()
+        self.update_cell_info()
             
     def region_name_changed(self):
         self.update_scan_regions()
-        self.update_jobhandler_process_status()
+        self.update_analysis_status()
         self.update_cell_list()
         self.update_cell_group_combobox()
         self.update_file_id_combobox()
@@ -263,6 +283,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_meanimage()
         self.update_suggested_depth_label()
         self.update_cell_info()
+        self.update_cell_group_combobox()
                 
     def cell_filtername_changed(self):
         self.update_cell_filter_list()
@@ -277,10 +298,10 @@ class VisionExperimentGui(QtGui.QWidget):
 
     ################### GUI updaters #################
     def update_anesthesia_history(self):
-        text = 'Time\tsubstance\tamount\tcomment\n'
+        text = 'Time\t\tsubstance\tamount\tcomment\n'
         if hasattr(self.poller, 'anesthesia_history'):
             for entry in self.poller.anesthesia_history[-MAX_ANESTHESIA_ENTRIES:]:
-                text += '{0}: {1}\t{2}\t{3}\n' .format(utils.timestamp2ymdhm(entry['timestamp']), entry['substance'], entry['amount'], entry['comment'])
+                text += '{0}:\t{1}\t{2}\t{3}\n' .format(utils.timestamp2ymdhm(entry['timestamp']), entry['substance'], entry['amount'], entry['comment'])
         self.animal_parameters_widget.anesthesia_history_groupbox.history_label.setText(text)
         
     def update_anesthesia_history_date_widget(self):
@@ -291,7 +312,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_animal_parameter_display()
         self.update_region_names_combobox(selected_region = selected_region)
         self.update_scan_regions()
-        self.update_jobhandler_process_status()
+        self.update_analysis_status()
         self.update_file_id_combobox()
         self.update_cell_list()
         self.update_roi_curves_display()
@@ -347,6 +368,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 self.show_image(self.images_widget.blank_image, 3, no_scale)
             #Display xy image
             image_to_display = scan_regions[selected_region]['xy']
+            self.xz_line = line
             self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
             #update overwiew
             image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
@@ -367,26 +389,27 @@ class VisionExperimentGui(QtGui.QWidget):
                 
     def update_file_id_combobox(self):
         region_name = self.get_current_region_name()
-        scan_regions = self.poller.scan_regions
-        if utils.safe_has_key(scan_regions, region_name) and utils.safe_has_key(scan_regions[region_name], 'process_status'):
-            ids = scan_regions[region_name]['process_status'].keys()
+        analysis_status = self.poller.analysis_status
+        if utils.safe_has_key(analysis_status, region_name):
+            ids = analysis_status[region_name].keys()
             ids.sort()
+            ids.reverse()
             self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,ids)
         else:
             self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,[])
                 
-    def update_jobhandler_process_status(self):
-        scan_regions = self.poller.scan_regions
+    def update_analysis_status(self):
+        analysis_status = self.poller.analysis_status
         region_name = self.get_current_region_name()
-        if utils.safe_has_key(scan_regions, region_name) and scan_regions[region_name].has_key('process_status'):
+        if utils.safe_has_key(analysis_status, region_name):
             status_text = ''
-            ids = scan_regions[region_name]['process_status'].keys()
+            ids = analysis_status[region_name].keys()
             ids.sort()
             ids = ids[-MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS:]
             for id in ids:
-                status = scan_regions[region_name]['process_status'][id]
+                status = analysis_status[region_name][id]
                 if status['info'].has_key('depth'):
-                    depth = int(status['info']['depth'])
+                    depth = int(numpy.round(status['info']['depth'], 0))
                 else:
                     depth = ''
                 if status['info'].has_key('stimulus'):
@@ -418,7 +441,7 @@ class VisionExperimentGui(QtGui.QWidget):
                 status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
         else:
             status_text = ''
-        self.main_widget.measurement_datafile_status_groupbox.process_status_label.setText(status_text)
+        self.main_widget.measurement_datafile_status_groupbox.analysis_status_label.setText(status_text)
 
     def update_cell_list(self):
         region_name = self.get_current_region_name()
@@ -474,6 +497,18 @@ class VisionExperimentGui(QtGui.QWidget):
                 else:
                     info = self.poller.cells[region_name][cell_name]['group']
                 text = '{0}: {1}'.format(cell_name, info)
+            #Generate list of cells in current cell group
+            current_cellgroup = self.get_current_cell_group()
+            if current_cellgroup != '':
+                number_of_columns = 3
+                cell_id_counter = 0
+                text += '\n'
+                for cell_id, cell in self.poller.cells[region_name].items():
+                    if cell['group'] == current_cellgroup:
+                        text += cell_id + ', '
+                        cell_id_counter += 1
+                        if cell_id_counter != 0 and cell_id_counter % number_of_columns == 0:
+                            text += '\n'
         self.roi_widget.cell_info.setText(text)
             
     def update_cell_group_combobox(self):
@@ -550,15 +585,17 @@ class VisionExperimentGui(QtGui.QWidget):
             self.overview_widget.image_display.scale = scale
         else:
             box = self.get_subimage_box()
+            if self.common_widget.show_xzlines_checkbox.checkState() == 0:
+                line = []
             gridlines = (self.common_widget.show_gridlines_checkbox.checkState() != 0)
             if gridlines:
                 sidebar_fill = (100, 50, 0)
                 if (channel == 0 or channel ==1) and len(box) == 4 and self.main_tab.currentIndex() != 1:
-                    line = generic.box_to_lines(box)
-                else:
-                    line = [] #Do not  show any lines when gridlines are displayed
+                    line.extend(generic.box_to_lines(box))
             else:
                 sidebar_fill = (0, 0, 0)
+            if channel == 2 or channel == 3:#Scale xz images such that height is approximately equals with with
+                image_in['image'] = generic.rescale_numpy_array_image(image_in['image'], utils.cr((float(image_in['image'].shape[0])/(0.5*image_in['image'].shape[1]), 1.0)))
             image_with_sidebar = generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, 
                                                     sidebar_fill = sidebar_fill, 
                                                     gridlines = gridlines)
@@ -573,7 +610,11 @@ class VisionExperimentGui(QtGui.QWidget):
         for i in range(4):
             image_widget = self.images_widget.image_display[i]
             if hasattr(image_widget, 'raw_image'):#This check is necessary because unintialized xz images does not have raw_image attribute
-                self.show_image(image_widget.raw_image, i, image_widget.scale, line = image_widget.line, origin = image_widget.origin)
+                if i == 1:
+                    line = self.xz_line
+                else:
+                    line = image_widget.line
+                self.show_image(image_widget.raw_image, i, image_widget.scale, line = line, origin = image_widget.origin)
                 
     def update_xy_images(self):
         for i in range(2):
@@ -652,7 +693,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.console_text  += text + '\n'
         self.standard_io_widget.text_out.setPlainText(self.console_text)
         self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
-        print text
+#        print text
         try:
             self.log.info(text)
         except:
@@ -662,17 +703,14 @@ class VisionExperimentGui(QtGui.QWidget):
         return str(self.standard_io_widget.text_in.toPlainText())
 
     def closeEvent(self, e):
+        self.printc('Please wait till gui closes')
         e.accept()
         self.log.copy()
         self.poller.abort = True
-        time.sleep(3.0)
+        self.poller.wait()
         #TMP111self.mouse_file_handler.abort = True
-        #delete files:
-        for file_path in self.poller.files_to_delete:
-            if os.path.exists(file_path):
-                os.remove(file_path)
-        time.sleep(5.0) #Enough time to close network connections
-        sys.exit(0)
+#        time.sleep(15.0) #Enough time to close network connections
+#        sys.exit(0)
         
 def generate_gui_image(images, size, config, lines  = [], gridlines = False, sidebar_fill = (0, 0, 0)):
     '''
@@ -748,7 +786,7 @@ def draw_scalebar(image, origin, scale, frame_size = None, fill = (0, 0, 0), gri
         font = ImageFont.truetype("arial.ttf", fontsize)
     else:
         font = ImageFont.truetype("/usr/share/fonts/truetype/msttcorefonts/arial.ttf", fontsize)
-    number_of_divisions = 6
+    number_of_divisions = 7
     image_size = utils.cr((image.shape[0]*float(scale['row']), image.shape[1]*float(scale['col'])))
     division_col = int(numpy.round(float(image_size['row']) / number_of_divisions, -1))
     number_of_divisions_modified = int(float(image_size['row']) / division_col)

@@ -206,9 +206,9 @@ class MotorizedGoniometer(StageControl):
         if hasattr(self.config, 'STAGE'):
             if self.config.STAGE[self.id]['ENABLE']:
                 self.execute_command('?R')
-                if 'OK' not in self.serial_port.read(100):
-                    raise RuntimeError('Goniometer does not respond')
-
+                readin = self.serial_port.read(100)
+                if 'OK' not in readin:
+                    raise RuntimeError('Goniometer does not respond: {0}'.format(readin))
 
     def execute_command(self, commands, wait_after_command = True):
         if not isinstance(commands,  list):

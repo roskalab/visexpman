@@ -194,6 +194,10 @@ class CommandRelayServer(object):
             for connection_name, connection in self.servers.items():
                 for endpoint, server in connection.items():
                     server.shutdown()
+            #Wait till all threads stop
+            for connection_name, connection in self.servers.items():
+                for endpoint, server in connection.items():
+                    server.wait()
             self.log.queue(self.log_queue)
         if hasattr(self, 'log'):
             self.log.copy()

@@ -139,7 +139,7 @@ class ExperimentControl(object):
             self.printl('Parameter file does NOT exists')
             return False
         h = hdf5io.Hdf5io(self.parameter_file)
-        fields_to_load = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
+        fields_to_load = ['parameters', 'xy_scan_parameters', 'animal_parameters', 'anesthesia_history']
         for field in fields_to_load:
             value = h.findvar(field)
             if value is None:
@@ -151,8 +151,6 @@ class ExperimentControl(object):
                 self.id = self.parameters['id']
                 if self.scan_mode == 'xz':
                     fields_to_load += ['xz_config', 'rois', 'roi_locations']
-            elif field == 'scan_regions':
-                self.scan_region = value[self.parameters['region_name']]
             else:
                 setattr(self, field,  value)
         h.close()
@@ -199,6 +197,7 @@ class ExperimentControl(object):
             self.stage_position = self.stage.read_position() - self.stage_origin
             result, self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
             if not result:
+                time.sleep(0.4)#This message does not reach gui, perhaps a small delay will ensure it
                 self.printl('Objective position cannot be read, check STIM-MES connection')
                 return None
         self._prepare_files()
@@ -247,15 +246,19 @@ class ExperimentControl(object):
                         self.printl('No ROIs found')
                         return False
                 elif self.scan_mode == 'xy':
-                    if hasattr(self, 'scan_region'):
-                        self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
+                    if hasattr(self, 'xy_scan_parameters'):
+                        self.xy_scan_parameters.tofile(self.filenames['mes_fragments'][fragment_id])
                 scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                     parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
-            if scan_start_success:
+            if not scan_start_success:
+                self.printc('Scan did not start, retrying...')
+                scan_start_success2, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
+                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
+            if scan_start_success2 or scan_start_success:
                 time.sleep(1.0)
             else:
                 self.printl('Scan start ERROR')
-            return scan_start_success
+            return (scan_start_success2 or scan_start_success)
         elif self.config.PLATFORM == 'elphys':
             #Set acquisition trigger pin to high
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
@@ -319,8 +322,11 @@ class ExperimentControl(object):
                 if self.config.PLATFORM == 'mes':
                     if self.mes_record_time > 30.0:
                         time.sleep(1.0)#Ensure that scanner starts???
-                        if not self._pre_post_experiment_scan(is_pre=False):
-                            self.printl('Post experiment scan was NOT successful')
+                        try:
+                            if not self._pre_post_experiment_scan(is_pre=False):
+                                self.printl('Post experiment scan was NOT successful')
+                        except:
+                            self.printl(traceback.format_exc())
                 self._save_fragment_data(fragment_id)
                 if self.config.PLATFORM == 'mes':
                     for i in range(5):#Workaround for the temporary failure of queue.put().
@@ -588,17 +594,22 @@ class ExperimentControl(object):
             return False
         #Measure red channel
         self.printl('Recording red and green channel')
-        if hasattr(self, 'scan_region'):
-            self.scan_region['xy_scan_parameters'].tofile(xy_static_scan_filename)
+        if hasattr(self, 'xy_scan_parameters'):
+            self.xy_scan_parameters.tofile(xy_static_scan_filename)
         result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,
                                                                            scan_mode='xy', channels=['pmtUGraw','pmtURraw'])
         if not result:
-            if os.path.exists(initial_mes_line_scan_settings_filename):
-                os.remove(initial_mes_line_scan_settings_filename)
-            if os.path.exists(red_channel_data_filename):
-                os.remove(red_channel_data_filename)
-            self.printl('Recording red and green channel was NOT successful')
-            return False
+            try:
+                if os.path.exists(initial_mes_line_scan_settings_filename):
+                    os.remove(initial_mes_line_scan_settings_filename)
+                if os.path.exists(red_channel_data_filename):
+                    os.remove(red_channel_data_filename)
+                self.printl('Recording red and green channel was NOT successful')
+                return False
+            except TypeError:
+                traceback_info = traceback.format_exc()
+                self.printl('{0},  {1}\n{2}'.format(initial_mes_line_scan_settings_filename, red_channel_data_filename, traceback_info))
+                return False
         if not hasattr(self, 'prepost_scan_image'):
             self.prepost_scan_image = {}
         if is_pre:

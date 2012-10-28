@@ -37,7 +37,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
     def __init__(self, user, config_class, autostart = False):
         ########## Set up configurations ################
         try:
-            self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
+            self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         except IndexError:
             raise RuntimeError('Configuration class does not exist: ' + str(config_class))
         #Save user name

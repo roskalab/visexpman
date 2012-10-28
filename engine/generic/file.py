@@ -1,7 +1,9 @@
 import os, re
 import os.path
 import shutil
+import numpy
 import tempfile
+import time
 from distutils import file_util,  dir_util
 
 def copy_reference_fragment_files(reference_folder, target_folder):
@@ -27,6 +29,13 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
             return os.path.split(path)[1]
         else:
             return path
+            
+def get_tmp_file(suffix, delay = 0.0):
+    path = os.path.join(tempfile.gettempdir(), 'tmp.' + suffix)
+    if os.path.exists(path):
+        os.remove(path)
+    time.sleep(delay)
+    return path
 
 def mkstemp(suffix=None, filename = None):
     '''Creates a temporary file with suffix as extension, e.g. .pdf. Closes the file so that other methods can open it and do what they need.'''        
@@ -38,7 +47,10 @@ def mkstemp(suffix=None, filename = None):
         return filename
     
 def set_file_dates(path, file_info):
-    os.utime(path, (file_info.st_atime, file_info.st_mtime))
+    try:
+        os.utime(path, (file_info.st_atime, file_info.st_mtime))
+    except:
+        pass
 
 def mkdir_notexists(folder):
     if not os.path.exists(folder):
@@ -156,7 +168,7 @@ def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter =
     return filtered_files
 
 def find_file_from_timestamp(dir, timestamp):
-    from visexpman.engine.generic.file import dirListing
+    #from visexpman.engine.generic.file import dirListing
     from visexpA.engine.component_guesser import get_mes_name_timestamp
     files = dirListing(dir, ['.hdf5'], dir)
     matching = [f for f in files if str(int(timestamp)) in f]
@@ -336,11 +348,14 @@ def parse_fragment_filename(path):
     else:
         return fields
     filename = filename.split('_')
+    if len(filename) == 1:
+        return None
     fields['scan_mode'] = filename[1]
     fields['depth'] = filename[-4]
     fields['stimulus_name'] = filename[-3]
     fields['id'] = filename[-2]
     fields['fragment_id'] = filename[-1]
+    fields['region_name'] = '_'.join(filename[2:-4])
     return fields
 
 
