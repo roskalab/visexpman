@@ -3,4 +3,4 @@ import os
 import numpy
 from visexpman.engine.generic import utils
     
-version = 'Development_12.10'
+version = 'Production_12.10.1'
