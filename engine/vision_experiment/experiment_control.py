@@ -277,7 +277,7 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             data_acquisition_stop_success = True
         elif self.config.PLATFORM == 'mes':
-            self.mes_timeout = 2.0 * self.fragment_durations[fragment_id]            
+            self.mes_timeout = 0.5 * self.fragment_durations[fragment_id]            
             if self.mes_timeout < self.config.MES_TIMEOUT:
                 self.mes_timeout = self.config.MES_TIMEOUT
             if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
@@ -306,9 +306,10 @@ class ExperimentControl(object):
                     if self.scan_mode == 'xyz':
                         scan_data_save_success = self.mes_interface.wait_for_rc_scan_save_complete(self.mes_timeout)
                     else:
-                        scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(self.mes_timeout)
-                    self.printl('MES data save complete')
-                    if not scan_data_save_success:
+                        scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(0.5 * self.mes_timeout)
+                    if scan_data_save_success:
+                        self.printl('MES data save complete')
+                    else:
                         self.printl('Line scan data save error')
                 else:
                     aborted = True
@@ -316,7 +317,7 @@ class ExperimentControl(object):
                 result = scan_data_save_success
             else:
                 pass
-            if not aborted and result:
+            if not aborted: #TMP and result:
                 if self.config.PLATFORM == 'mes':
                     if self.mes_record_time > 30.0:
                         time.sleep(1.0)#Ensure that scanner starts???
