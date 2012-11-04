@@ -7,6 +7,26 @@ import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.generic.utils as utils
 import scipy.interpolate
+
+class SPC(VisionExperimentConfig):
+    '''
+    Configuration for seriial port pulse generator
+    '''
+    def _set_user_parameters(self):
+        PLATFORM = 'smallapp'
+        SMALLAPP = {'NAME': 'Serial port pulse generator', }
+        GUI_SIZE = utils.rc((400, 300))
+        GUI_REFRESH_PERIOD = 1.0
+        ##### Flowmeter parameters #######
+        if os.name == 'nt':
+            SERIAL_PORT = 'COM1'
+        else:
+            SERIAL_PORT = '/dev/ttyS0'
+        self.MAX_PULSE_WIDTH = 3.0 #in seconds
+        self.MIN_PULSE_WIDTH = 20.0e-3 #in seconds
+        self.PULSE_OVERHEAD = 10.0e-3 #in seconds
+        self._create_parameters_from_locals(locals())
+        
 class Debug(VisionExperimentConfig):
     '''
     Antona's Electrophisology visual stimulation

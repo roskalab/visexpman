@@ -50,11 +50,12 @@ class Parameter(object):
     - set
     '''
     
-    def __init__(self,  value,  range_ = None,  is_path = False, is_file=False):
+    def __init__(self,  value,  range_ = None,  is_path = False, is_file=False,check_range = True):
         self.v = None
         self.range_ = range_
         self._detect_type(value, range_ = range_,  is_path = is_path,  is_file=is_file)
-        self._check_parameter_range(range_)
+        if check_range:
+            self._check_parameter_range(range_)
         self.value = self.v #alias for value attribute
 
     def _detect_type(self,  value, range_ = None,  is_path = False,  is_file=False):

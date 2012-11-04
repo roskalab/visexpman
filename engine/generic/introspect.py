@@ -375,7 +375,16 @@ def import_code(code,name,add_to_sys_modules=0):
         sys.modules[name] = module
     return module
 
-
+def string2objectreference(self, reference_string):
+    items = reference_string.split('.')
+    if items[0] == 'self':
+        reference = getattr(self, items[1])
+        for item in items[2:]:
+            reference = getattr(reference, item)
+        return reference
+    else:
+        return None
+    
   
 import unittest
 class TestUtils(unittest.TestCase):
