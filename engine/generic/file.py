@@ -3,6 +3,14 @@ import os.path
 import shutil
 import tempfile
 from distutils import file_util,  dir_util
+timestamp_re = re.compile('.*(\d{10, 10}).*')
+
+def compare_timestamps(string1, string2):
+        '''Finds timestamps in the strings and returns true if the timestamps are the same'''
+        ts1 = timestamp_re.findall(string1)
+        ts2 = timestamp_re.findall(string2)
+        if ts1==ts2: return True
+        else: return False
 
 def copy_reference_fragment_files(reference_folder, target_folder):
     if os.path.exists(target_folder):
