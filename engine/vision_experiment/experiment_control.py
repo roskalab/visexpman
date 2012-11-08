@@ -165,6 +165,8 @@ class ExperimentControl(object):
         self.filenames = {}
         if self.config.PLATFORM == 'mes' and not self._load_experiment_parameters():
             self.abort = True
+        else:
+            self.id = str(int(time.time()))
         self._initialize_experiment_log()
         self._initialize_devices()
         if self.abort:
