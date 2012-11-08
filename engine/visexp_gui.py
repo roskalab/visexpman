@@ -429,7 +429,7 @@ class VisionExperimentGui(QtGui.QWidget):
                     laser_intensity = 0.0
                 if status['find_cells_ready']:
                     if status['info'].has_key('number_of_cells'):
-                        status = '{0} cells' .format(status['info']['number_of_cells'])
+                        status = '{0} rois' .format(status['info']['number_of_cells'])
                     else:
                         status = 'ready'
                 elif status['mesextractor_ready']:

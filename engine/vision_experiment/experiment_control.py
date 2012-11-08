@@ -163,7 +163,7 @@ class ExperimentControl(object):
         self.stimulus_frame_info = []
         self.start_time = time.time()
         self.filenames = {}
-        if not self._load_experiment_parameters():
+        if self.config.PLATFORM == 'mes' and not self._load_experiment_parameters():
             self.abort = True
         self._initialize_experiment_log()
         self._initialize_devices()
@@ -488,10 +488,10 @@ class ExperimentControl(object):
                                     'generated_data' : self.experiment_specific_data, 
                                     'experiment_source' : experiment_source, 
                                     'software_environment' : software_environment, 
-                                    'machine_config': experiment_data.pickle_config(self.config), 
-                                    'experiment_config': experiment_data.pickle_config(self.experiment_config), 
                                     }
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
+            data_to_file['machine_config'] = experiment_data.pickle_config(self.config)
+            data_to_file['experiment_config'] = experiment_data.pickle_config(self.experiment_config)
             data_to_file['experiment_log'] = numpy.fromstring(pickle.dumps(self.log.log_dict), numpy.uint8)
             stimulus_frame_info = {}
             if stimulus_frame_info_with_data_series_index != 0:
@@ -516,6 +516,7 @@ class ExperimentControl(object):
                     data_to_file['anesthesia_history'] = self.anesthesia_history
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             stimulus_frame_info = stimulus_frame_info_with_data_series_index
+            data_to_file['config'] = experiment_data.save_config(None, self.config, self.experiment_config)
         data_to_file['stimulus_frame_info'] = stimulus_frame_info
         self.stimulus_frame_info_pointer = len(self.stimulus_frame_info)
         if self.config.PLATFORM == 'mes':
@@ -552,10 +553,14 @@ class ExperimentControl(object):
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             pass
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
+            fragment_id = 0
             for fragment_path, data_to_mat in self.fragment_data.items():
                 data_to_mat['experiment_log_dict'] = experiment_log_dict
                 data_to_mat['config'] = experiment_data.save_config(None, self.config, self.experiment_config)
                 scipy.io.savemat(fragment_path, data_to_mat, oned_as = 'row', long_field_names=True)
+                shutil.move(self.filenames['local_fragments'][fragment_id], self.filenames['fragments'][fragment_id])
+                fragment_id += 1
+                
 
     def _pack_software_environment(self):
         software_environment = {}
