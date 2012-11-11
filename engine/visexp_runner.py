@@ -116,6 +116,22 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         self.log.info('Visexpman quit')
         self.log.flush()
         
+    def run_experiment(self, user_experiment_config):
+        utils.is_keyword_in_queue(self.queues['gui']['in'], 'abort', keep_in_queue = False)
+        context = {}
+        context['stage_origin'] = numpy.zeros(3)
+        for experiment_config in self.experiment_config_list:
+            if experiment_config[1].__name__ == user_experiment_config.__class__.__name__:
+                self.experiment_config = experiment_config[1](self.config, self.queues, self.connections, self.log)
+                #Copy experiment config values
+                for attr in dir(user_experiment_config):
+                    if attr == attr.upper():
+                        setattr(self.experiment_config, attr, getattr(user_experiment_config, attr))
+                        if hasattr(user_experiment_config, attr +'_p'):
+                            setattr(self.experiment_config, attr+'_p', getattr(user_experiment_config, attr +'_p'))
+                result = self.experiment_config.runnable.run_experiment(context)
+                return result
+        
     def __del__(self): #To avoid unit test warning
         pass
         

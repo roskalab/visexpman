@@ -672,6 +672,7 @@ class Stim2Bmp(VisionExperimentConfig):
     '''
     def _set_user_parameters(self):
         EXPERIMENT_CONFIG = 'MovingGratingNoMarchingConfig'
+        EXPERIMENT_CONFIG = 'ShortMovingGratingConfig'
         GUI_REFRESH_PERIOD = 3.0
         PLATFORM = 'standalone'
         CELL_MERGE_DISTANCE = 3.0
@@ -708,13 +709,10 @@ class Stim2Bmp(VisionExperimentConfig):
             MES_DATA_FOLDER = 'R:\\debug\\data'
         self.CONTEXT_NAME = 'gui_dev.hdf5'
         CONTEXT_PATH = os.path.join(root_folder, 'context')
-        if len(sys.argv) >= 4:
-            CAPTURE_PATH = str(sys.argv[3])
-            if os.path.exists(CAPTURE_PATH):
-                shutil.rmtree(CAPTURE_PATH)
-            os.mkdir(CAPTURE_PATH)
-        else:
-            CAPTURE_PATH = os.path.join(root_folder, 'log')
+        CAPTURE_PATH = os.path.join(root_folder,  'debug', 'c')
+        if os.path.exists(CAPTURE_PATH):
+            shutil.rmtree(CAPTURE_PATH)
+        os.mkdir(CAPTURE_PATH)
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         
         #=== screen ===
