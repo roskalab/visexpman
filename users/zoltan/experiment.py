@@ -33,4 +33,3 @@ class MovingGrating(grating.MovingGrating):
         videofile.image_files2mpg(self.machine_config.CAPTURE_PATH, os.path.join(self.machine_config.VIDEO_PATH, '{0}.mpg'.format(self.experiment_name)), 
                                                                                                                                   fps = self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
         self.machine_config.ENABLE_FRAME_CAPTURE = False
-
