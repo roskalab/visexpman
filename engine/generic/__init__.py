@@ -27,8 +27,11 @@ def rescale_numpy_array_image(image, scale,  filter = None,  normalize = True):
     im = im.resize(new_size, filter)
     return numpy.asarray(im)
     
-def vertical_flip_array_image(image):
-    im = Image.fromarray(generic.normalize(image,numpy.uint8))
+def vertical_flip_array_image(image,  normalize = True):
+    if normalize:
+        im = Image.fromarray(generic.normalize(image,numpy.uint8))
+    else:
+        im = Image.fromarray(image)
     im = im.transpose(Image.FLIP_TOP_BOTTOM)
     return numpy.asarray(im)
 

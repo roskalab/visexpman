@@ -672,7 +672,7 @@ class Stim2Bmp(VisionExperimentConfig):
     '''
     def _set_user_parameters(self):
         EXPERIMENT_CONFIG = 'MovingGratingNoMarchingConfig'
-        EXPERIMENT_CONFIG = 'ShortMovingGratingConfig'
+#        EXPERIMENT_CONFIG = 'ShortMovingGratingConfig'
         GUI_REFRESH_PERIOD = 3.0
         PLATFORM = 'standalone'
         CELL_MERGE_DISTANCE = 3.0
