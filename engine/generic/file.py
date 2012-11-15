@@ -5,7 +5,7 @@ import numpy
 import tempfile
 import time
 from distutils import file_util,  dir_util
-timestamp_re = re.compile('.*(\d{10, 10}).*')
+timestamp_re = re.compile('.*(\d{10,10}).*')
 
 def compare_timestamps(string1, string2):
         '''Finds timestamps in the strings and returns true if the timestamps are the same'''
