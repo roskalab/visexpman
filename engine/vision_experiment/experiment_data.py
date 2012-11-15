@@ -64,7 +64,7 @@ def save_config(file_handle, machine_config, experiment_config = None):
         file_handle.machine_config = pickle_config(machine_config)
         file_handle.experiment_config = pickle_config(experiment_config)
         file_handle.save(['experiment_config', 'machine_config'])#, 'experiment_config_pickled', 'machine_config_pickled'])
-    elif file_handle == None:
+    elif file_handle is None:
         config = {}
         config['machine_config'] = copy.deepcopy(machine_config.get_all_parameters())
         config['experiment_config'] = experiment_config.get_all_parameters()

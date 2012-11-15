@@ -13,12 +13,18 @@ def pack_to_rgb(array_r, array_g=None, array_b = None):
     else:
         return numpy.rollaxis(numpy.array([array_r, array_g, array_b]),  0,  3)
 
-def rescale_numpy_array_image(image, scale):
+def rescale_numpy_array_image(image, scale,  filter = None,  normalize = True):
     if not isinstance(scale,  numpy.ndarray) and not isinstance(scale,  numpy.void):
         scale = utils.cr((scale,  scale))
-    im = Image.fromarray(generic.normalize(image,numpy.uint8))
+    if filter is None:
+        filter = Image.ANTIALIAS
+    if normalize:
+        im = Image.fromarray(generic.normalize(image,numpy.uint8))
+    else:
+        im = Image.fromarray(image)
+        
     new_size = (int(im.size[0] * scale['col']), int(im.size[1] * scale['row']))
-    im = im.resize(new_size, Image.ANTIALIAS)
+    im = im.resize(new_size, filter)
     return numpy.asarray(im)
     
 def vertical_flip_array_image(image):
