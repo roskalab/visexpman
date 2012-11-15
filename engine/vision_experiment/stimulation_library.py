@@ -18,6 +18,7 @@ from visexpman.engine.generic import graphics #Not used
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import colors
 from visexpman.engine.vision_experiment import screen
+from visexpA.engine.datadisplay import videofile
 
 command_extract = re.compile('SOC(.+)EOC')
 
@@ -426,7 +427,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         first_flip = False
         stop_stimulus = False
         start_time = time.time()
-        for frame_i in range(n_frames):            
+        for frame_i in range(n_frames):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if shape_type != 'annulus':
                 if number_of_positions == 1:
@@ -449,7 +450,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
-            self._flip(trigger = True)
+            if flip:
+                self._flip(trigger = True)
             if self.abort:
                 break
             if stop_stimulus:                
@@ -870,6 +872,12 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
 class StimulationSequences(Stimulations):
+    '''
+    Stimulation sequences, helpers
+    '''
+    def export2video(self, filename):
+        videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.bmp'), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
+        
     def flash_stimulus(self, timing, flash_color = 1.0, background_color = 0.0, repeats = 1):
         '''
         timing: a series of durations have to be provided in seconds to define a flashing pattern. The first item is always displayed with background color
