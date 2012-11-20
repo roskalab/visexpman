@@ -199,7 +199,7 @@ def listdir_fullpath(folder):
         full_paths.append(os.path.join(folder,  file))
     return full_paths
 
-def dirListing(directory='~', ext = '', prepend='', dflag = False, sort = False,  noext=False):
+def dirListing(directory='~', ext = '', prepend='', dflag = False, sort = False,  noext=False,  excludenames = []):
     """Returns a list of directories. Set 'prepend' to the same as 'directory'
     to get results relative to 'directory'. Set 'prepend' to another base path
     to get results relative to that base path. If the subdirectories under
@@ -218,6 +218,7 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sort = False,
     ext = [ex[ex.find('.')+1:] for ex in ext] #remove . from extension if it is there
     try:
         listing = os.listdir(directory)
+        listing = [l1 for l1 in listing if sum([e in l1 for e in excludenames])==0]
     except OSError:
         return ''
     if len(prepend)>0 and prepend[-1] != os.sep:
