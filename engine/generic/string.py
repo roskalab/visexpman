@@ -4,6 +4,16 @@ import numpy
 import os
 import unittest
 
+def long_substr(data):
+    '''extracts longest common substring from a list of strings'''
+    substr = ''
+    if len(data) > 1 and len(data[0]) > 0:
+        for i in range(len(data[0])):
+            for j in range(len(data[0])-i+1):
+                if j > len(substr) and all(data[0][i:i+j] in x for x in data):
+                    substr = data[0][i:i+j]
+    return substr
+
 def extract_common_string(flist, to_remove=['\)-r\d-']):
     ''' Locates '-rx-' part in filenames (where -rx- mean repetition x) and tries to find filenames that differ
     only in x but otherwise are identical,i.e. these files represent repeated trials of the stimulus. Returns the 
