@@ -161,7 +161,8 @@ class MBP(VisionExperimentConfig):
                  'UM_PER_USTEP' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]
         #=== DAQ ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
+        MES_SYNC_CHANNEL_INDEX = 0
         DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -277,7 +278,8 @@ class DebugOnLaptop(VisionExperimentConfig):
                  
                                                 
         #=== DAQ ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
+        MES_SYNC_CHANNEL_INDEX = 0
         DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -418,7 +420,8 @@ class Debug(VisionExperimentConfig):
                  }]
 
         #=== DAQ ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
+        MES_SYNC_CHANNEL_INDEX = 0
         DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -553,7 +556,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
                  'MOVE_TIMEOUT' : 15.0,
                  'DEGREE_PER_USTEP' : degree_factor * numpy.ones(2, dtype = numpy.float)}]
         #=== DAQ ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
+        MES_SYNC_CHANNEL_INDEX = 0
         DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'

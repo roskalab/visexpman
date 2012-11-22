@@ -38,6 +38,7 @@ def cut2vids():
         for i in range(len(frames)):
             newpath = os.path.join(newfolder,  'r{0:9}.png'.format(i).replace(' ',  '0'))
             shutil.copy(frames[i], newpath)
+            pass
         videofile = os.path.join(outfolder, os.path.split(framefolder)[1] + '.mp4')
         fps = 60
         command = 'avconv -y -r {0} -i {1} -map 0 -c:v libx264 -b 5M {2}'.format(fps, os.path.join(newfolder, 'r%9d.png'), videofile)
@@ -87,7 +88,11 @@ def stimulus_cadata2videoframes(path,  filter_rawdata = False,  export_rawdata =
         dr = generic.normalize(dr, numpy.uint8)
         rawdata = dr
     else:
-        rawdata = generic.normalize(rawdata_subset,  outtype = numpy.uint8, std_range = 10)
+        hist,bins = numpy.histogram(rawdata_subset.flatten(),32)
+        threshold = rawdata_subset.shape[0]*rawdata_subset.shape[1]*rawdata_subset.shape[2]*1e-5
+        maxthreshold = bins[numpy.nonzero(numpy.where(hist<threshold,  0,  1))[0].max()]
+        rawdata_subset = numpy.where(rawdata_subset>maxthreshold,  maxthreshold,  rawdata_subset)
+        rawdata = generic.normalize(rawdata_subset,  outtype = numpy.uint8)
         
     if export_rawdata:
         framedir = os.path.join(working_folder, 'rawdata')
@@ -124,7 +129,7 @@ def stimulus_cadata2videoframes(path,  filter_rawdata = False,  export_rawdata =
             data_frame_indexes.append(index)
             #Put stimulus and Ca image frames together
             if stimulus_frame_i%2 == 0 or True:
-                stim_frame = numpy.asarray(Image.open(stim_frames[stimulus_frame_i]))
+                stim_frame =  numpy.asarray(Image.open(stim_frames[stimulus_frame_i]))[::4, ::4]
                 try:
                     frame = rawdata[:, :, index]
                 except IndexError:
@@ -135,18 +140,20 @@ def stimulus_cadata2videoframes(path,  filter_rawdata = False,  export_rawdata =
                     ca_frame = generic_visexpman.rescale_numpy_array_image(ca_frame,  utils.rc((scale,  0.38)),  Image.BICUBIC,  normalize = False)
                 else:
                     ca_frame = generic_visexpman.rescale_numpy_array_image(ca_frame,  2,  Image.BICUBIC,  normalize = False)
-                image_size = [max(ca_frame.shape[0],  stim_frame.shape[0]),  ca_frame.shape[1] + stim_frame.shape[1]]
+                image_size = [max(ca_frame.shape[0],  stim_frame.shape[0]),  ca_frame.shape[1] + 0*stim_frame.shape[1]]
                 for i in range(2):#Make sure that image size is divisible by 2
                     if image_size[i] %2 != 0:
                         image_size[i] +=1
                 frame = numpy.zeros((image_size[0], image_size[1], 3),  dtype = numpy.uint8)
                 frame[0:ca_frame.shape[0], 0:ca_frame.shape[1], 1] = ca_frame
-                frame[0:stim_frame.shape[0], ca_frame.shape[1]:ca_frame.shape[1] + stim_frame.shape[1],  :] = stim_frame
+                white_pixels = numpy.nonzero(stim_frame)
+                frame[white_pixels[0]-stim_frame.shape[0], white_pixels[1]-stim_frame.shape[1],  white_pixels[2]] = 180
                 framepath = os.path.join(out_folder,  '{2}{0:9}.{1}'.format(frame_counter,  extension,  tag)).replace(' ', '0')
                 frame_counter += 1
                 im = Image.fromarray(frame)
 #                    im = im.resize((1024, 768),  Image.ANTIALIAS)
                 im.save(framepath)
+                pass
         
     h.close()
     if not stim_frame_folder is None:
@@ -164,7 +171,7 @@ if __name__=='__main__':
         for path in file.listdir_fullpath('/mnt/datafast/debug/recordings2video'):
             if 'hdf5' in path:
                 with introspect.Timer('generate video'):
-                    stimulus_cadata2videoframes(path,  filter_rawdata = True,  export_rawdata = False, stim_frame_folder = stim_frame_folder)
+                    stimulus_cadata2videoframes(path,  filter_rawdata = not True,  export_rawdata = False, stim_frame_folder = stim_frame_folder)
             
 
     

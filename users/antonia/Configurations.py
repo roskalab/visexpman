@@ -68,7 +68,7 @@ class Debug(VisionExperimentConfig):
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = False
         #=== LED controller ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -167,7 +167,7 @@ class AEPHVS(VisionExperimentConfig):
         ENABLE_FILTERWHEEL = False
         
         #=== EphysData and stimulus Framerate recorder and LED controller ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
