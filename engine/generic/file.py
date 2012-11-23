@@ -9,8 +9,8 @@ timestamp_re = re.compile('.*(\d{10,10}).*')
 
 def compare_timestamps(string1, string2):
         '''Finds timestamps in the strings and returns true if the timestamps are the same'''
-        ts1 = timestamp_re.findall(string1)
-        ts2 = timestamp_re.findall(string2)
+        ts1 = timestamp_re.findall(str(string1))
+        ts2 = timestamp_re.findall(str(string2))
         if ts1==ts2: return True
         else: return False
 
@@ -199,7 +199,7 @@ def listdir_fullpath(folder):
         full_paths.append(os.path.join(folder,  file))
     return full_paths
 
-def dirListing(directory='~', ext = '', prepend='', dflag = False, sort = False,  noext=False,  excludenames = []):
+def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = False,  noext=False,  excludenames = []):
     """Returns a list of directories. Set 'prepend' to the same as 'directory'
     to get results relative to 'directory'. Set 'prepend' to another base path
     to get results relative to that base path. If the subdirectories under
@@ -237,11 +237,11 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sort = False,
             dirs.append(prepend+x)
             lastmod.append(os.stat(os.path.join(directory,x))[8])
         elif id or cext is None: # recursive call to look in subdirectories if dirname does not contain the extension
-            rdirs = dirListing(directory+os.sep+x, ext, prepend+x, dflag)
+            rdirs = dirListing(directory+os.sep+x, ext, prepend+x, dflag, sortit = sortit,  noext=noext,  excludenames = excludenames)
             if not os.path.exists(prepend+x): # create directory
                 os.makedirs((prepend+x))
             dirs.extend(rdirs[:])
-    if sort:
+    if sortit:
         from operator import itemgetter
         dirs, modtimes = zip(*sorted(zip(dirs,lastmod), key=itemgetter(1)))
     if noext: # remove extensions

@@ -64,7 +64,7 @@ def stimulus_cadata2videoframes(path,  filter_rawdata = False,  export_rawdata =
         shutil.rmtree(working_folder)
         os.mkdir(working_folder)
     cfg = Config()
-    h = hdf5io.Hdf5io(path,  readonly = True)
+    h = hdf5io.Hdf5io(path)
     ss = h.findvar('sync_signal')
     last_frame = ss['data_frame_start_ms'][-1] + ss['data_frame_duration_ms']
     last_stimulus = ss['stimulus_pulse_end_ms'][-1]

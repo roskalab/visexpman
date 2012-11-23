@@ -254,6 +254,8 @@ def rcd_pack(raw, dim_order = [0, 1],**kwargs):
     order = argsort(dim_order)
     dim_order = sorted(dim_order)
     dim_names = [dim_names0[n] for n in dim_order] # sorted ensures that field ordering will always be as dim_names0, this way nd will always give [row,col] or [row,col,depth] ordered data
+    if isinstance(raw, (tuple, list)) and len(raw)==0: #empty list or tuple
+        return numpy.recarray((0,), dtype={'names':dim_names, 'formats':[object]*2}) #returned array should be iterable (though length 0)
     # handle case when input is a tuple having as many elements as dimensions (max 3)
     if (isinstance(raw,(list,tuple)) and ((len(raw) == len(dim_names)) and (type(raw[0])==int or type(raw[0])==float or type(raw[0]) == numpy.float64 or type(raw[0]) == numpy.float32 or type(raw[0]) == numpy.int32)) or (hasattr(raw,'ndim') and raw.ndim==1 and raw.size==len(dim_names))):
         nd = kwargs.get('nd',0)
