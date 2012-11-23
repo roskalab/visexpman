@@ -41,12 +41,12 @@ class MVSSA(VisionExperimentConfig):
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        ENABLE_UDP = (self.OS == 'win')
+        ENABLE_UDP = False
   
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = False
         #=== LED controller ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -117,7 +117,7 @@ class MVS(VisionExperimentConfig):
         ENABLE_FILTERWHEEL = False
         
         #=== EphysData and stimulus Framerate recorder and LED controller ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'

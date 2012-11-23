@@ -411,10 +411,11 @@ class ExperimentControl(object):
                 if hasattr(self, 'objective_position'):
                     if self.parameters.has_key('region_name'):
                         fragment_filename = fragment_filename.replace('fragment_', 
-                        'fragment_{2}_{0}_{1}_'.format(self.parameters['region_name'], self.objective_position, self.scan_mode))
+                        'fragment_{2}_{0:4}_{1}_'.format(self.parameters['region_name'], self.objective_position, self.scan_mode))
                     elif hasattr(self, 'stage_position'):
                         fragment_filename = fragment_filename.replace('fragment_', 
-                        'fragment_{3}_{0:.1f}_{1:.1f}_{2}_'.format(self.stage_position[0], self.stage_position[1], self.objective_position, self.scan_mode))
+                        'fragment_{3}_{0:.1f}_{1:4.1f}_{2}_'.format(self.stage_position[0], self.stage_position[1], self.objective_position, self.scan_mode))
+                    fragment_filename = fragment_filename.replace(' ', '0')
                 self.filenames['mes_fragments'].append(fragment_filename.replace('hdf5', 'mat'))
             elif self.config.EXPERIMENT_FILE_FORMAT == 'mat' and self.config.PLATFORM == 'elphys':
                 fragment_filename = file.generate_filename(fragment_filename, last_tag = str(fragment_id))
@@ -463,7 +464,7 @@ class ExperimentControl(object):
             self.printl('Analog input data is NOT available')
         stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected =\
                             experiment_data.preprocess_stimulus_sync(\
-                            analog_input_data[:, self.config.SYNC_CHANNEL_INDEX], 
+                            analog_input_data[:, self.config.STIM_SYNC_CHANNEL_INDEX], 
                             stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:], 
                             sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)
         if not pulses_detected:
@@ -471,7 +472,7 @@ class ExperimentControl(object):
         if self.config.PLATFORM == 'mes':
             a, b, pulses_detected =\
             experiment_data.preprocess_stimulus_sync(\
-                            analog_input_data[:, 0], sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)
+                            analog_input_data[:, self.config.MES_SYNC_CHANNEL_INDEX], sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)
             if not pulses_detected:
                 self.printl('MES sync signal is NOT detected')
         if not hasattr(self, 'experiment_specific_data'):

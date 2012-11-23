@@ -150,7 +150,7 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
                  'UM_PER_USTEP' : (1.0/51.0)*numpy.ones(3, dtype = numpy.float)
                  }]
         #=== DAQ ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai',
@@ -217,7 +217,7 @@ class TestElphysPlatformConfig(configuration.VisionExperimentConfig):
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
         #=== DAQ ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                     {
                     'ANALOG_CONFIG' : 'ai',
