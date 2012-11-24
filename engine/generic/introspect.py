@@ -220,7 +220,7 @@ class ReadWriteLock(object):
         # Initialize with no readers.
         self.__readers = {}
 
-    def acquireRead(self, blocking=True, timeout=True):
+    def acquireRead(self, blocking=True, timeout=None):
         """Acquire a read lock for the current thread, waiting at most
         timeout seconds or doing a non-blocking check in case timeout is <= 0.
 
@@ -271,7 +271,7 @@ class ReadWriteLock(object):
         finally:
             self.__condition.release()
 
-    def acquireWrite(self,timeout=None):
+    def acquireWrite(self,blocking=True, timeout=None):
         """Acquire a write lock for the current thread, waiting at most
         timeout seconds or doing a non-blocking check in case timeout is <= 0.
 
@@ -284,8 +284,12 @@ class ReadWriteLock(object):
         In case the timeout expires before the lock could be serviced, a
         RuntimeError is thrown."""
 
-        if timeout is not None:
+        if not blocking:
+            endtime = -1
+        elif timeout is not None:
             endtime = time() + timeout
+        else:
+            endtime = None
         me, upgradewriter = currentThread(), False
         self.__condition.acquire()
         try:

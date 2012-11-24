@@ -7,6 +7,10 @@ import time
 from distutils import file_util,  dir_util
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
+def check_file_open(filename):
+    '''Checks whether the given file is open by any process'''
+    dlist = [d for d in os.walk('/proc') if len([filename in af for af in d[3]])>0]
+
 def compare_timestamps(string1, string2):
         '''Finds timestamps in the strings and returns true if the timestamps are the same'''
         ts1 = timestamp_re.findall(str(string1))
