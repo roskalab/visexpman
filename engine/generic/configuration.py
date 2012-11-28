@@ -71,7 +71,7 @@ class Config(object):
         self._create_parameter_aliases()
         return
 
-    def _create_parameters_from_locals(self,  locals):
+    def _create_parameters_from_locals(self,  locals,  check_path = True):
         for k,  v in locals.items():
             if hasattr(self, k):  # parameter was already initialized, just update with new value
                 self.set(k, v)
@@ -91,9 +91,9 @@ class Config(object):
                     else:
                         setattr(self,  k + '_p',  parameter.Parameter(v))                        
                 elif k.find('_PATH') != -1: #"PATH" is encoded into variable name
-                    setattr(self,  k + '_p',  parameter.Parameter(v,  is_path = True))
+                    setattr(self,  k + '_p',  parameter.Parameter(v,  is_path = check_path))
                 elif k.find('_FILE') != -1: #variable name ends with _FILE
-                    setattr(self,  k + '_p',  parameter.Parameter(v,  is_file = True))
+                    setattr(self,  k + '_p',  parameter.Parameter(v,  is_file = check_path))
                 else:
                     setattr(self,  k + '_p', parameter.Parameter(v))
         self._create_parameter_aliases()

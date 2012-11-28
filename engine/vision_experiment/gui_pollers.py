@@ -545,14 +545,17 @@ class MainPoller(Poller):
         measurement_file_path = file.get_measurement_file_path_from_id(id, self.config)
         if measurement_file_path is None or not os.path.exists(measurement_file_path):
             self.printc('Measurement file not found: {0}, {1}' .format(measurement_file_path,  id))
-            return 5*[None]
+            return 3*[None]
         measurement_hdfhandler = hdf5io.Hdf5io(measurement_file_path)
         fromfile = measurement_hdfhandler.findvar(['call_parameters', 'position', 'experiment_config_name'])
         call_parameters = fromfile[0]
+        if not hasattr(self, 'mouse_file') or not call_parameters.has_key('region_name'):
+            self.printc('Online analysis of measurements without mouse file or scan region is not supported')
+            return 3*[None]
         if not call_parameters.has_key('scan_mode'):
             self.printc('Scan mode does not exists')
             measurement_hdfhandler.close()
-            return 5*[None]
+            return 3*[None]
         laser_intensity = measurement_hdfhandler.findvar('laser_intensity', path = 'root.'+ '_'.join(cg.get_mes_name_timestamp(measurement_hdfhandler)))
         measurement_hdfhandler.close()
         info = {'depth': fromfile[1]['z'][0], 'stimulus':fromfile[2], 'scan_mode':call_parameters['scan_mode'], 'laser_intensity': laser_intensity}
@@ -560,10 +563,10 @@ class MainPoller(Poller):
         mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, call_parameters['mouse_file'])
         if not os.path.exists(mouse_file):
             self.printc('Mouse file ({0}) assigned to measurement ({1}) is missing' .format(mouse_file,  id))
-            return 5*[None]
+            return 3*[None]
         if self.scan_regions[call_parameters['region_name']].has_key(id):
             self.printc('ID already exists: {0}'.format(id))
-            return 5*[None]
+            return 3*[None]
         return call_parameters['region_name'], measurement_file_path, info
  
     def rebuild_cell_database(self):
@@ -1402,7 +1405,8 @@ class MainPoller(Poller):
     def start_experiment(self):
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
-        self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
+        if hasattr(self, 'mouse_file'):
+            self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
         region_name = self.parent.get_current_region_name()
         if len(region_name)>0:
             self.experiment_parameters['region_name'] = region_name
@@ -1474,15 +1478,21 @@ class MainPoller(Poller):
                 return
         tmp_path = file.get_tmp_file('hdf5', 0.3)
         h = hdf5io.Hdf5io(tmp_path)
+        fields_to_save = ['parameters']
         h.parameters = copy.deepcopy(self.experiment_parameters)
         if h.parameters.has_key('laser_intensities'):
             del h.parameters['laser_intensities']
         if h.parameters.has_key('objective_positions'):
             del h.parameters['objective_positions']
-        h.xy_scan_parameters = copy.deepcopy(self.scan_regions[self.experiment_parameters['region_name']]['xy_scan_parameters'])
-        h.animal_parameters = copy.deepcopy(self.animal_parameters)
-        h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
-        fields_to_save = ['parameters', 'xy_scan_parameters', 'animal_parameters', 'anesthesia_history']
+        if self.experiment_parameters.has_key('region_name'):
+            h.xy_scan_parameters = copy.deepcopy(self.scan_regions[self.experiment_parameters['region_name']]['xy_scan_parameters'])
+            fields_to_save.append('xy_scan_parameters')
+        if hasattr(self, 'animal_parameters'):
+            h.animal_parameters = copy.deepcopy(self.animal_parameters)
+            fields_to_save.append('animal_parameters')
+        if hasattr(self, 'anesthesia_history'):
+            h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
+            fields_to_save.append('anesthesia_history')
         if self.experiment_parameters['scan_mode'] == 'xz':
             h.xz_config = copy.deepcopy(self.xz_config)
             h.rois = copy.deepcopy(self.rois)

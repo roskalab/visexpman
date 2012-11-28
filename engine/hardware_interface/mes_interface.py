@@ -12,6 +12,7 @@ import os
 import os.path
 import shutil
 import tempfile
+import traceback
 
 import PyQt4.QtCore as QtCore
 
@@ -97,10 +98,12 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
         m.raw_mat['DATA'][0]['info_Linfo'] = 0
     m.flush()
     time.sleep(0.2)
+    shutil.copy(target_path_local, target_path)
     try:
-        shutil.move(target_path_local, target_path)
+        os.remove(target_path_local)
     except:
-        raise RuntimeError('copyfile problem: {0}, {1}'.format(target_path_local, target_path))
+        print 'os.remove({0}) did not succeed'.format(target_path_local)
+#        raise RuntimeError('copyfile problem: {0}, {1}\n{2}'.format(target_path_local, target_path,  traceback.format_exc()))
 #    shutil.copyfile(target_path_local, 'V:\\debug\\data\\pars.mat')
 
 def get_line_scan_time(path):

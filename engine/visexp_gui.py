@@ -124,8 +124,14 @@ class VisionExperimentGui(QtGui.QWidget):
                 ref = introspect.string2objectreference(self,ref_string.replace('parent.',''))
                 if hasattr(ref,'setEditText'):
                     ref.setEditText(value)
-        self.update_mouse_files_combobox(set_to_value = self.poller.last_mouse_file_name)
-        self.update_widgets_when_mouse_file_changed(selected_region = self.poller.last_region_name)
+        if hasattr(self.poller,  'last_mouse_file_name'):
+            self.update_mouse_files_combobox(set_to_value = self.poller.last_mouse_file_name)
+        else:
+            self.update_mouse_files_combobox()
+        if hasattr(self.poller,  'last_region_name'):
+            self.update_widgets_when_mouse_file_changed(selected_region = self.poller.last_region_name)
+        else:
+            self.update_widgets_when_mouse_file_changed()
         if utils.safe_has_key(self.poller.xy_scan, self.config.DEFAULT_PMT_CHANNEL):
             self.show_image(self.poller.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.poller.xy_scan['scale'], origin = self.poller.xy_scan['origin'])
         if utils.safe_has_key(self.poller.xz_scan, 'scaled_image'):
@@ -388,6 +394,8 @@ class VisionExperimentGui(QtGui.QWidget):
                 self.main_widget.scan_region_groupbox.region_info.setText('')
                 
     def update_file_id_combobox(self):
+        if not hasattr(self.poller, 'analysis_status'):
+            return
         region_name = self.get_current_region_name()
         analysis_status = self.poller.analysis_status
         if utils.safe_has_key(analysis_status, region_name):
@@ -399,6 +407,8 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,[])
                 
     def update_analysis_status(self):
+        if not hasattr(self.poller, 'analysis_status'):
+            return
         analysis_status = self.poller.analysis_status
         region_name = self.get_current_region_name()
         if utils.safe_has_key(analysis_status, region_name):
@@ -595,7 +605,7 @@ class VisionExperimentGui(QtGui.QWidget):
             else:
                 sidebar_fill = (0, 0, 0)
             if channel == 2 or channel == 3:#Scale xz images such that height is approximately equals with with
-                image_in['image'] = generic.rescale_numpy_array_image(image_in['image'], utils.cr((float(image_in['image'].shape[0])/(0.5*image_in['image'].shape[1]), 1.0)))
+                image_in['image'] = generic.rescale_numpy_array_image(image_in['image'], utils.cr((float(image_in['image'].shape[0])/(0.3*image_in['image'].shape[1]), 1.0)))
             image_with_sidebar = generate_gui_image(image_in, self.config.IMAGE_SIZE, self.config, lines  = line, 
                                                     sidebar_fill = sidebar_fill, 
                                                     gridlines = gridlines)

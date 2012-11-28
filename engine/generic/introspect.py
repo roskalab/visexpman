@@ -173,7 +173,7 @@ Released under the BSD-license.
 # -------
 
 from threading import Condition, Lock, currentThread
-from time import time
+#from time import time
 
 
 # Read write lock
@@ -233,7 +233,7 @@ class ReadWriteLock(object):
         if not blocking:
             endtime = -1
         elif timeout is not None:
-            endtime = time() + timeout
+            endtime = time.time() + timeout
         else:
             endtime = None
         me = currentThread()
@@ -261,7 +261,7 @@ class ReadWriteLock(object):
                         self.__readers[me] = self.__readers.get(me,0) + 1
                         return
                 if timeout is not None:
-                    remaining = endtime - time()
+                    remaining = endtime - time.time()
                     if remaining <= 0:
                         # Timeout has expired, signal caller of this.
                         raise RuntimeError("Acquiring read lock timed out")

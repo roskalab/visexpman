@@ -39,9 +39,9 @@ def cut2vids():
             newpath = os.path.join(newfolder,  'r{0:9}.png'.format(i).replace(' ',  '0'))
             shutil.copy(frames[i], newpath)
             pass
-        videofile = os.path.join(outfolder, os.path.split(framefolder)[1] + '.mp4')
-        fps = 60
-        command = 'avconv -y -r {0} -i {1} -map 0 -c:v libx264 -b 5M {2}'.format(fps, os.path.join(newfolder, 'r%9d.png'), videofile)
+        videofile = os.path.join(outfolder, os.path.split(framefolder)[1] + '.mov')
+        fps = 25
+        command = 'avconv -y -r {0} -i {1} -map 0 -c:v mjpeg -b 5M {2}'.format(fps, os.path.join(newfolder, 'r%9d.png'), videofile)
         os.system(command)
 
 #def plot(curve1,  curve2, block):

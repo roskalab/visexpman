@@ -136,15 +136,18 @@ class ExperimentControl(object):
             return False
         self.parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['id']+'.hdf5')
         if not os.path.exists(self.parameter_file):
-            self.printl('Parameter file does NOT exists')
+            self.printl('Parameter file does NOT exists: {0}' .format(self.parameter_file))
             return False
         h = hdf5io.Hdf5io(self.parameter_file)
-        fields_to_load = ['parameters', 'xy_scan_parameters', 'animal_parameters', 'anesthesia_history']
+        mandatory_fields_to_load = ['parameters']
+        fields_to_load = ['xy_scan_parameters', 'animal_parameters', 'anesthesia_history']
+        fields_to_load.extend(mandatory_fields_to_load)
         for field in fields_to_load:
             value = h.findvar(field)
             if value is None:
                 self.printl('{0} is NOT found in parameter file'.format(field))
-                return False
+                if field in mandatory_fields_to_load:
+                    return False
             if field == 'parameters':
                 self.parameters = dict(self.parameters.items() + value.items())
                 self.scan_mode = self.parameters['scan_mode']
@@ -248,10 +251,11 @@ class ExperimentControl(object):
                         self.printl('No ROIs found')
                         return False
                 elif self.scan_mode == 'xy':
-                    if hasattr(self, 'xy_scan_parameters'):
+                    if hasattr(self, 'xy_scan_parameters') and not self.xy_scan_parameters is None:
                         self.xy_scan_parameters.tofile(self.filenames['mes_fragments'][fragment_id])
                 scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                     parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
+            scan_start_success2 = False
             if not scan_start_success:
                 self.printc('Scan did not start, retrying...')
                 scan_start_success2, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
@@ -592,7 +596,7 @@ class ExperimentControl(object):
         scanner_trajectory_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_scanner_signals.mat'))
         #Save initial line scan settings
         if hasattr(self, 'animal_parameters') and self.parameters.has_key('scan_mode') and self.parameters['scan_mode'] == 'xy':
-            if (utils.safe_has_key(self.animal_parameters, 'red_labeling') and self.animal_parameters['red_labeling'] == 'no') or not self.animal_parameters.has_key('red_labeling'):
+            if (utils.safe_has_key(self.animal_parameters, 'red_labeling') and self.animal_parameters['red_labeling'] == 'no') or not utils.safe_has_key(self.animal_parameters, 'red_labeling'):
                 return True
         result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters(parameter_file = initial_mes_line_scan_settings_filename)
         if not result:
