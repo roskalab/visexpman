@@ -4,12 +4,18 @@ import shutil
 import numpy
 import tempfile
 import time
+import subprocess as sub
 from distutils import file_util,  dir_util
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
-def check_file_open(filename):
+def file_open_by_other_process(filename):
     '''Checks whether the given file is open by any process'''
-    dlist = [d for d in os.walk('/proc') if len([filename in af for af in d[3]])>0]
+    ccmd = 'lsof -Fp '+filename
+    p=sub.Popen(ccmd, shell=True)
+    res= p.communicate()
+    pids = re.findall('p(\d+)', res)
+    if len(pids)<1: return False
+    elif len(pids)>1 or pids[0]!=os.getpid():return True
 
 def compare_timestamps(string1, string2):
         '''Finds timestamps in the strings and returns true if the timestamps are the same'''
@@ -203,6 +209,16 @@ def listdir_fullpath(folder):
         full_paths.append(os.path.join(folder,  file))
     return full_paths
 
+def dirListing2(rootdir, pattern='*', excludenames=[]):
+    import fnmatch
+    matches = []
+    for root, dirnames, filenames in os.walk(rootdir):
+        if len([e for e in excludenames if e in root])>0: continue
+        for filename in fnmatch.filter(filenames, pattern):
+            if len([e for e in excludenames if e in filename])==0:
+                matches.append(os.path.join(root, filename))
+    return matches
+      
 def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = False,  noext=False,  excludenames = []):
     """Returns a list of directories. Set 'prepend' to the same as 'directory'
     to get results relative to 'directory'. Set 'prepend' to another base path
