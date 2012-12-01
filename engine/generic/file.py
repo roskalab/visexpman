@@ -62,6 +62,7 @@ def mkstemp(suffix=None, filename = None):
     else:
         f,filename = tempfile.mkstemp(suffix=suffix)
         os.close(f)
+        os.remove(filename)
         return filename
     
 def set_file_dates(path, file_info):
