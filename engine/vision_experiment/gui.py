@@ -171,7 +171,7 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.ear_punch_r.addItems(ear_punch_items)
         self.gender_label = QtGui.QLabel('Gender',  self)
         self.gender = QtGui.QComboBox(self)        
-        self.gender.addItems(QtCore.QStringList(['male', 'female']))
+        self.gender.addItems(QtCore.QStringList(['female', 'male']))
         self.id_label = QtGui.QLabel('ID',  self)
         self.id = QtGui.QComboBox(self)
         self.id.setEditable(True)

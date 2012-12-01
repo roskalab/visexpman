@@ -257,7 +257,7 @@ class QueuedClient(QtCore.QThread):
             connection_close_request = False
             try:
                 self.connection = socket.create_connection((self.server_address, self.port))
-                self.printl(self.connection.getpeername())                
+                self.printl(self.connection.getpeername())
                 self.queue_in.put('connected to server')
                 self.last_receive_timout = time.time()
                 self.last_message_time = time.time()

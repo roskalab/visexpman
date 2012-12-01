@@ -198,6 +198,7 @@ class MainPoller(Poller):
                 os.remove(file_path)
         for connection in self.connections.values():
             connection.wait()
+        print 'Poller stopped'
         sys.exit(0)
 
     def periodic(self):
@@ -1505,6 +1506,7 @@ class MainPoller(Poller):
         self.printc('{0} parameter file generated'.format(self.experiment_parameters['id']))
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
         self.queues['stim']['out'].put(command)
+        os.remove(tmp_path)
         
     def previous_experiment(self):
         if self.experiment_parameters.has_key('current_objective_position_index') and \
