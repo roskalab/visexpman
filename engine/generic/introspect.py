@@ -12,6 +12,16 @@ import hashlib
 ## {{{ http://code.activestate.com/recipes/519621/ (r4)
 import weakref
 
+
+@contextmanager
+def nostderr():
+    savestderr = sys.stderr
+    class Devnull(object):
+        def write(self, _): pass
+    sys.stderr = Devnull()
+    yield
+    sys.stderr = savestderr
+
 def hash_variables(variables):
         import hashlib
         import cPickle
