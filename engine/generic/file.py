@@ -19,9 +19,9 @@ def file_open_by_other_process(filename):
 
 def compare_timestamps(string1, string2):
         '''Finds timestamps in the strings and returns true if the timestamps are the same'''
-        ts1 = timestamp_re.findall(str(string1))
-        ts2 = timestamp_re.findall(str(string2))
-        if ts1==ts2: return True
+        ts1 = timestamp_re.findall(str(string1))[0]
+        ts2 = timestamp_re.findall(str(string2))[0]
+        if int(ts1)==int(ts2): return True
         else: return False
 
 def copy_reference_fragment_files(reference_folder, target_folder):
