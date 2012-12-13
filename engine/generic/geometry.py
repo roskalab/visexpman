@@ -597,7 +597,10 @@ def rotate_around_center_pil(data,  angle, center=None,  **kwargs):
         if not hasattr(data, 'shape'): # input was list
             rotated = rotated.tolist()
     return rotated
-  
+
+def estimate_rotation(points1, points2):
+    return numpy.arctan((points2[:, 0]*points1[:, 1]-points2[:, 1]*points1[:, 0]).sum()/(points2[:, 0]*points1[:, 0]+points2[:, 1]*points1[:, 1]).sum())
+ 
 def centered_rigid_transform2d(data,  **kwargs):
     '''Transforms a point or image with a rotation about user defined center followed by translation.
     angle: radians
@@ -1141,8 +1144,16 @@ class testGeometry(unittest.TestCase):
         im2  =affine_transform(im1,A,[0,0],order=0)
         A2 = Haffine_from_points(zip(*im2.nonzero()),zip(*im1.nonzero()))
         pass
-        
+
+def test_estimate_rotation():
+    a = [[1, 1], [1, 5]]
+    angle= 90.0/180*numpy.pi
+    b= rotate_around_center(a, angle)
+    a2 = estimate_rotation(numpy.array(a), numpy.array(b))
+    pass
+  
 if __name__ == "__main__":
+   # test_estimate_rotation()
     unittest.main()
     test_data =  [               {
                  'line_point1': numpy.array([0.0, 1.0, 0.0]), 
