@@ -73,7 +73,7 @@ def set_file_dates(path, file_info):
 
 def mkdir_notexists(folder):
     if not os.path.exists(folder):
-        os.mkdir(folder)
+        os.makedirs(folder)
 
 def copy(src, dst, update=1):
     if not os.path.exists(src):
