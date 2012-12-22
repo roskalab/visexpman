@@ -55,12 +55,13 @@ class ExperimentControl(object):
                 if not hasattr(self.fragment_durations, 'index') and not hasattr(self.fragment_durations, 'shape'):
                     self.fragment_durations = [self.fragment_durations]
 
-    def run_experiment(self, context):
+    def run_experiment(self, context, **kwargs):
         '''
         Runs a series or a single experiment depending on the call parameters
         
         Objective positions and/or laser intensity is adjusted at a series or experiments.
         '''
+        self.kwargs = kwargs
         message_to_screen = ''
         if hasattr(self, 'objective_positions'):
             for i in range(len(self.objective_positions)):
@@ -138,7 +139,7 @@ class ExperimentControl(object):
         if not os.path.exists(self.parameter_file):
             self.printl('Parameter file does NOT exists: {0}' .format(self.parameter_file))
             return False
-        h = hdf5io.Hdf5io(self.parameter_file)
+        h = hdf5io.Hdf5io(self.parameter_file, filelocking=False)
         mandatory_fields_to_load = ['parameters']
         fields_to_load = ['xy_scan_parameters', 'animal_parameters', 'anesthesia_history']
         fields_to_load.extend(mandatory_fields_to_load)
@@ -436,7 +437,7 @@ class ExperimentControl(object):
         self.fragment_data = {}
         for fragment_file_name in self.filenames['local_fragments']:
             if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5':
-                self.fragment_files.append(hdf5io.Hdf5io(fragment_file_name))
+                self.fragment_files.append(hdf5io.Hdf5io(fragment_file_name, filelocking=False))
         if self.config.EXPERIMENT_FILE_FORMAT  == 'mat':
             pass
 
