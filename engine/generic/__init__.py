@@ -34,6 +34,14 @@ def vertical_flip_array_image(image,  normalize = True):
         im = Image.fromarray(image)
     im = im.transpose(Image.FLIP_TOP_BOTTOM)
     return numpy.asarray(im)
+    
+def horizontal_flip_array_image(image,  normalize = True):
+    if normalize:
+        im = Image.fromarray(generic.normalize(image,numpy.uint8))
+    else:
+        im = Image.fromarray(image)
+    im = im.transpose(Image.FLIP_LEFT_RIGHT)
+    return numpy.asarray(im)
 
 def draw_line_numpy_array(image, line, fill = (255, 0, 0)):
     im = Image.fromarray(generic.normalize(image,numpy.uint8))

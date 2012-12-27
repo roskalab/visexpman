@@ -135,8 +135,8 @@ class Screen(object):
                     if event.type == 5 or event.type == 6:
                         wait = False
         elif self.mode == 'standalone':
-            run_loop = True
-            while run_loop:
+            self.run_loop = True
+            while self.run_loop:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
                 #default view is set
                 self.set_view((0, 0, 0),  0, 0, 0, 1.0)
@@ -147,11 +147,11 @@ class Screen(object):
                 self.flip()
                 for event in pygame.event.get():
                     if event.type == 5 or event.type == 6:
-                        run_loop = False
+                        self.run_loop = False
                     if event.type == pygame.KEYDOWN:
                         key_pressed = pygame.key.name(event.key)
                         if key_pressed == 'escape':
-                            run_loop = False
+                            self.run_loop = False
                         self.keyboard_handler(key_pressed)
         elif self.mode == 'external':
             pass
@@ -354,7 +354,13 @@ class Screen(object):
         pixels = glReadPixels(0, 0, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)        
         frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
         frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
-        frame.save(path)        
+        frame.save(path)
+        
+    def get_frame(self):
+        pixels = glReadPixels(0, 0, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)        
+        frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+        frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
+        return numpy.asarray(frame)
         
     def cuboid_vertices(self, sizes):
         vertices = numpy.array([
