@@ -10,7 +10,7 @@ import scipy.interpolate
 
 class MVSSA(VisionExperimentConfig):
     '''
-    Antona's Electrophisology visual stimulation
+    Miguel's Electrophisology visual stimulation, standalone
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'MovingShapeParameters'
@@ -25,14 +25,14 @@ class MVSSA(VisionExperimentConfig):
 #        CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         
         #=== screen ===
-        FULLSCREEN = not True
+        FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800,600])
 #        SCREEN_RESOLUTION = utils.cr([1024, 768])
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.5
+        SCREEN_UM_TO_PIXEL_SCALE = 1.65
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT =  False#(self.OS == 'win')
@@ -41,7 +41,7 @@ class MVSSA(VisionExperimentConfig):
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        ENABLE_UDP = False
+        ENABLE_UDP = False#(self.OS == 'win')
   
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = False
@@ -76,37 +76,34 @@ class MVSSA(VisionExperimentConfig):
 
 class MVS(VisionExperimentConfig):
     '''
-    Antona's Electrophisology visual stimulation
+    Miguel's Electrophisology visual stimulation
     '''
     def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'ManipulationExperimentConfig'
+        EXPERIMENT_CONFIG = 'MovingShapeParameters'
         PLATFORM = 'elphys'
         EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===
-        if os.name == 'nt':
-            v_drive_data_folder = 'c:\\Data'
-        else:
-            v_drive_data_folder = '/home/zoltan/visexp/debug/data'
+        v_drive_data_folder = 'C:\\Data'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = v_drive_data_folder
-        ARCHIVE_PATH = v_drive_data_folder
-        CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
+        
+#        CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         
         #=== screen ===
         FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800,600])
-        SCREEN_RESOLUTION = utils.cr([1024, 768])
+#        SCREEN_RESOLUTION = utils.cr([1024, 768])
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.5
+        SCREEN_UM_TO_PIXEL_SCALE = 1.65
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
-        ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
+        ACQUISITION_TRIGGER_PIN = 1
+        FRAME_TRIGGER_PIN = 3
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -127,7 +124,7 @@ class MVS(VisionExperimentConfig):
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 300.0,
-                    'ENABLE' : True
+                    'ENABLE' :  False#(self.OS == 'win')
                     },
                     {
                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
@@ -137,7 +134,7 @@ class MVS(VisionExperimentConfig):
                     'MAX_VOLTAGE' : 3.0,
                     'MIN_VOLTAGE' : 0.0,
                     'DURATION_OF_AI_READ' : 1.0,
-                    'ENABLE' : True
+                    'ENABLE' :  False#(self.OS == 'win')
                     },
                     ]
         #=== Others ===

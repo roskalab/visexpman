@@ -46,7 +46,7 @@ class RibbonScanScene(visexpman.engine.generic.graphics.Screen):
         self.roll = -20.0
         self.pitch = -50.0
         self.scale = 1.7
-        h = hdf5io.Hdf5io(self.filename, filelocking=not False)
+        h = hdf5io.Hdf5io(self.filename, filelocking= False)
         scanner_trajectory = h.findvar('scanner_trajectory')
         g = h.findvar('pre_scan')
         g = generic.horizontal_flip_array_image(generic.vertical_flip_array_image(g))/255.0
@@ -156,6 +156,7 @@ if __name__=='__main__':
             try:
                 print f
                 visualize_xz_scan(f)
+                break
             except:
                 print "error " + f
                 pass
