@@ -26,7 +26,6 @@ from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.hardware_interface import stage_control
 
 import visexpA.engine.datahandlers.hdf5io as hdf5io
-import visexpA.engine.datahandlers.importers as importers
 
 class ExperimentControl(object):
     '''
