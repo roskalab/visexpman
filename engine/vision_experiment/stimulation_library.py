@@ -179,7 +179,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 
     #== Various visual patterns ==
     
-    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True):
+    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, block_trigger = False):
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
@@ -218,7 +218,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
-                    self._flip(trigger = True)
+                    if i==0 or not block_trigger:
+                        self._flip(trigger = True)
+                    else:
+                        self._flip(trigger = False) 
                 if self.abort:
                     break
                     
@@ -227,7 +230,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if count:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
-    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, flip = True):
+    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, flip = True, block_trigger = False):
         '''
         Two use cases are handled here:
             - showing individual image files
@@ -261,7 +264,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         else:
             for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
                 if flip:
-                    self._flip(trigger = True)
+                    if i==0 or not block_trigger:
+                        self._flip(trigger = True)
+                    else:
+                        self._flip(trigger = False) 
                 if self.abort:
                     break
         
@@ -362,7 +368,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 #            if self.stimulation_control.abort_stimulus():
 #                break
 
-    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True):
+    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True, block_trigger = False):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
         If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
@@ -451,7 +457,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
             if flip:
-                self._flip(trigger = True)
+                if frame_i==0 or not block_trigger:
+                    self._flip(trigger = True)
+                else:
+                    self._flip(trigger = False) 
             if self.abort:
                 break
             if stop_stimulus:                
@@ -627,7 +636,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 #                
 #        self._show_stimulus(duration,  self.ring,  flip)
                     
-    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0, part_of_drawing_sequence = False):
+    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0, part_of_drawing_sequence = False, block_trigger = False):
         """
         This stimulation shows grating with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -790,7 +799,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             else:
                 self.log_on_flip_message = self.log_on_flip_message_continous
             if not part_of_drawing_sequence:
-                self._flip(trigger = True)
+                if i==0 or not block_trigger:
+                    self._flip(trigger = True)
+                else:
+                    self._flip(trigger = False) 
             if self.abort:
                 break
                     
@@ -799,7 +811,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                     
-    def show_dots(self,  dot_diameters, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0)):
+    def show_dots(self,  dot_diameters, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0), block_trigger = False):
         '''
         Shows a huge number (up to several hunders) of dots.
         Parameters:
@@ -864,7 +876,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     first_flip = True
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous                
-                self._flip(trigger = True)                
+                if frame_i==0 or not block_trigger:
+                    self._flip(trigger = True)
+                else:
+                    self._flip(trigger = False) 
             if self.abort:
                 break
                 

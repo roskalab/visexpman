@@ -47,6 +47,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         PIN_RANGE = [0,  7]        
         PLATFORM = ['undefined', ['mes', 'elphys', 'mea', 'standalone', 'smallapp', 'undefined']]
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
+        ENABLE_HDF5_FILELOCKING = False
         
         ############# Network #####################      
         WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
@@ -178,6 +179,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #parallel port
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
+        ACQUISITION_STOP_PIN = [1,  PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         #filterwheel settings

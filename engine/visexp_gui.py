@@ -306,9 +306,17 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_anesthesia_history(self):
         text = 'Time\t\tsubstance\tamount\tcomment\n'
         if hasattr(self.poller, 'anesthesia_history'):
-            for entry in self.poller.anesthesia_history[-MAX_ANESTHESIA_ENTRIES:]:
-                text += '{0}:\t{1}\t{2}\t{3}\n' .format(utils.timestamp2ymdhm(entry['timestamp']), entry['substance'], entry['amount'], entry['comment'])
-        self.animal_parameters_widget.anesthesia_history_groupbox.history_label.setText(text)
+            entries = self.poller.anesthesia_history#[-MAX_ANESTHESIA_ENTRIES:]
+            number_of_rows = len(entries)
+            self.animal_parameters_widget.anesthesia_history_groupbox.history.setRowCount(number_of_rows)
+            self.animal_parameters_widget.anesthesia_history_groupbox.history.setVerticalHeaderLabels(QtCore.QStringList(number_of_rows * ['']))
+            for row in range(number_of_rows):
+                entry = entries[row]
+                self.animal_parameters_widget.anesthesia_history_groupbox.history.setItem(row, 0, QtGui.QTableWidgetItem(utils.timestamp2ymdhm(entry['timestamp'])))
+                self.animal_parameters_widget.anesthesia_history_groupbox.history.setItem(row, 1, QtGui.QTableWidgetItem(entry['substance']))
+                self.animal_parameters_widget.anesthesia_history_groupbox.history.setItem(row, 2, QtGui.QTableWidgetItem(entry['amount']))
+                self.animal_parameters_widget.anesthesia_history_groupbox.history.setItem(row, 3, QtGui.QTableWidgetItem(entry['comment']))
+            self.animal_parameters_widget.anesthesia_history_groupbox.history.scrollToBottom()
         
     def update_anesthesia_history_date_widget(self):
         now = time.localtime()
@@ -717,7 +725,7 @@ class VisionExperimentGui(QtGui.QWidget):
         e.accept()
         self.log.copy()
         self.poller.abort = True
-        self.poller.wait()
+        #self.poller.wait()
         #TMP111self.mouse_file_handler.abort = True
 #        time.sleep(15.0) #Enough time to close network connections
 #        sys.exit(0)
@@ -890,5 +898,3 @@ def run_gui():
 
 if __name__ == '__main__':
     run_gui()
-
-

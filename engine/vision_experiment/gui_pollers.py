@@ -185,7 +185,7 @@ class MainPoller(Poller):
         self.command_relay_server.shutdown_servers()
         self.save_cells()
 #        if hasattr(self, 'mouse _file'):
-        h = hdf5io.Hdf5io(self.config.CONTEXT_FILE)
+        h = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         
 #        h.last_region_name = self.parent.get_current_region_name()
 #        h.last_mouse_file_name = os.path.split(self.mouse_file)[1]
@@ -329,7 +329,7 @@ class MainPoller(Poller):
             for attribute in attributes:
                 if hasattr(self, attribute):
                     setattr(self, attribute,  {})
-            h = hdf5io.Hdf5io(self.mouse_file)
+            h = hdf5io.Hdf5io(self.mouse_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             varname = h.find_variable_in_h5f('animal_parameters', regexp=True)[0]
             h.load(varname)
             self.animal_parameters = getattr(h, varname)
@@ -376,7 +376,7 @@ class MainPoller(Poller):
             h.close()
         
     def load_context(self):
-        context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE)
+        context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         context_hdf5.load('stage_origin')
         context_hdf5.load('stage_position')
         if hasattr(context_hdf5, 'stage_position') and hasattr(context_hdf5, 'stage_origin') :
@@ -394,7 +394,7 @@ class MainPoller(Poller):
         
     def save_context(self):
         try:
-            context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE)
+            context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             context_hdf5.stage_origin = copy.deepcopy(self.stage_origin)
             context_hdf5.stage_position = copy.deepcopy(self.stage_position)
             context_hdf5.save('stage_origin',overwrite = True)
@@ -435,7 +435,7 @@ class MainPoller(Poller):
 #        self.save_cells()
         region_name, measurement_file_path, info = self.read_scan_regions(id)
         #read cell info from measurement file
-        h_measurement = hdf5io.Hdf5io(measurement_file_path)
+        h_measurement = hdf5io.Hdf5io(measurement_file_path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         scan_mode = h_measurement.findvar('call_parameters')['scan_mode']
         self.analysis_status[region_name][id]['find_cells_ready'] = True
         if scan_mode == 'xz':
@@ -547,7 +547,7 @@ class MainPoller(Poller):
         if measurement_file_path is None or not os.path.exists(measurement_file_path):
             self.printc('Measurement file not found: {0}, {1}' .format(measurement_file_path,  id))
             return 3*[None]
-        measurement_hdfhandler = hdf5io.Hdf5io(measurement_file_path)
+        measurement_hdfhandler = hdf5io.Hdf5io(measurement_file_path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         fromfile = measurement_hdfhandler.findvar(['call_parameters', 'position', 'experiment_config_name'])
         call_parameters = fromfile[0]
         if not hasattr(self, 'mouse_file') or not call_parameters.has_key('region_name'):
@@ -1478,7 +1478,7 @@ class MainPoller(Poller):
                 self.printc('Experiment ID already exists')
                 return
         tmp_path = file.get_tmp_file('hdf5', 0.3)
-        h = hdf5io.Hdf5io(tmp_path)
+        h = hdf5io.Hdf5io(tmp_path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         fields_to_save = ['parameters']
         h.parameters = copy.deepcopy(self.experiment_parameters)
         if h.parameters.has_key('laser_intensities'):
@@ -1602,7 +1602,7 @@ class MainPoller(Poller):
         commands = []
         for path in file.listdir_fullpath(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'simulated_data')):
             if '.hdf5' in path:
-                h = hdf5io.Hdf5io(path)
+                h = hdf5io.Hdf5io(path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
                 h.load('call_parameters')
                 h.call_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
                 h.save('call_parameters', overwrite = True)
@@ -1621,7 +1621,7 @@ class MainPoller(Poller):
         self.printc('Done')
             
     def save_xy_scan_to_file(self):
-        hdf5_handler = hdf5io.Hdf5io(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xy_scan.hdf5')))
+        hdf5_handler = hdf5io.Hdf5io(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xy_scan.hdf5')), filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         hdf5_handler.xy_scan = self.xy_scan
         hdf5_handler.stage_position = self.stage_position
         hdf5_handler.save(['xy_scan', 'stage_position'])
@@ -1640,7 +1640,7 @@ class MainPoller(Poller):
         try:
             if os.path.exists(mouse_file) and os.path.isfile(mouse_file):
                 if 'jobhandler' in tag:#Stim uses other nodes of mouse file
-                    h1=hdf5io.Hdf5io(copy_path)
+                    h1=hdf5io.Hdf5io(copy_path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
                     h1.scan_regions = {}
                     region_name = self.parent.get_current_region_name()
                     sr = copy.deepcopy(self.scan_regions)
@@ -1654,11 +1654,6 @@ class MainPoller(Poller):
                                     h1.process_list[id] = entry
                     h1.save('process_list', overwrite=True)
                     h1.close()
-#                time.sleep(1.0)
-#                shutil.copy(tmp_path, copy_path)
-				# Trying to open copied hdf5 file
-#                h = hdf5io.Hdf5io(copy_path)#Does not help either
-#                h.close()
                 result = True
         except:
             self.printc(traceback.format_exc())
@@ -1681,7 +1676,7 @@ class MainPoller(Poller):
             return True
 
     def create_image_registration_data_file(self, f1, f2):
-        image_hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.CONTEXT_PATH, 'image.hdf5'))
+        image_hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.CONTEXT_PATH, 'image.hdf5'), filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         image_hdf5_handler.f1 = f1
         image_hdf5_handler.f2 = f2
         image_hdf5_handler.save(['f1', 'f2'], overwrite = True)
@@ -1818,7 +1813,7 @@ class MainPoller(Poller):
     def mouse_file_saver(self):
         if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file) and utils.safe_has_key(self.queues, 'mouse_file_handler') and not self.queues['mouse_file_handler'].empty():
             self.running = True
-            h = hdf5io.Hdf5io(self.mouse_file)
+            h = hdf5io.Hdf5io(self.mouse_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             field_names_to_save = []
             with introspect.Timer('save time'):
                 while not self.queues['mouse_file_handler'].empty():
@@ -1859,7 +1854,7 @@ class MouseFileHandler(Poller):
         '''
         if hasattr(self.parent.poller, 'mouse_file') and os.path.exists(self.parent.poller.mouse_file) and utils.safe_has_key(self.parent.queues, 'mouse_file_handler') and not self.parent.queues['mouse_file_handler'].empty():
             self.running = True
-            h = hdf5io.Hdf5io(self.parent.poller.mouse_file)
+            h = hdf5io.Hdf5io(self.parent.poller.mouse_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             field_names_to_save = []
             while not self.parent.queues['mouse_file_handler'].empty():
                 field_name, field_value = self.parent.queues['mouse_file_handler'].get()

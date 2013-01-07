@@ -138,7 +138,7 @@ class ExperimentControl(object):
         if not os.path.exists(self.parameter_file):
             self.printl('Parameter file does NOT exists: {0}' .format(self.parameter_file))
             return False
-        h = hdf5io.Hdf5io(self.parameter_file, filelocking=False)
+        h = hdf5io.Hdf5io(self.parameter_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         mandatory_fields_to_load = ['parameters']
         fields_to_load = ['xy_scan_parameters', 'animal_parameters', 'anesthesia_history']
         fields_to_load.extend(mandatory_fields_to_load)
@@ -265,7 +265,7 @@ class ExperimentControl(object):
             else:
                 self.printl('Scan start ERROR')
             return (scan_start_success2 or scan_start_success)
-        elif self.config.PLATFORM == 'elphys':
+        elif self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mea':
             #Set acquisition trigger pin to high
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             return True
@@ -280,9 +280,12 @@ class ExperimentControl(object):
         -waits for mes data acquisition complete
         '''
         #Stop external measurements
-        if self.config.PLATFORM == 'elphys':
+        if self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mea':
             #Clear acquisition trigger pin
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
+            if self.config.PLATFORM == 'mea':
+                self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 1)
+                self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 0)
             data_acquisition_stop_success = True
         elif self.config.PLATFORM == 'mes':
             self.mes_timeout = 2.0 * self.fragment_durations[fragment_id]            
@@ -421,7 +424,7 @@ class ExperimentControl(object):
                         'fragment_{3}_{0:.1f}_{1:4.1f}_{2}_'.format(self.stage_position[0], self.stage_position[1], self.objective_position, self.scan_mode))
                     fragment_filename = fragment_filename.replace(' ', '0')
                 self.filenames['mes_fragments'].append(fragment_filename.replace('hdf5', 'mat'))
-            elif self.config.EXPERIMENT_FILE_FORMAT == 'mat' and self.config.PLATFORM == 'elphys':
+            elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
                 fragment_filename = file.generate_filename(fragment_filename, last_tag = str(fragment_id))
             local_folder = 'd:\\tmp'
             if not os.path.exists(local_folder):
@@ -436,7 +439,7 @@ class ExperimentControl(object):
         self.fragment_data = {}
         for fragment_file_name in self.filenames['local_fragments']:
             if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5':
-                self.fragment_files.append(hdf5io.Hdf5io(fragment_file_name, filelocking=False))
+                self.fragment_files.append(hdf5io.Hdf5io(fragment_file_name, filelocking=self.config.ENABLE_HDF5_FILELOCKING))
         if self.config.EXPERIMENT_FILE_FORMAT  == 'mat':
             pass
 
