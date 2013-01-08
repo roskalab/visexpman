@@ -163,6 +163,7 @@ class VisionExperimentGui(QtGui.QWidget):
         
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.select_mouse_file, 'mouse_file_changed', 'currentIndexChanged')
         self.connect(self.main_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.region_name_changed)
+        self.connect(self.animal_parameters_widget.anesthesia_history_groupbox.show_experiments_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.update_anesthesia_history)
 
         self.connect_and_map_signal(self.animal_parameters_widget.new_mouse_file_button, 'save_animal_parameters')
         self.connect_and_map_signal(self.animal_parameters_widget.anesthesia_history_groupbox.add_button, 'add_to_anesthesia_history')
@@ -306,7 +307,22 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_anesthesia_history(self):
         text = 'Time\t\tsubstance\tamount\tcomment\n'
         if hasattr(self.poller, 'anesthesia_history'):
-            entries = self.poller.anesthesia_history#[-MAX_ANESTHESIA_ENTRIES:]
+            entries = copy.deepcopy(self.poller.anesthesia_history)#[-MAX_ANESTHESIA_ENTRIES:]
+            if self.animal_parameters_widget.anesthesia_history_groupbox.show_experiments_checkbox.checkState() != 0:
+                for region_name, analysis_status_per_region in self.poller.analysis_status.items():
+                    for id in analysis_status_per_region.keys():
+                        stimulus_entry = self.poller.analysis_status[region_name][id]['info']
+                        entry = {}
+                        entry['timestamp'] = float(id)
+                        entry['amount'] = '{0}, {1}' .format(stimulus_entry['scan_mode'], stimulus_entry['depth'])
+                        entry['substance'] = stimulus_entry['stimulus'].replace('Config', '')
+                        entry['comment'] = region_name
+                        entries.append(entry)
+                ids = [e['timestamp'] for e in entries]
+                ids.sort()
+                #Sort whole list by timestamp
+                entries = [[e for e in entries if e['timestamp'] == id][0] for id in ids]
+            
             number_of_rows = len(entries)
             self.animal_parameters_widget.anesthesia_history_groupbox.history.setRowCount(number_of_rows)
             self.animal_parameters_widget.anesthesia_history_groupbox.history.setVerticalHeaderLabels(QtCore.QStringList(number_of_rows * ['']))
@@ -423,11 +439,15 @@ class VisionExperimentGui(QtGui.QWidget):
             status_text = ''
             ids = analysis_status[region_name].keys()
             ids.sort()
-            ids = ids[-MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS:]
-            for id in ids:
+#            ids = ids[-MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS:]
+            number_of_rows = len(ids)
+            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setRowCount(number_of_rows)
+            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setVerticalHeaderLabels(QtCore.QStringList(number_of_rows * ['']))
+            for row in range(number_of_rows):
+                id = ids[row]
                 status = analysis_status[region_name][id]
                 if status['info'].has_key('depth'):
-                    depth = int(numpy.round(status['info']['depth'], 0))
+                    depth = str(int(numpy.round(status['info']['depth'], 0)))
                 else:
                     depth = ''
                 if status['info'].has_key('stimulus'):
@@ -440,14 +460,14 @@ class VisionExperimentGui(QtGui.QWidget):
                     scan_mode = ''
                 if status['info'].has_key('laser_intensity'):
                     try:
-                        laser_intensity = float(status['info']['laser_intensity'])
+                        laser_intensity = '{0:1.1f}'.format(float(status['info']['laser_intensity']))
                     except ValueError:
-                        laser_intensity = 0.0
+                        laser_intensity = 'NA'
                 else:
                     laser_intensity = 0.0
                 if status['find_cells_ready']:
                     if status['info'].has_key('number_of_cells'):
-                        status = '{0} rois' .format(status['info']['number_of_cells'])
+                        status = '{0}' .format(status['info']['number_of_cells'])
                     else:
                         status = 'ready'
                 elif status['mesextractor_ready']:
@@ -456,10 +476,18 @@ class VisionExperimentGui(QtGui.QWidget):
                     status = '*'
                 else:
                     status = '*'
-                status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
-        else:
-            status_text = ''
-        self.main_widget.measurement_datafile_status_groupbox.analysis_status_label.setText(status_text)
+                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 0, QtGui.QTableWidgetItem(scan_mode))
+                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 1, QtGui.QTableWidgetItem(depth))
+                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 2, QtGui.QTableWidgetItem(id[-4:]))
+                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 3, QtGui.QTableWidgetItem(laser_intensity))
+                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 4, QtGui.QTableWidgetItem(status))
+                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 5, QtGui.QTableWidgetItem(stimulus))
+                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.scrollToBottom()
+                    
+#                status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
+#        else:
+#            status_text = ''
+#        self.main_widget.measurement_datafile_status_groupbox.analysis_status_label.setText(status_text)
 
     def update_cell_list(self):
         region_name = self.get_current_region_name()
@@ -725,10 +753,9 @@ class VisionExperimentGui(QtGui.QWidget):
         e.accept()
         self.log.copy()
         self.poller.abort = True
-        #self.poller.wait()
+        self.poller.wait()
         #TMP111self.mouse_file_handler.abort = True
 #        time.sleep(15.0) #Enough time to close network connections
-#        sys.exit(0)
         
 def generate_gui_image(images, size, config, lines  = [], gridlines = False, sidebar_fill = (0, 0, 0)):
     '''
@@ -884,7 +911,6 @@ class GuiTest(QtCore.QThread):
         self.printc('TEST: Adding master position')
         self.parent.poller.signal_id_queue.put('add_scan_region')
         
-        
     def start_test(self):
         self.start()
         
@@ -898,3 +924,5 @@ def run_gui():
 
 if __name__ == '__main__':
     run_gui()
+    hdf5io.lockman.__del__()
+    

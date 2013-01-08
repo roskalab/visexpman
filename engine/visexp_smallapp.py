@@ -159,8 +159,7 @@ class SerialportPulseGenerator(SmallApp):
             s.close()
         except:
             self.printc(traceback.format_exc())
-    
-        
+
 def run_gui():
     '''
     1. argument: username

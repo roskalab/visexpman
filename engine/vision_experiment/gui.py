@@ -61,6 +61,8 @@ class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
         self.comment_combobox.setEditable(True)
         self.add_button = QtGui.QPushButton('Add',  self)
         self.remove_button = QtGui.QPushButton('Remove last', self)
+        self.show_experiments_label = QtGui.QLabel('Show experiments', self)
+        self.show_experiments_checkbox = QtGui.QCheckBox(self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -74,6 +76,8 @@ class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
         self.layout.addWidget(self.comment_combobox, 8, 1, 1, 2)
         self.layout.addWidget(self.add_button, 8, 3)
         self.layout.addWidget(self.remove_button, 8, 4)
+        self.layout.addWidget(self.show_experiments_label, 9, 0)
+        self.layout.addWidget(self.show_experiments_checkbox, 9, 1)
         self.setLayout(self.layout)   
     
 class AnalysisStatusGroupbox(QtGui.QGroupBox):
@@ -83,7 +87,18 @@ class AnalysisStatusGroupbox(QtGui.QGroupBox):
         self.create_layout()
         
     def create_widgets(self):
-        self.analysis_status_label = QtGui.QLabel('', self)
+#        self.analysis_status_label = QtGui.QLabel('', self)
+        self.analysis_status_table = QtGui.QTableWidget(self)
+        self.analysis_status_table.setColumnCount(6)
+        self.analysis_status_table.setHorizontalHeaderLabels(QtCore.QStringList(['Scan\nmode', 'Depth\n[um]', 'Id', 'Laser\n[%]', 'Status', 'Stimulus']))
+        self.analysis_status_table.setColumnWidth(0, 35)
+        self.analysis_status_table.setColumnWidth(1, 35)
+        self.analysis_status_table.setColumnWidth(2, 30)
+        self.analysis_status_table.setColumnWidth(3, 35)
+        self.analysis_status_table.setColumnWidth(4, 35)
+        self.analysis_status_table.setColumnWidth(5, 115)
+        self.analysis_status_table.verticalHeader().setDefaultSectionSize(15)
+        
         self.ids_combobox = QtGui.QComboBox(self)
         self.ids_combobox.setEditable(True)
         self.remove_measurement_button = QtGui.QPushButton('Remove measurement',  self)
@@ -100,9 +115,9 @@ class AnalysisStatusGroupbox(QtGui.QGroupBox):
         self.layout.addWidget(self.set_state_to_button, 2, 0)
         self.layout.addWidget(self.set_to_state_combobox, 2, 1)
         self.layout.addWidget(self.reset_jobhandler_button, 0, 1)
-        self.layout.addWidget(self.analysis_status_label, 3, 0, 4, 2)
+        self.layout.addWidget(self.analysis_status_table, 3, 0, 4, 3)
         self.layout.addWidget(self.add_id_button, 0, 0)
-        self.setLayout(self.layout)   
+        self.setLayout(self.layout)
 
 class ExperimentControlGroupBox(QtGui.QGroupBox):
     def __init__(self, parent):
@@ -117,12 +132,12 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.experiment_name.addItems(QtCore.QStringList([]))
         self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
         self.start_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
-        self.stop_experiment_button = QtGui.QPushButton('Stop experiment',  self)
+        self.stop_experiment_button = QtGui.QPushButton('Stop',  self)
         self.stop_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.next_depth_button = QtGui.QPushButton('Next',  self)
         self.redo_depth_button = QtGui.QPushButton('Redo',  self)
         self.previous_depth_button = QtGui.QPushButton('Prev',  self)
-        self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful stop experiment',  self)
+        self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful\nstop',  self)
 #        self.identify_flourescence_intensity_distribution_button = QtGui.QPushButton('Fluorescence distribution',  self)
         self.objective_positions_label = QtGui.QLabel('Objective range [um]\n start,end,step',  self)
         self.objective_positions_combobox = QtGui.QComboBox(self)
@@ -138,15 +153,15 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.experiment_name, 0, 0, 1, 2)
         self.layout.addWidget(self.start_experiment_button, 0, 2, 1, 2)
         self.layout.addWidget(self.stop_experiment_button, 0, 4)
-        self.layout.addWidget(self.graceful_stop_experiment_button, 0, 5)
-        self.layout.addWidget(self.previous_depth_button, 1, 0, 1, 2)
-        self.layout.addWidget(self.next_depth_button, 1, 4, 1, 1)
-        self.layout.addWidget(self.redo_depth_button, 1, 2, 1, 2)
-        self.layout.addWidget(self.scan_mode, 2, 0)
-        self.layout.addWidget(self.objective_positions_label, 2, 1)
-        self.layout.addWidget(self.objective_positions_combobox, 2, 2, 1, 2)
-        self.layout.addWidget(self.laser_intensities_label, 2, 4, 1, 1)
-        self.layout.addWidget(self.laser_intensities_combobox, 2, 5, 1, 1)
+        self.layout.addWidget(self.graceful_stop_experiment_button, 1, 4)
+        self.layout.addWidget(self.previous_depth_button, 1, 1, 1, 1)
+        self.layout.addWidget(self.next_depth_button, 1, 3, 1, 1)
+        self.layout.addWidget(self.redo_depth_button, 1, 2, 1, 1)
+        self.layout.addWidget(self.scan_mode, 1, 0)
+        self.layout.addWidget(self.objective_positions_label, 2, 0)
+        self.layout.addWidget(self.objective_positions_combobox, 2, 1, 1, 2)
+        self.layout.addWidget(self.laser_intensities_label, 2, 3, 1, 1)
+        self.layout.addWidget(self.laser_intensities_combobox, 2, 4, 1, 1)
         self.setLayout(self.layout)        
 
 class AnimalParametersWidget(QtGui.QWidget):
@@ -469,7 +484,7 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 2, 4)
 #        self.layout.addWidget(self.set_objective_value_button, 2, 8, 1, 1)
         self.layout.addWidget(self.scan_region_groupbox, 2, 0, 2, 4)
-        self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 10, 2)
+        self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 10, 4)
         
         self.layout.addWidget(self.z_stack_button, 5, 0, 1, 1)
         
@@ -558,6 +573,8 @@ class CommonWidget(QtGui.QWidget):
         self.enable_reset_objective_origin_after_moving_label = QtGui.QLabel('Set objective to 0\n after moving it', self)
         self.enable_set_objective_origin_after_moving_checkbox = QtGui.QCheckBox(self)
         self.current_position_label = QtGui.QLabel('', self)
+        self.enable_laser_adjust_label = QtGui.QLabel('Adjust laser\nwhen moving\nto surface', self)
+        self.enable_laser_adjust_checkbox = QtGui.QCheckBox(self)
         
         self.registration_subimage_label = QtGui.QLabel('Registration subimage, upper left (x,y),\nbottom right (x,y) [um]', self)
         self.registration_subimage_combobox = QtGui.QComboBox(self)
@@ -581,6 +598,8 @@ class CommonWidget(QtGui.QWidget):
         self.layout.addWidget(self.set_objective_button, 2, 6, 1, 1)
         self.layout.addWidget(self.enable_reset_objective_origin_after_moving_label, 2, 7, 1, 1)
         self.layout.addWidget(self.enable_set_objective_origin_after_moving_checkbox, 2, 8, 1, 1)
+        self.layout.addWidget(self.enable_laser_adjust_label, 2, 9, 1, 1)
+        self.layout.addWidget(self.enable_laser_adjust_checkbox, 2, 10, 1, 1)
         self.layout.addWidget(self.current_position_label, 0, 8, 1, 2)
         self.layout.addWidget(self.tilt_brain_surface_button, 1, 5, 1, 1)
         self.layout.addWidget(self.enable_tilting_label, 1, 0, 1, 1)

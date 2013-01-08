@@ -77,7 +77,7 @@ class Poller(QtCore.QThread):
 
     def run_in_all_iterations(self):
         pass
-        
+
     def close(self):
         pass
 
@@ -103,7 +103,7 @@ class Poller(QtCore.QThread):
                     self.printc(traceback.format_exc())
             else:
                 self.printc('{0} method does not exists'.format(function_call))
-        
+
     def pass_signal(self, signal_id):
         self.signal_id_queue.put(str(signal_id))
 
@@ -126,7 +126,7 @@ class MainPoller(Poller):
         self.init_variables()
         self.load_context()
         self.initialize_mouse_file()
-        
+
     def connect_signals(self):
         Poller.connect_signals(self)
         self.parent.connect(self, QtCore.SIGNAL('mouse_file_list_changed'),  self.parent.mouse_file_list_changed)
@@ -135,13 +135,15 @@ class MainPoller(Poller):
         self.parent.connect(self, QtCore.SIGNAL('update_widgets_when_mouse_file_changed'),  self.parent.update_widgets_when_mouse_file_changed)
         self.parent.connect(self, QtCore.SIGNAL('ask4confirmation'),  self.parent.ask4confirmation)
         self.parent.connect(self, QtCore.SIGNAL('select_cell_changed'),  self.parent.select_cell_changed)
-    
+        self.parent.connect(self, QtCore.SIGNAL('update_anesthesia_history'),  self.parent.update_anesthesia_history)
+        self.parent.connect(self, QtCore.SIGNAL('update_analysis_status'),  self.parent.update_analysis_status)
+
     def init_run(self):
         self.connect_signals_to_widgets()
-        
+
     def connect_signals_to_widgets(self):
         self.parent.connect(self, QtCore.SIGNAL('clear_image_display'), self.parent.images_widget.clear_image_display)
-        
+
     def init_network(self):
         self.command_relay_server = network_interface.CommandRelayServer(self.config)
         self.connections = {}
@@ -157,26 +159,32 @@ class MainPoller(Poller):
         self.queues['analysis']['out'] = Queue.Queue()
         self.queues['analysis']['in'] = Queue.Queue()
         self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
-    
+
     def init_jobhandler(self):
         if not self.jobhandler_reset_issued:
             status = self.command_relay_server.get_connection_status()
             if status['GUI_ANALYSIS/GUI'] and status['GUI_ANALYSIS/ANALYSIS']:
                 self.reset_jobhandler()
                 self.jobhandler_reset_issued = True
-            
+
     def reset_jobhandler(self):
         self.queues['analysis']['out'].put('SOCreset_jobhandlerEOCEOP')
 
     def show_image(self, image, channel, scale, line = [], origin = None):
         self.emit(QtCore.SIGNAL('show_image'), image, channel, scale, line, origin)
-        
+
     def update_scan_regions(self):
         self.emit(QtCore.SIGNAL('update_scan_regions'))
         
+    def update_anesthesia_history(self):
+        self.emit(QtCore.SIGNAL('update_anesthesia_history'))
+        
+    def update_analysis_status(self):
+        self.emit(QtCore.SIGNAL('update_analysis_status'))
+
     def run_in_all_iterations(self):
         self.update_network_connection_status()
-        
+
     def close(self):
         self.printc('Wait till server is closed')
         self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
@@ -184,12 +192,7 @@ class MainPoller(Poller):
         self.queues['analysis']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.command_relay_server.shutdown_servers()
         self.save_cells()
-#        if hasattr(self, 'mouse _file'):
         h = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-        
-#        h.last_region_name = self.parent.get_current_region_name()
-#        h.last_mouse_file_name = os.path.split(self.mouse_file)[1]
-#        h.save(['last_region_name', 'last_mouse_file_name'], overwrite = True)
         self.save_widget_context(h)
         h.close()
         #delete files:
@@ -199,7 +202,6 @@ class MainPoller(Poller):
         for connection in self.connections.values():
             connection.wait()
         print 'Poller stopped'
-        sys.exit(0)
 
     def periodic(self):
         are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
@@ -245,7 +247,7 @@ class MainPoller(Poller):
                             self.read_stage(display_coords = False)
                             self.z_stack['stage_position'] = utils.pack_position(self.stage_position-self.stage_origin, 0)
                             self.z_stack['add_date'] = utils.datetime_string().replace('_', ' ')
-                            hdf5io.save_item(self.mouse_file.replace('.hdf5', '_z_stack.hdf5'), 'z_stack', self.z_stack)
+                            hdf5io.save_item(self.mouse_file.replace('.hdf5', '_z_stack.hdf5'), 'z_stack', self.z_stack, filelocking = self.config.ENABLE_HDF5_FILELOCKING)
                             self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
                             os.remove(self.z_stack_path)
                         elif command == 'measurement_ready':
@@ -275,7 +277,7 @@ class MainPoller(Poller):
                             self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
         except:
             self.printc(traceback.format_exc())
-                
+
     def mouse_file_changed(self):
         self.save_cells()
         self.wait_mouse_file_save()
@@ -283,10 +285,10 @@ class MainPoller(Poller):
         self.load_mouse_file()
         self.reset_jobhandler()
         self.emit(QtCore.SIGNAL('update_widgets_when_mouse_file_changed'))
-        
+
     def pass_signal(self, signal_id):
         self.signal_id_queue.put(str(signal_id))
-        
+
     ########## Manage context ###############
     def init_variables(self):
         self.files_to_delete = []
@@ -304,7 +306,7 @@ class MainPoller(Poller):
                                         'self.parent.animal_parameters_widget.anesthesia_history_groupbox.substance_combobox',
                                         'self.parent.animal_parameters_widget.anesthesia_history_groupbox.amount_combobox',
                                         'self.parent.animal_parameters_widget.anesthesia_history_groupbox.comment_combobox']
-        
+
     def initialize_mouse_file(self):
         '''
         Finds out which mouse file to load and loadds data from it
@@ -318,7 +320,7 @@ class MainPoller(Poller):
                 self.last_mouse_file_name = mouse_file
             self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, mouse_file)
             self.load_mouse_file()
-            
+
     def load_mouse_file(self):
         '''
         Loads scan region, cell and meanimage data from mouse file
@@ -374,7 +376,7 @@ class MainPoller(Poller):
             if anesthesia_history is not None:
                 self.anesthesia_history = copy.deepcopy(anesthesia_history)
             h.close()
-        
+
     def load_context(self):
         context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         context_hdf5.load('stage_origin')
@@ -391,7 +393,7 @@ class MainPoller(Poller):
         context_hdf5.close()
         self.stage_position_valid = False
         self.scan_regions = {}
-        
+
     def save_context(self):
         try:
             context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
@@ -408,7 +410,7 @@ class MainPoller(Poller):
             context_hdf5.close()
         except:
             self.printc('Context file NOT updated')
-            
+
     def save_widget_context(self, hdfhandler):
         if hasattr(self,'widget_context_fields'):
             hdfhandler.widget_context = {}
@@ -417,7 +419,7 @@ class MainPoller(Poller):
                 if hasattr(ref,'currentText'):
                     hdfhandler.widget_context[widget_field] = str(ref.currentText())
             hdfhandler.save('widget_context',overwrite = True)
-            
+
     def load_widget_context(self,hdfhandler):
         hdfhandler.load('widget_context')
         if hasattr(hdfhandler, 'widget_context'):
@@ -429,7 +431,7 @@ class MainPoller(Poller):
                     self.last_region_name = self.widget_context_values[k]
                 if hasattr(self,'last_mouse_file_name') and hasattr(self, 'last_region_name'):
                     break
-        
+
     ############## Measurement file handling ########################
     def add_cells_to_database(self, id, update_gui = True):
 #        self.save_cells()
@@ -452,7 +454,7 @@ class MainPoller(Poller):
             if update_gui:
                 self.parent.update_cell_list()
                 self.parent.update_cell_filter_list()
-                self.parent.update_analysis_status()
+                self.update_analysis_status()
             return
         if not hasattr(self,  'images'):
             self.images = {}
@@ -501,7 +503,7 @@ class MainPoller(Poller):
         if update_gui:
             self.parent.update_cell_list()
             self.parent.update_cell_filter_list()
-            self.parent.update_analysis_status()
+            self.update_analysis_status()
 
     def set_analysis_status_flag(self, id, flag_names):
         region_name, measurement_file_path, info = self.read_scan_regions(id)
@@ -516,8 +518,8 @@ class MainPoller(Poller):
             self.printc('Unknown id ({0}), probably mouse file is changed', format(id))
         else:
             self.printc('Process status flag set: {1} -> {0}'.format(flag_names[0],  id))
-        self.parent.update_analysis_status()
-    
+        self.update_analysis_status()
+
     def add_measurement_id(self, id):
         region_name, measurement_file_path, info = self.read_scan_regions(id)
         if not hasattr(self, 'analysis_status'):
@@ -535,12 +537,12 @@ class MainPoller(Poller):
         self.analysis_status[region_name][id]['info'] = info
         self.save2mouse_file('analysis_status')
         self.printc('Measurement ID added: {0}'.format(id))
-        self.parent.update_analysis_status()
+        self.update_analysis_status()
         self.parent.update_file_id_combobox()
-        
+
     def add_id(self):
         self.add_measurement_id(self.parent.get_current_file_id())
-        
+
     def read_scan_regions(self, id):
         #read call parameters
         measurement_file_path = file.get_measurement_file_path_from_id(id, self.config)
@@ -569,7 +571,7 @@ class MainPoller(Poller):
             self.printc('ID already exists: {0}'.format(id))
             return 3*[None]
         return call_parameters['region_name'], measurement_file_path, info
- 
+
     def rebuild_cell_database(self):
         self.clear_analysis_status()
         measurement_file_paths = file.filtered_file_list(self.config.EXPERIMENT_DATA_PATH, ['fragment','hdf5'], fullpath = True,filter_condition='and')
@@ -579,13 +581,13 @@ class MainPoller(Poller):
             self.add_measurement_id(id)
             self.set_analysis_status_flag(id, flags)
             self.add_cells_to_database(id, update_gui = (measurement_file_paths[-1] == measurement_path))
-        
+
     def clear_analysis_status(self):
         self.cells = {}
         for region_name in self.analysis_status.keys():
             self.analysis_status[region_name] = {}
         self.save2mouse_file(['analysis_status', 'cells'])
-        
+
     def remove_measurement_file_from_database(self, id_to_remove = None, process_status_update = False):
         self.printc('Removing measurement id...')
         fields_to_save = []
@@ -608,14 +610,14 @@ class MainPoller(Poller):
             self.printc('Cells updated')
         self.save2mouse_file(fields_to_save)
         if not process_status_update:
-            self.parent.update_analysis_status()
+            self.update_analysis_status()
             self.parent.update_file_id_combobox()
             self.parent.update_cell_list()
             self.parent.update_cell_filter_list()
             self.parent.update_meanimage()
             self.parent.update_cell_group_combobox()
             self.printc('{0} measurement is removed'.format(id_to_remove))
-            
+
     def set_measurement_file_process_state(self):
         self.printc('Setting state of measurement id...')
         selected_id = self.parent.get_current_file_id()
@@ -634,7 +636,7 @@ class MainPoller(Poller):
             elif target_state == 'find_cells_ready':
                 self.analysis_status[region_name][selected_id]['find_cells_ready'] = True
         self.save2mouse_file('analysis_status', wait_save = True)
-        self.parent.update_analysis_status()
+        self.update_analysis_status()
         self.parent.update_file_id_combobox()
         self.queues['analysis']['out'].put('SOCclear_joblistEOCEOP')
         self.printc('Measurement file status is updated')
@@ -647,20 +649,20 @@ class MainPoller(Poller):
             self.emit(QtCore.SIGNAL('select_cell_changed'))
         else:
             self.parent.roi_widget.select_cell_combobox.setCurrentIndex(current_index)
-        
+
     def previous_cell(self):
         current_index = self.parent.roi_widget.select_cell_combobox.currentIndex()
         current_index -= 1
         if current_index < 0:
             current_index = len(self.cell_ids)-1
         self.parent.roi_widget.select_cell_combobox.setCurrentIndex(current_index)
-        
+
     def accept_cell(self):
         self.select_cell(True)
-        
+
     def ignore_cell(self):
         self.select_cell(False)
-        
+
     def select_cell(self, selection):
         self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['accepted'] = selection
         if selection:
@@ -671,7 +673,7 @@ class MainPoller(Poller):
             self.cells[self.parent.get_current_region_name()][self.parent.get_current_cell_id()]['group'] = cell_group_name
         self.next_cell()
         self.cell_status_changed_in_cache = True
-        
+
     def calculate_suggested_depth(self):
         current_group = str(self.parent.roi_widget.cell_group_combobox.currentText())
         region_name = self.parent.get_current_region_name()
@@ -680,7 +682,7 @@ class MainPoller(Poller):
             self.suggested_depth = numpy.round(numpy.array(list(set(depths))).mean(), 0)
         else:
             self.suggested_depth = numpy.nan
-        
+
     def save_cells(self,region_name = None):
         if hasattr(self, 'cells') and self.cell_status_changed_in_cache:
             self.save2mouse_file('cells',region_name = region_name)
@@ -735,7 +737,7 @@ class MainPoller(Poller):
         self.origin_set = True
         self.parent.update_position_display()
         return result
-        
+
     def tilt_brain_surface(self):
         if self.parent.common_widget.enable_tilting_checkbox.checkState() != 2:
             self.printc('Tilting NOT enabled')
@@ -767,7 +769,7 @@ class MainPoller(Poller):
         else:
             self.printc('Setting goniometer speed was NOT successful')
         mg.release_instrument()
-        
+
     def move_stage(self):
         movement = self.parent.scanc().split(',')
         if len(movement) == 2:
@@ -823,11 +825,16 @@ class MainPoller(Poller):
                     self.printc('Setting objective to 0 did not succeed')
                 else:
                     self.objective_position = 0.0
+            if self.parent.common_widget.enable_laser_adjust_checkbox.checkState() != 0 and position == 0:
+                #Adjust laser to saved value
+                result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(self.scan_regions[self.parent.get_current_region_name()]['laser_intensity'])
+                if not result:
+                    self.printc('Laser cannot be set')
             self.parent.update_position_display()
             self.printc('Objective is set to {0} um'.format(position))
         else:
             self.printc('MES did not respond')
-            
+
     def set_objective_relative_value(self):
         try:
             position = float(self.parent.scanc())
@@ -838,7 +845,7 @@ class MainPoller(Poller):
             self.printc('Objective relative value is set to {0} um'.format(position))
         else:
             self.printc('MES did not respond')
-            
+
     def acquire_z_stack(self):
         self.printc('Starting z stack, please wait')
         try:
@@ -846,7 +853,7 @@ class MainPoller(Poller):
             self.printc((self.z_stack_path, results))
         except:
             self.printc(traceback.format_exc())
-            
+
     def acquire_xy_scan(self, use_region_parameters = False):
         self.printc('Acquire two photon image')
         if self.parent.main_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() != 0 or use_region_parameters:
@@ -873,7 +880,7 @@ class MainPoller(Poller):
         else:
                 self.printc('No image acquired')
         return False
-        
+
     def acquire_xz_scan(self, use_region_parameters = False):
         '''
         The correct scan time needs to be defined by the user
@@ -897,13 +904,13 @@ class MainPoller(Poller):
         self.objective_position = self.xz_scan['objective_position']
         objective_position_marker = [[0, self.objective_position, 
                                       0.04*self.xz_scan['scaled_image'].shape[0] * self.xz_scan['scaled_scale']['col'], self.objective_position]]
-        
+
         self.parent.update_position_display()
         self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
         self.save_context()
         self.xz_scan_acquired = True
         return result
-        
+
     def create_xz_lines(self):
         self.printc('Saving cell settings...')
         self.save_cells(region_name = self.parent.get_current_region_name())
@@ -958,7 +965,7 @@ class MainPoller(Poller):
                     self.printc('{0} xz lines created'.format(self.roi_locations.shape[0]))
             else:
                 self.printc('No rois loaded')
-    
+
     ##############################Animal parameters##############################################    
     def save_animal_parameters(self):
         '''
@@ -998,12 +1005,12 @@ class MainPoller(Poller):
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])
 
         self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.generate_animal_filename('mouse', self.animal_parameters))
-        
+
         if os.path.exists(self.mouse_file):
             self.printc('Animal parameter file already exists')
         else:
             variable_name = 'animal_parameters_{0}'.format(int(time.time()))
-            hdf5io.save_item(self.mouse_file, variable_name, self.animal_parameters)
+            hdf5io.save_item(self.mouse_file, variable_name, self.animal_parameters, filelocking = self.config.ENABLE_HDF5_FILELOCKING)
             are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
             time.sleep(0.1)#Wait till file is created
             #set selected mouse file to this one
@@ -1017,9 +1024,9 @@ class MainPoller(Poller):
             #Initialize anesthesi history
             self.anesthesia_history = []
             self.save2mouse_file('anesthesia_history')
-            self.parent.update_anesthesia_history()
+            self.update_anesthesia_history()
             self.printc('Animal parameter file saved')
-            
+
     def add_to_anesthesia_history(self):
         if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file):
             if not hasattr(self, 'anesthesia_history'):
@@ -1037,8 +1044,8 @@ class MainPoller(Poller):
             import operator
             self.anesthesia_history.sort(key = operator.itemgetter('timestamp'))
             self.save2mouse_file('anesthesia_history')
-            self.parent.update_anesthesia_history()
-        
+            self.update_anesthesia_history()
+
     def remove_last_from_anesthesia_history(self):
         if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file):
             if not hasattr(self, 'anesthesia_history'):
@@ -1046,8 +1053,8 @@ class MainPoller(Poller):
             elif len(self.anesthesia_history) > 0:
                 self.anesthesia_history.pop()
                 self.save2mouse_file('anesthesia_history')
-            self.parent.update_anesthesia_history()
-        
+            self.update_anesthesia_history()
+
     ################### Regions #######################
     def add_scan_region(self):
         '''
@@ -1141,7 +1148,7 @@ class MainPoller(Poller):
         self.parent.update_region_names_combobox(region_name)
         self.update_scan_regions()#This is probably redundant
         self.printc('{0} scan region saved'.format(region_name))
-        
+
     def save_xy_scan(self):
         if not self.ask4confirmation('XY scan config will be overwritten'):
             return
@@ -1153,7 +1160,7 @@ class MainPoller(Poller):
             self.save2mouse_file('scan_regions')
             self.update_scan_regions()#This is probably redundant
             self.printc('XY scan updated')
-        
+
     def save_xz_scan(self):
         if not self.ask4confirmation('XZ scan config will be overwritten'):
             return
@@ -1164,7 +1171,7 @@ class MainPoller(Poller):
             self.save2mouse_file('scan_regions')
             self.update_scan_regions()#This is probably redundant
             self.printc('XZ scan updated')
-        
+
     def save_xyt_scan(self):
         if not self.ask4confirmation('XYT scan config will be overwritten'):
             return
@@ -1310,7 +1317,7 @@ class MainPoller(Poller):
         self.parent.update_position_display()
         self.suggested_translation = utils.cr((0, 0))
         self.printc('Move to region complete')
-        
+
     ################## Experiment control ####################
     def identify_flourescence_intensity_distribution(self):
         '''
@@ -1355,7 +1362,7 @@ class MainPoller(Poller):
             if min_laser_value_index <= 0:
                 min_laser_value_index = 1
             calibration_parameters.append({'objective_position' : objective_positions[i], 'laser_intensity': numpy.arange(min_laser_value_index,max_laser_value_index) * laser_step})
-        
+
         #Execute calibration process
         xz_scans = []
         for i1 in range(len(calibration_parameters)):
@@ -1392,7 +1399,7 @@ class MainPoller(Poller):
         mouse_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xz_scans-{0}.hdf5'.format(tag))
         self.save2mouse_file('intensity_calibration_data')
         self.printc('Done')
-        
+
     def stop_experiment(self):
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
@@ -1507,22 +1514,22 @@ class MainPoller(Poller):
         command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(self.experiment_parameters['id'], self.experiment_parameters['experiment_config'])
         self.queues['stim']['out'].put(command)
         os.remove(tmp_path)
-        
+
     def previous_experiment(self):
         if self.experiment_parameters.has_key('current_objective_position_index') and \
             self.experiment_parameters['current_objective_position_index'] > 0:
             self.experiment_parameters['current_objective_position_index'] -= 1
             self.generate_experiment_start_command()
-        
+
     def redo_experiment(self):
         self.generate_experiment_start_command()
-        
+
     def next_experiment(self):
         if self.experiment_parameters.has_key('current_objective_position_index'):
             self.experiment_parameters['current_objective_position_index'] += 1
             if self.experiment_parameters['current_objective_position_index'] < self.experiment_parameters['objective_positions'].shape[0]:
                 self.generate_experiment_start_command()
-       
+
     ############ 3d scan test ###############
     def show_rc_scan_results(self):
         import pylab as p
@@ -1540,7 +1547,7 @@ class MainPoller(Poller):
             p.plot(scanned_trajectory['masked_line'][::undersample])
             p.plot(scanned_trajectory['roi'][::undersample])
             p.show()
-            
+
     ########### Network debugger tools #################
     def send_command(self):
         connection = str(self.parent.helpers_widget.select_connection_list.currentText())
@@ -1548,7 +1555,7 @@ class MainPoller(Poller):
             self.queues[connection]['out'].put(self.parent.scanc())
         else:
             self.printc('Connection not selected')
-        
+
     def show_connected_clients(self):
         connection_status = self.command_relay_server.get_connection_status()
         connected = []
@@ -1569,7 +1576,7 @@ class MainPoller(Poller):
             displayable_message = network_message[0] + ' ' + endpoint_name + '>> ' + message
             self.printc(displayable_message)
         self.printc('\n')
-        
+
     def update_network_connection_status(self):
         #Check for network connection status
         if hasattr(self.parent, 'common_widget') and hasattr(self.command_relay_server, 'servers'):
@@ -1591,12 +1598,12 @@ class MainPoller(Poller):
             n_connections = len(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].keys())
             connected = 'Alive connections ({0}/{1}): '.format(n_connected, n_connections) + connected
             self.parent.common_widget.connected_clients_label.setText(connected)
-            
+
     ################ Helper functions ###################
     def show_help(self):
         if webbrowser.open_new_tab(self.config.MANUAL_URL):
             self.printc('Shown in default webbrowser')
-            
+
     def add_simulated_measurement_file(self):
         self.clear_analysis_status()
         commands = []
@@ -1619,14 +1626,14 @@ class MainPoller(Poller):
             self.queues['stim']['in'].put(command)
         self.queues['analysis']['out'].put('SOCclear_joblistEOCEOP')
         self.printc('Done')
-            
+
     def save_xy_scan_to_file(self):
         hdf5_handler = hdf5io.Hdf5io(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xy_scan.hdf5')), filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         hdf5_handler.xy_scan = self.xy_scan
         hdf5_handler.stage_position = self.stage_position
         hdf5_handler.save(['xy_scan', 'stage_position'])
         hdf5_handler.close()
-            
+
     ############# Helpers #############
     def generate_job_list(self, mouse_file = None, tag = None):
         result = False
@@ -1659,7 +1666,7 @@ class MainPoller(Poller):
             self.printc(traceback.format_exc())
         time.sleep(0.2)#Wait to make sure that file is completely copied
         return result
-        
+
     def create_parameterfile_from_region_info(self, parameter_file_path, scan_type):
         selected_region = self.parent.get_current_region_name()
         if not self.scan_regions.has_key(selected_region):
@@ -1681,7 +1688,7 @@ class MainPoller(Poller):
         image_hdf5_handler.f2 = f2
         image_hdf5_handler.save(['f1', 'f2'], overwrite = True)
         image_hdf5_handler.close()
-        
+
     def cutout_subimage(self, image, box, scale, origin):
         upper_leftx = int((box[0] - origin['col'])/scale['col'])
         upper_lefty = int((box[1] - origin['row'])/scale['row'])
@@ -1700,10 +1707,10 @@ class MainPoller(Poller):
             extended_image[0:subimage.shape[0], 0: subimage.shape[1]]= subimage
             subimage = extended_image
         return subimage
-        
+
     def register(self):
         self.register_images(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], self.scan_regions[self.parent.get_current_region_name()]['xy']['image'], self.xy_scan['scale'], self.xy_scan['origin'])
-        
+
     def register_images(self, f1, f2, scale, origin = None, print_result = True):
         box = self.parent.get_subimage_box()
         if not origin is None and len(box) ==4:
@@ -1755,7 +1762,7 @@ class MainPoller(Poller):
 
     def parse_list_response(self, response):
         return numpy.array(map(float,parameter_extract.findall( response)[0].split(',')))
-        
+
     def has_master_position(self, scan_regions):
         master_position_exists = False
         for saved_region_name in scan_regions.keys():
@@ -1776,13 +1783,13 @@ class MainPoller(Poller):
         name = '{5}_{7}_{0}_{1}_{2}_{3}_{4}.{6}' .format(animal_parameters['strain'], animal_parameters['mouse_birth_date'] , animal_parameters['gcamp_injection_date'], \
                                          animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], tag, extension, animal_parameters['id'])
         return name
-        
+
     def ask4confirmation(self, action2confirm):
         self.emit(QtCore.SIGNAL('ask4confirmation'), action2confirm)
         while self.gui_thread_queue.empty() :
             time.sleep(0.1) 
         return self.gui_thread_queue.get()
-        
+
     def save2mouse_file(self, fields, wait_save = False, region_name = None):
 #        #Wait till mouse file handler finishes with copying data fields
 #        while self.parent.mouse_file_handler.lock:
@@ -1804,12 +1811,12 @@ class MainPoller(Poller):
         self.mouse_file_saver()
         if wait_save:
             self.wait_mouse_file_save()
-                
+
     def wait_mouse_file_save(self):
         if hasattr(self.parent, 'mouse_file_handler'):
             while self.parent.mouse_file_handler.running:
                     time.sleep(0.1)
-                
+
     def mouse_file_saver(self):
         if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file) and utils.safe_has_key(self.queues, 'mouse_file_handler') and not self.queues['mouse_file_handler'].empty():
             self.running = True
@@ -1838,7 +1845,7 @@ class MainPoller(Poller):
                     cell['group'] = 'none'
                 cell['roi_center'] = utils.rcd((cell['roi_center']['row'], cell['roi_center']['col'], cell['roi_center']['depth']))
         return cells
-        
+
 class MouseFileHandler(Poller):
     '''
     Performs all write operations to the moouse file, ensuring that this time consuming procedure does not increase
@@ -1847,7 +1854,7 @@ class MouseFileHandler(Poller):
     def __init__(self, parent):
         Poller.__init__(self, parent)
         self.running = False
-        
+
     def handle_commands(self):
         '''
         Receives commands from main poller to save data to mouse file
@@ -1877,7 +1884,7 @@ class MouseFileHandler(Poller):
             self.printc('{0} saved to mouse file'.format(', '.join(field_names_to_save)))
         else:
             time.sleep(1.0)
-            
+
     def cells2pickled_ready(self, cells):
         '''
         This is a workaround for a couple of compatibility problems between pickle and hdf5io
@@ -1909,7 +1916,7 @@ class FlowmeterPoller(flowmeter.Flowmeter, Poller):
         self.file.write('time[s]\tflow rate[ul/min\n')
         self.last_file_write = time.time()
         self.last_flowrate_check = time.time()
-        
+
     def periodic(self):
         #Update status
         if self.running:
@@ -1941,10 +1948,10 @@ class FlowmeterPoller(flowmeter.Flowmeter, Poller):
                 if hasattr(winsound, 'PlaySound'):
                     #Sound alarm
                     winsound.PlaySound('SystemHand',winsound.SND_ALIAS)
-        
+
     def close(self):
         self.stop_measurement()
         self.file.close()
-    
+
 if __name__ == '__main__':
     pass

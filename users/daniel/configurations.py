@@ -348,7 +348,7 @@ class Debug(VisionExperimentConfig):
         if use_drive == 'g':
             MES_DATA_FOLDER = 'g:\\User\\Zoltan\\data'
         elif use_drive =='v':
-            MES_DATA_FOLDER = 'V:\\debug\\data'
+            MES_DATA_FOLDER = 'V:\\experiment_data'
         elif use_drive =='r':
             MES_DATA_FOLDER = 'R:\\debug\\data'
         self.CONTEXT_NAME = 'gui_dev.hdf5'
@@ -812,13 +812,11 @@ class Stim2Bmp(VisionExperimentConfig):
         #=== Network ===
         ENABLE_UDP = False
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-#        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
         self.COMMAND_RELAY_SERVER['ENABLE'] = False
         #=== hardware ===
         ENABLE_PARALLEL_PORT = False
-        
-        
+
         #=== Others ===
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
