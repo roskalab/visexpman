@@ -40,7 +40,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.stage_origin = numpy.zeros(3)
         if hasattr(self.config, 'CONTEXT_FILE'):
             try:
-                self.stage_origin = hdf5io.read_item(self.config.CONTEXT_FILE, 'stage_origin')
+                self.stage_origin = hdf5io.read_item(self.config.CONTEXT_FILE, 'stage_origin', filelocking = self.config.ENABLE_HDF5_FILELOCKING)
             except:
                 self.log.info('Context file cannot be opened')
             if self.stage_origin == None:
@@ -51,6 +51,9 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         if hasattr(self, 'loop_state'):
             self.loop_state = 'end loop'
         return 'quit'
+        
+    def exit(self):
+        self.quit()
         
     def bullseye(self,  size = 0):
         self.show_bullseye = not self.show_bullseye
@@ -106,7 +109,9 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                 stage.release_instrument()
             return str(par) + ' ' + str(position) + '\n' + str(time.time() - st) + ' ' + str(stage.command_counter )
         except:
-            return str(traceback.format_exc())
+            errormsg = str(traceback.format_exc())
+            print errormsg
+            return errormsg
 
 ###### Experiment related commands ###############
     def select_experiment(self, experiment_index):

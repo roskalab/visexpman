@@ -165,8 +165,8 @@ class MesInterface(object):
             self.queues['mes']['out'].put('SOCsetZ_relativeEOC{0}EOP' .format(parameter_path_on_mes))
             if network_interface.wait_for_response( self.queues['mes']['in'], ['SOCsetZ_relativeEOCcommandsentEOP'], timeout = timeout):
                 result = True
-        if os.path.exists(parameter_path):
-            os.remove(parameter_path)
+#        if os.path.exists(parameter_path):
+#            os.remove(parameter_path)
         return result
         
     def set_objective_position(self, position,  timeout = None):
@@ -204,7 +204,7 @@ class MesInterface(object):
     def set_laser_intensity(self, laser_intensity, timeout = None):
         if timeout == None:
             timeout = self.config.MES_TIMEOUT
-        parameter_path, parameter_path_on_mes = self._generate_mes_file_paths('set_objective.mat')
+        parameter_path, parameter_path_on_mes = self._generate_mes_file_paths('set_laser.mat')
         #Generate parameter file
         data_to_mes_mat = {}
         data_to_mes_mat['DATA'] = {}
@@ -646,8 +646,6 @@ class MesEmulator(QtCore.QThread):
                 elif 'echo' in command:
                     self.queue_out.put(message)
             time.sleep(0.05)
-
-
 
 class MESTestConfig(visexpman.engine.generic.configuration.Config):
     def __init__(self, baseport = None, mes_data_to_new_folder = False):

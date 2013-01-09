@@ -52,9 +52,9 @@ class StageControl(instrument.Instrument):
 class AllegraStage(StageControl):
     
     def init_instrument(self):
+        self.command_counter = 0
         if hasattr(self.config, 'STAGE'):
             if self.config.STAGE[self.id]['ENABLE']:
-                self.command_counter = 0
                 self.acceleration = self.config.STAGE[self.id]['ACCELERATION']
                 self.speed = self.config.STAGE[self.id]['SPEED']
                 self.reset_controller()
@@ -64,6 +64,9 @@ class AllegraStage(StageControl):
         '''
         new_position: x, y, z, in um
         '''
+        if hasattr(self.config, 'SYSTEM_TEST') and self.config.SYSTEM_TEST:
+            self.position = self.position - new_position
+            return True
         reached = False
         if hasattr(self.config, 'STAGE'):
             if self.config.STAGE[self.id]['ENABLE']:
@@ -156,6 +159,8 @@ class AllegraStage(StageControl):
             else:
                 self.position = numpy.zeros(3, dtype = float)
             return self.position #in um
+        elif hasattr(self.config, 'SYSTEM_TEST') and self.config.SYSTEM_TEST:
+            return self.position
 
     def reset_controller(self):
         self.serial_port.setRTS(True)

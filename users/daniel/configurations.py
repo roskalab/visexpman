@@ -484,15 +484,19 @@ class DebugRlvivo1(VisionExperimentConfig):
         #MES scanning config
         XZ_SCAN_CONFIG = {'LINE_LENGTH':15.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE':80.0}
         #=== paths/data handling ===
-        root_folder = '/mnt/datafast/'
-        LOG_PATH = os.path.join(root_folder, 'log')
+        self.root_folder = '/mnt/datafast/'
+        LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
-        EXPERIMENT_DATA_PATH = os.path.join(root_folder, 'experiment_data')
-        MES_DATA_FOLDER = 'V:\\debug\\data'
+        EXPERIMENT_DATA_PATH = os.path.join(self.root_folder, 'experiment_data')
+        MES_DATA_FOLDER = 'V:\\experiment_data'
         self.CONTEXT_NAME = 'gui_dev.hdf5'
-        CONTEXT_PATH = os.path.join(root_folder, 'context')
-        CAPTURE_PATH = os.path.join(root_folder, 'log')
+        CONTEXT_PATH = os.path.join(self.root_folder, 'context')
+        CAPTURE_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
+        
+        #Testing related
+        SYSTEM_TEST = True
+        TESTDATA_PATH = '/mnt/databig/software_test_data'
         
         #=== screen ===
         FULLSCREEN = not True
@@ -539,6 +543,9 @@ class DebugRlvivo1(VisionExperimentConfig):
             'transfermode': 'file'
                                      }
         GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
+        
+        STIM_SYNC_CHANNEL_INDEX = 1
+        MES_SYNC_CHANNEL_INDEX = 0
         self._create_parameters_from_locals(locals())
 
 

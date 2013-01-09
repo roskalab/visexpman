@@ -257,7 +257,7 @@ class ExperimentControl(object):
                     parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
             scan_start_success2 = False
             if not scan_start_success:
-                self.printc('Scan did not start, retrying...')
+                self.printl('Scan did not start, retrying...')
                 scan_start_success2, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
                     parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
             if scan_start_success2 or scan_start_success:
@@ -466,6 +466,15 @@ class ExperimentControl(object):
         '''
         if hasattr(self.analog_input, 'ai_data'):
             analog_input_data = self.analog_input.ai_data
+        elif hasattr(self.config, 'SYSTEM_TEST') and self.config.SYSTEM_TEST:
+            from visexpA.engine.datahandlers import matlabfile
+            #Simulate analog data
+            for f in file.filtered_file_list(os.path.join(self.config.TESTDATA_PATH, 'mes_simulator'), ['fragment', 'mat'], fullpath = True,filter_condition = 'and'):
+                m = matlabfile.MatData(f)
+                tduration = m.get_field(m.name2path('ts'))[0][0][0][0][-1]
+                if tduration == self.mes_record_time:
+                    break
+            analog_input_data = hdf5io.read_item(f.replace('.mat', '.hdf5'), '_'.join(os.path.split(f.replace('.mat', ''))[1].split('_')[-3:]), filelocking=False)['sync_data']
         else:
             analog_input_data = numpy.zeros((2, 2))
             self.printl('Analog input data is NOT available')

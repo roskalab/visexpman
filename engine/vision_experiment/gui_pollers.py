@@ -186,6 +186,12 @@ class MainPoller(Poller):
         self.update_network_connection_status()
 
     def close(self):
+        #Stop applications if system test is running
+        if os.path.split(sys.argv[0])[1] == 'system_test_runner.py':
+            self.queues['mes']['out'].put('SOCexitEOCEOP')
+            self.queues['stim']['out'].put('SOCexitEOCEOP')
+            self.queues['analysis']['out'].put('SOCexitEOCEOP')
+            time.sleep(5.0)
         self.printc('Wait till server is closed')
         self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
