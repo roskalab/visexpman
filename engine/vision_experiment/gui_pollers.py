@@ -218,6 +218,15 @@ class MainPoller(Poller):
         if now - self.prev_date_updated > ANESTHESIA_HISTORY_UPDATE_PERIOD:
             self.parent.update_anesthesia_history_date_widget()
             self.prev_date_updated = now
+        if self.measurement_running:
+            elapsed_time = int(time.time() - self.measurement_starttime)
+            if elapsed_time > self.measurement_duration:
+                elapsed_time = self.measurement_duration
+            self.parent.main_widget.experiment_control_groupbox.experiment_progress.setValue(elapsed_time)
+            if elapsed_time > self.measurement_duration * 1.5:
+                self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
+        else:
+            self.parent.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
 
     def handle_commands(self):
         '''
@@ -256,6 +265,18 @@ class MainPoller(Poller):
                             hdf5io.save_item(self.mouse_file.replace('.hdf5', '_z_stack.hdf5'), 'z_stack', self.z_stack, filelocking = self.config.ENABLE_HDF5_FILELOCKING)
                             self.printc('Z stack is saved to {0}' .format(z_stack_file_path))
                             os.remove(self.z_stack_path)
+                        elif command == 'measurement_started':
+                            self.measurement_running = True
+                            self.measurement_starttime = time.time()
+                            try:
+                                self.measurement_duration = int(numpy.ceil(float(parameter)))
+                            except:
+                                self.measurement_duration = 0
+                            self.parent.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
+                            self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(False)
+                        elif command == 'measurement_finished':
+                            self.measurement_running = False
+                            self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
                         elif command == 'measurement_ready':
                             self.add_measurement_id(parameter)
                         elif command == 'fragment_check_ready':
@@ -312,6 +333,7 @@ class MainPoller(Poller):
                                         'self.parent.animal_parameters_widget.anesthesia_history_groupbox.substance_combobox',
                                         'self.parent.animal_parameters_widget.anesthesia_history_groupbox.amount_combobox',
                                         'self.parent.animal_parameters_widget.anesthesia_history_groupbox.comment_combobox']
+        self.measurement_running = False
 
     def initialize_mouse_file(self):
         '''

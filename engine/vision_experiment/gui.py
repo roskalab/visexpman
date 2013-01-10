@@ -147,6 +147,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.laser_intensities_combobox.setEditable(True)
         self.scan_mode = QtGui.QComboBox(self)
         self.scan_mode.addItems(QtCore.QStringList(['xy', 'xz']))
+        self.experiment_progress = QtGui.QProgressBar(self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -162,6 +163,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.objective_positions_combobox, 2, 1, 1, 2)
         self.layout.addWidget(self.laser_intensities_label, 2, 3, 1, 1)
         self.layout.addWidget(self.laser_intensities_combobox, 2, 4, 1, 1)
+        self.layout.addWidget(self.experiment_progress, 3, 0, 1, 2)
         self.setLayout(self.layout)        
 
 class AnimalParametersWidget(QtGui.QWidget):

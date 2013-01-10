@@ -18,6 +18,8 @@ extract_goniometer_axis1 = re.compile('\rX(.+)\n')
 extract_goniometer_axis2 = re.compile('\rY(.+)\n')
 parameter_extract = re.compile('EOC(.+)EOP')
 
+simulated_stage_position = numpy.zeros(3)
+
 class StageControl(instrument.Instrument):
     '''
     (States: init, ready, moving, error)
@@ -65,7 +67,9 @@ class AllegraStage(StageControl):
         new_position: x, y, z, in um
         '''
         if hasattr(self.config, 'SYSTEM_TEST') and self.config.SYSTEM_TEST:
-            self.position = self.position - new_position
+            self.position = self.position + new_position
+            global simulated_stage_position
+            simulated_stage_position = self.position
             return True
         reached = False
         if hasattr(self.config, 'STAGE'):
@@ -160,6 +164,8 @@ class AllegraStage(StageControl):
                 self.position = numpy.zeros(3, dtype = float)
             return self.position #in um
         elif hasattr(self.config, 'SYSTEM_TEST') and self.config.SYSTEM_TEST:
+            global simulated_stage_position
+            self.position = simulated_stage_position
             return self.position
 
     def reset_controller(self):
