@@ -124,7 +124,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
                         (not isinstance(user_experiment_config,  str)  and experiment_config[1].__name__ == user_experiment_config.__class__.__name__):
                     self.experiment_config = experiment_config[1](self.config, self.queues, self.connections, self.log)
                     #Copy experiment config values
-                    if not isinstance(user_experiment_config,  str):
+                    if not isinstance(user_experiment_config, str):
                         for attr in dir(user_experiment_config):
                             if attr == attr.upper():
                                 setattr(self.experiment_config, attr, getattr(user_experiment_config, attr))
@@ -132,12 +132,14 @@ class VisionExperimentRunner(command_handler.CommandHandler):
                                     setattr(self.experiment_config, attr+'_p', getattr(user_experiment_config, attr +'_p'))
                     self.experiment_config.runnable.prepare()
                     result = self.experiment_config.runnable.run_experiment(context, **kwargs)
+                    self.close()
                     return result
             else:
                 if experiment_config[1].__name__ == self.config.EXPERIMENT_CONFIG:
                     self.experiment_config = experiment_config[1](self.config, self.queues, self.connections, self.log)
                     self.experiment_config.runnable.prepare()
                     result = self.experiment_config.runnable.run_experiment(context, **kwargs)
+                    self.close()
                     return result
         
     def __del__(self): #To avoid unit test warning

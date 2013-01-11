@@ -33,7 +33,4 @@ class PixelSizeCalibration(experiment.Experiment):
                 if pattern == 2:
                     pattern = 0
                 self.command_buffer = ''
-        
-        
-        
     

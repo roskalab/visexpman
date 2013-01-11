@@ -910,6 +910,25 @@ class StimulationSequences(Stimulations):
     def moving_grating_stimulus(self):
         pass
         
+    def projector_calibration(self, intensity_range = [0.0, 1.0], npoints = 128, time_per_point = 1.0, repeats = 3, sync_flash = False):
+        self._save_stimulus_frame_info(inspect.currentframe())
+        step = (intensity_range[1]-intensity_range[0])/(npoints)
+        intensities = numpy.concatenate((numpy.arange(intensity_range[0], intensity_range[1]+step, step), numpy.arange(intensity_range[1], intensity_range[0]-step, -step)))
+        if sync_flash:
+            self.show_fullscreen(duration = 1.0, color = intensity_range[1])
+            self.show_fullscreen(duration = 3.0, color = intensity_range[0])
+        else:
+            self.show_fullscreen(duration = 4.0, color = intensity_range[0])
+        for r in range(repeats):
+            for c in intensities:
+                self.show_fullscreen(duration = time_per_point, color = c)
+                self.measure_light_power(c)
+                if self.abort:
+                    break
+                    
+    def measure_light_power(self, reference_intensity):
+        pass
+        
 #class FlashConfig(experiment.ExperimentConfig):
 #    def _create_parameters(self):
 #        #Timing        

@@ -129,23 +129,14 @@ class SinewaveContrastAdaptationParameters(SlowContrastAdaptationParameters):
         
 class ProjectorCalibrationParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.CALIBRATION_POINTS = 128
+        self.CALIBRATION_POINTS = 32
         self.WAIT_TIME = 0.5
         self.REPEATS = 3
+        self.INTENSITY_RANGE = [0.0, 0.6]
         self.runnable = 'ProjectorCalibration'        
         self._create_parameters_from_locals(locals())
 
 class ProjectorCalibration(experiment.Experiment):
     def run(self):
-        self.show_fullscreen(duration = 1.0, color = 0.6*1.0)
-        self.show_fullscreen(duration = 3.0, color = 0.0)
-        for r in range(self.experiment_config.REPEATS):
-            for i in range(self.experiment_config.CALIBRATION_POINTS):
-                self.show_fullscreen(duration = self.experiment_config.WAIT_TIME, color = 0.6*float(i)/(self.experiment_config.CALIBRATION_POINTS-1))
-                if self.abort:
-                    break
-#             time.sleep(5.0)
-            for i in range(self.experiment_config.CALIBRATION_POINTS):
-                self.show_fullscreen(duration = self.experiment_config.WAIT_TIME, color = 0.6*float(self.experiment_config.CALIBRATION_POINTS - i)/(self.experiment_config.CALIBRATION_POINTS-1))
-                if self.abort:
-                    break
+        self.projector_calibration(intensity_range = self.experiment_config.INTENSITY_RANGE, 
+                                  npoints = self.experiment_config.CALIBRATION_POINTS, time_per_point = self.experiment_config.WAIT_TIME, repeats = self.experiment_config.REPEATS)
