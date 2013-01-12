@@ -84,6 +84,8 @@ def pickle_config(config):
         config_modified.pre_runnable = config_modified.pre_runnable.__class__.__name__
     if hasattr(config_modified, 'queues'):
         config_modified.queues = 0
+    if hasattr(config_modified, 'GAMMA_CORRECTION'):
+        config_modified.GAMMA_CORRECTION = 0
     return utils.object2array(config_modified)
     
 def save_position(hdf5, stagexyz, objective_z = None):

@@ -286,6 +286,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             
         ########### Projector gamma correction ############
         if hasattr(self, 'GAMMA_CORRECTION'):
+            self.GAMMA_CORRECTION_CURVE = self.GAMMA_CORRECTION
             #normalize
             x = self.GAMMA_CORRECTION[:, 0]
             y = self.GAMMA_CORRECTION[:, 1]
