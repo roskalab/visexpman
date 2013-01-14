@@ -50,6 +50,9 @@ TEST_enable_network = not TEST_test
 TEST_pixel_difference_threshold = 50.0
 
 if TEST_os == 'nt':
+    TEST_test_data_folder = 'u:\\software_test\\ref_data'
+    TEST_working_folder =  'u:\\software_test\\working'
+    
     TEST_reference_frames_folder = 'v:\\data\\test\\frames_win'
     TEST_reference_mat_file = 'v:\\data\\test\\mes\\line_scan_parameters.mat'
     TEST_reference_z_stack_file = 'v:\\data\\test\\mes\\z_stack_ref.mat'
@@ -61,12 +64,16 @@ if TEST_os == 'nt':
     TEST_stage_com_port = 'COM1'
     TEST_goniometer_com_port = 'COM9'
 elif TEST_os == 'posix':
+    TEST_test_data_folder = '/mnt/databig/software_test/ref_data'
+    TEST_working_folder = '/mnt/databig/software_test/working'
+    
+    
     TEST_reference_frames_folder = '/home/zoltan/visexp/data/test/frames'
     TEST_reference_mat_file = '/home/zoltan/visexp/data/test/mes/line_scan_parameters.mat'
     TEST_reference_z_stack_file = '/home/zoltan/visexp/data/test/mes/z_stack_ref.mat'
     TEST_reference_data_folder = '/mnt/rzws/data/test'
     TEST_com_port = '/dev/ttyUSB0'
-    TEST_working_folder = '/home/zoltan/visexp/unit_test_output'
+    
     TEST_valid_file = '/home/zoltan/visexp/codes/development/visexpman/engine/__init__.py'
     TEST_invalid_file = '/home'
     TEST_stage_com_port = ''
@@ -99,6 +106,19 @@ def generate_filename(path):
         if index >= 10 ** number_of_digits:
             raise RuntimeError('Filename cannot be generated')
     return testable_path
+    
+def prepare_test_data(modulename):
+    ref_folder = os.path.join(TEST_test_data_folder, modulename)
+    working_folder = TEST_working_folder
+    for filename in os.listdir(ref_folder):
+        output_folder = os.path.join(os.path.dirname(filename), 'output',  os.path.split(filename)[1])
+        if os.path.exists(output_folder):
+            shutil.rmtree(output_folder)
+        fn = os.path.join(ref_folder, filename)
+        shutil.copy(fn, working_folder)
+        if os.path.exists(fn.replace('.hdf5', '.mat')):
+            shutil.copy(fn.replace('.hdf5', '.mat'), working_folder)
+    return working_folder        
 
 class UnitTestRunner():
     '''

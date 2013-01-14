@@ -470,7 +470,7 @@ class Debug(VisionExperimentConfig):
         
 class DebugRlvivo1(VisionExperimentConfig):
     '''
-    Windows development machine
+    Rlvivo1 development
     '''
     def _set_user_parameters(self):
         EXPERIMENT_CONFIG = 'MovingGratingNoMarchingConfig'
@@ -496,7 +496,7 @@ class DebugRlvivo1(VisionExperimentConfig):
         
         #Testing related
         SYSTEM_TEST = True
-        TESTDATA_PATH = '/mnt/databig/software_test_data'
+        TESTDATA_PATH = '/mnt/databig/software_test/ref_data'
         
         #=== screen ===
         FULLSCREEN = not True
