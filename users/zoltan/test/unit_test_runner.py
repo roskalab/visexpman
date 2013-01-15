@@ -39,6 +39,7 @@ for arg in sys.argv:
     elif arg == '-del':
         TEST_delete_files = True
 
+TEST_short = True
 TEST_os = os.name
 if hasattr(os,  'uname'):
     if os.uname()[0] != 'Linux':
@@ -107,9 +108,13 @@ def generate_filename(path):
             raise RuntimeError('Filename cannot be generated')
     return testable_path
     
-def prepare_test_data(modulename):
+def prepare_test_data(modulename, clean_working_dir = True):
     ref_folder = os.path.join(TEST_test_data_folder, modulename)
     working_folder = TEST_working_folder
+    print 'preparing test data'
+    if clean_working_dir:
+        shutil.rmtree(working_folder)
+        os.mkdir(working_folder)
     for filename in os.listdir(ref_folder):
         output_folder = os.path.join(os.path.dirname(filename), 'output',  os.path.split(filename)[1])
         if os.path.exists(output_folder):
@@ -118,6 +123,7 @@ def prepare_test_data(modulename):
         shutil.copy(fn, working_folder)
         if os.path.exists(fn.replace('.hdf5', '.mat')):
             shutil.copy(fn.replace('.hdf5', '.mat'), working_folder)
+    time.sleep(1.0)
     return working_folder        
 
 class UnitTestRunner():
@@ -126,50 +132,56 @@ class UnitTestRunner():
     '''
     def __init__(self):        
         self.test_configs = [
-               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
-               'enable' : TEST_mes},
-               {'test_class_path' : 'visexpman.engine.visexp_runner.TestVisionExperimentRunner',
-               'enable' : True, 'run_only' : []},
-               {'test_class_path' : 'visexpman.engine.visexp_runner.TestFindoutConfig',
-               'enable' : True, 'run_only' : []}, 
-               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
+#               'enable' : TEST_mes},
+#               {'test_class_path' : 'visexpman.engine.visexp_runner.TestVisionExperimentRunner',
+#               'enable' : True, 'run_only' : []},
+#               {'test_class_path' : 'visexpman.engine.visexp_runner.TestFindoutConfig',
+#               'enable' : True, 'run_only' : []}, 
+#               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.generic.utils.TestUtils',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
+#               'enable' : not True}, #Not part of visexpman application
+#               {'test_class_path' : 'visexpman.engine.vision_experiment.configuration.testApplicationConfiguration',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestParallelPort',
+#               'enable' : TEST_parallel_port},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestFilterwheel',
+#               'enable' : TEST_filterwheel},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
+#               'enable' : TEST_daq},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestQueuedServer',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
+#               'enable' : TEST_stage},
+#               {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
+#               'enable' : True, 'run_only' : []},
+#               {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.generic.timing.TestTiming',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.generic.command_parser.TestCommandHandler',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpA.engine.datahandlers.hdf5io.TestUtils',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpA.engine.datadisplay.imaged.TestMergeBrainRegions',
+#               'enable' : True},
+               {'test_class_path' : 'visexpA.engine.analysis.TestAnalysis',
                'enable' : True},
-               {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.generic.utils.TestUtils',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
-               'enable' : not True}, #Not part of visexpman application
-               {'test_class_path' : 'visexpman.engine.vision_experiment.configuration.testApplicationConfiguration',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestParallelPort',
-               'enable' : TEST_parallel_port},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestFilterwheel',
-               'enable' : TEST_filterwheel},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
-               'enable' : TEST_daq},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestQueuedServer',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
-               'enable' : TEST_stage},
-               {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
-               'enable' : True, 'run_only' : []},
-               {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.generic.timing.TestTiming',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.generic.command_parser.TestCommandHandler',
-               'enable' : True},
-               {'test_class_path' : 'visexpA.engine.datahandlers.hdf5io.TestUtils',
-               'enable' : True},
-               {'test_class_path' : 'visexpA.engine.datadisplay.imaged.TestMergeBrainRegions',
-               'enable' : True},
-               {'test_class_path' : 'visexpman.engine.hardware_interface.scanner_control.TestScannerControl',
-               'enable' : True, 'run_only' : []},
+#               {'test_class_path' : 'visexpA.engine.jobhandler.TestJobhandler',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpA.engine.datahandlers.importers.TestImporters',
+#               'enable' : True},
+#               {'test_class_path' : 'visexpman.engine.hardware_interface.scanner_control.TestScannerControl',
+#               'enable' : True, 'run_only' : []},
                ]
 
     def fetch_test_methods(self, test_class):
@@ -196,7 +208,7 @@ class UnitTestRunner():
         Aggregates and runs tests.
         '''
         unit_test_start_time = time.time()
-        if TEST_os == 'posix':
+        if TEST_os == 'posix' and TEST_parallel_port:
             #load parallel port driver        
             os.system('rmmod lp')
             os.system('modprobe ppdev')#TODO: replace to popen

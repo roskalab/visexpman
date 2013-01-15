@@ -149,7 +149,7 @@ def parsefilename(filename, regexdict):
             regexdict[k] = None # this pattern was not found
     return regexdict
 
-def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False, filter_condition = None):    
+def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False, filter_condition = None):
     import numpy
     files = os.listdir(folder_name)    
     filtered_files = []
@@ -209,7 +209,7 @@ def listdir_fullpath(folder):
     for file in files:
         full_paths.append(os.path.join(folder,  file))
     return full_paths
-
+    
 def dirListing2(rootdir, pattern='*', excludenames=[]):
     import fnmatch
     matches = []
@@ -220,7 +220,7 @@ def dirListing2(rootdir, pattern='*', excludenames=[]):
                 matches.append(os.path.join(root, filename))
     return matches
       
-def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = False,  noext=False,  excludenames = []):
+def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = False,  noext=False,  excludenames = [], fullpath = False):
     """Returns a list of directories. Set 'prepend' to the same as 'directory'
     to get results relative to 'directory'. Set 'prepend' to another base path
     to get results relative to that base path. If the subdirectories under
@@ -267,6 +267,8 @@ def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = Fals
         dirs, modtimes = zip(*sorted(zip(dirs,lastmod), key=itemgetter(1)))
     if noext: # remove extensions
         dirs = [item[:item.rfind('.')] for item in dirs]
+    if fullpath:
+        dirs = [os.path.join(directory, fn) for fn in dirs]
     return dirs
 
 def find_latest(path):

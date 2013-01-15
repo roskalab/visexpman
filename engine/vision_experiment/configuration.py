@@ -118,8 +118,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #############  Jobhandler  ############
         PARSE_PERIOD = [5.0, [0.0, 10.0]]
         MOUSE_FILE_CHECK_PERIOD = [15.0, [0.0, 60.0]]
-        ENABLE_MESEXTRACTOR = True
-        ENABLE_CELL_DETECTION = True
         ENABLE_ZIGZAG_CORRECTION = True
         
         ############### Display/graphics parameters: ################

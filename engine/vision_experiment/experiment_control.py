@@ -273,6 +273,7 @@ class ExperimentControl(object):
         elif self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mea':
             #Set acquisition trigger pin to high
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
+            self.start_of_acquisition = self._get_elapsed_time()
             return True
         elif self.config.PLATFORM == 'standalone':
             return True
@@ -541,6 +542,8 @@ class ExperimentControl(object):
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             stimulus_frame_info = stimulus_frame_info_with_data_series_index
             data_to_file['config'] = experiment_data.save_config(None, self.config, self.experiment_config)
+            if self.config.PLATFORM == 'elphys':
+                data_to_file['start_of_acquisition'] = self.start_of_acquisition
         data_to_file['stimulus_frame_info'] = stimulus_frame_info
         self.stimulus_frame_info_pointer = len(self.stimulus_frame_info)
         if self.config.PLATFORM == 'mes':
