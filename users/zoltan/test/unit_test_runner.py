@@ -7,39 +7,41 @@ import zipfile
 import tempfile
 import time
 import shutil
-
-#run modes:
-# - application
-# - full test
-# - full test, filterhweel disabled
-# - test without hardware
-
-#Parse command line arguments
+import argparse
 TEST_test = 'unit_test' in sys.argv[0]
-TEST_daq = False
-TEST_stage = False
-TEST_mes = False
-TEST_parallel_port = False
-TEST_filterwheel = False
-TEST_nostim = False
-TEST_delete_files = False
-for arg in sys.argv:
-    if arg == '-daqmx':
-        TEST_daq = True
-    elif arg == '-stage':
-        TEST_stage = True
-    elif arg == '-mes':
-        TEST_mes = True
-    elif arg == '-pp':
-        TEST_parallel_port = True
-    elif arg == '-fw':
-        TEST_filterwheel = True
-    elif arg == '-nostim': #Stimulation patterns are not checked (saves time)
-        TEST_nostim = True
-    elif arg == '-del':
-        TEST_delete_files = True
+if TEST_test:
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('--daq', help='Tests using DAQmx are enabled, assumes that daq device is connected and the operating system is windows', action='store_true')
+    argparser.add_argument('--stage', help='Stage tests enabled, stage controller has to be connected via serial port', action='store_true')
+    argparser.add_argument('--goniometer', help='Goniometer tests enabled, Motorized goniometer has to be connected via serial port', action='store_true')
+    argparser.add_argument('--mes', help='Tests using MES are enabled. MES computer shall be available.', action='store_true')
+    argparser.add_argument('--pp', help='Tests using parallel port are enabled. Parallel port driver has to be loaded and user shall have root access if tests are run on linux', action='store_true')
+    argparser.add_argument('--fw', help='Filterwheel tests enabled.', action='store_true')
+    argparser.add_argument('--stim', help='Enable running stimulation pattern tests. Reference frames shall be available', action='store_true')
+    argparser.add_argument('--short', help='Run shorter tests.', action='store_true')
+    argparser.add_argument('--frame_rate', help='Consider frame rate at visexp_runner tests.', action='store_true')
 
-TEST_short = True
+    TEST_daq = getattr(argparser.parse_args(), 'daq')
+    TEST_stage = getattr(argparser.parse_args(), 'stage')
+    TEST_goniometer = getattr(argparser.parse_args(), 'goniometer')
+    TEST_mes = getattr(argparser.parse_args(), 'mes')
+    TEST_parallel_port = getattr(argparser.parse_args(), 'pp')
+    TEST_filterwheel = getattr(argparser.parse_args(), 'fw')
+    TEST_stim = getattr(argparser.parse_args(), 'stim')
+    TEST_consider_frame_rate = getattr(argparser.parse_args(), 'frame_rate')
+    TEST_short = getattr(argparser.parse_args(), 'short')
+else:
+    TEST_daq = False
+    TEST_stage = False
+    TEST_goniometer = False
+    TEST_mes = False
+    TEST_parallel_port = False
+    TEST_filterwheel = False
+    TEST_stim = False
+    TEST_consider_frame_rate = False
+    TEST_short = False
+
+TEST_delete_files = False
 TEST_os = os.name
 if hasattr(os,  'uname'):
     if os.uname()[0] != 'Linux':
@@ -53,6 +55,9 @@ TEST_pixel_difference_threshold = 50.0
 if TEST_os == 'nt':
     TEST_test_data_folder = 'u:\\software_test\\ref_data'
     TEST_working_folder =  'u:\\software_test\\working'
+    TEST_results_folder = 'u:\\software_test\\results'
+    TEST_valid_file = 'c:\\windows\\win.ini'
+    TEST_invalid_file = 'c:\\windows'
     
     TEST_reference_frames_folder = 'v:\\data\\test\\frames_win'
     TEST_reference_mat_file = 'v:\\data\\test\\mes\\line_scan_parameters.mat'
@@ -60,14 +65,15 @@ if TEST_os == 'nt':
     TEST_reference_data_folder = 'v:\\data\\test'
     TEST_com_port = 'COM4'
     TEST_working_folder = 'v:\\unit_test_output'
-    TEST_valid_file = 'c:\\windows\\win.ini'
-    TEST_invalid_file = 'c:\\windows'
+    
     TEST_stage_com_port = 'COM1'
     TEST_goniometer_com_port = 'COM9'
 elif TEST_os == 'posix':
     TEST_test_data_folder = '/mnt/databig/software_test/ref_data'
     TEST_working_folder = '/mnt/databig/software_test/working'
-    
+    TEST_results_folder = '/mnt/databig/software_test/results'
+    TEST_valid_file = '/mnt/datafast/context/image.hdf5'
+    TEST_invalid_file = '/home'
     
     TEST_reference_frames_folder = '/home/zoltan/visexp/data/test/frames'
     TEST_reference_mat_file = '/home/zoltan/visexp/data/test/mes/line_scan_parameters.mat'
@@ -75,8 +81,7 @@ elif TEST_os == 'posix':
     TEST_reference_data_folder = '/mnt/rzws/data/test'
     TEST_com_port = '/dev/ttyUSB0'
     
-    TEST_valid_file = '/home/zoltan/visexp/codes/development/visexpman/engine/__init__.py'
-    TEST_invalid_file = '/home'
+    
     TEST_stage_com_port = ''
     TEST_goniometer_com_port = ''
 elif TEST_os == 'osx':
@@ -132,56 +137,58 @@ class UnitTestRunner():
     '''
     def __init__(self):        
         self.test_configs = [
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
-#               'enable' : TEST_mes},
-#               {'test_class_path' : 'visexpman.engine.visexp_runner.TestVisionExperimentRunner',
-#               'enable' : True, 'run_only' : []},
-#               {'test_class_path' : 'visexpman.engine.visexp_runner.TestFindoutConfig',
-#               'enable' : True, 'run_only' : []}, 
-#               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.utils.TestUtils',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
-#               'enable' : not True}, #Not part of visexpman application
-#               {'test_class_path' : 'visexpman.engine.vision_experiment.configuration.testApplicationConfiguration',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestParallelPort',
-#               'enable' : TEST_parallel_port},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestFilterwheel',
-#               'enable' : TEST_filterwheel},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
-#               'enable' : TEST_daq},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestQueuedServer',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.motor_control.TestAllegraStage',
-#               'enable' : TEST_stage},
-#               {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
-#               'enable' : True, 'run_only' : []},
-#               {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.timing.TestTiming',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.command_parser.TestCommandHandler',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpA.engine.datahandlers.hdf5io.TestUtils',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpA.engine.datadisplay.imaged.TestMergeBrainRegions',
-#               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterface',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.visexp_runner.TestVisionExperimentRunner',
+               'enable' : True, 'run_only' : []},
                {'test_class_path' : 'visexpA.engine.analysis.TestAnalysis',
                'enable' : True},
-#               {'test_class_path' : 'visexpA.engine.jobhandler.TestJobhandler',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpA.engine.datahandlers.importers.TestImporters',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.scanner_control.TestScannerControl',
-#               'enable' : True, 'run_only' : []},
+               {'test_class_path' : 'visexpA.engine.jobhandler.TestJobhandler',
+               'enable' : True},
+               {'test_class_path' : 'visexpA.engine.datahandlers.importers.TestImporters',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.visexp_runner.TestFindoutConfig',
+               'enable' : True, 'run_only' : []}, 
+               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.generic.utils.TestUtils',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.vision_experiment.configuration.testApplicationConfiguration',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestParallelPort',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestFilterwheel',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestQueuedServer',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.stage_control.TestAllegraStage',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.stage_control.TestMotorizedGoniometer',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
+               'enable' : True, 'run_only' : []},
+               {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
+               'enable' : True}, 
+               {'test_class_path' : 'visexpman.engine.generic.timing.TestTiming',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.generic.command_parser.TestCommandHandler',
+               'enable' : True},
+               {'test_class_path' : 'visexpA.engine.datahandlers.hdf5io.TestUtils',
+               'enable' : True},
+               {'test_class_path' : 'visexpA.engine.datadisplay.imaged.TestImaged',
+               'enable' : True},
+               {'test_class_path' : 'visexpman.engine.hardware_interface.scanner_control.TestScannerControl',
+               'enable' : True, 'run_only' : []},
                ]
 
     def fetch_test_methods(self, test_class):
@@ -190,7 +197,7 @@ class UnitTestRunner():
         '''
         test_methods = []
         for method in dir(test_class):
-            if method.find('test') != -1:
+            if 'test' in method:
                 test_methods.append(method)
         return test_methods
 
@@ -214,6 +221,7 @@ class UnitTestRunner():
             os.system('modprobe ppdev')#TODO: replace to popen
         self.test_log = tempfile.mkstemp()[1]        
         f = open(self.test_log,  'w')
+        f.write(str(sys.argv) + '\n')
         test_suite = unittest.TestSuite()
         #Collect test classes, get test methods from them and add methods to test suite.
         for test_config in self.test_configs:
@@ -231,7 +239,7 @@ class UnitTestRunner():
                         test_suite.addTest(test_class(test_method))
         #Run tests
         unittest.TextTestRunner(f, verbosity=2).run(test_suite)
-        #Save tested source files        
+        #Save tested source files
         f.close()
         f = open(self.test_log)
         print f.read()
@@ -264,7 +272,7 @@ class UnitTestRunner():
                             print path,  'Not removed'
 
     def save_source_and_results(self):
-        test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(TEST_working_folder, 'test_archive.zip'))
+        test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(TEST_results_folder, 'test_archive.zip'))
         package_path = os.path.split(os.path.split(os.path.split(os.path.split(os.getcwd())[0])[0])[0])[0]        
         #generate list of archivable files and write them to zipfile        
         source_zip = zipfile.ZipFile(test_EXPERIMENT_DATA_PATH, "w")

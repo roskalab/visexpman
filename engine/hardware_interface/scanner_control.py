@@ -425,7 +425,7 @@ class TestScannerControl(unittest.TestCase):
     def setUp(self):
         self.dt = 1e-3
         
-    def te1st_01_set_position_and_speed(self):
+    def test_01_set_position_and_speed(self):
         inputs = [
                   {'s0': 1.0, 's1': 0.0,'v0':0.0, 'v1':2.0,  'T': 1.0}, 
                   {'s0': 0.0, 's1': 0.0,'v0':-2.0, 'v1':2.0,  'T': 1.0}, 
@@ -456,7 +456,7 @@ class TestScannerControl(unittest.TestCase):
             results.append([ds_error, dv_error, numpy.round(a[0],8), numpy.round(a[-1],8),  max_acceleration_error])
         self.assertListEqual(results, len(results)*[5*[0.0]])
         
-    def te1st_02_set_speed_position_withmax_acceleration(self):
+    def test_02_set_speed_position_withmax_acceleration(self):
         inputs = [
                   {'s0': 1.0, 's1': 0.0,'v0':0.0, 'v1':2.0,  'T': 1.0}, 
                   {'s0': 0.0, 's1': 0.0,'v0':-2.0, 'v1':2.0,  'T': 1.0}, 
@@ -489,7 +489,8 @@ class TestScannerControl(unittest.TestCase):
             results.append([ds_error, dv_error, numpy.round(a[0],8), numpy.round(a[-1],8),  max_acceleration_error])
         self.assertListEqual(results, len(results)*[5*[0.0]])
         
-    def te1st_03_generate_line_scans(self):
+    @unittest.skip('Run only for debug purposes')
+    def test_03_generate_line_scans(self):
         plot_enable = False
         lines = [
                  {'p0': utils.rc((0, -10)), 'p1': utils.rc((0, 10)), 'ds': 1.0}, 
@@ -530,7 +531,8 @@ class TestScannerControl(unittest.TestCase):
     #        show()
     #        savefig('/home/zoltan/visexp/debug/data/x.pdf')
     
-    def tes1t_04_generate_rectangular_scan(self):
+    @unittest.skip('Run only for debug purposes')
+    def test_04_generate_rectangular_scan(self):
         plot_enable = not False
         config = ScannerTestConfig()
         spatial_resolution = 20.0
@@ -559,7 +561,8 @@ class TestScannerControl(unittest.TestCase):
             title('scan mask')
             show()
             
-    def te1st_05_twophoton(self):
+    @unittest.skip('Run only for debug purposes')
+    def test_05_twophoton(self):
         import time
         plot_enable = not False
         config = ScannerTestConfig()
@@ -598,6 +601,7 @@ class TestScannerControl(unittest.TestCase):
             plot(tp.scanner_positions.T)
             show()
             
+    @unittest.skip('Run only for debug purposes')
     def test_06_calibrate_scanner_parameters(self):
         import time
         plot_enable = not False

@@ -3,12 +3,11 @@ import time
 import instrument
 import visexpman.engine.generic.configuration as configuration
 import visexpman.engine.generic.utils as utils
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 import unittest
 import logging
 import os
 
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+from visexpman.users.zoltan.test import unit_test_runner
 
 if os.name == 'nt':
     try:
@@ -480,23 +479,26 @@ class TestDaqInstruments(unittest.TestCase):
     '''
     def setUp(self):
         self.config = testDaqConfig()
-        self.experiment_control = instrument.testLogClass(self.config, self)
+        self.experiment_control = instrument.testLogClass(self.config)
         self.state = 'experiment running'
 
     def tearDown(self):
         pass
 
     #== AnalogIO test cases ==
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_01_test_sample_rate_parameters(self):
         self.config = InvalidTestConfig()
         self.assertRaises(RuntimeError,  AnalogIO, self.config, self)
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_02_test_sample_rate_parameters(self):
         self.config = InvalidTestConfig()
         self.config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 10
         aio = AnalogIO(self.config, self)
         self.assertEqual((aio.ai_sample_rate, aio.ao_sample_rate), (10, 100))
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_03_test_sample_rate_parameters(self):
         self.config = InvalidTestConfig()
         self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 90
@@ -504,6 +506,7 @@ class TestDaqInstruments(unittest.TestCase):
         self.assertEqual((aio.ai_sample_rate, aio.ao_sample_rate), (90, 90))
         aio.release_instrument()
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_04_sample_rate_and_analog_config(self):
         self.config = InvalidTestConfig1()
         self.config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 100
@@ -511,6 +514,7 @@ class TestDaqInstruments(unittest.TestCase):
         aio = AnalogIO(self.config, self)
         self.assertEqual((aio.ai_sample_rate), (100))
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_05_sample_rate_and_analog_config(self):
         self.config = InvalidTestConfig1()
         self.config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 100
@@ -518,16 +522,19 @@ class TestDaqInstruments(unittest.TestCase):
         aio = AnalogIO(self.config, self)
         self.assertEqual((aio.ao_sample_rate), (100))
     
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')
     def test_06_invalid_analog_config(self):
         self.config = InvalidTestConfig()
         self.config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = ''
         self.assertRaises(RuntimeError, AnalogIO, self.config, self)
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')
     def test_07_no_waveform_provided(self):
         aio = AnalogIO(self.config, self)        
         self.assertRaises(RuntimeError,  aio.run)
         aio.release_instrument()
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')
     def test_08_analog_input_and_output_are_synchronized(self):
         self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 1000
         aio = AnalogIO(self.config, self)       
@@ -542,7 +549,8 @@ class TestDaqInstruments(unittest.TestCase):
                          abs(ai3-ao1).sum(), 
                          ai4.sum()),
                          (0.0, 0.0, 0.0, 0.0, 0.0))
-                         
+
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_09_analog_input_and_output_are_synchronized_with_ramp_waveform(self):
         self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 1000
         aio = AnalogIO(self.config, self)       
@@ -557,7 +565,8 @@ class TestDaqInstruments(unittest.TestCase):
                          abs(ai3-ao1).sum(), 
                          ai4.sum()),
                          (0.0, 0.0, 0.0, 0.0, 0.0))
-                         
+
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_10_out_of_range_waveform(self):
         self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 1000
         aio = AnalogIO(self.config, self)       
@@ -566,6 +575,7 @@ class TestDaqInstruments(unittest.TestCase):
         self.assertRaises(PyDAQmx.DAQError, aio.run)        
         aio.release_instrument()
 
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_11_restart_playing_waveform(self):
         self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 1000
         aio = AnalogIO(self.config, self)       
@@ -591,6 +601,7 @@ class TestDaqInstruments(unittest.TestCase):
                             ai4_1.sum()),
                             (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
 
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_12_reuse_analogio_class(self):
         self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 1000
         aio = AnalogIO(self.config, self)       
@@ -619,7 +630,8 @@ class TestDaqInstruments(unittest.TestCase):
                             abs(ai3_1-ao1_1).sum(), 
                             ai4_1.sum()),
                             (0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0))
-                            
+
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_13_analog_input_and_output_have_different_sampling_rates(self):
         self.config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 50
         self.config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 20000
@@ -638,7 +650,8 @@ class TestDaqInstruments(unittest.TestCase):
                          abs(ai3-ao1).sum(), 
                          ai4.sum()),
                          (0.0, 0.0, 0.0, 0.0, 0.0))
-                         
+
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_14_analog_input_and_output_have_different_sampling_rates(self):
         self.config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 200000
         self.config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 100
@@ -659,6 +672,7 @@ class TestDaqInstruments(unittest.TestCase):
                          ai4.sum()),
                          (0.0, 0.0, 0.0, 0.0, 0.0))
 
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_15_ai_ao_different_sample_rate(self):
         self.config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 1000
         self.config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 40000
@@ -681,7 +695,7 @@ class TestDaqInstruments(unittest.TestCase):
                          ai4.sum()),
                          (0.0, 0.0, 0.0, 0.0, 0.0))
     
-             
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_16_single_channel_ai_ao(self):
         
         self.config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 80000
@@ -707,7 +721,8 @@ class TestDaqInstruments(unittest.TestCase):
         self.assertEqual((abs(numpy.round(aio.ai_data, 2).transpose() - waveform_resampled).sum()
                          ),
                          (0.0))
-                         
+
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_17_enable_ai_ao_separately(self):
         voltage_level = 2.0
         self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 1000
@@ -740,21 +755,25 @@ class TestDaqInstruments(unittest.TestCase):
         aio3.run()
         aio3.release_instrument()
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_18_non_blocking_daq_activity_1(self):
         waveform = self.generate_waveform2(0.1)
         self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 300
         self.non_blocking_daq(1.0, waveform)
-        
+    
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_19_non_blocking_daq_activity_2(self):
         waveform = self.generate_waveform2(0.1)
         self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 300
         self.non_blocking_daq(0.0, waveform)
 
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_20_non_blocking_daq_activity_3(self):
         waveform = self.generate_waveform2(0.1)
         self.config.DAQ_CONFIG[0]['SAMPLE_RATE'] = 300
         self.non_blocking_daq(0.1, waveform)
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_21_disabled_daq(self):
         waveform = self.generate_waveform2(0.1)
         self.config.DAQ_CONFIG[0]['ENABLE'] = False
@@ -766,6 +785,7 @@ class TestDaqInstruments(unittest.TestCase):
         self.assertEqual((hasattr(aio, 'ai_data'), hasattr(self, 'daq_config')), (False, False))
         
     #== Analog pulse test cases
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_22_analog_pulse(self):
         self.config = testAnalogPulseConfig()
         offsets = [0, 0.005, 0.007]
@@ -777,6 +797,7 @@ class TestDaqInstruments(unittest.TestCase):
         ap.start()
         ap.release_instrument()
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_23_analog_pulse_one_channel(self):
         self.config = testAnalogPulseConfig()
         self.config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:0'
@@ -806,6 +827,7 @@ class TestDaqInstruments(unittest.TestCase):
         ai1 = ai_data[:,-2]        
         self.assertEqual((ai0.sum(), ai1.sum()), (len(offsets) * pulse_widths * float(self.config.DAQ_CONFIG[0]['SAMPLE_RATE']) * amplitudes, 0.0))
 
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_24_analog_pulse_two_channels(self):
         self.config = testAnalogPulseConfig()
         #Config for analog acquisition
@@ -840,6 +862,7 @@ class TestDaqInstruments(unittest.TestCase):
         self.assertEqual((ai0.sum(), ai1.sum()), (len(offsets0) * pulse_widths0 * amplitudes0 * float(self.config.DAQ_CONFIG[0]['SAMPLE_RATE']), 
                                                     len(offsets1) * pulse_widths1 * amplitudes1 * float(self.config.DAQ_CONFIG[0]['SAMPLE_RATE'])))
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_25_analog_pulse_two_channels(self):
         self.config = testAnalogPulseConfig()
         #Config for analog acquisition
@@ -874,6 +897,7 @@ class TestDaqInstruments(unittest.TestCase):
         self.assertEqual((ai0.sum(), ai1.sum()), (len(offsets0) * pulse_widths0 * amplitudes0 * float(self.config.DAQ_CONFIG[0]['SAMPLE_RATE']), 
                                                     pulse_widths1 * numpy.array(amplitudes1).sum() * float(self.config.DAQ_CONFIG[0]['SAMPLE_RATE'])))
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_26_restart_pulses(self):
         self.config = testAnalogPulseConfig()
         #Config for analog acquisition
@@ -909,6 +933,7 @@ class TestDaqInstruments(unittest.TestCase):
         self.assertEqual((ai0.sum(), ai1.sum()), (2*len(offsets0) * pulse_widths0 * amplitudes0 * float(self.config.DAQ_CONFIG[0]['SAMPLE_RATE']),
                                                  2*len(offsets1) * pulse_widths1 * amplitudes1 * float(self.config.DAQ_CONFIG[0]['SAMPLE_RATE'])))
         
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_27_restart_pulses_long_duration(self):
         self.config = testAnalogPulseConfig()        
         #Config for analog acquisition
@@ -957,6 +982,7 @@ class TestDaqInstruments(unittest.TestCase):
         
         self.assertEqual((ai0_sum, ai1_sum), (ai0_sum_ref, ai1_sum_ref))
     
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_28_stop_ai_before_ai_duration(self):
         ai_read_time = 1.2
         
@@ -1005,6 +1031,7 @@ class TestDaqInstruments(unittest.TestCase):
                             ai4.sum()),
                             (0.0, 0.0, 0.0, 0.0, 0.0))
                             
+    @unittest.skipIf(not unit_test_runner.TEST_daq,  'Daq tests disabled')        
     def test_29_test_digital_output(self):
         do = DigitalIO(self.config, self, id=2)
         for i in range(100):

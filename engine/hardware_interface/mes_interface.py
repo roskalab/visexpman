@@ -711,10 +711,12 @@ class TestMesInterfaceEmulated(unittest.TestCase):
             self.client_to_mes = Queue.Queue()
             self.mes_client = network_interface.start_client(self.config, 'MES', 'USER_MES', self.client_to_mes, self.mes_to_client)
 
+    @unittest.skip('Needs update')
     def test_01_line_scan_mes_not_connected(self):   
         result = self.mes_interface.start_line_scan(2.0)
         self.assertEqual((result[0], os.path.exists(result[1])), (False, False))
 
+    @unittest.skip('Needs update')
     def test_02_line_scan_start_fails(self):
         '''
         Connection test should pass but mes will not respond with 'line scan started'
@@ -748,6 +750,7 @@ class TestMesInterface(unittest.TestCase):
         self.mes_interface = MesInterface(self.config, queues = queues, connections = {'mes' : self.user_client})
         self.server = network_interface.CommandRelayServer(self.config)
 
+    @unittest.skipIf(not unit_test_runner.TEST_mes,  'MES tests disabled')
     def test_all_functions(self):
         '''
         1. line scan with mes settings

@@ -12,7 +12,7 @@ import unittest
 import instrument
 import visexpman.engine.generic.configuration
 from visexpman.engine.generic import utils
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+from visexpman.users.zoltan.test import unit_test_runner
 
 extract_goniometer_axis1 = re.compile('\rX(.+)\n')
 extract_goniometer_axis2 = re.compile('\rY(.+)\n')
@@ -327,7 +327,7 @@ class MotorTestConfig(visexpman.engine.generic.configuration.Config):
         
         #Test with different positions, speeds and accelerations, log, disabled
 #class TestAllegraStage(unittest.TestCase):
-class TestAllegraStage():
+class TestAllegraStage(unittest.TestCase):
     def setUp(self):
         self.config = MotorTestConfig()
         self.stage = AllegraStage(self.config, None)
@@ -335,6 +335,7 @@ class TestAllegraStage():
     def tearDown(self):
         self.stage.release_instrument()
         
+    @unittest.skipIf(not unit_test_runner.TEST_stage,  'Stage tests disabled')
     def test_01_initialize_stage(self):
         self.assertEqual((hasattr(self.stage, 'SPEED'), hasattr(self.stage, 'ACCELERATION'), 
                         hasattr(self.stage, 'position'), hasattr(self.stage, 'position_ustep')),
@@ -348,6 +349,7 @@ class TestAllegraStage():
 #         result2 = self.motor.move(initial_position, relative = False)
 #         self.assertEqual((result1, result2, (abs(self.motor.position - initial_position)).sum()), (True, True, 0.0))
 
+    @unittest.skipIf(not unit_test_runner.TEST_stage,  'Stage tests disabled')
     def test_03_relative_movement(self):
         initial_position = self.stage.position
         movement_vector = numpy.array([10000.0,1000.0,10.0])
@@ -355,6 +357,7 @@ class TestAllegraStage():
         result2 = self.stage.move(-movement_vector)
         self.assertEqual((result1, result2, (abs(self.stage.position - initial_position)).sum()), (True, True, 0.0))
         
+    @unittest.skipIf(not unit_test_runner.TEST_stage,  'Stage tests disabled')
     def test_04_movements_stage_disabled(self):
         self.config.STAGE[0]['ENABLE'] = False
         self.stage.release_instrument()
@@ -364,6 +367,7 @@ class TestAllegraStage():
         result1 = self.stage.move(movement_vector)        
         self.assertEqual((result1, (abs(self.stage.position - initial_position)).sum()), (False, 0.0))
         
+    @unittest.skipIf(not unit_test_runner.TEST_stage,  'Stage tests disabled')
     def test_05_big_movement_at_different_speeds(self):
         initial_position = self.stage.position
         movement_vector = numpy.array([300000.0,-50000.0,100.0])
@@ -388,6 +392,7 @@ class TestMotorizedGoniometer(unittest.TestCase):
     def tearDown(self):
         self.mg.release_instrument()
 
+    @unittest.skipIf(not unit_test_runner.TEST_goniometer,  'Stage tests disabled')
     def test_01_goniometer_small_movement(self):
         angle_factor = -16.0
         movements = [angle_factor * numpy.array([1.0, 1.0])]#, -angle_factor * numpy.array([1.0, 2.0])]

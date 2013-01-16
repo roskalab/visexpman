@@ -27,7 +27,7 @@ from visexpman.engine.hardware_interface import network_interface
 from visexpA.engine.datahandlers import hdf5io
 #Unit test
 import unittest
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+from visexpman.users.zoltan.test import unit_test_runner
 class VisionExperimentRunner(command_handler.CommandHandler):
     '''
     This class is responsible for running vision experiment.
@@ -220,8 +220,8 @@ class TestFindoutConfig(unittest.TestCase):
     #== Test cases of find_out_config() function ==
     def test_01_find_out_config_no_arguments(self):
         sys.argv = ['module.py']
-        user, config_class = find_out_config()
-        self.assertEqual((config_class, user),  ('SafestartConfig', 'default'))
+        user, config_class, autostart = find_out_config()
+        self.assertEqual((config_class, user, autostart),  ('SafestartConfig', 'default', False))
 
     def test_02_find_out_config_only_username(self):
         sys.argv = ['module.py', 'testuser']
@@ -229,13 +229,13 @@ class TestFindoutConfig(unittest.TestCase):
         
     def test_03_find_out_config_arguments_with_separator(self):
         sys.argv = ['module.py', 'test_user.config']
-        user, config_class = find_out_config()
-        self.assertEqual((config_class, user),  ('config', 'test_user'))
+        user, config_class, autostart = find_out_config()
+        self.assertEqual((config_class, user, autostart),  ('config', 'test_user', False))
         
     def test_04_find_out_config_arguments_with_separator(self):
         sys.argv = ['module.py', 'test_user/config']
-        user, config_class = find_out_config()
-        self.assertEqual((config_class, user),  ('config', 'test_user'))
+        user, config_class, autostart = find_out_config()
+        self.assertEqual((config_class, user, autostart),  ('config', 'test_user', False))
         
     def test_05_find_out_config_arguments_with_invalid_separator(self):
         sys.argv = ['module.py', 'test_user@config']        
@@ -243,11 +243,11 @@ class TestFindoutConfig(unittest.TestCase):
 
     def test_06_find_out_config_two_arguments(self):
         sys.argv = ['module.py', 'test_user', 'config'] 
-        user, config_class = find_out_config()
-        self.assertEqual((config_class, user),  ('config', 'test_user'))
+        user, config_class, autostart = find_out_config()
+        self.assertEqual((config_class, user, autostart),  ('config', 'test_user', False))
 
-    def test_07_find_out_config_three_arguments(self):
-        sys.argv = ['module.py', 'test_user', 'config',  'dummy'] 
+    def test_07_find_out_config_four_arguments(self):
+        sys.argv = ['module.py', 'test_user', 'config',  'autostart', 'dummy'] 
         self.assertRaises(RuntimeError,  find_out_config)
 
     def test_08_find_out_config_no_arguments(self):
@@ -318,6 +318,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
         else:
             frame_rate_tolerance = 0.2
         #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
+        
         self.assertEqual(
                         (self.check_application_log(v), 
                         'Abort pressed' in log, 
@@ -332,110 +333,110 @@ class TestVisionExperimentRunner(unittest.TestCase):
                         v.config.__class__, 
                         v.config.user,
                         v.experiment_config.__class__, 
-                        frame_rate < expected_frame_rate + frame_rate_tolerance and frame_rate > expected_frame_rate - frame_rate_tolerance
+                        (frame_rate < expected_frame_rate + frame_rate_tolerance and frame_rate > expected_frame_rate - frame_rate_tolerance) and unit_test_runner.TEST_consider_frame_rate
                         ),
                         (True, True, True, True, True, True, True, True, True, True, 
                         visexpman.users.zoltan.automated_test_data.StandaloneConfig,
                        'zoltan',
                        visexpman.users.zoltan.automated_test_data.StandaloneExperimentConfig, 
-                       True
+                       unit_test_runner.TEST_consider_frame_rate
                         ))
                         
+    @unittest.skipIf(not unit_test_runner.TEST_stim,  'Stimulation pattern tests disabled')
     def test_06_visual_stimulations_centered(self):
-        if not unit_test_runner.TEST_nostim:
-            config_name = 'VisualStimulationsTestConfig'
-            v = VisionExperimentRunner('zoltan', config_name)        
-            commands = [
-                        [0.0,'SOCexecute_experimentEOC'],                    
-                        [0.0,'SOCquitEOC'],
-                        ]
-            cs = command_handler.CommandSender(v.config, v, commands)
-            cs.start()
-            v.run_loop()
-            cs.close()
-            #Read logs
-            log = file.read_text_file(v.logfile_path)
-            experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
-            self.assertEqual(
-                            (self.check_application_log(v), 
-                            self.check_experiment_log(v),
-                            v.config.__class__, 
-                            v.config.user,
-                            v.experiment_config.__class__, 
-                            self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_06')), 
-                            self.check_experiment_log_for_visual_stimuli(experiment_log), 
-                            ),
-                            (True, True,
-                            visexpman.users.zoltan.automated_test_data.VisualStimulationsTestConfig,
-                           'zoltan',
-                           visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
-                           True, 
-                           True, 
-                            ))
-                        
+        config_name = 'VisualStimulationsTestConfig'
+        v = VisionExperimentRunner('zoltan', config_name)        
+        commands = [
+                    [0.0,'SOCexecute_experimentEOC'],                    
+                    [0.0,'SOCquitEOC'],
+                    ]
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+        #Read logs
+        log = file.read_text_file(v.logfile_path)
+        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
+        self.assertEqual(
+                        (self.check_application_log(v), 
+                        self.check_experiment_log(v),
+                        v.config.__class__, 
+                        v.config.user,
+                        v.experiment_config.__class__, 
+                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_06')), 
+                        self.check_experiment_log_for_visual_stimuli(experiment_log), 
+                        ),
+                        (True, True,
+                        visexpman.users.zoltan.automated_test_data.VisualStimulationsTestConfig,
+                       'zoltan',
+                       visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
+                       True, 
+                       True, 
+                        ))
+                      
+    @unittest.skipIf(not unit_test_runner.TEST_stim,  'Stimulation pattern tests disabled')
     def test_07_visual_stimulations_ul_corner(self):
-        if not unit_test_runner.TEST_nostim:
-            config_name = 'VisualStimulationsUlCornerTestConfig'
-            v = VisionExperimentRunner('zoltan', config_name)        
-            commands = [
-                        [0.0,'SOCexecute_experimentEOC'],                    
-                        [0.0,'SOCquitEOC'],
-                        ]
-            cs = command_handler.CommandSender(v.config, v, commands)
-            cs.start()
-            v.run_loop()
-            cs.close()
-            #Read logs
-            log = file.read_text_file(v.logfile_path)
-            experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
-            self.assertEqual(
-                            (self.check_application_log(v), 
-                            self.check_experiment_log(v),
-                            v.config.__class__, 
-                            v.config.user,
-                            v.experiment_config.__class__, 
-                            self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_07')), 
-                            self.check_experiment_log_for_visual_stimuli(experiment_log), 
-                            ),
-                            (True, True,
-                            visexpman.users.zoltan.automated_test_data.VisualStimulationsUlCornerTestConfig,
-                           'zoltan',
-                           visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
-                           True, 
-                           True, 
-                            ))
+        config_name = 'VisualStimulationsUlCornerTestConfig'
+        v = VisionExperimentRunner('zoltan', config_name)        
+        commands = [
+                    [0.0,'SOCexecute_experimentEOC'],                    
+                    [0.0,'SOCquitEOC'],
+                    ]
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+        #Read logs
+        log = file.read_text_file(v.logfile_path)
+        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
+        self.assertEqual(
+                        (self.check_application_log(v), 
+                        self.check_experiment_log(v),
+                        v.config.__class__, 
+                        v.config.user,
+                        v.experiment_config.__class__, 
+                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_07')), 
+                        self.check_experiment_log_for_visual_stimuli(experiment_log), 
+                        ),
+                        (True, True,
+                        visexpman.users.zoltan.automated_test_data.VisualStimulationsUlCornerTestConfig,
+                       'zoltan',
+                       visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
+                       True, 
+                       True, 
+                        ))
                         
+    @unittest.skipIf(not unit_test_runner.TEST_stim,  'Stimulation pattern tests disabled')
     def test_08_visual_stimulations_scaled(self):
-        if not unit_test_runner.TEST_nostim:
-            config_name = 'VisualStimulationsScaledTestConfig'
-            v = VisionExperimentRunner('zoltan', config_name)        
-            commands = [
-                        [0.0,'SOCexecute_experimentEOC'],                    
-                        [0.0,'SOCquitEOC'],
-                        ]
-            cs = command_handler.CommandSender(v.config, v, commands)
-            cs.start()
-            v.run_loop()
-            cs.close()
-            #Read logs
-            log = file.read_text_file(v.logfile_path)
-            experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
-            self.assertEqual(
-                            (self.check_application_log(v), 
-                            self.check_experiment_log(v),
-                            v.config.__class__, 
-                            v.config.user,
-                            v.experiment_config.__class__, 
-                            self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_08')), 
-                            self.check_experiment_log_for_visual_stimuli(experiment_log), 
-                            ),
-                            (True, True,
-                            visexpman.users.zoltan.automated_test_data.VisualStimulationsScaledTestConfig,
-                           'zoltan',
-                           visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
-                           True, 
-                           True, 
-                            ))
+        config_name = 'VisualStimulationsScaledTestConfig'
+        v = VisionExperimentRunner('zoltan', config_name)        
+        commands = [
+                    [0.0,'SOCexecute_experimentEOC'],                    
+                    [0.0,'SOCquitEOC'],
+                    ]
+        cs = command_handler.CommandSender(v.config, v, commands)
+        cs.start()
+        v.run_loop()
+        cs.close()
+        #Read logs
+        log = file.read_text_file(v.logfile_path)
+        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
+        self.assertEqual(
+                        (self.check_application_log(v), 
+                        self.check_experiment_log(v),
+                        v.config.__class__, 
+                        v.config.user,
+                        v.experiment_config.__class__, 
+                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_08')), 
+                        self.check_experiment_log_for_visual_stimuli(experiment_log), 
+                        ),
+                        (True, True,
+                        visexpman.users.zoltan.automated_test_data.VisualStimulationsScaledTestConfig,
+                       'zoltan',
+                       visexpman.users.zoltan.automated_test_data.VisualStimulationsExperimentConfig, 
+                       True, 
+                       True, 
+                        ))
                             
     @unittest.skipIf(not unit_test_runner.TEST_mes,  'MES tests disabled')
     def test_09_mes_platform(self):
@@ -547,7 +548,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
         else:
             result = False
         for filename in vision_experiment_runner.experiment_config.runnable.filenames['fragments']:
-            if not 'Measurement data saved to: ' + filename in log:
+            if not 'Measurement data saved to: ' + os.path.split(filename)[1] in log:
                 result = False
         return result
         

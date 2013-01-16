@@ -1,3 +1,4 @@
+#OBSOLETE
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.generic.configuration as configuration
 import visexpman.engine.hardware_interface.network_interface as network_interface

@@ -473,16 +473,17 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
                     # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run  
         except ImportError:
             pass
-                
     #Filter experiment config list. In test mode, experiment configs are loaded only from automated_test_data. In application run mode
     #this module is omitted
     filtered_class_list = []
     for class_item in class_list:
-        if (class_item[0].__name__.find('automated_test_data') != -1 or \
-        class_item[0].__name__.find('presentinator_experiment') != -1 or\
-        class_item[0].__name__.find('default_configs') != -1) and unit_test_runner.TEST_test:
+        if unit_test_runner.TEST_test:
             filtered_class_list.append(class_item)
-        elif not class_item[0].__name__.find('automated_test_data') != -1 and not unit_test_runner.TEST_test:
+#        if ('automated_test_data' in class_item[0].__name__ or \
+#        'presentinator_experiment' in class_item[0].__name__ or\
+#        'default_configs' in class_item[0].__name__) and unit_test_runner.TEST_test:
+#            filtered_class_list.append(class_item)
+        elif not 'automated_test_data' in class_item[0].__name__ and not unit_test_runner.TEST_test:
             filtered_class_list.append(class_item)
     return filtered_class_list
     
@@ -1014,11 +1015,11 @@ def file_to_binary_array(path):
     else:
         return numpy.zeros(2)
     
-def in_range(number,  range1,  range2, preceision = None):
-    if preceision != None:
-        number_rounded = round(number, preceision)
-        range1_rounded = round(range1, preceision)
-        range2_rounded = round(range2, preceision)
+def in_range(number,  range1,  range2, precision = None):
+    if precision != None:
+        number_rounded = round(number, precision)
+        range1_rounded = round(range1, precision)
+        range2_rounded = round(range2, precision)
     else:
         number_rounded = number
         range1_rounded = range1

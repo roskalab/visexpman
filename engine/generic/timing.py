@@ -38,21 +38,21 @@ def sync_time():
     pass
 
 class TestTiming(unittest.TestCase):
-    @unittest.skip('')
+#    @unittest.skip('')
     def test_01_fits_one_fragment(self):
         period_time = 5
         repeats = 5
         maximum_duration = 100
         self.assertEqual(schedule_fragments(period_time, repeats, maximum_duration)[0], [period_time*repeats])
         
-    @unittest.skip('')
+#    @unittest.skip('')
     def test_02_fits_one_fragment(self):
         period_time = 5
         repeats = 5
         maximum_duration = 25.0
         self.assertEqual(schedule_fragments(period_time, repeats, maximum_duration)[0], [period_time*repeats])
         
-    @unittest.skip('')
+#    @unittest.skip('')
     def test_03_fits_to_multiple_fragment(self):
         period_time = 5
         repeats = 10
@@ -60,7 +60,7 @@ class TestTiming(unittest.TestCase):
         schedule = [period_time*4, period_time*4, period_time*2]
         self.assertEqual(schedule_fragments(period_time, repeats, maximum_duration)[0], schedule)
         
-    @unittest.skip('')
+#    @unittest.skip('')
     def test_04_fits_to_multiple_fragment(self):
         period_time = 5.0
         repeats = 10

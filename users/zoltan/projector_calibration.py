@@ -41,8 +41,7 @@ class ProjectorCalibrationSetup(VisionExperimentConfig):
         SCREEN_RESOLUTION = utils.cr([800, 600])
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
-        
-        
+
         #=== Network ===
         ENABLE_UDP = False
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'

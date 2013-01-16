@@ -13,7 +13,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 import logging
 import visexpman
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+from visexpman.users.zoltan.test import unit_test_runner
 
 class Instrument(object):
     '''
@@ -325,28 +325,34 @@ class TestParallelPort(unittest.TestCase):
         self.experiment_control.handler.flush()
         
 #== Parallel port ==
+
+    @unittest.skipIf(not unit_test_runner.TEST_parallel_port,  'Parallel port tests disabled')
     def test_01_set_bit_on_parallel_port(self):        
         p = ParallelPort(self.config, self.experiment_control)
         p.set_data_bit(0, 1)
         self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
         p.release_instrument()
         
+    @unittest.skipIf(not unit_test_runner.TEST_parallel_port,  'Parallel port tests disabled')
     def test_02_set_bit_on_parallel_port(self):        
         p = ParallelPort(self.config, self.experiment_control)
         p.set_data_bit(0, True)
         self.assertEqual((p.iostate),  ({'data': 1, 'data_strobe' : 0, 'auto_feed': 0}))
         p.release_instrument()
         
+    @unittest.skipIf(not unit_test_runner.TEST_parallel_port,  'Parallel port tests disabled')
     def test_03_set_invalid_bit_on_parallel_port(self):        
         p = ParallelPort(self.config, self.experiment_control)
         self.assertRaises(RuntimeError,  p.set_data_bit,  -1, 1)
         p.release_instrument()
         
+    @unittest.skipIf(not unit_test_runner.TEST_parallel_port,  'Parallel port tests disabled')
     def test_04_set_invalid_value_on_parallel_port(self):        
         p = ParallelPort(self.config, self.experiment_control)
         self.assertRaises(RuntimeError,  p.set_data_bit, 0, 1.0)
         p.release_instrument()
     
+    @unittest.skipIf(not unit_test_runner.TEST_parallel_port,  'Parallel port tests disabled')
     def test_05_toggle_bit_on_parallel_port(self):        
         p = ParallelPort(self.config, self.experiment_control)
         p.set_data_bit(0, True)
@@ -355,6 +361,7 @@ class TestParallelPort(unittest.TestCase):
         self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
         p.release_instrument()
         
+    @unittest.skipIf(not unit_test_runner.TEST_parallel_port,  'Parallel port tests disabled')
     def test_06_parallel_port_call_when_disabled(self):        
         self.config.ENABLE_PARALLEL_PORT = False
         p = ParallelPort(self.config, self.experiment_control)
@@ -371,45 +378,53 @@ class TestFilterwheel(unittest.TestCase):
     def tearDown(self):
         self.experiment_control.handler.flush()
 #test constructor
-    def test_05_filterwheel_communication_port_open(self):        
+    @unittest.skipIf(not unit_test_runner.TEST_filterwheel,  'Filterwheel tests disabled')
+    def test_01_filterwheel_communication_port_open(self):        
         fw = Filterwheel(self.config, self.experiment_control)        
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (True, -1, 'ready'))
         fw.release_instrument()
 
-    def test_06_filterwheel_communication_port_open_with_invalid_configuration_1(self):        
+    @unittest.skipIf(not unit_test_runner.TEST_filterwheel,  'Filterwheel tests disabled')
+    def test_02_filterwheel_communication_port_open_with_invalid_configuration_1(self):        
         self.config.FILTERWHEEL_SERIAL_PORT[0]['port'] = '/dev/mismatch/ttyUSB0'        
         self.assertRaises(serial.SerialException,  Filterwheel,  self.config, self.experiment_control)        
 
-    def test_07_filterwheel_communication_port_open_with_invalid_configuration_2(self):        
+    @unittest.skipIf(not unit_test_runner.TEST_filterwheel,  'Filterwheel tests disabled')
+    def test_03_filterwheel_communication_port_open_with_invalid_configuration_2(self):        
         self.config.FILTERWHEEL_SERIAL_PORT[0]['parity'] = 1
         self.assertRaises(ValueError,  Filterwheel,  self.config, self.experiment_control)         
         
 #test set position
-    def test_08_set_filterwheel_position(self):        
+    @unittest.skipIf(not unit_test_runner.TEST_filterwheel,  'Filterwheel tests disabled')
+    def test_04_set_filterwheel_position(self):        
         fw = Filterwheel(self.config, self.experiment_control)
         fw.set(1)
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (True, 1, 'ready'))
         fw.release_instrument()
         
-    def test_09_set_filterwheel_invalid_position(self):
+    @unittest.skipIf(not unit_test_runner.TEST_filterwheel,  'Filterwheel tests disabled')
+    def test_05_set_filterwheel_invalid_position(self):
         self.config = testConfig()
         fw = Filterwheel(self.config, self.experiment_control)        
         self.assertRaises(RuntimeError,  fw.set,  100)
         fw.release_instrument()
         
 #test set filterwheel
-    def test_10_set_filter(self):        
+    @unittest.skipIf(not unit_test_runner.TEST_filterwheel,  'Filterwheel tests disabled')
+    def test_06_set_filter(self):        
         fw = Filterwheel(self.config, self.experiment_control)
         fw.set_filter('ND50')
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (True, 6, 'ready'))
         fw.release_instrument()
         
-    def test_11_set_invalid_filter_name(self):
+    @unittest.skipIf(not unit_test_runner.TEST_filterwheel,  'Filterwheel tests disabled')        
+    def test_07_set_invalid_filter_name(self):
         fw = Filterwheel(self.config, self.experiment_control)
         self.assertRaises(RuntimeError,  fw.set_filter,  10)
         fw.release_instrument()
         
-    def test_12_set_filterwheel_position_when_disabled(self):        
+    @unittest.skipIf(not unit_test_runner.TEST_filterwheel,  'Filterwheel tests disabled')        
+    def test_08_set_filterwheel_position_when_disabled(self):        
         self.config.ENABLE_FILTERWHEEL = False
         fw = Filterwheel(self.config, self.experiment_control)
         fw.set(1)
