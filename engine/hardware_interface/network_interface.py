@@ -6,8 +6,12 @@ import unittest
 import visexpman.engine.generic.configuration
 import PyQt4.QtCore as QtCore
 import os
+import numpy
+import blosc
+import simplejson
 import os.path
 import sys
+import threading
 import SocketServer
 import random
 from visexpman.engine.generic import utils
@@ -15,9 +19,118 @@ from visexpman.engine.generic import log
 from visexpman.engine.generic import file
 import traceback
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+from visexpman.engine.generic.introspect import list_type
+import zmq
 
 DISPLAY_MESSAGE = False
 
+class CallableViaZeroMQ(threading.Thread):
+    '''Interface to call a method via ZeroMQ socket'''
+    def __init__(self, port, queue_in=None, queue_out=None):
+        self.port = port
+        self.quee_in=queue_in
+        self.queue_out =queue_out
+        threading.Thread.__init__(self)
+        
+    def run(self):
+        self.context=zmq.Context(1)
+        self.server = self.context.socket(zmq.REP)
+        self.server.bind('tcp://*:'+str(self.port))
+        while 1:
+            try:
+                request = self.queue_in.get(True, 0.3) #  allow requests from the network too with the timeout
+            except Queue.Empty:
+                try:
+                    request  = self.server.recv_json(flags=1)
+                    response_via_zmq=True
+                except:
+                    response_via_zmq=False
+            if request[0] == 'TERMINATE':
+                if response_via_zmq:
+                    self.server.send('TERMINATED')
+                self.server.close()
+                self.context.term()
+                return 'TERMINATED'
+            try:
+                target = getattr(self, request[0])
+                if hasattr(target, '__call__'):
+                    value = target(*request[1], **request[2])
+                else:
+                    value = target
+                if response_via_zmq:
+                    if isinstance(value, (basestring, int, bool,  float,  complex)) or list_type(value)=='list':
+                        cargo=value
+                    else:
+                        if not hasattr(value, 'shape'):
+                            value = numpy.array(['arrayized', type(value),  value])
+                        cargo=blosc.pack_array(value)
+                        self.server.send_json(cargo) 
+                else:
+                    self.queue_out.put(value)
+            except Exception as e:
+                if response_via_zmq:
+                    self.server.send('ERROR:'+ str(e))
+                else:
+                    self.queue_out.put('ERROR:'+str(e))
+            
+            
+        
+    
+    
+        
+class CallViaZeroMQ(object):
+    def __init__(self, server_endpoint='tcp://rlvivo1:5555', request_timeout=2500, request_retries=3):
+        self.context = zmq.Context(1)
+        self.server_endpoint = server_endpoint
+        self.request_timeout = request_timeout
+        self.request_retries = request_retries
+        
+    def connect(self):
+        print "I: Connecting to server"
+        self.client = self.context.socket(zmq.REQ)
+        self.client.connect(self.server_endpoint)
+        self.poll = zmq.Poller()
+        self.poll.register(self.client, zmq.POLLIN)
+        
+    def call(self,  method_name, *args,  **kwargs):
+        self.connect()
+        retries_left = self.request_retries
+        request = [method_name, args, kwargs]
+        while retries_left:
+            print "I: Sending request"
+            self.client.send_json(request)
+            expect_reply = True
+            while expect_reply:
+                socks = dict(self.poll.poll(self.request_timeout))
+                if socks.get(self.client) == zmq.POLLIN:
+                    reply = self.client.recv()
+                    if not reply:
+                        break
+                    print "I: Server replied "
+                    if reply=='TERMINATED': return
+                    data = blosc.unpack_array(reply)
+                    if data[0]=='arrayized':
+                        data = data.tolist()[1:]
+                    if type(data)!=data[1] and data[1] not in [list, tuple, dict]:
+                        data=data[1]
+                    return data
+                else:
+                    print "W: No response from server, retrying"
+                    # Socket is confused. Close and remove it.
+                    self.client.setsockopt(zmq.LINGER, 0)
+                    self.client.close()
+                    self.poll.unregister(self.client)
+                    retries_left -= 1
+                    if retries_left == 0:
+                        print "E: Server seems to be offline, abandoning"
+                        break
+                    print "I: Reconnecting and resending request"
+                    self.connect()
+                    self.client.send_json(request)
+
+    def __del__(self):
+        self.context.term()
+    
 class SockServer(SocketServer.TCPServer):
     def __init__(self, address, queue_in, queue_out, name, log_queue, timeout):
         SocketServer.TCPServer.__init__(self, address, None)
@@ -637,7 +750,6 @@ class TestNetworkInterface(unittest.TestCase):
     def setUp(self):
         self.state = 'ready'
         self.config = NetworkInterfaceTestConfig()
-
     def test_01_single_sender(self):
         self.command_queue = Queue.Queue()        
         self.listener1 = NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT)
@@ -658,7 +770,6 @@ class TestNetworkInterface(unittest.TestCase):
         self.listener1.close()
         self.listener1.terminate()
         self.listener1.wait()
-        
     def test_02_multiple_tcpip_senders(self):
         self.command_queue = Queue.Queue()        
         self.listener2 = NetworkListener(self.config.SERVER_IP, self.command_queue, socket.SOCK_STREAM, self.config.COMMAND_INTERFACE_PORT + 0)
@@ -709,7 +820,6 @@ class TestNetworkInterface(unittest.TestCase):
 #        expected_string = expected_string + expected_string
 #        self.assertEqual((response),  (expected_string))
 #        self.listener4.close()
-        
     def test_03_single_udp_senders(self):
         self.command_queue = Queue.Queue()
         config = NetworkInterfaceTestConfig()
@@ -731,7 +841,7 @@ class TestNetworkInterface(unittest.TestCase):
         self.listener3.terminate()
         self.listener3.wait()
         self.assertEqual((response),  (expected_string))        
-    
+
     def test_04_multiple_udp_senders(self):
         self.command_queue = Queue.Queue()
         config = NetworkInterfaceTestConfig()
@@ -760,7 +870,24 @@ class TestNetworkInterface(unittest.TestCase):
         self.listener4.terminate()
         self.listener4.wait()
         self.assertEqual((response),  (expected_string))
-        
-if __name__ == "__main__":
-    unittest.main()
     
+class TestZMQInterface(unittest.TestCase):
+    def setUp(self):
+        pass
+    def test_zmq_interface(self):
+        class TestClass(CallableViaZeroMQ):
+            def __init__(self):
+                CallableViaZeroMQ.__init__(self, 5555)
+            def dosomething(self, firstarg,  kw1=0,  kw2={'1':'one'}):
+                return ['good', firstarg, kw1, kw2]
+        
+        myserver = TestClass()
+        myserver.start()
+        myclient = CallViaZeroMQ()
+        response = myclient.call('dosomething', 13)
+        myclient.call('TERMINATE')
+        pass
+            
+if __name__ == "__main__":
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestZMQInterface)
+    unittest.TextTestRunner().run(suite)
