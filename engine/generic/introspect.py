@@ -3175,6 +3175,8 @@ def list_type(item):
         pass
     if isinstance(item,(list,tuple)):
         response='list'
+        #if sum(type(i0)==type(item[0]) for i0 in item)==len(item): # list where all elements have the same type
+           # response='list_of_values'
         if isinstance(item[0],(list,tuple)):
             response='list_of_lists'
         if sum(isinstance(i0,dict) for i0 in item)==len(item):

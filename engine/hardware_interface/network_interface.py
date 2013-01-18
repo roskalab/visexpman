@@ -21,15 +21,16 @@ import traceback
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 from visexpman.engine.generic.introspect import list_type
 import zmq
+import simplejson
 
 DISPLAY_MESSAGE = False
 
 class CallableViaZeroMQ(threading.Thread):
     '''Interface to call a method via ZeroMQ socket'''
-    def __init__(self, port, queue_in=None, queue_out=None):
+    def __init__(self, port):
+        '''We allow methods be called directly by another thread but you must ensure data is protected by locks. In those cases locks block concurrent access but allow fine grained concurrency
+        between direct method calls and calls via ZMQ'''
         self.port = port
-        self.quee_in=queue_in
-        self.queue_out =queue_out
         threading.Thread.__init__(self)
         
     def run(self):
@@ -37,17 +38,9 @@ class CallableViaZeroMQ(threading.Thread):
         self.server = self.context.socket(zmq.REP)
         self.server.bind('tcp://*:'+str(self.port))
         while 1:
-            try:
-                request = self.queue_in.get(True, 0.3) #  allow requests from the network too with the timeout
-            except Queue.Empty:
-                try:
-                    request  = self.server.recv_json(flags=1)
-                    response_via_zmq=True
-                except:
-                    response_via_zmq=False
+            request  = self.server.recv_json()
             if request[0] == 'TERMINATE':
-                if response_via_zmq:
-                    self.server.send('TERMINATED')
+                self.server.send('TERMINATED')
                 self.server.close()
                 self.context.term()
                 return 'TERMINATED'
@@ -57,29 +50,22 @@ class CallableViaZeroMQ(threading.Thread):
                     value = target(*request[1], **request[2])
                 else:
                     value = target
-                if response_via_zmq:
-                    if isinstance(value, (basestring, int, bool,  float,  complex)) or list_type(value)=='list':
-                        cargo=value
-                    else:
-                        if not hasattr(value, 'shape'):
-                            value = numpy.array(['arrayized', type(value),  value])
-                        cargo=blosc.pack_array(value)
-                        self.server.send_json(cargo) 
+                if value is None:
+                    self.server.send('NONE')
+                    continue
+                if isinstance(value, (basestring, int, bool,  float,  complex)) or list_type(value)=='arrayized':
+                    cargo=simplejson.dumps(value)
                 else:
-                    self.queue_out.put(value)
+                    if not hasattr(value, 'shape'):
+                        value = numpy.array(['arrayized', type(value),  value])
+                    cargo=blosc.pack_array(value)
+                self.server.send(cargo) 
             except Exception as e:
-                if response_via_zmq:
-                    self.server.send('ERROR:'+ str(e))
-                else:
-                    self.queue_out.put('ERROR:'+str(e))
-            
-            
-        
-    
-    
-        
+                print e
+                self.server.send('ERROR:'+ str(e))
+                
 class CallViaZeroMQ(object):
-    def __init__(self, server_endpoint='tcp://rlvivo1:5555', request_timeout=2500, request_retries=3):
+    def __init__(self, server_endpoint=None, request_timeout=2500, request_retries=3):
         self.context = zmq.Context(1)
         self.server_endpoint = server_endpoint
         self.request_timeout = request_timeout
@@ -98,6 +84,7 @@ class CallViaZeroMQ(object):
         request = [method_name, args, kwargs]
         while retries_left:
             print "I: Sending request"
+            print request
             self.client.send_json(request)
             expect_reply = True
             while expect_reply:
@@ -107,13 +94,18 @@ class CallViaZeroMQ(object):
                     if not reply:
                         break
                     print "I: Server replied "
-                    if reply=='TERMINATED': return
-                    data = blosc.unpack_array(reply)
-                    if data[0]=='arrayized':
-                        data = data.tolist()[1:]
-                    if type(data)!=data[1] and data[1] not in [list, tuple, dict]:
-                        data=data[1]
-                    return data
+                    if reply=='TERMINATED' or reply=='NONE': 
+                        return
+                    if 'ERROR' in reply: return reply
+                    try:
+                        return simplejson.loads(reply)
+                    except:
+                        data = blosc.unpack_array(reply)
+                        if data[0]=='arrayized':
+                            data = data.tolist()[1:]
+                            if type(data)!=data[1] and data[1] not in [list, tuple, dict]:
+                                data=data[1]
+                        return data
                 else:
                     print "W: No response from server, retrying"
                     # Socket is confused. Close and remove it.
@@ -128,8 +120,7 @@ class CallViaZeroMQ(object):
                     self.connect()
                     self.client.send_json(request)
 
-    def __del__(self):
-        self.context.term()
+        
     
 class SockServer(SocketServer.TCPServer):
     def __init__(self, address, queue_in, queue_out, name, log_queue, timeout):
@@ -880,12 +871,17 @@ class TestZMQInterface(unittest.TestCase):
                 CallableViaZeroMQ.__init__(self, 5555)
             def dosomething(self, firstarg,  kw1=0,  kw2={'1':'one'}):
                 return ['good', firstarg, kw1, kw2]
+            def returnarray(self):
+                return numpy.array([1, 2, 3])
         
         myserver = TestClass()
         myserver.start()
-        myclient = CallViaZeroMQ()
+        myclient = CallViaZeroMQ('tcp://localhost:5555')
         response = myclient.call('dosomething', 13)
+        ana = myclient.call('returnarray')
         myclient.call('TERMINATE')
+        self.assertEqual(response, ['good', 13, 0, {'1': 'one'}])
+        self.assertTrue(numpy.all(ana==numpy.array([1, 2, 3])))
         pass
             
 if __name__ == "__main__":
