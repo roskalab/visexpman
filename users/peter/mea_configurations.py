@@ -4,7 +4,7 @@ import serial
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
 
-class MEASetup(VisionExperimentConfig):
+class MEASetup(VisionExperimentConfig):#Hierlemann machine config
     '''
     '''
     def _set_user_parameters(self):
@@ -50,7 +50,7 @@ class MEASetup(VisionExperimentConfig):
         self.FILEWRITE_PERIOD = 10.0
         
         ENABLE_PARALLEL_PORT = True
-        ACQUISITION_TRIGGER_PIN = 4
+        #ACQUISITION_TRIGGER_PIN = 4 # we have to start the measurements by hand
         FRAME_TRIGGER_PIN = 6
         GAMMA = 1.0
         ENABLE_FILTERWHEEL = True
@@ -64,34 +64,38 @@ class MEASetup(VisionExperimentConfig):
                                     }]
         
         self._create_parameters_from_locals(locals())
-        
-class OldMeaSetup(VisionExperimentConfig):
+  
+#######################################################################################################        
+              
+class OldMeaSetup(VisionExperimentConfig): #David machine config
     def _set_user_parameters(self):
-        EXPERIMENT_CONFIG = ''
-        PLATFORM = 'standalone'
+        EXPERIMENT_CONFIG = 'MovingShapeParameters'
+        PLATFORM = 'mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===
         root = 'D:\\'
         LOG_PATH = os.path.join(root, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH
-        EXPERIMENT_DATA_PATH = os.path.join(root, 'data')
+        EXPERIMENT_DATA_PATH = os.path.join(root, 'data')      #here are saved important stimulation data for each recording
         
     #        CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         
         #=== screen ===
-        FULLSCREEN = not True
-        SCREEN_RESOLUTION = utils.cr([800,600])
+        FULLSCREEN = True # True or False
+        SCREEN_RESOLUTION = utils.cr([1280,1024]) # !!! SET IT !!!
     #        SCREEN_RESOLUTION = utils.cr([1024, 768])
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.5
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0 # 1 micron is 1 pixel, TO USE PIXELS
         
-        #=== hardware ===
-        ENABLE_PARALLEL_PORT =  False#(self.OS == 'win')
-        ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
+        #=== hardware === SETTING TTL 
+        ENABLE_PARALLEL_PORT =  True  #(self.OS == 'win') or False
+        # ACQUISITION_TRIGGER_PIN = 5 # THIS IS FOR STARTING RECORDING; not physical pin but data port # not used: we have to start recordings by hand
+        ACQUISITION_STOP_PIN = 4 # THIS IS FOR STOP THE RECORDING; not physical pin but data port
+        FRAME_TRIGGER_PIN = 6 # THIS IS IMPORTANT FOR STIM OPTICS; not physical pin but data port
+        # classical parallel port pin numbering
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -124,14 +128,14 @@ class OldMeaSetup(VisionExperimentConfig):
                     },
                     ]
         #=== Others ===
-        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
+        USER_EXPERIMENT_COMMANDS = {'next': {'key': 'l', 'domain': ['running experiment']}, }
     
         self._create_parameters_from_locals(locals())
             
 class PetersConfig(VisionExperimentConfig):
     
     def _set_user_specific_parameters(self):
-        ACQUISITION_TRIGGER_PIN = 4
+        # ACQUISITION_TRIGGER_PIN = 4 # we have to start the measurements by hand
         FRAME_TRIGGER_PIN = 6
         RUN_MODE = 'user interface'
         LOG_PATH = '../data'
