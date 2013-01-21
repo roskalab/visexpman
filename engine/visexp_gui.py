@@ -264,7 +264,6 @@ class VisionExperimentGui(QtGui.QWidget):
     def xzline_checkbox_changed(self):
         self.update_gridlined_images()
 
-
     def subimage_parameters_changed(self):
         self.update_xy_images()
         
@@ -429,65 +428,69 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,ids)
         else:
             self.update_combo_box_list(self.main_widget.measurement_datafile_status_groupbox.ids_combobox,[])
+            
+    def clear_analysis_status_table(self):
+            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setRowCount(0)
+            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.clear()
                 
     def update_analysis_status(self):
         if not hasattr(self.poller, 'analysis_status'):
+            self.clear_analysis_status_table()
             return
         analysis_status = self.poller.analysis_status
         region_name = self.get_current_region_name()
-        if utils.safe_has_key(analysis_status, region_name):
-            status_text = ''
-            ids = analysis_status[region_name].keys()
-            ids.sort()
-#            ids = ids[-MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS:]
-            number_of_rows = len(ids)
-            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setRowCount(number_of_rows)
-            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setVerticalHeaderLabels(QtCore.QStringList(number_of_rows * ['']))
-            for row in range(number_of_rows):
-                id = ids[row]
-                status = analysis_status[region_name][id]
-                if status['info'].has_key('depth'):
-                    depth = str(int(numpy.round(status['info']['depth'], 0)))
+        if not utils.safe_has_key(analysis_status, region_name):
+            self.clear_analysis_status_table()
+            return
+        status_text = ''
+        ids = analysis_status[region_name].keys()
+        ids.sort()
+        number_of_rows = len(ids)
+        self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setRowCount(number_of_rows)
+        self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setVerticalHeaderLabels(QtCore.QStringList(number_of_rows * ['']))
+        if number_of_rows == 0:
+            self.clear_analysis_status_table()
+            return 
+        for row in range(number_of_rows):
+            id = ids[row]
+            status = analysis_status[region_name][id]
+            if status['info'].has_key('depth'):
+                depth = str(int(numpy.round(status['info']['depth'], 0)))
+            else:
+                depth = ''
+            if status['info'].has_key('stimulus'):
+                stimulus = str(status['info']['stimulus']).replace('Config', '')#For unknown reason this is not always string type
+            else:
+                stimulus = ''
+            if status['info'].has_key('scan_mode'):
+                scan_mode = status['info']['scan_mode']
+            else:
+                scan_mode = ''
+            if status['info'].has_key('laser_intensity'):
+                try:
+                    laser_intensity = '{0:1.1f}'.format(float(status['info']['laser_intensity']))
+                except ValueError:
+                    laser_intensity = 'NA'
+            else:
+                laser_intensity = 0.0
+            if status['find_cells_ready']:
+                if status['info'].has_key('number_of_cells'):
+                    status = '{0}' .format(status['info']['number_of_cells'])
                 else:
-                    depth = ''
-                if status['info'].has_key('stimulus'):
-                    stimulus = str(status['info']['stimulus']).replace('Config', '')#For unknown reason this is not always string type
-                else:
-                    stimulus = ''
-                if status['info'].has_key('scan_mode'):
-                    scan_mode = status['info']['scan_mode']
-                else:
-                    scan_mode = ''
-                if status['info'].has_key('laser_intensity'):
-                    try:
-                        laser_intensity = '{0:1.1f}'.format(float(status['info']['laser_intensity']))
-                    except ValueError:
-                        laser_intensity = 'NA'
-                else:
-                    laser_intensity = 0.0
-                if status['find_cells_ready']:
-                    if status['info'].has_key('number_of_cells'):
-                        status = '{0}' .format(status['info']['number_of_cells'])
-                    else:
-                        status = 'ready'
-                elif status['mesextractor_ready']:
-                    status = '**'
-                elif status['fragment_check_ready']:
-                    status = '*'
-                else:
-                    status = '*'
-                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 0, QtGui.QTableWidgetItem(scan_mode))
-                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 1, QtGui.QTableWidgetItem(depth))
-                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 2, QtGui.QTableWidgetItem(id[-4:]))
-                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 3, QtGui.QTableWidgetItem(laser_intensity))
-                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 4, QtGui.QTableWidgetItem(status))
-                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 5, QtGui.QTableWidgetItem(stimulus))
-                self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.scrollToBottom()
-                    
-#                status_text += '{0}, {1}, {2}, {3}, {4:0.1f} %: {5}\n'.format(scan_mode, stimulus, depth,  id, laser_intensity, status)
-#        else:
-#            status_text = ''
-#        self.main_widget.measurement_datafile_status_groupbox.analysis_status_label.setText(status_text)
+                    status = 'ready'
+            elif status['mesextractor_ready']:
+                status = '**'
+            elif status['fragment_check_ready']:
+                status = '*'
+            else:
+                status = '*'
+            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 0, QtGui.QTableWidgetItem(scan_mode))
+            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 1, QtGui.QTableWidgetItem(depth))
+            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 2, QtGui.QTableWidgetItem(id[-4:]))
+            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 3, QtGui.QTableWidgetItem(laser_intensity))
+            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 4, QtGui.QTableWidgetItem(status))
+            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setItem(row, 5, QtGui.QTableWidgetItem(stimulus))
+            self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.scrollToBottom()
 
     def update_cell_list(self):
         region_name = self.get_current_region_name()
@@ -924,5 +927,5 @@ def run_gui():
 
 if __name__ == '__main__':
     run_gui()
-    hdf5io.lockman.__del__()
+#    hdf5io.lockman.__del__()
     

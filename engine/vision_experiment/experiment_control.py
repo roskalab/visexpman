@@ -96,7 +96,7 @@ class ExperimentControl(object):
             if context.has_key('experiment_count'):
                 message = '{0} {1}'.format( context['experiment_count'],  message)
             message_to_screen += self.printl(message,  application_log = True) + '\n'
-            if self.config.PLATFORM == 'MES':
+            if self.config.PLATFORM == 'mes':
                 measurement_duration = numpy.round(numpy.array(self.fragment_durations).sum() + self.config.MES_RECORD_START_DELAY * len(self.fragment_durations), 1)
                 self.printl('SOCmeasurement_startedEOC{0}EOP'.format(measurement_duration))
             self.finished_fragment_index = 0
@@ -130,7 +130,7 @@ class ExperimentControl(object):
         self._finish_experiment()
         #Send message to screen, log experiment completition
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'
-        if self.config.PLATFORM == 'MES':
+        if self.config.PLATFORM == 'mes':
             self.printl('SOCmeasurement_finishedEOC{0}EOP'.format(self.id))
         self.application_log.flush()
         return message_to_screen

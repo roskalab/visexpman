@@ -462,7 +462,6 @@ class MainPoller(Poller):
 
     ############## Measurement file handling ########################
     def add_cells_to_database(self, id, update_gui = True):
-#        self.save_cells()
         region_name, measurement_file_path, info = self.read_scan_regions(id)
         #read cell info from measurement file
         h_measurement = hdf5io.Hdf5io(measurement_file_path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
@@ -506,11 +505,12 @@ class MainPoller(Poller):
             number_of_new_cells = 0
         else:
             number_of_new_cells = len(soma_rois)
-            if number_of_new_cells > 200:
+            if number_of_new_cells > 250:
                 number_of_new_cells = 50
         self.analysis_status[region_name][id]['info']['number_of_cells'] = number_of_new_cells
+        from visexpA.engine.datahandlers.datatypes import cell_signature
         for i in range(number_of_new_cells):
-            cell_id = ('{0}_{1}_{2:2}_{3}'.format(depth, id,  i, stimulus)).replace(' ', '0')
+            cell_id = cell_signature('r0c0', handler=h_measurement, index = i, return_string = True)
             self.cells[region_name][cell_id] = {}
             self.cells[region_name][cell_id]['depth'] = depth
             self.cells[region_name][cell_id]['id'] = id
@@ -524,9 +524,11 @@ class MainPoller(Poller):
             self.cells[region_name][cell_id]['origin'] = origin
             self.cells[region_name][cell_id]['roi_plot'] = roi_plots[i]
             self.cells[region_name][cell_id]['cell_id'] = copy.deepcopy(cell_id)
+#        import pdb
+#        pdb.set_trace()
         h_measurement.close()
         #Save changes
-        self.save2mouse_file(['cells', 'scan_regions', 'images'],region_name = self.parent.get_current_region_name())
+        self.save2mouse_file(['cells', 'scan_regions', 'images', 'analysis_status'],region_name = self.parent.get_current_region_name())
         self.printc('{1} cells added from {0}'.format(id, number_of_new_cells))
         if update_gui:
             self.parent.update_cell_list()
@@ -621,6 +623,8 @@ class MainPoller(Poller):
         fields_to_save = []
         if id_to_remove is None:
             id_to_remove = self.parent.get_current_file_id()
+        if not self.ask4confirmation('Do you want to remove {0} measurement?' .format(id_to_remove)):
+            return
         region_name = self.parent.get_current_region_name()
         if utils.safe_has_key(self.scan_regions, region_name) and not process_status_update and self.analysis_status[region_name].has_key(id_to_remove):
             del self.analysis_status[region_name][id_to_remove]
@@ -1833,7 +1837,7 @@ class MainPoller(Poller):
                     for k,v in cells_pickled_ready.items():
                         self.queues['mouse_file_handler'].put(['cells_' + k, utils.object2array(v)])
                 else:
-                    self.queues['mouse_file_handler'].put(['cells_' + region_name, utils.object2array(region_name)])
+                    self.queues['mouse_file_handler'].put(['cells_' + region_name, utils.object2array(cells_pickled_ready[region_name])])
             else:
                 self.queues['mouse_file_handler'].put([field, field_value])
         self.mouse_file_saver()
@@ -1853,8 +1857,6 @@ class MainPoller(Poller):
             with introspect.Timer('save time'):
                 while not self.queues['mouse_file_handler'].empty():
                     field_name, field_value = self.queues['mouse_file_handler'].get()
-                    if field_name == 'animal_parameters':
-                        field_name += str(int(time.time()))
                     setattr(h, field_name, field_value)
                     if not field_name in field_names_to_save:
                         field_names_to_save.append(field_name)
