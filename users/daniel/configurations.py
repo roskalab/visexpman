@@ -494,6 +494,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         self.CONTEXT_NAME = 'gui.hdf5'
         CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
+        #CAPTURE_PATH = os.path.join(v_drive_folder, 'captured')
 
         #=== screen ===
         FULLSCREEN = True

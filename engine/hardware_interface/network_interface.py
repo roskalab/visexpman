@@ -6,8 +6,12 @@ import unittest
 import visexpman.engine.generic.configuration
 import PyQt4.QtCore as QtCore
 import os
+import numpy
+import blosc
+import simplejson
 import os.path
 import sys
+import threading
 import SocketServer
 import random
 from visexpman.engine.generic import utils
@@ -15,8 +19,159 @@ from visexpman.engine.generic import log
 from visexpman.engine.generic import file
 import traceback
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
-
+from visexpman.engine.generic.introspect import list_type
+import zmq
+import simplejson
+import multiprocessing
 DISPLAY_MESSAGE = False
+
+class ZeroMQPuller(multiprocessing.Process):
+    '''Pulls zmq messages from a server and puts it in a python queue'''
+    def __init__(self, port, queue, type='pushpull'): #type can be zmq.SUB too
+        self.queue = queue
+        self.port=port
+        if type=='pushpull':
+            self.type=zmq.PULL
+        elif type=='pubsub':
+            self.type=zmq.SUB
+        else:
+            raise ValueError('unknown network protocol type')
+        super(ZeroMQPuller, self).__init__()
+        self.exit = multiprocessing.Event()
+        
+    def run(self):
+        self.context = zmq.Context(1)
+        self.client = self.context.socket(self.type)
+        if self.type==zmq.SUB:
+            self.client.setsockopt(zmq.SUBSCRIBE, '')
+        self.client.connect('tcp://localhost:{0}'.format(self.port))
+        self.poll = zmq.Poller()
+        self.poll.register(self.client, zmq.POLLIN)
+        while not self.exit.is_set():
+            socks = dict(self.poll.poll(1000)) #timeout in each second allows stopping process via the close method
+            if socks.get(self.client) == zmq.POLLIN:
+                msg = self.client.recv_json()
+                if msg=='TERMINATE': # exit process via network 
+                    self.client.close()
+                    self.context.term()
+                    return
+                else:
+                    self.queue.put(msg)
+        
+    def close(self): #exit process if spawned on the same machine
+        print "Shutdown initiated"
+        self.exit.set()
+
+class ZeroMQPusher(object):
+    def __init__(self, port, type='pushpull'): #can be zmq.PUB too
+        self.context = zmq.Context(1)
+        if type=='pushpull':
+            self.type=zmq.PUSH
+        elif type=='pubsub':
+            self.type=zmq.PUB
+        else:
+            raise ValueError('unknown network protocol type')
+        self.socket = self.context.socket(self.type)
+        self.socket.bind('tcp://*:{0}'.format(port))
+    
+    def send(self, data):
+        self.socket.send_json(data)
+    
+
+class CallableViaZeroMQ(threading.Thread):
+    '''Interface to call a method via ZeroMQ socket'''
+    def __init__(self, port):
+        '''We allow methods be called directly by another thread but you must ensure data is protected by locks. In those cases locks block concurrent access but allow fine grained concurrency
+        between direct method calls and calls via ZMQ'''
+        self.port = port
+        threading.Thread.__init__(self)
+        
+    def run(self):
+        self.context=zmq.Context(1)
+        self.server = self.context.socket(zmq.REP)
+        self.server.bind('tcp://*:'+str(self.port))
+        while 1:
+            request  = self.server.recv_json()
+            if request[0] == 'TERMINATE':
+                self.server.send('TERMINATED')
+                self.server.close()
+                self.context.term()
+                return 'TERMINATED'
+            try:
+                target = getattr(self, request[0])
+                if hasattr(target, '__call__'):
+                    value = target(*request[1], **request[2])
+                else:
+                    value = target
+                if value is None:
+                    self.server.send('NONE')
+                    continue
+                if isinstance(value, (basestring, int, bool,  float,  complex)) or list_type(value)=='arrayized':
+                    cargo=simplejson.dumps(value)
+                else:
+                    if not hasattr(value, 'shape'):
+                        value = numpy.array(['arrayized', type(value),  value])
+                    cargo=blosc.pack_array(value)
+                self.server.send(cargo) 
+            except Exception as e:
+                print e
+                self.server.send('ERROR:'+ str(e))
+                
+class CallViaZeroMQ(object):
+    def __init__(self, server_endpoint=None, request_timeout=2500, request_retries=3):
+        self.context = zmq.Context(1)
+        self.server_endpoint = server_endpoint
+        self.request_timeout = request_timeout
+        self.request_retries = request_retries
+        
+    def connect(self):
+        print "I: Connecting to server"
+        self.client = self.context.socket(zmq.REQ)
+        self.client.connect(self.server_endpoint)
+        self.poll = zmq.Poller()
+        self.poll.register(self.client, zmq.POLLIN)
+        
+    def call(self,  method_name, *args,  **kwargs):
+        self.connect()
+        retries_left = self.request_retries
+        request = [method_name, args, kwargs]
+        while retries_left:
+            print "I: Sending request"
+            print request
+            self.client.send_json(request)
+            expect_reply = True
+            while expect_reply:
+                socks = dict(self.poll.poll(self.request_timeout))
+                if socks.get(self.client) == zmq.POLLIN:
+                    reply = self.client.recv()
+                    if not reply:
+                        break
+                    print "I: Server replied "
+                    if reply=='TERMINATED' or reply=='NONE': 
+                        return
+                    if 'ERROR' in reply: return reply
+                    try:
+                        return simplejson.loads(reply)
+                    except:
+                        data = blosc.unpack_array(reply)
+                        if data[0]=='arrayized':
+                            data = data.tolist()[1:]
+                            if type(data)!=data[1] and data[1] not in [list, tuple, dict]:
+                                data=data[1]
+                        return data
+                else:
+                    print "W: No response from server, retrying"
+                    # Socket is confused. Close and remove it.
+                    self.client.setsockopt(zmq.LINGER, 0)
+                    self.client.close()
+                    self.poll.unregister(self.client)
+                    retries_left -= 1
+                    if retries_left == 0:
+                        print "E: Server seems to be offline, abandoning"
+                        break
+                    print "I: Reconnecting and resending request"
+                    self.connect()
+                    self.client.send_json(request)
 
 class SockServer(SocketServer.TCPServer):
     def __init__(self, address, queue_in, queue_out, name, log_queue, timeout):
@@ -756,7 +911,85 @@ class TestNetworkInterface(unittest.TestCase):
         self.listener4.terminate()
         self.listener4.wait()
         self.assertEqual((response),  (expected_string))
+    
+class TestZMQInterface(unittest.TestCase):
+    def setUp(self):
+        pass
+    def test_zmq_interface(self):
+        class TestClass(CallableViaZeroMQ):
+            def __init__(self):
+                CallableViaZeroMQ.__init__(self, 5555)
+            def dosomething(self, firstarg,  kw1=0,  kw2={'1':'one'}):
+                return ['good', firstarg, kw1, kw2]
+            def returnarray(self):
+                return numpy.array([1, 2, 3])
+        
+        myserver = TestClass()
+        myserver.start()
+        myclient = CallViaZeroMQ('tcp://localhost:5555')
+        response = myclient.call('dosomething', 13)
+        ana = myclient.call('returnarray')
+        myclient.call('TERMINATE')
+        self.assertEqual(response, ['good', 13, 0, {'1': 'one'}])
+        self.assertTrue(numpy.all(ana==numpy.array([1, 2, 3])))
+        pass
+    
+    def test_push_pull(self):
+        data=[]
+        def receiver_thread():
+            while 1:
+                value = receiver.get()
+                print data
+                if value=='TERMINATE':
+                    print 'thread terminates'
+                    return
+                else:
+                    data.append(value)
+        receiver= multiprocessing.Queue()
+        puller = ZeroMQPuller(5556, receiver)
+        puller.start()
+        capturer = threading.Thread(target=receiver_thread)
+        capturer.start()
+        pusher = ZeroMQPusher(5556)
+        pusher.send('1')
+        pusher.send('2')
+        pusher.send('TERMINATE')
+        receiver.put('TERMINATE')
+        capturer.join()
+        puller.join()
+        self.assertEqual(data,  ['1', '2'])
+        
+    def test_pub_sub(self):
+        from multiprocessing import Manager
+        manager=Manager()
+        data=manager.list()
+        def receiver_process(container):
+            while 1:
+                value = receiver.get()
+                print value
+                if value=='TERMINATE':
+                    print 'thread terminates'
+                    return
+                else:
+                    container.append(value)
+        receiver= multiprocessing.Queue()
+        puller1 = ZeroMQPuller(5556, receiver, type='pubsub')
+        puller1.start()
+        puller2 = ZeroMQPuller(5556, receiver, type='pubsub')
+        puller2.start()
+        capturer = multiprocessing.Process(target=receiver_process, args=(data, ))
+        capturer.start()
+        pusher = ZeroMQPusher(5556, type='pubsub')
+        time.sleep(0.1) #do not know why this is needed
+        pusher.send('1')
+        time.sleep(0.1) #do not know why this is needed
+        pusher.send('2')
+        pusher.send('TERMINATE')
+        receiver.put('TERMINATE')
+        capturer.join()
+        puller.join()
+        self.assertEqual(data,  ['1', '2'])
         
 if __name__ == "__main__":
-    unittest.main()
-    
+    suite = unittest.TestLoader().loadTestsFromTestCase(TestZMQInterface)
+    unittest.TextTestRunner().run(suite)

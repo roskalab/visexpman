@@ -35,7 +35,7 @@ from visexpman.users.zoltan.test import unit_test_runner
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as generic_visexpA
 
-MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS = 40
+MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS = 30
 MAX_ANESTHESIA_ENTRIES = 20
 parameter_extract = re.compile('EOC(.+)EOP')
 
