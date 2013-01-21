@@ -22,8 +22,61 @@ import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 from visexpman.engine.generic.introspect import list_type
 import zmq
 import simplejson
-
+import multiprocessing
 DISPLAY_MESSAGE = False
+
+class ZeroMQPuller(multiprocessing.Process):
+    '''Pulls zmq messages from a server and puts it in a python queue'''
+    def __init__(self, port, queue, type='pushpull'): #type can be zmq.SUB too
+        self.queue = queue
+        self.port=port
+        if type=='pushpull':
+            self.type=zmq.PULL
+        elif type=='pubsub':
+            self.type=zmq.SUB
+        else:
+            raise ValueError('unknown network protocol type')
+        super(ZeroMQPuller, self).__init__()
+        self.exit = multiprocessing.Event()
+        
+    def run(self):
+        self.context = zmq.Context(1)
+        self.client = self.context.socket(self.type)
+        if self.type==zmq.SUB:
+            self.client.setsockopt(zmq.SUBSCRIBE, '')
+        self.client.connect('tcp://localhost:{0}'.format(self.port))
+        self.poll = zmq.Poller()
+        self.poll.register(self.client, zmq.POLLIN)
+        while not self.exit.is_set():
+            socks = dict(self.poll.poll(1000)) #timeout in each second allows stopping process via the close method
+            if socks.get(self.client) == zmq.POLLIN:
+                msg = self.client.recv_json()
+                if msg=='TERMINATE': # exit process via network 
+                    self.client.close()
+                    self.context.term()
+                    return
+                else:
+                    self.queue.put(msg)
+        
+    def close(self): #exit process if spawned on the same machine
+        print "Shutdown initiated"
+        self.exit.set()
+
+class ZeroMQPusher(object):
+    def __init__(self, port, type='pushpull'): #can be zmq.PUB too
+        self.context = zmq.Context(1)
+        if type=='pushpull':
+            self.type=zmq.PUSH
+        elif type=='pubsub':
+            self.type=zmq.PUB
+        else:
+            raise ValueError('unknown network protocol type')
+        self.socket = self.context.socket(self.type)
+        self.socket.bind('tcp://*:{0}'.format(port))
+    
+    def send(self, data):
+        self.socket.send_json(data)
+    
 
 class CallableViaZeroMQ(threading.Thread):
     '''Interface to call a method via ZeroMQ socket'''
@@ -883,7 +936,63 @@ class TestZMQInterface(unittest.TestCase):
         self.assertEqual(response, ['good', 13, 0, {'1': 'one'}])
         self.assertTrue(numpy.all(ana==numpy.array([1, 2, 3])))
         pass
-            
+    
+    def test_push_pull(self):
+        data=[]
+        def receiver_thread():
+            while 1:
+                value = receiver.get()
+                print data
+                if value=='TERMINATE':
+                    print 'thread terminates'
+                    return
+                else:
+                    data.append(value)
+        receiver= multiprocessing.Queue()
+        puller = ZeroMQPuller(5556, receiver)
+        puller.start()
+        capturer = threading.Thread(target=receiver_thread)
+        capturer.start()
+        pusher = ZeroMQPusher(5556)
+        pusher.send('1')
+        pusher.send('2')
+        pusher.send('TERMINATE')
+        receiver.put('TERMINATE')
+        capturer.join()
+        puller.join()
+        self.assertEqual(data,  ['1', '2'])
+        
+    def test_pub_sub(self):
+        from multiprocessing import Manager
+        manager=Manager()
+        data=manager.list()
+        def receiver_process(container):
+            while 1:
+                value = receiver.get()
+                print value
+                if value=='TERMINATE':
+                    print 'thread terminates'
+                    return
+                else:
+                    container.append(value)
+        receiver= multiprocessing.Queue()
+        puller1 = ZeroMQPuller(5556, receiver, type='pubsub')
+        puller1.start()
+        puller2 = ZeroMQPuller(5556, receiver, type='pubsub')
+        puller2.start()
+        capturer = multiprocessing.Process(target=receiver_process, args=(data, ))
+        capturer.start()
+        pusher = ZeroMQPusher(5556, type='pubsub')
+        time.sleep(0.1) #do not know why this is needed
+        pusher.send('1')
+        time.sleep(0.1) #do not know why this is needed
+        pusher.send('2')
+        pusher.send('TERMINATE')
+        receiver.put('TERMINATE')
+        capturer.join()
+        puller.join()
+        self.assertEqual(data,  ['1', '2'])
+        
 if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase(TestZMQInterface)
     unittest.TextTestRunner().run(suite)
