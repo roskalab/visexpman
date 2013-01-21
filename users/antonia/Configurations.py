@@ -8,9 +8,38 @@ import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.generic.utils as utils
 import scipy.interpolate
 
+class MEASetup(VisionExperimentConfig):
+    '''
+    Hidens mea setup
+    '''
+    def _set_user_parameters(self):
+        EXPERIMENT_CONFIG = 'GratParameters'
+        FULLSCREEN = True
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        SCREEN_RESOLUTION = utils.rc((1024, 768))
+        ENABLE_FRAME_CAPTURE = False
+        SCREEN_EXPECTED_FRAME_RATE = 30.0
+        SCREEN_MAX_FRAME_RATE = 30.0
+        COORDINATE_SYSTEM='center'
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+
+        PLATFORM = 'standalone'
+	root_folder = '/home/retina2/visexp/data'
+        LOG_PATH = r'/home/retina2/visexp/data/log'
+        DATA_PATH = root_folder
+        EXPERIMENT_DATA_PATH = root_folder
+        EXPERIMENT_LOG_PATH = LOG_PATH
+        ENABLE_PARALLEL_PORT = True
+        ACQUISITION_TRIGGER_PIN = 1
+        FRAME_TRIGGER_PIN = 0
+        ENABLE_FILTERWHEEL = False
+        
+        self._create_parameters_from_locals(locals())
+
+
 class SPC(VisionExperimentConfig):
     '''
-    Configuration for seriial port pulse generator
+    Configuration for serial port pulse generator
     '''
     def _set_user_parameters(self):
         PLATFORM = 'smallapp'

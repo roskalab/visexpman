@@ -652,7 +652,7 @@ if __name__ == "__main__":
     cs.start()
     v.run_loop()
     cs.close()
-    hdf5io.lockman.__del__()
+#    hdf5io.lockman.__del__()
     #TODO: test case for showshape(dur = 1.0), showfullscreen(dur = 1.0) sequence
     #TODO: test case for um_to_pixel_scale parameter
     #TODO full screeen grating test with ulcorner coord system
