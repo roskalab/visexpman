@@ -23,8 +23,24 @@ from visexpman.engine.generic.introspect import list_type
 import zmq
 import simplejson
 import multiprocessing
-DISPLAY_MESSAGE = False
 
+def zmq_streamer(in_port, out_port):
+    from zmq.devices.basedevice import ProcessDevice
+    try:
+        zmqbroker =ProcessDevice(zmq.STREAMER, zmq.PULL, zmq.PUSH)
+        zmqbroker.bind_in("tcp://*:{0}".format(in_port))
+        zmqbroker.bind_out("tcp://*:{0}".format(out_port))
+        zmqbroker.setsockopt_in(zmq.IDENTITY, 'PULL')
+        zmqbroker.setsockopt_in(zmq.IDENTITY, 'PUSH')
+        zmqbroker.start()
+        
+    except Exception, e:
+        print e
+        print "bringing down zmq device"
+    finally:
+        pass
+    return zmqbroker
+        
 class ZeroMQPuller(multiprocessing.Process):
     '''Pulls zmq messages from a server and puts it in a python queue'''
     def __init__(self, port, queue, type='pushpull'): #type can be zmq.SUB too
@@ -988,6 +1004,42 @@ class TestZMQInterface(unittest.TestCase):
         time.sleep(0.1) #do not know why this is needed
         pusher.send('2')
         pusher.send('TERMINATE')
+        receiver.put('TERMINATE')
+        capturer.join()
+        puller.join()
+        self.assertEqual(data,  ['1', '2'])
+        
+    def test_push_pull_streamer(self):
+        from multiprocessing import Manager
+        manager=Manager()
+        data=manager.list()
+        def pusher_process(port):
+            pusher1 = ZeroMQPusher(port, type='pushpull')
+            pusher1.send(str(os.getpid())+'1')
+            time.sleep(0.1)
+            pusher1.send(str(os.getpid())+'2')
+            pusher1.send('TERMINATE')
+        def receiver_process(container):
+            while 1:
+                value = receiver.get()
+                print value
+                if value=='TERMINATE':
+                    print 'thread terminates'
+                    return
+                else:
+                    container.append(value)
+        receiver= multiprocessing.Queue()
+        broker=zmq_streamer(5557, 5556)
+        puller1 = ZeroMQPuller(5556, receiver, type='pushpull')
+        puller1.start()
+       # puller2 = ZeroMQPuller(5556, receiver, type='pushpull')
+        #puller2.start()
+        capturer = multiprocessing.Process(target=receiver_process, args=(data, ))
+        capturer.start()
+        for pp1 in [0, 1]:
+            pusher1=multiprocessing.Process(target=pusher_process, args=(5557, ), daemon=True)
+            pusher1.start()
+            
         receiver.put('TERMINATE')
         capturer.join()
         puller.join()
