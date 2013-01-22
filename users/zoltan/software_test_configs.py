@@ -22,6 +22,7 @@ class JobhandlerTestConfig(VisionExperimentConfig):
         EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         CONTEXT_PATH = os.path.join(self.root_folder, 'context')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self.CONTEXT_NAME = 'gui_dev.hdf5'
         #### experiment specific ####
         PARSE_PERIOD = 0.1
         
