@@ -128,6 +128,16 @@ class MESCommandParser(command_parser.CommandParser):
                 break
         shutil.copyfile(f, self._mes2linux_path(filename))
         self.qout.put('SOCacquire_line_scanEOCsaveOKEOP')
+        
+    def acquire_xy_image(self, filename):
+        if os.path.exists(self._mes2linux_path(filename)):
+            self.qout.put('SOCacquire_xy_imageEOCstartedEOP')
+            time.sleep(0.5)
+            self.qout.put('SOCacquire_xy_imageEOCOKEOP')
+            time.sleep(0.5)
+            self.qout.put('SOCacquire_xy_imageEOCsaveOKEOP')
+        else:
+            print 'Parameter file does not exists: {0}, this mode is not yet supported'.format(filename)
 
     def exit(self):
         self.qout.put('SOCclose_connectionEOCstop_clientEOP')
@@ -135,7 +145,7 @@ class MESCommandParser(command_parser.CommandParser):
     
 if __name__ == '__main__':
     var = []
-    for appname in ['visexp_runner', 'jobhandler']:
+    for appname in ['visexp_runner']:#, 'jobhandler']:
         var.append(VisexpAppRunner(appname))
     for v in var:
         v.start()

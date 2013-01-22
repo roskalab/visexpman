@@ -398,6 +398,8 @@ class RoiWidget(QtGui.QWidget):
         self.show_selected_roi_centers_label = QtGui.QLabel('Show selected roi centers',  self)
         self.show_selected_roi_centers_checkbox = QtGui.QCheckBox(self)
         self.show_selected_roi_centers_checkbox.setCheckState(2)
+        self.show_selection_on_left_label = QtGui.QLabel('Show selections on left image',  self)
+        self.show_selection_on_left_checkbox = QtGui.QCheckBox(self)
         self.xz_line_length_label = QtGui.QLabel('XZ line length',  self)
         self.xz_line_length_combobox = QtGui.QComboBox(self)
         self.xz_line_length_combobox.setEditable(True)
@@ -434,7 +436,9 @@ class RoiWidget(QtGui.QWidget):
         self.layout.addWidget(self.show_selected_soma_rois_checkbox, image_height_in_rows + 3, 9)
         self.layout.addWidget(self.show_selected_roi_centers_label, image_height_in_rows + 4, 8)
         self.layout.addWidget(self.show_selected_roi_centers_checkbox, image_height_in_rows + 4, 9)
-        self.layout.addWidget(self.xy_scan_button, image_height_in_rows + 5, 8)
+        self.layout.addWidget(self.show_selection_on_left_label, image_height_in_rows + 5, 8)
+        self.layout.addWidget(self.show_selection_on_left_checkbox, image_height_in_rows + 5, 9)
+        self.layout.addWidget(self.xy_scan_button, image_height_in_rows + 6, 8)
         
         self.layout.addWidget(self.select_cell_label, image_height_in_rows + 2, 0)
         self.layout.addWidget(self.select_cell_combobox, image_height_in_rows + 2, 1, 1, 3)        
@@ -620,6 +624,10 @@ class StandardIOWidget(QtGui.QWidget):
     def __init__(self, parent, config):
         QtGui.QWidget.__init__(self, parent)
         self.config = config
+        self.filter_names = ['',]
+        for k, v in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
+            if 'GUI' in k:
+                self.filter_names.append(k.replace('GUI', '').replace('_', '').lower())
         self.create_widgets()
         self.create_layout()
         self.resize(self.config.STANDARDIO_WIDGET_TAB_SIZE['col'], self.config.STANDARDIO_WIDGET_TAB_SIZE['row'])
@@ -635,6 +643,8 @@ class StandardIOWidget(QtGui.QWidget):
         self.text_in.setFixedHeight(50)
         self.execute_python_button = QtGui.QPushButton('Execute python code',  self)
         self.clear_console_button = QtGui.QPushButton('Clear console',  self)
+        self.console_message_filter_combobox = QtGui.QComboBox(self)
+        self.console_message_filter_combobox.addItems(QtCore.QStringList(self.filter_names))
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -642,6 +652,7 @@ class StandardIOWidget(QtGui.QWidget):
         self.layout.addWidget(self.text_in, 1, 3, 1, 2)
         self.layout.addWidget(self.execute_python_button, 0, 3, 1, 1)#, alignment = QtCore.Qt.AlignTop)
         self.layout.addWidget(self.clear_console_button, 0, 4, 1, 1)#, alignment = QtCore.Qt.AlignTop)
+        self.layout.addWidget(self.console_message_filter_combobox, 2, 3, 1, 1)#, alignment = QtCore.Qt.AlignTop)
         self.layout.setRowStretch(300, 300)
         self.layout.setColumnStretch(0, 100)
         self.setLayout(self.layout)

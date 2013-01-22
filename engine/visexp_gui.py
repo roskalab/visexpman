@@ -183,6 +183,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.roi_widget.show_selected_soma_rois_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
         self.connect(self.roi_widget.show_current_soma_roi_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
         self.connect(self.roi_widget.show_selected_roi_centers_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_soma_roi_checkbox_changed)
+        self.connect(self.roi_widget.show_selection_on_left_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.show_selection_on_left_checkbox_changed)
         self.connect(self.roi_widget.cell_group_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.cell_group_changed)
         
         #Network debugger tools
@@ -196,6 +197,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
         self.connect_and_map_signal(self.helpers_widget.add_simulated_measurement_file_button, 'add_simulated_measurement_file')
         self.connect_and_map_signal(self.helpers_widget.rebuild_cell_database_button, 'rebuild_cell_database')
+        self.connect(self.standard_io_widget.console_message_filter_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.console_message_filter_changed)
 
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.remove_measurement_button, 'remove_measurement_file_from_database')
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.set_state_to_button, 'set_measurement_file_process_state')
@@ -270,6 +272,9 @@ class VisionExperimentGui(QtGui.QWidget):
     def show_soma_roi_checkbox_changed(self):
         self.update_meanimage()
         
+    def show_selection_on_left_checkbox_changed(self):
+        self.update_rois_on_live_image()
+        
     def cell_group_changed(self):
         self.update_meanimage()
         self.update_suggested_depth_label()
@@ -301,6 +306,21 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_cell_list()
         self.update_meanimage()
         self.update_roi_curves_display()
+        
+    def console_message_filter_changed(self):
+        self.update_console()
+        
+    def update_console(self):
+        current_filter = self.standard_io_widget.console_message_filter_combobox.currentText()
+#        self.printc(current_filter)
+        if current_filter == '':
+            self.filtered_console_text = self.console_text
+        else:
+            self.filtered_console_text = [line for line in self.console_text.split('\n') if len(line.split(' ')) >1 and line.split(' ')[1].lower() == current_filter]
+        if isinstance(self.filtered_console_text, list):
+            self.filtered_console_text = '\n'.join(self.filtered_console_text)
+        self.standard_io_widget.text_out.setPlainText(self.filtered_console_text)
+        self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
 
     ################### GUI updaters #################
     def update_anesthesia_history(self):
@@ -343,6 +363,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.update_scan_regions()
         self.update_analysis_status()
         self.update_file_id_combobox()
+        
         self.update_cell_list()
         self.update_roi_curves_display()
         self.update_cell_group_combobox()
@@ -575,6 +596,9 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_combo_box_list(self.roi_widget.cell_group_combobox, [])
             
     def update_meanimage(self):
+        '''
+        Updates meanimage on ROI tab
+        '''
         measurement_id = self.get_current_cell_id().split('_')
         if len(measurement_id) < 2:
             return
@@ -603,6 +627,37 @@ class VisionExperimentGui(QtGui.QWidget):
                 meanimage = mi
                 self.printc(traceback.format_exc())
             self.show_image(scipy.ndimage.rotate(meanimage,-90), 1, scale, origin = origin)
+            self.update_rois_on_live_image()
+            
+    def update_rois_on_live_image(self):
+        '''
+        Updates soma rois on live image if ROI tab is active
+        '''
+        region_name = self.get_current_region_name()
+        cell_group = self.get_current_cell_group()
+        if hasattr(self.poller, 'xy_scan') and utils.safe_has_key(self.poller.cells, region_name) and self.main_tab.currentIndex() == 1:
+            image = copy.deepcopy(self.poller.xy_scan[self.config.DEFAULT_PMT_CHANNEL])
+            image = generic.pack_to_rgb(image)
+            image = generic_visexpA.normalize(image, outtype=numpy.uint8, std_range = 10)
+            cells_to_display = []
+            soma_rois_to_display = []
+            for cell_i in self.poller.cells[region_name].values():
+                if cell_i['group'] == cell_group and cell_i['accepted']:
+                    if self.roi_widget.show_selected_roi_centers_checkbox.checkState() != 0:
+                        cells_to_display.append(cell_i['roi_center'])
+                    if self.roi_widget.show_selected_soma_rois_checkbox.checkState() != 0:
+                        soma_rois_to_display.append(cell_i['soma_roi'])
+            if self.roi_widget.show_current_soma_roi_checkbox.checkState() != 0:
+                soma_rois_to_display.append(self.poller.cells[region_name][self.get_current_cell_id()]['soma_roi'])
+            mi = numpy.take(image, [0, 0, 0], axis=2).copy()
+            try:
+                meanimage = imaged.draw_on_meanimage(mi, self.poller.xy_scan['origin'], self.poller.xy_scan['scale'], soma_rois = soma_rois_to_display, used_rois = cells_to_display)
+            except:
+                meanimage = mi
+                self.printc(traceback.format_exc())
+            if self.roi_widget.show_selection_on_left_checkbox.checkState() == 0:
+                meanimage = image
+            self.show_image(scipy.ndimage.rotate(meanimage, -90), 0, scale=self.poller.xy_scan['scale'], origin = self.poller.xy_scan['origin'])
 
     def update_suggested_depth_label(self):
         self.poller.calculate_suggested_depth()
@@ -740,8 +795,7 @@ class VisionExperimentGui(QtGui.QWidget):
         if not isinstance(text, str):
             text = str(text)
         self.console_text  += text + '\n'
-        self.standard_io_widget.text_out.setPlainText(self.console_text)
-        self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
+        self.update_console()
 #        print text
         try:
             self.log.info(text)
