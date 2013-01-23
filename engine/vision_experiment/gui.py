@@ -86,11 +86,15 @@ class AnalysisStatusGroupbox(QtGui.QGroupBox):
         self.create_widgets()
         self.create_layout()
         
+    def set_headers(self):
+        self.analysis_status_table.setHorizontalHeaderLabels(QtCore.QStringList(['Scan\nmode', 'Depth\n[um]', 'Id', 'Laser\n[%]', 'Status', 'Stimulus']))
+        
     def create_widgets(self):
 #        self.analysis_status_label = QtGui.QLabel('', self)
         self.analysis_status_table = QtGui.QTableWidget(self)
         self.analysis_status_table.setColumnCount(6)
-        self.analysis_status_table.setHorizontalHeaderLabels(QtCore.QStringList(['Scan\nmode', 'Depth\n[um]', 'Id', 'Laser\n[%]', 'Status', 'Stimulus']))
+        self.set_headers()
+        
         self.analysis_status_table.setColumnWidth(0, 35)
         self.analysis_status_table.setColumnWidth(1, 35)
         self.analysis_status_table.setColumnWidth(2, 30)

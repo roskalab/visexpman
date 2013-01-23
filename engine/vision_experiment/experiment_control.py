@@ -15,7 +15,6 @@ import gc
 import shutil
 import copy
 
-import experiment
 import experiment_data
 import visexpman.engine.generic.log as log
 from visexpman.engine.generic import utils
@@ -47,7 +46,8 @@ class ExperimentControl(object):
         self.config = config
         if not hasattr(self, 'number_of_fragments'):
             self.number_of_fragments = 1
-        if not issubclass(self.__class__,experiment.PreExperiment): #In case of preexperiment, fragment durations is not expected
+        from experiment import PreExperiment
+        if not issubclass(self.__class__,PreExperiment): #In case of preexperiment, fragment durations are not expected
             if self.config.PLATFORM == 'mes' and not hasattr(self, 'fragment_durations'):
                 raise RuntimeError('At MES platform self.fragment_durations variable is mandatory')
             if hasattr(self, 'fragment_durations'):

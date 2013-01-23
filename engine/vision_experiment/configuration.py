@@ -297,6 +297,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         if hasattr(self, 'EXPERIMENT_DATA_PATH'):
             self.cachepath = self.EXPERIMENT_DATA_PATH#To ensure compatibility with analysis config class #TODO: visexpA and visexpman config classes shall be merged into one class
+            self.temppath = self.EXPERIMENT_DATA_PATH
         self.cacheext = 'hdf5'
         self.packagepath = 'visexpA.users.daniel'
 

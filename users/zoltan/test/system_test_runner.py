@@ -130,14 +130,13 @@ class MESCommandParser(command_parser.CommandParser):
         self.qout.put('SOCacquire_line_scanEOCsaveOKEOP')
         
     def acquire_xy_image(self, filename):
-        if os.path.exists(self._mes2linux_path(filename)):
-            self.qout.put('SOCacquire_xy_imageEOCstartedEOP')
-            time.sleep(0.5)
-            self.qout.put('SOCacquire_xy_imageEOCOKEOP')
-            time.sleep(0.5)
-            self.qout.put('SOCacquire_xy_imageEOCsaveOKEOP')
-        else:
-            print 'Parameter file does not exists: {0}, this mode is not yet supported'.format(filename)
+        self.qout.put('SOCacquire_xy_imageEOCstartedEOP')
+        time.sleep(0.3)
+        self.qout.put('SOCacquire_xy_imageEOCOKEOP')
+        if not os.path.exists(self._mes2linux_path(filename)):
+            shutil.copyfile(os.path.join(self.config.TESTDATA_PATH, 'mes_simulator',  'scan_region_1_parameters.mat'), self._mes2linux_path(filename))
+        time.sleep(0.3)
+        self.qout.put('SOCacquire_xy_imageEOCsaveOKEOP')
 
     def exit(self):
         self.qout.put('SOCclose_connectionEOCstop_clientEOP')

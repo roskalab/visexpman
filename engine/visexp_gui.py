@@ -453,6 +453,7 @@ class VisionExperimentGui(QtGui.QWidget):
     def clear_analysis_status_table(self):
             self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.setRowCount(0)
             self.main_widget.measurement_datafile_status_groupbox.analysis_status_table.clear()
+            self.main_widget.measurement_datafile_status_groupbox.set_headers()
                 
     def update_analysis_status(self):
         if not hasattr(self.poller, 'analysis_status'):

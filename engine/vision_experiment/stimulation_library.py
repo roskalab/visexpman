@@ -20,7 +20,9 @@ from visexpman.engine.generic import colors
 from visexpman.engine.vision_experiment import screen
 from visexpA.engine.datadisplay import videofile
 
+import unittest
 command_extract = re.compile('SOC(.+)EOC')
+
 
 class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyboardHandler):
     """
@@ -133,6 +135,15 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             for text_config in self.text_on_stimulus:
                 if text_config['enable']:
                     self.screen.render_text(text_config['text'], color = text_config['color'], position = text_config['position'],  text_style = text_config['text_style'])
+                    
+    def _get_shape_string(self, shape):
+        if shape == 'circle' or shape == '' or shape == 'o' or shape == 'c' or shape =='spot':
+            shape_type = 'circle'
+        elif shape == 'rect' or shape == 'rectangle' or shape == 'r' or shape == '||':
+            shape_type = 'rectangle'
+        elif shape == 'annuli' or shape == 'annulus' or shape == 'a':
+            shape_type = 'annulus'
+        return shape_type
     
     #== Public, helper functions ==
     def set_background(self,  color):
@@ -810,65 +821,77 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-                    
+        
     def show_dots(self,  dot_diameters, dot_positions, ndots, duration = 0.0,  color = (1.0,  1.0,  1.0), block_trigger = False):
         '''
-        Shows a huge number (up to several hunders) of dots.
+        Maintains backward compatibility with old stimulations using show_dots
+        '''
+        self.show_shapes('o', dot_diameters, dot_positions, ndots, duration = duration,  color = color, block_trigger = block_trigger, colors_per_shape = False)
+                    
+    def show_shapes(self,  shape, shape_size, shape_positions, nshapes, duration = 0.0,  color = (1.0,  1.0,  1.0), block_trigger = False, colors_per_shape = True):
+        '''
+        Shows a huge number (up to several hunders) of shapes.
         Parameters:
-            dot_sizes: one dimensional list of dot sizes in um. 
-            dot_positions: one dimensional list of dot positions (row, col) in um.
-            ndots: number of dots per frame
-            color: can be a single tuple of the rgb values that apply to each dots over the whole stimulation. Both list and numpy formats are supported
-                    Optionally a two dimensional list can be provided where the dimensions are organized as above controlling the color of each dot individually
+            shape_size: one dimensional list of shape sizes in um or the size of rectangle, in this case a two dimensional array is also supporetd
+            shape_positions: one dimensional list of shape positions (row, col) in um.
+            nshapes: number of shapes per frame
+            color: can be a single tuple of the rgb values that apply to each shapes over the whole stimulation. Both list and numpy formats are supported
+                    Optionally a two dimensional list can be provided where the dimensions are organized as above controlling the color of each shape individually
             duration: duration of each frame in s. When 0, frame is shown for one frame time.
 
-        The dot_sizes and dot_positions are expected to be in a linear list. Based on the ndots, these will be segmented to frames assuming
-        that on each frame the number of dots are equal.
+        The shape_sizes and shape_positions are expected to be in a linear list. Based on the nshapes, these will be segmented to frames assuming
+        that on each frame the number of shapes are equal.
         '''
-        #TODO/idea: add support for showing rectangles and annuli
-        self.log_on_flip_message_initial = 'show_dots(' + str(duration)+ ', ' + str(dot_diameters) +', ' + str(dot_positions) +')'
-        self.log_on_flip_message_continous = 'show_dots'
+        self.log_on_flip_message_initial = 'show_shapes(' + str(duration)+ ', ' + str(shape_size) +', ' + str(shape_positions) +')'
+        self.log_on_flip_message_continous = 'show_shapes'
         first_flip = False
         self._save_stimulus_frame_info(inspect.currentframe())
-        radius = 1.0
-        vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
-        n_frames = len(dot_positions) / ndots
+        shape = self._get_shape_string(shape)
+        if shape == 'circle':
+            radius = 1.0
+            vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
+        elif shape == 'rectangle':
+            vertices = numpy.array([[0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5]])
+        else:
+            raise RuntimeError('Unknown shape: {0}'.format(shape))
+        n_frames = len(shape_positions) / nshapes
         self.log_on_flip_message_initial += ' n_frames = ' + str(n_frames)
         n_vertices = len(vertices)        
-        frames_vertices = numpy.zeros((n_frames * ndots * n_vertices,  2))         
+        frames_vertices = numpy.zeros((n_frames * nshapes * n_vertices,  2))         
         index = 0
         for frame_i in range(n_frames):
-            for dot_i in range(ndots):
-                dot_index = frame_i * ndots + dot_i
-                dot_size = dot_diameters[dot_index]
-                dot_position = numpy.array((dot_positions[dot_index]['col'], dot_positions[dot_index]['row']))
-                dot_to_screen =  self.config.SCREEN_UM_TO_PIXEL_SCALE * (vertices * dot_size + dot_position)
-                frames_vertices[index: index + n_vertices] = dot_to_screen
+            for shape_i in range(nshapes):
+                shape_index = frame_i * nshapes + shape_i
+                shape_size_i = shape_size[shape_index]
+                shape_position = numpy.array((shape_positions[shape_index]['col'], shape_positions[shape_index]['row']))
+                shape_to_screen =  self.config.SCREEN_UM_TO_PIXEL_SCALE * (vertices * shape_size_i + shape_position)
+                frames_vertices[index: index + n_vertices] = shape_to_screen
                 index = index + n_vertices
-
         if duration == 0:
             n_frames_per_pattern = 1
         else:
             n_frames_per_pattern = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
 
         glEnableClientState(GL_VERTEX_ARRAY)
-        dot_pointer = 0
+        shape_pointer = 0
         for frame_i in range(n_frames):
-            start_i = dot_pointer * n_vertices
-            end_i = (dot_pointer + ndots) * n_vertices
-            dot_pointer = dot_pointer + ndots
+            start_i = shape_pointer * n_vertices
+            end_i = (shape_pointer + nshapes) * n_vertices
+            shape_pointer = shape_pointer + nshapes
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
 #            self._show_text()
             glVertexPointerf(frames_vertices[start_i:end_i])
             for i in range(n_frames_per_pattern):
-                for dot_i in range(ndots):
-                    if isinstance(color[0],  list):
-                        glColor3fv(colors.convert_color(color[frame_i][dot_i], self.config))
+                for shape_i in range(nshapes):
+                    if colors_per_shape:
+                        glColor3fv(colors.convert_color(color[shape_i], self.config))
+                    elif isinstance(color[0],  list):
+                        glColor3fv(colors.convert_color(color[frame_i][shape_i], self.config))
                     elif isinstance(color[0], numpy.ndarray):
-                        glColor3fv(colors.convert_color(color[frame_i][dot_i].tolist(), self.config))
+                        glColor3fv(colors.convert_color(color[frame_i][shape_i].tolist(), self.config))
                     else:
                         glColor3fv(colors.convert_color(color, self.config))
-                    glDrawArrays(GL_POLYGON,  dot_i * n_vertices, n_vertices)
+                    glDrawArrays(GL_POLYGON,  shape_i * n_vertices, n_vertices)
                     
                 #Make sure that at the first flip the parameters of the function call are logged
                 if not first_flip:
@@ -910,6 +933,9 @@ class StimulationSequences(Stimulations):
     def moving_grating_stimulus(self):
         pass
         
+    def sine_wave_shape(self):
+        pass
+        
     def projector_calibration(self, intensity_range = [0.0, 1.0], npoints = 128, time_per_point = 1.0, repeats = 3, sync_flash = False):
         self._save_stimulus_frame_info(inspect.currentframe())
         step = (intensity_range[1]-intensity_range[0])/(npoints)
@@ -929,29 +955,12 @@ class StimulationSequences(Stimulations):
     def measure_light_power(self, reference_intensity):
         pass
         
-#class FlashConfig(experiment.ExperimentConfig):
-#    def _create_parameters(self):
-#        #Timing        
-#        self.WAIT_BEFORE_FLASH = 5.0
-#        self.FLASH_TIME = 10.0
-#        self.PERIOD_TIME = 60.0
-#        self.REPEATS = 3.0
-#        self.BLACK = 0.0
-#        self.WHITE = 1.0
-#        self.runnable = 'Flash'
-#        
-#        self._create_parameters_from_locals(locals())
-#        
-#class Flash(experiment.Experiment):
-#    
-#    def prepare(self):
-#        pass
-#
-#    def run(self, fragment_id=0):
-#        for repeat in range(self.experiment_config.REPEATS):
-#            self.show_fullscreen(color = self.experiment_config.BLACK, duration = self.experiment_config.WAIT_BEFORE_FLASH)
-#            self.show_fullscreen(color = self.experiment_config.WHITE, duration = self.experiment_config.FLASH_TIME)
-#            self.show_fullscreen(color = self.experiment_config.BLACK, duration = self.experiment_config.PERIOD_TIME - self.experiment_config.WAIT_BEFORE_FLASH - self.experiment_config.FLASH_TIME)
+class testStimulationPatterns(unittest.TestCase):
+
+    def test_01_stimulation_development(self):
+        from visexpman.engine.visexp_runner import VisionExperimentRunner
+        v = VisionExperimentRunner('zoltan', 'StimulusDevelopmentMachineConfig')
+        v.run_experiment('StimulusPatternDevelopmentConfig')
 
 if __name__ == "__main__":
-    pass
+    unittest.main()
