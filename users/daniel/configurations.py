@@ -486,10 +486,8 @@ class DebugRlvivo1(VisionExperimentConfig):
         #=== paths/data handling ===
         self.root_folder = '/mnt/datafast/'
         LOG_PATH = os.path.join(self.root_folder, 'log')
-        EXPERIMENT_LOG_PATH = LOG_PATH        
-        EXPERIMENT_DATA_PATH = os.path.join(self.root_folder, 'experiment_data')
+        EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = os.path.join(self.root_folder, 'debug', 'data')
-        MES_DATA_FOLDER = 'V:\\experiment_data'
         MES_DATA_FOLDER = 'V:\\debug\\data'
         self.CONTEXT_NAME = 'gui_dev.hdf5'
         CONTEXT_PATH = os.path.join(self.root_folder, 'context')

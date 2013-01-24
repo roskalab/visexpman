@@ -1,3 +1,7 @@
+'''
+Configurations in this module are omitted by fetch_class unless unit test runner is the main caller (unit_test_runner.TEST == True )
+'''
+
 ####### Configurations, experiment configurations and experiments for automated tests #######
 import time
 import numpy
@@ -11,6 +15,7 @@ from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 from visexpman.engine.vision_experiment import experiment
+from visexpman.users.peter import mea_configurations as peter_configurations
 
 from visexpman.users.zoltan.test import unit_test_runner
 

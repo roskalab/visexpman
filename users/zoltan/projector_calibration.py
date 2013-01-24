@@ -167,5 +167,5 @@ if __name__=='__main__':
     v = visexp_runner.VisionExperimentRunner('zoltan', 'ProjectorCalibrationSetup')
     v.run_experiment(expname)
     v.experiment_config.runnable.calculate_gamma_correction()
-    hdf5io.lockman.__del__()
+#    hdf5io.lockman.__del__()
     

@@ -479,10 +479,6 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
     for class_item in class_list:
         if unit_test_runner.TEST_test:
             filtered_class_list.append(class_item)
-#        if ('automated_test_data' in class_item[0].__name__ or \
-#        'presentinator_experiment' in class_item[0].__name__ or\
-#        'default_configs' in class_item[0].__name__) and unit_test_runner.TEST_test:
-#            filtered_class_list.append(class_item)
         elif not 'automated_test_data' in class_item[0].__name__ and not unit_test_runner.TEST_test:
             filtered_class_list.append(class_item)
     return filtered_class_list
