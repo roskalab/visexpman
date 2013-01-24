@@ -78,7 +78,7 @@ class ZeroMQPuller(multiprocessing.Process):
         self.exit.set()
 
 class ZeroMQPusher(object):
-    def __init__(self, port, type='pushpull', serializer='json'): #can be zmq.PUB too
+    def __init__(self, port=None, type='pushpull', serializer='json'): #can be zmq.PUB too
         self.serializer=serializer
         self.context = zmq.Context(1)
         if type=='pushpull':
@@ -88,13 +88,19 @@ class ZeroMQPusher(object):
         else:
             raise ValueError('unknown network protocol type')
         self.socket = self.context.socket(self.type)
-        self.socket.bind('tcp://*:{0}'.format(port))
+        self.socket.setsockopt(zmq.LINGER, 100)
+        self.socket.setsockopt(zmq.SNDTIMEO, 100)
+        if port is None:
+            self.port = self.socket.bind_to_random_port('tcp://*')
+        else:
+            self.port = port
+            self.socket.bind('tcp://*:{0}'.format(port))
     
     def send(self, data):
         if self.serializer=='json':
-            self.socket.send_json(data)
+            self.socket.send_json(data, zmq.NOBLOCK)
         else:
-            self.socket.send(data)
+            self.socket.send(data, zmq.NOBLOCK)
     
 
 class CallableViaZeroMQ(threading.Thread):
@@ -953,7 +959,13 @@ class TestZMQInterface(unittest.TestCase):
         self.assertEqual(response, ['good', 13, 0, {'1': 'one'}])
         self.assertTrue(numpy.all(ana==numpy.array([1, 2, 3])))
         pass
-    
+        
+    def test_push_without_listeners(self):
+        pusher = ZeroMQPusher()
+        print pusher.port
+        pusher.send(1)
+        self.assertTrue(1)
+        
     def test_push_pull(self):
         port =5556
         data=[]
@@ -972,6 +984,7 @@ class TestZMQInterface(unittest.TestCase):
         capturer = threading.Thread(target=receiver_thread)
         capturer.start()
         pusher = ZeroMQPusher(port)
+        time.sleep(0.2)
         pusher.send(1)
         pusher.send(2)
         pusher.send('TERMINATE')
@@ -1040,6 +1053,7 @@ class TestZMQInterface(unittest.TestCase):
         
         def pusher_process(port):
             pusher1 = ZeroMQPusher(port, type='pushpull', serializer=serializer)
+            time.sleep(0.2)
             pusher1.send(str(os.getpid())+' content 1')
             pusher1.send(str(os.getpid())+' content 2')
             pusher1.send('TERMINATE')
