@@ -4,6 +4,10 @@ import shutil
 import numpy
 import tempfile
 
+def free_space_on_hdd(path):
+    s=os.statvfs(path)
+    return (s.f_bavail * s.f_frsize)
+
 def copy_reference_fragment_files(reference_folder, target_folder):
     if os.path.exists(target_folder):
         shutil.rmtree(target_folder)

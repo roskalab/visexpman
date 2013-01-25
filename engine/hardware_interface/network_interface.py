@@ -23,6 +23,7 @@ from visexpman.engine.generic.introspect import list_type
 import zmq
 import simplejson
 import multiprocessing
+from multiprocessing import Process, Manager,  Event
 DISPLAY_MESSAGE = False
 
 def zmq_device(in_port, out_port, monitor_port,  in_prefix=b'in', out_prefix=b'out'):
@@ -36,18 +37,17 @@ def zmq_device(in_port, out_port, monitor_port,  in_prefix=b'in', out_prefix=b'o
     time.sleep(.2)
     return device
         
-class ZeroMQPuller(multiprocessing.Process):
+class ZeroMQPuller(multiprocessing.Process):#threading.Thread):
     '''Pulls zmq messages from a server and puts it in a python queue'''
-    def __init__(self, port, queue, type='pushpull', serializer='json'): #type can be zmq.SUB too
+    def __init__(self, port, queue=None, type=zmq.PULL, serializer='json'): #type can be zmq.SUB too
         self.serializer= serializer
         self.queue = queue
         self.port=port
-        if type=='pushpull':
-            self.type=zmq.PULL
-        elif type=='pubsub':
-            self.type=zmq.SUB
-        else:
-            raise ValueError('unknown network protocol type')
+        self.serializer=serializer
+        if queue is None:
+            self.manager= multiprocessing.Manager()
+            self.queue=self.manager.list()
+        self.type=type
         super(ZeroMQPuller, self).__init__()
         self.exit = multiprocessing.Event()
         
@@ -62,23 +62,28 @@ class ZeroMQPuller(multiprocessing.Process):
         while not self.exit.is_set():
             socks = dict(self.poll.poll(1000)) #timeout in each second allows stopping process via the close method
             if socks.get(self.client) == zmq.POLLIN:
-                if self.serializer == 'json':
-                    msg = self.client.recv_json()
-                else:
-                    msg = self.client.recv()
-                if msg=='TERMINATE': # exit process via network 
-                    self.client.close()
-                    self.context.term()
-                    return
-                else:
+                try:
+                    if self.serializer == 'json':
+                        msg = self.client.recv_json()
+                    else:
+                        msg = self.client.recv()
+                    if msg=='TERMINATE': # exit process via network 
+                        self.client.close()
+                        self.context.term()
+                        return
+                except Exception as e:
+                    msg = str(e)
+                if hasattr(self.queue, 'put'):
                     self.queue.put(msg)
+                elif hasattr(self.queue, 'append'):
+                    self.queue.append(msg)
         
     def close(self): #exit process if spawned on the same machine
         print "Shutdown initiated"
         self.exit.set()
 
 class ZeroMQPusher(object):
-    def __init__(self, port, type='pushpull', serializer='json'): #can be zmq.PUB too
+    def __init__(self, port=None, type='pushpull', serializer='json'): #can be zmq.PUB too
         self.serializer=serializer
         self.context = zmq.Context(1)
         if type=='pushpull':
@@ -88,13 +93,30 @@ class ZeroMQPusher(object):
         else:
             raise ValueError('unknown network protocol type')
         self.socket = self.context.socket(self.type)
-        self.socket.bind('tcp://*:{0}'.format(port))
+        self.socket.setsockopt(zmq.LINGER, 100)
+        if port is None:
+            self.port = self.socket.bind_to_random_port('tcp://*')
+        else:
+            self.port = port
+            self.socket.bind('tcp://*:{0}'.format(port))
     
-    def send(self, data):
+    def send(self, data, block=True):
+        if block==False:
+            if not hasattr(self, 'poller'):
+                self.poll = zmq.Poller()
+                self.poll.register(self.socket, zmq.POLLOUT)
+            socks = dict(self.poll.poll(150)) #timeout in each second allows stopping process via the close method
+            if len(socks)==0:
+                return False
+            if socks.get(self.socket) == zmq.POLLOUT:
+                pass
+            else:
+                raise RuntimeError('poll returned another socket, this is not possible')
         if self.serializer=='json':
             self.socket.send_json(data)
         else:
             self.socket.send(data)
+        return True
     
 
 class CallableViaZeroMQ(threading.Thread):
@@ -930,7 +952,42 @@ class TestNetworkInterface(unittest.TestCase):
         self.listener4.terminate()
         self.listener4.wait()
         self.assertEqual((response),  (expected_string))
+
+
+class Monitor(Process):
+    from multiprocessing import Manager, Process, Event
+    def __init__(self, port, serializer, type=zmq.SUB):
+        self.port=port
+        self.serializer=serializer
+        self.exit=Event()
+        super(Monitor, self).__init__()
+        self.manager= Manager()
+        self.messages=self.manager.list()
+        self.type=type
     
+    def run(self):
+        context = zmq.Context()
+        mon = context.socket(self.type)
+        mon.connect('tcp://127.0.0.1:{0}'.format(self.port))
+        if self.type==zmq.SUB:
+            mon.setsockopt(zmq.SUBSCRIBE, '')
+        while not self.exit.is_set():
+            if self.serializer =='json':
+                try:
+                    self.messages.append(mon.recv_json())
+                except Exception as e:
+                    self.messages.append(str(e))
+            else:
+                self.messages.append(mon.recv())
+            if self.messages[-1] == 'TERMINATE':
+                print 'monitor terminated'
+                return
+                
+    def close(self): #exit process if spawned on the same machine
+        print "Shutdown initiated"
+        self.exit.set()
+    
+
 class TestZMQInterface(unittest.TestCase):
     def setUp(self):
         pass
@@ -956,13 +1013,16 @@ class TestZMQInterface(unittest.TestCase):
         
     def test_push_without_listeners(self):
         pusher = ZeroMQPusher()
-        pusher.send(1)
-        self.assertTruie(1)
+        print pusher.port
+        returncode = pusher.send(1, False)
+        self.assertTrue(returncode==0)
         
     def test_push_pull(self):
         port =5556
-        data=[]
-        def receiver_thread():
+        from multiprocessing import Manager, Process
+        manager=Manager()
+        data = manager.list()
+        def receiver_thread(data):
             while 1:
                 value = receiver.get()
                 print data
@@ -974,16 +1034,19 @@ class TestZMQInterface(unittest.TestCase):
         receiver= multiprocessing.Queue()
         puller = ZeroMQPuller(port, receiver)
         puller.start()
-        capturer = threading.Thread(target=receiver_thread)
+        capturer = Process(target=receiver_thread, args=(data, ))
         capturer.start()
         pusher = ZeroMQPusher(port)
-        pusher.send(1)
+        time.sleep(0.6)
+        pusher.send(1, False)
+        time.sleep(0.2)
         pusher.send(2)
         pusher.send('TERMINATE')
         receiver.put('TERMINATE')
         capturer.join()
         puller.join()
-        self.assertEqual(data,  [1, 2])
+        result=list(data)
+        self.assertEqual(result, [1, 2])
         
     def test_pub_sub(self):
         port = 5557
@@ -1000,9 +1063,9 @@ class TestZMQInterface(unittest.TestCase):
                 else:
                     container.append(value)
         receiver= multiprocessing.Queue()
-        puller1 = ZeroMQPuller(port, receiver, type='pubsub')
+        puller1 = ZeroMQPuller(port, receiver, type=zmq.SUB)
         puller1.start()
-        puller2 = ZeroMQPuller(port, receiver, type='pubsub')
+        puller2 = ZeroMQPuller(port, receiver, type=zmq.SUB)
         puller2.start()
         capturer = multiprocessing.Process(target=receiver_process, args=(data, ))
         capturer.start()
@@ -1021,7 +1084,7 @@ class TestZMQInterface(unittest.TestCase):
         
     def test_push_pull_queue(self):
         from multiprocessing import Manager
-        server2forwarder_port = 5556
+        server2forwarder_port = 5554
         forwarder2client_port = 5559
         monitor_port = 5558
         serializer = 'json'
@@ -1045,8 +1108,10 @@ class TestZMQInterface(unittest.TestCase):
         
         def pusher_process(port):
             pusher1 = ZeroMQPusher(port, type='pushpull', serializer=serializer)
+            time.sleep(0.2)
             pusher1.send(str(os.getpid())+' content 1')
             pusher1.send(str(os.getpid())+' content 2')
+            time.sleep(0.2)
             pusher1.send('TERMINATE')
         def receiver_process(container):
             while 1:
@@ -1059,7 +1124,10 @@ class TestZMQInterface(unittest.TestCase):
                     container.append(value)
         receiver= multiprocessing.Queue()
         broker=zmq_device(server2forwarder_port, forwarder2client_port, monitor_port)
-        monitor = threading.Thread(target=monitor_thread, args=(monitor_port, '', ))
+        if 0:
+            monitor = threading.Thread(target=monitor_thread, args=(monitor_port,'', ))
+        else:
+            monitor = ZeroMQPuller(monitor_port, type=zmq.SUB, serializer= '')
         monitor.start()
        # puller2 = ZeroMQPuller(5556, receiver, type='pushpull')
         #puller2.start()
@@ -1068,8 +1136,11 @@ class TestZMQInterface(unittest.TestCase):
         for pp1 in [0]:
             pusher1=threading.Thread(target=pusher_process, args=(server2forwarder_port, ))
             pusher1.daemon=True
-            pusher1.start()
-        puller1 = ZeroMQPuller(forwarder2client_port, receiver, type='pushpull', serializer=serializer)
+        pusher1.start()
+        if 1:
+            puller1 = ZeroMQPuller(forwarder2client_port, receiver, type=zmq.PULL, serializer=serializer)
+        else:
+            puller1= Monitor(forwarder2client_port, serializer, zmq.PULL)
         puller1.run() # no thread/process start in order to be able to debug
         receiver.put('TERMINATE')
         capturer.join()
@@ -1080,6 +1151,7 @@ class TestZMQInterface(unittest.TestCase):
             import signal
             os.kill(broker.launcher.pid,signal.SIGTERM)
         result =list(data)
+        print list(monitor.queue)
         self.assertTrue('content 1' in result[0] and 'content 2' in result[1] and len(result)==2)
         
 if __name__ == "__main__":

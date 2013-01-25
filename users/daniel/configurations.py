@@ -494,8 +494,9 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         self.CONTEXT_NAME = 'gui.hdf5'
         CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
-        DATABIG_PATH = '/mnt/databig/data'
-        TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
+        if os.name != 'nt':
+            DATABIG_PATH = '/mnt/databig/data'
+            TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
         #CAPTURE_PATH = os.path.join(v_drive_folder, 'captured')
 
         #=== screen ===

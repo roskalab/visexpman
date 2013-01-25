@@ -84,7 +84,27 @@ elif TEST_os == 'osx':
 #== Hardware config during test ==
 TEST_filterwheel_enable  = True #If set to False, many tests fail.
 TEST_daq_device = 'Dev1'
+TEST_test_data_folder = '/mnt/databig/software_test/ref_data'
+TEST_working_folder = '/mnt/databig/software_test/working'
 
+def prepare_test_data(modulename, clean_working_dir = True):
+    ref_folder = os.path.join(TEST_test_data_folder, modulename)
+    working_folder = TEST_working_folder
+    print 'preparing test data'
+    if clean_working_dir:
+        shutil.rmtree(working_folder)
+        os.mkdir(working_folder)
+    for filename in os.listdir(ref_folder):
+        output_folder = os.path.join(os.path.dirname(filename), 'output',  os.path.split(filename)[1])
+        if os.path.exists(output_folder):
+            shutil.rmtree(output_folder)
+        fn = os.path.join(ref_folder, filename)
+        shutil.copy(fn, working_folder)
+        if os.path.exists(fn.replace('.hdf5', '.mat')):
+            shutil.copy(fn.replace('.hdf5', '.mat'), working_folder)
+    time.sleep(1.0)
+    return working_folder
+    
 def generate_filename(path):
     '''
     Inserts index into filename resulting unique name.
