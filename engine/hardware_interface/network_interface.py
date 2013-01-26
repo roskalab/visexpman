@@ -58,24 +58,29 @@ class ZeroMQPuller(multiprocessing.Process):#threading.Thread):
         self.maxiter= maxiter
         
     def run(self):
+        self.debug=0
         try:
             self.pid1 = os.getpid()
             self.context = zmq.Context(1)
             self.client = self.context.socket(getattr(zmq, self.type))
             if self.type=='SUB':
                 self.client.setsockopt(zmq.SUBSCRIBE, '')
+            self.client.setsockopt(zmq.LINGER, 150)
             self.client.connect('tcp://localhost:{0}'.format(self.port))
             self.poll = zmq.Poller()
             self.poll.register(self.client, zmq.POLLIN)
-            while not self.exit.is_set() and self.maxiter>0:
+            while not self.exit.is_set():
                 socks = dict(self.poll.poll(1000)) #timeout in each second allows stopping process via the close method
-                #self.queue.append(10)
+                if self.debug:
+                    self.queue.append(10)
                 if socks.get(self.client) == zmq.POLLIN:
                     try:
                         if self.serializer == 'json':
                             msg = self.client.recv_json()
                         else:
                             msg = self.client.recv()
+                        if self.debug:
+                            self.queue.append(msg)
                         if msg=='TERMINATE': # exit process via network 
                             self.client.close()
                             self.context.term()
@@ -98,6 +103,7 @@ class ZeroMQPuller(multiprocessing.Process):#threading.Thread):
         
     def close(self): #exit process if spawned on the same machine
         print "Shutdown initiated"
+        self.debug=1
         self.exit.set()
     
     def kill(self):
