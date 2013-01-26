@@ -12,6 +12,18 @@ import hashlib
 ## {{{ http://code.activestate.com/recipes/519621/ (r4)
 import weakref
 
+import subprocess, os, signal
+
+def kill_child_processes(parent_pid, sig='SIGTERM'):
+        ps_command = subprocess.Popen("ps -o pid --ppid %d --noheaders" % parent_pid, shell=True, stdout=subprocess.PIPE)
+        ps_output = ps_command.stdout.read()
+        retcode = ps_command.wait()
+        assert retcode == 0, "ps command returned %d" % retcode
+        for pid_str in ps_output.split("\n")[:-1]:
+            try:
+                os.kill(int(pid_str), getattr(signal, sig))
+            except:
+                pass
 
 ## {{{ http://code.activestate.com/recipes/546530/ (r13)
 # Copyright, license and disclaimer are at the end of this file.
