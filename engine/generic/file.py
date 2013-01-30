@@ -4,7 +4,7 @@ import shutil
 import numpy
 import tempfile
 
-def free_space_on_hdd(path):
+def free_space(path):
     s=os.statvfs(path)
     return (s.f_bavail * s.f_frsize)
 
