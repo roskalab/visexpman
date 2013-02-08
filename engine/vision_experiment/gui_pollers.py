@@ -748,6 +748,8 @@ class MainPoller(Poller):
         return result
 
     def set_stage_origin(self):
+        if not self.ask4confirmation('Setting stage origin. Are you sure?'):
+            return
         result = False
         if not self.mes_interface.overwrite_relative_position(0, self.config.MES_TIMEOUT):
             self.printc('Setting objective to 0 did not succeed')
@@ -1035,7 +1037,7 @@ class MainPoller(Poller):
         }        
         name = '{0}_{1}_{2}_{3}_{4}_{5}' .format(self.animal_parameters['id'], self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])
-
+        #TODO use component_guesser.generate_filename
         self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.generate_animal_filename('mouse', self.animal_parameters))
 
         if os.path.exists(self.mouse_file):

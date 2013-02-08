@@ -74,6 +74,11 @@ def set_file_dates(path, file_info):
 def mkdir_notexists(folder):
     if not os.path.exists(folder):
         os.makedirs(folder)
+        
+def recreate_dir(folder):
+    if os.path.exists(folder):
+        shutil.rmtree(folder)
+    os.makedirs(folder)
 
 def copy(src, dst, update=1):
     if not os.path.exists(src):

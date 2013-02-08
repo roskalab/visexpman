@@ -2,6 +2,7 @@
 *.txt
 *.zip
 *.bak
+*.orig
 *.*~
 temp.bmp
 .DS*
