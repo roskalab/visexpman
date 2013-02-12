@@ -787,7 +787,16 @@ def datetime_string():
 def date_string():
     now = time.localtime()
     return ('%4i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday)).replace(' ', '0')
-    
+
+def truncate_timestamps(list_of_timestamps,  at_position):
+    '''From a list of floats representing timestamps, we calculates timestamps 
+    with least significant data truncated. E.g. to get timestamps that contain only
+   year_month_date but no hour, second, millisecond: set at_position=3
+   '''
+    timetuples = numpy.array([time.localtime(ts) for ts in list_of_timestamps])
+    truncated_timestamps= [time.mktime(tt[:at_position].tolist()+[0]*(9-at_position)) for tt in timetuples] #timestamps made from timetuples where only year month day differs, rest is 0
+    return truncated_timestamps
+
 def time_stamp_to_hms(timestamp):
     time_struct = time.localtime(timestamp)
     return ('%2i:%2i:%2.3f'%(time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec + numpy.modf(timestamp)[0])).replace(' ', '0')

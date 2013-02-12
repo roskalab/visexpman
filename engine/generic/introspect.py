@@ -3196,7 +3196,10 @@ def list_type(item):
         if sum(hasattr(i0,'shape') and len(i0.dtype) == 0 for i0 in item)==len(item):
             response = 'list_of_arrays'
         if sum(hasattr(i0,'shape') and len(i0.dtype) > 0 for i0 in item)==len(item):
-            response = 'list_of_recarrays'
+            if all([i0.shape==item[0].shape for i0 in item]):
+                response = 'list_of_uniform_shaped_recarrays'
+            else:
+                response = 'list_of_recarrays'
     else:
         response=None
     return response
