@@ -7,6 +7,33 @@ from visexpman.users.zoltan.test import unit_test_runner
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 
+class CaImagingTestConfig(configuration.VisionExperimentConfig):
+    def _set_user_parameters(self):
+        #### paths/data handling ####
+        self.root_folder = '/mnt/datafast/'
+        LOG_PATH = os.path.join(self.root_folder, 'log')
+        EXPERIMENT_LOG_PATH = LOG_PATH        
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        
+        #### experiment specific ####
+        PARSE_PERIOD = 0.1
+        
+        #### Network ####
+        ENABLE_UDP = False
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
+        self.COMMAND_RELAY_SERVER['ENABLE'] = False
+        self.BASE_PORT = 20000
+        self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
+            {#TODO: probably IP addresses are not necessary here
+            'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
+            'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
+            'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
+            'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
+            }
+        COORDINATE_SYSTEM='ulcorner'
+        self._create_parameters_from_locals(locals())
 
 class JobhandlerTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):

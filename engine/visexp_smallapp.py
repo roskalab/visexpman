@@ -25,7 +25,10 @@ class SmallApp(QtGui.QWidget):
     Small  application gui
     '''
     def __init__(self, user, config_class):
-        self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+        if hasattr(config_class, 'OS'):
+            self.config=config_class
+        else:
+            self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         self.config.user = user
         if not hasattr(self.config, 'SMALLAPP'):
             raise RuntimeError('No small application configuration is provided, check machine config')
@@ -34,6 +37,8 @@ class SmallApp(QtGui.QWidget):
         self.console_text = ''
         if self.config.SMALLAPP.has_key('POLLER'):
             self.poller =  getattr(gui_pollers, self.config.SMALLAPP['POLLER'])(self, self.config)
+        else:
+            self.poller = poller
         QtGui.QWidget.__init__(self)
         self.setWindowTitle('{2} - {0} - {1}' .format(user,  config_class, self.config.SMALLAPP['NAME']))
         self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])

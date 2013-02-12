@@ -49,7 +49,6 @@ class VisionExperimentGui(QtGui.QWidget):
     Main Qt GUI class of vision experiment manager gui.
     '''
     def __init__(self, user, config_class):
-        #Fetching classes takes long time
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         self.config.user = user
         self.console_text = ''

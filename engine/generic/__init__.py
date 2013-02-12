@@ -50,6 +50,9 @@ def draw_line_numpy_array(image, line, fill = (255, 0, 0)):
     draw.line(line, fill, width = 1)
     return numpy.asarray(im)
     
+def save_image(imarray, filename):
+    Image.fromarray(imarray).save(filename)
+    
 def box_to_lines(box):
     lines = []
     lines.append([box[0], box[1], box[0], box[3]])

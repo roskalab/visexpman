@@ -124,7 +124,14 @@ class ProjectorCalibration(experiment.Experiment):
         h.raw_gamma_correction = numpy.array([self.raw_ref_intensities, self.raw_measured_intensities]).T
         h.gamma_correction = gamma_correction
         h.save(['gamma_correction', 'raw_gamma_correction'], overwrite = True)
+        #Save gamma curve to mat file too
+        import scipy.io
+        data = {}
+        data['raw_gamma_correction']=h.raw_gamma_correction
+        data['gamma_correction']=h.gamma_correction
+        scipy.io.savemat(os.path.join(os.path.split(output_file)[0], 'gamma.mat'), data, oned_as = 'column')
         h.close()
+        
         if not getattr(argparser.parse_args(), 'test_calibration'):
             shutil.copy(output_file, os.path.join(os.path.split(output_file)[0], 'gamma.hdf5'))
         pylab.figure(1)
