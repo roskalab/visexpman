@@ -6,12 +6,14 @@ import time
 #parameters
 on_time=2.0
 off_time=4.0
-init_delay = 2.0
+init_delay = 4.0
 if wavelength_range == 'uv':
     wavelengths= [330, 350, 370, 390, 410]
 elif wavelength_range == 'm':
     wavelengths = [480, 500, 520, 540, 560]
-
+elif wavelength_range == 'f':
+    wavelengths = [340, 370, 405, 430, 455, 490, 520, 550]
+    
 repeats = 1
 def toggle_shutter(shutter_serial_port):    
     shutter_serial_port.write('ens\r')

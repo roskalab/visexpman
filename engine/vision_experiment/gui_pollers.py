@@ -1106,7 +1106,7 @@ class MainPoller(Poller):
         if self.xy_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
             self.printc('Brain surface image averaging is only {0}' .format(self.xy_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
         if hasattr(self, 'xz_scan') and self.xz_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
-            self.printc('Number of frames is only {0}' .format(self.xz_scan['averaging']))
+            self.printc('Number of xz frames is only {0}' .format(self.xz_scan['averaging']))
         if not (os.path.exists(self.mouse_file) and '.hdf5' in self.mouse_file):
             self.printc('mouse file not found')
             return
