@@ -27,8 +27,10 @@ class SmallApp(QtGui.QWidget):
     def __init__(self, user, config_class):
         if hasattr(config_class, 'OS'):
             self.config=config_class
+            config_class_name = config_class.__class__.__name__
         else:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+            config_class_name = config_class
         self.config.user = user
         if not hasattr(self.config, 'SMALLAPP'):
             raise RuntimeError('No small application configuration is provided, check machine config')
@@ -36,13 +38,16 @@ class SmallApp(QtGui.QWidget):
             self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, self.config.SMALLAPP['NAME'].replace(' ', '_') +'.txt')), local_saving = True)
         self.console_text = ''
         if self.config.SMALLAPP.has_key('POLLER'):
-            self.poller =  getattr(gui_pollers, self.config.SMALLAPP['POLLER'])(self, self.config)
-        else:
-            self.poller = poller
+            if hasattr(gui_pollers, self.config.SMALLAPP['POLLER']):
+                self.poller =  getattr(gui_pollers, self.config.SMALLAPP['POLLER'])(self, self.config)
+            else:
+                self.poller =  getattr(self.config.SMALLAPP['POLLER_MODULE'], self.config.SMALLAPP['POLLER'])(self, self.config)
         QtGui.QWidget.__init__(self)
-        self.setWindowTitle('{2} - {0} - {1}' .format(user,  config_class, self.config.SMALLAPP['NAME']))
-        self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
-        self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
+        self.setWindowTitle('{2} - {0} - {1}' .format(user,  config_class_name, self.config.SMALLAPP['NAME']))
+        if hasattr(self.config, 'GUI_SIZE'):
+            self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
+        if hasattr(self.config, 'GUI_POSITION'):
+            self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
         self.create_gui()
         self.add_console()
         self.create_layout()
