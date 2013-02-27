@@ -106,3 +106,41 @@ class Stimulus2video(configuration.VisionExperimentConfig):
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
         
         self._create_parameters_from_locals(locals())
+
+class SwDebugConfig(configuration.VisionExperimentConfig):
+    '''
+    Converting stimulus to video file
+    '''
+    def _set_user_parameters(self):        
+#        EXPERIMENT_CONFIG = 'MovingGratingConfig'
+        PLATFORM = 'standalone'
+        root_folder = '/mnt/datafast/debug'
+        drive_data_folder = os.path.join(root_folder, 'experiment_data')
+        LOG_PATH = os.path.join(drive_data_folder, 'log')
+        EXPERIMENT_LOG_PATH = LOG_PATH        
+        EXPERIMENT_DATA_PATH = drive_data_folder
+        self.CONTEXT_NAME = 'gui_dev.hdf5'
+        CONTEXT_PATH = os.path.join(root_folder, 'context')
+        EXPERIMENT_FILE_FORMAT = 'mat'
+        #Create folders that does not exists
+        for folder in [drive_data_folder, LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, MES_DATA_FOLDER, CONTEXT_PATH, CAPTURE_PATH]:
+            file.mkdir_notexists(folder)
+        
+        #=== screen ===
+        FULLSCREEN = not True
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+        COORDINATE_SYSTEM='center'
+        ENABLE_FRAME_CAPTURE =  False
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0        
+        
+        #=== Network ===
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
+        #=== hardware ===
+        ENABLE_PARALLEL_PORT = False
+        ACQUISITION_TRIGGER_PIN = 2
+        FRAME_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        
+        self._create_parameters_from_locals(locals())
