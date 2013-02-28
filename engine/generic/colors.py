@@ -6,8 +6,10 @@ import numpy
 def convert_color(color, config = None):
     '''
     Any color format (rgb, greyscale, 8 bit grayscale) is converted to visexpman rgb format
-    '''    
-    if isinstance(color, float):
+    '''
+    if (isinstance(color, list) and len(color) == 1) or (isinstance(color, numpy.ndarray) and color.shape[0] == 1):
+        converted_color = [color[0], color[0], color[0]]
+    elif isinstance(color, float):
         converted_color = [color, color, color]
     elif isinstance(color, int):
         converted_color = [color/255.0, color/255.0, color/255.0]

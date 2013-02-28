@@ -17,7 +17,10 @@ class MVSSA(VisionExperimentConfig):
         PLATFORM = 'standalone'
         EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===
-        v_drive_data_folder = 'C:\\Data'
+        if self.OS == 'win':
+            v_drive_data_folder = 'C:\\Data'
+        else:
+            v_drive_data_folder = '/mnt/rznb'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = v_drive_data_folder
@@ -25,7 +28,7 @@ class MVSSA(VisionExperimentConfig):
 #        CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         
         #=== screen ===
-        FULLSCREEN = True
+        FULLSCREEN = (self.OS == 'win')
         SCREEN_RESOLUTION = utils.cr([800,600])
 #        SCREEN_RESOLUTION = utils.cr([1024, 768])
         COORDINATE_SYSTEM='center'
@@ -46,7 +49,7 @@ class MVSSA(VisionExperimentConfig):
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = False
         #=== LED controller ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -69,7 +72,11 @@ class MVSSA(VisionExperimentConfig):
                     'ENABLE' :  False#(self.OS == 'win')
                     },
                     ]
-        self.GAMMA_CORRECTION = GAMMA_CORRECTION
+        gamma_corr_filename = 'c:\\visexp\\gamma.hdf5'
+        if os.path.exists(gamma_corr_filename):
+            from visexpA.engine.datahandlers import hdf5io
+            import copy
+            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction'))        
         #=== Others ===
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
 
@@ -113,7 +120,7 @@ class MVS(VisionExperimentConfig):
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = False
         #=== LED controller ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'

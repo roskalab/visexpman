@@ -81,7 +81,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
         if trigger:
             self._frame_trigger_pulse()
-        
+        self.check_abort_pressed()
+            
+    def check_abort_pressed(self):
         command = screen.check_keyboard() #Here only commands with running experiment domain are considered
         if command != None:
             for k, v in self.config.COMMANDS.items():
@@ -92,6 +94,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self.command_buffer = self.command_buffer.replace('abort_experiment', '')
             self.printl('Abort pressed', application_log = True)
             self.abort = True
+            return True
+        else:
+            return False
+        
 
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
         '''
@@ -454,6 +460,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         for frame_i in range(n_frames):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if shape_type != 'annulus':
+                if hasattr(color,  'shape') and len(color.shape) ==2:
+                    glColor3fv(colors.convert_color(color[frame_i], self.config))
                 if number_of_positions == 1:
                     glDrawArrays(GL_POLYGON,  0, n_vertices)
                 else:
@@ -972,8 +980,10 @@ class StimulationSequences(Stimulations):
         self._save_stimulus_frame_info(inspect.currentframe())
         self.show_fullscreen(duration = off_time, color = background_color, save_frame_info = False)
         for size in spot_sizes:
-            self.show_shape(self,  shape = 'o',  duration = on_time,  pos = pos,  color = color,  background_color = background_color,  size = size,  block_trigger = True, save_frame_info = False)
+            self.show_shape(shape = 'o',  duration = on_time,  pos = pos,  color = color,  background_color = background_color,  size = size,  block_trigger = True, save_frame_info = False)
             self.show_fullscreen(duration = off_time, color = background_color, save_frame_info = False)
+            if self.abort:
+                break
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
     def sine_wave_shape(self):

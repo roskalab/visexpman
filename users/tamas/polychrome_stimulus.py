@@ -1,7 +1,7 @@
 from visexpman.engine.generic import utils
 import visexpman.engine.vision_experiment.experiment as experiment
-from visexpman.engine.handrware_interface import polychrome_interface
-from visexpman.engine.handrware_interface import instrument
+from visexpman.engine.hardware_interface import polychrome_interface
+from visexpman.engine.hardware_interface import instrument
 import time
 import numpy
 import os.path
@@ -9,7 +9,7 @@ import os
 import shutil
 import random
 
-class PolychromeParameters(experiment.ExperimentConfig):
+class PolychromeExpConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.WAVELENGTH_RANGE_NAME = 'uv'
         self.WAVELENGTH_RANGES = {}
@@ -24,17 +24,22 @@ class PolychromeParameters(experiment.ExperimentConfig):
 
 class PolychromeExperiment(experiment.Experiment):
     def prepare(self):
-        self.polychrome = polychrome_nterface.Polychrome(self.machine_config)
-        self.shutter = intrument.Shutter(self.machine_config)
+        self.polychrome = polychrome_interface.Polychrome(self.machine_config)
+        self.shutter = instrument.Shutter(self.machine_config)
 
     def run(self):
         self.show_fullscreen(duration = self.experiment_config.INIT_DELAY,  color = 0.0)
         for wavelength in self.experiment_config.WAVELENGTH_RANGES[self.experiment_config.WAVELENGTH_RANGE_NAME]:
+            self.printl('Setting wavelenght: {0}'.format(wavelength))
+            if self.check_abort_pressed() or self.abort:
+                break
             self.polychrome.set_wavelength(wavelength)
             if self.machine_config.ENABLE_PARALLEL_PORT:
                 self.parallel.setData(self.machine_config.FRAME_TRIGGER_ON)
             self.shutter.toggle()
             time.sleep(self.experiment_config.ON_TIME)
+            if self.check_abort_pressed() or self.abort:
+                break
             if self.machine_config.ENABLE_PARALLEL_PORT:
                 self.parallel.setData(self.machine_config.FRAME_TRIGGER_OFF)
             self.shutter.toggle()

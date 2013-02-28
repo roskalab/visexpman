@@ -42,7 +42,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         if user == '':
             self.config.user = 'undefined'
         else:
-            self.config.user = user
+            self.config.user = str(user)
         #== Fetch experiment classes ==
         if self.config.user != 'undefined':
             self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = experiment.ExperimentConfig, direct = False)
@@ -64,17 +64,18 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             self.keyboard_command_queue.put('SOCexecute_experimentEOCEOP')
             self.keyboard_command_queue.put('SOCquitEOCEOP')
         #Select and instantiate stimulus as specified in machine config, This is necessary to ensure that pre-experiment will run immediately after startup
-        if len(self.experiment_config_list) > 0:
+        if len(self.experiment_config_list) > 0 and hasattr(self.config,'EXPERIMENT_CONFIG'):
             try:
                 self.experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self.queues, self.connections, self.log)
             except IndexError:
                 raise RuntimeError('Experiment config does not exists: {0}'.format(self.config.EXPERIMENT_CONFIG))
+            #Determine default experiment config index from machine config
+            for i in range(len(self.experiment_config_list)):
+                if self.experiment_config_list[i][1].__name__ == self.config.EXPERIMENT_CONFIG:
+                    self.selected_experiment_config_index = i
         else:
             self.experiment_config = None
-        #Determine default experiment config index from machine config
-        for i in range(len(self.experiment_config_list)):
-            if self.experiment_config_list[i][1].__name__ == self.config.EXPERIMENT_CONFIG:
-                self.selected_experiment_config_index = i
+            self.selected_experiment_config_index = 0
         #If udp enabled (= presentinator interface enabled), check for *presentinator*.py files in current user folder and delete them
         if self.config.ENABLE_UDP:
             user_folder = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user)

@@ -115,15 +115,17 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
 #        EXPERIMENT_CONFIG = 'MovingGratingConfig'
         PLATFORM = 'standalone'
         root_folder = '/mnt/datafast/debug'
+        if not os.path.exists(root_folder):
+            root_folder = '/mnt/rznb'
         drive_data_folder = os.path.join(root_folder, 'experiment_data')
         LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = drive_data_folder
         self.CONTEXT_NAME = 'gui_dev.hdf5'
         CONTEXT_PATH = os.path.join(root_folder, 'context')
-        EXPERIMENT_FILE_FORMAT = 'mat'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
         #Create folders that does not exists
-        for folder in [drive_data_folder, LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, MES_DATA_FOLDER, CONTEXT_PATH, CAPTURE_PATH]:
+        for folder in [drive_data_folder, LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, CONTEXT_PATH]:
             file.mkdir_notexists(folder)
         
         #=== screen ===

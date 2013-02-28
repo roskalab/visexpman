@@ -57,18 +57,19 @@ class SlowContrastAdaptationExperiment(experiment.Experiment):
             print self.intensities
             #pylab.plot(self.intensities)
             #pylab.show()
+        self.intensities = numpy.array([self.intensities]).T
             
     def run(self):
         self.show_fullscreen(duration = 1.0, color = 1.0)
         self.show_fullscreen(duration = 1.0, color = 0.0)
         for r in range(self.experiment_config.REPEATS):
-            for intensity_amplitude in self.intensities:
-                self.show_shape(shape = 'spot', 
+#            for intensity_amplitude in self.intensities:
+            self.show_shape(shape = 'spot', 
                                 duration = self.experiment_config.FLICKERING_TIME/1000.0,
                                 pos = utils.rc((0,0)), 
-                                color = intensity_amplitude, 
+                                color = self.intensities, 
                                 background_color = self.experiment_config.BACKGOUND_COLOR,
                                 size = self.experiment_config.SPOT_SIZE)
-                if self.abort:
+            if self.abort:
                     break
         self.show_fullscreen(duration = 0, color = 0.0)
