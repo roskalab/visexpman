@@ -11,11 +11,12 @@ import random
 
 class PolychromeExpConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.WAVELENGTH_RANGE_NAME = 'uv'
+        self.WAVELENGTH_RANGE_NAME = 's'
         self.WAVELENGTH_RANGES = {}
         self.WAVELENGTH_RANGES['uv'] = [330, 350, 370, 390, 410]
         self.WAVELENGTH_RANGES['m'] = [480, 500, 520, 540, 560]
         self.WAVELENGTH_RANGES['f'] = [340, 370, 405, 430, 455, 490, 520, 550]
+        self.WAVELENGTH_RANGES['s'] = [480, 520, 560]#short
         self.ON_TIME = 2.0
         self.OFF_TIME = 4.0
         self.INIT_DELAY = 4.0
@@ -24,31 +25,42 @@ class PolychromeExpConfig(experiment.ExperimentConfig):
 
 class PolychromeExperiment(experiment.Experiment):
     def prepare(self):
-        self.polychrome = polychrome_interface.Polychrome(self.machine_config)
-        self.shutter = instrument.Shutter(self.machine_config)
+        pass
 
     def run(self):
         self.show_fullscreen(duration = self.experiment_config.INIT_DELAY,  color = 0.0)
+        self.polychrome = polychrome_interface.Polychrome(self.machine_config)
+        if self.machine_config.ENABLE_SHUTTER:
+            self.shutter = instrument.Shutter(self.machine_config)
+        else:
+            self.polychrome.set_intensity(0.0)
         for wavelength in self.experiment_config.WAVELENGTH_RANGES[self.experiment_config.WAVELENGTH_RANGE_NAME]:
             self.printl('Setting wavelenght: {0}'.format(wavelength))
             if self.check_abort_pressed() or self.abort:
                 break
             self.polychrome.set_wavelength(wavelength)
             if self.machine_config.ENABLE_PARALLEL_PORT:
-                self.parallel.setData(self.machine_config.FRAME_TRIGGER_ON)
-            self.shutter.toggle()
+                self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 1)
+            if self.config.ENABLE_SHUTTER:
+                self.shutter.toggle()
+            else:
+                self.polychrome.set_intensity(1.0)
             time.sleep(self.experiment_config.ON_TIME)
             if self.check_abort_pressed() or self.abort:
                 break
             if self.machine_config.ENABLE_PARALLEL_PORT:
-                self.parallel.setData(self.machine_config.FRAME_TRIGGER_OFF)
-            self.shutter.toggle()
+                self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 0)
+            if self.config.ENABLE_SHUTTER:
+                self.shutter.toggle()
+            else:
+                self.polychrome.set_intensity(0.0)
             time.sleep(self.experiment_config.OFF_TIME)
         self.finish()
         
     def finish(self):
         self.polychrome.release_instrument()
-        self.shutter.release_instrument()
+        if self.machine_config.ENABLE_SHUTTER:
+            self.shutter.release_instrument()
 
 #
 #

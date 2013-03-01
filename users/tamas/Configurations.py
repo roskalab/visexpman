@@ -27,18 +27,20 @@ class InsermSetupConfig(VisionExperimentConfig):
         EXPERIMENT_LOG_PATH = LOG_PATH
         
         #=== screen ===
-        FULLSCREEN = not True
-        SCREEN_RESOLUTION = utils.cr([800,600])
+        FULLSCREEN = True
+        SCREEN_RESOLUTION = utils.cr([1024,768])
         COORDINATE_SYSTEM='center'        
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0#TO CALIBRATE
+        SCREEN_UM_TO_PIXEL_SCALE = 2.0#calibrated 01.03.2013
+        INSERT_FLIP_DELAY = True
+        FLIP_EXECUTION_TIME = -1e-3
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (os.name == 'nt')
-        ACQUISITION_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 3
+        ACQUISITION_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PIN = 1
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -71,14 +73,14 @@ class InsermSetupConfig(VisionExperimentConfig):
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = (self.OS == 'win')
         FILTERWHEEL_SERIAL_PORT = [{
-                                    'port' :  'COM1',
+                                    'port' :  'COM3',
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
                                     }, 
                                     {
-                                    'port' :  'COM3',
+                                    'port' :  'COM4',
                                     'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,

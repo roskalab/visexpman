@@ -17,6 +17,7 @@ class IncreasingSpotParameters(experiment.ExperimentConfig):
         self.ON_TIME = 2.0
         self.OFF_TIME = 4.0
         self.runnable = 'IncreasingSpotExperiment'
+        self.USER_FRAGMENT_NAME = 'FILENAME'
         self._create_parameters_from_locals(locals())
         
         

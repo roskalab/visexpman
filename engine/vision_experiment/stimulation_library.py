@@ -121,7 +121,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             frame_info['parameters'] = {}
             for arg in args:
                 if arg != 'self':
-                    frame_info['parameters'][arg] = values[arg]
+                    if values[arg] is None:
+                        frame_info['parameters'][arg] = ''
+                    else:
+                        frame_info['parameters'][arg] = values[arg]
             self.stimulus_frame_info.append(frame_info)
 
     def _frame_trigger_pulse(self):
@@ -457,7 +460,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         first_flip = False
         stop_stimulus = False
         start_time = time.time()
-        for frame_i in range(n_frames):
+        frame_i = 0
+        while True:
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if shape_type != 'annulus':
                 if hasattr(color,  'shape') and len(color.shape) ==2:
@@ -493,6 +497,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             if self.abort:
                 break
             if stop_stimulus:                
+                break
+            frame_i += 1
+            if duration != -1 and frame_i == n_frames:
                 break
         glDisableClientState(GL_VERTEX_ARRAY)        
         #Restore original background color

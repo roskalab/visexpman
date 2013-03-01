@@ -4,6 +4,7 @@ import ctypes
 import os.path
 import os
 import time
+import visexpman
 
 class Polychrome(instrument.Instrument):
     '''
@@ -14,7 +15,7 @@ class Polychrome(instrument.Instrument):
         Method for initialize the instrument
         '''
         if os.name == 'nt':
-            self.dllref = ctypes.WinDLL(os.path.join(self.config.BASE_PATH,'till','TILLPolychrome.dll'))
+            self.dllref = ctypes.WinDLL(os.path.join(os.path.split(visexpman.__file__)[0],'engine', 'external', 'till','TILLPolychrome.dll'))
             self.handle = ctypes.c_void_p()
             self.dllref.TILLPolychrome_Open(ctypes.pointer(self.handle),ctypes.c_int(0))
             self.bandwidth = 15.0

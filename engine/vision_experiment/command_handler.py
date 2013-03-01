@@ -15,6 +15,7 @@ from visexpman.engine.vision_experiment import screen
 from visexpman.engine.generic import utils
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.hardware_interface import stage_control
+from visexpman.engine.hardware_interface import instrument
 from visexpA.engine.datahandlers import hdf5io
 
 find_experiment_class_name = re.compile('class (.+)\(experiment.Experiment\)')
@@ -76,12 +77,16 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         return 'echo ' + str(result)
         
     def filterwheel(self, filterwheel_id = 1, filter_position = 1):
-        if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):            
-            filterwheel = instrument.Filterwheel(self.config, id = filterwheel_id)
-            filterwheel.set(filter_position)
-            if os.name == 'nt':
-                filterwheel.release_instrument()
-        return 'filterwheel ' + str(filterwheel_id) + ',  ' +str(filter_position)
+        if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):
+            try:
+                filterwheel = instrument.Filterwheel(self.config, id = int(filterwheel_id))
+                filterwheel.set(int(filter_position))
+                if os.name == 'nt':
+                    filterwheel.release_instrument()
+                return 'filterwheel ' + str(filterwheel_id) + ',  ' +str(filter_position)
+            except:
+                return 'filterwheel ' + str(filterwheel_id) + ',  ' +str(filter_position) + '\n' + str(traceback.format_exc())
+        
         
     def stage(self,par, new_x = 0, new_y = 0, new_z = 0):
         '''
