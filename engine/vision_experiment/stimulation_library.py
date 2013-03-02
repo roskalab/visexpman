@@ -199,7 +199,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 
     #== Various visual patterns ==
     
-    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, block_trigger = False, save_frame_info = True):
+    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, block_trigger = False, save_frame_info = True, frame_trigger = True):
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
@@ -229,7 +229,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     self._flip(trigger = True, count = count)
                 i += 1
         else:
-            for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
+            n_frames = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
+            for i in range(n_frames):
                 if i == 0:
                     self.log_on_flip_message = self.log_on_flip_message_initial
                 elif i == 1:
@@ -238,10 +239,16 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
-                    if i==0 or not block_trigger:
-                        self._flip(trigger = True)
+                    if block_trigger and i==0:
+                        self._flip(trigger = False)
+                        self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)            
+                    elif block_trigger and i == n_frames -1:
+                        self._flip(trigger = False)
+                        self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
+                    elif block_trigger:
+                        self._flip(trigger = False)
                     else:
-                        self._flip(trigger = False) 
+                        self._flip(trigger = frame_trigger)
                 if self.abort:
                     break
                     
@@ -489,11 +496,17 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
-            if flip:
-                if frame_i==0 or not block_trigger:
-                    self._flip(trigger = True)
+            if flip:                
+                if block_trigger and frame_i==0:
+                    self._flip(trigger = False)
+                    self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)            
+                elif block_trigger and frame_i == n_frames -1:
+                    self._flip(trigger = False)
+                    self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
+                elif block_trigger:
+                    self._flip(trigger = False)
                 else:
-                    self._flip(trigger = False) 
+                    self._flip(trigger = True)
             if self.abort:
                 break
             if stop_stimulus:                
@@ -980,15 +993,16 @@ class StimulationSequences(Stimulations):
                 self.trajectories.append(utils.calculate_trajectory(start_point,  end_point,  spatial_resolution))
                 self.diratspeed.append(direction)
         #Showshape can handle array of positions!!!!!!!!
+        #BLOCK TRIGGER????
         pass
         
-    def increasing_spot(self, spot_sizes, on_time, off_time, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0))):
-        self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) +')')
+    def increasing_spot(self, spot_sizes, on_time, off_time, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0)), block_trigger = True):
+        self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) + ', ' + str(block_trigger) + ')')
         self._save_stimulus_frame_info(inspect.currentframe())
-        self.show_fullscreen(duration = off_time, color = background_color, save_frame_info = False)
+        self.show_fullscreen(duration = off_time, color = background_color, save_frame_info = False, block_trigger = False, frame_trigger = not block_trigger)
         for size in spot_sizes:
-            self.show_shape(shape = 'o',  duration = on_time,  pos = pos,  color = color,  background_color = background_color,  size = size,  block_trigger = True, save_frame_info = False)
-            self.show_fullscreen(duration = off_time, color = background_color, save_frame_info = False)
+            self.show_shape(shape = 'o',  duration = on_time,  pos = pos,  color = color,  background_color = background_color,  size = size,  block_trigger = block_trigger, save_frame_info = False)
+            self.show_fullscreen(duration = off_time, color = background_color, save_frame_info = False, block_trigger = False, frame_trigger = not block_trigger)
             if self.abort:
                 break
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)

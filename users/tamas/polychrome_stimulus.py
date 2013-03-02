@@ -2,6 +2,7 @@ from visexpman.engine.generic import utils
 import visexpman.engine.vision_experiment.experiment as experiment
 from visexpman.engine.hardware_interface import polychrome_interface
 from visexpman.engine.hardware_interface import instrument
+from visexpman.engine.generic import colors
 import time
 import numpy
 import os.path
@@ -17,6 +18,7 @@ class PolychromeExpConfig(experiment.ExperimentConfig):
         self.WAVELENGTH_RANGES['m'] = [480, 500, 520, 540, 560]
         self.WAVELENGTH_RANGES['f'] = [340, 370, 405, 430, 455, 490, 520, 550]
         self.WAVELENGTH_RANGES['s'] = [480, 520, 560]#short
+        self.INTENSITY = 1.0 #0.1-1.0
         self.ON_TIME = 2.0
         self.OFF_TIME = 4.0
         self.INIT_DELAY = 4.0
@@ -28,7 +30,7 @@ class PolychromeExperiment(experiment.Experiment):
         pass
 
     def run(self):
-        self.show_fullscreen(duration = self.experiment_config.INIT_DELAY,  color = 0.0)
+        self.show_fullscreen(duration = self.experiment_config.INIT_DELAY,  color = 0.0, block_trigger = False, frame_trigger = False)
         self.polychrome = polychrome_interface.Polychrome(self.machine_config)
         if self.machine_config.ENABLE_SHUTTER:
             self.shutter = instrument.Shutter(self.machine_config)
@@ -39,12 +41,13 @@ class PolychromeExperiment(experiment.Experiment):
             if self.check_abort_pressed() or self.abort:
                 break
             self.polychrome.set_wavelength(wavelength)
+            self.show_fullscreen(duration = 0,  color = colors.wavlength2rgb(wavelength), block_trigger = False, frame_trigger = False)
             if self.machine_config.ENABLE_PARALLEL_PORT:
                 self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 1)
             if self.config.ENABLE_SHUTTER:
                 self.shutter.toggle()
             else:
-                self.polychrome.set_intensity(1.0)
+                self.polychrome.set_intensity(self.experiment_config.INTENSITY)
             time.sleep(self.experiment_config.ON_TIME)
             if self.check_abort_pressed() or self.abort:
                 break
@@ -54,6 +57,7 @@ class PolychromeExperiment(experiment.Experiment):
                 self.shutter.toggle()
             else:
                 self.polychrome.set_intensity(0.0)
+            self.show_fullscreen(duration = 0,  color = 0, block_trigger = False, frame_trigger = False)
             time.sleep(self.experiment_config.OFF_TIME)
         self.finish()
         
