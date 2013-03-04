@@ -979,22 +979,37 @@ class StimulationSequences(Stimulations):
     def moving_grating_stimulus(self):
         pass
         
-    def moving_shape(self, shape, size, speeds, directions, moving_range, pause):
+    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0,block_trigger = False):
+        self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')')
         if hasattr(size, 'dtype'):
-            shape_size = max(shape_size['row'], shape_size['col'])
+            shape_size = max(size['row'], size['col'])
         else:
             shape_size = size
+        if not (isinstance(speeds, list) or hasattr(speeds,'dtype')):
+            speeds = [speeds]
         self.movement = min(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
+        self._save_stimulus_frame_info(inspect.currentframe())
+        #Calculate axis factors
+        if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
+            vaf = 1
+        else:
+            vaf = -1
+        if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
+            haf = 1
+        else:
+            has = -1
         for spd in speeds:
             for direction in directions:
-                start_point = utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(direction)), 0.5 * self.movement * numpy.sin(numpy.radians(direction))))
-                end_point = utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(direction - 180.0))))
+                end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(vaf*direction)))), self.config.SCREEN_CENTER, operation = '+')
+                start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
                 spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                self.trajectories.append(utils.calculate_trajectory(start_point,  end_point,  spatial_resolution))
-                self.diratspeed.append(direction)
-        #Showshape can handle array of positions!!!!!!!!
-        #BLOCK TRIGGER????
-        pass
+                self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =vaf*direction , size = size,  block_trigger = block_trigger, save_frame_info = False)
+                if pause > 0:
+                    self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, block_trigger = False, frame_trigger = not block_trigger)
+                if self.abort:
+                    break
+        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, block_trigger = False, frame_trigger = not block_trigger)
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
     def increasing_spot(self, spot_sizes, on_time, off_time, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0)), block_trigger = True):
         self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) + ', ' + str(block_trigger) + ')')

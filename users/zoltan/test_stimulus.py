@@ -46,5 +46,4 @@ class DebugExperimentConfig(experiment.ExperimentConfig):
         
 class Debug(experiment.Experiment):
     def run(self):
-#         self.show_shape('o', size = 100, duration = 0.3)
-        self.show_grating(duration = 10.0, profile = 'sqr', orientation = 0, velocity = 500.0, white_bar_width = 100)
+        self.moving_shape(utils.rc((10.0,100.0)), 800, range(0,360,45), shape = 'rect', moving_range=utils.rc((0,0)), pause=1.0)

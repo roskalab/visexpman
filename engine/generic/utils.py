@@ -121,7 +121,7 @@ def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  col
 def rectangle_vertices(size, orientation = 0):
     alpha = numpy.arctan(float(size['row'])/float(size['col']))
     angles = numpy.array([alpha, numpy.pi - alpha, numpy.pi + alpha, - alpha])
-    angles -= orientation * numpy.pi / 180.0
+    angles += orientation * numpy.pi / 180.0
     half_diagonal = 0.5 * numpy.sqrt(size['row'] ** 2 + size['col'] ** 2)
     vertices = []
     for angle in angles:
@@ -417,9 +417,13 @@ def calculate_trajectory(start_point,  end_point,  spatial_resolution,  curve = 
         angle = numpy.arctan2(float(direction['row']), float(direction['col']))
         trajectory = []
         step_vector = cr((numpy.cos(angle) * step_size, numpy.sin(angle) * step_size))
+        trajectory_row = []
+        trajectory_col = []
         for step in range(number_of_steps):
-            trajectory.append(rc_add(start_point, rc_multiply_with_constant(step_vector, step)))
-        trajectory = numpy.array(trajectory)
+            p = rc_add(start_point, rc_multiply_with_constant(step_vector, step))
+            trajectory_row.append(float(p['row']))
+            trajectory_col.append(float(p['col']))
+        trajectory = rc(numpy.array([trajectory_row,trajectory_col]))
         return trajectory
         
     
