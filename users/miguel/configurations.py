@@ -17,10 +17,7 @@ class MVSSA(VisionExperimentConfig):
         PLATFORM = 'standalone'
         EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===
-        if self.OS == 'win':
-            v_drive_data_folder = 'C:\\Data'
-        else:
-            v_drive_data_folder = '/mnt/rznb'
+        v_drive_data_folder = 'C:\\Data'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = v_drive_data_folder
@@ -28,14 +25,14 @@ class MVSSA(VisionExperimentConfig):
 #        CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         
         #=== screen ===
-        FULLSCREEN = (self.OS == 'win')
+        FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([800,600])
 #        SCREEN_RESOLUTION = utils.cr([1024, 768])
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.65
+        SCREEN_UM_TO_PIXEL_SCALE = 1
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT =  False#(self.OS == 'win')
@@ -106,7 +103,7 @@ class MVS(VisionExperimentConfig):
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.65
+        SCREEN_UM_TO_PIXEL_SCALE = 0.45
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
@@ -143,13 +140,30 @@ class MVS(VisionExperimentConfig):
                     'ENABLE' :  False#(self.OS == 'win')
                     },
                     ]
+                    
+        ENABLE_FILTERWHEEL = True
+        FILTERWHEEL_SERIAL_PORT = [{
+                                    'port' :  'COM1',
+                                    'baudrate' : 9600,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }, 
+                                    {
+                                    'port' :  'COM4',
+                                    'baudrate' : 115200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }]
         gamma_corr_filename = 'c:\\visexp\\gamma.hdf5'
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction'))
         #=== Others ===
-        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
+        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
+                                    'next': {'key': 'n', 'domain': ['running experiment']},}
         self._create_parameters_from_locals(locals())
         
 if __name__ == "__main__":    
