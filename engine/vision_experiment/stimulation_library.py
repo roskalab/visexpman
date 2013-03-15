@@ -196,6 +196,16 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             index = id
         self.text_on_stimulus[index]['enable'] = False
 
+    def trigger_pulse(self, pin, width = None):
+        '''
+        Generates trigger pulses
+        '''
+        if width is None:
+            width = self.config.FRAME_TRIGGER_PULSE_WIDTH
+        if self.experiment_control_dependent and hasattr(self, 'parallel_port'):
+            self.parallel_port.set_data_bit(pin, 1, log = False)
+            time.sleep(width)
+            self.parallel_port.set_data_bit(pin, 0, log = False)
 
     #== Various visual patterns ==
     
@@ -998,6 +1008,7 @@ class StimulationSequences(Stimulations):
             haf = 1
         else:
             has = -1
+        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
         for spd in speeds:
             for direction in directions:
                 end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(vaf*direction)))), self.config.SCREEN_CENTER, operation = '+')
@@ -1005,10 +1016,10 @@ class StimulationSequences(Stimulations):
                 spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
                 self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =vaf*direction , size = size,  block_trigger = block_trigger, save_frame_info = False)
                 if pause > 0:
-                    self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, block_trigger = False, frame_trigger = not block_trigger)
+                    self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
                 if self.abort:
                     break
-        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, block_trigger = False, frame_trigger = not block_trigger)
+        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
     def increasing_spot(self, spot_sizes, on_time, off_time, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0)), block_trigger = True):

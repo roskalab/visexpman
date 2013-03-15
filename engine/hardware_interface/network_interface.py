@@ -10,9 +10,9 @@ import numpy
 try:
     import blosc
     import zmq
+    import simplejson
 except:
     pass
-import simplejson
 import os.path
 import sys
 import threading
