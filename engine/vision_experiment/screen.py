@@ -7,6 +7,8 @@ import time
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import colors
 from visexpman.engine.generic import graphics
+from visexpman.engine.generic import file
+import Image
 
 from OpenGL.GL import *#?
 from OpenGL.GLUT import *
@@ -33,6 +35,7 @@ class VisionExperimentScreen(graphics.Screen):
         self.message_to_screen = ['no message']
         self.hide_menu = False
         self.show_bullseye = False
+        self.bullseye_size = None
         #== Update text to screen ==
 #        self.refresh_non_experiment_screen()
         
@@ -44,9 +47,15 @@ class VisionExperimentScreen(graphics.Screen):
         
     def _display_bullseye(self):
         if self.show_bullseye:
-            #TODO: bullseye size
-            self.render_imagefile(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'), position = self.config.SCREEN_CENTER)
-            
+            if self.bullseye_size is None:
+                bullseye_path = os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp')
+            else:
+                self.bullseye_size_in_pixel = int(float(self.bullseye_size) * self.config.SCREEN_UM_TO_PIXEL_SCALE)
+                bullseye_path = file.get_tmp_file('bmp')
+                im = Image.open(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'))
+                im = im.resize((self.bullseye_size_in_pixel, self.bullseye_size_in_pixel))
+                im.save(bullseye_path)
+            self.render_imagefile(bullseye_path, position = self.config.SCREEN_CENTER)
         
     def _show_menu(self, flip = False):
         '''

@@ -56,8 +56,9 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
     def exit(self):
         self.quit()
         
-    def bullseye(self,  size = 0):
+    def bullseye(self,  size = 100):
         self.show_bullseye = not self.show_bullseye
+        self.bullseye_size = size
         return 'bullseye'
 
     def color(self, color):
