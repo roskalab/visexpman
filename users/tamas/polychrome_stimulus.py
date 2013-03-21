@@ -17,7 +17,10 @@ class PolychromeExpConfig(experiment.ExperimentConfig):
         self.WAVELENGTH_RANGES['uv'] = [330, 350, 370, 390, 410]
         self.WAVELENGTH_RANGES['m'] = [480, 500, 520, 540, 560]
         self.WAVELENGTH_RANGES['f'] = [340, 370, 405, 430, 455, 490, 520, 550]
-        self.WAVELENGTH_RANGES['s'] = [480, 520, 560]#short
+        self.WAVELENGTH_RANGES['s'] = [[480, 1.0],  [520,  0.5],  [560, 0.7]]
+        self.USE_GLOBAL_INTENSITY = False
+        self.WAVELENGTH_SHUTTERING = False
+        self.OFF_WAVELENGTH = 500.0
         self.INTENSITY = 1.0 #0.1-1.0
         self.ON_TIME = 2.0
         self.OFF_TIME = 4.0
@@ -34,9 +37,16 @@ class PolychromeExperiment(experiment.Experiment):
         self.polychrome = polychrome_interface.Polychrome(self.machine_config)
         if self.machine_config.ENABLE_SHUTTER:
             self.shutter = instrument.Shutter(self.machine_config)
+        elif self.experiment_config.WAVELENGTH_SHUTTERING:
+            self.polychrome.set_wavelength(self.experiment_config.OFF_WAVELENGTH)
         else:
             self.polychrome.set_intensity(0.0)
-        for wavelength in self.experiment_config.WAVELENGTH_RANGES[self.experiment_config.WAVELENGTH_RANGE_NAME]:
+        for wl_config in self.experiment_config.WAVELENGTH_RANGES[self.experiment_config.WAVELENGTH_RANGE_NAME]:
+            if isinstance(wl_config, list):
+                wavelength = wl_config[0]
+                intensity = wl_config[1]
+            else:
+                wavelength = wl_config
             self.printl('Setting wavelenght: {0}'.format(wavelength))
             if self.check_abort_pressed() or self.abort:
                 break
@@ -44,17 +54,24 @@ class PolychromeExperiment(experiment.Experiment):
             self.show_fullscreen(duration = 0,  color = colors.wavlength2rgb(wavelength), block_trigger = False, frame_trigger = False)
             if self.machine_config.ENABLE_PARALLEL_PORT:
                 self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 1)
+            #Open shutter
             if self.config.ENABLE_SHUTTER:
                 self.shutter.toggle()
             else:
-                self.polychrome.set_intensity(self.experiment_config.INTENSITY)
+                if self.experiment_config.USE_GLOBAL_INTENSITY:
+                    self.polychrome.set_intensity(self.experiment_config.INTENSITY)
+                else:
+                    self.polychrome.set_intensity(intensity)
             time.sleep(self.experiment_config.ON_TIME)
             if self.check_abort_pressed() or self.abort:
                 break
+            #close shutter
             if self.machine_config.ENABLE_PARALLEL_PORT:
                 self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 0)
             if self.config.ENABLE_SHUTTER:
                 self.shutter.toggle()
+            elif self.experiment_config.WAVELENGTH_SHUTTERING:
+                self.polychrome.set_wavelength(self.experiment_config.OFF_WAVELENGTH)
             else:
                 self.polychrome.set_intensity(0.0)
             self.show_fullscreen(duration = 0,  color = 0, block_trigger = False, frame_trigger = False)

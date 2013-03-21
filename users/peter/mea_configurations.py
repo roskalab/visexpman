@@ -69,7 +69,6 @@ class MEASetup(VisionExperimentConfig):#Hierlemann machine config
               
 class OldMeaSetup(VisionExperimentConfig): #David machine config
     def _set_user_parameters(self):
-        EXPERIMENT_CONFIG = 'SpotFullParameters'
         PLATFORM = 'mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===

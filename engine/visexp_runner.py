@@ -64,7 +64,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             self.keyboard_command_queue.put('SOCexecute_experimentEOCEOP')
             self.keyboard_command_queue.put('SOCquitEOCEOP')
         #Select and instantiate stimulus as specified in machine config, This is necessary to ensure that pre-experiment will run immediately after startup
-        if len(self.experiment_config_list) > 0 and hasattr(self.config,'EXPERIMENT_CONFIG'):
+        if len(self.experiment_config_list) > 0 and hasattr(self.config,'EXPERIMENT_CONFIG') and self.config.EXPERIMENT_CONFIG != '' and self.config.EXPERIMENT_CONFIG != None:
             try:
                 self.experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self.queues, self.connections, self.log)
             except IndexError:
