@@ -95,6 +95,7 @@ class OldMeaSetup(VisionExperimentConfig): #David machine config
         ACQUISITION_STOP_PIN = 4 # THIS IS FOR STOP THE RECORDING; not physical pin but data port
         FRAME_TRIGGER_PIN = 5 # THIS IS IMPORTANT FOR STIM OPTICS; not physical pin but data port
         USER_PIN = [6, [0,8]]
+        # valt user pin 5 frame trigger 6 aztan vissza
         # classical parallel port pin numbering
         
         #=== network ===
@@ -129,11 +130,11 @@ class OldMeaSetup(VisionExperimentConfig): #David machine config
                     ]
         #=== Others ===
         USER_EXPERIMENT_COMMANDS = {'next': {'key': 'l', 'domain': ['running experiment']}, }
-        gamma_corr_filename = 'c:\\visexp\\gamma.hdf5'
+        gamma_corr_filename = 'c:\\visexp\\data\\gamma.hdf5'
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io
             import copy
-            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction'))
+            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction', filelocking=False))
         self._create_parameters_from_locals(locals())
             
 class PetersConfig(VisionExperimentConfig):

@@ -27,7 +27,7 @@ class LightMeter(instrument.Instrument):
             raise RuntimeError('Device not supported: {0}'.format(id))
         self.vi.write('STAT:OPER:PTR 512')
         self.vi.write('STAT:OPER:NTR 0')
-        self.vi.write('SENS:CURR:RANG 5.500000E-5')
+        self.vi.write('SENS:CURR:RANG 1.400000E-2')
         self.vi.write('SENS:CORR:WAV 500')
         if hasattr(self.config, 'LIGHT_METER'):
             avg = self.config.LIGHT_METER['AVERAGING']

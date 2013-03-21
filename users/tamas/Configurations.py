@@ -27,7 +27,7 @@ class InsermSetupConfig(VisionExperimentConfig):
         EXPERIMENT_LOG_PATH = LOG_PATH
         
         #=== screen ===
-        FULLSCREEN = True
+        FULLSCREEN = not True#TMP1
         SCREEN_RESOLUTION = utils.cr([1024,768])
         COORDINATE_SYSTEM='center'        
         ENABLE_FRAME_CAPTURE = False

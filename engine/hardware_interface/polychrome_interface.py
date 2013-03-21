@@ -59,7 +59,7 @@ from visexpman.engine.vision_experiment import configuration
 class PolyTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):     
         COORDINATE_SYSTEM='center'   
-        BASE_PATH = 'c:\\visexp\\visexpman\\engine\\external\\'
+        
         self._create_parameters_from_locals(locals())
             
 class TestPolychrome(unittest.TestCase):

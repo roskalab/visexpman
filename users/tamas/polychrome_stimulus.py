@@ -19,7 +19,7 @@ class PolychromeExpConfig(experiment.ExperimentConfig):
         self.WAVELENGTH_RANGES['f'] = [340, 370, 405, 430, 455, 490, 520, 550]
         self.WAVELENGTH_RANGES['s'] = [[480, 1.0],  [520,  0.5],  [560, 0.7]]
         self.USE_GLOBAL_INTENSITY = False
-        self.WAVELENGTH_SHUTTERING = False
+        self.WAVELENGTH_SHUTTERING = True
         self.OFF_WAVELENGTH = 500.0
         self.INTENSITY = 1.0 #0.1-1.0
         self.ON_TIME = 2.0
@@ -39,6 +39,7 @@ class PolychromeExperiment(experiment.Experiment):
             self.shutter = instrument.Shutter(self.machine_config)
         elif self.experiment_config.WAVELENGTH_SHUTTERING:
             self.polychrome.set_wavelength(self.experiment_config.OFF_WAVELENGTH)
+            self.polychrome.set_intensity(0.0)
         else:
             self.polychrome.set_intensity(0.0)
         for wl_config in self.experiment_config.WAVELENGTH_RANGES[self.experiment_config.WAVELENGTH_RANGE_NAME]:
@@ -72,6 +73,7 @@ class PolychromeExperiment(experiment.Experiment):
                 self.shutter.toggle()
             elif self.experiment_config.WAVELENGTH_SHUTTERING:
                 self.polychrome.set_wavelength(self.experiment_config.OFF_WAVELENGTH)
+                self.polychrome.set_intensity(0.0)
             else:
                 self.polychrome.set_intensity(0.0)
             self.show_fullscreen(duration = 0,  color = 0, block_trigger = False, frame_trigger = False)

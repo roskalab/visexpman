@@ -95,9 +95,10 @@ class ContrastSpotParameters(experiment.ExperimentConfig): # this is an exp conf
         self.POSITION = utils.rc((0,0)) # nice rc needs utils, ref to items: self.POSITION['row'], self.POSITION['col']
         
         self.RADIUS=240 #300
-        self.SPOTC=[0.775, 0.69, 0.81, 0.64, 0.87, 0.58, 0.91, 0.45, 1.0, 0.0]
-                  #[0.6,   0.4,  0.7,  0.3,  0.8,  0.2,  0.9,  0.1,  1.0, 0.0]
-        self.BGCOL=0.74  #0.5
+        self.SPOTC=                 [0.58, 0.67,     0.5, 0.73,     0.45, 0.81,     0.38,  1.0]
+                  #      Michelson: [0.15,0.15;      0.3,0.3;       0.45,0.45;      0.6, 0.6]
+                  #real intensities:[0.195, 0.34;    0.13, 0.47;    0.095, 0.66;    0.06, 1.0]
+        self.BGCOL=0.62  #0.25
         self.RADIUSinf=4000 #infty
         self.HIGHTIME=2.0
         self.LOWTIME=6.0
@@ -176,7 +177,7 @@ class SpeedyShapeParameters(experiment.ExperimentConfig): # this is an exp confi
         self.SHAPE_COLOR = 1.0
         self.SHAPE_BACKGROUND = 0.0
         self.SHAPE_SIZE = utils.rc((480, 240)) #row col at 0 dir px 600 x 300 um !!!
-        self.DIRECTIONS = [0]#, 45, 90, 135, 180, 225, 270, 315, 360] #degree
+        self.DIRECTIONS = [0, 180]#, 45, 90, 135, 180, 225, 270, 315, 360] #degree
         self.SPEED = [80, 240, 640] #px/s that is in u/s 100 300 800
         self.PAUSE_BETWEEN_DIRECTIONS = 1.0
         self.runnable = 'MovingShapeExperiment'     # compulsory write here the name of the expt class   
@@ -189,7 +190,7 @@ class OctoShapeParameters(experiment.ExperimentConfig): # this is an exp config,
         self.SHAPE_COLOR = 1.0
         self.SHAPE_BACKGROUND = 0.0
         self.SHAPE_SIZE = utils.rc((480, 240)) #row col at 0 dir px 600 x 300 um !!!
-        self.DIRECTIONS = range(0, 360, 45) #[0, 90, 180, 270, 360]  #[0, 45, 90, 135, 180, 225, 270, 315, 360] #degree
+        self.DIRECTIONS = range(0, 360, 45) #[0, 45, 90, 135, 180, 225, 270, 315, 360] #degree
         self.SPEED = [640] #px/s that is in u/s 800
         self.PAUSE_BETWEEN_DIRECTIONS = 1.0
         self.runnable = 'MovingShapeExperiment'     # compulsory write here the name of the expt class   

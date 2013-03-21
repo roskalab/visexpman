@@ -61,9 +61,9 @@ class ProjectorCalibrationSetup(VisionExperimentConfig):
         
 class ProjectorCalibrationParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.CALIBRATION_POINTS = 60
+        self.CALIBRATION_POINTS = 100
         self.SETTLING_TIME = 1.0
-        self.REPEATS = 3
+        self.REPEATS = 2
         self.INTENSITY_RANGE = [0.0, 1.0]
         self.SAMPLES_PER_STEP = 10
         self.runnable = 'ProjectorCalibration'        
@@ -100,6 +100,7 @@ class ProjectorCalibration(experiment.Experiment):
         else:
             self.projector_calibration(intensity_range = self.experiment_config.INTENSITY_RANGE, 
                                   npoints = self.experiment_config.CALIBRATION_POINTS, time_per_point = self.experiment_config.SETTLING_TIME, repeats = self.experiment_config.REPEATS)
+        time.sleep(0.5)
         if hasattr(self, 'lightmeter'):
             self.lightmeter.release_instrument()
             
@@ -130,6 +131,12 @@ class ProjectorCalibration(experiment.Experiment):
         data['raw_gamma_correction']=h.raw_gamma_correction
         data['gamma_correction']=h.gamma_correction
         scipy.io.savemat(os.path.join(os.path.split(output_file)[0], 'gamma.mat'), data, oned_as = 'column')
+        data2txt = data['gamma_correction']
+        normalized_intensity = data2txt[:,1]/data2txt[:,1].max()
+        data2txt = data2txt.T.tolist()
+        data2txt.append(normalized_intensity.tolist())
+        if not getattr(argparser.parse_args(), 'test_calibration'):
+            numpy.savetxt(os.path.join(os.path.split(output_file)[0], 'gamma.txt'), numpy.array(data2txt).T, fmt = '%2.9f')
         h.close()
         
         if not getattr(argparser.parse_args(), 'test_calibration'):
