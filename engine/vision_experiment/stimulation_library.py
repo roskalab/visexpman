@@ -774,7 +774,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
         angles = angles - orientation_rad
         diagonal = numpy.sqrt((display_area_adjusted **2).sum())
-        vertices = 0.5 * diagonal * numpy.array([numpy.sin(angles), numpy.cos(angles)])
+        vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
         vertices = vertices.transpose()
         vertices = vertices + numpy.array([pos_adjusted])
         glEnableClientState(GL_VERTEX_ARRAY)
