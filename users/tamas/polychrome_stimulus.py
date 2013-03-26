@@ -52,7 +52,7 @@ class PolychromeExperiment(experiment.Experiment):
                 if isinstance(wl_config, list):
                     wavelength = wl_config[0]
                     intensity = wl_config[1]
-                else:polychrome_stimulus.py
+                else:
                     wavelength = wl_config
                 if self.check_abort_pressed() or self.abort:
                     break
