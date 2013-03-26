@@ -12,7 +12,7 @@ import random
 
 class PolychromeExpConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.WAVELENGTH_RANGE_NAME = 't'
+        self.WAVELENGTH_RANGE_NAME = 's'
         self.WAVELENGTH_RANGES = {}
         self.WAVELENGTH_RANGES['uv'] = [330, 350, 370, 390, 410]
         self.WAVELENGTH_RANGES['m'] = [480, 500, 520, 540, 560]
@@ -23,11 +23,11 @@ class PolychromeExpConfig(experiment.ExperimentConfig):
         self.WAVELENGTH_SHUTTERING = not True
         self.OFF_WAVELENGTH = 680.0
         self.RESTING_WAVELENGTH = 680.0
-        self.INTENSITY = 0.1 #0.1-1.0
+        self.INTENSITY = 1.0 #0.1-1.0
         self.ON_TIME = 2.0
         self.OFF_TIME = 4.0
         self.INIT_DELAY = 4.0
-        self.REPEAT = 10
+        self.REPEAT = 1
         self.runnable = 'PolychromeExperiment'
         self._create_parameters_from_locals(locals())
 
@@ -65,10 +65,10 @@ class PolychromeExperiment(experiment.Experiment):
                         self.polychrome.set_intensity(self.experiment_config.INTENSITY)
                     else:
                         self.polychrome.set_intensity(intensity)
-                self.printl('Setting wavelenght: {0}'.format(wavelength))
-                self.show_fullscreen(duration = 0,  color = colors.wavlength2rgb(wavelength), block_trigger = False, frame_trigger = False)
                 if self.machine_config.ENABLE_PARALLEL_PORT:
                     self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 1)
+                self.printl('Setting wavelenght: {0}'.format(wavelength))
+                self.show_fullscreen(duration = 0,  color = colors.wavlength2rgb(wavelength), block_trigger = False, frame_trigger = False)
                 time.sleep(self.experiment_config.ON_TIME)
                 if self.check_abort_pressed() or self.abort:
                     break
