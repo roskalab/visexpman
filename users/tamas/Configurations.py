@@ -111,6 +111,14 @@ class InsermSetupConfig(VisionExperimentConfig):
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
         self._create_parameters_from_locals(locals())
         
-        
+class TestSetupConfig(InsermSetupConfig):
+    '''
+    '''
+    def _set_user_parameters(self):
+        InsermSetupConfig._set_user_parameters(self)
+        ENABLE_UDP = False
+        self._create_parameters_from_locals(locals())
+
+
 if __name__ == "__main__":
     pass

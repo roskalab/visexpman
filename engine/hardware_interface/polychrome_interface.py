@@ -23,7 +23,13 @@ class Polychrome(instrument.Instrument):
         else:
             print 'Polychrome not supported on this OS'
         
-    def set_wavelength(self, wavelength):
+    def set_wavelength(self, wavelength, duration = 0.01,  blocking = False):
+        if os.name == 'nt':
+            self.dllref.TILLPolychrome_SetWavelength(self.handle,ctypes.c_double(float(wavelength)), ctypes.c_double(float(duration*1000)), ctypes.c_bool(False))
+            if blocking:
+                time.sleep(duration)
+            
+    def set_resting_wavelength(self, wavelength):
         if os.name == 'nt':
             self.dllref.TILLPolychrome_SetRestingWavelength(self.handle,ctypes.c_double(float(wavelength)))
         
@@ -80,15 +86,15 @@ class TestPolychrome(unittest.TestCase):
 #         time.sleep(1.0)
 #         p.set_wavelength(500)
 #         time.sleep(1.0)
-        p.set_wavelength(600)
-        time.sleep(1.0)
-        p.set_intensity(0.0)
-        time.sleep(1.0)
-        p.set_intensity(1.0)
-        time.sleep(1.0)
-        p.set_intensity(0.5)
-        time.sleep(1.0)
-        p.set_intensity(0.0)
+        p.set_wavelength(480, duration = 1.0)
+#        time.sleep(1.0)
+#        p.set_intensity(0.0)
+#        time.sleep(1.0)
+#        p.set_intensity(1.0)
+#        time.sleep(1.0)
+#        p.set_intensity(0.5)
+#        time.sleep(1.0)
+#        p.set_intensity(0.0)
         p.release_instrument()
 
 if __name__ == "__main__":

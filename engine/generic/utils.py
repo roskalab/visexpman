@@ -22,6 +22,10 @@ import file
 
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
+######## Signals  ########
+def signal2binary(signal):
+    return numpy.where(signal > numpy.histogram(signal)[1][-2],  True,  False)
+
 #== Coordinate geometry ==
 #TODO: check for redundant functions in this section
 def roi_center(roi):
