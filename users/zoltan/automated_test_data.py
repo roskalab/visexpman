@@ -78,15 +78,17 @@ class StandaloneExperiment(experiment.Experiment):
         self.parallel_port.set_data_bit(1, 0)
         filter = int(5 * random.Random().random()) + 1
         time.sleep(0.2)
-        self.filterwheels[0].set(filter)
+        if unit_test_runner.TEST_filterwheel:
+            self.filterwheels[0].set(filter)
         #generate pulses        
         offsets = [0, 0.2, 0.5]
         pulse_widths = [0.1,  0.1,  0.1]
         amplitudes = [2.0, 2.0, 2.0]
         duration = 1.0
-        self.led_controller.set([[offsets, pulse_widths, amplitudes], [offsets, pulse_widths, amplitudes]], duration)
-        self.led_controller.start()
-        self.led_controller.release_instrument()
+        if unit_test_runner.TEST_daq:
+            self.led_controller.set([[offsets, pulse_widths, amplitudes], [offsets, pulse_widths, amplitudes]], duration)
+            self.led_controller.start()
+            self.led_controller.release_instrument()
         #Test frame rate
         duration = self.experiment_config.DURATION
         self.t0 = time.time()
@@ -390,7 +392,8 @@ class VisualStimulationsExperiment(experiment.Experiment):
         self.add_text('TEST', color = (0.0,  0.0,  1.0), position = utils.cr((200.0, 100.0)))
         self.show_shape(shape = 'r', size = utils.rc((100.0, 200)), color = [1.0, 0.0,0.0], orientation = 10)
         self.disable_text()
-        self.show_shape(shape = 'a', size = utils.rc((100.0, 200)), ring_size = 10.0)        
+        self.show_shape(shape = 'a', size = utils.rc((100.0, 200)), ring_size = 10.0)
+        pass
 
 #== Stage test experiment ==
 class StageExperimentTestConfig(configuration.VisionExperimentConfig):

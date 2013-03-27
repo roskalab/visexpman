@@ -1,14 +1,16 @@
-from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
-from visexpman.engine.generic import utils
-import visexpman.engine.vision_experiment.experiment as experiment
 import time
 import numpy
 import serial
-import visexpman
 import os.path
 import os
-import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+
+import visexpman
+from visexpman.engine import visexp_runner
+from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
+from visexpman.engine.generic import utils
+from visexpman.engine.vision_experiment import experiment
+from visexpman.engine.hardware_interface import daq_instrument
+from visexpman.users.zoltan.test import unit_test_runner
 
 class WDC(VisionExperimentConfig):
     '''
@@ -46,4 +48,19 @@ class DebugExperimentConfig(experiment.ExperimentConfig):
         
 class Debug(experiment.Experiment):
     def run(self):
-        self.moving_shape(utils.rc((10.0,100.0)), 800, range(0,360,45), shape = 'rect', moving_range=utils.rc((0,0)), pause=1.0)
+        self.show_grating(duration = 5.0,  
+            white_bar_width = 100,  
+            display_area = utils.rc((100,200)),
+            orientation = 45,  
+            pos = utils.rc((100,100)),
+            velocity = 100,  
+            duty_cycle = 1.0)
+        self.show_grating(duration = 5.0,  
+            white_bar_width = 100,  
+            orientation = 90,  
+            velocity = 100,  
+            duty_cycle = 1.0)
+            
+if __name__ == "__main__":
+    v = visexp_runner.VisionExperimentRunner('zoltan',  'SwDebugConfig')
+    v.run_experiment(user_experiment_config = 'DebugExperimentConfig')

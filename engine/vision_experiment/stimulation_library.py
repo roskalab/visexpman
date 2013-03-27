@@ -770,9 +770,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             display_area_adjusted[1] = self.config.SCREEN_RESOLUTION['row'] * abs(math.cos(orientation_rad)) + self.config.SCREEN_RESOLUTION['col'] * abs(math.sin(orientation_rad))        
         #calculate vertices of display area
         #angles between diagonals
-        alpha = numpy.arctan(display_area_adjusted[0]/display_area_adjusted[1])
+        alpha = numpy.arctan(display_area_adjusted[1]/display_area_adjusted[0])
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
-        angles = angles - orientation_rad
+        angles = angles + orientation_rad
         diagonal = numpy.sqrt((display_area_adjusted **2).sum())
         vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
         vertices = vertices.transpose()
@@ -805,9 +805,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         #calculate grating profile period from spatial frequency
         period = int(bar_width * (1.0 + duty_cycle))
         #modify profile length so that the profile will contain integer number of repetitions
-        repetitions = numpy.ceil(display_area_adjusted[0]/period)
+        repetitions = numpy.ceil(display_area_adjusted[1]/period)
         profile_length = period * repetitions
-        cut_off_ratio = display_area_adjusted[0]/profile_length
+        cut_off_ratio = display_area_adjusted[1]/profile_length
         profile_length = int(profile_length)
         waveform_duty_cycle = 1.0 / (1.0 + duty_cycle)
         stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle)
@@ -834,6 +834,14 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                              [cut_off_ratio, 0.0],
                              [0.0, 0.0],
                              [0.0, 1.0],
+                             ])
+                             
+        texture_coordinates = numpy.array(
+                             [
+                             [1.0, cut_off_ratio],
+                             [0.0, cut_off_ratio],
+                             [0.0, 0.0],
+                             [1.0, 0.0],
                              ])
                                      
         glTexCoordPointerf(texture_coordinates)

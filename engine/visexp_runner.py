@@ -319,7 +319,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
         else:
             frame_rate_tolerance = 0.2
         #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
-        
+                        
         self.assertEqual(
                         (self.check_application_log(v), 
                         'Abort pressed' in log, 
@@ -336,7 +336,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
                         v.experiment_config.__class__, 
                         (frame_rate < expected_frame_rate + frame_rate_tolerance and frame_rate > expected_frame_rate - frame_rate_tolerance) and unit_test_runner.TEST_consider_frame_rate
                         ),
-                        (True, True, True, True, True, True, True, True, True, True, 
+                        (True, True, True, True, True, True, True, unit_test_runner.TEST_daq, unit_test_runner.TEST_daq, True, 
                         visexpman.users.zoltan.automated_test_data.StandaloneConfig,
                        'zoltan',
                        visexpman.users.zoltan.automated_test_data.StandaloneExperimentConfig, 

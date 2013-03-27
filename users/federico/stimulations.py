@@ -29,11 +29,11 @@ class IntrinsicProtocol(experiment.Experiment):
         ]
         for position in positions:
             self.show_grating(duration = self.experiment_config.DURATION,  
-            white_bar_width = self.experiment_config.GRATING_SIZE,  
-            display_area = self.experiment_config.MASK_SIZE,
-            orientation = 0,  
-            velocity = self.experiment_config.SPEED,  
-            color_contrast = 1.0,  
-            color_offset = 0.5,  
-            pos = position,
-            duty_cycle = self.experiment_config.DUTY_CYCLE)
+                white_bar_width = self.experiment_config.GRATING_SIZE,  
+                display_area = self.experiment_config.MASK_SIZE,
+                orientation = 0,  
+                velocity = self.experiment_config.SPEED,  
+                color_contrast = 1.0,  
+                color_offset = 0.5,  
+                pos = position,
+                duty_cycle = self.experiment_config.DUTY_CYCLE)
