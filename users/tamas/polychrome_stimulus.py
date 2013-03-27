@@ -28,6 +28,7 @@ class PolychromeExpConfig(experiment.ExperimentConfig):
         self.OFF_TIME = 4.0
         self.INIT_DELAY = 4.0
         self.REPEAT = 1
+        self.SHOW_COLORS_ON_PROJECTOR  = False
         self.runnable = 'PolychromeExperiment'
         self._create_parameters_from_locals(locals())
 
@@ -68,7 +69,8 @@ class PolychromeExperiment(experiment.Experiment):
                 if self.machine_config.ENABLE_PARALLEL_PORT:
                     self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 1)
                 self.printl('Setting wavelenght: {0}'.format(wavelength))
-                self.show_fullscreen(duration = 0,  color = colors.wavlength2rgb(wavelength), block_trigger = False, frame_trigger = False)
+                if self.experiment_config.SHOW_COLORS_ON_PROJECTOR:
+                    self.show_fullscreen(duration = 0,  color = colors.wavlength2rgb(wavelength), block_trigger = False, frame_trigger = False)
                 time.sleep(self.experiment_config.ON_TIME)
                 if self.check_abort_pressed() or self.abort:
                     break
