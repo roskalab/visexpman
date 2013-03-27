@@ -725,7 +725,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             show_grating(duration = 3.0, profile = 'sin', display_area = (500, 500), starting_phase = 10, velocity = 100, white_bar_width = 200)
         3) Show grating with sawtooth profile on a 500x500 area where the color contrast is light red and the color offset is light blue
             show_grating(duration = 3.0, profile = 'saw', velocity = 100, white_bar_width = 200, color_contrast = [1.0,0.0,0.0], color_offset = [0.0,0.0,1.0]) 
-        """        
+        """
         if white_bar_width == -1:
             bar_width = self.config.SCREEN_RESOLUTION['col'] * self.config.SCREEN_UM_TO_PIXEL_SCALE
         else:
@@ -818,8 +818,18 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if hasattr(self.config, 'GAMMA_CORRECTION'):
             stimulus_profile = self.config.GAMMA_CORRECTION(stimulus_profile)
         
+        if duration == 0.0:
+            number_of_frames = 1
+        else:
+            number_of_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         ######### Calculate texture phase shift per frame value ######
-        pixel_velocity = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / float(stimulus_profile.shape[0])
+        if hasattr(velocity, 'dtype'):
+            pixel_velocities = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / float(stimulus_profile.shape[0])
+        else:
+            pixel_velocity = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / float(stimulus_profile.shape[0])
+            pixel_velocities = numpy.ones(number_of_frames)*pixel_velocity
+        pixel_velocities = numpy.interp(
+                                        numpy.arange(number_of_frames)/float(number_of_frames), numpy.arange(pixel_velocities.shape[0])/float(pixel_velocities.shape[0]), pixel_velocities)
         #== Generate texture  
         texture = stimulus_profile
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
@@ -846,16 +856,12 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                                      
         glTexCoordPointerf(texture_coordinates)
         
-        #== Send opengl commands ==
-        if duration == 0.0:
-            number_of_frames = 1
-        else:
-            number_of_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         start_time = time.time()
 #         pixel_velocity= -1.5/stimulus_profile.shape[0]
 #         number_of_frames = int(numpy.sqrt(800**2+600**2)/1.5)
+        phase = 0
         for i in range(number_of_frames):
-            phase = pixel_velocity * i            
+            phase += pixel_velocities[i]
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
             if not part_of_drawing_sequence:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)

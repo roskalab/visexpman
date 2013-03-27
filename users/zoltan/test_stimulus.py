@@ -48,6 +48,12 @@ class DebugExperimentConfig(experiment.ExperimentConfig):
         
 class Debug(experiment.Experiment):
     def run(self):
+        self.show_grating(duration = 20.0,  
+            white_bar_width = 100,  
+            orientation = 90,  
+            velocity = numpy.array([400,0]), 
+            duty_cycle = 8.0)
+        return
         self.show_grating(duration = 5.0,  
             white_bar_width = 100,  
             display_area = utils.rc((100,200)),

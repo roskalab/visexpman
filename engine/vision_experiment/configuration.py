@@ -142,6 +142,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ####### Pixel scaling #################
         IMAGE_PROJECTED_ON_RETINA = True
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #converts um to pixel [pixel/um]
+        VISUAL_ANGLE_TO_UM_SCALE = [300.0/10.0, [0, 10000]]#300 um corresponds to 10 degrees of visual field
         
         ########## Commands #############
         COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
