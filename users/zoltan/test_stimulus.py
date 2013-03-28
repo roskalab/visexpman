@@ -48,7 +48,8 @@ class DebugExperimentConfig(experiment.ExperimentConfig):
         
 class Debug(experiment.Experiment):
     def run(self):
-        self.show_grating(duration = 20.0,  
+        self.show_shape(shape='r', color = numpy.array([[1.0, 0.5]]).T, duration = 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, size = utils.cr((100.0, 100.0)),pos = utils.cr(numpy.array([[0,100], [0, 100]])))
+        self.show_grating(duration = 2.0,  
             white_bar_width = 100,  
             orientation = 90,  
             velocity = numpy.array([400,0]), 

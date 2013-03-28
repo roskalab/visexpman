@@ -393,6 +393,9 @@ class VisualStimulationsExperiment(experiment.Experiment):
         self.show_shape(shape = 'r', size = utils.rc((100.0, 200)), color = [1.0, 0.0,0.0], orientation = 10)
         self.disable_text()
         self.show_shape(shape = 'a', size = utils.rc((100.0, 200)), ring_size = 10.0)
+        self.show_shape(shape='r', color = numpy.array([[1.0, 0.75, 0.5, 0.5]]).T, duration = 4.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, size = utils.cr((100.0, 100.0)),pos = utils.cr(numpy.array([[0,100, 0, 10], [0, 100, 100, 10]])))
+        self.increasing_spot([100,200], 1.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, 1.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0)))
+        self.moving_shape(100, [500*60], [45])
         pass
 
 #== Stage test experiment ==
