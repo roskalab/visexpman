@@ -10,12 +10,11 @@ from visexpman.engine.generic import file
 class CaImagingTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
-        self.root_folder = '/mnt/datafast/'
+        self.root_folder = '/mnt/databig/'
         LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_FILE_FORMAT = 'hdf5'
-        
         #### experiment specific ####
         PARSE_PERIOD = 0.1
         

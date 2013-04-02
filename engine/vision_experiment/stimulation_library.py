@@ -52,8 +52,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         
         #Command buffer for keyboard commands during experiment
         self.command_buffer = ''
-
-    def _flip(self,  trigger = False,  saveFrame = False, count = True):
+        
+    def _flip(self,  trigger = False, count = True):
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
         """        
@@ -82,6 +82,18 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if trigger:
             self._frame_trigger_pulse()
         self.check_abort_pressed()
+        
+    def _flip_and_block_trigger(self, frame_i, n_frames, frame_trigger, block_trigger):
+        if block_trigger and frame_i==0:
+            self._flip(trigger = frame_trigger)
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)            
+        elif block_trigger and frame_i == n_frames -1:
+            self._flip(trigger = frame_trigger)
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
+        elif block_trigger:
+            self._flip(trigger = frame_trigger)
+        else:
+            self._flip(trigger = frame_trigger)
             
     def check_abort_pressed(self):
         command = screen.check_keyboard() #Here only commands with running experiment domain are considered
@@ -249,16 +261,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
-                    if block_trigger and i==0:
-                        self._flip(trigger = False)
-                        self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)            
-                    elif block_trigger and i == n_frames -1:
-                        self._flip(trigger = False)
-                        self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
-                    elif block_trigger:
-                        self._flip(trigger = False)
-                    else:
-                        self._flip(trigger = frame_trigger)
+                    self._flip_and_block_trigger(i, n_frames, frame_trigger, block_trigger)
                 if self.abort:
                     break
                     
@@ -299,12 +302,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             if flip:
                 self._flip(trigger = True)        
         else:
-            for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
+            n_frames = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
+            for i in range(n_frames):
                 if flip:
-                    if i==0 or not block_trigger:
-                        self._flip(trigger = True)
-                    else:
-                        self._flip(trigger = False) 
+                    self._flip_and_block_trigger(i, n_frames, True, block_trigger)
                 if self.abort:
                     break
         
@@ -506,17 +507,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
-            if flip:                
-                if block_trigger and frame_i==0:
-                    self._flip(trigger = False)
-                    self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)            
-                elif block_trigger and frame_i == n_frames -1:
-                    self._flip(trigger = False)
-                    self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
-                elif block_trigger:
-                    self._flip(trigger = False)
-                else:
-                    self._flip(trigger = True)
+            if flip:
+                self._flip_and_block_trigger(frame_i, n_frames, True, block_trigger)
             if self.abort:
                 break
             if stop_stimulus:                
@@ -819,17 +811,17 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             stimulus_profile = self.config.GAMMA_CORRECTION(stimulus_profile)
         
         if duration == 0.0:
-            number_of_frames = 1
+            n_frames = 1
         else:
-            number_of_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
+            n_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         ######### Calculate texture phase shift per frame value ######
         if hasattr(velocity, 'dtype'):
             pixel_velocities = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / float(stimulus_profile.shape[0])
         else:
             pixel_velocity = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / float(stimulus_profile.shape[0])
-            pixel_velocities = numpy.ones(number_of_frames)*pixel_velocity
+            pixel_velocities = numpy.ones(n_frames)*pixel_velocity
         pixel_velocities = numpy.interp(
-                                        numpy.arange(number_of_frames)/float(number_of_frames), numpy.arange(pixel_velocities.shape[0])/float(pixel_velocities.shape[0]), pixel_velocities)
+                                        numpy.arange(n_frames)/float(n_frames), numpy.arange(pixel_velocities.shape[0])/float(pixel_velocities.shape[0]), pixel_velocities)
         #== Generate texture  
         texture = stimulus_profile
         glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
@@ -858,9 +850,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         
         start_time = time.time()
 #         pixel_velocity= -1.5/stimulus_profile.shape[0]
-#         number_of_frames = int(numpy.sqrt(800**2+600**2)/1.5)
+#         n_frames = int(numpy.sqrt(800**2+600**2)/1.5)
         phase = 0
-        for i in range(number_of_frames):
+        for i in range(n_frames):
             phase += pixel_velocities[i]
             glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
             if not part_of_drawing_sequence:
@@ -874,10 +866,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             else:
                 self.log_on_flip_message = self.log_on_flip_message_continous
             if not part_of_drawing_sequence:
-                if i==0 or not block_trigger:
-                    self._flip(trigger = True)
-                else:
-                    self._flip(trigger = False) 
+                self._flip_and_block_trigger(i, n_frames, True, block_trigger)
             if self.abort:
                 break
                     
@@ -893,7 +882,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         '''
         self.show_shapes('o', dot_diameters, dot_positions, ndots, duration = duration,  color = color, block_trigger = block_trigger, colors_per_shape = False)
                     
-    def show_shapes(self,  shape, shape_size, shape_positions, nshapes, duration = 0.0,  color = (1.0,  1.0,  1.0), block_trigger = False, colors_per_shape = True, save_frame_info = True):
+    def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  color = (1.0,  1.0,  1.0), block_trigger = False, colors_per_shape = True, save_frame_info = True):
         '''
         Shows a huge number (up to several hunders) of shapes.
         Parameters:
@@ -964,11 +953,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     self.log_on_flip_message = self.log_on_flip_message_initial
                     first_flip = True
                 else:
-                    self.log_on_flip_message = self.log_on_flip_message_continous                
-                if frame_i==0 or not block_trigger:
-                    self._flip(trigger = True)
-                else:
-                    self._flip(trigger = False) 
+                    self.log_on_flip_message = self.log_on_flip_message_continous
+                self._flip_and_block_trigger(frame_i, n_frames, True, block_trigger)
             if self.abort:
                 break
                 
@@ -983,6 +969,10 @@ class StimulationSequences(Stimulations):
     def export2video(self, filename):
         videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.bmp'), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         
+    def flash_shape(self,shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0,  0)), background = 0.0, repeats = 1, block_trigger = True):
+#        if not hasattr(timing
+        pass
+        
     def flash_stimulus(self, timing, flash_color = 1.0, background_color = 0.0, repeats = 1):
         '''
         timing: a series of durations have to be provided in seconds to define a flashing pattern. The first item is always displayed with background color
@@ -993,9 +983,9 @@ class StimulationSequences(Stimulations):
             state = False
             for duration in timing:
                 if state:
-                    self.show_fullscreen(color = flash_color, duration = duration, save_frame_info = False)
+                    self.show_fullscreen(color = flash_color, duration = duration, save_frame_info = False, block_trigger = True)
                 else:
-                    self.show_fullscreen(color = background_color, duration = duration, save_frame_info = False)
+                    self.show_fullscreen(color = background_color, duration = duration, save_frame_info = False, block_trigger = True)
                 state = not state
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
