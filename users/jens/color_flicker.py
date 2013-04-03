@@ -17,8 +17,8 @@ class ColorFlickerExpConfig(experiment.ExperimentConfig):
         self.FREQUENCIES = [9, 18, 38, 62, 125] #Hz
         self.INTENSITY = 1.0 #0.1-1.0
         self.NUMBER_OF_PERIODS = 20
-        self.OFF_TIME = 4.0
-        self.SHOW_COLORS_ON_PROJECTOR  = False
+        self.INIT_DELAY = 4.0
+        self.SHOW_COLORS_ON_PROJECTOR  = not False
         self.runnable = 'ColorFlickerExperiment'
         self._create_parameters_from_locals(locals())
 
@@ -44,6 +44,7 @@ class ColorFlickerExperiment(experiment.Experiment):
             if self.check_abort_pressed() or self.abort:
                     break
         self.polychrome.set_intensity(0.0)
+        self.show_fullscreen(duration = 0.0,  color = 0.0, block_trigger = False, frame_trigger = False)
         self.finish()
         
     def finish(self):

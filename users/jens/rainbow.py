@@ -14,7 +14,7 @@ class RainbowExpConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.WAVELENGTH_RANGE = [390, 680]
         self.INTENSITY = 1.0 #0.1-1.0
-        self.SWEEP_TIME = 100.0
+        self.SWEEP_TIME = 20.0
         self.WAVELENGTH_STEP = 10 #nm
         self.INIT_DELAY = 4.0
         self.REPEAT = 1
@@ -42,6 +42,7 @@ class RainbowExperiment(experiment.Experiment):
             if self.check_abort_pressed() or self.abort:
                 break
         self.polychrome.set_intensity(0.0)
+        self.show_fullscreen(duration = 0.0,  color = 0.0, block_trigger = False, frame_trigger = False)
         self.finish()
         
     def finish(self):

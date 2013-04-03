@@ -35,17 +35,30 @@ class VisionExperimentRunner(command_handler.CommandHandler):
     def __init__(self, user, config_class, autostart = False):
         ########## Set up configurations ################
         try:
-            self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+            if hasattr(user, '__iter__'):
+                user_ = user[0]
+            else:
+                user_ = user
+            self.config = utils.fetch_classes('visexpman.users.'+user_, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         except IndexError:
             raise RuntimeError('Configuration class does not exist: ' + str(config_class))
         #Save user name
         if user == '':
             self.config.user = 'undefined'
+        elif hasattr(user, '__iter__'):
+            self.config.user = str(user[0])
         else:
             self.config.user = str(user)
         #== Fetch experiment classes ==
         if self.config.user != 'undefined':
-            self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = experiment.ExperimentConfig, direct = False)
+            if hasattr(user, '__iter__'):
+                users = user
+            else:
+                users = [user]
+            self.config.users = users
+            self.experiment_config_list = []
+            for u in users:
+                self.experiment_config_list.extend(utils.fetch_classes('visexpman.users.' + u,  required_ancestors = experiment.ExperimentConfig, direct = False))
         else:
             #In case of SafestartConfig, no experiment configs are loaded
             #TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig

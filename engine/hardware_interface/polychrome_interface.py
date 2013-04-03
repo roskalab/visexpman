@@ -48,9 +48,10 @@ class Polychrome(instrument.Instrument):
         return minimum.value,maximum.value,startup.value
         
     def set_intensity(self, intensity):
-        bandwidth = ctypes.c_double(self.bandwidth)
-        intensity = ctypes.c_double(float(intensity))
-        self.dllref.TILLPolychrome_SetBandwidth(self.handle, bandwidth, intensity)
+        if os.name == 'nt':
+            bandwidth = ctypes.c_double(self.bandwidth)
+            intensity = ctypes.c_double(float(intensity))
+            self.dllref.TILLPolychrome_SetBandwidth(self.handle, bandwidth, intensity)
 
 
     
