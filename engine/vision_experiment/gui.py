@@ -6,6 +6,7 @@ import PyQt4.QtCore as QtCore
 
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
+from visexpman.engine.generic import gui
 
 BUTTON_HIGHLIGHT = 'color: red'
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -246,6 +247,49 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
+
+class TileScanGroupBox(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, 'Tile scan', parent)
+        self.create_widgets()
+        self.create_layout()
+
+    def create_widgets(self):
+        self.nrows = gui.LabeledInput(self, 'number of rows')
+        self.ncols = gui.LabeledInput(self, 'number of columns')
+        self.overlap = gui.LabeledInput(self, 'Overlap [um]')
+        self.start_button = QtGui.QPushButton('Start', self)
+        self.stop_button = QtGui.QPushButton('Stop', self)
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.nrows, 0, 0)
+        self.layout.addWidget(self.ncols, 0, 1)
+        self.layout.addWidget(self.overlap, 0, 2)
+        self.layout.addWidget(self.start_button, 0, 3)
+        self.layout.addWidget(self.stop_button, 0, 4)
+        self.setLayout(self.layout)
+
+class ZstackWidget(QtGui.QWidget):
+    def __init__(self, parent, config):
+        QtGui.QWidget.__init__(self, parent)
+        self.config = config
+        self.create_widgets()
+        self.create_layout()
+        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
+
+    def create_widgets(self):
+        self.tile_scan_groupbox = TileScanGroupBox(self)
+        self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.z_stack_button, 0, 0, 1, 1)
+        self.layout.addWidget(self.tile_scan_groupbox, 1, 0, 1, 5)
+        
+        self.layout.setRowStretch(10, 5)
+        self.layout.setColumnStretch(5,10)
+        self.setLayout(self.layout)
         
 ################### Image display #######################
 class ImagesWidget(QtGui.QWidget):
@@ -482,9 +526,6 @@ class MainWidget(QtGui.QWidget):
         self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
         
     def create_widgets(self):
-        #MES related
-        self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
-        #Stage related
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
         self.scan_region_groupbox = ScanRegionGroupBox(self)
         self.measurement_datafile_status_groupbox = AnalysisStatusGroupbox(self)
@@ -495,9 +536,6 @@ class MainWidget(QtGui.QWidget):
 #        self.layout.addWidget(self.set_objective_value_button, 2, 8, 1, 1)
         self.layout.addWidget(self.scan_region_groupbox, 2, 0, 2, 4)
         self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 10, 4)
-        
-        self.layout.addWidget(self.z_stack_button, 5, 0, 1, 1)
-        
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)

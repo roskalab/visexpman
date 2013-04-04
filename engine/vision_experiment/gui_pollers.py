@@ -879,6 +879,42 @@ class MainPoller(Poller):
             self.printc('Objective relative value is set to {0} um'.format(position))
         else:
             self.printc('MES did not respond')
+            
+    def start_tile_scan(self):
+        parameters = {}
+        parameter_names = ['overlap', 'ncols', 'nrows']
+        for pn in parameter_names:
+            parameters[pn] = str(getattr(self.parent.z_stack_widget.tile_scan_groupbox, pn).overlap.input.text())
+            try:
+                parameters[pn] = float(parameters[pn])
+            except:
+                self.printc('{0} parameter is in incorrect format', format(pn))
+        #somehow the size of scan window has to be known
+        window_size = utils.rc((700, 700))
+        if self.read_stage():
+            self.tile_scan_positions = []
+            for row in parameters['nrows']:
+                for col in parameters['ncols']:
+                    pos = [row * window_size['row'] - parameters['overlap'] + self.stage_position['row'], 
+                           col * window_size['col'] - parameters['overlap'] + self.stage_position['col'], 0]
+                    self.tile_scan_positions.append(pos)
+        self.tile_scan_positions = utils.rcd(numpy.array(self.tile_scan_positions))
+        self.tile_scan_position_index = 0
+        #TODO: message to start tile scan
+        
+    def tile_scan(self):
+        if hasattr(self, 'tile_scan_position_index') and self.move_stage_relative(self.tile_scan_positions[self.tile_scan_position_index]):
+            zstack, result = self.mes_interface.acquire_z_stack(timeout = self.config.MES_TIMEOUT)
+            zstack['position'] = self.tile_scan_positions[self.tile_scan_position_index]
+            #TODO: save tile scan fragment
+            self.tile_scan_position_index += 1
+            if self.tile_scan_positions.shape[0] >= self.tile_scan_position_index:#End of tile scan
+                pass#Message to end tilescan
+            else:
+                pass#Message to continue tile scan
+                
+    def finish_tile_scan(self):
+        pass
 
     def acquire_z_stack(self):
         self.printc('Starting z stack, please wait')
