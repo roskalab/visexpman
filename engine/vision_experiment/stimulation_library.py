@@ -969,27 +969,68 @@ class StimulationSequences(Stimulations):
     def export2video(self, filename):
         videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.bmp'), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         
-    def flash_shape(self,shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0,  0)), background = 0.0, repeats = 1, block_trigger = True):
-#        if not hasattr(timing
-        pass
-        
-    def flash_stimulus(self, timing, flash_color = 1.0, background_color = 0.0, repeats = 1):
+    def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True):
         '''
-        timing: a series of durations have to be provided in seconds to define a flashing pattern. The first item is always displayed with background color
+        Use cases:
+        shape: like show_shape, ff = fullfield
+        timing: 1. [ON TIME, OFF_TIME] for each size and/or each color
+                    2. OFF TIME 1, ON_TIME flash1, OFF_TIME 2, ON_TIME flash2
+        colors: formats:
+                1. single color in intensity or rgb format
+                2. 2d numpy array: duration is ignored and the first dimension will be the number of intensities displayed
+        sizes: 1. single size
+                  2. 2d numpy array: series of different sizes
         '''
-        self.log.info('flash_stimulus(' + str(timing)+ ', ' + str(flash_color) +', ' + str(background_color) +', ' + str(repeats)  +')')
-        self._save_stimulus_frame_info(inspect.currentframe())
-        for repeat in range(repeats):
-            state = False
-            for duration in timing:
-                if state:
-                    self.show_fullscreen(color = flash_color, duration = duration, save_frame_info = False, block_trigger = True)
+        if save_frame_info:
+            self.log.info('flash_stimulus(' + str(shape)+ ', ' + str(timing) +', ' + str(colors) +', ' + str(sizes)  +', ' + str(position)  + ', ' + str(background_color) + ', ' + str(repeats) + ', ' + str(block_trigger) + ')')
+            self._save_stimulus_frame_info(inspect.currentframe())
+        if isinstance(timing, list) and len(timing) == 2 or hasattr(timing, 'dtype') and timing.shape[0] == 2:
+            #find out number of flashes
+            if isinstance(sizes, list):
+                n_flashes = len(sizes)
+            elif hasattr(sizes, 'dtype'):
+                if len(sizes.shape) == 0:
+                    n_flashes = 0
                 else:
-                    self.show_fullscreen(color = background_color, duration = duration, save_frame_info = False, block_trigger = True)
+                    n_flashes = sizes.shape[0]
+            if n_flashes == 0:
+                if isinstance(colors, list):
+                    n_flashes = len(colors)
+                elif hasattr(colors, 'dtype'):
+                    n_flashes = colors.shape[0]
+            timing = [timing[0], timing[1]] * n_flashes
+            timing.insert(0, timing[1])
+        for r in range(repeats):
+            state = False
+            for i in range(len(timing)):
+                if state:
+                    if hasattr(colors, '__iter__'):
+                        color = colors[(i-1)/2]
+                    else:
+                        color = colors
+                    if shape == 'ff':
+                        self.show_fullscreen(color = color, duration = timing[i], save_frame_info = False, block_trigger = block_trigger)
+                    else:
+                        if hasattr(sizes, '__iter__') and len(sizes.shape) > 0:
+                            if len(sizes.dtype) == 2 : #row, col format
+                                size = utils.rc((sizes[(i-1)/2]['row'], sizes[(i-1)/2]['col']))
+                            else:
+                                size = utils.rc((sizes[(i-1)/2],sizes[(i-1)/2]))
+                        else:
+                            size = sizes
+                        self.show_shape(shape = shape,  duration = timing[i],  pos = position,  color = color,  background_color = background_color,  size = size,  block_trigger = block_trigger, save_frame_info = False)
+                else:
+                    self.show_fullscreen(color = background_color, duration = timing[i], save_frame_info = False, block_trigger = False)
                 state = not state
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+
+    def increasing_spot(self, spot_sizes, on_time, off_time, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0)), block_trigger = True):
+        self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) + ', ' + str(block_trigger) + ')')
+        self._save_stimulus_frame_info(inspect.currentframe())
+        self.flash_stimulus('o', [on_time, off_time], color, sizes = numpy.array(spot_sizes), position = pos, background_color = background_color, repeats = 1, block_trigger = block_trigger, save_frame_info = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-            
-        
+
     def moving_grating_stimulus(self):
         pass
         
@@ -1025,18 +1066,7 @@ class StimulationSequences(Stimulations):
                     break
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-        
-    def increasing_spot(self, spot_sizes, on_time, off_time, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0)), block_trigger = True):
-        self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) + ', ' + str(block_trigger) + ')')
-        self._save_stimulus_frame_info(inspect.currentframe())
-        self.show_fullscreen(duration = off_time, color = background_color, save_frame_info = False, block_trigger = False, frame_trigger = not block_trigger)
-        for size in spot_sizes:
-            self.show_shape(shape = 'o',  duration = on_time,  pos = pos,  color = color,  background_color = background_color,  size = size,  block_trigger = block_trigger, save_frame_info = False)
-            self.show_fullscreen(duration = off_time, color = background_color, save_frame_info = False, block_trigger = False, frame_trigger = not block_trigger)
-            if self.abort:
-                break
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-            
+
     def sine_wave_shape(self):
         pass
         

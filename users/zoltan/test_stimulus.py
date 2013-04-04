@@ -48,7 +48,14 @@ class DebugExperimentConfig(experiment.ExperimentConfig):
         
 class Debug(experiment.Experiment):
     def run(self):
-        self.flash_shape('ff', [1.0, 1.0, 1.0], 1.0)
+        self.increasing_spot([100,200], 1.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, 1.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0)))
+        t0 = self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        self.flash_stimulus('ff', [1/t0, 2/t0]*3, 1.0)
+        self.flash_stimulus('ff', [1/t0, 2/t0], colors = numpy.array([[0.4, 0.6, 1.0]]).T)
+        self.flash_stimulus('o', [1.0/t0, 2.0/t0, 1.0/t0, 2.0/t0, 1.0/t0], numpy.array([[0.5, 1.0]]).T, sizes = utils.rc((100, 100)))
+        self.flash_stimulus('o', [1.0/t0, 2.0/t0, 1.0/t0, 2.0/t0, 1.0/t0], numpy.array([[0.5, 1.0]]).T, sizes = utils.rc(numpy.array([[100, 100], [200, 200]])))
+        self.flash_stimulus('o', [1.0/t0, 2.0/t0, 1.0/t0, 2.0/t0, 1.0/t0], numpy.array([[0.5, 1.0]]).T, sizes = numpy.array([[100, 200]]).T)
+        
         return
         self.show_shape(shape='r', color = numpy.array([[1.0, 0.5]]).T, duration = 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, size = utils.cr((100.0, 100.0)),pos = utils.cr(numpy.array([[0,100], [0, 100]])))
         self.show_grating(duration = 2.0,  
