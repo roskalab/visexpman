@@ -561,7 +561,7 @@ class TestScannerControl(unittest.TestCase):
             title('scan mask')
             show()
             
-    @unittest.skip('Run only for debug purposes')
+#    @unittest.skip('Run only for debug purposes')
     def test_05_twophoton(self):
         import time
         plot_enable = not False
