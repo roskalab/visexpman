@@ -24,7 +24,10 @@ import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 ######## Signals  ########
 def signal2binary(signal):
-    return numpy.where(signal > numpy.histogram(signal)[1][-2],  True,  False)
+    '''
+    Signal is considered true/logic 1 when signal reached the 'high' voltage level (transient is considered as False)
+    '''
+    return numpy.where(signal > numpy.histogram(signal, bins = 10)[1][-2],  True,  False)
 
 #== Coordinate geometry ==
 #TODO: check for redundant functions in this section
@@ -937,7 +940,7 @@ def generate_pulse_train(offsets, pulse_widths, amplitudes, duration, sample_rat
     '''
     offsets: pulse offsets in samples, always must be a list of a numpy array
     pulse_widths: width of pulses in samples, if single number is provided, all the pulses will have the same size
-    amplitudes: amplitude of each pulse. If a float or and int is provied, it is aasumed that all the pulses must have the same amplitude
+    amplitudes: amplitude of each pulse. If a float or and int is provied, it is assumed that all the pulses must have the same amplitude
     duration: duration of the whole pulse train in samples
     
     If sample_rate is not none, the offsets, the pulse_widths and the duration parameters are handled in time units

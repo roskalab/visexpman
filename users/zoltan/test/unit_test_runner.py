@@ -115,7 +115,7 @@ def generate_filename(path):
             raise RuntimeError('Filename cannot be generated')
     return testable_path
     
-def prepare_test_data(modulename, clean_working_dir = True):
+def prepare_test_data(modulename, clean_working_dir = True, copy_only_first_file = False):
     ref_folder = os.path.join(TEST_test_data_folder, modulename)
     working_folder = TEST_working_folder
     print 'preparing test data'
@@ -130,6 +130,8 @@ def prepare_test_data(modulename, clean_working_dir = True):
         shutil.copy(fn, working_folder)
         if os.path.exists(fn.replace('.hdf5', '.mat')):
             shutil.copy(fn.replace('.hdf5', '.mat'), working_folder)
+        if copy_only_first_file:
+            break
     time.sleep(1.0)
     return working_folder        
 

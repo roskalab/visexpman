@@ -7,6 +7,7 @@ from visexpA.engine.dataprocessors import generic
 import unittest
 import itertools
     
+#TODO: these functions may go to visexpA/generic
 def pack_to_rgb(array_r, array_g=None, array_b = None):
     if array_g==None and array_b == None:
         return numpy.rollaxis(numpy.array([array_r, array_r, array_r]),  0,  3)
