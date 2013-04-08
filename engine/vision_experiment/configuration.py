@@ -129,7 +129,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
         GAMMA = [1.0,  [1e-2,  10]]
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
-        FLIP_EXECUTION_TIME = [0*1e-3, [0.0, 1.0]]
+        FLIP_EXECUTION_TIME = [0*1e-3, [-1.0, 1.0]]
         ENABLE_FRAME_CAPTURE = False
         MAX_LOG_COLORS = [3,  [0,  100000]]        
         
@@ -142,6 +142,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ####### Pixel scaling #################
         IMAGE_PROJECTED_ON_RETINA = True
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #converts um to pixel [pixel/um]
+        VISUAL_ANGLE_TO_UM_SCALE = [300.0/10.0, [0, 10000]]#300 um corresponds to 10 degrees of visual field
         
         ########## Commands #############
         COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
@@ -179,6 +180,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
         ACQUISITION_STOP_PIN = [1,  PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
+        BLOCK_TRIGGER_PIN = [3,  PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         #filterwheel settings
         ENABLE_FILTERWHEEL = False

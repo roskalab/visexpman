@@ -22,6 +22,13 @@ import file
 
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
+######## Signals  ########
+def signal2binary(signal):
+    '''
+    Signal is considered true/logic 1 when signal reached the 'high' voltage level (transient is considered as False)
+    '''
+    return numpy.where(signal > numpy.histogram(signal, bins = 10)[1][-2],  True,  False)
+
 #== Coordinate geometry ==
 #TODO: check for redundant functions in this section
 def roi_center(roi):
@@ -121,7 +128,7 @@ def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  col
 def rectangle_vertices(size, orientation = 0):
     alpha = numpy.arctan(float(size['row'])/float(size['col']))
     angles = numpy.array([alpha, numpy.pi - alpha, numpy.pi + alpha, - alpha])
-    angles -= orientation * numpy.pi / 180.0
+    angles += orientation * numpy.pi / 180.0
     half_diagonal = 0.5 * numpy.sqrt(size['row'] ** 2 + size['col'] ** 2)
     vertices = []
     for angle in angles:
@@ -417,9 +424,13 @@ def calculate_trajectory(start_point,  end_point,  spatial_resolution,  curve = 
         angle = numpy.arctan2(float(direction['row']), float(direction['col']))
         trajectory = []
         step_vector = cr((numpy.cos(angle) * step_size, numpy.sin(angle) * step_size))
+        trajectory_row = []
+        trajectory_col = []
         for step in range(number_of_steps):
-            trajectory.append(rc_add(start_point, rc_multiply_with_constant(step_vector, step)))
-        trajectory = numpy.array(trajectory)
+            p = rc_add(start_point, rc_multiply_with_constant(step_vector, step))
+            trajectory_row.append(float(p['row']))
+            trajectory_col.append(float(p['col']))
+        trajectory = rc(numpy.array([trajectory_row,trajectory_col]))
         return trajectory
         
     
@@ -929,7 +940,7 @@ def generate_pulse_train(offsets, pulse_widths, amplitudes, duration, sample_rat
     '''
     offsets: pulse offsets in samples, always must be a list of a numpy array
     pulse_widths: width of pulses in samples, if single number is provided, all the pulses will have the same size
-    amplitudes: amplitude of each pulse. If a float or and int is provied, it is aasumed that all the pulses must have the same amplitude
+    amplitudes: amplitude of each pulse. If a float or and int is provied, it is assumed that all the pulses must have the same amplitude
     duration: duration of the whole pulse train in samples
     
     If sample_rate is not none, the offsets, the pulse_widths and the duration parameters are handled in time units

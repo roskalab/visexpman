@@ -69,9 +69,11 @@ if TEST_os == 'nt':
     TEST_stage_com_port = 'COM1'
     TEST_goniometer_com_port = 'COM9'
 elif TEST_os == 'posix':
-    TEST_test_data_folder = '/mnt/databig/software_test/ref_data'
-    TEST_working_folder = '/mnt/databig/software_test/working'
-    TEST_results_folder = '/mnt/databig/software_test/results'
+    root = '/mnt/databig/'
+    root = '/mnt/rznb/'
+    TEST_test_data_folder = os.path.join(root, 'software_test/ref_data')
+    TEST_working_folder = os.path.join(root, 'software_test/working')
+    TEST_results_folder = os.path.join(root, 'software_test/results')
     TEST_valid_file = '/mnt/datafast/context/image.hdf5'
     TEST_invalid_file = '/home'
     
@@ -113,7 +115,7 @@ def generate_filename(path):
             raise RuntimeError('Filename cannot be generated')
     return testable_path
     
-def prepare_test_data(modulename, clean_working_dir = True):
+def prepare_test_data(modulename, clean_working_dir = True, copy_only_first_file = False):
     ref_folder = os.path.join(TEST_test_data_folder, modulename)
     working_folder = TEST_working_folder
     print 'preparing test data'
@@ -128,6 +130,8 @@ def prepare_test_data(modulename, clean_working_dir = True):
         shutil.copy(fn, working_folder)
         if os.path.exists(fn.replace('.hdf5', '.mat')):
             shutil.copy(fn.replace('.hdf5', '.mat'), working_folder)
+        if copy_only_first_file:
+            break
     time.sleep(1.0)
     return working_folder        
 

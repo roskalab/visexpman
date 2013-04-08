@@ -12,7 +12,7 @@ from visexpman.engine.generic import file
 
 DISPLAY_FRAME_RATE = False
 DISPLAY_FRAME_DELAY = False
-ALTERNATIVE_TIMING = True
+ALTERNATIVE_TIMING = False
 
 class Screen(object):
     """
@@ -165,17 +165,17 @@ class Screen(object):
         '''        
         self.before_flip()
         #TODO: mac needs the delay
-#        if window_type == 'pygame':
-#            if ALTERNATIVE_TIMING:
-#                next_flip_time = self.flip_time_previous + 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE            
-#                while True:
-#                    if next_flip_time <= time.time():
-#                        break
-#            else:
-#                self.elapsed_time = time.time() - self.flip_time_previous
-#                self.wait_time_left = self.frame_wait_time - self.elapsed_time
-#                if self.wait_time_left > 0.0:
-#                    time.sleep(self.wait_time_left)
+        if hasattr(self.config, 'INSERT_FLIP_DELAY') and self.config.INSERT_FLIP_DELAY:
+           if ALTERNATIVE_TIMING:
+               next_flip_time = self.flip_time_previous + 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE            
+               while True:
+                   if next_flip_time <= time.time():
+                       break
+           else:
+               self.elapsed_time = time.time() - self.flip_time_previous
+               self.wait_time_left = self.frame_wait_time - self.elapsed_time
+               if self.wait_time_left > 0.0:
+                   time.sleep(self.wait_time_left)
                     
         
         if self.config.OS == 'linux':

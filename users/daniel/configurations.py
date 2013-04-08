@@ -87,24 +87,6 @@ class K247AWindowsConfig(VisionExperimentConfig):
         VisionExperimentConfig._create_parameters_from_locals(self, locals())
         #VisionExperimentConfig._set_parameters_from_locals(self, locals())
 
-class RC3DWindowsConfig(VisionExperimentConfig):
-    #NOT TESTED
-    def _set_user_parameters(self):        
-        ENABLE_PARALLEL_PORT = True        
-        FULLSCREEN = True
-        SCREEN_RESOLUTION = [1600,  1200]
-        ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 2        
-        EXPERIMENT_DATA_PATH = self.BASE_PATH
-        LOG_PATH = self.BASE_PATH
-        #test steps:
-        # 1. frame rate 60
-        # 2. parallel port OK
-        # 3 network control
-        # 4 stimulus types
-        
-        self._set_parameters_from_locals(locals())
-
 class MBP(VisionExperimentConfig):
     def _set_user_parameters(self):        
         
@@ -592,7 +574,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
-        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
+        SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
         PLATFORM = 'mes'
         #=== Network ===

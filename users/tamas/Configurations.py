@@ -1,136 +1,124 @@
 import os
+import os.path
 import serial
-import Configuration
-import generic.Parameter
+from visexpman.engine.generic import utils
+from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
 
-class TemplateConfig(Configuration.PresentinatorConfig):
-    
-    def _set_user_specific_parameters(self):
-#        #display parameters:
-#        SCREEN_RESOLUTION = [[1680, 1050],  [[200,  200],  [2000,  2000]]]
-#        FULLSCR = True
-#        EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
-#        MAX_FRAME_RATE = [60.0,  FPS_RANGE]
-#        FRAME_DELAY_TOLERANCE = [1.0,  [1e-2,  10.0]]
-#        BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
-#        GAMMA = [1.0,  [1e-2,  10]]
-#        
-#        #pixel scaling
-#        UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #um / pixel        
-#        
-#        #parallel port
-#        ENABLE_PARALLEL_PORT = True
-#        ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
-#        FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
-#        FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
-#        
-#        #Network/UDP settings
-#        SERVER_UDP_IP = '172.27.29.15'
-#        WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
-#        CLIENT_UDP_IP = ''
-#        UDP_PORT = [446,  [300,  65000]]
-#        UDP_BUFFER_SIZE = [65536,  [1,  100000000]]
-#        
-#        #paths
-#        DEFAULT_IMAGE_PATH = 'images/default.bmp'
-#        LOG_PATH = 'data'
-#        STIMULATION_EXAMPLES_PATH = 'stimulus_examples'
-#        STIMULATION_FOLDER_PATH = 'stimulations'
-#        ARCHIVE_PATH = 'data'
-#        CAPTURE_PATH = 'data'
-#        BULLSEYE_PATH = 'images/bullseye.bmp'
-#        TEMP_IMAGE_PATH = 'images/tmp.bmp'
-#        
-#        #fps calibration
-#        FPS_TOLERANCE = [0,  [0,  10]]      #display parameters:        
-#        FPS_CALIB_ENABLE = True
-#        FPS_MIN = [8.0,  FPS_RANGE]
-#        FPS_STEP = [4.0,  FPS_RANGE]
-#        N_TEST_FRAMES = [3,  [0,  100]]
-#        
-#        #commands (including commands which are accepted only from udp interface)
-#        CMD_START = 's'        
-#        CMD_BULLSEYE = 'b'
-#        CMD_QUIT = 'q'
-#        CMD_SEND_FILE = 't'
-#        CMD_SET_STIMULUS_FILE_START = '<'
-#        CMD_SET_STIMULUS_FILE_END = '>'
-#        CMD_GET_LOG = 'g'
-#        CMD_CLEAR_LOG = 'l' # This command shall not be used because log file gets corrupted
-#        CMD_SET_MEASUREMENT_ID = 'i'
-#        CMD_START_TEST = 'y'
-#        CMD_SET_BACKGROUND_COLOR = 'c'
-#        CMD_NEXT_SEGMENT = 'n'
-#        CMD_ABORT_STIMULUS = 'a'
-#        
-#        #debug
-#        ENABLE_FRAME_CAPTURE = False
-#        
-#        #logging 
-#        MAX_LOG_COLORS = [3,  [0,  100000]]
-#        
-#        #grating
-#        MIN_PHASE_STEP = [0.001,  [1e-5,  1.0]]
-#        GRATING_TEXTURE_RESOLUTION = [512,  [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048]]
-#        
-#        #user interface
-#        TEXT_ENABLE = True
-#        TEXT_COLOR = [[1.0,  -1.0,  -1.0] ,  [[-1.0,  -1.0,  -1.0],  [1.0,  1.0,  1.0]]]
-#        TEXT_SIZE = [12,  [2,  20]]
-#        
-#        STATES = [['idle',  'stimulation'],  None]
-#        
-#        MENU_TEXT = \
-#            's - start stimulus\n\
-#        b - bullseye\n\
-#        <filename> - load filename stimulus\n\
-#        q - quit'
-#        KEYS = [[CMD_START,  CMD_BULLSEYE,  CMD_QUIT,  CMD_START_TEST],  None] #valid key commands
-#        MAX_MESSAGE_LENGTH = [200,  [10,  1000]] #length of message displayed on screen
-#
-#        #example config
-#        SHOW_ALL_EXAMPLES = True
-#        
-#        #stimulus control
-#        SEGMENT_DURATION = [100,  [1,  100000]]
-#        ACTION_BETWEEN_STIMULUS = 'no' #keystroke, wait_xx in sec. no =  off
-        self._set_parameters_from_locals(locals())        
+class InsermSetupConfig(VisionExperimentConfig):
+    '''
+    '''
+    def _set_user_parameters(self):
+        EXPERIMENT_FILE_FORMAT = 'mat'
+        if self.OS == 'win':
+            PLATFORM = 'elphys'
+        else:
+            PLATFORM = 'standalone'
+        if self.OS == 'win':
+            root_folder = 'c:\\data'
+        else:
+            root_folder = '/mnt/datafast/debug'
+            if not os.path.exists(root_folder):
+                root_folder = '/mnt/rznb'
+        LOG_PATH = os.path.join(root_folder, 'log')
+        if not os.path.exists(LOG_PATH):
+            os.mkdir(LOG_PATH)
+        DATA_PATH = root_folder
+        EXPERIMENT_DATA_PATH = root_folder
+        EXPERIMENT_LOG_PATH = LOG_PATH
         
-class TamasWindowsConfig(Configuration.PresentinatorConfig):
-    def _set_user_specific_parameters(self):
-        RUN_MODE = 'user interface' 
-        FILTERWHEEL_ENABLE = True       
-        ENABLE_PARALLEL_PORT = True
-        FPS_CALIB_ENABLE = False
-        FULLSCR = True
-        SERVER_UDP_IP = '172.27.34.12'
-        ARCHIVE_PATH = self.BASE_PATH + os.sep + 'data'
-        LOG_PATH = self.BASE_PATH + os.sep + 'data'
-        SCREEN_RESOLUTION = [1024,  768]
-        ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        EXPECTED_FRAME_RATE = 75.0
-        MAX_FRAME_RATE = 75.0
-        FILTERWHEEL_SETTLING_TIME = 0.5  
-        UM_TO_PIXEL_SCALE = 3.0
+        #=== screen ===
+        FULLSCREEN = not True#TMP1
+        SCREEN_RESOLUTION = utils.cr([1024,768])
+        COORDINATE_SYSTEM='center'        
+        ENABLE_FRAME_CAPTURE = False
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0        
+        SCREEN_UM_TO_PIXEL_SCALE = 2.0#calibrated 01.03.2013
+        INSERT_FLIP_DELAY = True
+        FLIP_EXECUTION_TIME = -1e-3
+        
+        #=== hardware ===
+        ENABLE_PARALLEL_PORT = (os.name == 'nt')
+        ACQUISITION_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PIN = 1
+        
+        #=== network ===
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
+        ENABLE_UDP = (self.OS == 'win')
+        #=== LED controller ===
+        STIM_SYNC_CHANNEL_INDEX = 1
+        DAQ_CONFIG = [
+                      {
+                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 10000,
+                    'AI_CHANNEL' : 'Dev2/ai1:2',
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : -10.0,
+                    'DURATION_OF_AI_READ' : 300.0,
+                    'ENABLE' :  False#(self.OS == 'win')
+                    },
+                    {
+                    'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 1.0,
+                    'AO_SAMPLE_RATE' : 10000,
+                    'AO_CHANNEL' : 'Dev1/ao0:0',
+                    'MAX_VOLTAGE' : 3.0,
+                    'MIN_VOLTAGE' : 0.0,
+                    'DURATION_OF_AI_READ' : 1.0,
+                    'ENABLE' :  False#(self.OS == 'win')
+                    },
+                    ]
+                    
+        #=== Filterwheel ===
+        ENABLE_FILTERWHEEL = (self.OS == 'win')
         FILTERWHEEL_SERIAL_PORT = [{
-                                    'port' :  'COM1',
-                                    'baudrate' : 9600,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    },
-						{
                                     'port' :  'COM3',
-                                    'baudrate' : 9600,
+                                    'baudrate' : 115200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,                                    
-                                    },
-						 ]
+                                    }, 
+                                    {
+                                    'port' :  'COM4',
+                                    'baudrate' : 115200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }]
+        FILTERWHEEL_FILTERS = [{
+                                                'ND0': 1, 
+                                                'ND10': 2, 
+                                                'ND20': 3, 
+                                                'ND30': 4, 
+                                                'ND40': 5, 
+                                                'ND50': 6, 
+                                                }, 
+                                                {
+                                                'ND0': 1, 
+                                                'ND10': 2, 
+                                                'ND20': 3, 
+                                                'ND30': 4, 
+                                                'ND40': 5, 
+                                                'ND50': 6, 
+                                                }]
+        gamma_corr_filename = 'c:\\visexp\\gamma.hdf5'
+        if os.path.exists(gamma_corr_filename):
+            from visexpA.engine.datahandlers import hdf5io
+            import copy
+            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction'))
+        #=== Others ===
+        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
+        self._create_parameters_from_locals(locals())
+        
+class TestSetupConfig(InsermSetupConfig):
+    '''
+    '''
+    def _set_user_parameters(self):
+        InsermSetupConfig._set_user_parameters(self)
+        ENABLE_UDP = False
+        self._create_parameters_from_locals(locals())
 
-        
-        self._set_parameters_from_locals(locals())
-        
+
 if __name__ == "__main__":
     pass

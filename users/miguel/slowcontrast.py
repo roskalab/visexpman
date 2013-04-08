@@ -12,15 +12,16 @@ class SlowContrastAdaptationParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.REPEATS = 2
         self.SPOT_SIZE = 275.0 #um
-        self.FLICKERING_TIME = 30#14.2 # ms  = 70 Hz this depends on projector refresh rate
+        self.FLICKERING_TIME = 33.3#14.2 # ms  = 60 Hz this depends on projector refresh rate
         self.INTENSITY_AMPLITUDE = [0.1, 0.4]
         self.INTENSITY_OFFSET = 0.5
         self.BACKGOUND_COLOR = 0.5
-        self.TIME_COURSE = 0.1*50000 #ms
+        self.TIME_COURSE = 4*50000 #ms
         self.WAVEFORM = 'flicker'
         self.SIN_FREQUENCY = 0.33 #Hz
         self.RANDOM_FLICKERING = True #False
         self.FLICKER_PROBABILITY = 0.5 #0.0...1.0
+        self.USER_FRAGMENT_NAME = 'FILENAME'
         self.runnable = 'SlowContrastAdaptationExperiment'
         self._create_parameters_from_locals(locals())
         
@@ -57,18 +58,18 @@ class SlowContrastAdaptationExperiment(experiment.Experiment):
             print self.intensities
             #pylab.plot(self.intensities)
             #pylab.show()
+        self.intensities = numpy.array([self.intensities]).T
             
     def run(self):
         self.show_fullscreen(duration = 1.0, color = 1.0)
         self.show_fullscreen(duration = 1.0, color = 0.0)
         for r in range(self.experiment_config.REPEATS):
-            for intensity_amplitude in self.intensities:
-                self.show_shape(shape = 'spot', 
+            self.show_shape(shape = 'spot', 
                                 duration = self.experiment_config.FLICKERING_TIME/1000.0,
                                 pos = utils.rc((0,0)), 
-                                color = intensity_amplitude, 
+                                color = self.intensities, 
                                 background_color = self.experiment_config.BACKGOUND_COLOR,
                                 size = self.experiment_config.SPOT_SIZE)
-                if self.abort:
-                    break
+            if self.abort:
+                break
         self.show_fullscreen(duration = 0, color = 0.0)

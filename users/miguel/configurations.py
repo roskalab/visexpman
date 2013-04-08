@@ -32,7 +32,7 @@ class MVSSA(VisionExperimentConfig):
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.65
+        SCREEN_UM_TO_PIXEL_SCALE = 1
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT =  False#(self.OS == 'win')
@@ -46,7 +46,7 @@ class MVSSA(VisionExperimentConfig):
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = False
         #=== LED controller ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -69,7 +69,11 @@ class MVSSA(VisionExperimentConfig):
                     'ENABLE' :  False#(self.OS == 'win')
                     },
                     ]
-        self.GAMMA_CORRECTION = GAMMA_CORRECTION
+        gamma_corr_filename = 'c:\\visexp\\gamma.hdf5'
+        if os.path.exists(gamma_corr_filename):
+            from visexpA.engine.datahandlers import hdf5io
+            import copy
+            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction'))        
         #=== Others ===
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
 
@@ -99,7 +103,7 @@ class MVS(VisionExperimentConfig):
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.65
+        SCREEN_UM_TO_PIXEL_SCALE = 0.45
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
@@ -113,7 +117,7 @@ class MVS(VisionExperimentConfig):
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = False
         #=== LED controller ===
-        SYNC_CHANNEL_INDEX = 1
+        STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -136,13 +140,30 @@ class MVS(VisionExperimentConfig):
                     'ENABLE' :  False#(self.OS == 'win')
                     },
                     ]
+                    
+        ENABLE_FILTERWHEEL = True
+        FILTERWHEEL_SERIAL_PORT = [{
+                                    'port' :  'COM1',
+                                    'baudrate' : 9600,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }, 
+                                    {
+                                    'port' :  'COM4',
+                                    'baudrate' : 115200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }]
         gamma_corr_filename = 'c:\\visexp\\gamma.hdf5'
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction'))
         #=== Others ===
-        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
+        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
+                                    'next': {'key': 'n', 'domain': ['running experiment']},}
         self._create_parameters_from_locals(locals())
         
 if __name__ == "__main__":    

@@ -372,8 +372,6 @@ class ExperimentControl(object):
         else:
             #If filterwheels neither configured, nor enabled, two virtual ones are created, so that experiments calling filterwheel functions could be called
             self.number_of_filterwheels = 2
-        for id in range(self.number_of_filterwheels):
-            self.filterwheels.append(instrument.Filterwheel(self.config, self.log, self.start_time, id =id))
         self.led_controller = daq_instrument.AnalogPulse(self.config, self.log, self.start_time, id = 1)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
         self.analog_input = None #This is instantiated at the beginning of each fragment
         self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
@@ -415,7 +413,9 @@ class ExperimentControl(object):
         self.filenames['mes_fragments'] = []
         self.fragment_names = []
         for fragment_id in range(self.number_of_fragments):
-            if self.config.EXPERIMENT_FILE_FORMAT == 'mat':
+            if hasattr(self.experiment_config, 'USER_FRAGMENT_NAME'):
+                fragment_name = self.experiment_config.USER_FRAGMENT_NAME
+            elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
                 fragment_name = 'fragment_{0}' .format(self.name_tag)
             elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
                 fragment_name = 'fragment_{0}_{1}_{2}' .format(self.name_tag, self.id, fragment_id)

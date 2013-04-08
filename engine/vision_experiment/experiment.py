@@ -26,9 +26,15 @@ class ExperimentConfig(Config):
             raise ValueError('You must specify the class which will run the experiment')
         else:
             if experiment_class == None and source_code == None:
-                self.runnable = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = self.runnable,  
+                for u in self.machine_config.users:
+                    try:
+                        self.runnable = utils.fetch_classes('visexpman.users.'+ u, classname = self.runnable,  
                                                     required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment, direct=False)[0][1]\
-                    (self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the actual stimulation
+                            (self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the actual stimulation
+                        break
+                    except IndexError:
+                        continue
+                        
             else:
                 self.runnable = experiment_class(self.machine_config, self, self.queues, self.connections, self.application_log, source_code, parameters = parameters)
             if hasattr(self, 'pre_runnable'):

@@ -35,17 +35,30 @@ class VisionExperimentRunner(command_handler.CommandHandler):
     def __init__(self, user, config_class, autostart = False):
         ########## Set up configurations ################
         try:
-            self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+            if hasattr(user, '__iter__'):
+                user_ = user[0]
+            else:
+                user_ = user
+            self.config = utils.fetch_classes('visexpman.users.'+user_, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         except IndexError:
             raise RuntimeError('Configuration class does not exist: ' + str(config_class))
         #Save user name
         if user == '':
             self.config.user = 'undefined'
+        elif hasattr(user, '__iter__'):
+            self.config.user = str(user[0])
         else:
-            self.config.user = user
+            self.config.user = str(user)
         #== Fetch experiment classes ==
         if self.config.user != 'undefined':
-            self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = experiment.ExperimentConfig, direct = False)
+            if hasattr(user, '__iter__'):
+                users = user
+            else:
+                users = [user]
+            self.config.users = users
+            self.experiment_config_list = []
+            for u in users:
+                self.experiment_config_list.extend(utils.fetch_classes('visexpman.users.' + u,  required_ancestors = experiment.ExperimentConfig, direct = False))
         else:
             #In case of SafestartConfig, no experiment configs are loaded
             #TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig
@@ -64,17 +77,18 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             self.keyboard_command_queue.put('SOCexecute_experimentEOCEOP')
             self.keyboard_command_queue.put('SOCquitEOCEOP')
         #Select and instantiate stimulus as specified in machine config, This is necessary to ensure that pre-experiment will run immediately after startup
-        if len(self.experiment_config_list) > 0:
+        if len(self.experiment_config_list) > 0 and hasattr(self.config,'EXPERIMENT_CONFIG') and self.config.EXPERIMENT_CONFIG != '' and self.config.EXPERIMENT_CONFIG != None:
             try:
                 self.experiment_config = [ex1[1] for ex1 in self.experiment_config_list if ex1[1].__name__ == self.config.EXPERIMENT_CONFIG][0](self.config, self.queues, self.connections, self.log)
             except IndexError:
                 raise RuntimeError('Experiment config does not exists: {0}'.format(self.config.EXPERIMENT_CONFIG))
+            #Determine default experiment config index from machine config
+            for i in range(len(self.experiment_config_list)):
+                if self.experiment_config_list[i][1].__name__ == self.config.EXPERIMENT_CONFIG:
+                    self.selected_experiment_config_index = i
         else:
             self.experiment_config = None
-        #Determine default experiment config index from machine config
-        for i in range(len(self.experiment_config_list)):
-            if self.experiment_config_list[i][1].__name__ == self.config.EXPERIMENT_CONFIG:
-                self.selected_experiment_config_index = i
+            self.selected_experiment_config_index = 0
         #If udp enabled (= presentinator interface enabled), check for *presentinator*.py files in current user folder and delete them
         if self.config.ENABLE_UDP:
             user_folder = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user)
@@ -318,7 +332,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
         else:
             frame_rate_tolerance = 0.2
         #Check for certain string patterns in log and experiment log files, check if archiving zip file is created and if it contains the necessary files
-        
+                        
         self.assertEqual(
                         (self.check_application_log(v), 
                         'Abort pressed' in log, 
@@ -335,7 +349,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
                         v.experiment_config.__class__, 
                         (frame_rate < expected_frame_rate + frame_rate_tolerance and frame_rate > expected_frame_rate - frame_rate_tolerance) and unit_test_runner.TEST_consider_frame_rate
                         ),
-                        (True, True, True, True, True, True, True, True, True, True, 
+                        (True, True, True, True, True, True, True, unit_test_runner.TEST_daq, unit_test_runner.TEST_daq, True, 
                         visexpman.users.zoltan.automated_test_data.StandaloneConfig,
                        'zoltan',
                        visexpman.users.zoltan.automated_test_data.StandaloneExperimentConfig, 
