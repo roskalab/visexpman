@@ -8,6 +8,10 @@ import subprocess as sub
 from distutils import file_util,  dir_util
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
+def free_space(path):
+    s=os.statvfs(path)
+    return (s.f_bavail * s.f_frsize)
+
 def file_open_by_other_process(filename):
     '''Checks whether the given file is open by any process'''
     ccmd = 'lsof -Fp '+filename
