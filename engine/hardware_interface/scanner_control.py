@@ -326,21 +326,24 @@ class TwoPhotonScanner(instrument.Instrument):
             raise RuntimeError('AI sample rate must be the multiple of AO sample rate')
         else:
             self.binning_factor = int(self.binning_factor)
-        
-    def start_measurement(self, scanner_x, scanner_y):
+            
+    def start_measurement(self, scanner_x, scanner_y,  trigger = None):
         #Convert from position to voltage
         self.scanner_positions = numpy.array([scanner_x, scanner_y])
-        self.scanner_control_signal = numpy.array([scanner_x + self.config.XMIRROR_OFFSET, scanner_y + self.config.YMIRROR_OFFSET]) * self.config.POSITION_TO_SCANNER_VOLTAGE
-        self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr(self.scanner_control_signal[:,0]), self.config.SCANNER_RAMP_TIME, self.config.SCANNER_HOLD_TIME)
+        if trigger is not None:
+            self.scanner_control_signal = numpy.array([scanner_x + self.config.XMIRROR_OFFSET, scanner_y + self.config.YMIRROR_OFFSET,  trigger/self.config.POSITION_TO_SCANNER_VOLTAGE]) * self.config.POSITION_TO_SCANNER_VOLTAGE
+        else:
+            self.scanner_control_signal = numpy.array([scanner_x + self.config.XMIRROR_OFFSET, scanner_y + self.config.YMIRROR_OFFSET]) * self.config.POSITION_TO_SCANNER_VOLTAGE
+        self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr(self.scanner_control_signal[:2,0]), self.config.SCANNER_RAMP_TIME, self.config.SCANNER_HOLD_TIME,  trigger = trigger)
         self.aio.waveform = self.scanner_control_signal.T
-        self.pmt_raw = []
         self.data = []
-        self.frame_rate = float(self.aio.daq_config['AO_SAMPLE_RATE']/self.scanner_positions.shape[1])
+        self.pmt_raw = []
+        self.frame_rate = float(self.aio.daq_config['AO_SAMPLE_RATE'])/self.scanner_positions.shape[1]
         self.boundaries = numpy.nonzero(numpy.diff(self.scan_mask))[0]+1
         self.open_shutter()
         self.aio.start_daq_activity()
         
-    def _set_scanner_voltage(self, initial_voltage, target_voltage, ramp_time, hold_time = 0):
+    def _set_scanner_voltage(self, initial_voltage, target_voltage, ramp_time, hold_time = 0, trigger = None):
         ramp_samples = int(self.aio.daq_config['AO_SAMPLE_RATE']*ramp_time)
         hold_samples = int(self.aio.daq_config['AO_SAMPLE_RATE']*hold_time)
         scanner_x_waveform = target_voltage['col'] * numpy.ones(ramp_samples + hold_samples)
@@ -348,29 +351,65 @@ class TwoPhotonScanner(instrument.Instrument):
         scanner_y_waveform = target_voltage['row'] * numpy.ones(ramp_samples + hold_samples)
         scanner_y_waveform[:ramp_samples] = numpy.linspace(initial_voltage['row'], target_voltage['row'], ramp_samples)
         self.config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'finite'
-        self.aio.waveform = numpy.array([scanner_x_waveform, scanner_y_waveform]).T
+        if self.aio.number_of_ao_channels == 3:
+            self.aio.waveform = numpy.array([scanner_x_waveform, scanner_y_waveform, numpy.zeros_like(scanner_y_waveform)]).T
+        elif trigger is None or self.aio.number_of_ao_channels == 2:
+            self.aio.waveform = numpy.array([scanner_x_waveform, scanner_y_waveform]).T
         self.aio.run()
         self.config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
         
-    def start_rectangular_scan(self, size, position = utils.rc((0, 0)), spatial_resolution = 1.0, setting_time = None):
+    def start_rectangular_scan(self, size, position = utils.rc((0, 0)), spatial_resolution = 1.0, setting_time = None,  trigger_signal_config = None):
+        '''
+        spatial_resolution: pixel size in um
+        '''
         if setting_time == None:
             setting_time = self.config.SCANNER_SETTING_TIME
         pos_x, pos_y, self.scan_mask, accel_speed, result = generate_rectangular_scan(size, position, spatial_resolution, 1, setting_time, self.config)
         if not result:
             raise RuntimeError('Scanning pattern is not feasable')
         self.is_rectangular_scan = True
-        self.start_measurement(pos_x, pos_y)
+        if trigger_signal_config is None:
+            self.trigger_signal = None
+        else:
+            self._scan_mask2trigger(trigger_signal_config['offset'], trigger_signal_config['width'], trigger_signal_config['amplitude'])
+        self.start_measurement(pos_x, pos_y, self.trigger_signal)
         
-    def start_line_scan(self, lines, setting_time = None):
+    def start_line_scan(self, lines, setting_time = None, trigger_signal_config = None):
         if setting_time == None:
             setting_time = self.config.SCANNER_SETTING_TIME
         pos_x, pos_y, self.scan_mask, accel_speed, result = generate_lines_scan(lines, setting_time, 1, self.config)
         if not result:
             raise RuntimeError('Scanning pattern is not feasable')
         self.is_rectangular_scan = False
-        self.start_measurement(pos_x, pos_y)
+        if trigger_signal_config is None:
+            self.trigger_signal = None
+        else:
+            self._scan_mask2trigger(trigger_signal_config['offset'], trigger_signal_config['width'], trigger_signal_config['amplitude'])
+        self.start_measurement(pos_x, pos_y, self.trigger_signal)
+        
+    def _scan_mask2trigger(self,  offset,  width,  amplitude):
+        '''
+        Converts scan mask to trigger signal that controls the projector
+        '''
+        trigger_mask = numpy.logical_not(numpy.cast['bool'](self.scan_mask))
+        offset_samples = int(numpy.round(self.aio.daq_config['AO_SAMPLE_RATE'] * offset))
+        width_samples = int(numpy.round(self.aio.daq_config['AO_SAMPLE_RATE'] * width))
+        if trigger_mask[0]:#Consider if the first item is True, consequenctly it cannot be detected as a rising edge
+            edge_offset = 1
+        else:
+            edge_offset = 0
+        trigger_rising_edges = numpy.nonzero(numpy.diff(trigger_mask))[0][edge_offset::2]+offset_samples
+        if trigger_mask[0]:
+            trigger_rising_edges = trigger_rising_edges.tolist()
+            trigger_rising_edges.insert(0, 0)
+            trigger_rising_edges = numpy.array(trigger_rising_edges)
+        high_value_indexes = (numpy.array([range(width_samples)]*trigger_rising_edges.shape[0])+numpy.array([trigger_rising_edges.tolist()]*width_samples).T).flatten()
+        self.trigger_signal = numpy.zeros_like(trigger_mask, dtype = numpy.float64)
+        self.trigger_signal[high_value_indexes] = amplitude
+        self.trigger_signal *= trigger_mask
         
     def read_pmt(self):
+        #This function shal run in the highest priority process
         raw_pmt_data = self.aio.read_analog()
         self.pmt_raw.append(raw_pmt_data)
         
@@ -380,10 +419,11 @@ class TwoPhotonScanner(instrument.Instrument):
         #value of ao at stopping continous generation is unknown
         self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr((0.0, 0.0)), self.config.SCANNER_RAMP_TIME)
         #Gather measurment data
-        for raw_pmt_data in self.pmt_raw:
-            binned_pmt_data = self._binning_data(raw_pmt_data, self.binning_factor)
-            self.data.append(numpy.array((numpy.split(binned_pmt_data, self.boundaries)[1::2])))
-        self.data = numpy.array(self.data)
+        self.data = numpy.array([self._raw2frame(raw_pmt_data) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
+        
+    def _raw2frame(self, rawdata):
+        binned_pmt_data = self._binning_data(rawdata, self.binning_factor)
+        return numpy.array((numpy.split(binned_pmt_data, self.boundaries)[1::2]))
         
     def open_shutter(self):
         self.shutter.set()

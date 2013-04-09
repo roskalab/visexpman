@@ -17,7 +17,6 @@ if os.name == 'nt':
     except:
         pass
         
-        
 class DigitalIO(instrument.Instrument):
     def init_instrument(self):
         if hasattr(self.config,  'DAQ_CONFIG'):
@@ -136,8 +135,10 @@ class AnalogIO(instrument.Instrument):
                 
             if self.enable_ai:
                 self.analog_input = PyDAQmx.Task()
-                #TODO: parameter or based on device type
-                terminal_config = DAQmxConstants.DAQmx_Val_RSE #If PCI-6110 device is used: DAQmx_Val_PseudoDiff
+                if self.daq_config.has_key('AI_TERMINAL'):
+                    terminal_config = self.daq_config['AI_TERMINAL']
+                else:
+                    terminal_config = DAQmxConstants.DAQmx_Val_RSE #If PCI-6110 device is used: DAQmx_Val_PseudoDiff
                 self.analog_input.CreateAIVoltageChan(self.daq_config['AI_CHANNEL'],
                                                             'ai',
                                                             terminal_config,
