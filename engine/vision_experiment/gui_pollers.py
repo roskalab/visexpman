@@ -24,6 +24,7 @@ from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.hardware_interface import stage_control
+from visexpman.engine.hardware_interface import scanner_control
 from visexpman.engine.hardware_interface import flowmeter
 from visexpman.engine import generic
 from visexpman.engine.generic import utils
@@ -32,7 +33,10 @@ from visexpman.engine.generic import introspect
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
-import visexpA.engine.component_guesser as cg
+try:
+    import visexpA.engine.component_guesser as cg
+except:
+    pass
 
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
 
@@ -50,7 +54,8 @@ class Poller(QtCore.QThread):
         self.connect_signals()
 
     def connect_signals(self):
-        self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
+#        self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
+        self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
 
     def init_run(self):
         pass
@@ -2020,6 +2025,26 @@ class FlowmeterPoller(flowmeter.Flowmeter, Poller):
     def close(self):
         self.stop_measurement()
         self.file.close()
+        
+class CaImagingPoller(Poller):
+    def __init__(self, parent):
+        Poller.__init__(self, parent)
+        self.config = parent.config
+        from multiprocessing import Queue, Process
+        self.queues = {'in':Queue(), 'out':Queue()}
+        self.process = Process(target=scanner_control.two_photon_scanner_process,  args = (self.config, self.queues))
+        self.process.start()
+#        self.queues['out'].put('ping')
+#        self.queues['out'].put('test,0,1')
+        self.queues['out'].put('test,param1=3,param2=2')
+
+    def periodic(self):
+        if not self.queues['in'].empty():
+            self.printc(self.queues['in'].get())
+
+    def close(self):
+        self.queues['out'].put('SOCquitEOCEOP')
+        self.process.join()
 
 if __name__ == '__main__':
-    pass
+    CaImagingRecorder(None)

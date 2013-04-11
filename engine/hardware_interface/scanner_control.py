@@ -16,6 +16,7 @@ import daq_instrument
 import instrument
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import configuration
+from visexpman.engine.generic import command_parser
 from visexpman.users.zoltan.test import unit_test_runner
 import unittest
 
@@ -460,6 +461,41 @@ def generate_test_lines(scanner_range, repeats, speeds):
                     lines.append(line_to_add)
         
     return lines
+    
+class TwoPhotonScannerLoop(command_parser.CommandParser):
+    def __init__(self, config, queues):
+        self.log = None
+        command_parser.CommandParser.__init__(self, queues['out'], queues['in'], log = self.log, failsafe = False)
+        self.run = True
+        self.printc('Started')
+        
+    def printc(self, txt):
+        self.queue_out.put(str(txt))
+        
+    def quit(self):
+        self.run = False
+        return 'quit'
+        
+    def exit(self):
+        self.quit()
+        
+    def ping(self):
+        self.printc('pong')
+        
+    def test(self, param1 = 0, param2 =1):
+        self.printc((param1, param2))
+    
+def two_photon_scanner_process(config, queues):
+    '''
+    The scanner process has a command interface where two photon scanning operations can be initiated. Communication
+    takes place via queues since large amount of data has to be returned to the caller process.
+    
+    '''
+    tl = TwoPhotonScannerLoop(config, queues)
+    while tl.run:
+        tl.parse()
+        time.sleep(0.1)
+    tl.printc('Scanner process ended')
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):

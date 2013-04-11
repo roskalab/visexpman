@@ -172,12 +172,13 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.setLayout(self.layout)        
 
 class AnimalParametersWidget(QtGui.QWidget):
-    def __init__(self, parent, config):
+    def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
-        self.config = config
+        self.config = parent.config
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
+        if hasattr(self.config, 'TAB_SIZE'):
+            self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
 
     def create_widgets(self):
         default_date = QtCore.QDate(2012, 1, 1)
@@ -266,17 +267,18 @@ class TileScanGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.nrows, 0, 0)
         self.layout.addWidget(self.ncols, 0, 1)
         self.layout.addWidget(self.overlap, 0, 2)
-        self.layout.addWidget(self.start_button, 0, 3)
-        self.layout.addWidget(self.stop_button, 0, 4)
+        self.layout.addWidget(self.start_button, 1, 0)
+        self.layout.addWidget(self.stop_button, 1, 1)
         self.setLayout(self.layout)
 
 class ZstackWidget(QtGui.QWidget):
-    def __init__(self, parent, config):
+    def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
-        self.config = config
+        self.config = parent.config
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
+        if hasattr(self.config, 'TAB_SIZE'):
+            self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
 
     def create_widgets(self):
         self.tile_scan_groupbox = TileScanGroupBox(self)
