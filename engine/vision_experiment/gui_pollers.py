@@ -9,8 +9,8 @@ import os
 import os.path
 import webbrowser
 import copy
-import traceback
 import tempfile
+import scipy.io
 
 if os.name == 'nt':
     import winsound
@@ -29,6 +29,7 @@ from visexpman.engine.hardware_interface import flowmeter
 from visexpman.engine import generic
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
+from visexpman.engine.generic import string
 from visexpman.engine.generic import introspect
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
@@ -2031,20 +2032,154 @@ class CaImagingPoller(Poller):
         Poller.__init__(self, parent)
         self.config = parent.config
         from multiprocessing import Queue, Process
-        self.queues = {'in':Queue(), 'out':Queue()}
+        self.queues = {'in':Queue(), 'out':Queue(), 'parameters': Queue(), 'data': Queue(), 'frame': Queue()}
         self.process = Process(target=scanner_control.two_photon_scanner_process,  args = (self.config, self.queues))
         self.process.start()
+        self.init_variables()
+        self.load_context()
 #        self.queues['out'].put('ping')
 #        self.queues['out'].put('test,0,1')
-        self.queues['out'].put('test,param1=3,param2=2')
+#        self.queues['out'].put('test,param1=3,param2=2')
+        
+    
 
     def periodic(self):
+        if self.scan_run and self.scan_start_time is not None:
+            self.update_status(scan_is_running_for = (numpy.round(time.time() - self.scan_start_time),  's'))
+        else:
+            self.update_status(scan_is_running_for = (0,  's'))
+        
+    def run_in_all_iterations(self):
+        self.frame_update()
+            
+    def handle_commands(self):
         if not self.queues['in'].empty():
-            self.printc(self.queues['in'].get())
+            message_raw = self.queues['in'].get()
+            message = message_raw.split(',')
+            method = message[0]
+            if len(message)>0:
+                arguments = message[1:]
+            else:
+                arguments = []
+            if hasattr(self, method) and callable(getattr(self, method)) and not hasattr(getattr(self, method), 'emit'):
+                try:
+                    getattr(self, method)()
+                except:
+                    self.printc(traceback.format_exc())
+            else:
+                self.printc(message_raw)
+                
+    def load_context(self):
+        context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+        self.load_widget_context(context_hdf5)
+        context_hdf5.close()
+        
+    def load_widget_context(self,hdfhandler):
+        hdfhandler.load('widget_context')
+        if hasattr(hdfhandler, 'widget_context'):
+            self.widget_context_values = copy.deepcopy(hdfhandler.widget_context)
+            
+    def save_widget_context(self, hdfhandler):
+        if hasattr(self,'widget_context_fields'):
+            hdfhandler.widget_context = {}
+            for widget_field in self.widget_context_fields:
+                ref = introspect.string2objectreference(self, widget_field)
+                if hasattr(ref,'currentText'):
+                    hdfhandler.widget_context[widget_field] = str(ref.currentText())
+                elif hasattr(ref,'text'):
+                    hdfhandler.widget_context[widget_field] = str(ref.text())
+            hdfhandler.save('widget_context',overwrite = True)
+            
+    def init_variables(self):
+        self.scan_run = False
+        self.status = {}
+        self.objective_position = 0
+        self.scan_start_time = None
+        self.widget_context_fields = ['self.parent.central_widget.main_widget.background_scan_parameters.inputs[\'scan_area_size_xy\'].input', 
+                                        'self.parent.central_widget.main_widget.background_scan_parameters.inputs[\'scan_area_center_xy\'].input', 
+                                        'self.parent.central_widget.main_widget.background_scan_parameters.inputs[\'resolution\'].input', 
+                                        'self.parent.central_widget.main_widget.measurement_files.cell_name.input', 
+                                        'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name', 
+                                      ]
+        for pn in self.parent.central_widget.calibration_widget.parameter_names:
+            self.widget_context_fields.append('self.parent.central_widget.calibration_widget.scanner_parameters[\'{0}\'].input'.format(pn))
+            
+    def update_status(self, **kwargs):
+        for k,  v in kwargs.items():
+            self.status[k] = v
+        text = ''
+        param_per_line = 4
+        ct = 0
+        for k, v in self.status.items():
+            text += '{0}: {1} {2}\t'.format(k.replace('_', ' ').capitalize(), v[0],  v[1])
+            ct += 1
+            if ct%param_per_line==0 and  ct != 0:
+                text+= '\n'
+        self.parent.central_widget.status.setText(text)
 
     def close(self):
         self.queues['out'].put('SOCquitEOCEOP')
+        h = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+        self.save_widget_context(h)
+        h.close()
         self.process.join()
+        
+    ########### Commands #################
+    def scan(self):
+        if self.scan_run:
+            self.queues['out'].put('stop_scan')
+            self.printc('Scan stop requested')
+        else:
+            self.scan_run = True
+            parameters = {}
+#            parameters['duration'] = 64.0
+            parameters['scan_size'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_size_xy'].input.text()))
+            parameters['scan_center'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_center_xy'].input.text()))
+            parameters['resolution'] = 1.0/float(str(self.parent.central_widget.main_widget.background_scan_parameters.inputs['resolution'].input.text()))
+            #generate filename/create dirs
+            folder = os.path.join(self.config.EXPERIMENT_DATA_PATH,  utils.date_string())
+            file.mkdir_notexists(folder)
+            cell_name = str(self.parent.central_widget.main_widget.measurement_files.cell_name.input.currentText())
+            experiment_name = str(self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText())
+            self.id = str(int(time.time()))
+            filenames = experiment_data.generate_filename(self.config, self.id, experiment_name,  cell_name,  depth = self.objective_position,  user_extensions = ['tiff'], output_folder = folder)
+            parameters['filenames'] = filenames
+            self.queues['parameters'].put(parameters)
+            self.queues['out'].put('start_scan')
+            self.printc('Scan start requested')
+        
+    def scan_started(self):
+        self.scan_parameters = self.queues['data'].get()
+        self.update_status(frame_rate = (numpy.round(self.scan_parameters['frame_rate'], 2),  'Hz'))
+        self.scan_start_time = time.time()
+        self.printc('Scan started')
+        
+    def scan_ready(self):
+        self.scan_run = False
+        self.scan_parameters = {}
+        self.scan_start_time = None
+        self.printc('Scan ready')
+        
+    def frame_update(self):
+        if not self.queues['frame'].empty():
+            self.current_frame = scanner_control.raw2frame(self.queues['frame'].get(),  self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'])
+            #Get items from queue to make queue empty
+            while not self.queues['frame'].empty():
+                self.queues['frame'].get()
+            
+#            self.printc(self.current_frame.sum())
+#            self.printc(self.current_frame.shape)
+
+    
+        
+            
+            
+            
+            
+            
+        
+        
+        
 
 if __name__ == '__main__':
     CaImagingRecorder(None)

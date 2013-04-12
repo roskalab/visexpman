@@ -1,4 +1,7 @@
 import os.path
+import os
+if os.name == 'nt':
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
 import visexpman
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.vision_experiment import experiment
@@ -6,6 +9,7 @@ from visexpman.users.peter import mea_configurations as peter_configurations
 from visexpman.users.zoltan.test import unit_test_runner
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
+
 
 class CaImagingTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
@@ -16,7 +20,10 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
+        CONTEXT_PATH = self.root_folder
+        self.CONTEXT_NAME = '2pdev.hdf5'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
+#        EXPERIMENT_FILE_FORMAT = 'mat'
         #### experiment specific ####
         PARSE_PERIOD = 0.1
         
@@ -34,6 +41,41 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
             'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
             }
         COORDINATE_SYSTEM='ulcorner'
+        
+        self.SCANNER_MAX_SPEED = utils.rc((1e7, 1e7))#um/s
+        self.SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
+        self.SCANNER_SIGNAL_SAMPLING_RATE = 250000 #Hz
+        self.SCANNER_DELAY = 0#As function of scanner speed
+        self.SCANNER_START_STOP_TIME = 0.02
+        self.SCANNER_MAX_POSITION = 200.0
+        self.POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0
+        self.XMIRROR_OFFSET = 0.0#um
+        self.YMIRROR_OFFSET = 0.0#um
+        self.SCANNER_RAMP_TIME = 70.0e-3
+        self.SCANNER_HOLD_TIME = 30.0e-3
+        self.SCANNER_SETTING_TIME = 1e-3
+        DAQ_CONFIG = [
+        {
+        'ANALOG_CONFIG' : 'aio',
+        'DAQ_TIMEOUT' : 2.0, 
+        'AO_SAMPLE_RATE' : 400000,
+        'AI_SAMPLE_RATE' : 800000,
+        'AO_CHANNEL' : 'Dev1/ao0:1',
+        'AI_CHANNEL' : 'Dev1/ai0',
+        'MAX_VOLTAGE' : 3.0,
+        'MIN_VOLTAGE' : -3.0,
+        'DURATION_OF_AI_READ' : 2.0,
+        'ENABLE' : True
+        },
+        {
+        'DAQ_TIMEOUT' : 1.0, 
+        'DO_CHANNEL' : unit_test_runner.TEST_daq_device + '/port0/line0',
+        'ENABLE' : True
+        }
+        ]
+        if os.name == 'nt':
+            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
+
         self._create_parameters_from_locals(locals())
 
 class JobhandlerTestConfig(configuration.VisionExperimentConfig):

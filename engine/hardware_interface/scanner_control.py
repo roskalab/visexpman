@@ -10,14 +10,20 @@ Extreme setting: big movement, short setting time, big speed change
 #eliminate position and speed overshoots - not possible
 #TODO: check generated scan for acceleration, speed and position limits
 import numpy
+import scipy.io
 import time
-
+import copy
+import os.path
 import daq_instrument
 import instrument
 from visexpman.engine.generic import utils
+from visexpman.engine.generic import file
+from visexpman.engine.generic import log
 from visexpman.engine.generic import configuration
 from visexpman.engine.generic import command_parser
+from visexpman.engine.vision_experiment import experiment_data
 from visexpman.users.zoltan.test import unit_test_runner
+from visexpA.engine.datahandlers import hdf5io
 import unittest
 
 class ScannerTestConfig(configuration.Config):
@@ -340,6 +346,7 @@ class TwoPhotonScanner(instrument.Instrument):
         self.data = []
         self.pmt_raw = []
         self.frame_rate = float(self.aio.daq_config['AO_SAMPLE_RATE'])/self.scanner_positions.shape[1]
+        self.scanner_time_efficiency = self.scan_mask.sum()/self.scan_mask.shape[0]
         self.boundaries = numpy.nonzero(numpy.diff(self.scan_mask))[0]+1
         self.open_shutter()
         self.aio.start_daq_activity()
@@ -411,8 +418,9 @@ class TwoPhotonScanner(instrument.Instrument):
         
     def read_pmt(self):
         #This function shal run in the highest priority process
-        raw_pmt_data = self.aio.read_analog()
-        self.pmt_raw.append(raw_pmt_data)
+        self.raw_pmt_frame = self.aio.read_analog()
+        self.pmt_raw.append(self.raw_pmt_frame)
+        return copy.deepcopy(self.raw_pmt_frame)
         
     def finish_measurement(self):
         self.aio.finish_daq_activity()
@@ -420,11 +428,7 @@ class TwoPhotonScanner(instrument.Instrument):
         #value of ao at stopping continous generation is unknown
         self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr((0.0, 0.0)), self.config.SCANNER_RAMP_TIME)
         #Gather measurment data
-        self.data = numpy.array([self._raw2frame(raw_pmt_data) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
-        
-    def _raw2frame(self, rawdata):
-        binned_pmt_data = self._binning_data(rawdata, self.binning_factor)
-        return numpy.array((numpy.split(binned_pmt_data, self.boundaries)[1::2]))
+        self.data = numpy.array([raw2frame(raw_pmt_data, self.binning_factor, self.boundaries) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
         
     def open_shutter(self):
         self.shutter.set()
@@ -436,9 +440,13 @@ class TwoPhotonScanner(instrument.Instrument):
         self.aio.release_instrument()
         self.shutter.release_instrument()
         
-    ####### Helpers #####################
-    def _binning_data(self, data, factor):
-        return numpy.reshape(data, (data.shape[0]/factor, factor, data.shape[1])).mean(1)
+####### Helpers #####################
+def raw2frame(rawdata,  binning_factor,  boundaries):
+    binned_pmt_data = binning_data(rawdata, binning_factor)
+    return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
+    
+def binning_data(data, factor):
+    return numpy.reshape(data, (data.shape[0]/factor, factor, data.shape[1])).mean(1)
         
 def generate_test_lines(scanner_range, repeats, speeds):
     lines1 = [
@@ -459,18 +467,22 @@ def generate_test_lines(scanner_range, repeats, speeds):
                     line_to_add = copy.copy(line)
                     line_to_add['v'] = speed
                     lines.append(line_to_add)
-        
     return lines
     
 class TwoPhotonScannerLoop(command_parser.CommandParser):
     def __init__(self, config, queues):
-        self.log = None
-        command_parser.CommandParser.__init__(self, queues['out'], queues['in'], log = self.log, failsafe = False)
+        self.config = config
+        self.queues = queues
+        self.log = log.Log('2p log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'twophotonloop_log.txt')), local_saving = False)
+        command_parser.CommandParser.__init__(self, queues['out'], queues['in'], log = self.log, failsafe = True)
         self.run = True
-        self.printc('Started')
+        self.printc('started')
         
-    def printc(self, txt):
+    def printc(self, txt, local_print = True):
         self.queue_out.put(str(txt))
+        self.log.info(txt)
+        if local_print:
+            print txt
         
     def quit(self):
         self.run = False
@@ -482,8 +494,96 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
     def ping(self):
         self.printc('pong')
         
-    def test(self, param1 = 0, param2 =1):
-        self.printc((param1, param2))
+    def start_scan(self):
+        if not self.queues['parameters'].empty():
+            #Copy scan parameters
+            parameters = self.queues['parameters'].get()
+            config = copy.deepcopy(self.config)
+            parameter_names = ['SCANNER_SIGNAL_SAMPLING_RATE',  'SCANNER_DELAY', 'SCANNER_START_STOP_TIME',  'SCANNER_MAX_POSITION',  \
+                                            'POSITION_TO_SCANNER_VOLTAGE','XMIRROR_OFFSET', 'YMIRROR_OFFSET', 'SCANNER_RAMP_TIME', \
+                                        'SCANNER_HOLD_TIME',  'SCANNER_SETTING_TIME',  'SCANNER_TRIGGER_CONFIG']
+            for p in parameter_names:
+                if parameters.has_key(p):
+                    setattr(config,  p,  parameters[p])
+            daq_parameter_names = ['AO_SAMPLE_RATE', 'AI_SAMPLE_RATE', 'AO_CHANNEL',  'AI_CHANNEL']
+            for p in daq_parameter_names:
+                if parameters.has_key(p):
+                    config.DAQ_CONFIG[0][p] = parameters[p]
+            if not hasattr(config, 'SCANNER_TRIGGER_CONFIG'):
+                config.SCANNER_TRIGGER_CONFIG = None
+            self.filenames = parameters['filenames']
+            #Initialize scanner  devices
+            self.tp = TwoPhotonScanner(config)
+            self.tp.start_rectangular_scan(parameters['scan_size'], parameters['scan_center'], parameters['resolution'], setting_time = config.SCANNER_SETTING_TIME, 
+                                      trigger_signal_config = config.SCANNER_TRIGGER_CONFIG)
+            if parameters.has_key('duration'):
+                if parameters['duration'] == 0:
+                    nframes = 1
+                else:
+                    nframes = int(numpy.round(parameters['duration'] * self.tp.frame_rate))
+            else:
+                nframes = -1
+            self._estimate_memory_demand()
+            self._send_scan_parameters2guipoller(config)
+            self.printc('scan_started')
+            frame_ct = 0
+            #start scan loop
+            while True:
+                self.queues['frame'].put(self.tp.read_pmt())                    
+                frame_ct += 1
+                if (not self.queue_in[0].empty() and self.queue_in[0].get() == 'stop_scan') or frame_ct == nframes or frame_ct >= self.max_nframes:
+                    break
+                time.sleep(0.01)
+            #Finish, save
+            self.printc('Scanning ended, {0} frames recorded' .format(frame_ct))
+            self.tp.finish_measurement()
+            self._save_cadata(config)
+            self.printc('scan_ready')
+            self.tp.release_instrument()
+        else:
+            self.printc('Scan not started, parameters not provided')
+            
+    def _estimate_memory_demand(self):
+        self.printc(        (self.tp.aio.number_of_ai_samples,  self.tp.aio.number_of_ai_channels))
+        max_memory = 70700*2*724#in case of hdf5 file format
+        #70000, 1448 frame, 2500000, 20 frames
+        memory_usage_per_frame =  self.tp.aio.number_of_ai_samples * self.tp.aio.number_of_ai_channels
+        self.max_nframes = int(float(max_memory)/(memory_usage_per_frame))
+        print self.max_nframes , max_memory, memory_usage_per_frame
+            
+    def _send_scan_parameters2guipoller(self, config):
+        #Send image parameters to poller
+        pnames = ['frame_rate',  'binning_factor', 'boundaries',  'scanner_time_efficiency']
+        self.scan_parameters = {}
+        for p in pnames:
+            self.scan_parameters[p] = getattr(self.tp, p)
+        self.printc('Scanner time efficiency is {0:1.2f} %'.format(self.tp.scanner_time_efficiency*100))
+        self.queues['data'].put(self.scan_parameters)
+        
+    def _save_cadata(self, scan_config):
+        self.printc('Saving data')
+        #gather data to save
+        data_to_save = {}
+        data_to_save['data'] = self.tp.data
+        data_to_save['scan_parameters'] = self.scan_parameters
+        data_to_save['scan_parameters']['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
+        data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
+        data_to_save['scan_parameters']['scan_config'] = copy.deepcopy(scan_config.get_all_parameters())
+        if False:
+            data_to_save['animal_parameters'] = {}
+            data_to_save['experiment_log'] = {}
+        data_to_save['software_environment'] = experiment_data.pack_software_environment()
+        if self.config.EXPERIMENT_FILE_FORMAT == 'mat':
+            data_to_save['machine_config'] = copy.deepcopy(self.config.get_all_parameters())
+            scipy.io.savemat(self.filenames['datafile'][0], data_to_save, oned_as = 'row', long_field_names=True)
+        elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
+            data_to_save['machine_config'] = experiment_data.pickle_config(self.config)
+            h = hdf5io.Hdf5io(self.filenames['datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+            for node, value in data_to_save.items():
+                setattr(h, node, value)
+            h.save(data_to_save.keys())
+            h.close()
+        self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
     
 def two_photon_scanner_process(config, queues):
     '''

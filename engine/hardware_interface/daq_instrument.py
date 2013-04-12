@@ -4,6 +4,7 @@ import instrument
 import visexpman.engine.generic.configuration as configuration
 import visexpman.engine.generic.utils as utils
 import unittest
+import copy
 import logging
 import os
 
@@ -228,7 +229,7 @@ class AnalogIO(instrument.Instrument):
                 self.ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
                 self.ai_raw_data = self.ai_data
                 self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()
-                return self.ai_data
+                return copy.deepcopy(self.ai_data)
 
     def finish_daq_activity(self, abort = False):
         if os.name == 'nt' and self.daq_config['ENABLE']:

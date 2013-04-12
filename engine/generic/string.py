@@ -4,6 +4,13 @@ import numpy
 import os
 import unittest
 
+def str2params(par_str):
+    try:
+        return map(float, str(par_str).split(','))
+    except ValueError:
+        return []
+        
+
 def long_substr(data):
     '''extracts longest common substring from a list of strings'''
     substr = ''

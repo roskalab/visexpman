@@ -14,6 +14,7 @@ MAT/HDF5
 
 import os.path
 import numpy
+import time
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -23,6 +24,7 @@ import visexpman
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.vision_experiment import gui as guiv
 from visexpman.engine.vision_experiment import gui_pollers
+from visexpman.engine.generic import introspect
 from visexpman.engine.generic import gui
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
@@ -68,6 +70,7 @@ class MeasurementFiles(gui.GroupBox):
         
     def create_widgets(self):
         self.cell_name = gui.LabeledComboBox(self, 'Cell name')
+        self.cell_name.input.setEditable(True)
         self.recording = gui.LabeledComboBox(self, 'Select recording')
         
     def create_layout(self):
@@ -300,7 +303,7 @@ class CentralWidget(QtGui.QWidget):
         self.main_tab.addTab(self.calibration_widget, 'Calibration')
         self.main_tab.setCurrentIndex(0)
         
-        self.control = ControlWidget(self)
+        self.control_widget = ControlWidget(self)
         self.image = QtGui.QLabel()
         self.blank_image = 128*numpy.ones((400,  400,  3), dtype = numpy.uint8)
         self.image.setPixmap(imaged.array_to_qpixmap(self.blank_image))
@@ -322,14 +325,17 @@ class CentralWidget(QtGui.QWidget):
         self.text_out.ensureCursorVisible()
         self.text_out.setCursorWidth(5)
         
+        self.status = QtGui.QLabel('', self)
+        
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.main_tab, 0, 1, 2, 1)
-        self.layout.addWidget(self.control, 0, 0, 1, 1)
-        self.layout.addWidget(self.sa, 1, 0, 1, 1)
-        self.layout.addWidget(self.image_analysis, 2, 0, 1, 1)
-        self.layout.addWidget(self.text_out, 2, 1, 1, 1)
+        self.layout.addWidget(self.status, 0, 1, 1, 1)
+        self.layout.addWidget(self.main_tab, 1, 1, 2, 1)
+        self.layout.addWidget(self.control_widget, 0, 0, 2, 1)
+        self.layout.addWidget(self.sa, 2, 0, 1, 1)
+        self.layout.addWidget(self.image_analysis, 3, 0, 1, 1)
+        self.layout.addWidget(self.text_out, 3, 1, 1, 1)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
@@ -358,8 +364,10 @@ class CaImagingGui(Qt.QMainWindow):
         self.resize(1280,  1024)
         self.poller = gui_pollers.CaImagingPoller(self)
         self.init_variables()
+        self.connect_signals()
         self.poller.start()
         self.show()
+        self.init_widget_content()
         
         if qt_app is not None: qt_app.exec_()
         
@@ -367,13 +375,38 @@ class CaImagingGui(Qt.QMainWindow):
         self.central_widget = CentralWidget(self, self.config)
         self.setCentralWidget(self.central_widget) 
         
-    def connect_signals(self):
-        pass
+    def init_widget_content(self):
+        if hasattr(self.poller,'widget_context_values'):
+            for ref_string, value in self.poller.widget_context_values.items():
+                ref = introspect.string2objectreference(self,ref_string.replace('parent.',''))
+                if hasattr(ref,'setEditText'):
+                    ref.setEditText(value)
+                elif hasattr(ref,'setText'):
+                    ref.setText(value)
         
-    def printc(self, text):       
+#        for w in self.poller.widget_context_fields:
+#            ref = introspect.string2objectreference(self,w.replace('parent.',''))
+#            if hasattr(ref, 'setText'):
+#                ref.setText('1,1')
+        
+        
+    def connect_signals(self):
+        self.signal_mapper = QtCore.QSignalMapper(self)
+#        self.connect(self.roi_widget.select_cell_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.select_cell_changed)
+        self.connect_and_map_signal(self.central_widget.control_widget.scan, 'scan')
+        self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
+        
+    def connect_and_map_signal(self, widget, mapped_signal_parameter, widget_signal_name = 'clicked'):
+        if hasattr(self.poller, mapped_signal_parameter):
+            self.signal_mapper.setMapping(widget, QtCore.QString(mapped_signal_parameter))
+            getattr(getattr(widget, widget_signal_name), 'connect')(self.signal_mapper.map)
+        else:
+            self.printc('{0} method does not exists'.format(mapped_signal_parameter))
+        
+    def printc(self, text):
         if not isinstance(text, str):
             text = str(text)
-        self.console_text  += text + '\n'
+        self.console_text  += utils.time_stamp_to_hms(time.time()) + ' '  + text + '\n'
         self.update_console()
         
     def update_console(self):
