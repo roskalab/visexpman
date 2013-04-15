@@ -205,8 +205,10 @@ class ControlWidget(QtGui.QWidget):
         self.draw_mode.input.addItems(QtCore.QStringList(['draw rectangle',  'draw line',  'select point',  'zoom in',  'zoom out']))
         self.filters = {}
         line = 0
-        for channel in self.channels:
+        for channel in self.config.PMTS.keys():
             setattr(self, channel + '_enable',  gui.LabeledCheckBox(self, channel.capitalize()))
+            if self.config.PMTS[channel]['ENABLE']:
+                getattr(getattr(getattr(self, channel + '_enable'), 'input'),  'setCheckState')(2)
             self.layout.addWidget(getattr(self, channel + '_enable'), line, 3)
             for i in range(2):
                 self.filters[channel+str(i)] = QtGui.QComboBox(self)
@@ -313,7 +315,7 @@ class CentralWidget(QtGui.QWidget):
         self.sa = QtGui.QScrollArea(self)
         self.sa.setWidget(self.image)
         self.sa.setWidgetResizable(False)
-        self.sa.ensureVisible(200, 200)
+#        self.sa.ensureVisible(200, 200)
         self.sa.setFixedWidth(600)
         self.sa.setFixedHeight(600)
         
@@ -326,7 +328,6 @@ class CentralWidget(QtGui.QWidget):
         self.text_out.setCursorWidth(5)
         
         self.status = QtGui.QLabel('', self)
-        
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -384,12 +385,6 @@ class CaImagingGui(Qt.QMainWindow):
                 elif hasattr(ref,'setText'):
                     ref.setText(value)
         
-#        for w in self.poller.widget_context_fields:
-#            ref = introspect.string2objectreference(self,w.replace('parent.',''))
-#            if hasattr(ref, 'setText'):
-#                ref.setText('1,1')
-        
-        
     def connect_signals(self):
         self.signal_mapper = QtCore.QSignalMapper(self)
 #        self.connect(self.roi_widget.select_cell_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.select_cell_changed)
@@ -416,6 +411,20 @@ class CaImagingGui(Qt.QMainWindow):
         
     def init_variables(self):
         self.console_text = ''
+        
+    def show_image(self, image, scale, origin):
+#        print image.shape, image.dtype
+        self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image))#, utils.rc((600, 600))))
+        
+    def update_scan_run_status(self, status):
+        if status:
+            self.central_widget.control_widget.scan.setText('Stop')
+            self.central_widget.control_widget.scan.setStyleSheet('background-color:#E00000;')
+            self.poller.scan_run = True
+        else:
+            self.central_widget.control_widget.scan.setText('Scan')
+            self.central_widget.control_widget.scan.setStyleSheet('background-color:#C0C0C0;')
+            self.poller.scan_run = False
         
     def closeEvent(self, e):
         self.printc('Please wait till gui closes')

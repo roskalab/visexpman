@@ -496,6 +496,8 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         
     def start_scan(self):
         if not self.queues['parameters'].empty():
+            if os.name != 'nt':
+                return
             #Copy scan parameters
             parameters = self.queues['parameters'].get()
             config = copy.deepcopy(self.config)
@@ -544,12 +546,12 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             self.printc('Scan not started, parameters not provided')
             
     def _estimate_memory_demand(self):
-        self.printc(        (self.tp.aio.number_of_ai_samples,  self.tp.aio.number_of_ai_channels))
+#        self.printc(        (self.tp.aio.number_of_ai_samples,  self.tp.aio.number_of_ai_channels))
         max_memory = 70700*2*724#in case of hdf5 file format
         #70000, 1448 frame, 2500000, 20 frames
         memory_usage_per_frame =  self.tp.aio.number_of_ai_samples * self.tp.aio.number_of_ai_channels
         self.max_nframes = int(float(max_memory)/(memory_usage_per_frame))
-        print self.max_nframes , max_memory, memory_usage_per_frame
+#        print self.max_nframes , max_memory, memory_usage_per_frame
             
     def _send_scan_parameters2guipoller(self, config):
         #Send image parameters to poller
@@ -593,7 +595,9 @@ def two_photon_scanner_process(config, queues):
     '''
     tl = TwoPhotonScannerLoop(config, queues)
     while tl.run:
-        tl.parse()
+        res = tl.parse()[0]
+        if res != '' and res != None:
+            tl.printc('Two photon process: ' + str(res))
         time.sleep(0.1)
     tl.printc('Scanner process ended')
 

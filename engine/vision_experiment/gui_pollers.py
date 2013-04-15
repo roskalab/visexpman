@@ -2037,11 +2037,6 @@ class CaImagingPoller(Poller):
         self.process.start()
         self.init_variables()
         self.load_context()
-#        self.queues['out'].put('ping')
-#        self.queues['out'].put('test,0,1')
-#        self.queues['out'].put('test,param1=3,param2=2')
-        
-    
 
     def periodic(self):
         if self.scan_run and self.scan_start_time is not None:
@@ -2050,7 +2045,10 @@ class CaImagingPoller(Poller):
             self.update_status(scan_is_running_for = (0,  's'))
         
     def run_in_all_iterations(self):
-        self.frame_update()
+        try:
+            self.frame_update()
+        except:
+            self.printc(traceback.format_exc())
             
     def handle_commands(self):
         if not self.queues['in'].empty():
@@ -2068,6 +2066,12 @@ class CaImagingPoller(Poller):
                     self.printc(traceback.format_exc())
             else:
                 self.printc(message_raw)
+                
+
+    def connect_signals(self):
+        Poller.connect_signals(self)
+        self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
+        self.parent.connect(self, QtCore.SIGNAL('update_scan_run_status'),  self.parent.update_scan_run_status)
                 
     def load_context(self):
         context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
@@ -2116,6 +2120,12 @@ class CaImagingPoller(Poller):
             if ct%param_per_line==0 and  ct != 0:
                 text+= '\n'
         self.parent.central_widget.status.setText(text)
+        
+    def update_scan_run_status(self, status):
+        self.emit(QtCore.SIGNAL('update_scan_run_status'), status)
+        
+    def show_image(self, image, scale, origin):
+        self.emit(QtCore.SIGNAL('show_image'), image, scale, origin)
 
     def close(self):
         self.queues['out'].put('SOCquitEOCEOP')
@@ -2130,12 +2140,22 @@ class CaImagingPoller(Poller):
             self.queues['out'].put('stop_scan')
             self.printc('Scan stop requested')
         else:
-            self.scan_run = True
-            parameters = {}
+            self.update_scan_run_status(True)
+            self.parameters = {}
 #            parameters['duration'] = 64.0
-            parameters['scan_size'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_size_xy'].input.text()))
-            parameters['scan_center'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_center_xy'].input.text()))
-            parameters['resolution'] = 1.0/float(str(self.parent.central_widget.main_widget.background_scan_parameters.inputs['resolution'].input.text()))
+            self.parameters['scan_size'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_size_xy'].input.text()))
+            self.parameters['scan_center'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_center_xy'].input.text()))
+            self.parameters['resolution'] = 1.0/float(str(self.parent.central_widget.main_widget.background_scan_parameters.inputs['resolution'].input.text()))
+            #figure out which analog channels need to be sampled
+            self.parameters['AI_CHANNEL'] = self.config.DAQ_CONFIG[0]['AI_CHANNEL']
+            self.enabled_channels = []
+            for channel in self.config.PMTS.keys():
+                if getattr(getattr(getattr(self.parent.central_widget.control_widget, channel + '_enable'), 'input'),  'checkState')() == 2:
+                    self.enabled_channels.append(self.config.PMTS[channel]['AI'])
+            if len(self.enabled_channels) == 0:
+                self.printc('No channels enabled, scan does not start')
+            elif len(self.enabled_channels) == 1:
+                self.parameters['AI_CHANNEL'] = '{0}/ai{1}'.format(self.parameters['AI_CHANNEL'].split('/')[0], self.enabled_channels[0])
             #generate filename/create dirs
             folder = os.path.join(self.config.EXPERIMENT_DATA_PATH,  utils.date_string())
             file.mkdir_notexists(folder)
@@ -2143,8 +2163,8 @@ class CaImagingPoller(Poller):
             experiment_name = str(self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText())
             self.id = str(int(time.time()))
             filenames = experiment_data.generate_filename(self.config, self.id, experiment_name,  cell_name,  depth = self.objective_position,  user_extensions = ['tiff'], output_folder = folder)
-            parameters['filenames'] = filenames
-            self.queues['parameters'].put(parameters)
+            self.parameters['filenames'] = filenames
+            self.queues['parameters'].put(self.parameters)
             self.queues['out'].put('start_scan')
             self.printc('Scan start requested')
         
@@ -2155,7 +2175,7 @@ class CaImagingPoller(Poller):
         self.printc('Scan started')
         
     def scan_ready(self):
-        self.scan_run = False
+        self.update_scan_run_status(False)
         self.scan_parameters = {}
         self.scan_start_time = None
         self.printc('Scan ready')
@@ -2163,6 +2183,7 @@ class CaImagingPoller(Poller):
     def frame_update(self):
         if not self.queues['frame'].empty():
             self.current_frame = scanner_control.raw2frame(self.queues['frame'].get(),  self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'])
+            self.show_image(self.process_images(self.current_frame), utils.rc((self.parameters['resolution'],  )*2),  self.parameters['scan_center'])
             #Get items from queue to make queue empty
             while not self.queues['frame'].empty():
                 self.queues['frame'].get()
@@ -2170,7 +2191,26 @@ class CaImagingPoller(Poller):
 #            self.printc(self.current_frame.sum())
 #            self.printc(self.current_frame.shape)
 
-    
+
+    def process_images(self, image):
+        '''
+        Colors image according to image channels, filtering and histogram transformation applied and sidebar is drawn
+        '''
+        from visexpA.engine.dataprocessors import generic
+        imout = numpy.zeros((image.shape[0],  image.shape[1],  3))
+        for i in range(len(self.enabled_channels)):
+            channel_color = [self.config.PMTS[pmtch]['COLOR'] for pmtch in self.config.PMTS.keys() if self.config.PMTS[pmtch]['AI'] == self.enabled_channels[i]][0]
+            if channel_color == 'RED':
+                imout[:, :, 0] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, i])), outtype = numpy.uint8)
+            elif channel_color == 'GREEN':
+                imout[:, :, 1] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, i])), outtype = numpy.uint8)
+        return imout
+
+    def apply_histogram(self, image):
+        return image
+        
+    def apply_filters(self, image):
+        return image
         
             
             

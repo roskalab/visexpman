@@ -54,6 +54,8 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         self.SCANNER_RAMP_TIME = 70.0e-3
         self.SCANNER_HOLD_TIME = 30.0e-3
         self.SCANNER_SETTING_TIME = 1e-3
+        self.PMTS = {'TOP': {'AI': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
+                            'SIDE': {'AI': 1,  'COLOR': 'RED', 'ENABLE': False}}
         DAQ_CONFIG = [
         {
         'ANALOG_CONFIG' : 'aio',
@@ -61,7 +63,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         'AO_SAMPLE_RATE' : 400000,
         'AI_SAMPLE_RATE' : 800000,
         'AO_CHANNEL' : 'Dev1/ao0:1',
-        'AI_CHANNEL' : 'Dev1/ai0',
+        'AI_CHANNEL' : 'Dev1/ai0:1',
         'MAX_VOLTAGE' : 3.0,
         'MIN_VOLTAGE' : -3.0,
         'DURATION_OF_AI_READ' : 2.0,
