@@ -6,6 +6,23 @@ Factors limiting setting time:
 - maximal speed - Tmin
 
 Extreme setting: big movement, short setting time, big speed change
+
+Parameters:
+        self.SCANNER_MAX_SPEED = utils.rc((1e7, 1e7))#um/s
+        self.SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
+        self.SCANNER_SIGNAL_SAMPLING_RATE = 250000 #Hz
+        self.SCANNER_DELAY = 0#As function of scanner speed
+        self.SCANNER_START_STOP_TIME = 0.02 #speed up and down times at the beginning/end of scan pattern
+        self.SCANNER_MAX_POSITION = 200.0 #Maximum allowed amplitude of scanner
+        self.POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0 #Maximum voltage range/ scanned range in um
+        self.XMIRROR_OFFSET = 0.0#um
+        self.YMIRROR_OFFSET = 0.0#um
+        self.SCANNER_RAMP_TIME = 70.0e-3#Time to move the scanners into initial position
+        self.SCANNER_HOLD_TIME = 30.0e-3
+        self.SCANNER_SETTING_TIME = 1e-3#This is the time constraint to set the speed of scanner (lenght of transient)
+        self.PMTS = {'TOP': {'AI': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
+                            'SIDE': {'AI': 1,  'COLOR': 'RED', 'ENABLE': False}}
+
 '''
 #eliminate position and speed overshoots - not possible
 #TODO: check generated scan for acceleration, speed and position limits
@@ -63,7 +80,7 @@ class ScannerTestConfig(configuration.Config):
         
 def generate_lines_scan(lines, setting_time, frames_to_scan, config):
     start_stop_scanner = False
-    dt = 1.0/config.SCANNER_SIGNAL_SAMPLING_RATE
+    dt = 1.0/config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
     start_stop_time = config.SCANNER_START_STOP_TIME
     pos_x, pos_y, speed_x, speed_y, accel_x, accel_y, scan_mask, period_time = \
                 generate_line_scan_series(lines, dt, setting_time, config.SCANNER_MAX_SPEED, config.SCANNER_MAX_ACCELERATION, scanning_periods = frames_to_scan, start_stop_scanner = start_stop_scanner, start_stop_time = start_stop_time)
@@ -87,7 +104,7 @@ def generate_rectangular_scan(size, position, spatial_resolution, frames_to_scan
     spatial resolution: in um/pixel
     '''
     start_stop_scanner = False
-    dt = 1.0/config.SCANNER_SIGNAL_SAMPLING_RATE
+    dt = 1.0/config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
     start_stop_time = config.SCANNER_START_STOP_TIME
     row_positions = numpy.linspace(position['row'] - 0.5*size['row'],  position['row'] + 0.5*size['row'],  numpy.ceil(size['row']/spatial_resolution)+1)
     lines = []
@@ -345,8 +362,19 @@ class TwoPhotonScanner(instrument.Instrument):
         self.aio.waveform = self.scanner_control_signal.T
         self.data = []
         self.pmt_raw = []
+        #calculate scanning parameters
         self.frame_rate = float(self.aio.daq_config['AO_SAMPLE_RATE'])/self.scanner_positions.shape[1]
         self.scanner_time_efficiency = self.scan_mask.sum()/self.scan_mask.shape[0]
+        #calculate speeds
+        self.speeds = {}
+        for axis in ['x', 'y']:
+            self.speeds[axis] = {}
+            self.speeds[axis]['max'] = abs(self.accel_speed['speed_'+axis]).max()
+            if axis =='x':
+                speeds = abs(self.accel_speed['speed_'+axis])*self.scan_mask
+                self.speeds[axis]['scan'] = speeds[numpy.nonzero(speeds)[0]].mean()
+        #calculate maximal movement on x axis
+        self.maximal_movement = scanner_x.max() - scanner_x.min()
         self.boundaries = numpy.nonzero(numpy.diff(self.scan_mask))[0]+1
         self.open_shutter()
         self.aio.start_daq_activity()
@@ -372,7 +400,7 @@ class TwoPhotonScanner(instrument.Instrument):
         '''
         if setting_time == None:
             setting_time = self.config.SCANNER_SETTING_TIME
-        pos_x, pos_y, self.scan_mask, accel_speed, result = generate_rectangular_scan(size, position, spatial_resolution, 1, setting_time, self.config)
+        pos_x, pos_y, self.scan_mask, self.accel_speed, result = generate_rectangular_scan(size, position, spatial_resolution, 1, setting_time, self.config)
         if not result:
             raise RuntimeError('Scanning pattern is not feasable')
         self.is_rectangular_scan = True
@@ -385,7 +413,7 @@ class TwoPhotonScanner(instrument.Instrument):
     def start_line_scan(self, lines, setting_time = None, trigger_signal_config = None):
         if setting_time == None:
             setting_time = self.config.SCANNER_SETTING_TIME
-        pos_x, pos_y, self.scan_mask, accel_speed, result = generate_lines_scan(lines, setting_time, 1, self.config)
+        pos_x, pos_y, self.scan_mask, self.accel_speed, result = generate_lines_scan(lines, setting_time, 1, self.config)
         if not result:
             raise RuntimeError('Scanning pattern is not feasable')
         self.is_rectangular_scan = False
@@ -476,6 +504,10 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.log = log.Log('2p log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'twophotonloop_log.txt')), local_saving = False)
         command_parser.CommandParser.__init__(self, queues['out'], queues['in'], log = self.log, failsafe = True)
         self.run = True
+        self.daq_parameter_names = ['AO_SAMPLE_RATE', 'AI_SAMPLE_RATE', 'AO_CHANNEL',  'AI_CHANNEL']
+        self.parameter_names = ['SCANNER_SIGNAL_SAMPLING_RATE',  'SCANNER_DELAY', 'SCANNER_START_STOP_TIME',  'SCANNER_MAX_POSITION',  \
+                                            'POSITION_TO_SCANNER_VOLTAGE','XMIRROR_OFFSET', 'YMIRROR_OFFSET', 'SCANNER_RAMP_TIME', \
+                                        'SCANNER_HOLD_TIME',  'SCANNER_SETTING_TIME',  'SCANNER_TRIGGER_CONFIG']
         self.printc('started')
         
     def printc(self, txt, local_print = True):
@@ -495,24 +527,13 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.printc('pong')
         
     def start_scan(self):
+        if os.name != 'nt':
+            self.printc('scan_ready')
+            return
         if not self.queues['parameters'].empty():
-            if os.name != 'nt':
-                return
             #Copy scan parameters
             parameters = self.queues['parameters'].get()
-            config = copy.deepcopy(self.config)
-            parameter_names = ['SCANNER_SIGNAL_SAMPLING_RATE',  'SCANNER_DELAY', 'SCANNER_START_STOP_TIME',  'SCANNER_MAX_POSITION',  \
-                                            'POSITION_TO_SCANNER_VOLTAGE','XMIRROR_OFFSET', 'YMIRROR_OFFSET', 'SCANNER_RAMP_TIME', \
-                                        'SCANNER_HOLD_TIME',  'SCANNER_SETTING_TIME',  'SCANNER_TRIGGER_CONFIG']
-            for p in parameter_names:
-                if parameters.has_key(p):
-                    setattr(config,  p,  parameters[p])
-            daq_parameter_names = ['AO_SAMPLE_RATE', 'AI_SAMPLE_RATE', 'AO_CHANNEL',  'AI_CHANNEL']
-            for p in daq_parameter_names:
-                if parameters.has_key(p):
-                    config.DAQ_CONFIG[0][p] = parameters[p]
-            if not hasattr(config, 'SCANNER_TRIGGER_CONFIG'):
-                config.SCANNER_TRIGGER_CONFIG = None
+            config = self._update_config(parameters)
             self.filenames = parameters['filenames']
             #Initialize scanner  devices
             self.tp = TwoPhotonScanner(config)
@@ -526,7 +547,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             else:
                 nframes = -1
             self._estimate_memory_demand()
-            self._send_scan_parameters2guipoller(config)
+            self._send_scan_parameters2guipoller(config, parameters)
             self.printc('scan_started')
             frame_ct = 0
             #start scan loop
@@ -553,17 +574,19 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.max_nframes = int(float(max_memory)/(memory_usage_per_frame))
 #        print self.max_nframes , max_memory, memory_usage_per_frame
             
-    def _send_scan_parameters2guipoller(self, config):
+    def _send_scan_parameters2guipoller(self, config, parameters):
         #Send image parameters to poller
-        pnames = ['frame_rate',  'binning_factor', 'boundaries',  'scanner_time_efficiency']
+        pnames = ['frame_rate',  'binning_factor', 'boundaries',  'scanner_time_efficiency', 'speeds']
         self.scan_parameters = {}
         for p in pnames:
             self.scan_parameters[p] = getattr(self.tp, p)
+        #calculate overshoot
+        self.scan_parameters['overshoot'] = self.tp.maximal_movement-parameters['scan_size']['row']
         self.printc('Scanner time efficiency is {0:1.2f} %'.format(self.tp.scanner_time_efficiency*100))
         self.queues['data'].put(self.scan_parameters)
         
     def _save_cadata(self, scan_config):
-        self.printc('Saving data')
+        self.printc('saving_data')
         #gather data to save
         data_to_save = {}
         data_to_save['data'] = self.tp.data
@@ -586,6 +609,55 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             h.save(data_to_save.keys())
             h.close()
         self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
+        
+    def _update_config(self, parameters):
+        config = copy.deepcopy(self.config)
+        for p in self.parameter_names:
+            if parameters.has_key(p):
+                setattr(config, p, parameters[p])
+        for p in self.daq_parameter_names:
+            if parameters.has_key(p):
+                config.DAQ_CONFIG[0][p] = parameters[p]
+        if not hasattr(config, 'SCANNER_TRIGGER_CONFIG'):
+            config.SCANNER_TRIGGER_CONFIG = None
+        return config
+
+    def start_calibration(self):
+        if os.name != 'nt':
+            return
+        if not self.queues['parameters'].empty():
+            #Copy scan parameters
+            parameters = self.queues['parameters'].get()
+            config = self._update_config(parameters)
+            missing_keys = [k for k in ['repeats', 'scanning_range', 'scanner_speed', 'SCANNER_SETTING_TIME'] if not parameters.has_key(k)]
+            if len(missing_keys) > 0:
+                self.printc('{0} parameters must be provided' .format(missing_keys))
+                self.printc('calib_ready')
+                return
+            lines = generate_test_lines(parameters['scanning_range'], int(parameters['repeats']), [parameters['scanner_speed']])
+            self.tp = TwoPhotonScanner(config)
+            self.tp.start_line_scan(lines, setting_time = parameters['SCANNER_SETTING_TIME'])
+            self.printc('calib_started')
+            calibration_time = self.tp.scanner_control_signal.T.shape[0]/self.tp.aio.ai_sample_rate
+            self.printc('Calibration time {0}'.format(calibration_time))
+            if calibration_time < 10.0:
+                self.tp.read_pmt()
+            else:
+                self.printc('Calibration would take long, skipping')
+            self.tp.finish_measurement()
+            self.tp.release_instrument()
+            if hasattr(self.tp, 'raw_pmt_frame'):
+                calibdata = {}
+                calibdata['pmt'] = copy.deepcopy(self.tp.raw_pmt_frame)
+                calibdata['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
+                calibdata['scanner_speed'] = parameters['scanner_speed']
+                calibdata['accel_speed'] = self.tp.accel_speed
+                calibdata['mask'] = self.tp.scan_mask
+                calibdata['parameters'] = parameters
+                hdf5io.save_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', calibdata, overwrite=True, filelocking=False)
+                self.queues['data'].put(calibdata)
+            self.printc('calib_ready')
+            
     
 def two_photon_scanner_process(config, queues):
     '''
@@ -605,6 +677,7 @@ class TestScannerControl(unittest.TestCase):
     def setUp(self):
         self.dt = 1e-3
         
+    @unittest.skip('')
     def test_01_set_position_and_speed(self):
         inputs = [
                   {'s0': 1.0, 's1': 0.0,'v0':0.0, 'v1':2.0,  'T': 1.0}, 
@@ -636,6 +709,7 @@ class TestScannerControl(unittest.TestCase):
             results.append([ds_error, dv_error, numpy.round(a[0],8), numpy.round(a[-1],8),  max_acceleration_error])
         self.assertListEqual(results, len(results)*[5*[0.0]])
         
+    @unittest.skip('')
     def test_02_set_speed_position_withmax_acceleration(self):
         inputs = [
                   {'s0': 1.0, 's1': 0.0,'v0':0.0, 'v1':2.0,  'T': 1.0}, 
@@ -741,7 +815,7 @@ class TestScannerControl(unittest.TestCase):
             title('scan mask')
             show()
             
-#    @unittest.skip('Run only for debug purposes')
+    @unittest.skip('Run only for debug purposes')
     def test_05_twophoton(self):
         import time
         plot_enable = not False
@@ -781,7 +855,7 @@ class TestScannerControl(unittest.TestCase):
             plot(tp.scanner_positions.T)
             show()
             
-    @unittest.skip('Run only for debug purposes')
+#    @unittest.skip('Run only for debug purposes')
     def test_06_calibrate_scanner_parameters(self):
         import time
         plot_enable = not False
@@ -794,7 +868,7 @@ class TestScannerControl(unittest.TestCase):
         config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
         config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
         config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
-        lines = generate_test_lines(100, 1, [300, 600, 1000, 2000, 4000])
+        lines = generate_test_lines(100, 1, [300])
         tp = TwoPhotonScanner(config)
         tp.start_line_scan(lines, setting_time = 40e-3)
         tp.read_pmt()

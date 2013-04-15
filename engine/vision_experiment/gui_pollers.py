@@ -2072,6 +2072,7 @@ class CaImagingPoller(Poller):
         Poller.connect_signals(self)
         self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
         self.parent.connect(self, QtCore.SIGNAL('update_scan_run_status'),  self.parent.update_scan_run_status)
+        self.parent.connect(self, QtCore.SIGNAL('plot_calibdata'),  self.parent.plot_calibdata)
                 
     def load_context(self):
         context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
@@ -2107,6 +2108,9 @@ class CaImagingPoller(Poller):
                                       ]
         for pn in self.parent.central_widget.calibration_widget.parameter_names:
             self.widget_context_fields.append('self.parent.central_widget.calibration_widget.scanner_parameters[\'{0}\'].input'.format(pn))
+        for pn in self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets.keys():
+            if hasattr(self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets[pn], 'input'):
+                self.widget_context_fields.append('self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets[\'{0}\'].input'.format(pn))
             
     def update_status(self, **kwargs):
         for k,  v in kwargs.items():
@@ -2140,22 +2144,16 @@ class CaImagingPoller(Poller):
             self.queues['out'].put('stop_scan')
             self.printc('Scan stop requested')
         else:
-            self.update_scan_run_status(True)
+            self.update_scan_run_status('prepare')
             self.parameters = {}
 #            parameters['duration'] = 64.0
             self.parameters['scan_size'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_size_xy'].input.text()))
             self.parameters['scan_center'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_center_xy'].input.text()))
             self.parameters['resolution'] = 1.0/float(str(self.parent.central_widget.main_widget.background_scan_parameters.inputs['resolution'].input.text()))
+            self.parameters['SCANNER_SETTING_TIME'] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_SETTING_TIME'].input.text()))
+            self.parameters['SCANNER_START_STOP_TIME'] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_START_STOP_TIME'].input.text()))
             #figure out which analog channels need to be sampled
-            self.parameters['AI_CHANNEL'] = self.config.DAQ_CONFIG[0]['AI_CHANNEL']
-            self.enabled_channels = []
-            for channel in self.config.PMTS.keys():
-                if getattr(getattr(getattr(self.parent.central_widget.control_widget, channel + '_enable'), 'input'),  'checkState')() == 2:
-                    self.enabled_channels.append(self.config.PMTS[channel]['AI'])
-            if len(self.enabled_channels) == 0:
-                self.printc('No channels enabled, scan does not start')
-            elif len(self.enabled_channels) == 1:
-                self.parameters['AI_CHANNEL'] = '{0}/ai{1}'.format(self.parameters['AI_CHANNEL'].split('/')[0], self.enabled_channels[0])
+            self.parameters['AI_CHANNEL'], self.enabled_channels = self._select_ai_channel()
             #generate filename/create dirs
             folder = os.path.join(self.config.EXPERIMENT_DATA_PATH,  utils.date_string())
             file.mkdir_notexists(folder)
@@ -2171,14 +2169,22 @@ class CaImagingPoller(Poller):
     def scan_started(self):
         self.scan_parameters = self.queues['data'].get()
         self.update_status(frame_rate = (numpy.round(self.scan_parameters['frame_rate'], 2),  'Hz'))
+        self.printc('Scanner max speeds (x, y): {0}, {1} um/s, scanning speed x axis: {2} um/s,overshoot: {3} um'
+                    .format(self.scan_parameters['speeds']['x']['max'], self.scan_parameters['speeds']['y']['max'], self.scan_parameters['speeds']['x']['scan'], self.scan_parameters['overshoot'])
+                                                                          )
         self.scan_start_time = time.time()
         self.printc('Scan started')
+        self.update_scan_run_status('started')
         
     def scan_ready(self):
-        self.update_scan_run_status(False)
+        self.update_scan_run_status('ready')
         self.scan_parameters = {}
         self.scan_start_time = None
         self.printc('Scan ready')
+        
+    def saving_data(self):
+        self.printc('Saving data')
+        self.update_scan_run_status('saving')
         
     def frame_update(self):
         if not self.queues['frame'].empty():
@@ -2187,10 +2193,6 @@ class CaImagingPoller(Poller):
             #Get items from queue to make queue empty
             while not self.queues['frame'].empty():
                 self.queues['frame'].get()
-            
-#            self.printc(self.current_frame.sum())
-#            self.printc(self.current_frame.shape)
-
 
     def process_images(self, image):
         '''
@@ -2204,6 +2206,7 @@ class CaImagingPoller(Poller):
                 imout[:, :, 0] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, i])), outtype = numpy.uint8)
             elif channel_color == 'GREEN':
                 imout[:, :, 1] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, i])), outtype = numpy.uint8)
+                #TODO: this normalization is not correct here, histogram shall scale all dim frames
         return imout
 
     def apply_histogram(self, image):
@@ -2212,14 +2215,56 @@ class CaImagingPoller(Poller):
     def apply_filters(self, image):
         return image
         
+    ######### Calibration related #############
+    def calib(self):
+        if self.scan_run:
+            self.queues['out'].put('stop_scan')
+            self.printc('Scan stop requested')
+        else:
+            self.update_scan_run_status('prepare')
+            self.parameters = {}
+            self.parameters['AI_CHANNEL'], self.enabled_channels = self._select_ai_channel()
+            for pn in self.parent.central_widget.calibration_widget.parameter_names:
+                par_value = str(self.parent.central_widget.calibration_widget.scanner_parameters[pn].input.text())
+                if par_value != '':
+                    par_value = string.str2params(par_value)
+                    if len(par_value) == 1:
+                        par_value = par_value[0]
+                    self.parameters[pn] = par_value
+            for pn, widget in self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets.items():
+                if hasattr(widget, 'input') and hasattr(getattr(widget, 'input'), 'text'):
+                    try:
+                        self.parameters[pn] = float(str(widget.input.text()))
+                    except ValueError:
+                        pass
+                        
+            self.queues['parameters'].put(self.parameters)
+            self.queues['out'].put('start_calibration')
+            self.printc('Calibration start requested')
             
-            
-            
-            
-            
+    def calib_started(self):
+        self.printc('Calibration started')
+        self.update_scan_run_status('started')
         
+    def calib_ready(self):
+        self.printc('Calibration ready')
+        self.update_scan_run_status('ready')
+        if not self.queues['data'].empty():
+            self.emit(QtCore.SIGNAL('plot_calibdata'))
         
-        
+    ####### Helpers ###########
+    def _select_ai_channel(self):
+        #figure out which analog channels need to be sampled
+        ai_channel = self.config.DAQ_CONFIG[0]['AI_CHANNEL']
+        enabled_channels = []
+        for channel in self.config.PMTS.keys():
+            if getattr(getattr(getattr(self.parent.central_widget.control_widget, channel + '_enable'), 'input'),  'checkState')() == 2:
+                enabled_channels.append(self.config.PMTS[channel]['AI'])
+        if len(enabled_channels) == 0:
+            self.printc('No channels enabled, scan does not start')
+        elif len(enabled_channels) == 1:
+            ai_channel = '{0}/ai{1}'.format(ai_channel.split('/')[0], enabled_channels[0])
+        return ai_channel, enabled_channels
 
 if __name__ == '__main__':
     CaImagingRecorder(None)

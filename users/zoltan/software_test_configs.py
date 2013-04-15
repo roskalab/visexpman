@@ -44,16 +44,15 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         
         self.SCANNER_MAX_SPEED = utils.rc((1e7, 1e7))#um/s
         self.SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
-        self.SCANNER_SIGNAL_SAMPLING_RATE = 250000 #Hz
         self.SCANNER_DELAY = 0#As function of scanner speed
         self.SCANNER_START_STOP_TIME = 0.02
         self.SCANNER_MAX_POSITION = 200.0
         self.POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0
         self.XMIRROR_OFFSET = 0.0#um
         self.YMIRROR_OFFSET = 0.0#um
-        self.SCANNER_RAMP_TIME = 70.0e-3
+        self.SCANNER_RAMP_TIME = 70.0e-3#Time to move the scanners into initial position
         self.SCANNER_HOLD_TIME = 30.0e-3
-        self.SCANNER_SETTING_TIME = 1e-3
+        self.SCANNER_SETTING_TIME = 1e-3#This is the time constraint to set the speed of scanner (lenght of transient)
         self.PMTS = {'TOP': {'AI': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'AI': 1,  'COLOR': 'RED', 'ENABLE': False}}
         DAQ_CONFIG = [
@@ -77,7 +76,6 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         ]
         if os.name == 'nt':
             DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
-
         self._create_parameters_from_locals(locals())
 
 class JobhandlerTestConfig(configuration.VisionExperimentConfig):

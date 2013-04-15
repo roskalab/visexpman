@@ -36,6 +36,61 @@ STYLE = 'background-color:#303030;color:#D0D0D0;selection-color:#0000A0;selectio
 STYLE='background-color:#C0C0C0;'
 #STYLE=''
 
+class CalibrationScanningPattern(gui.GroupBox):
+    def __init__(self, parent):
+        gui.GroupBox.__init__(self, parent, 'Calibration scanning pattern')
+        
+    def create_widgets(self):
+        self.widgets = {}
+        self.widgets['scanning_range'] = gui.LabeledInput(self, 'Scanning range [um]')
+        self.widgets['repeats'] = gui.LabeledInput(self, 'Repeats')
+        self.widgets['start'] = QtGui.QPushButton('Run',  self)
+        
+    def create_layout(self):
+        self.layout = QtGui.QHBoxLayout()
+        [self.layout.addWidget(v) for v in self.widgets.values()]
+        self.setLayout(self.layout)
+
+class CalibrationWidget(QtGui.QWidget):
+    def __init__(self, parent):
+        QtGui.QWidget.__init__(self, parent)
+        self.config = parent.config
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        self.parameter_names = ['scanner_speed',  'scanner_acceleration_xy',  'SCANNER_RAMP_TIME',  'SCANNER_SETTING_TIME',  \
+                                 'XMIRROR_OFFSET',  'YMIRROR_OFFSET', 'AO_SAMPLE_RATE', 'AI_SAMPLE_RATE','POSITION_TO_SCANNER_VOLTAGE',  'SCANNER_START_STOP_TIME']
+        self.scanner_parameters = {}
+        for p in self.parameter_names:
+            self.scanner_parameters[p] = gui.LabeledInput(self, p.replace('_',  ' ').capitalize())
+        self.calib_scan_pattern = CalibrationScanningPattern(self)
+        self.plot = Qt4Plot()
+        
+#        self.plot.clear()
+#        self.plot.setdata(numpy.arange(100), penwidth=1.5, color=Qt.Qt.black)
+#        self.plot.setaxisscale([0, 100, -1000, 1000])
+
+        self.plot.setMaximumWidth(600)
+        self.plot.setMaximumHeight(250)
+        self.plot.setMinimumHeight(250)
+        self.fromfile = QtGui.QPushButton('Load',  self)
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        params_per_row = 2
+        i = 0
+        for p in self.parameter_names:
+            self.layout.addWidget(self.scanner_parameters[p], i/params_per_row, 2*(i%params_per_row), 1, 2)
+            i += 1
+        self.layout.addWidget(self.calib_scan_pattern, i/params_per_row + 1, 0, 1, 2 * len(self.parameter_names))
+        self.layout.addWidget(self.plot, i/params_per_row + 3, 0, 1, 2 * len(self.parameter_names))
+        self.layout.addWidget(self.fromfile, i/params_per_row + 2, 0, 1, 1)
+        self.layout.setRowStretch(10, 5)
+        self.layout.setColumnStretch(5,10)
+        self.setLayout(self.layout)
+
+
 class ImageAnalysis(gui.GroupBox):
     def __init__(self, parent):
         gui.GroupBox.__init__(self, parent, '')
@@ -53,7 +108,6 @@ class ImageAnalysis(gui.GroupBox):
         self.plot.clear()
         self.plot.setdata(numpy.arange(100), penwidth=1.5, color=Qt.Qt.black)
         self.plot.setaxisscale([0, 100, -1000, 1000])
-        
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -258,34 +312,6 @@ class MainWidget(QtGui.QWidget):
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
 
-class CalibrationWidget(QtGui.QWidget):
-    def __init__(self, parent):
-        QtGui.QWidget.__init__(self, parent)
-        self.config = parent.config
-        self.create_widgets()
-        self.create_layout()
-        
-    def create_widgets(self):
-        self.parameter_names = ['scanner_speed_xy',  'scanner_acceleration_xy',  'scanner_settling_time_xy', 'analog_output_sampling_rate', 'analog_input_sampling_rate']
-        self.scanner_parameters = {}
-        for p in self.parameter_names:
-            self.scanner_parameters[p] = gui.LabeledInput(self, p.replace('_',  ' ').capitalize())
-        self.plot = Qt4Plot()
-        self.plot.setMaximumWidth(500)
-
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        params_per_row = 2
-        i = 0
-        for p in self.parameter_names:
-            self.layout.addWidget(self.scanner_parameters[p], i/params_per_row, 2*(i%params_per_row), 1, 2)
-            i += 1
-        self.layout.addWidget(self.plot, i/params_per_row + 1, 0, 1, 2 * len(self.parameter_names))
-        self.layout.setRowStretch(10, 5)
-        self.layout.setColumnStretch(5,10)
-        self.setLayout(self.layout)
-
-
 class CentralWidget(QtGui.QWidget):
     def __init__(self, parent, config):
         QtGui.QWidget.__init__(self, parent)
@@ -362,7 +388,7 @@ class CaImagingGui(Qt.QMainWindow):
         if STYLE != '':
             self.setStyleSheet(STYLE)
         self.create_widgets()
-        self.resize(1280,  1024)
+        self.resize(1280, 1024)
         self.poller = gui_pollers.CaImagingPoller(self)
         self.init_variables()
         self.connect_signals()
@@ -379,7 +405,10 @@ class CaImagingGui(Qt.QMainWindow):
     def init_widget_content(self):
         if hasattr(self.poller,'widget_context_values'):
             for ref_string, value in self.poller.widget_context_values.items():
-                ref = introspect.string2objectreference(self,ref_string.replace('parent.',''))
+                try:
+                    ref = introspect.string2objectreference(self,ref_string.replace('parent.',''))
+                except:
+                    continue
                 if hasattr(ref,'setEditText'):
                     ref.setEditText(value)
                 elif hasattr(ref,'setText'):
@@ -387,8 +416,9 @@ class CaImagingGui(Qt.QMainWindow):
         
     def connect_signals(self):
         self.signal_mapper = QtCore.QSignalMapper(self)
-#        self.connect(self.roi_widget.select_cell_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.select_cell_changed)
+        self.connect(self.central_widget.calibration_widget.fromfile, QtCore.SIGNAL('clicked()'),  self.fromfile)
         self.connect_and_map_signal(self.central_widget.control_widget.scan, 'scan')
+        self.connect_and_map_signal(self.central_widget.calibration_widget.calib_scan_pattern.widgets['start'], 'calib')
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
     def connect_and_map_signal(self, widget, mapped_signal_parameter, widget_signal_name = 'clicked'):
@@ -413,15 +443,56 @@ class CaImagingGui(Qt.QMainWindow):
         self.console_text = ''
         
     def show_image(self, image, scale, origin):
-#        print image.shape, image.dtype
         self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image))#, utils.rc((600, 600))))
         
+    def plot_calibdata(self):
+        calibdata = self.poller.queues['data'].get()
+        plot = self.central_widget.calibration_widget.plot
+        plot.setdata(calibdata['pmt'][:, 0], penwidth=1.5, color=Qt.Qt.black)
+        if calibdata['pmt'].shape[1] ==2:
+            plot.adddata(calibdata['pmt'][:, 1],color=Qt.Qt.black, penwidth=1.5)
+        plot.adddata(calibdata['waveform'][:, 0],color=Qt.Qt.green, penwidth=1.5)
+        plot.adddata(calibdata['waveform'][:, 1],color=Qt.Qt.red, penwidth=1.5)
+        plot.adddata(calibdata['mask'],color=Qt.Qt.blue, penwidth=1.5)
+#        plot.adddata(calibdata['accel_speed']['speed_x'],color=Qt.Qt.black, penwidth=1.5)
+#        plot.adddata(calibdata['accel_speed']['speed_y'],color=Qt.Qt.black, penwidth=1.5)
+#        plot.adddata(calibdata['accel_speed']['accel_x'],color=Qt.Qt.black, penwidth=1.5)
+#        plot.adddata(calibdata['accel_speed']['accel_y'],color=Qt.Qt.black, penwidth=1.5)
+        
+#        plot.setaxisscale([0, 100, -1000, 1000])
+        if calibdata['parameters'].has_key('POSITION_TO_SCANNER_VOLTAGE'):
+            pos2voltage = calibdata['parameters']['POSITION_TO_SCANNER_VOLTAGE']
+        else:
+            pos2voltage = self.config.POSITION_TO_SCANNER_VOLTAGE
+        overshoot = ((calibdata['waveform'][:,0].max() - calibdata['waveform'][:,0].min()) - calibdata['parameters']['scanning_range']*pos2voltage)/pos2voltage
+        line_rate = 1.0/(calibdata['waveform'][:, 0].shape[0]/(calibdata['parameters']['AO_SAMPLE_RATE']*calibdata['parameters']['repeats']*4))
+        self.printc(
+                    'Accel max: {0:.3e} um/s2,  max speed {1:.3e} um/s, overshoot {2:2.3f} um, line rate: {3:3.1f} Hz, scan time efficiency {4:2.1f} %'
+                    .format(calibdata['accel_speed']['accel_x'].max(), calibdata['accel_speed']['speed_x'].max(),  overshoot, line_rate,  100.0*calibdata['mask'].sum()/calibdata['mask'].shape[0]))
+
+    def fromfile(self):
+        return
+        from visexpA.engine.datahandlers import hdf5io
+        calibdata = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', filelocking=False)
+        self.poller.queues['data'].put(calibdata)
+        self.plot_calibdata()
+        
     def update_scan_run_status(self, status):
-        if status:
+        '''
+        Scan button color and text is updated according to current status of scanning process. During preparation and datasaving button is disabled
+        '''
+        if status == 'prepare':
+            self.central_widget.control_widget.scan.setText('Preparing')
+            self.central_widget.control_widget.scan.setStyleSheet('background-color:#FF8000;')
+        elif status == 'started':
             self.central_widget.control_widget.scan.setText('Stop')
             self.central_widget.control_widget.scan.setStyleSheet('background-color:#E00000;')
+            self.central_widget.control_widget.scan.setDisabled(False)
             self.poller.scan_run = True
-        else:
+        elif status == 'saving':
+            self.central_widget.control_widget.scan.setText('Saving')
+            self.central_widget.control_widget.scan.setStyleSheet('background-color:#FF8000;')
+        elif status == 'ready':
             self.central_widget.control_widget.scan.setText('Scan')
             self.central_widget.control_widget.scan.setStyleSheet('background-color:#C0C0C0;')
             self.poller.scan_run = False
