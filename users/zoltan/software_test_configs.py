@@ -15,6 +15,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
         self.root_folder = '/mnt/datafast/debug/data'
+        self.root_folder = '/mnt/rznb/data'
         if not os.path.exists(self.root_folder) and os.name == 'nt':
             self.root_folder = 'v:\\debug\\data'
         LOG_PATH = self.root_folder
@@ -74,6 +75,10 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         'ENABLE' : True
         }
         ]
+        self.CAIMAGE_DISPLAY = {}
+        self.CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
+        self.CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = False
+        
 #        if os.name == 'nt':
 #            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
         self._create_parameters_from_locals(locals())

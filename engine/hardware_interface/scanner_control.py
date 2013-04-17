@@ -537,13 +537,19 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             self.filenames = parameters['filenames']
             #Initialize scanner  devices
             self.tp = TwoPhotonScanner(config)
-            self.tp.start_rectangular_scan(parameters['scan_size'], parameters['scan_center'], parameters['resolution'], setting_time = config.SCANNER_SETTING_TIME, 
+            try:
+                self.tp.start_rectangular_scan(parameters['scan_size'], parameters['scan_center'], parameters['resolution'], setting_time = config.SCANNER_SETTING_TIME, 
                                       trigger_signal_config = config.SCANNER_TRIGGER_CONFIG)
+            except:
+                self.printc(traceback.format_exc())
+                self.printc('scan_ready')
             if parameters.has_key('duration'):
                 if parameters['duration'] == 0:
                     nframes = 1
                 else:
                     nframes = int(numpy.round(parameters['duration'] * self.tp.frame_rate))
+            elif parameters.has_key('nframes'):
+                nframes = parameters['nframes']
             else:
                 nframes = -1
             self._estimate_memory_demand()
@@ -560,7 +566,8 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             #Finish, save
             self.printc('Scanning ended, {0} frames recorded' .format(frame_ct))
             self.tp.finish_measurement()
-            self._save_cadata(config)
+            if parameters['enable_recording']:
+                self._save_cadata(config, parameters)
             self.printc('scan_ready')
             self.tp.release_instrument()
         else:
@@ -585,7 +592,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.printc('Scanner time efficiency is {0:1.2f} %'.format(self.tp.scanner_time_efficiency*100))
         self.queues['data'].put(self.scan_parameters)
         
-    def _save_cadata(self, scan_config):
+    def _save_cadata(self, scan_config,parameters):
         self.printc('saving_data')
         #gather data to save
         data_to_save = {}
@@ -594,6 +601,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         data_to_save['scan_parameters']['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
         data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
         data_to_save['scan_parameters']['scan_config'] = copy.deepcopy(scan_config.get_all_parameters())
+        data_to_save['scan_parameters'].update(parameters)
         if False:
             data_to_save['animal_parameters'] = {}
             data_to_save['experiment_log'] = {}
@@ -636,7 +644,11 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 return
             lines = generate_test_lines(parameters['scanning_range'], int(parameters['repeats']), [parameters['scanner_speed']])
             self.tp = TwoPhotonScanner(config)
-            self.tp.start_line_scan(lines, setting_time = parameters['SCANNER_SETTING_TIME'])
+            try:
+                self.tp.start_line_scan(lines, setting_time = parameters['SCANNER_SETTING_TIME'])
+            except:
+                self.printc(traceback.format_exc())
+                self.printc('calib_ready')
             self.printc('calib_started')
             calibration_time = self.tp.scanner_control_signal.T.shape[0]/self.tp.aio.ai_sample_rate
             self.printc('Calibration time {0}'.format(calibration_time))
@@ -855,7 +867,7 @@ class TestScannerControl(unittest.TestCase):
             plot(tp.scanner_positions.T)
             show()
             
-#    @unittest.skip('Run only for debug purposes')
+    @unittest.skip('Run only for debug purposes')
     def test_06_calibrate_scanner_parameters(self):
         import time
         plot_enable = not False

@@ -11,6 +11,7 @@ import webbrowser
 import copy
 import tempfile
 import scipy.io
+import Image
 
 if os.name == 'nt':
     import winsound
@@ -2111,6 +2112,19 @@ class CaImagingPoller(Poller):
         for pn in self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets.keys():
             if hasattr(self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets[pn], 'input'):
                 self.widget_context_fields.append('self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets[\'{0}\'].input'.format(pn))
+        #Load data from test file
+        if os.name != 'nt':
+            from visexpman.users.zoltan.test import unit_test_runner
+            h = hdf5io.Hdf5io(file.filtered_file_list(unit_test_runner.prepare_test_data('caimaging'), 'hdf5', fullpath = True)[0], filelocking=False)
+            img = h.findvar('data')
+            img = img.mean(axis=0)
+            scan_parameters = h.findvar('scan_parameters')
+            h.close()
+            aichannel, self.enabled_channels = self._select_ai_channel()
+            if not scan_parameters.has_key('scan_center'):
+                scan_parameters['scan_center'] = utils.rc((0,0))
+                scan_parameters['resolution'] = 1
+            self.show_image(self.process_images(img), utils.rc((scan_parameters['resolution'],  )*2),  scan_parameters['scan_center'])
             
     def update_status(self, **kwargs):
         for k,  v in kwargs.items():
@@ -2139,19 +2153,29 @@ class CaImagingPoller(Poller):
         self.process.join()
         
     ########### Commands #################
-    def scan(self):
+    def scan(self, duration=None, nframes=None):
         if self.scan_run:
             self.queues['out'].put('stop_scan')
             self.printc('Scan stop requested')
         else:
             self.update_scan_run_status('prepare')
             self.parameters = {}
-#            parameters['duration'] = 64.0
+            if duration is not None:
+                self.parameters['duration'] = duration
+            if nframes is not None:
+                self.parameters['nframes'] = nframes
             self.parameters['scan_size'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_size_xy'].input.text()))
             self.parameters['scan_center'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_center_xy'].input.text()))
             self.parameters['resolution'] = 1.0/float(str(self.parent.central_widget.main_widget.background_scan_parameters.inputs['resolution'].input.text()))
-            self.parameters['SCANNER_SETTING_TIME'] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_SETTING_TIME'].input.text()))
-            self.parameters['SCANNER_START_STOP_TIME'] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_START_STOP_TIME'].input.text()))
+            try:
+                self.parameters['SCANNER_SETTING_TIME'] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_SETTING_TIME'].input.text()))
+            except ValueError:
+                pass#value from machine config will be used
+            try:
+                self.parameters['SCANNER_START_STOP_TIME'] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_START_STOP_TIME'].input.text()))
+            except ValueError:
+                pass#value from machine config will be used
+            self.parameters['enable_recording'] = (self.parent.central_widget.main_widget.measurement_files.enable_recording.input.checkState()==2)
             #figure out which analog channels need to be sampled
             self.parameters['AI_CHANNEL'], self.enabled_channels = self._select_ai_channel()
             #generate filename/create dirs
@@ -2200,13 +2224,26 @@ class CaImagingPoller(Poller):
         '''
         from visexpA.engine.dataprocessors import generic
         imout = numpy.zeros((image.shape[0],  image.shape[1],  3))
+        channel_index = 0
         for i in range(len(self.enabled_channels)):
             channel_color = [self.config.PMTS[pmtch]['COLOR'] for pmtch in self.config.PMTS.keys() if self.config.PMTS[pmtch]['AI'] == self.enabled_channels[i]][0]
             if channel_color == 'RED':
-                imout[:, :, 0] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, i])), outtype = numpy.uint8)
+                imout[:, :, 0] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, channel_index])), outtype = numpy.uint8)
+                channel_index+= 1
             elif channel_color == 'GREEN':
-                imout[:, :, 1] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, i])), outtype = numpy.uint8)
+                imout[:, :, 1] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, channel_index])), outtype = numpy.uint8)
+                channel_index += 1
                 #TODO: this normalization is not correct here, histogram shall scale all dim frames
+        imout = numpy.cast['uint8'](imout)
+        #convert to PIL image
+        imout = Image.fromarray(imout)
+        #Flip image
+        if self.config.CAIMAGE_DISPLAY['VERTICAL_FLIP']:
+            imout = imout.transpose(Image.FLIP_TOP_BOTTOM)
+        if self.config.CAIMAGE_DISPLAY['HORIZONTAL_FLIP']:
+            imout = imout.transpose(Image.FLIP_LEFT_RIGHT)
+        imout = numpy.asarray(imout)
+        #Draw scalebar
         return imout
 
     def apply_histogram(self, image):
@@ -2214,6 +2251,10 @@ class CaImagingPoller(Poller):
         
     def apply_filters(self, image):
         return image
+        
+    ######### Snap one image ################
+    def snap(self):
+        self.scan(nframes=1)
         
     ######### Calibration related #############
     def calib(self):

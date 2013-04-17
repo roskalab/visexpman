@@ -4,7 +4,6 @@ http://qt-project.org/doc/qt-4.8/stylesheet-examples.html
 
 Config parameters:
 EXPERIMENT_DATA_PATH
-USE_DATE_SUBFOLDERS
 MAT/HDF5
 
 
@@ -126,10 +125,12 @@ class MeasurementFiles(gui.GroupBox):
         self.cell_name = gui.LabeledComboBox(self, 'Cell name')
         self.cell_name.input.setEditable(True)
         self.recording = gui.LabeledComboBox(self, 'Select recording')
+        self.enable_recording = gui.LabeledCheckBox(self, 'Enable recording')
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.cell_name, 0, 0, 1, 1)
+        self.layout.addWidget(self.enable_recording, 0, 1, 1, 1)
         self.layout.addWidget(self.recording, 1, 0, 1, 1)
         self.setLayout(self.layout)
 
@@ -418,6 +419,7 @@ class CaImagingGui(Qt.QMainWindow):
         self.signal_mapper = QtCore.QSignalMapper(self)
         self.connect(self.central_widget.calibration_widget.fromfile, QtCore.SIGNAL('clicked()'),  self.fromfile)
         self.connect_and_map_signal(self.central_widget.control_widget.scan, 'scan')
+        self.connect_and_map_signal(self.central_widget.control_widget.snap, 'snap')
         self.connect_and_map_signal(self.central_widget.calibration_widget.calib_scan_pattern.widgets['start'], 'calib')
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
@@ -444,6 +446,7 @@ class CaImagingGui(Qt.QMainWindow):
         
     def show_image(self, image, scale, origin):
         self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image))#, utils.rc((600, 600))))
+        
         
     def plot_calibdata(self):
         calibdata = self.poller.queues['data'].get()
