@@ -1025,6 +1025,12 @@ def pack_position(stagexyz, objective_z = None):
     return numpy.array([(0, stagexyz[0], stagexyz[1], stagexyz[2], objective_z_to_save)], [('um',numpy.float64), ('x',numpy.float64),('y',numpy.float64),('z_stage',numpy.float64), ('z',numpy.float64)])
     
 #== Others ==
+def chunks(l, n):
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
+        
 def file_to_binary_array(path):
     if os.path.exists(path):
         return numpy.fromfile(str(path), dtype = numpy.uint8)        
