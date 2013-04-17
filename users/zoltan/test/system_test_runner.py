@@ -144,7 +144,7 @@ class MESCommandParser(command_parser.CommandParser):
     
 if __name__ == '__main__':
     var = []
-    for appname in ['visexp_runner']:#, 'jobhandler']:
+    for appname in ['visexp_runner', 'jobhandler']:
         var.append(VisexpAppRunner(appname))
     for v in var:
         v.start()

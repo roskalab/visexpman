@@ -4,6 +4,7 @@ import instrument
 import visexpman.engine.generic.configuration as configuration
 import visexpman.engine.generic.utils as utils
 import unittest
+import copy
 import logging
 import os
 
@@ -16,7 +17,6 @@ if os.name == 'nt':
         import PyDAQmx.DAQmxTypes as DAQmxTypes
     except:
         pass
-        
         
 class DigitalIO(instrument.Instrument):
     def init_instrument(self):
@@ -136,8 +136,10 @@ class AnalogIO(instrument.Instrument):
                 
             if self.enable_ai:
                 self.analog_input = PyDAQmx.Task()
-                #TODO: parameter or based on device type
-                terminal_config = DAQmxConstants.DAQmx_Val_RSE #If PCI-6110 device is used: DAQmx_Val_PseudoDiff
+                if self.daq_config.has_key('AI_TERMINAL'):
+                    terminal_config = self.daq_config['AI_TERMINAL']
+                else:
+                    terminal_config = DAQmxConstants.DAQmx_Val_RSE #If PCI-6110 device is used: DAQmx_Val_PseudoDiff
                 self.analog_input.CreateAIVoltageChan(self.daq_config['AI_CHANNEL'],
                                                             'ai',
                                                             terminal_config,
@@ -227,7 +229,7 @@ class AnalogIO(instrument.Instrument):
                 self.ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
                 self.ai_raw_data = self.ai_data
                 self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()
-                return self.ai_data
+                return copy.deepcopy(self.ai_data)
 
     def finish_daq_activity(self, abort = False):
         if os.name == 'nt' and self.daq_config['ENABLE']:

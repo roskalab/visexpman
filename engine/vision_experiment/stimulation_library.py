@@ -815,7 +815,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         else:
             n_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         ######### Calculate texture phase shift per frame value ######
-        if hasattr(velocity, 'dtype'):
+        if hasattr(velocity, 'dtype') and len(velocity.shape)>0:
             pixel_velocities = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / float(stimulus_profile.shape[0])
         else:
             pixel_velocity = -velocity * self.config.SCREEN_UM_TO_PIXEL_SCALE / float(self.config.SCREEN_EXPECTED_FRAME_RATE) / float(stimulus_profile.shape[0])

@@ -8,35 +8,6 @@ import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.generic.utils as utils
 import scipy.interpolate
 
-class MEASetup(VisionExperimentConfig):
-    '''
-    Hidens mea setup
-    '''
-    def _set_user_parameters(self):
-        EXPERIMENT_CONFIG = 'GratParameters'
-        FULLSCREEN = True
-        EXPERIMENT_FILE_FORMAT = 'hdf5'
-        SCREEN_RESOLUTION = utils.rc((1024, 768))
-        ENABLE_FRAME_CAPTURE = False
-        SCREEN_EXPECTED_FRAME_RATE = 30.0
-        SCREEN_MAX_FRAME_RATE = 30.0
-        COORDINATE_SYSTEM='center'
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0
-
-        PLATFORM = 'standalone'
-	root_folder = '/home/retina2/visexp/data'
-        LOG_PATH = r'/home/retina2/visexp/data/log'
-        DATA_PATH = root_folder
-        EXPERIMENT_DATA_PATH = root_folder
-        EXPERIMENT_LOG_PATH = LOG_PATH
-        ENABLE_PARALLEL_PORT = True
-        ACQUISITION_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 0
-        ENABLE_FILTERWHEEL = False
-        
-        self._create_parameters_from_locals(locals())
-
-
 class SPC(VisionExperimentConfig):
     '''
     Configuration for serial port pulse generator
@@ -157,7 +128,7 @@ class AEPHVS(VisionExperimentConfig):
     '''
     Antona's Electrophisology visual stimulation
     '''
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self, check_path = True):        
         EXPERIMENT_CONFIG = 'ManipulationExperimentConfig'
         PLATFORM = 'elphys'
         EXPERIMENT_FILE_FORMAT = 'mat'
@@ -169,7 +140,6 @@ class AEPHVS(VisionExperimentConfig):
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = v_drive_data_folder
-        ARCHIVE_PATH = v_drive_data_folder
         CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         
         #=== screen ===
@@ -221,6 +191,31 @@ class AEPHVS(VisionExperimentConfig):
                     ]
         #=== Others ===
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
+        self._create_parameters_from_locals(locals(), check_path = check_path)
+        
+class MEASetup(AEPHVS):
+    '''
+    Hidens mea setup
+    '''
+    def _set_user_parameters(self):
+        AEPHVS._set_user_parameters(self, check_path=False)
+        FULLSCREEN = not True#TMP
+        SCREEN_RESOLUTION = utils.rc((1024, 768))
+        SCREEN_EXPECTED_FRAME_RATE = 60.0#TMP
+        SCREEN_MAX_FRAME_RATE = 60.0#TMP
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0#TMP
+        ENABLE_UDP = False
+
+        PLATFORM = 'standalone'
+        root_folder = '/home/mouse/visexp/data'
+        LOG_PATH = r'/home/mouse/visexp/data/log'
+        DATA_PATH = root_folder
+        EXPERIMENT_DATA_PATH = root_folder
+        EXPERIMENT_LOG_PATH = LOG_PATH
+        ENABLE_PARALLEL_PORT = not True#TMP
+        ACQUISITION_TRIGGER_PIN = 1
+        FRAME_TRIGGER_PIN = 0
+        
         self._create_parameters_from_locals(locals())
 
 if __name__ == "__main__":    

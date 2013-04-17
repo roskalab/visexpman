@@ -1,3 +1,5 @@
+import zipfile
+import io
 import os
 import os.path
 import copy
@@ -9,6 +11,7 @@ import hashlib
 import string
 import shutil
 import tempfile
+import StringIO
 
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
@@ -17,6 +20,46 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as gen
 
 import unittest
+
+def generate_filename(config, id, experiment_name = '',  cell_name = '', nfragments = 1, region_name = '',  depth = '',  scan_mode = '', user_extensions = [], tmp_folder = None, experiment_config = None, output_folder = None):
+    '''
+    Format:
+    scan_mode, region_name, cell_name, depth, experiment_name, id, fragment_id
+    '''
+    filenames = {}
+    filenames['names']= []
+    filenames['datafile'] = []
+    filenames['local_datafile'] = []
+    filenames['other_files'] = []
+    if config.PLATFORM == 'mes':
+        filenames['mes_files'] = []
+        prefix = 'fragment'
+    else:
+        prefix = ''
+    if output_folder is None:
+        output_folder = config.EXPERIMENT_DATA_PATH
+    for fragment_id in range(nfragments):
+        if hasattr(experiment_config, 'USER_FRAGMENT_NAME'):
+            name = self.experiment_config.USER_FRAGMENT_NAME
+        else:
+            if depth != '':
+                depth_formatted = str(numpy.round(depth, 1))
+            else:
+                depth_formatted = depth
+            name = ''
+            for tag in [prefix, scan_mode, region_name, cell_name, depth_formatted, experiment_name, id, str(fragment_id)]:
+                if tag != '':
+                    name += tag + '_'
+            name = name[:-1]
+        filenames['names'].append(name)
+        filename = '{0}.{1}'.format(name, config.EXPERIMENT_FILE_FORMAT)
+        filenames['datafile'].append(os.path.join(output_folder, filename))
+        if tmp_folder is None or not os.path.exists(tmp_folder):
+            tmp_folder = tempfile.mkdtemp()
+        filenames['local_datafile'].append(os.path.join(tmp_folder, filename))
+        for ext in user_extensions:
+            filenames['other_files'].append(os.path.join(output_folder, filename+'.' + ext))
+    return filenames
 
 ############### Preprocess measurement data ####################
 def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_signal_min_amplitude = 1.5):
@@ -52,6 +95,25 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_sign
     return stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected
 
 #################### Saving/loading data to hdf5 ####################
+def pack_software_environment():
+        software_environment = {}
+        module_names, visexpman_module_paths = utils.imported_modules()
+        module_versions, software_environment['module_version'] = utils.module_versions(module_names)
+        stream = io.BytesIO()
+        stream = StringIO.StringIO()
+        zipfile_handler = zipfile.ZipFile(stream, 'a')
+        for module_path in visexpman_module_paths:
+            if 'visexpA' in module_path:
+                zip_path = '/visexpA' + module_path.split('visexpA')[-1]
+            elif 'visexpman' in module_path:
+                zip_path = '/visexpman' + module_path.split('visexpman')[-1]
+            if os.path.exists(module_path):
+                zipfile_handler.write(module_path, zip_path)
+        software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
+        zipfile_handler.close()
+        return software_environment
+
+
 def load_config(numpy_array):
     return utils.array2object(numpy_array)
     
@@ -62,8 +124,11 @@ def save_config(file_handle, machine_config, experiment_config = None):
             file_handle.experiment_config = experiment_config.get_all_parameters()
         #pickle configs
         file_handle.machine_config = pickle_config(machine_config)
-        file_handle.experiment_config = pickle_config(experiment_config)
-        file_handle.save(['experiment_config', 'machine_config'])#, 'experiment_config_pickled', 'machine_config_pickled'])
+        if experiment_config is not None:
+            file_handle.experiment_config = pickle_config(experiment_config)
+            file_handle.save(['experiment_config', 'machine_config'])#, 'experiment_config_pickled', 'machine_config_pickled'])
+        else:
+            file_handle.save(['machine_config'])
     elif file_handle is None:
         config = {}
         config['machine_config'] = copy.deepcopy(machine_config.get_all_parameters())

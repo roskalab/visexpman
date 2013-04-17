@@ -2,6 +2,7 @@ import sys
 import logging
 import os
 import visexpman
+
 from visexpman.engine.generic.configuration import Config
 from visexpman.engine.generic import utils
 import stimulation_library
@@ -166,4 +167,4 @@ def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = No
     experiment_config = getattr(experiment_module, experiment_config_name)(machine_config = machine_config, caller = None)
     return experiment_config
     a = experiment_module.MovingDot(machine_config, None, experiment_config)
-        
+    

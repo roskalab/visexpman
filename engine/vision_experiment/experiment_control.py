@@ -503,7 +503,7 @@ class ExperimentControl(object):
             experiment_source = self.source_code
         else:
             experiment_source = utils.file_to_binary_array(inspect.getfile(self.__class__).replace('.pyc', '.py'))
-        software_environment = self._pack_software_environment()
+        software_environment = experiment_data.pack_software_environment()
         data_to_file = {
                                     'sync_data' : analog_input_data, 
                                     'current_fragment' : fragment_id, #deprecated

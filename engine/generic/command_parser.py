@@ -31,6 +31,11 @@ class CommandParser(object):
                 display_message += '\n' + message
                 method = method_extract.findall(message)
                 arguments = parameter_extract.findall(message.replace('\n',  '<newline>'))
+                if len(method) == 0 and len(arguments) == 0:#support function,parameter1,parameter2 format
+                    method = [message.split(',')[0]]
+                    arguments = ','.join(message.split(',')[1:])
+                    if arguments != '':
+                        arguments = [arguments]
                 if len(method) > 0:
                     function_call = {'method' : method[0] }
                     if len(arguments) > 0:
@@ -139,7 +144,8 @@ class TestCommandHandler(unittest.TestCase):
         self.assertEqual((cp.par1, cp.par2, cp.function_call_results[0]), ('1', '2', 'kw'))
         
     def test_06_function_expects_keywords(self):
-        self.queue_in.put('SOCtest_keywordEOC1EOP')
+#        self.queue_in.put('SOCtest_keywordEOC1EOP')
+        self.queue_in.put('test_keyword,1')
         cp = TestCommandParser(self.queue_in, self.queue_out)
         cp.parse()
         self.assertEqual((cp.par1, cp.par2, cp.function_call_results[0]), ('1', 3, 'kw'))

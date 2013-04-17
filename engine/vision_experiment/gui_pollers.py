@@ -9,8 +9,8 @@ import os
 import os.path
 import webbrowser
 import copy
-import traceback
 import tempfile
+import scipy.io
 
 if os.name == 'nt':
     import winsound
@@ -24,15 +24,20 @@ from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.hardware_interface import stage_control
+from visexpman.engine.hardware_interface import scanner_control
 from visexpman.engine.hardware_interface import flowmeter
 from visexpman.engine import generic
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
+from visexpman.engine.generic import string
 from visexpman.engine.generic import introspect
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
-import visexpA.engine.component_guesser as cg
+try:
+    import visexpA.engine.component_guesser as cg
+except:
+    pass
 
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
 
@@ -50,7 +55,8 @@ class Poller(QtCore.QThread):
         self.connect_signals()
 
     def connect_signals(self):
-        self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
+#        self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
+        self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
 
     def init_run(self):
         pass
@@ -2020,6 +2026,245 @@ class FlowmeterPoller(flowmeter.Flowmeter, Poller):
     def close(self):
         self.stop_measurement()
         self.file.close()
+        
+class CaImagingPoller(Poller):
+    def __init__(self, parent):
+        Poller.__init__(self, parent)
+        self.config = parent.config
+        from multiprocessing import Queue, Process
+        self.queues = {'in':Queue(), 'out':Queue(), 'parameters': Queue(), 'data': Queue(), 'frame': Queue()}
+        self.process = Process(target=scanner_control.two_photon_scanner_process,  args = (self.config, self.queues))
+        self.process.start()
+        self.init_variables()
+        self.load_context()
+
+    def periodic(self):
+        if self.scan_run and self.scan_start_time is not None:
+            self.update_status(scan_is_running_for = (numpy.round(time.time() - self.scan_start_time),  's'))
+        else:
+            self.update_status(scan_is_running_for = (0,  's'))
+        
+    def run_in_all_iterations(self):
+        try:
+            self.frame_update()
+        except:
+            self.printc(traceback.format_exc())
+            
+    def handle_commands(self):
+        if not self.queues['in'].empty():
+            message_raw = self.queues['in'].get()
+            message = message_raw.split(',')
+            method = message[0]
+            if len(message)>0:
+                arguments = message[1:]
+            else:
+                arguments = []
+            if hasattr(self, method) and callable(getattr(self, method)) and not hasattr(getattr(self, method), 'emit'):
+                try:
+                    getattr(self, method)()
+                except:
+                    self.printc(traceback.format_exc())
+            else:
+                self.printc(message_raw)
+                
+
+    def connect_signals(self):
+        Poller.connect_signals(self)
+        self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
+        self.parent.connect(self, QtCore.SIGNAL('update_scan_run_status'),  self.parent.update_scan_run_status)
+        self.parent.connect(self, QtCore.SIGNAL('plot_calibdata'),  self.parent.plot_calibdata)
+                
+    def load_context(self):
+        context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+        self.load_widget_context(context_hdf5)
+        context_hdf5.close()
+        
+    def load_widget_context(self,hdfhandler):
+        hdfhandler.load('widget_context')
+        if hasattr(hdfhandler, 'widget_context'):
+            self.widget_context_values = copy.deepcopy(hdfhandler.widget_context)
+            
+    def save_widget_context(self, hdfhandler):
+        if hasattr(self,'widget_context_fields'):
+            hdfhandler.widget_context = {}
+            for widget_field in self.widget_context_fields:
+                ref = introspect.string2objectreference(self, widget_field)
+                if hasattr(ref,'currentText'):
+                    hdfhandler.widget_context[widget_field] = str(ref.currentText())
+                elif hasattr(ref,'text'):
+                    hdfhandler.widget_context[widget_field] = str(ref.text())
+            hdfhandler.save('widget_context',overwrite = True)
+            
+    def init_variables(self):
+        self.scan_run = False
+        self.status = {}
+        self.objective_position = 0
+        self.scan_start_time = None
+        self.widget_context_fields = ['self.parent.central_widget.main_widget.background_scan_parameters.inputs[\'scan_area_size_xy\'].input', 
+                                        'self.parent.central_widget.main_widget.background_scan_parameters.inputs[\'scan_area_center_xy\'].input', 
+                                        'self.parent.central_widget.main_widget.background_scan_parameters.inputs[\'resolution\'].input', 
+                                        'self.parent.central_widget.main_widget.measurement_files.cell_name.input', 
+                                        'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name', 
+                                      ]
+        for pn in self.parent.central_widget.calibration_widget.parameter_names:
+            self.widget_context_fields.append('self.parent.central_widget.calibration_widget.scanner_parameters[\'{0}\'].input'.format(pn))
+        for pn in self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets.keys():
+            if hasattr(self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets[pn], 'input'):
+                self.widget_context_fields.append('self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets[\'{0}\'].input'.format(pn))
+            
+    def update_status(self, **kwargs):
+        for k,  v in kwargs.items():
+            self.status[k] = v
+        text = ''
+        param_per_line = 4
+        ct = 0
+        for k, v in self.status.items():
+            text += '{0}: {1} {2}\t'.format(k.replace('_', ' ').capitalize(), v[0],  v[1])
+            ct += 1
+            if ct%param_per_line==0 and  ct != 0:
+                text+= '\n'
+        self.parent.central_widget.status.setText(text)
+        
+    def update_scan_run_status(self, status):
+        self.emit(QtCore.SIGNAL('update_scan_run_status'), status)
+        
+    def show_image(self, image, scale, origin):
+        self.emit(QtCore.SIGNAL('show_image'), image, scale, origin)
+
+    def close(self):
+        self.queues['out'].put('SOCquitEOCEOP')
+        h = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+        self.save_widget_context(h)
+        h.close()
+        self.process.join()
+        
+    ########### Commands #################
+    def scan(self):
+        if self.scan_run:
+            self.queues['out'].put('stop_scan')
+            self.printc('Scan stop requested')
+        else:
+            self.update_scan_run_status('prepare')
+            self.parameters = {}
+#            parameters['duration'] = 64.0
+            self.parameters['scan_size'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_size_xy'].input.text()))
+            self.parameters['scan_center'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_center_xy'].input.text()))
+            self.parameters['resolution'] = 1.0/float(str(self.parent.central_widget.main_widget.background_scan_parameters.inputs['resolution'].input.text()))
+            self.parameters['SCANNER_SETTING_TIME'] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_SETTING_TIME'].input.text()))
+            self.parameters['SCANNER_START_STOP_TIME'] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_START_STOP_TIME'].input.text()))
+            #figure out which analog channels need to be sampled
+            self.parameters['AI_CHANNEL'], self.enabled_channels = self._select_ai_channel()
+            #generate filename/create dirs
+            folder = os.path.join(self.config.EXPERIMENT_DATA_PATH,  utils.date_string())
+            file.mkdir_notexists(folder)
+            cell_name = str(self.parent.central_widget.main_widget.measurement_files.cell_name.input.currentText())
+            experiment_name = str(self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText())
+            self.id = str(int(time.time()))
+            filenames = experiment_data.generate_filename(self.config, self.id, experiment_name,  cell_name,  depth = self.objective_position,  user_extensions = ['tiff'], output_folder = folder)
+            self.parameters['filenames'] = filenames
+            self.queues['parameters'].put(self.parameters)
+            self.queues['out'].put('start_scan')
+            self.printc('Scan start requested')
+        
+    def scan_started(self):
+        self.scan_parameters = self.queues['data'].get()
+        self.update_status(frame_rate = (numpy.round(self.scan_parameters['frame_rate'], 2),  'Hz'))
+        self.printc('Scanner max speeds (x, y): {0}, {1} um/s, scanning speed x axis: {2} um/s,overshoot: {3} um'
+                    .format(self.scan_parameters['speeds']['x']['max'], self.scan_parameters['speeds']['y']['max'], self.scan_parameters['speeds']['x']['scan'], self.scan_parameters['overshoot'])
+                                                                          )
+        self.scan_start_time = time.time()
+        self.printc('Scan started')
+        self.update_scan_run_status('started')
+        
+    def scan_ready(self):
+        self.update_scan_run_status('ready')
+        self.scan_parameters = {}
+        self.scan_start_time = None
+        self.printc('Scan ready')
+        
+    def saving_data(self):
+        self.printc('Saving data')
+        self.update_scan_run_status('saving')
+        
+    def frame_update(self):
+        if not self.queues['frame'].empty():
+            self.current_frame = scanner_control.raw2frame(self.queues['frame'].get(),  self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'])
+            self.show_image(self.process_images(self.current_frame), utils.rc((self.parameters['resolution'],  )*2),  self.parameters['scan_center'])
+            #Get items from queue to make queue empty
+            while not self.queues['frame'].empty():
+                self.queues['frame'].get()
+
+    def process_images(self, image):
+        '''
+        Colors image according to image channels, filtering and histogram transformation applied and sidebar is drawn
+        '''
+        from visexpA.engine.dataprocessors import generic
+        imout = numpy.zeros((image.shape[0],  image.shape[1],  3))
+        for i in range(len(self.enabled_channels)):
+            channel_color = [self.config.PMTS[pmtch]['COLOR'] for pmtch in self.config.PMTS.keys() if self.config.PMTS[pmtch]['AI'] == self.enabled_channels[i]][0]
+            if channel_color == 'RED':
+                imout[:, :, 0] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, i])), outtype = numpy.uint8)
+            elif channel_color == 'GREEN':
+                imout[:, :, 1] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, i])), outtype = numpy.uint8)
+                #TODO: this normalization is not correct here, histogram shall scale all dim frames
+        return imout
+
+    def apply_histogram(self, image):
+        return image
+        
+    def apply_filters(self, image):
+        return image
+        
+    ######### Calibration related #############
+    def calib(self):
+        if self.scan_run:
+            self.queues['out'].put('stop_scan')
+            self.printc('Scan stop requested')
+        else:
+            self.update_scan_run_status('prepare')
+            self.parameters = {}
+            self.parameters['AI_CHANNEL'], self.enabled_channels = self._select_ai_channel()
+            for pn in self.parent.central_widget.calibration_widget.parameter_names:
+                par_value = str(self.parent.central_widget.calibration_widget.scanner_parameters[pn].input.text())
+                if par_value != '':
+                    par_value = string.str2params(par_value)
+                    if len(par_value) == 1:
+                        par_value = par_value[0]
+                    self.parameters[pn] = par_value
+            for pn, widget in self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets.items():
+                if hasattr(widget, 'input') and hasattr(getattr(widget, 'input'), 'text'):
+                    try:
+                        self.parameters[pn] = float(str(widget.input.text()))
+                    except ValueError:
+                        pass
+                        
+            self.queues['parameters'].put(self.parameters)
+            self.queues['out'].put('start_calibration')
+            self.printc('Calibration start requested')
+            
+    def calib_started(self):
+        self.printc('Calibration started')
+        self.update_scan_run_status('started')
+        
+    def calib_ready(self):
+        self.printc('Calibration ready')
+        self.update_scan_run_status('ready')
+        if not self.queues['data'].empty():
+            self.emit(QtCore.SIGNAL('plot_calibdata'))
+        
+    ####### Helpers ###########
+    def _select_ai_channel(self):
+        #figure out which analog channels need to be sampled
+        ai_channel = self.config.DAQ_CONFIG[0]['AI_CHANNEL']
+        enabled_channels = []
+        for channel in self.config.PMTS.keys():
+            if getattr(getattr(getattr(self.parent.central_widget.control_widget, channel + '_enable'), 'input'),  'checkState')() == 2:
+                enabled_channels.append(self.config.PMTS[channel]['AI'])
+        if len(enabled_channels) == 0:
+            self.printc('No channels enabled, scan does not start')
+        elif len(enabled_channels) == 1:
+            ai_channel = '{0}/ai{1}'.format(ai_channel.split('/')[0], enabled_channels[0])
+        return ai_channel, enabled_channels
 
 if __name__ == '__main__':
-    pass
+    CaImagingRecorder(None)

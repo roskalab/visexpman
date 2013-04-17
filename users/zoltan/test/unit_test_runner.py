@@ -70,7 +70,7 @@ if TEST_os == 'nt':
     TEST_goniometer_com_port = 'COM9'
 elif TEST_os == 'posix':
     root = '/mnt/databig/'
-    root = '/mnt/rznb/'
+#    root = '/mnt/rznb/'
     TEST_test_data_folder = os.path.join(root, 'software_test/ref_data')
     TEST_working_folder = os.path.join(root, 'software_test/working')
     TEST_results_folder = os.path.join(root, 'software_test/results')
