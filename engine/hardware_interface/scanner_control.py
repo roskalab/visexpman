@@ -173,6 +173,9 @@ def generate_line_scan_series(lines, dt, setting_time, vmax, accmax, scanning_pe
             else:
                 v1, n = calculate_scanner_speed(line['p0'], line['p1'], line['ds'], dt)
                 ds = line['ds']
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            At last line an increased setting time has to be used, depending on the required y movement
+            !!!!!!!!!!!!!!!!!!!!!!!!
             line_out['set_pos_x'], line_out['set_speed_x'], line_out['set_accel_x'], t, A, connect_line_x_safe = \
                                                     set_position_and_speed(p0['col'], line['p0']['col'], v0['col'], v1['col'], setting_time, dt, Amax = a_limits['col'], omit_last = True)
             line_out['set_pos_y'], line_out['set_speed_y'], line_out['set_accel_y'], t, A, connect_line_y_safe = \

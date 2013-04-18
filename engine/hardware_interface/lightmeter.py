@@ -33,7 +33,7 @@ class LightMeter(instrument.Instrument):
             avg = self.config.LIGHT_METER['AVERAGING']
         else:
             avg = 200
-        self.vi.write('SENS:AVER {0}'.format(avg))
+        self.vi.write('SENS:AVER:COUNT {0}'.format(avg))
         pass
         
         
@@ -52,6 +52,10 @@ class LightMeter(instrument.Instrument):
     def read_power(self):
         self.vi.write('CONF:POW')
         return float(self.vi.ask('MEAS?'))
+
+    def read_frequency(self):
+        self.vi.write('CONF:FERQ')
+        return float(self.vi.ask('MEAS:FREQ?'))
         
 class TestLightMeter(unittest.TestCase):
     def setUp(self):
@@ -62,10 +66,28 @@ class TestLightMeter(unittest.TestCase):
 
     def test_01_lightmeter(self):
         lm = LightMeter(None)
-        for i in range(10):
-            with Timer('readouttime'):
-                print lm.read_power()
+        values = []
+        import time
+        st = time.time()
+        print 'started'
+        for i in range(3000):
+#            with Timer('readouttime'):
+            try:
+                v = lm.read_power()
+#                v = lm.read_frequency()
+                values.append([time.time()-st,  v])
+            except:
+                print 'error'
         lm.release_instrument()
+        import pylab
+        import numpy
+        values = numpy.array(values)
+        pylab.plot(values[:, 0],  values[:, 1])
+        from visexpA.engine.datahandlers import hdf5io
+        hdf5io.save_item('c:\\_del\\data.hdf5', 'values',  values,  filelocking=False)
+        
+        print 1/numpy.diff(values[:, 0]).mean()
+        pylab.show()
 
 if __name__ == "__main__":
     unittest.main()

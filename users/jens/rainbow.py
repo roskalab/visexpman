@@ -12,10 +12,10 @@ import random
 
 class RainbowExpConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.WAVELENGTH_RANGE = [390, 680]
+        self.WAVELENGTH_RANGE = [400, 680]
         self.INTENSITY = 1.0 #0.1-1.0
-        self.SWEEP_TIME = 20.0
-        self.WAVELENGTH_STEP = 10 #nm
+        self.SWEEP_TIME = 5.0
+        self.WAVELENGTH_STEP = 1 #nm
         self.INIT_DELAY = 4.0
         self.REPEAT = 1
         self.SHOW_COLORS_ON_PROJECTOR  = False
@@ -31,6 +31,7 @@ class RainbowExperiment(experiment.Experiment):
                                         self.experiment_config.WAVELENGTH_STEP)
         self.time_per_step = self.experiment_config.SWEEP_TIME / float(self.wavelengths.shape[0])
         self.polychrome = polychrome_interface.Polychrome(self.machine_config)
+        self.polychrome.set_resting_wavelength(680)
         self.polychrome.set_intensity(self.experiment_config.INTENSITY)
         for wavelength in self.wavelengths:
             self.parallel_port.set_data_bit(self.machine_config.FRAME_TRIGGER_PIN, 1)
