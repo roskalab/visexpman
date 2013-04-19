@@ -140,6 +140,12 @@ def generate_line_scan_series(lines, dt, setting_time, vmax, accmax, scanning_pe
         a_limits = utils.rc((accmax, accmax))
     else:
         a_limits = accmax
+    if isinstance(setting_time, list):
+        setting_time_x = setting_time[0]
+        setting_time_y = setting_time[1]
+    else:
+        setting_time_x = setting_time
+        setting_time_y = setting_time
     lines_out = []
     x_scanner_trajectory = []
     y_scanner_trajectory = []
@@ -164,6 +170,7 @@ def generate_line_scan_series(lines, dt, setting_time, vmax, accmax, scanning_pe
     for repeat_i in range(scanning_periods):
 #        print scan_signal_length_counter
         counter_at_start_of_repeat = scan_signal_length_counter
+        line_counter = 0
         for line in lines:
             line_out = line
             #connect line's initial position with actual scanner position
@@ -173,13 +180,15 @@ def generate_line_scan_series(lines, dt, setting_time, vmax, accmax, scanning_pe
             else:
                 v1, n = calculate_scanner_speed(line['p0'], line['p1'], line['ds'], dt)
                 ds = line['ds']
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            At last line an increased setting time has to be used, depending on the required y movement
-            !!!!!!!!!!!!!!!!!!!!!!!!
+            if line_counter == 0:
+                current_setting_time = setting_time_y
+            else:
+                current_setting_time = setting_time_x
+            line_counter += 1
             line_out['set_pos_x'], line_out['set_speed_x'], line_out['set_accel_x'], t, A, connect_line_x_safe = \
-                                                    set_position_and_speed(p0['col'], line['p0']['col'], v0['col'], v1['col'], setting_time, dt, Amax = a_limits['col'], omit_last = True)
+                                                    set_position_and_speed(p0['col'], line['p0']['col'], v0['col'], v1['col'], current_setting_time, dt, Amax = a_limits['col'], omit_last = True)
             line_out['set_pos_y'], line_out['set_speed_y'], line_out['set_accel_y'], t, A, connect_line_y_safe = \
-                                                    set_position_and_speed(p0['row'], line['p0']['row'], v0['row'], v1['row'], setting_time, dt, Amax = a_limits['row'], omit_last = True)
+                                                    set_position_and_speed(p0['row'], line['p0']['row'], v0['row'], v1['row'], current_setting_time, dt, Amax = a_limits['row'], omit_last = True)
             scan_signal_length_counter += line_out['set_pos_y'].shape[0]
             #Generate line scan
             line_out['scan_start_index'] = scan_signal_length_counter
@@ -797,10 +806,10 @@ class TestScannerControl(unittest.TestCase):
             subplot(412)
             plot(scan_mask)
             title('scan mask')
-    #        show()
+            show()
     #        savefig('/home/zoltan/visexp/debug/data/x.pdf')
     
-    @unittest.skip('Run only for debug purposes')
+#    @unittest.skip('Run only for debug purposes')
     def test_04_generate_rectangular_scan(self):
         plot_enable = not False
         config = ScannerTestConfig()
@@ -808,6 +817,7 @@ class TestScannerControl(unittest.TestCase):
         position = utils.rc((0, 0))
         size = utils.rc((100, 100))
         setting_time = 0.00005
+        setting_time = [setting_time, 2*setting_time]
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         if plot_enable:

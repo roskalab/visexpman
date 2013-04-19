@@ -450,6 +450,41 @@ class CaImagingGui(Qt.QMainWindow):
         
     def plot_calibdata(self):
         calibdata = self.poller.queues['data'].get()
+        #Calculate signal delay relative to mask edges
+        mask_indexes = numpy.nonzero(numpy.diff(calibdata['mask']))[0].tolist()
+        mask_indexes.append(calibdata['mask'].shape[0]-1)
+        line_sizes = numpy.diff(mask_indexes)[::2]
+        x_line_size = line_sizes[0]
+        y_line_size = line_sizes[line_sizes.shape[0]/2]
+        image = numpy.zeros((x_line_size, y_line_size, 3))
+        mask = numpy.zeros_like(image)
+        for i in range(int(0.5*len(mask_indexes))):
+            start = mask_indexes[2*i]
+            end = mask_indexes[2*i+1]
+            calibdata['pmt'][start:end, 0]
+            #IDEA: fit a second order or a gaussian curve, the x position of the maximum of the fitted curve gives the spatial distance from the edges of the mask
+            #The curve is supposedly symmetrical
+            
+            #Draw image:
+            #find out axis
+            line = calibdata['pmt'][start:end, 0]
+            if i%2 == 1:
+                line = line.tolist()
+                line.reverse()
+            if i%4 < 2:#Horizontal
+                line_width = x_line_size/20
+                for j in range(-line_width/2, line_width/2):
+                    image[image.shape[0]/2+j, :, 1] += line
+                    mask[image.shape[0]/2+j, :, 1] += numpy.ones_like(line)
+            elif i%4 >= 2:#Vertical
+                line_width = y_line_size/20
+                for j in range(-line_width/2, line_width/2):
+                    image[:, image.shape[1]/2+j, 1] += line
+                    mask[:, image.shape[1]/2+j, 1] += numpy.ones_like(line)
+        import Image
+        image *= numpy.where(mask ==mask.max(), 0.5, 1.0)
+        Image.fromarray(numpy.cast['uint8'](256*(image-image.min())/(image.max()-image.min()))).resize((300, 300), Image.ANTIALIAS).save('/home/rz/Downloads/t.bmp')
+        ##########Continue here
         plot = self.central_widget.calibration_widget.plot
         plot.setdata(calibdata['pmt'][:, 0], penwidth=1.5, color=Qt.Qt.black)
         if calibdata['pmt'].shape[1] ==2:
@@ -474,7 +509,6 @@ class CaImagingGui(Qt.QMainWindow):
                     .format(calibdata['accel_speed']['accel_x'].max(), calibdata['accel_speed']['speed_x'].max(),  overshoot, line_rate,  100.0*calibdata['mask'].sum()/calibdata['mask'].shape[0]))
 
     def fromfile(self):
-        return
         from visexpA.engine.datahandlers import hdf5io
         calibdata = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', filelocking=False)
         self.poller.queues['data'].put(calibdata)
