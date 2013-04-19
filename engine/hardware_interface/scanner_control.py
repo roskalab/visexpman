@@ -678,6 +678,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 calibdata['accel_speed'] = self.tp.accel_speed
                 calibdata['mask'] = self.tp.scan_mask
                 calibdata['parameters'] = parameters
+                calibdata['delays'], process_calibdata['image'] = process_calibdata(calibdata['pmt'], calibdata['mask'])
                 hdf5io.save_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', calibdata, overwrite=True, filelocking=False)
                 self.queues['data'].put(calibdata)
             self.printc('calib_ready')
@@ -696,6 +697,42 @@ def two_photon_scanner_process(config, queues):
             tl.printc('Two photon process: ' + str(res))
         time.sleep(0.1)
     tl.printc('Scanner process ended')
+
+def process_calibdata(pmt, mask):
+    mask_indexes = numpy.nonzero(numpy.diff(mask))[0].tolist()
+    mask_indexes.append(mask.shape[0]-1)
+    line_sizes = numpy.diff(mask_indexes)[::2]
+    x_line_size = line_sizes[0]
+    y_line_size = line_sizes[line_sizes.shape[0]/2]
+    image = numpy.zeros((x_line_size, y_line_size, 3))
+    mask = numpy.zeros_like(image)
+    for i in range(int(0.5*len(mask_indexes))):
+        start = mask_indexes[2*i]
+        end = mask_indexes[2*i+1]
+        pmt[start:end, 0]
+        #IDEA: fit a second order or a gaussian curve, the x position of the maximum of the fitted curve gives the spatial distance from the edges of the mask
+        #The curve is supposedly symmetrical
+        #Draw image:
+        #find out axis
+        line = pmt[start:end, 0]
+        if i%2 == 1:
+            line = line.tolist()
+            line.reverse()
+        if i%4 < 2:#Horizontal
+            line_width = x_line_size/20
+            for j in range(-line_width/2, line_width/2):
+                image[image.shape[0]/2+j, :, 1] += line
+                mask[image.shape[0]/2+j, :, 1] += numpy.ones_like(line)
+        elif i%4 >= 2:#Vertical
+            line_width = y_line_size/20
+            for j in range(-line_width/2, line_width/2):
+                image[:, image.shape[1]/2+j, 1] += line
+                mask[:, image.shape[1]/2+j, 1] += numpy.ones_like(line)
+    image *= numpy.where(mask ==mask.max(), 0.5, 1.0)
+    import Image
+    image = Image.fromarray(numpy.cast['uint8'](256*(image-image.min())/(image.max()-image.min()))).resize((300, 300), Image.ANTIALIAS)
+    delays = []
+    return delays, image
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):

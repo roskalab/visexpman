@@ -2168,7 +2168,9 @@ class CaImagingPoller(Poller):
             self.parameters['scan_center'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_center_xy'].input.text()))
             self.parameters['resolution'] = 1.0/float(str(self.parent.central_widget.main_widget.background_scan_parameters.inputs['resolution'].input.text()))
             try:
-                self.parameters['SCANNER_SETTING_TIME'] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_SETTING_TIME'].input.text()))
+                self.parameters['SCANNER_SETTING_TIME'] = string.str2params(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_SETTING_TIME'].input.text())
+                if len(self.parameters['SCANNER_SETTING_TIME']) == 1:
+                    self.parameters['SCANNER_SETTING_TIME'] = self.parameters['SCANNER_SETTING_TIME'][0]
             except ValueError:
                 pass#value from machine config will be used
             try:
@@ -2292,7 +2294,7 @@ class CaImagingPoller(Poller):
         self.update_scan_run_status('ready')
         if not self.queues['data'].empty():
             self.emit(QtCore.SIGNAL('plot_calibdata'))
-        
+            
     ####### Helpers ###########
     def _select_ai_channel(self):
         #figure out which analog channels need to be sampled

@@ -53,7 +53,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         self.YMIRROR_OFFSET = 0.0#um
         self.SCANNER_RAMP_TIME = 70.0e-3#Time to move the scanners into initial position
         self.SCANNER_HOLD_TIME = 30.0e-3
-        self.SCANNER_SETTING_TIME = 1e-3#This is the time constraint to set the speed of scanner (lenght of transient)
+        self.SCANNER_SETTING_TIME = [1e-3, 1e-2]#This is the time constraint to set the speed of scanner (lenght of transient)
         self.PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'AI' :  0,'COLOR': 'RED', 'ENABLE': False}}
         DAQ_CONFIG = [
