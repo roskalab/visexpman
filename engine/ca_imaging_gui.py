@@ -483,7 +483,8 @@ class CaImagingGui(Qt.QMainWindow):
         self.plot_calibdata()
         from visexpman.engine.hardware_interface import scanner_control
         delays, image = scanner_control.process_calibdata(calibdata['pmt'], calibdata['mask'])
-        self.show_image(numpy.asarray(image))
+        self.printc(delays)
+        self.show_image(image)
         
     def update_scan_run_status(self, status):
         '''

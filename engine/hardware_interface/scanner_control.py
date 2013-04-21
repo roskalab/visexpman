@@ -704,14 +704,22 @@ def process_calibdata(pmt, mask):
     line_sizes = numpy.diff(mask_indexes)[::2]
     x_line_size = line_sizes[0]
     y_line_size = line_sizes[line_sizes.shape[0]/2]
-    image = numpy.zeros((x_line_size, y_line_size, 3))
-    mask = numpy.zeros_like(image)
+    position_image = numpy.zeros((x_line_size, y_line_size, 3))
+    position_mask = numpy.zeros_like(position_image)
+    
+    def gauss(x, *p):
+        A, mu, sigma = p
+        return A*numpy.exp(-(x-mu)**2/(2.*sigma**2))
+    delays = []
     for i in range(int(0.5*len(mask_indexes))):
         start = mask_indexes[2*i]
         end = mask_indexes[2*i+1]
-        pmt[start:end, 0]
-        #IDEA: fit a second order or a gaussian curve, the x position of the maximum of the fitted curve gives the spatial distance from the edges of the mask
-        #The curve is supposedly symmetrical
+        
+        #Fit a gaussian curve on the recorded bead, the gaussian's mean is cnsidered to be the position of the bead
+        p0 = [1., (end-start)/2, 1.]
+        from scipy.optimize import curve_fit
+        coeff, var_matrix = curve_fit(gauss, numpy.arange(pmt[start:end, 0].shape[0]), pmt[start:end, 0], p0=p0)
+        delays.append(coeff[1])
         #Draw image:
         #find out axis
         line = pmt[start:end, 0]
@@ -721,18 +729,17 @@ def process_calibdata(pmt, mask):
         if i%4 < 2:#Horizontal
             line_width = x_line_size/20
             for j in range(-line_width/2, line_width/2):
-                image[image.shape[0]/2+j, :, 1] += line
-                mask[image.shape[0]/2+j, :, 1] += numpy.ones_like(line)
+                position_image[position_image.shape[0]/2+j, :, 1] += line
+                position_mask[position_image.shape[0]/2+j, :, 1] += numpy.ones_like(line)
         elif i%4 >= 2:#Vertical
             line_width = y_line_size/20
             for j in range(-line_width/2, line_width/2):
-                image[:, image.shape[1]/2+j, 1] += line
-                mask[:, image.shape[1]/2+j, 1] += numpy.ones_like(line)
-    image *= numpy.where(mask ==mask.max(), 0.5, 1.0)
+                position_image[:, position_image.shape[1]/2+j, 1] += line
+                position_mask[:, position_image.shape[1]/2+j, 1] += numpy.ones_like(line)
+    position_image *= numpy.where(position_mask ==position_mask.max(), 0.5, 1.0)
     import Image
-    image = Image.fromarray(numpy.cast['uint8'](256*(image-image.min())/(image.max()-image.min()))).resize((300, 300), Image.ANTIALIAS)
-    delays = []
-    return delays, image
+    position_image = Image.fromarray(numpy.cast['uint8'](256*(position_image-position_image.min())/(position_image.max()-position_image.min()))).resize((300, 300), Image.ANTIALIAS)
+    return delays, numpy.asarray(position_image)
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):
