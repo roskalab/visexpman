@@ -31,6 +31,8 @@ import scipy.io
 import time
 import copy
 import os.path
+import scipy.optimize
+import traceback
 import daq_instrument
 import instrument
 from visexpman.engine.generic import utils
@@ -555,6 +557,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             except:
                 self.printc(traceback.format_exc())
                 self.printc('scan_ready')
+                return
             if parameters.has_key('duration'):
                 if parameters['duration'] == 0:
                     nframes = 1
@@ -654,13 +657,16 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 self.printc('{0} parameters must be provided' .format(missing_keys))
                 self.printc('calib_ready')
                 return
-            lines = generate_test_lines(parameters['scanning_range'], int(parameters['repeats']), [parameters['scanner_speed']])
+            if not isinstance(parameters['scanner_speed'],  list):
+                parameters['scanner_speed'] = [parameters['scanner_speed']]
+            lines = generate_test_lines(parameters['scanning_range'], int(parameters['repeats']), parameters['scanner_speed'])
             self.tp = TwoPhotonScanner(config)
             try:
                 self.tp.start_line_scan(lines, setting_time = parameters['SCANNER_SETTING_TIME'])
             except:
                 self.printc(traceback.format_exc())
                 self.printc('calib_ready')
+                return
             self.printc('calib_started')
             calibration_time = self.tp.scanner_control_signal.T.shape[0]/self.tp.aio.ai_sample_rate
             self.printc('Calibration time {0}'.format(calibration_time))
@@ -678,7 +684,11 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 calibdata['accel_speed'] = self.tp.accel_speed
                 calibdata['mask'] = self.tp.scan_mask
                 calibdata['parameters'] = parameters
-                calibdata['delays'], process_calibdata['image'] = process_calibdata(calibdata['pmt'], calibdata['mask'])
+                delays, sigma, image = process_calibdata(calibdata['pmt'], calibdata['mask'])
+                calibdata['delays'] = delays
+                calibdata['image'] = image
+                calibdata['sigma'] = sigma
+                
                 hdf5io.save_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', calibdata, overwrite=True, filelocking=False)
                 self.queues['data'].put(calibdata)
             self.printc('calib_ready')
@@ -711,15 +721,19 @@ def process_calibdata(pmt, mask):
         A, mu, sigma = p
         return A*numpy.exp(-(x-mu)**2/(2.*sigma**2))
     delays = []
+    sigma = []
     for i in range(int(0.5*len(mask_indexes))):
         start = mask_indexes[2*i]
         end = mask_indexes[2*i+1]
-        
         #Fit a gaussian curve on the recorded bead, the gaussian's mean is cnsidered to be the position of the bead
         p0 = [1., (end-start)/2, 1.]
-        from scipy.optimize import curve_fit
-        coeff, var_matrix = curve_fit(gauss, numpy.arange(pmt[start:end, 0].shape[0]), pmt[start:end, 0], p0=p0)
-        delays.append(coeff[1])
+        try:
+            coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(pmt[start:end, 0].shape[0]), pmt[start:end, 0], p0=p0)
+            delays.append(coeff[1])
+            sigma.append(coeff[2]/(end-start))
+        except:
+            delays.append(0)
+            sigma.append(0)
         #Draw image:
         #find out axis
         line = pmt[start:end, 0]
@@ -729,17 +743,23 @@ def process_calibdata(pmt, mask):
         if i%4 < 2:#Horizontal
             line_width = x_line_size/20
             for j in range(-line_width/2, line_width/2):
-                position_image[position_image.shape[0]/2+j, :, 1] += line
-                position_mask[position_image.shape[0]/2+j, :, 1] += numpy.ones_like(line)
+                try:
+                    position_image[position_image.shape[0]/2+j, :, 1] += line
+                    position_mask[position_image.shape[0]/2+j, :, 1] += numpy.ones_like(line)
+                except:
+                    pass
         elif i%4 >= 2:#Vertical
             line_width = y_line_size/20
             for j in range(-line_width/2, line_width/2):
-                position_image[:, position_image.shape[1]/2+j, 1] += line
-                position_mask[:, position_image.shape[1]/2+j, 1] += numpy.ones_like(line)
+                try:
+                    position_image[:, position_image.shape[1]/2+j, 1] += line
+                    position_mask[:, position_image.shape[1]/2+j, 1] += numpy.ones_like(line)
+                except:
+                    pass
     position_image *= numpy.where(position_mask ==position_mask.max(), 0.5, 1.0)
     import Image
     position_image = Image.fromarray(numpy.cast['uint8'](256*(position_image-position_image.min())/(position_image.max()-position_image.min()))).resize((300, 300), Image.ANTIALIAS)
-    return delays, numpy.asarray(position_image)
+    return delays, sigma, numpy.asarray(position_image)
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):

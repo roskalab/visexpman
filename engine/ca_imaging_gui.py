@@ -40,14 +40,15 @@ class CalibrationScanningPattern(gui.GroupBox):
         gui.GroupBox.__init__(self, parent, 'Calibration scanning pattern')
         
     def create_widgets(self):
-        self.widgets = {}
-        self.widgets['scanning_range'] = gui.LabeledInput(self, 'Scanning range [um]')
-        self.widgets['repeats'] = gui.LabeledInput(self, 'Repeats')
-        self.widgets['start'] = QtGui.QPushButton('Run',  self)
+        self.widgets = {'scanning_range' : gui.LabeledInput(self, 'Scanning range [um]'), 
+                                    'repeats' : gui.LabeledInput(self, 'Repeats'), 'start': QtGui.QPushButton('Run',  self)}
         
     def create_layout(self):
-        self.layout = QtGui.QHBoxLayout()
-        [self.layout.addWidget(v) for v in self.widgets.values()]
+        self.layout = QtGui.QGridLayout()
+        for w in [self.widgets]:
+            keys = w.keys()
+            keys.sort()
+            [self.layout.addWidget(w[k], 0, 2*keys.index(k), 1, 2) for k in keys]
         self.setLayout(self.layout)
 
 class CalibrationWidget(QtGui.QWidget):
@@ -130,8 +131,8 @@ class MeasurementFiles(gui.GroupBox):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.cell_name, 0, 0, 1, 1)
-        self.layout.addWidget(self.enable_recording, 0, 1, 1, 1)
         self.layout.addWidget(self.recording, 1, 0, 1, 1)
+        self.layout.addWidget(self.enable_recording, 2, 0, 1, 1)
         self.setLayout(self.layout)
 
 class ObjectiveControl(gui.GroupBox):
@@ -446,22 +447,16 @@ class CaImagingGui(Qt.QMainWindow):
         
     def show_image(self, image, scale=None, origin=None):
         self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image))#, utils.rc((600, 600))))
-        
-#    def plot(self):
-#        plot = self.central_widget.calibration_widget.plot
-#        plot.clear()
-#        plot.setdata(numpy.arange(100), penwidth=1.5, color=Qt.Qt.black)
-#        plot.setaxisscale([0, 100, -1000, 1000])
 
     def plot_calibdata(self):
         calibdata = self.poller.queues['data'].get()
-        plot = self.central_widget.calibration_widget.plot
-        plot.setdata(calibdata['pmt'][:, 0], penwidth=1.5, color=Qt.Qt.black)
+        self.central_widget.calibration_widget.plot.setdata(calibdata['pmt'][:, 0], penwidth=1.5, color=Qt.Qt.black)
         if calibdata['pmt'].shape[1] ==2:
-            plot.adddata(calibdata['pmt'][:, 1],color=Qt.Qt.black, penwidth=1.5)
-        plot.adddata(calibdata['waveform'][:, 0],color=Qt.Qt.green, penwidth=1.5)
-        plot.adddata(calibdata['waveform'][:, 1],color=Qt.Qt.red, penwidth=1.5)
-        plot.adddata(calibdata['mask'],color=Qt.Qt.blue, penwidth=1.5)
+            self.central_widget.calibration_widget.plot.adddata(calibdata['pmt'][:, 1],color=Qt.Qt.black, penwidth=1.5)
+        self.central_widget.calibration_widget.plot.adddata(calibdata['waveform'][:, 0],color=Qt.Qt.green, penwidth=1.5)
+        self.central_widget.calibration_widget.plot.adddata(calibdata['waveform'][:, 1],color=Qt.Qt.red, penwidth=1.5)
+        self.central_widget.calibration_widget.plot.adddata(calibdata['mask'],color=Qt.Qt.blue, penwidth=1.5)
+        self.central_widget.calibration_widget.plot.replot()
 #        plot.adddata(calibdata['accel_speed']['speed_x'],color=Qt.Qt.black, penwidth=1.5)
 #        plot.adddata(calibdata['accel_speed']['speed_y'],color=Qt.Qt.black, penwidth=1.5)
 #        plot.adddata(calibdata['accel_speed']['accel_x'],color=Qt.Qt.black, penwidth=1.5)
@@ -475,16 +470,19 @@ class CaImagingGui(Qt.QMainWindow):
         self.printc(
                     'Accel max: {0:.3e} um/s2,  max speed {1:.3e} um/s, overshoot {2:2.3f} um, line rate: {3:3.1f} Hz, scan time efficiency {4:2.1f} %'
                     .format(calibdata['accel_speed']['accel_x'].max(), calibdata['accel_speed']['speed_x'].max(),  overshoot, line_rate,  100.0*calibdata['mask'].sum()/calibdata['mask'].shape[0]))
+        try:
+            self.printc('Peak delays: {0}, sigmas: {1}' .format(numpy.round(calibdata['delays'], 2), numpy.round(calibdata['sigma'], 4)))
+            self.show_image(calibdata['image'])
+        except:
+            pass
 
     def fromfile(self):
         from visexpA.engine.datahandlers import hdf5io
         calibdata = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', filelocking=False)
+        from visexpman.engine.hardware_interface import scanner_control
+        calibdata['delays'], calibdata['sigma'], calibdata['image'] = scanner_control.process_calibdata(calibdata['pmt'], calibdata['mask'])
         self.poller.queues['data'].put(calibdata)
         self.plot_calibdata()
-        from visexpman.engine.hardware_interface import scanner_control
-        delays, image = scanner_control.process_calibdata(calibdata['pmt'], calibdata['mask'])
-        self.printc(delays)
-        self.show_image(image)
         
     def update_scan_run_status(self, status):
         '''

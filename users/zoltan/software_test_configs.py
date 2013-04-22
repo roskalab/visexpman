@@ -15,7 +15,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
         self.root_folder = '/mnt/datafast/debug/data'
-        self.root_folder = '/mnt/rznb/data'
+#        self.root_folder = '/mnt/rznb/data'
         if not os.path.exists(self.root_folder) and os.name == 'nt':
             self.root_folder = 'v:\\debug\\data'
         LOG_PATH = self.root_folder
@@ -47,7 +47,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         self.SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
         self.SCANNER_DELAY = 0#As function of scanner speed
         self.SCANNER_START_STOP_TIME = 0.02
-        self.SCANNER_MAX_POSITION = 200.0
+        self.SCANNER_MAX_POSITION = 300.0
         self.POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0
         self.XMIRROR_OFFSET = 0.0#um
         self.YMIRROR_OFFSET = 0.0#um
@@ -64,8 +64,8 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         'AI_SAMPLE_RATE' : 800000,
         'AO_CHANNEL' : 'Dev1/ao0:1',
         'AI_CHANNEL' : 'Dev1/ai0:1',
-        'MAX_VOLTAGE' : 3.0,
-        'MIN_VOLTAGE' : -3.0,
+        'MAX_VOLTAGE' : 5.0,
+        'MIN_VOLTAGE' : -5.0,
         'DURATION_OF_AI_READ' : 2.0,
         'ENABLE' : True
         },
@@ -79,8 +79,8 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         self.CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
         self.CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = False
         
-#        if os.name == 'nt':
-#            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
+        if os.name == 'nt':
+            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
         self._create_parameters_from_locals(locals())
 
 class JobhandlerTestConfig(configuration.VisionExperimentConfig):

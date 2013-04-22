@@ -2280,7 +2280,6 @@ class CaImagingPoller(Poller):
                         self.parameters[pn] = float(str(widget.input.text()))
                     except ValueError:
                         pass
-                        
             self.queues['parameters'].put(self.parameters)
             self.queues['out'].put('start_calibration')
             self.printc('Calibration start requested')
