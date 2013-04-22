@@ -22,6 +22,18 @@ import file
 
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
+def generate_lut(x, min = 0.0, max = 1.0, gamma = 1.0, brightness = 0.5, contrast = 0.0):
+    max_ = max - contrast
+    min_ = min + contrast
+    b =-min*(1.0/(max_-min_))
+    b = b + brightness - 0.5
+    a = (1.0/(max_-min_))
+    y = a * x + b
+    y = y ** gamma
+    y = numpy.where(y < 0.0,  0.0,  y)
+    y = numpy.where(y > 1.0,  1.0,  y)
+    return y
+
 ######## Signals  ########
 def signal2binary(signal):
     '''

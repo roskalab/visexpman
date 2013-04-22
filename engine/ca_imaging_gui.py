@@ -18,6 +18,7 @@ import time
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
+import PyQt4.Qwt5 as Qwt
 
 import visexpman
 from visexpman.engine.vision_experiment import configuration
@@ -102,12 +103,10 @@ class ImageAnalysis(gui.GroupBox):
         self.function.input.addItems(QtCore.QStringList(['histogram',  'time series',  ]))
         self.histogram_range = gui.LabeledInput(self, 'Histogram min, max, gamma')
         
-        self.plot = Qt4Plot()
+        self.plot = Qwt.QwtPlot(self)
         self.plot.setMaximumHeight(150)
         self.plot.setMaximumWidth(600)
         self.plot.clear()
-        self.plot.setdata(numpy.arange(100), penwidth=1.5, color=Qt.Qt.black)
-        self.plot.setaxisscale([0, 100, -1000, 1000])
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -344,8 +343,8 @@ class CentralWidget(QtGui.QWidget):
         self.sa.setWidget(self.image)
         self.sa.setWidgetResizable(False)
 #        self.sa.ensureVisible(200, 200)
-        self.sa.setFixedWidth(600)
-        self.sa.setFixedHeight(600)
+        self.sa.setFixedWidth(400)
+        self.sa.setFixedHeight(400)
         
         self.image_analysis = ImageAnalysis(self)
         
@@ -365,6 +364,7 @@ class CentralWidget(QtGui.QWidget):
         self.layout.addWidget(self.sa, 2, 0, 1, 1)
         self.layout.addWidget(self.image_analysis, 3, 0, 1, 1)
         self.layout.addWidget(self.text_out, 3, 1, 1, 1)
+        
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
@@ -397,6 +397,8 @@ class CaImagingGui(Qt.QMainWindow):
         self.poller.start()
         self.show()
         self.init_widget_content()
+        self.poller.init_debug()
+        self.poller.update_main_image()
         if qt_app is not None: qt_app.exec_()
         
     def create_widgets(self):
@@ -418,11 +420,14 @@ class CaImagingGui(Qt.QMainWindow):
     def connect_signals(self):
         self.signal_mapper = QtCore.QSignalMapper(self)
         self.connect(self.central_widget.calibration_widget.fromfile, QtCore.SIGNAL('clicked()'),  self.fromfile)
-#        self.connect_and_map_signal(self.central_widget.calibration_widget.fromfile, 'plot')
+        self.connect(self.central_widget.image_analysis.histogram_range.input, QtCore.SIGNAL('textEdited(QString)'), self.update_main_image)
         self.connect_and_map_signal(self.central_widget.control_widget.scan, 'scan')
         self.connect_and_map_signal(self.central_widget.control_widget.snap, 'snap')
         self.connect_and_map_signal(self.central_widget.calibration_widget.calib_scan_pattern.widgets['start'], 'calib')
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
+        
+    def update_main_image(self, text):
+        pass
         
     def connect_and_map_signal(self, widget, mapped_signal_parameter, widget_signal_name = 'clicked'):
         if hasattr(self.poller, mapped_signal_parameter):
@@ -447,6 +452,25 @@ class CaImagingGui(Qt.QMainWindow):
         
     def show_image(self, image, scale=None, origin=None):
         self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image))#, utils.rc((600, 600))))
+        
+    def plot_histogram(self, x, hist, lut):
+        self.central_widget.image_analysis.plot.clear()
+        self.central_widget.image_analysis.plot.histogram = Qwt.QwtPlotCurve('H')
+        self.central_widget.image_analysis.plot.histogram.setRenderHint(Qwt.QwtPlotItem.RenderAntialiased)
+        self.central_widget.image_analysis.plot.histogram.attach(self.central_widget.image_analysis.plot)
+        pen1 = Qt.QPen(Qt.Qt.red)
+        pen1.setWidth(1)
+        self.central_widget.image_analysis.plot.histogram.setPen(pen1)
+        self.central_widget.image_analysis.plot.histogram.setData(x, hist)
+        if lut is not None:
+            self.central_widget.image_analysis.plot.lut = Qwt.QwtPlotCurve('LUT')
+            self.central_widget.image_analysis.plot.lut.setRenderHint(Qwt.QwtPlotItem.RenderAntialiased)
+            self.central_widget.image_analysis.plot.lut.attach(self.central_widget.image_analysis.plot)
+            pen2 = Qt.QPen(Qt.Qt.black)
+            pen2.setWidth(1.5)
+            self.central_widget.image_analysis.plot.lut.setPen(pen2)
+            self.central_widget.image_analysis.plot.lut.setData(x, lut)
+        self.central_widget.calibration_widget.plot.replot()
 
     def plot_calibdata(self):
         calibdata = self.poller.queues['data'].get()

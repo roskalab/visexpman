@@ -881,7 +881,7 @@ class TestScannerControl(unittest.TestCase):
         position = utils.rc((0, 0))
         size = utils.rc((100, 100))
         setting_time = 0.00005
-        setting_time = [setting_time, 2*setting_time]
+        setting_time = [setting_time, 5*setting_time]
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         if plot_enable:

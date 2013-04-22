@@ -29,7 +29,8 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         PARSE_PERIOD = 0.1
         
         #### Network ####
-        ENABLE_UDP = False
+        ENABLE_UDP = (os.name == 'nt')
+        UDP_PORT = 446
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
         self.COMMAND_RELAY_SERVER['ENABLE'] = False
@@ -42,12 +43,12 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
             'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
             }
         COORDINATE_SYSTEM='ulcorner'
-        
+        self.MAX_PMT_VOLTAGE = 8.0
         self.SCANNER_MAX_SPEED = utils.rc((1e7, 1e7))#um/s
         self.SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
         self.SCANNER_DELAY = 0#As function of scanner speed
         self.SCANNER_START_STOP_TIME = 0.02
-        self.SCANNER_MAX_POSITION = 300.0
+        self.SCANNER_MAX_POSITION = 250.0
         self.POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0
         self.XMIRROR_OFFSET = 0.0#um
         self.YMIRROR_OFFSET = 0.0#um

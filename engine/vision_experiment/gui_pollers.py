@@ -2033,11 +2033,16 @@ class CaImagingPoller(Poller):
         Poller.__init__(self, parent)
         self.config = parent.config
         from multiprocessing import Queue, Process
-        self.queues = {'in':Queue(), 'out':Queue(), 'parameters': Queue(), 'data': Queue(), 'frame': Queue()}
+        self.queues = {'in':Queue(), 'out':Queue(), 'parameters': Queue(), 'data': Queue(), 'frame': Queue(),  'udp': Queue()}
         self.process = Process(target=scanner_control.two_photon_scanner_process,  args = (self.config, self.queues))
         self.process.start()
         self.init_variables()
         self.load_context()
+        if self.config.ENABLE_UDP:
+            server_address = ''
+            import socket
+            self.udp_listener = network_interface.NetworkListener(server_address, self.queues['udp'], socket.SOCK_DGRAM, self.config.UDP_PORT)
+            self.udp_listener.start()
 
     def periodic(self):
         if self.scan_run and self.scan_start_time is not None:
@@ -2046,6 +2051,8 @@ class CaImagingPoller(Poller):
             self.update_status(scan_is_running_for = (0,  's'))
         
     def run_in_all_iterations(self):
+        if not self.queues['udp'].empty():
+            self.printc(self.queues['udp'].get())
         try:
             self.frame_update()
         except:
@@ -2067,17 +2074,20 @@ class CaImagingPoller(Poller):
                     self.printc(traceback.format_exc())
             else:
                 self.printc(message_raw)
-                
 
     def connect_signals(self):
         Poller.connect_signals(self)
         self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
         self.parent.connect(self, QtCore.SIGNAL('update_scan_run_status'),  self.parent.update_scan_run_status)
         self.parent.connect(self, QtCore.SIGNAL('plot_calibdata'),  self.parent.plot_calibdata)
+        self.parent.connect(self, QtCore.SIGNAL('plot_histogram'),  self.parent.plot_histogram)
                 
     def load_context(self):
         context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         self.load_widget_context(context_hdf5)
+        context_hdf5.load('main_image')
+        if hasattr(context_hdf5, 'main_image'):
+            self.main_image = copy.deepcopy(context_hdf5.main_image)
         context_hdf5.close()
         
     def load_widget_context(self,hdfhandler):
@@ -2106,26 +2116,37 @@ class CaImagingPoller(Poller):
                                         'self.parent.central_widget.main_widget.background_scan_parameters.inputs[\'resolution\'].input', 
                                         'self.parent.central_widget.main_widget.measurement_files.cell_name.input', 
                                         'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name', 
+                                        'self.parent.central_widget.image_analysis.histogram_range.input', 
                                       ]
         for pn in self.parent.central_widget.calibration_widget.parameter_names:
             self.widget_context_fields.append('self.parent.central_widget.calibration_widget.scanner_parameters[\'{0}\'].input'.format(pn))
         for pn in self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets.keys():
             if hasattr(self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets[pn], 'input'):
                 self.widget_context_fields.append('self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets[\'{0}\'].input'.format(pn))
+        
+    def init_debug(self):
         #Load data from test file
-        if os.name != 'nt':
+        if os.name != 'nt' and not hasattr(self, 'main_image'):
+            return
             from visexpman.users.zoltan.test import unit_test_runner
             h = hdf5io.Hdf5io(file.filtered_file_list(unit_test_runner.prepare_test_data('caimaging'), 'hdf5', fullpath = True)[0], filelocking=False)
             img = h.findvar('data')
             img = img.mean(axis=0)
             scan_parameters = h.findvar('scan_parameters')
             h.close()
-            aichannel, self.enabled_channels = self._select_ai_channel()
             if not scan_parameters.has_key('scan_center'):
                 scan_parameters['scan_center'] = utils.rc((0,0))
                 scan_parameters['resolution'] = 1
-            self.show_image(self.process_images(img), utils.rc((scan_parameters['resolution'],  )*2),  scan_parameters['scan_center'])
-            
+            self.main_image = {}
+            self.main_image['image'] = img
+            self.main_image['resolution'] = utils.rc((scan_parameters['resolution'],  )*2)
+            self.main_image['center'] = scan_parameters['scan_center']
+            self.update_main_image()
+        
+    def update_main_image(self):
+        aichannel, self.enabled_channels = self._select_ai_channel()
+        self.show_image(self.process_images(self.main_image['image']), self.main_image['resolution'], self.main_image['center'])
+        
     def update_status(self, **kwargs):
         for k,  v in kwargs.items():
             self.status[k] = v
@@ -2148,6 +2169,8 @@ class CaImagingPoller(Poller):
     def close(self):
         self.queues['out'].put('SOCquitEOCEOP')
         h = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+        h.main_image = copy.deepcopy(self.main_image)
+        h.save('main_image')
         self.save_widget_context(h)
         h.close()
         self.process.join()
@@ -2215,7 +2238,10 @@ class CaImagingPoller(Poller):
     def frame_update(self):
         if not self.queues['frame'].empty():
             self.current_frame = scanner_control.raw2frame(self.queues['frame'].get(),  self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'])
-            self.show_image(self.process_images(self.current_frame), utils.rc((self.parameters['resolution'],  )*2),  self.parameters['scan_center'])
+            self.main_image['image'] = self.current_frame
+            self.main_image['resolution'] = utils.rc((self.parameters['resolution'],  )*2)
+            self.main_image['center'] =  self.parameters['scan_center']
+            self.update_main_image()
             #Get items from queue to make queue empty
             while not self.queues['frame'].empty():
                 self.queues['frame'].get()
@@ -2230,13 +2256,13 @@ class CaImagingPoller(Poller):
         for i in range(len(self.enabled_channels)):
             channel_color = [self.config.PMTS[pmtch]['COLOR'] for pmtch in self.config.PMTS.keys() if self.config.PMTS[pmtch]['AI'] == self.enabled_channels[i]][0]
             if channel_color == 'RED':
-                imout[:, :, 0] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, channel_index])), outtype = numpy.uint8)
+                imout[:, :, 0] = generic.normalize(self.apply_histogram(self.apply_filters(self.scale_image(image[:, :, channel_index]))), outtype = numpy.uint8)
                 channel_index+= 1
             elif channel_color == 'GREEN':
-                imout[:, :, 1] = generic.normalize(self.apply_histogram(self.apply_filters(image[:, :, channel_index])), outtype = numpy.uint8)
+                imout[:, :, 1] = self.apply_histogram(self.apply_filters(self.scale_image(image[:, :, channel_index])))
                 channel_index += 1
                 #TODO: this normalization is not correct here, histogram shall scale all dim frames
-        imout = numpy.cast['uint8'](imout)
+        imout = numpy.cast['uint8'](255*imout)
         #convert to PIL image
         imout = Image.fromarray(imout)
         #Flip image
@@ -2247,9 +2273,45 @@ class CaImagingPoller(Poller):
         imout = numpy.asarray(imout)
         #Draw scalebar
         return imout
+        
+    def scale_image(self, image):
+        '''
+        The pmt voltage values are scaled between 0 and self.config.MAX_PMT_VOLTAGE
+        '''
+        image_scaled = numpy.where(image < 0,  0,  image)
+        image_scaled = numpy.where(image_scaled > self.config.MAX_PMT_VOLTAGE, self.config.MAX_PMT_VOLTAGE,  image_scaled)
+        image_scaled /= self.config.MAX_PMT_VOLTAGE
+        return image_scaled
 
     def apply_histogram(self, image):
-        return image
+        '''
+        Pixels of input image are in the 0...1 range
+        '''
+        histogram_resolution = 0.01
+        histogram_parameters = string.str2params(self.parent.central_widget.image_analysis.histogram_range.input.text())
+        image_out = image
+        if len(histogram_parameters)==3:#Apply histogram
+            min,  max,  gamma = histogram_parameters
+            try:
+#                from visexpman.engine.generic.introspect import Timer
+#                with Timer('rt'):
+                x = numpy.arange(0.0, 1.0, histogram_resolution)
+                lut = utils.generate_lut(x, min, max, gamma)
+                apply_lut = scipy.interpolate.interp1d(x, lut, bounds_error  = False, fill_value  = 0.0)
+                image_out = apply_lut(image)
+            except:
+                lut = None
+                self.printc(traceback.format_exc())
+        else:
+            lut = None
+        
+        #Generate and display hisogram
+        hist, bins = numpy.histogram(image,  bins = 1/histogram_resolution)
+        #Normalize histogram
+        hist = hist/float(image.shape[0]*image.shape[1])
+        t = numpy.arange(0.0, 1.0, 1.0/hist.shape[0])
+        self.emit(QtCore.SIGNAL('plot_histogram'), t, hist, lut)
+        return image_out
         
     def apply_filters(self, image):
         return image
