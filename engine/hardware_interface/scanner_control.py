@@ -63,8 +63,8 @@ class ScannerTestConfig(configuration.Config):
         {
         'ANALOG_CONFIG' : 'aio',
         'DAQ_TIMEOUT' : 2.0, 
-        'AO_SAMPLE_RATE' : 100000,
-        'AI_SAMPLE_RATE' : 200000,
+        'AO_SAMPLE_RATE' : 800000,
+        'AI_SAMPLE_RATE' : 400000,
         'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
         'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai0:2',
         'MAX_VOLTAGE' : 3.0,
@@ -182,15 +182,38 @@ def generate_line_scan_series(lines, dt, setting_time, vmax, accmax, scanning_pe
             else:
                 v1, n = calculate_scanner_speed(line['p0'], line['p1'], line['ds'], dt)
                 ds = line['ds']
-            if line_counter == 0:
-                current_setting_time = setting_time_y
+            if line_counter == 0 and setting_time_y > 2*setting_time_x :
+                #Stopping x mirror
+                intermediate_x_position = p0['col'] - 0.5*(p0['col'] - line['p0']['col'])
+                set_pos_x1, set_speed_x1, set_accel_x1, t, A, connect_line_x_safe1 = \
+                                                        set_position_and_speed(p0['col'], intermediate_x_position, v0['col'], 0.0, setting_time_x, dt, Amax = a_limits['col'], omit_last = True)
+                set_pos_y1, set_speed_y1, set_accel_y1, t, A, connect_line_y_safe1 = \
+                                                        set_position_and_speed(p0['row'], p0['row'], v0['row'], v0['row'], setting_time_x, dt, Amax = a_limits['row'], omit_last = True)
+                #Setting y mirror
+                set_pos_x2, set_speed_x2, set_accel_x2, t, A, connect_line_x_safe2 = \
+                                                        set_position_and_speed(intermediate_x_position, intermediate_x_position, 0.0, 0.0, setting_time_y - 2*setting_time_x, dt, Amax = a_limits['col'], omit_last = True)
+                set_pos_y2, set_speed_y2, set_accel_y2, t, A, connect_line_y_safe2 = \
+                                                        set_position_and_speed(p0['row'], line['p0']['row'], v0['row'], v1['row'], setting_time_y - 2*setting_time_x, dt, Amax = a_limits['row'], omit_last = True)
+                #Setting x mirror
+                set_pos_x3, set_speed_x3, set_accel_x3, t, A, connect_line_x_safe3 = \
+                                                        set_position_and_speed(intermediate_x_position, line['p0']['col'], 0.0, v1['col'], setting_time_x, dt, Amax = a_limits['col'], omit_last = True)
+                set_pos_y3, set_speed_y3, set_accel_y3, t, A, connect_line_y_safe3 = \
+                                                        set_position_and_speed(line['p0']['row'], line['p0']['row'], v1['row'], v1['row'], setting_time_x, dt, Amax = a_limits['row'], omit_last = True)
+
+                line_out['set_pos_x'] = numpy.concatenate((set_pos_x1, set_pos_x2, set_pos_x3))
+                line_out['set_pos_y'] = numpy.concatenate((set_pos_y1, set_pos_y2, set_pos_y3))
+                line_out['set_speed_x'] = numpy.concatenate((set_speed_x1, set_speed_x2, set_speed_x3))
+                line_out['set_speed_y'] = numpy.concatenate((set_speed_y1, set_speed_y2, set_speed_y3))
+                line_out['set_accel_x'] = numpy.concatenate((set_accel_x1, set_accel_x2, set_accel_x3))
+                line_out['set_accel_y'] = numpy.concatenate((set_accel_y1, set_accel_y2, set_accel_y3))
+                connect_line_x_safe = (connect_line_x_safe1 and connect_line_x_safe2 and connect_line_x_safe3)
+                connect_line_y_safe = (connect_line_y_safe1 and connect_line_y_safe2 and connect_line_y_safe3)
             else:
-                current_setting_time = setting_time_x
+                line_out['set_pos_x'], line_out['set_speed_x'], line_out['set_accel_x'], t, A, connect_line_x_safe = \
+                                                        set_position_and_speed(p0['col'], line['p0']['col'], v0['col'], v1['col'], setting_time_x, dt, Amax = a_limits['col'], omit_last = True)
+                line_out['set_pos_y'], line_out['set_speed_y'], line_out['set_accel_y'], t, A, connect_line_y_safe = \
+                                                        set_position_and_speed(p0['row'], line['p0']['row'], v0['row'], v1['row'], setting_time_x, dt, Amax = a_limits['row'], omit_last = True)
             line_counter += 1
-            line_out['set_pos_x'], line_out['set_speed_x'], line_out['set_accel_x'], t, A, connect_line_x_safe = \
-                                                    set_position_and_speed(p0['col'], line['p0']['col'], v0['col'], v1['col'], current_setting_time, dt, Amax = a_limits['col'], omit_last = True)
-            line_out['set_pos_y'], line_out['set_speed_y'], line_out['set_accel_y'], t, A, connect_line_y_safe = \
-                                                    set_position_and_speed(p0['row'], line['p0']['row'], v0['row'], v1['row'], current_setting_time, dt, Amax = a_limits['row'], omit_last = True)
             scan_signal_length_counter += line_out['set_pos_y'].shape[0]
             #Generate line scan
             line_out['scan_start_index'] = scan_signal_length_counter
@@ -877,13 +900,16 @@ class TestScannerControl(unittest.TestCase):
     def test_04_generate_rectangular_scan(self):
         plot_enable = not False
         config = ScannerTestConfig()
-        spatial_resolution = 20.0
+
+        spatial_resolution = 10
+        spatial_resolution = 1.0/spatial_resolution
         position = utils.rc((0, 0))
-        size = utils.rc((100, 100))
-        setting_time = 0.00005
-        setting_time = [setting_time, 5*setting_time]
+        size = utils.rc((20, 20))
+        setting_time = [1e-4, 1e-3]
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
+        
+        print ' ', abs(abs(pos_x.max()-pos_x.min())- size['col']), abs(abs(pos_y.max()-pos_y.min())- size['row'])
         if plot_enable:
             from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
             figure(2)
