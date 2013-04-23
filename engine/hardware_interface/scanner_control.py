@@ -35,6 +35,9 @@ import scipy.optimize
 import traceback
 import daq_instrument
 import instrument
+import os
+if os.name=='nt':
+    import PyDAQmx
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 from visexpman.engine.generic import log
@@ -491,7 +494,12 @@ class TwoPhotonScanner(instrument.Instrument):
         self.aio.finish_daq_activity()
         self.close_shutter()
         #value of ao at stopping continous generation is unknown
-        self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr((0.0, 0.0)), self.config.SCANNER_RAMP_TIME)
+        try:
+            time.sleep(0.05)
+            self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr((0.0, 0.0)), self.config.SCANNER_RAMP_TIME)
+        except PyDAQmx.DAQError:#Sometimes DAQ device is not yet available
+            time.sleep(1.0)
+            self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr((0.0, 0.0)), self.config.SCANNER_RAMP_TIME)
         #Gather measurment data
         self.data = numpy.array([raw2frame(raw_pmt_data, self.binning_factor, self.boundaries) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
         
@@ -697,7 +705,12 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 self.tp.read_pmt()
             else:
                 self.printc('Calibration would take long, skipping')
-            self.tp.finish_measurement()
+            try:
+                self.tp.finish_measurement()
+            except:
+                self.printc(traceback.format_exc())
+                self.printc('calib_ready')
+                return
             self.tp.release_instrument()
             if hasattr(self.tp, 'raw_pmt_frame'):
                 calibdata = {}
@@ -714,6 +727,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 
                 hdf5io.save_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', calibdata, overwrite=True, filelocking=False)
                 self.queues['data'].put(calibdata)
+                print delays, sigma
             self.printc('calib_ready')
             
     
@@ -737,8 +751,9 @@ def process_calibdata(pmt, mask):
     line_sizes = numpy.diff(mask_indexes)[::2]
     x_line_size = line_sizes[0]
     y_line_size = line_sizes[line_sizes.shape[0]/2]
-    position_image = numpy.zeros((x_line_size, y_line_size, 3))
-    position_mask = numpy.zeros_like(position_image)
+    if x_line_size<2500:#TMP solution
+        position_image = numpy.zeros((x_line_size, y_line_size, 3))
+        position_mask = numpy.zeros_like(position_image)
     
     def gauss(x, *p):
         A, mu, sigma = p
@@ -752,7 +767,7 @@ def process_calibdata(pmt, mask):
         p0 = [1., (end-start)/2, 1.]
         try:
             coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(pmt[start:end, 0].shape[0]), pmt[start:end, 0], p0=p0)
-            delays.append(coeff[1])
+            delays.append(coeff[1]/(end-start))
             sigma.append(coeff[2]/(end-start))
         except:
             delays.append(0)
@@ -763,7 +778,7 @@ def process_calibdata(pmt, mask):
         if i%2 == 1:
             line = line.tolist()
             line.reverse()
-        if i%4 < 2:#Horizontal
+        if i%4 >= 2:#vertical
             line_width = x_line_size/20
             for j in range(-line_width/2, line_width/2):
                 try:
@@ -771,7 +786,7 @@ def process_calibdata(pmt, mask):
                     position_mask[position_image.shape[0]/2+j, :, 1] += numpy.ones_like(line)
                 except:
                     pass
-        elif i%4 >= 2:#Vertical
+        elif i%4 < 2:#Horizontal
             line_width = y_line_size/20
             for j in range(-line_width/2, line_width/2):
                 try:
@@ -779,9 +794,12 @@ def process_calibdata(pmt, mask):
                     position_mask[:, position_image.shape[1]/2+j, 1] += numpy.ones_like(line)
                 except:
                     pass
-    position_image *= numpy.where(position_mask ==position_mask.max(), 0.5, 1.0)
     import Image
-    position_image = Image.fromarray(numpy.cast['uint8'](256*(position_image-position_image.min())/(position_image.max()-position_image.min()))).resize((300, 300), Image.ANTIALIAS)
+    if x_line_size<2500:#TMP solution
+        position_image *= numpy.where(position_mask ==position_mask.max(), 0.5, 1.0)
+        position_image = Image.fromarray(numpy.cast['uint8'](256*(position_image-position_image.min())/(position_image.max()-position_image.min()))).resize((300, 300), Image.ANTIALIAS)
+    else:
+        position_image = Image.fromarray(numpy.zeros((100, 100, 3), dtype=numpy.uint8))
     return delays, sigma, numpy.asarray(position_image)
 
 class TestScannerControl(unittest.TestCase):
@@ -904,8 +922,8 @@ class TestScannerControl(unittest.TestCase):
         spatial_resolution = 10
         spatial_resolution = 1.0/spatial_resolution
         position = utils.rc((0, 0))
-        size = utils.rc((20, 20))
-        setting_time = [1e-4, 1e-3]
+        size = utils.rc((100, 100))
+        setting_time = [2e-3, 2e-3]
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         

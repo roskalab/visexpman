@@ -22,7 +22,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
         CONTEXT_PATH = self.root_folder
-        self.CONTEXT_NAME = '2pdev.hdf5'
+        self.CONTEXT_NAME = '2pdev1.hdf5'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
 #        EXPERIMENT_FILE_FORMAT = 'mat'
         #### experiment specific ####
@@ -48,21 +48,21 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         self.SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
         self.SCANNER_DELAY = 0#As function of scanner speed
         self.SCANNER_START_STOP_TIME = 0.02
-        self.SCANNER_MAX_POSITION = 250.0
+        self.SCANNER_MAX_POSITION = 350.0
         self.POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0
-        self.XMIRROR_OFFSET = 0.0#um
+        self.XMIRROR_OFFSET = 0*-64.0#um
         self.YMIRROR_OFFSET = 0.0#um
         self.SCANNER_RAMP_TIME = 70.0e-3#Time to move the scanners into initial position
         self.SCANNER_HOLD_TIME = 30.0e-3
-        self.SCANNER_SETTING_TIME = [1e-3, 1e-2]#This is the time constraint to set the speed of scanner (lenght of transient)
+        self.SCANNER_SETTING_TIME = [3e-4, 1e-3]#This time constraint sets the speed of scanner (lenght of transient)
         self.PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
-                            'SIDE': {'AI' :  0,'COLOR': 'RED', 'ENABLE': False}}
+                            'SIDE': {'AI' : 0,'COLOR': 'RED', 'ENABLE': False}}
         DAQ_CONFIG = [
         {
         'ANALOG_CONFIG' : 'aio',
         'DAQ_TIMEOUT' : 5.0, 
-        'AO_SAMPLE_RATE' : 400000,
-        'AI_SAMPLE_RATE' : 800000,
+        'AO_SAMPLE_RATE' : 500000,
+        'AI_SAMPLE_RATE' : 500000,
         'AO_CHANNEL' : 'Dev1/ao0:1',
         'AI_CHANNEL' : 'Dev1/ai0:1',
         'MAX_VOLTAGE' : 5.0,
@@ -78,10 +78,10 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         ]
         self.CAIMAGE_DISPLAY = {}
         self.CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
-        self.CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = False
+        self.CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = True
         
-        if os.name == 'nt':
-            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
+#        if os.name == 'nt':
+#            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
         self._create_parameters_from_locals(locals())
 
 class JobhandlerTestConfig(configuration.VisionExperimentConfig):

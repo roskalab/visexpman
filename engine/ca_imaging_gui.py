@@ -343,8 +343,8 @@ class CentralWidget(QtGui.QWidget):
         self.sa.setWidget(self.image)
         self.sa.setWidgetResizable(False)
 #        self.sa.ensureVisible(200, 200)
-        self.sa.setFixedWidth(400)
-        self.sa.setFixedHeight(400)
+        self.sa.setFixedWidth(600)
+        self.sa.setFixedHeight(600)
         
         self.image_analysis = ImageAnalysis(self)
         
@@ -451,6 +451,8 @@ class CaImagingGui(Qt.QMainWindow):
         self.console_text = ''
         
     def show_image(self, image, scale=None, origin=None):
+#        import Image
+#        Image.fromarray(image).save('c:\\temp\\im.bmp')
         self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image))#, utils.rc((600, 600))))
         
     def plot_histogram(self, x, hist, lut):
@@ -495,7 +497,8 @@ class CaImagingGui(Qt.QMainWindow):
                     'Accel max: {0:.3e} um/s2,  max speed {1:.3e} um/s, overshoot {2:2.3f} um, line rate: {3:3.1f} Hz, scan time efficiency {4:2.1f} %'
                     .format(calibdata['accel_speed']['accel_x'].max(), calibdata['accel_speed']['speed_x'].max(),  overshoot, line_rate,  100.0*calibdata['mask'].sum()/calibdata['mask'].shape[0]))
         try:
-            self.printc('Peak delays: {0}, sigmas: {1}' .format(numpy.round(calibdata['delays'], 2), numpy.round(calibdata['sigma'], 4)))
+            for i in range(len(calibdata['delays'])/4):
+                self.printc('Peak delays: {0}, sigmas: {1}' .format(numpy.round(calibdata['delays'][i*4:(i+1)*4], 4), numpy.round(calibdata['sigma'][i*4:(i+1)*4], 4)))
             self.show_image(calibdata['image'])
         except:
             pass

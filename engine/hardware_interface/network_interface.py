@@ -760,10 +760,11 @@ class NetworkListener(QtCore.QThread):
 
         elif self.socket_type ==  socket.SOCK_DGRAM:
             while True:
+                
                 try:
                     udp_buffer, addr = self.socket.recvfrom(self.udp_buffer_size)
                     self.client_address = addr
-#                    print udp_buffer
+#                    print addr, udp_buffer
                     self.command_queue.put(udp_buffer)
 #                 except socket.timeout:
 #                     pass
