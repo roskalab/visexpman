@@ -2045,7 +2045,7 @@ class CaImagingPoller(Poller):
                 self.udp_listener = network_interface.NetworkListener(server_address, self.queues['udp'], socket.SOCK_DGRAM, self.config.UDP_PORT)
                 self.udp_listener.start()
             except socket.error:
-                print 'Stop Labview Imaging for UDP triggering'
+                print 'In Labview Imaging Disable UDP triggering'
 
     def periodic(self):
         if self.scan_run and self.scan_start_time is not None:
@@ -2054,8 +2054,7 @@ class CaImagingPoller(Poller):
             self.update_status(scan_is_running_for = (0,  's'))
         
     def run_in_all_iterations(self):
-        if not self.queues['udp'].empty():
-            self.printc(self.queues['udp'].get())
+        self.udp_handler()
         try:
             self.frame_update()
         except:
@@ -2138,6 +2137,7 @@ class CaImagingPoller(Poller):
             if hasattr(self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets[pn], 'input'):
                 self.widget_context_fields.append('self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets[\'{0}\'].input'.format(pn))
         self.context_nodes = ['main_image']
+        
     def init_debug(self):
         #Load data from test file
         if os.name != 'nt' and not hasattr(self, 'main_image'):
@@ -2156,6 +2156,17 @@ class CaImagingPoller(Poller):
             self.main_image['resolution'] = utils.rc((scan_parameters['resolution'],  )*2)
             self.main_image['center'] = scan_parameters['scan_center']
             self.update_main_image()
+            
+    def udp_handler(self):
+        if not self.queues['udp'].empty():
+            message = self.queues['udp'].get()
+            #sec 31.333333 filename 20130423_C1#011_1978KeisukeDS_4dir_S100_C0%speed_300_range_500%_ND0_Ch1W0.phys
+            message_chunks = message.split(' ')
+            if message_chunks[0] == 'sec' and message_chunks[2] == 'filename':
+                duration = float(message_chunks[1])
+                measurement_name = message_chunks[3].split('.')[0]
+                self.scan(self, duration=duration, name = measurement_name)
+        
         
     def update_main_image(self):
         aichannel, self.enabled_channels = self._select_ai_channel()
@@ -2187,7 +2198,7 @@ class CaImagingPoller(Poller):
         self.process.join()
         
     ########### Commands #################
-    def scan(self, duration=None, nframes=None):
+    def scan(self, duration=None, nframes=None, name = None):
         if self.scan_run:
             self.queues['out'].put('stop_scan')
             self.printc('Scan stop requested')
@@ -2225,6 +2236,8 @@ class CaImagingPoller(Poller):
             file.mkdir_notexists(folder)
             cell_name = str(self.parent.central_widget.main_widget.measurement_files.cell_name.input.currentText())
             experiment_name = str(self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText())
+            if len(experiment_name) == 0 and name is not None:
+                experiment_name = name
             self.id = str(int(time.time()))
             filenames = experiment_data.generate_filename(self.config, self.id, experiment_name,  cell_name,  depth = self.objective_position,  user_extensions = ['tiff'], output_folder = folder)
             self.parameters['filenames'] = filenames

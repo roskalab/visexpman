@@ -83,6 +83,124 @@ class ScannerTestConfig(configuration.Config):
         ]
         self._create_parameters_from_locals(locals())
         
+def spectral_filtering(signal, fmax, fsample):
+    '''
+    The spectral components below fmax are used to reconstruct the bandwidth limited version of the signal
+    '''
+    import scipy
+    import scipy.fftpack
+    t = numpy.linspace(0,  float(signal.shape[0])/fsample, signal.shape[0], False)
+    spectrum = scipy.fft(signal)
+    phases = numpy.angle(spectrum)
+    spectrum = abs(spectrum)/spectrum.shape[0]
+    frq = scipy.fftpack.fftfreq(signal.shape[0], 1.0/fsample)
+    peaks = []
+    for i in range(1, spectrum.size/2):
+            if frq[i] > fmax:
+                break
+            peaks.append([spectrum[i], frq[i], phases[i]])
+    #Generate a signal from the components
+    x = numpy.zeros_like(signal)
+    for peak in peaks:
+        A = peak[0]
+        f = peak[1]
+        ph = peak[2]
+        x += 2*A*numpy.cos(t*2*numpy.pi*f + ph)
+    x += 1*spectrum[0]
+    return t, x
+        
+def sinus_pattern_rectangle_scan(scan_size, scan_center = utils.rc((0, 0)), resolution = 1.0, max_linearity_error = 19e-2, fsampling = 400000.0, backscan = True):
+    '''
+    Generates scanner signals for rectangular scan that contain only sinusoid signals, therefore it does not contain upharmonic components. 
+    The highest frequency is the swinging of the x mirror
+    '''
+    if backscan:
+        scanning_per_period = 2
+    else:
+        scanning_per_period = 1
+    nlines = float(scan_size['row']/resolution)#Number of pixel in vertical size of scan area
+    pixels_x_line = float(scan_size['col']/resolution)#Number of scannable pixels in each horizontal line
+    pixels_y_line = pixels_x_line * nlines
+    n_effective_sinus_periods_on_x = numpy.round(nlines / float(scanning_per_period))
+    #Calculate effective angle range in a period of sinus with the given error limit:
+    angle_range = utils.sinus_linear_range(max_linearity_error)
+    efficiency  = 2*angle_range/(numpy.pi*2)#90-angle, 90+angle is considered, This is doubled by backscan but this factor is not required to scale up period times
+    time_scaleup = numpy.ceil(1/efficiency) #Rounding is necessary to ensure integer frequency ratio and period time can be converted into samples
+    #Calculate period time of sine wave on x mirror based on efficiency, number of pixel per horizontal line and signal generation sampling frequency
+    scanner_period_time = {}
+    scanner_period_time['x'] = (pixels_x_line / fsampling) * time_scaleup
+    #Calculate period time of sine wave on y mirror: effective scanning takes: period time of one x line scan X number of lines
+    scanner_period_time['y'] = (n_effective_sinus_periods_on_x * scanner_period_time['x']) * time_scaleup
+    frequency_ratio = scanner_period_time['y'] / scanner_period_time['x']
+    #Frequency ratio shall be dividable by 4
+    modified_frequency_ratio = numpy.ceil(frequency_ratio/4.0)*4
+    scanner_period_time['y'] = scanner_period_time['y'] * modified_frequency_ratio / frequency_ratio
+    nsinus_periods_on_x = modified_frequency_ratio
+    #Generate sine waves for x and y mirrors
+    scanner_control = {}
+    t = {}
+    t['y'] = numpy.arange(0, scanner_period_time['y'],  1.0/fsampling)
+    scanner_control['y'] = numpy.cos(t['y']/scanner_period_time['y']*2*numpy.pi)
+    t['x'] = numpy.arange(0, scanner_period_time['y'],  1.0/fsampling)
+    scanner_control['x'] = numpy.cos(t['y']/scanner_period_time['x']*2*numpy.pi)
+    #Find and mark linear regions on y mirror signal
+    #Find index range of sine periods that fall within the linear range of y mirror movement
+    linearity_mask = {}
+    linearity_mask['y'] = numpy.zeros(scanner_control['y'].shape, numpy.bool)
+    for center in [nsinus_periods_on_x/4, 3*nsinus_periods_on_x/4]:
+        index_range = numpy.array([center - n_effective_sinus_periods_on_x/2, center + n_effective_sinus_periods_on_x/2])*scanner_period_time['x']*fsampling
+        linearity_mask['y'][index_range[0]:index_range[1]] = True
+    #Find linear region of x scanner signals
+    sample_step = scanner_period_time['x']/scanning_per_period*fsampling#number of sample distance between adjacent linear regions
+    centers = numpy.arange(nsinus_periods_on_x*scanning_per_period)*sample_step + numpy.floor(scanner_period_time['x']*fsampling/4)#Phase shift with 1/4 period (pi/2)
+    linearity_mask['x'] = numpy.zeros(scanner_control['x'].shape, numpy.bool)
+    for center in centers:
+        linearity_mask['x'][center - pixels_x_line/2:center + pixels_x_line/2] = True
+    mask = linearity_mask['x']*linearity_mask['y']
+    #Scale amplitude to scannable size
+    scanner_control['x'] = scan_size['col']*scanner_control['x']/abs(scanner_control['x']*mask).max()+scan_center['col']
+    scanner_control['y'] = scan_size['row']*scanner_control['y']/abs(scanner_control['y']*mask).max()+scan_center['row']
+    frame_rate = 2/scanner_period_time['y']
+    time_efficiency = float(mask.sum())/scanner_control['y'].shape[0]
+    return scanner_control, mask, frame_rate, scanner_period_time, time_efficiency
+    
+def frame_from_sinus_pattern_scan(pmt, mask, backscan, binning_factor):
+    '''
+    Generates 2D data from one scanning period of a sinusoidal scan
+    pmt: rawdata from one scanning period
+    mask: valid data mask
+    backscan: is data on backscan
+    binning factor: ratio of ai and ao sampling rate
+    '''
+    binned_pmt = binning_data(pmt, binning_factor)
+    nframes = 2
+    nchannels = binned_pmt.shape[1]
+    boundaries = numpy.nonzero(numpy.diff(mask))[0]+1
+    line_starts = boundaries[0::2]
+    line_ends = boundaries[1::2]
+    frames = []
+    frame = numpy.zeros((nframes, line_starts.shape[0]/nframes, line_ends[0]-line_starts[0], nchannels))
+    two_frames = numpy.array((numpy.split(binned_pmt, boundaries)[1::2]))
+    if backscan:
+        two_frames[::2,:,:] = numpy.roll(two_frames[::2,:,:][:,::-1], 0, axis=1)#Reverse every second row, starting with the first one
+    #Reverse row order of first frame
+    nlines = line_starts.shape[0]/nframes
+    two_frames[:nlines,:,:] = two_frames[:nlines,:,:][::-1]
+    frame = numpy.reshape(two_frames, frame.shape)
+    
+#    from visexpman.engine.generic.colors import imsave
+#
+#    imsave(frame[0,:,:,0], '/mnt/datafast/debug/fr0ch0.png')
+#    imsave(frame[0,:,:,1], '/mnt/datafast/debug/fr0ch1.png')
+#    imsave(frame[1,:,:,0], '/mnt/datafast/debug/fr1ch0.png')
+#    imsave(frame[1,:,:,1], '/mnt/datafast/debug/fr1ch1.png')
+
+    return frame
+    
+                             
+                             
+#############################################
+        
 def generate_lines_scan(lines, setting_time, frames_to_scan, config):
     start_stop_scanner = False
     dt = 1.0/config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
@@ -405,14 +523,15 @@ class TwoPhotonScanner(instrument.Instrument):
         #calculate scanning parameters
         self.frame_rate = float(self.aio.daq_config['AO_SAMPLE_RATE'])/self.scanner_positions.shape[1]
         self.scanner_time_efficiency = self.scan_mask.sum()/self.scan_mask.shape[0]
-        #calculate speeds
-        self.speeds = {}
-        for axis in ['x', 'y']:
-            self.speeds[axis] = {}
-            self.speeds[axis]['max'] = abs(self.accel_speed['speed_'+axis]).max()
-            if axis =='x':
-                speeds = abs(self.accel_speed['speed_'+axis])*self.scan_mask
-                self.speeds[axis]['scan'] = speeds[numpy.nonzero(speeds)[0]].mean()
+        if hasattr(self,  'speeds') and hasattr(self, 'accel_speed'):
+            #calculate speeds
+            self.speeds = {}
+            for axis in ['x', 'y']:
+                self.speeds[axis] = {}
+                self.speeds[axis]['max'] = abs(self.accel_speed['speed_'+axis]).max()
+                if axis =='x':
+                    speeds = abs(self.accel_speed['speed_'+axis])*self.scan_mask
+                    self.speeds[axis]['scan'] = speeds[numpy.nonzero(speeds)[0]].mean()
         #calculate maximal movement on x axis
         self.maximal_movement = scanner_x.max() - scanner_x.min()
         self.boundaries = numpy.nonzero(numpy.diff(self.scan_mask))[0]+1
@@ -433,6 +552,13 @@ class TwoPhotonScanner(instrument.Instrument):
             self.aio.waveform = numpy.array([scanner_x_waveform, scanner_y_waveform]).T
         self.aio.run()
         self.config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
+        
+    def start_sinus_pattern_rectangular_scan(self, scan_size, scan_center = utils.rc((0, 0)), resolution = 1.0, max_linearity_error = 19e-2, backscan = True):
+        scanner_control, self.scan_mask, frame_rate, self.scanner_period_time, time_efficiency =\
+            sinus_pattern_rectangle_scan(scan_size, scan_center, resolution, max_linearity_error, fsampling = self.aio.daq_config['AO_SAMPLE_RATE'], backscan = backscan)
+        self.sinus_pattern = True
+        self.backscan = backscan
+        self.start_measurement(scanner_control['x'], scanner_control['y'])
         
     def start_rectangular_scan(self, size, position = utils.rc((0, 0)), spatial_resolution = 1.0, setting_time = None,  trigger_signal_config = None):
         '''
@@ -501,7 +627,10 @@ class TwoPhotonScanner(instrument.Instrument):
             time.sleep(1.0)
             self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr((0.0, 0.0)), self.config.SCANNER_RAMP_TIME)
         #Gather measurment data
-        self.data = numpy.array([raw2frame(raw_pmt_data, self.binning_factor, self.boundaries) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
+        if hasattr(self, 'sinus_pattern') and self.sinus_pattern:
+            self.data = numpy.array([frame_from_sinus_pattern_scan(raw_pmt_data, self.scan_mask, self.backscan, self.binning_factor) for raw_pmt_data in self.pmt_raw])#dimension: time, subframe, height, width, channels
+        else:
+            self.data = numpy.array([raw2frame(raw_pmt_data, self.binning_factor, self.boundaries) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
         
     def open_shutter(self):
         self.shutter.set()
@@ -519,6 +648,9 @@ def raw2frame(rawdata,  binning_factor,  boundaries):
     return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
     
 def binning_data(data, factor):
+    '''
+    data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
+    '''
     return numpy.reshape(data, (data.shape[0]/factor, factor, data.shape[1])).mean(1)
         
 def generate_test_lines(scanner_range, repeats, speeds):
@@ -914,22 +1046,31 @@ class TestScannerControl(unittest.TestCase):
             show()
     #        savefig('/home/zoltan/visexp/debug/data/x.pdf')
     
-#    @unittest.skip('Run only for debug purposes')
+    @unittest.skip('Run only for debug purposes')
     def test_04_generate_rectangular_scan(self):
         plot_enable = not False
         config = ScannerTestConfig()
 
-        spatial_resolution = 10
+        spatial_resolution = 2
         spatial_resolution = 1.0/spatial_resolution
         position = utils.rc((0, 0))
-        size = utils.rc((100, 100))
-        setting_time = [2e-3, 2e-3]
+        size = utils.rc((128, 128))
+        setting_time = [3e-4, 2e-3]
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         
         print ' ', abs(abs(pos_x.max()-pos_x.min())- size['col']), abs(abs(pos_y.max()-pos_y.min())- size['row'])
+        import scipy
+        import scipy.fftpack
+        spectrum = abs(scipy.fft(pos_x))
+        fs = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
+        frq = scipy.fftpack.fftfreq(pos_x.size, 1.0/fs)
+        bandwidth = numpy.nonzero(numpy.where(spectrum<spectrum.max()*1e-5, 0, spectrum)[:spectrum.shape[0]/2])[0].max()/float(spectrum.size)*fs
+        print bandwidth
         if plot_enable:
             from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+            figure(1)
+            plot(frq, spectrum)
             figure(2)
             subplot(411)
             plot(pos_x)
@@ -1014,6 +1155,100 @@ class TestScannerControl(unittest.TestCase):
             figure(4)
             plot(tp.scanner_positions.T)
             show()
+            
+    @unittest.skip('Run only for debug purposes')
+    def test_07_sine_scan_pattern(self):
+        #In each period two frames are scanned
+        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+        scan_size = utils.rc((10.0, 10.0))
+        scan_center = utils.rc((0.0, 0.0))
+        resolution = 0.1#um/pixel
+        max_linearity_error = 19e-2#Max 1-pi/2
+        fs = 400000.0
+        backscan = True
+        scanner_control, mask, frame_rate, scanner_period_time, time_efficiency =\
+            sinus_pattern_rectangle_scan(scan_size, scan_center, resolution, max_linearity_error, fsampling = fs, backscan = backscan)
+        #Reconstruct image from signal
+        pmt = numpy.array([scanner_control['x'], scanner_control['y']]).T
+        frame_from_sinus_pattern_scan(pmt, mask, backscan, 1)
+        figure(1)
+        plot(scanner_control['x'])
+        plot(scanner_control['y'])
+        
+#        plot(linearity_mask['x'])
+#        plot(linearity_mask['y'])
+        plot(mask)
+        figure(2)
+        plot(scanner_control['x']*mask)
+        plot(scanner_control['y']*mask)
+        show()
+        
+    @unittest.skip('Run only for debug purposes')    
+    def test_08_sinus_pattern_scan_daq(self):
+        config = ScannerTestConfig()
+        config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'aio'
+        config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
+        config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 250000
+        config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 500000
+        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
+        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
+        config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
+        config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
+        scan_size = utils.rc((100, 100))
+        resolution = 0.2
+        tp = TwoPhotonScanner(config)
+        tp.start_sinus_pattern_rectangular_scan(scan_size, resolution = resolution, max_linearity_error = 19e-2, backscan = True)
+        tp.read_pmt()
+        tp.finish_measurement()
+        tp.release_instrument()
+        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+        from visexpman.engine.generic.colors import imsave
+        imsave(tp.data[0,0,:,:,0],'c:\\_del\\fr0ch0.png')
+        imsave(tp.data[0,0,:,:,1],'c:\\_del\\fr0ch1.png')
+        imsave(tp.data[0,1,:,:,1],'c:\\_del\\fr1ch1.png')
+        imsave(tp.data[0,1,:,:,0],'c:\\_del\\fr1ch0.png')
+        figure(1)
+        plot(tp.pmt_raw[0])
+        figure(4)
+        plot(tp.scanner_positions.T)
+        show()
+        
+#    @unittest.skip('Run only for debug purposes')    
+    def test_09_new_pattern(self):
+        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+        import scipy
+        import scipy.fftpack
+        config = ScannerTestConfig()
+#        fs = 10000
+#        
+#        tup = 0.75
+#        tdown = 1-tup
+#        ideal_signal = numpy.concatenate((numpy.linspace(0, 1, t.shape[0]*tup, False), numpy.linspace(1, 0, t.shape[0]*tdown, False)))
+#        ideal_signal = numpy.sin(2*numpy.pi*t)
+
+
+        spatial_resolution = 2
+        spatial_resolution = 1.0/spatial_resolution
+        position = utils.rc((0, 0))
+        size = utils.rc((128, 128))
+        setting_time = [3e-4, 2e-3]
+        frames_to_scan = 1
+        pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
+        fmax = 5000
+        t, x = spectral_filtering(pos_x, fmax, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
+        t, y = spectral_filtering(pos_y, fmax, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
+        #Error
+        x_error = abs(pos_x-x)*scan_mask
+        y_error = abs(pos_y-y)*scan_mask
+        print x_error.max(), numpy.histogram(x_error)
+        print y_error.max(), numpy.histogram(y_error)
+        figure(1)
+        plot(t, pos_x)
+        plot(t, x)
+#        figure(2)
+#        plot(t, pos_y)
+#        plot(t, y)
+        show()
         
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)

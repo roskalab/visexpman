@@ -22,6 +22,15 @@ import file
 
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
+
+def sinus_linear_range(error):
+    def f(x, e):
+        return x - numpy.sin(x)-e
+    from scipy.optimize import fsolve
+    sol = fsolve(f, numpy.pi/4, args=(error))
+    #Between 0 and returned phase linearity error  is below specified
+    return sol[0]
+    
 def generate_lut(x, min = 0.0, max = 1.0, gamma = 1.0, brightness = 0.5, contrast = 0.0):
     max_ = max - contrast
     min_ = min + contrast
