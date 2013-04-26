@@ -2113,10 +2113,13 @@ class CaImagingPoller(Poller):
             hdfhandler.widget_context = {}
             for widget_field in self.widget_context_fields:
                 ref = introspect.string2objectreference(self, widget_field)
-                if hasattr(ref,'currentText'):
+                if hasattr(ref,'checkState'):
+                    hdfhandler.widget_context[widget_field] = ref.checkState()
+                elif hasattr(ref,'currentText'):
                     hdfhandler.widget_context[widget_field] = str(ref.currentText())
                 elif hasattr(ref,'text'):
                     hdfhandler.widget_context[widget_field] = str(ref.text())
+                
             hdfhandler.save('widget_context',overwrite = True)
             
     def init_variables(self):
@@ -2130,6 +2133,7 @@ class CaImagingPoller(Poller):
                                         'self.parent.central_widget.main_widget.measurement_files.cell_name.input', 
                                         'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name', 
                                         'self.parent.central_widget.image_analysis.histogram_range.input', 
+                                        'self.parent.central_widget.main_widget.use_user_parameters.input', 
                                       ]
         for pn in self.parent.central_widget.calibration_widget.parameter_names:
             self.widget_context_fields.append('self.parent.central_widget.calibration_widget.scanner_parameters[\'{0}\'].input'.format(pn))
@@ -2216,18 +2220,20 @@ class CaImagingPoller(Poller):
             except:
                 self.update_scan_run_status('ready')
                 return
-            try:
-                self.parameters['SCANNER_SETTING_TIME'] = string.str2params(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_SETTING_TIME'].input.text())
-                if len(self.parameters['SCANNER_SETTING_TIME']) == 1:
-                    self.parameters['SCANNER_SETTING_TIME'] = self.parameters['SCANNER_SETTING_TIME'][0]
-                elif len(self.parameters['SCANNER_SETTING_TIME']) == 0:
-                    del self.parameters['SCANNER_SETTING_TIME']
-            except ValueError:
-                pass#value from machine config will be used
-            try:
-                self.parameters['SCANNER_START_STOP_TIME'] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_START_STOP_TIME'].input.text()))
-            except ValueError:
-                pass#value from machine config will be used
+            if self.parent.central_widget.main_widget.use_user_parameters.input.checkState() == 2:
+                try:
+                    self.parameters['SCANNER_SETTING_TIME'] = string.str2params(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_SETTING_TIME'].input.text())
+                    if len(self.parameters['SCANNER_SETTING_TIME']) == 1:
+                        self.parameters['SCANNER_SETTING_TIME'] = self.parameters['SCANNER_SETTING_TIME'][0]
+                    elif len(self.parameters['SCANNER_SETTING_TIME']) == 0:
+                        del self.parameters['SCANNER_SETTING_TIME']
+                except ValueError:
+                    pass#value from machine config will be used
+                for pn in ['SCANNER_START_STOP_TIME', 'AO_SAMPLE_RATE', 'AI_SAMPLE_RATE']:
+                    try:
+                        self.parameters[pn] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters[pn].input.text()))
+                    except ValueError:
+                        pass#value from machine config will be used
             self.parameters['enable_recording'] = (self.parent.central_widget.main_widget.measurement_files.enable_recording.input.checkState()==2)
             #figure out which analog channels need to be sampled
             self.parameters['AI_CHANNEL'], self.enabled_channels = self._select_ai_channel()

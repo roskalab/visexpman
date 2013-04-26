@@ -774,7 +774,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.printc('saving_data')
         #gather data to save
         data_to_save = {}
-        data_to_save['data'] = self.tp.data
+        data_to_save['rawdata'] = self.tp.data
         data_to_save['scan_parameters'] = self.scan_parameters
         data_to_save['scan_parameters']['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
         data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
@@ -789,7 +789,8 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             scipy.io.savemat(self.filenames['datafile'][0], data_to_save, oned_as = 'row', long_field_names=True)
         elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             data_to_save['machine_config'] = experiment_data.pickle_config(self.config)
-            h = hdf5io.Hdf5io(self.filenames['datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+            from visexpA.engine.datahandlers.datatypes import ImageData
+            h = ImageData(self.filenames['datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             for node, value in data_to_save.items():
                 setattr(h, node, value)
             h.save(data_to_save.keys())

@@ -296,6 +296,7 @@ class MainWidget(QtGui.QWidget):
         self.background_scan_parameters = ScanParameters(self, 'Background')
         self.background_scan_parameters.setFixedWidth(500)
         self.background_scan_parameters.setFixedHeight(75)
+        self.use_user_parameters = gui.LabeledCheckBox(self, 'Use user scan parameters')
         self.roi_scan_parameters = RoiScanParameters(self)
         self.roi_scan_parameters.setFixedWidth(500)
         self.roi_scan_parameters.setFixedHeight(200)
@@ -308,7 +309,8 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.objective_control, 1, 0, 1, 1)
         self.layout.addWidget(self.beamer_control, 1, 1, 1, 1)
         self.layout.addWidget(self.background_scan_parameters, 2, 0, 1, 2)
-        self.layout.addWidget(self.roi_scan_parameters, 3, 0, 1, 2)
+        self.layout.addWidget(self.use_user_parameters, 3, 0, 1, 1)
+        self.layout.addWidget(self.roi_scan_parameters, 4, 0, 1, 2)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
@@ -412,10 +414,13 @@ class CaImagingGui(Qt.QMainWindow):
                     ref = introspect.string2objectreference(self,ref_string.replace('parent.',''))
                 except:
                     continue
-                if hasattr(ref,'setEditText'):
+                if hasattr(ref,'setCheckState'):
+                    ref.setCheckState(int(value))
+                elif hasattr(ref,'setEditText'):
                     ref.setEditText(value)
                 elif hasattr(ref,'setText'):
                     ref.setText(value)
+                
         
     def connect_signals(self):
         self.signal_mapper = QtCore.QSignalMapper(self)
