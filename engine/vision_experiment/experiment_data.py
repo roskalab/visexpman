@@ -58,7 +58,7 @@ def generate_filename(config, id, experiment_name = '',  cell_name = '', nfragme
             tmp_folder = tempfile.mkdtemp()
         filenames['local_datafile'].append(os.path.join(tmp_folder, filename))
         for ext in user_extensions:
-            filenames['other_files'].append(os.path.join(output_folder, filename+'.' + ext))
+            filenames['other_files'].append(os.path.join(output_folder, '.'.join(filename.split('.')[:-1])+'.' + ext))
     return filenames
 
 ############### Preprocess measurement data ####################

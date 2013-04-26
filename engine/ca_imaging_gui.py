@@ -483,10 +483,6 @@ class CaImagingGui(Qt.QMainWindow):
         self.central_widget.calibration_widget.plot.adddata(calibdata['waveform'][:, 1],color=Qt.Qt.red, penwidth=1.5)
         self.central_widget.calibration_widget.plot.adddata(calibdata['mask'],color=Qt.Qt.blue, penwidth=1.5)
         self.central_widget.calibration_widget.plot.replot()
-#        plot.adddata(calibdata['accel_speed']['speed_x'],color=Qt.Qt.black, penwidth=1.5)
-#        plot.adddata(calibdata['accel_speed']['speed_y'],color=Qt.Qt.black, penwidth=1.5)
-#        plot.adddata(calibdata['accel_speed']['accel_x'],color=Qt.Qt.black, penwidth=1.5)
-#        plot.adddata(calibdata['accel_speed']['accel_y'],color=Qt.Qt.black, penwidth=1.5)
         if calibdata['parameters'].has_key('POSITION_TO_SCANNER_VOLTAGE'):
             pos2voltage = calibdata['parameters']['POSITION_TO_SCANNER_VOLTAGE']
         else:
@@ -497,17 +493,21 @@ class CaImagingGui(Qt.QMainWindow):
                     'Accel max: {0:.3e} um/s2,  max speed {1:.3e} um/s, overshoot {2:2.3f} um, line rate: {3:3.1f} Hz, scan time efficiency {4:2.1f} %'
                     .format(calibdata['accel_speed']['accel_x'].max(), calibdata['accel_speed']['speed_x'].max(),  overshoot, line_rate,  100.0*calibdata['mask'].sum()/calibdata['mask'].shape[0]))
         try:
-            for i in range(len(calibdata['delays'])/4):
-                self.printc('Peak delays: {0}, sigmas: {1}' .format(numpy.round(calibdata['delays'][i*4:(i+1)*4], 4), numpy.round(calibdata['sigma'][i*4:(i+1)*4], 4)))
-            self.show_image(calibdata['image'])
+            for axis in calibdata['profile_parameters'].keys():
+                for dir in calibdata['profile_parameters'][axis].keys():
+                    self.printc('{0}, {1}, sigma {2}, delay {3}'
+                                    .format(axis, dir, numpy.round(calibdata['profile_parameters'][axis][dir]['sigma'], 4), numpy.round(calibdata['profile_parameters'][axis][dir]['delay'], 4)))
+            self.show_image(calibdata['line_profiles'])
         except:
             pass
 
     def fromfile(self):
         from visexpA.engine.datahandlers import hdf5io
-        calibdata = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', filelocking=False)
+        p = os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5')
+        p = '/mnt/databig/software_test/ref_data/scanner_calib/calib_repeats.hdf5'
+        calibdata = hdf5io.read_item(p, 'calibdata', filelocking=False)
         from visexpman.engine.hardware_interface import scanner_control
-        calibdata['delays'], calibdata['sigma'], calibdata['image'] = scanner_control.process_calibdata(calibdata['pmt'], calibdata['mask'])
+        calibdata['profile_parameters'], calibdata['line_profiles'] = scanner_control.process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])
         self.poller.queues['data'].put(calibdata)
         self.plot_calibdata()
         

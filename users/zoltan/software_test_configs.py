@@ -61,8 +61,8 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         {
         'ANALOG_CONFIG' : 'aio',
         'DAQ_TIMEOUT' : 5.0, 
-        'AO_SAMPLE_RATE' : 500000,
-        'AI_SAMPLE_RATE' : 500000,
+        'AO_SAMPLE_RATE' : 400000,
+        'AI_SAMPLE_RATE' : 800000,
         'AO_CHANNEL' : 'Dev1/ao0:1',
         'AI_CHANNEL' : 'Dev1/ai0:1',
         'MAX_VOLTAGE' : 5.0,

@@ -66,8 +66,8 @@ class ScannerTestConfig(configuration.Config):
         {
         'ANALOG_CONFIG' : 'aio',
         'DAQ_TIMEOUT' : 2.0, 
-        'AO_SAMPLE_RATE' : 800000,
-        'AI_SAMPLE_RATE' : 400000,
+        'AO_SAMPLE_RATE' : 400000,
+        'AI_SAMPLE_RATE' : 800000,
         'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
         'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai0:2',
         'MAX_VOLTAGE' : 3.0,
@@ -794,6 +794,13 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 setattr(h, node, value)
             h.save(data_to_save.keys())
             h.close()
+        if filenames.has_key('other_files') and 'tiff' in filenames['other_files'][0]:
+            import tifffile
+            from visexpA.engine.dataprocessors import generic
+            tiff_description = 'Roskalab'
+            resolution_dpi = data_to_save['scan_parameters']['resolution'] * 25.4e3#1 um = 25.4e3 um
+            tiff_resolution = (resolution_dpi, resolution_dpi)#dpi
+            tifffile.imsave(filenames['other_files'][0], generic.normalize(data_to_save['data'], outtype = numpy.uint16), software = 'visexpman', description = tiff_description, resolution = tiff_resolution)
         self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
         
     def _update_config(self, parameters):
@@ -852,11 +859,9 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 calibdata['accel_speed'] = self.tp.accel_speed
                 calibdata['mask'] = self.tp.scan_mask
                 calibdata['parameters'] = parameters
-                delays, sigma, image = process_calibdata(calibdata['pmt'], calibdata['mask'])
-                calibdata['delays'] = delays
-                calibdata['image'] = image
-                calibdata['sigma'] = sigma
-                
+                profile_parameters, line_profiles = process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])
+                calibdata['profile_parameters'] = profile_parameters
+                calibdata['line_profiles'] = line_profiles
                 hdf5io.save_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', calibdata, overwrite=True, filelocking=False)
                 self.queues['data'].put(calibdata)
                 print delays, sigma
@@ -876,63 +881,74 @@ def two_photon_scanner_process(config, queues):
             tl.printc('Two photon process: ' + str(res))
         time.sleep(0.1)
     tl.printc('Scanner process ended')
+    
+def gauss(x, *p):
+    A, mu, sigma = p
+    return A*numpy.exp(-(x-mu)**2/(2.*sigma**2))
 
-def process_calibdata(pmt, mask):
+def process_calibdata(pmt, mask, parameters):
     mask_indexes = numpy.nonzero(numpy.diff(mask))[0].tolist()
     mask_indexes.append(mask.shape[0]-1)
-    line_sizes = numpy.diff(mask_indexes)[::2]
-    x_line_size = line_sizes[0]
-    y_line_size = line_sizes[line_sizes.shape[0]/2]
-    if x_line_size<2500:#TMP solution
-        position_image = numpy.zeros((x_line_size, y_line_size, 3))
-        position_mask = numpy.zeros_like(position_image)
-    
-    def gauss(x, *p):
-        A, mu, sigma = p
-        return A*numpy.exp(-(x-mu)**2/(2.*sigma**2))
-    delays = []
-    sigma = []
-    for i in range(int(0.5*len(mask_indexes))):
-        start = mask_indexes[2*i]
-        end = mask_indexes[2*i+1]
-        #Fit a gaussian curve on the recorded bead, the gaussian's mean is cnsidered to be the position of the bead
-        p0 = [1., (end-start)/2, 1.]
-        try:
-            coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(pmt[start:end, 0].shape[0]), pmt[start:end, 0], p0=p0)
-            delays.append(coeff[1]/(end-start))
-            sigma.append(coeff[2]/(end-start))
-        except:
-            delays.append(0)
-            sigma.append(0)
-        #Draw image:
-        #find out axis
-        line = pmt[start:end, 0]
-        if i%2 == 1:
-            line = line.tolist()
-            line.reverse()
-        if i%4 >= 2:#vertical
-            line_width = x_line_size/20
-            for j in range(-line_width/2, line_width/2):
-                try:
-                    position_image[position_image.shape[0]/2+j, :, 1] += line
-                    position_mask[position_image.shape[0]/2+j, :, 1] += numpy.ones_like(line)
-                except:
-                    pass
-        elif i%4 < 2:#Horizontal
-            line_width = y_line_size/20
-            for j in range(-line_width/2, line_width/2):
-                try:
-                    position_image[:, position_image.shape[1]/2+j, 1] += line
-                    position_mask[:, position_image.shape[1]/2+j, 1] += numpy.ones_like(line)
-                except:
-                    pass
-    import Image
-    if x_line_size<2500:#TMP solution
-        position_image *= numpy.where(position_mask ==position_mask.max(), 0.5, 1.0)
-        position_image = Image.fromarray(numpy.cast['uint8'](256*(position_image-position_image.min())/(position_image.max()-position_image.min()))).resize((300, 300), Image.ANTIALIAS)
-    else:
-        position_image = Image.fromarray(numpy.zeros((100, 100, 3), dtype=numpy.uint8))
-    return delays, sigma, numpy.asarray(position_image)
+    #Split data into individual line scans
+    nlines = len(mask_indexes)/2
+    nspeeds = nlines / 4 / parameters['repeats'] #For lines in each unit: y mirror down, y mirror up, x mirror down, x mirror up
+    lines = []
+    mask_index_counter = 0
+    line_sizes = []#will be used for determining common line size for visualization
+    for speed_i in range(int(nspeeds)):
+        line_per_speed = {}
+        for repeat in range(int(parameters['repeats'])):
+            line_ids = ['y_down',  'y_up',  'x_down',  'x_up']#Order matters
+            for i in range(len(line_ids)):
+                curve = pmt[mask_indexes[mask_index_counter]:mask_indexes[mask_index_counter+1], 0]/parameters['repeats']#Only first channel is used, it is assumed that a calibration only one pmt is sampled
+                mask_index_counter +=2
+                if not line_per_speed.has_key(line_ids[i]):
+                    line_per_speed[line_ids[i]] = curve
+                else:
+                    line_per_speed[line_ids[i]] += curve
+                pass
+        line_sizes.append(curve.shape[0])
+        lines.append(line_per_speed)
+    #Initialize image for line profile display
+    line_width = 10
+    nrows = nspeeds * 2 #up and down
+    nrows *= line_width
+    ncols = 2*nrows
+    line_profiles = numpy.zeros((2*nrows, ncols, 3))
+    #Calculate peak center and generate images visualizing line profiles
+    line_counter = 0
+    profile_parameters = {}
+    for axis in ['x', 'y']:
+        profile_parameters[axis] = {}
+        for dir in ['up', 'down']:
+            profile_parameters[axis][dir] = {}
+            profile_parameters[axis][dir]['sigma'] = []
+            profile_parameters[axis][dir]['delay'] = []
+    for line in lines:
+        for k, v in line.items():
+            p0 = [1., v.shape[0]/2.0, 1.]
+            coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(v.shape[0]), v, p0=p0)
+            delay = coeff[1]/(v.shape[0])
+            sigma = coeff[2]/(v.shape[0])
+            profile_parameters[k.split('_')[0]][k.split('_')[1]]['delay'].append(delay)
+            profile_parameters[k.split('_')[0]][k.split('_')[1]]['sigma'].append(sigma)
+            resampled = scipy.misc.imresize(numpy.array([v]), (1, int(ncols)))[0,:]
+            line_index = line_counter
+            if 'up' in k:
+                line_index += 1
+            if 'x' in k:
+                row_offset = 0
+            elif 'y' in k:
+                row_offset = nrows
+            line_index = line_index * line_width+row_offset
+            line_profiles[line_index: line_index + line_width,:, 1] = resampled
+            calculated = numpy.zeros_like(resampled)
+            calculated[calculated.size*delay] = resampled.max()
+            calculated[calculated.size*(delay - sigma)] = resampled.max()
+            calculated[calculated.size*(delay + sigma)] = resampled.max()
+            line_profiles[line_index: line_index + line_width,:, 2] = calculated
+        line_counter += 2
+    return profile_parameters, line_profiles
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):
@@ -1213,8 +1229,8 @@ class TestScannerControl(unittest.TestCase):
         plot(tp.scanner_positions.T)
         show()
         
-#    @unittest.skip('Run only for debug purposes')    
-    def test_09_new_pattern(self):
+    @unittest.skip('Run only for debug purposes')    
+    def test_09_fft_scan_signal(self):
         from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
         import scipy
         import scipy.fftpack
@@ -1234,7 +1250,7 @@ class TestScannerControl(unittest.TestCase):
         setting_time = [3e-4, 2e-3]
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
-        fmax = 5000
+        fmax = 2000
         t, x = spectral_filtering(pos_x, fmax, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
         t, y = spectral_filtering(pos_y, fmax, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
         #Error
@@ -1249,6 +1265,15 @@ class TestScannerControl(unittest.TestCase):
 #        plot(t, pos_y)
 #        plot(t, y)
         show()
+        
+#    @unittest.skip('Run only for debug purposes')    
+    def test_10_process_calibdata(self):
+        p = '/mnt/databig/software_test/ref_data/scanner_calib/calib_repeats.hdf5'
+        calibdata = hdf5io.read_item(p, 'calibdata', filelocking=False)
+        from visexpman.engine.hardware_interface import scanner_control
+        profile_parameters, line_profiles = process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])
+        from visexpman.engine.generic import colors
+        colors.imshow(line_profiles)
         
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)
