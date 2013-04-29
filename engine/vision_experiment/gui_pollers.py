@@ -2237,6 +2237,15 @@ class CaImagingPoller(Poller):
             self.parameters['enable_recording'] = (self.parent.central_widget.main_widget.measurement_files.enable_recording.input.checkState()==2)
             #figure out which analog channels need to be sampled
             self.parameters['AI_CHANNEL'], self.enabled_channels = self._select_ai_channel()
+            #Read projector trigger config
+            if self.parent.central_widget.main_widget.beamer_control.enable_beamer.input.checkState() == 2:
+                try:
+                    self.parameters['SCANNER_TRIGGER_CONFIG'] = {}
+                    self.parameters['SCANNER_TRIGGER_CONFIG']['offset'] = float(str(self.parent.central_widget.main_widget.beamer_control.trigger_delay.input.text()))
+                    self.parameters['SCANNER_TRIGGER_CONFIG']['width'] = float(str(self.parent.central_widget.main_widget.beamer_control.trigger_pulse_width.input.text()))
+                    self.parameters['SCANNER_TRIGGER_CONFIG']['amplitude'] = 5.0
+                except ValueError:
+                    pass
             #generate filename/create dirs
             folder = os.path.join(self.config.EXPERIMENT_DATA_PATH,  utils.date_string())
             file.mkdir_notexists(folder)

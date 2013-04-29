@@ -796,12 +796,12 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             h.save(data_to_save.keys())
             h.close()
         if filenames.has_key('other_files') and 'tiff' in filenames['other_files'][0]:
-            import tifffile
+            import tiffile
             from visexpA.engine.dataprocessors import generic
             tiff_description = 'Roskalab'
             resolution_dpi = data_to_save['scan_parameters']['resolution'] * 25.4e3#1 um = 25.4e3 um
             tiff_resolution = (resolution_dpi, resolution_dpi)#dpi
-            tifffile.imsave(filenames['other_files'][0], generic.normalize(data_to_save['data'], outtype = numpy.uint16), software = 'visexpman', description = tiff_description, resolution = tiff_resolution)
+            tiffile.imsave(filenames['other_files'][0], generic.normalize(data_to_save['data'], outtype = numpy.uint16), software = 'visexpman', description = tiff_description, resolution = tiff_resolution)
         self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
         
     def _update_config(self, parameters):

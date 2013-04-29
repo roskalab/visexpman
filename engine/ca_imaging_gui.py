@@ -162,14 +162,16 @@ class BeamerControl(gui.GroupBox):
         
     def create_widgets(self):
         self.test_beamer = gui.LabeledCheckBox(self, 'Test beamer')
+        self.enable_beamer = gui.LabeledCheckBox(self, 'Enable beamer')
         self.trigger_delay = gui.LabeledInput(self, 'Trigger delay [us]')
         self.trigger_pulse_width = gui.LabeledInput(self, 'Trigger pulse width [us]')
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.test_beamer, 0, 0, 1, 1)
-        self.layout.addWidget(self.trigger_delay, 1, 0, 1, 1)
-        self.layout.addWidget(self.trigger_pulse_width, 2, 0, 1, 1)
+        self.layout.addWidget(self.enable_beamer, 1, 0, 1, 1)
+        self.layout.addWidget(self.trigger_delay, 2, 0, 1, 1)
+        self.layout.addWidget(self.trigger_pulse_width, 3, 0, 1, 1)
         self.setLayout(self.layout)
 
 class ScanParameters(gui.GroupBox):
