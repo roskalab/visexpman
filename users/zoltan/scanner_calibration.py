@@ -42,7 +42,6 @@ class ScannerCalibration(camera_interface.ImagingSourceCamera, daq_instrument.An
         signal[-1] = 0.0
         self.waveform = signal
         
-        
     def run(self):
         camera_interface.ImagingSourceCamera.start(self)
         self.start_daq_activity()
@@ -58,6 +57,8 @@ class ScannerCalibration(camera_interface.ImagingSourceCamera, daq_instrument.An
     def process_data(self):
         import tiffile
         tiffile.imsave(file.generate_filename('c:\\_del\\calib.tiff'), self.video, software = 'visexpman')
+        from visexpA.engine.datahandlers import hdf5io
+        hdf5io.save_item(file.generate_filename('c:\\_del\\calib.hdf5'), 'data', self.video, filelocking = False)
         
     
 if __name__ == "__main__":
