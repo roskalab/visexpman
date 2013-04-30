@@ -55,6 +55,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         self.SCANNER_RAMP_TIME = 100.0e-3#Time to move the scanners into initial position
         self.SCANNER_HOLD_TIME = 30.0e-3
         self.SCANNER_SETTING_TIME = [3e-4, 1e-3]#This time constraint sets the speed of scanner (lenght of transient)
+        SCANNER_TRIGGER_CONFIG = {'offset': 0.0, 'pulse_width': 20.0e-6, 'amplitude':5.0, 'enable':False}
         self.PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'AI' : 0,'COLOR': 'RED', 'ENABLE': False}}
         DAQ_CONFIG = [
@@ -62,8 +63,8 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         'ANALOG_CONFIG' : 'aio',
         'DAQ_TIMEOUT' : 5.0, 
         'AO_SAMPLE_RATE' : 400000,
-        'AI_SAMPLE_RATE' : 800000,
-        'AO_CHANNEL' : 'Dev1/ao0:1',
+        'AI_SAMPLE_RATE' : 400000,
+        'AO_CHANNEL' : 'Dev1/ao0:2',
         'AI_CHANNEL' : 'Dev1/ai0:1',
         'MAX_VOLTAGE' : 5.0,
         'MIN_VOLTAGE' : -5.0,

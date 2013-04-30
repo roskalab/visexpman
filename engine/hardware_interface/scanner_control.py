@@ -523,7 +523,7 @@ class TwoPhotonScanner(instrument.Instrument):
         #calculate scanning parameters
         self.frame_rate = float(self.aio.daq_config['AO_SAMPLE_RATE'])/self.scanner_positions.shape[1]
         self.scanner_time_efficiency = self.scan_mask.sum()/self.scan_mask.shape[0]
-        if hasattr(self,  'speeds') and hasattr(self, 'accel_speed'):
+        if hasattr(self, 'accel_speed'):
             #calculate speeds
             self.speeds = {}
             for axis in ['x', 'y']:
@@ -570,45 +570,27 @@ class TwoPhotonScanner(instrument.Instrument):
         if not result:
             raise RuntimeError('Scanning pattern is not feasable')
         self.is_rectangular_scan = True
-        if trigger_signal_config is None:
-            self.trigger_signal = None
+        if trigger_signal_config is None or not trigger_signal_config['enable']:
+            self.trigger_signal = numpy.zeros_like(self.scan_mask)
         else:
-            self._scan_mask2trigger(trigger_signal_config['offset'], trigger_signal_config['width'], trigger_signal_config['amplitude'])
+            self.trigger_signal = scan_mask2trigger(self.scan_mask, trigger_signal_config['offset'], trigger_signal_config['width'], trigger_signal_config['amplitude'], self.aio.daq_config['AO_SAMPLE_RATE'])
         self.start_measurement(pos_x, pos_y, self.trigger_signal)
         
-    def start_line_scan(self, lines, setting_time = None, trigger_signal_config = None):
+    def start_line_scan(self, lines, setting_time = None, trigger_signal_config = None, filter = None):
         if setting_time == None:
             setting_time = self.config.SCANNER_SETTING_TIME
         pos_x, pos_y, self.scan_mask, self.accel_speed, result = generate_lines_scan(lines, setting_time, 1, self.config)
+        if filter is not None and filter['enable_fft_filter']:
+            t, pos_x = spectral_filtering(pos_x, filter['bandwidth'], self.config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
+            t, pos_y = spectral_filtering(pos_y, filter['bandwidth'], self.config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
         if not result:
             raise RuntimeError('Scanning pattern is not feasable')
         self.is_rectangular_scan = False
         if trigger_signal_config is None:
-            self.trigger_signal = None
+            self.trigger_signal = numpy.zeros_like(self.scan_mask)
         else:
-            self._scan_mask2trigger(trigger_signal_config['offset'], trigger_signal_config['width'], trigger_signal_config['amplitude'])
+            scan_mask2trigger(trigger_signal_config['offset'], trigger_signal_config['width'], trigger_signal_config['amplitude'])
         self.start_measurement(pos_x, pos_y, self.trigger_signal)
-        
-    def _scan_mask2trigger(self,  offset,  width,  amplitude):
-        '''
-        Converts scan mask to trigger signal that controls the projector
-        '''
-        trigger_mask = numpy.logical_not(numpy.cast['bool'](self.scan_mask))
-        offset_samples = int(numpy.round(self.aio.daq_config['AO_SAMPLE_RATE'] * offset))
-        width_samples = int(numpy.round(self.aio.daq_config['AO_SAMPLE_RATE'] * width))
-        if trigger_mask[0]:#Consider if the first item is True, consequenctly it cannot be detected as a rising edge
-            edge_offset = 1
-        else:
-            edge_offset = 0
-        trigger_rising_edges = numpy.nonzero(numpy.diff(trigger_mask))[0][edge_offset::2]+offset_samples
-        if trigger_mask[0]:
-            trigger_rising_edges = trigger_rising_edges.tolist()
-            trigger_rising_edges.insert(0, 0)
-            trigger_rising_edges = numpy.array(trigger_rising_edges)
-        high_value_indexes = (numpy.array([range(width_samples)]*trigger_rising_edges.shape[0])+numpy.array([trigger_rising_edges.tolist()]*width_samples).T).flatten()
-        self.trigger_signal = numpy.zeros_like(trigger_mask, dtype = numpy.float64)
-        self.trigger_signal[high_value_indexes] = amplitude
-        self.trigger_signal *= trigger_mask
         
     def read_pmt(self):
         #This function shal run in the highest priority process
@@ -652,6 +634,29 @@ def binning_data(data, factor):
     data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
     '''
     return numpy.reshape(data, (data.shape[0]/factor, factor, data.shape[1])).mean(1)
+    
+def scan_mask2trigger(scan_mask,  offset,  width,  amplitude, ao_sample_rate):
+    '''
+    Converts scan mask to trigger signal that controls the projector
+    '''
+    trigger_mask = numpy.logical_not(numpy.cast['bool'](scan_mask))
+    offset_samples = int(numpy.round(ao_sample_rate * offset))
+    width_samples = int(numpy.round(ao_sample_rate * width))
+    if trigger_mask[0]:#Consider if the first item is True, consequenctly it cannot be detected as a rising edge
+        edge_offset = 1
+    else:
+        edge_offset = 0
+    trigger_rising_edges = numpy.nonzero(numpy.diff(trigger_mask))[0][edge_offset::2]+offset_samples
+    if trigger_mask[0]:
+        trigger_rising_edges = trigger_rising_edges.tolist()
+        trigger_rising_edges.insert(0, 0)
+        trigger_rising_edges = numpy.array(trigger_rising_edges)
+    
+    high_value_indexes = (numpy.array([range(width_samples)]*trigger_rising_edges.shape[0])+numpy.array([trigger_rising_edges.tolist()]*width_samples).T).flatten()
+    trigger_signal = numpy.zeros_like(trigger_mask, dtype = numpy.float64)
+    trigger_signal[high_value_indexes] = amplitude
+    trigger_signal *= trigger_mask
+    return trigger_signal
         
 def generate_test_lines(scanner_range, repeats, speeds):
     lines1 = [
@@ -774,7 +779,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.printc('saving_data')
         #gather data to save
         data_to_save = {}
-        data_to_save['rawdata'] = self.tp.data
+        data_to_save['rawdata'] = numpy.rollaxis(self.tp.data, 0, 3)
         data_to_save['scan_parameters'] = self.scan_parameters
         data_to_save['scan_parameters']['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
         data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
@@ -795,14 +800,16 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 setattr(h, node, value)
             h.save(data_to_save.keys())
             h.close()
-        if filenames.has_key('other_files') and 'tiff' in filenames['other_files'][0]:
+        self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
+        if self.filenames.has_key('other_files') and 'tiff' in self.filenames['other_files'][0]:
             import tiffile
             from visexpA.engine.dataprocessors import generic
             tiff_description = 'Roskalab'
             resolution_dpi = data_to_save['scan_parameters']['resolution'] * 25.4e3#1 um = 25.4e3 um
             tiff_resolution = (resolution_dpi, resolution_dpi)#dpi
-            tiffile.imsave(filenames['other_files'][0], generic.normalize(data_to_save['data'], outtype = numpy.uint16), software = 'visexpman', description = tiff_description, resolution = tiff_resolution)
-        self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
+            #TODO: support saving multiple channels
+            tiffile.imsave(self.filenames['other_files'][0], generic.normalize(self.tp.data[:, :, :, 0], outtype = numpy.uint16), software = 'visexpman', description = tiff_description, resolution = tiff_resolution)
+            self.printc('Data saved to {0}'.format(self.filenames['other_files'][0]))
         
     def _update_config(self, parameters):
         config = copy.deepcopy(self.config)
@@ -833,7 +840,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             lines = generate_test_lines(parameters['scanning_range'], int(parameters['repeats']), parameters['scanner_speed'])
             self.tp = TwoPhotonScanner(config)
             try:
-                self.tp.start_line_scan(lines, setting_time = parameters['SCANNER_SETTING_TIME'])
+                self.tp.start_line_scan(lines, setting_time = parameters['SCANNER_SETTING_TIME'], filter = parameters)
             except:
                 self.printc(traceback.format_exc())
                 self.printc('calib_ready')
@@ -865,7 +872,6 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 calibdata['line_profiles'] = line_profiles
                 hdf5io.save_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', calibdata, overwrite=True, filelocking=False)
                 self.queues['data'].put(calibdata)
-                print delays, sigma
             self.printc('calib_ready')
             
     
@@ -1267,7 +1273,7 @@ class TestScannerControl(unittest.TestCase):
 #        plot(t, y)
         show()
         
-#    @unittest.skip('Run only for debug purposes')    
+    @unittest.skip('Run only for debug purposes')    
     def test_10_process_calibdata(self):
         p = '/mnt/databig/software_test/ref_data/scanner_calib/calib_repeats.hdf5'
         calibdata = hdf5io.read_item(p, 'calibdata', filelocking=False)
@@ -1275,6 +1281,20 @@ class TestScannerControl(unittest.TestCase):
         profile_parameters, line_profiles = process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])
         from visexpman.engine.generic import colors
         colors.imshow(line_profiles)
+        
+    
+#    @unittest.skip('Run only for debug purposes')    
+    def test_11_calculate_trigger_signal(self):
+        config = ScannerTestConfig()
+        spatial_resolution = 2
+        spatial_resolution = 1.0/spatial_resolution
+        position = utils.rc((0, 0))
+        size = utils.rc((128, 128))
+        setting_time = [3e-4, 2e-3]
+        frames_to_scan = 1
+        pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
+        trigger_signal = scan_mask2trigger(scan_mask, 0, 20.0e-6, 1.0, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
+        pass
         
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)

@@ -41,15 +41,20 @@ class CalibrationScanningPattern(gui.GroupBox):
         gui.GroupBox.__init__(self, parent, 'Calibration scanning pattern')
         
     def create_widgets(self):
+        self.pattern = QtGui.QComboBox(self)
+        self.pattern.addItems(QtCore.QStringList(['Sine',  'Scanner']))
         self.widgets = {'scanning_range' : gui.LabeledInput(self, 'Scanning range [um]'), 
-                                    'repeats' : gui.LabeledInput(self, 'Repeats'), 'start': QtGui.QPushButton('Run',  self)}
+                                    'repeats' : gui.LabeledInput(self, 'Repeats'), 'start': QtGui.QPushButton('Run',  self), 
+                                    'enable_fft_filter' : gui.LabeledCheckBox(self, 'Enable FFT Filter'), 
+                                    'bandwidth' : gui.LabeledInput(self, 'Bandwidth [Hz]'), }
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.pattern, 0, 0, 1, 1)
         for w in [self.widgets]:
             keys = w.keys()
             keys.sort()
-            [self.layout.addWidget(w[k], 0, 2*keys.index(k), 1, 2) for k in keys]
+            [self.layout.addWidget(w[k], 1, 2*keys.index(k), 1, 2) for k in keys]
         self.setLayout(self.layout)
 
 class CalibrationWidget(QtGui.QWidget):
@@ -161,17 +166,17 @@ class BeamerControl(gui.GroupBox):
         gui.GroupBox.__init__(self, parent, 'Beamer control')
         
     def create_widgets(self):
-        self.test_beamer = gui.LabeledCheckBox(self, 'Test beamer')
-        self.enable_beamer = gui.LabeledCheckBox(self, 'Enable beamer')
+        self.test_beamer = gui.LabeledCheckBox(self, 'Test')
+        self.enable_beamer = gui.LabeledCheckBox(self, 'Enable')
         self.trigger_delay = gui.LabeledInput(self, 'Trigger delay [us]')
-        self.trigger_pulse_width = gui.LabeledInput(self, 'Trigger pulse width [us]')
+        self.trigger_pulse_width = gui.LabeledInput(self, 'Pulse width [us]')
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.test_beamer, 0, 0, 1, 1)
-        self.layout.addWidget(self.enable_beamer, 1, 0, 1, 1)
-        self.layout.addWidget(self.trigger_delay, 2, 0, 1, 1)
-        self.layout.addWidget(self.trigger_pulse_width, 3, 0, 1, 1)
+        self.layout.addWidget(self.enable_beamer, 0, 2, 1, 1)
+        self.layout.addWidget(self.trigger_delay, 1, 0, 1, 2)
+        self.layout.addWidget(self.trigger_pulse_width, 2, 0, 1, 2)
         self.setLayout(self.layout)
 
 class ScanParameters(gui.GroupBox):

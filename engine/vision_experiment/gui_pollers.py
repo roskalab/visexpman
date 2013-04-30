@@ -2134,6 +2134,9 @@ class CaImagingPoller(Poller):
                                         'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name', 
                                         'self.parent.central_widget.image_analysis.histogram_range.input', 
                                         'self.parent.central_widget.main_widget.use_user_parameters.input', 
+                                        'self.parent.central_widget.main_widget.beamer_control.trigger_delay.input', 
+                                        'self.parent.central_widget.main_widget.beamer_control.trigger_pulse_width.input', 
+                                        'self.parent.central_widget.main_widget.beamer_control.enable_beamer.input'
                                       ]
         for pn in self.parent.central_widget.calibration_widget.parameter_names:
             self.widget_context_fields.append('self.parent.central_widget.calibration_widget.scanner_parameters[\'{0}\'].input'.format(pn))
@@ -2169,7 +2172,7 @@ class CaImagingPoller(Poller):
             if message_chunks[0] == 'sec' and message_chunks[2] == 'filename':
                 duration = float(message_chunks[1])
                 measurement_name = message_chunks[3].split('.')[0]
-                self.scan(self, duration=duration, name = measurement_name)
+                self.scan(duration=duration, name = measurement_name)
         
         
     def update_main_image(self):
@@ -2241,9 +2244,10 @@ class CaImagingPoller(Poller):
             if self.parent.central_widget.main_widget.beamer_control.enable_beamer.input.checkState() == 2:
                 try:
                     self.parameters['SCANNER_TRIGGER_CONFIG'] = {}
-                    self.parameters['SCANNER_TRIGGER_CONFIG']['offset'] = float(str(self.parent.central_widget.main_widget.beamer_control.trigger_delay.input.text()))
-                    self.parameters['SCANNER_TRIGGER_CONFIG']['width'] = float(str(self.parent.central_widget.main_widget.beamer_control.trigger_pulse_width.input.text()))
+                    self.parameters['SCANNER_TRIGGER_CONFIG']['offset'] = float(str(self.parent.central_widget.main_widget.beamer_control.trigger_delay.input.text()))*1e-6
+                    self.parameters['SCANNER_TRIGGER_CONFIG']['width'] = float(str(self.parent.central_widget.main_widget.beamer_control.trigger_pulse_width.input.text()))*1e-6
                     self.parameters['SCANNER_TRIGGER_CONFIG']['amplitude'] = 5.0
+                    self.parameters['SCANNER_TRIGGER_CONFIG']['enable'] = True
                 except ValueError:
                     pass
             #generate filename/create dirs
@@ -2282,7 +2286,13 @@ class CaImagingPoller(Poller):
         
     def frame_update(self):
         if not self.queues['frame'].empty():
-            self.current_frame = scanner_control.raw2frame(self.queues['frame'].get(),  self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'])
+            rawframe = self.queues['frame'].get()
+#            h=hdf5io.Hdf5io('v:\\debug\\20130430\\frame_problem.hdf5', filelocking=False)
+#            h.rawframe = rawframe
+#            h.scan_parameters = self.scan_parameters
+#            h.save(['rawframe', 'scan_parameters'])
+#            h.close()
+            self.current_frame = scanner_control.raw2frame(rawframe, self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'])
             if not hasattr(self, 'main_image'):
                 self.main_image={}
             self.main_image['image'] = self.current_frame
@@ -2389,9 +2399,12 @@ class CaImagingPoller(Poller):
                         par_value = par_value[0]
                     self.parameters[pn] = par_value
             for pn, widget in self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets.items():
-                if hasattr(widget, 'input') and hasattr(getattr(widget, 'input'), 'text'):
+                if hasattr(widget, 'input'):
                     try:
-                        self.parameters[pn] = float(str(widget.input.text()))
+                        if hasattr(getattr(widget, 'input'), 'checkState'):
+                            self.parameters[pn] = (widget.input.checkState()==2)
+                        elif hasattr(getattr(widget, 'input'), 'text'):
+                            self.parameters[pn] = float(str(widget.input.text()))
                     except ValueError:
                         pass
             self.queues['parameters'].put(self.parameters)
