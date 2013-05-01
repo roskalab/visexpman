@@ -1,53 +1,66 @@
-import time
+from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+from visexpA.engine.datahandlers.hdf5io import Hdf5io, read_item
 import numpy
-from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.hardware_interface import camera_interface
-from visexpman.engine.generic import configuration
-class TestConfig(configuration.Config):
-    def _create_application_parameters(self):
-        self.CAMERA_FRAME_RATE = 30.0
-        VIDEO_FORMAT = 'RGB24 (744x480)'
-        DAQ_CONFIG = [
-        {
-        'ANALOG_CONFIG' : 'ao',
-        'DAQ_TIMEOUT' : 2.0, 
-        'AO_SAMPLE_RATE' : 40000,
-        'AO_CHANNEL' : 'Dev1/ao1',
-        'MAX_VOLTAGE' : 8.0,
-        'MIN_VOLTAGE' : -8.0,
-        'DURATION_OF_AI_READ' : 2.0,
-        'ENABLE' : True
-        },
-        ]
-        self._create_parameters_from_locals(locals())
-if __name__ == "__main__":
-    duration = 1
-    f = [500, 800, 1000, 1500, 2000, 2200]
-    f = [10, 100]
-#    f = numpy.logspace(2,4,5)
-    A = 2.0
-    config = TestConfig()
-    cam = camera_interface.ImagingSourceCamera(config)
-    aio = daq_instrument.AnalogIO(config)
-    fs = aio.ao_sample_rate
-    t = numpy.linspace(0, duration,  duration*fs, False)
-    signal = numpy.zeros(t.size*len(f))
-    for i in range(len(f)):
-        signal_i = 0.5*A*numpy.sin(2*numpy.pi*t*f[i])
-        signal[signal_i.size*i:signal_i.size*(i+1)] = signal_i
-    import copy
-    signal[-1] = 0
-    aio.waveform = copy.deepcopy(signal)
-    cam.start()
-    aio.start_daq_activity()
-    for i in range(int(len(f)*duration*config.CAMERA_FRAME_RATE)):
-        cam.save()
-    cam.stop()
-    cam.close()
-#    time.sleep(len(f)*duration)
-    aio.release_instrument()
-    print cam.video.shape
-#    from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
-#    t = numpy.linspace(0,  len(f)*duration,  len(f)*duration*fs, False)
-#    plot(t, signal)
-#    show()
+from visexpman.engine.hardware_interface import scanner_control
+import Image
+from visexpA.engine.dataprocessors.generic import normalize
+b=[]
+r = []
+for i in range(2):
+    pmt_raw = read_item('/mnt/datafast/debug/20130430/raw1/pmt_raw{0}.hdf5'.format(i+1), 'pmt_raw', filelocking=False)
+    boundaries = read_item('/mnt/datafast/debug/20130430/raw1/pmt_raw{0}.hdf5'.format(i+1), 'boundaries', filelocking=False)
+    data = read_item('/mnt/datafast/debug/20130430/raw1/pmt_raw{0}.hdf5'.format(i+1), 'data', filelocking=False)
+    raw_pmt_frame = read_item('/mnt/datafast/debug/20130430/raw1/pmt_raw{0}.hdf5'.format(i+1), 'raw_pmt_frame', filelocking=False)
+    frame_i = 3
+    b.append(boundaries)
+    a=numpy.array(pmt_raw[frame_i])
+    r.append(a)
+    print a.shape
+    if a.shape[1]==2:
+        a=a[:,1:]
+#    plot(a)
+#    Image.fromarray(2*normalize(scanner_control.raw2frame(a, 1, boundaries), numpy.uint8)[:,:,0]).show()
+#    Image.fromarray(normalize(data[frame_i, :, :, 1], numpy.uint8)).show()
+#plot(numpy.array(r[0]))
+plot(r[0])
+plot(r[1][:, 0])
+plot(r[1][:, 1])
+show()
+pass
+#
+#
+#
+#href1 = Hdf5io('/mnt/datafast/debug/20130430/greenscangood/0.hdf5', filelocking=False)
+#href2 = Hdf5io('/mnt/datafast/debug/20130430/greenscangood/frame_problem.hdf5', filelocking=False)
+#hx = Hdf5io('/mnt/datafast/debug/20130430/bothscanbad/0.hdf5', filelocking=False)
+#h0 = Hdf5io('/mnt/datafast/debug/20130430/bothscanbad/frame_problem.hdf5', filelocking=False)#highest level
+#h1= Hdf5io('/mnt/datafast/debug/20130430/bothscanbad/frame_problem1.hdf5', filelocking=False)#2d ai data
+#h2 = Hdf5io('/mnt/datafast/debug/20130430/bothscanbad/frame_problem2.hdf5', filelocking=False)#1d ai data
+##compare scanner control signals
+#d = []
+#for h in [href2, h0, h1, h2]:
+#    h.load('rawframe')
+#    print h.rawframe.shape
+#    d.append(h.rawframe)
+#h0.load('scan_parameters')
+#from visexpman.engine.hardware_interface import scanner_control
+#import Image
+#from visexpA.engine.dataprocessors.generic import normalize
+#Image.fromarray(normalize(scanner_control.raw2frame(d[2], h0.scan_parameters['binning_factor'], h0.scan_parameters['boundaries'])[:, :, 0], numpy.uint8)).show()
+#plot(d[0][:, 0]*0)
+#plot(d[1][:, 0]*0)
+#plot(d[1][:, 1]*1)
+#plot(d[2][:, 0]*0)
+#plot(d[2][:, 1]*1)#OK
+#plot(d[3][d[3].shape[0]/2:]*0)#OK
+#legend(('ref', 'high level ch0', 'high level ch1', '2d daq ch 0', '2d daq ch1', 'raw'))
+##r = numpy.reshape(d[1].flatten(),(d[1].shape[1], d[1].shape[0]))
+##r = d[1].T.flatten()[1::2]
+##plot(d[1][:, 0])
+##plot(d[2])
+#show()
+#h2.close()
+#h1.close()
+#h0.close()
+#href2.close()
+#href1.close()

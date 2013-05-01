@@ -407,7 +407,10 @@ class CaImagingGui(Qt.QMainWindow):
         self.show()
         self.init_widget_content()
         self.poller.init_debug()
-        self.poller.update_main_image()
+        try:
+            self.poller.update_main_image()
+        except:
+            pass
         if qt_app is not None: qt_app.exec_()
         
     def create_widgets(self):
@@ -465,7 +468,8 @@ class CaImagingGui(Qt.QMainWindow):
     def show_image(self, image, scale=None, origin=None):
 #        import Image
 #        Image.fromarray(image).save('c:\\temp\\im.bmp')
-        self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image))#, utils.rc((600, 600))))
+#        self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image))#, utils.rc((600, 600))))
+        self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image, utils.rc((600, 600))))
         
     def plot_histogram(self, x, hist, lut):
         self.central_widget.image_analysis.plot.clear()

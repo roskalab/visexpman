@@ -598,7 +598,7 @@ class TwoPhotonScanner(instrument.Instrument):
         self.pmt_raw.append(self.raw_pmt_frame)
         return copy.deepcopy(self.raw_pmt_frame)
         
-    def finish_measurement(self):
+    def finish_measurement(self, generate_frames = True):
         self.aio.finish_daq_activity()
         self.close_shutter()
         #value of ao at stopping continous generation is unknown
@@ -609,10 +609,11 @@ class TwoPhotonScanner(instrument.Instrument):
             time.sleep(1.0)
             self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr((0.0, 0.0)), self.config.SCANNER_RAMP_TIME)
         #Gather measurment data
-        if hasattr(self, 'sinus_pattern') and self.sinus_pattern:
-            self.data = numpy.array([frame_from_sinus_pattern_scan(raw_pmt_data, self.scan_mask, self.backscan, self.binning_factor) for raw_pmt_data in self.pmt_raw])#dimension: time, subframe, height, width, channels
-        else:
-            self.data = numpy.array([raw2frame(raw_pmt_data, self.binning_factor, self.boundaries) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
+        if generate_frames:
+            if hasattr(self, 'sinus_pattern') and self.sinus_pattern:
+                self.data = numpy.array([frame_from_sinus_pattern_scan(raw_pmt_data, self.scan_mask, self.backscan, self.binning_factor) for raw_pmt_data in self.pmt_raw])#dimension: time, subframe, height, width, channels
+            else:
+                self.data = numpy.array([raw2frame(raw_pmt_data, self.binning_factor, self.boundaries) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
         
     def open_shutter(self):
         self.shutter.set()
@@ -625,10 +626,19 @@ class TwoPhotonScanner(instrument.Instrument):
         self.shutter.release_instrument()
         
 ####### Helpers #####################
-def raw2frame(rawdata,  binning_factor,  boundaries):
+def raw2frame(rawdata, binning_factor, boundaries, b = False):
+#    if b:
+#        import pdb
+#        import Image
+#        from visexpA.engine.dataprocessors.generic import normalize
+#        pdb.set_trace()
+#    if rawdata.shape[1] == 2:
+#        binned_pmt_data = binning_data(rawdata[:, 1:], binning_factor)
+#    else:
     binned_pmt_data = binning_data(rawdata, binning_factor)
+#    return numpy.array((numpy.split(rawdata, boundaries)[1::2]))
     return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
-    
+
 def binning_data(data, factor):
     '''
     data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
@@ -654,7 +664,8 @@ def scan_mask2trigger(scan_mask,  offset,  width,  amplitude, ao_sample_rate):
     
     high_value_indexes = (numpy.array([range(width_samples)]*trigger_rising_edges.shape[0])+numpy.array([trigger_rising_edges.tolist()]*width_samples).T).flatten()
     trigger_signal = numpy.zeros_like(trigger_mask, dtype = numpy.float64)
-    trigger_signal[high_value_indexes] = amplitude
+    if len(high_value_indexes) > 0:
+        trigger_signal[high_value_indexes] = amplitude
     trigger_signal *= trigger_mask
     return trigger_signal
         
@@ -748,7 +759,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 time.sleep(0.01)
             #Finish, save
             self.printc('Scanning ended, {0} frames recorded' .format(frame_ct))
-            self.tp.finish_measurement()
+            self.tp.finish_measurement(generate_frames = parameters['enable_recording'])
             if parameters['enable_recording']:
                 self._save_cadata(config, parameters)
             self.printc('scan_ready')
@@ -801,6 +812,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             h.save(data_to_save.keys())
             h.close()
         self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
+#        return
         if self.filenames.has_key('other_files') and 'tiff' in self.filenames['other_files'][0]:
             import tiffile
             from visexpA.engine.dataprocessors import generic
@@ -1119,8 +1131,8 @@ class TestScannerControl(unittest.TestCase):
         config = ScannerTestConfig()
         config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'aio'
         config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
-        config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 250000
-        config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 500000
+        config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 400000
+        config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 400000
         config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
         config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
         config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
@@ -1283,7 +1295,7 @@ class TestScannerControl(unittest.TestCase):
         colors.imshow(line_profiles)
         
     
-#    @unittest.skip('Run only for debug purposes')    
+    @unittest.skip('Run only for debug purposes')    
     def test_11_calculate_trigger_signal(self):
         config = ScannerTestConfig()
         spatial_resolution = 2
@@ -1295,6 +1307,49 @@ class TestScannerControl(unittest.TestCase):
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         trigger_signal = scan_mask2trigger(scan_mask, 0, 20.0e-6, 1.0, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
         pass
+        
+    #@unittest.skip('Run only for debug purposes')
+    def test_12_run_twophoton(self):
+        import time
+        import Image
+        from visexpA.engine.dataprocessors.generic import normalize
+        plot_enable = not False
+        config = ScannerTestConfig()
+        config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'aio'
+        config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
+        config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 200000
+        config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 200000
+        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
+        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
+        config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
+        config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
+        spatial_resolution = 2
+        spatial_resolution = 1.0/spatial_resolution
+        position = utils.rc((0, 0))
+        size = utils.rc((128, 128))
+        setting_time = [3e-4, 2e-3]        
+        tp = TwoPhotonScanner(config)
+        tp.start_rectangular_scan(size, spatial_resolution =  spatial_resolution, setting_time = setting_time)
+        for i in range(3):
+            tp.read_pmt()
+        tp.finish_measurement()
+        tp.release_instrument()
+        Image.fromarray(numpy.cast['uint8'](80*(tp.data[0,:,:,0]+2))).save('v:\\debug\\ch0.png')
+        Image.fromarray(numpy.cast['uint8'](80*(tp.data[0,:,:,1]+2))).save('v:\\debug\\ch1.png')
+        if plot_enable:
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+            figure(1)
+            plot(tp.pmt_raw[0])
+            figure(2)
+            plot(tp.data[0][0][:,0])
+            plot(tp.data[0][0][:,1])
+            figure(3)
+            plot(tp.data[0][1][:,0])
+            plot(tp.data[0][1][:,1])
+            figure(4)
+            plot(tp.scanner_positions.T)
+            show()
+
         
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)
