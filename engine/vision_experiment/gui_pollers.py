@@ -2136,7 +2136,8 @@ class CaImagingPoller(Poller):
                                         'self.parent.central_widget.main_widget.use_user_parameters.input', 
                                         'self.parent.central_widget.main_widget.beamer_control.trigger_delay.input', 
                                         'self.parent.central_widget.main_widget.beamer_control.trigger_pulse_width.input', 
-                                        'self.parent.central_widget.main_widget.beamer_control.enable_beamer.input'
+                                        'self.parent.central_widget.main_widget.beamer_control.enable_beamer.input', 
+                                        'self.parent.central_widget.calibration_widget.calib_scan_pattern.pattern', 
                                       ]
         for pn in self.parent.central_widget.calibration_widget.parameter_names:
             self.widget_context_fields.append('self.parent.central_widget.calibration_widget.scanner_parameters[\'{0}\'].input'.format(pn))
@@ -2395,6 +2396,7 @@ class CaImagingPoller(Poller):
                     if len(par_value) == 1:
                         par_value = par_value[0]
                     self.parameters[pn] = par_value
+            self.parameters['pattern'] = str(self.parent.central_widget.calibration_widget.calib_scan_pattern.pattern.currentText())
             for pn, widget in self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets.items():
                 if hasattr(widget, 'input'):
                     try:

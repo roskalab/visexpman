@@ -510,6 +510,7 @@ class TwoPhotonScanner(instrument.Instrument):
             self.binning_factor = int(self.binning_factor)
             
     def start_measurement(self, scanner_x, scanner_y,  trigger = None):
+#        print scanner_x.shape, scanner_y.shape
         #Convert from position to voltage
         self.scanner_positions = numpy.array([scanner_x, scanner_y])
         if trigger is not None:
@@ -534,7 +535,8 @@ class TwoPhotonScanner(instrument.Instrument):
                     self.speeds[axis]['scan'] = speeds[numpy.nonzero(speeds)[0]].mean()
         #calculate maximal movement on x axis
         self.maximal_movement = scanner_x.max() - scanner_x.min()
-        self.boundaries = numpy.nonzero(numpy.diff(self.scan_mask))[0]+1
+        if hasattr(self.scan_mask, 'dtype'):
+            self.boundaries = numpy.nonzero(numpy.diff(self.scan_mask))[0]+1
         self.open_shutter()
         self.aio.start_daq_activity()
         
@@ -849,10 +851,18 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 return
             if not isinstance(parameters['scanner_speed'],  list):
                 parameters['scanner_speed'] = [parameters['scanner_speed']]
-            lines = generate_test_lines(parameters['scanning_range'], int(parameters['repeats']), parameters['scanner_speed'])
+            if parameters['pattern']  == 'Scanner':
+                lines = generate_test_lines(parameters['scanning_range'], int(parameters['repeats']), parameters['scanner_speed'])
             self.tp = TwoPhotonScanner(config)
             try:
-                self.tp.start_line_scan(lines, setting_time = parameters['SCANNER_SETTING_TIME'], filter = parameters)
+                if parameters['pattern']  == 'Scanner':
+                    self.tp.start_line_scan(lines, setting_time = parameters['SCANNER_SETTING_TIME'], filter = parameters)
+                elif parameters['pattern']  == 'Sine':
+                    self.tp.scan_mask_per_axis = {}
+                    pos_x, pos_y, self.tp.scan_mask_per_axis['x'], self.tp.scan_mask_per_axis['y'], speeds = \
+                                generate_sinus_calibration_signal(parameters['scanner_speed'], parameters['scanning_range'], int(parameters['repeats']), self.tp.aio.daq_config['AO_SAMPLE_RATE'])
+                    self.tp.scan_mask = self.tp.scan_mask_per_axis['x'] + self.tp.scan_mask_per_axis['y']
+                    self.tp.start_measurement(pos_x, pos_y)
             except:
                 self.printc(traceback.format_exc())
                 self.printc('calib_ready')
@@ -875,17 +885,22 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 calibdata = {}
                 calibdata['pmt'] = copy.deepcopy(self.tp.raw_pmt_frame)
                 calibdata['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
-                calibdata['scanner_speed'] = parameters['scanner_speed']
-                calibdata['accel_speed'] = self.tp.accel_speed
+                if parameters['pattern']  == 'Scanner':
+                    calibdata['scanner_speed'] = parameters['scanner_speed']
+                    calibdata['accel_speed'] = self.tp.accel_speed
+                elif parameters['pattern']  == 'Sine':
+                    calibdata['scanner_speed'] = speeds
                 calibdata['mask'] = self.tp.scan_mask
                 calibdata['parameters'] = parameters
-                profile_parameters, line_profiles = process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])
-                calibdata['profile_parameters'] = profile_parameters
-                calibdata['line_profiles'] = line_profiles
+                if parameters['pattern']  == 'Scanner':
+                    profile_parameters, line_profiles = process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])
+                    calibdata['profile_parameters'] = profile_parameters
+                    calibdata['line_profiles'] = line_profiles
+                elif parameters['pattern']  == 'Sine':
+                    pass
                 hdf5io.save_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', calibdata, overwrite=True, filelocking=False)
                 self.queues['data'].put(calibdata)
             self.printc('calib_ready')
-            
     
 def two_photon_scanner_process(config, queues):
     '''
@@ -946,9 +961,13 @@ def process_calibdata(pmt, mask, parameters):
     for line in lines:
         for k, v in line.items():
             p0 = [1., v.shape[0]/2.0, 1.]
-            coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(v.shape[0]), v, p0=p0)
-            delay = coeff[1]/(v.shape[0])
-            sigma = coeff[2]/(v.shape[0])
+            try:
+                coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(v.shape[0]), v, p0=p0)
+                delay = coeff[1]/(v.shape[0])
+                sigma = coeff[2]/(v.shape[0])
+            except:
+                delay = 0.5
+                sigma = 0.25
             profile_parameters[k.split('_')[0]][k.split('_')[1]]['delay'].append(delay)
             profile_parameters[k.split('_')[0]][k.split('_')[1]]['sigma'].append(sigma)
             resampled = scipy.misc.imresize(numpy.array([v]), (1, int(ncols)))[0,:]
@@ -968,6 +987,40 @@ def process_calibdata(pmt, mask, parameters):
             line_profiles[line_index: line_index + line_width,:, 2] = calculated
         line_counter += 2
     return profile_parameters, line_profiles
+    
+def generate_sinus_calibration_signal(frqs, amplitude, repeats, fs, max_linearity_error=1e-2):
+    chunks = []
+    speeds = numpy.array(frqs)*amplitude*numpy.pi
+    mask  = []
+    for frq in frqs:
+        duration = repeats/float(frq)
+        t = numpy.linspace(0, duration, fs*duration, False)
+        phases = 2*numpy.pi*t*frq
+        chunk = 0.5*amplitude*numpy.sin(phases)
+        chunks.append(chunk)
+        linearity_range = utils.sinus_linear_range(max_linearity_error)
+        linearity_range_samples = int(numpy.round(linearity_range/(2*numpy.pi*repeats)*duration*fs))
+        step = t.shape[0]/repeats
+        offset = step/2
+        starts = numpy.arange(repeats)*step+offset - linearity_range_samples
+        mask_chunk = numpy.zeros_like(t)
+        for start in starts:
+            mask_chunk[start:start+2*linearity_range_samples] = 1.0
+        mask.append(mask_chunk)
+    pos_x = numpy.concatenate(chunks)
+    mask = numpy.concatenate(mask)
+    mask_x = numpy.concatenate((mask, numpy.zeros_like(mask)))
+    mask_y = numpy.concatenate((numpy.zeros_like(mask), mask))
+    t = numpy.linspace(0, pos_x.shape[0]/float(fs)*2, pos_x.shape[0]*2, False)
+    pos_y = numpy.concatenate((numpy.zeros_like(pos_x), pos_x))
+    pos_x = numpy.concatenate((pos_x, numpy.zeros_like(pos_x)))
+#    from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+#    plot(t, pos_x)
+#    plot(t, pos_y)
+#    plot(t, mask_x)
+#    plot(t, mask_y)
+#    show()
+    return pos_x, pos_y, mask_x, mask_y, speeds
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):
@@ -1308,7 +1361,7 @@ class TestScannerControl(unittest.TestCase):
         trigger_signal = scan_mask2trigger(scan_mask, 0, 20.0e-6, 1.0, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
         pass
         
-    #@unittest.skip('Run only for debug purposes')
+    @unittest.skip('Run only for debug purposes')
     def test_12_run_twophoton(self):
         import time
         import Image
@@ -1350,6 +1403,13 @@ class TestScannerControl(unittest.TestCase):
             plot(tp.scanner_positions.T)
             show()
 
+    #@unittest.skip('Run only for debug purposes')
+    def test_13_generate_sinus_calibration_signal(self):
+        repeats = 3
+        amplitude = 20#um
+        speeds = [1000, 2000]#um/s
+        fs = 400000
+        posx, posy, mask_x, mask_y, speeds = generate_sinus_calibration_signal(speeds, amplitude, repeats, fs)
         
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)

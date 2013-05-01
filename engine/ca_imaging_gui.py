@@ -43,6 +43,8 @@ class CalibrationScanningPattern(gui.GroupBox):
     def create_widgets(self):
         self.pattern = QtGui.QComboBox(self)
         self.pattern.addItems(QtCore.QStringList(['Sine',  'Scanner']))
+        self.pattern.setEditable(True)
+        
         self.widgets = {'scanning_range' : gui.LabeledInput(self, 'Scanning range [um]'), 
                                     'repeats' : gui.LabeledInput(self, 'Repeats'), 'start': QtGui.QPushButton('Run',  self), 
                                     'enable_fft_filter' : gui.LabeledCheckBox(self, 'Enable FFT Filter'), 
@@ -424,6 +426,8 @@ class CaImagingGui(Qt.QMainWindow):
                     ref = introspect.string2objectreference(self,ref_string.replace('parent.',''))
                 except:
                     continue
+                if hasattr(ref, 'setEditText'):
+                    ref.setEditText(value)
                 if hasattr(ref,'setCheckState'):
                     ref.setCheckState(int(value))
                 elif hasattr(ref,'setEditText'):
@@ -521,6 +525,7 @@ class CaImagingGui(Qt.QMainWindow):
         from visexpA.engine.datahandlers import hdf5io
         p = os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5')
         p = '/mnt/databig/software_test/ref_data/scanner_calib/calib_repeats.hdf5'
+        p = '/mnt/databig/software_test/ref_data/scanner_calib/sine_calib.hdf5'
         calibdata = hdf5io.read_item(p, 'calibdata', filelocking=False)
         from visexpman.engine.hardware_interface import scanner_control
         calibdata['profile_parameters'], calibdata['line_profiles'] = scanner_control.process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])

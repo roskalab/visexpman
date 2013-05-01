@@ -6,30 +6,34 @@ from visexpman.engine.generic import configuration
 from visexpman.engine.generic import file
 class TestConfig(configuration.Config):
     def _create_application_parameters(self):
-        self.CAMERA_FRAME_RATE = 30.0
-        VIDEO_FORMAT = 'RGB24 (744x480)'
+#        self.CAMERA_FRAME_RATE = 30.0
+#        VIDEO_FORMAT = 'RGB24 (744x480)'
+        self.CAMERA_FRAME_RATE = 160.0
+        VIDEO_FORMAT = 'RGB24 (320x240)'
         DAQ_CONFIG = [
         {
         'ANALOG_CONFIG' : 'ao',
         'DAQ_TIMEOUT' : 2.0, 
-        'AO_SAMPLE_RATE' : 40000,
+        'AO_SAMPLE_RATE' : 400000,
         'AO_CHANNEL' : 'Dev1/ao0',
         'MAX_VOLTAGE' : 8.0,
         'MIN_VOLTAGE' : -8.0,
         'DURATION_OF_AI_READ' : 2.0,
+        'AO_SAMPLING_MODE' : 'finite', 
         'ENABLE' : True
         },
         ]
         self._create_parameters_from_locals(locals())
-        
+
 class ScannerCalibration(camera_interface.ImagingSourceCamera, daq_instrument.AnalogIO):
     def __init__(self, config):
         camera_interface.ImagingSourceCamera.__init__(self, config)
         daq_instrument.AnalogIO.__init__(self, config)
-        self.f = [100, 1000]
-        self.A = [1, 2]
-        self.duration = 0.5
-        self.generate_signal(self.f, self.A, self.duration)
+        self.f = [20]
+        self.A = [2.0]
+        self.duration = 1.0
+        self.generate_square_signal(self.A, self.duration)
+#        self.generate_signal(self.f, self.A, self.duration)
         
     def generate_signal(self, f, A, duration):
         self.t = numpy.linspace(0, duration,  duration*self.ao_sample_rate, False)
@@ -39,8 +43,12 @@ class ScannerCalibration(camera_interface.ImagingSourceCamera, daq_instrument.An
                 signal_i = 0.5*A[i]*numpy.sin(2*numpy.pi*self.t*f[j])
                 index = len(f)*i+j
                 signal[signal_i.size*index:signal_i.size*(index+1)] = signal_i
-        signal[-1] = 0.0
         self.waveform = signal
+        
+    def generate_square_signal(self, A, duration):
+        self.waveform = numpy.zeros(duration*self.ao_sample_rate)
+        self.waveform[0.1*self.waveform.shape[0]:0.6*self.waveform.shape[0]] = A
+        
         
     def run(self):
         camera_interface.ImagingSourceCamera.start(self)
@@ -49,6 +57,9 @@ class ScannerCalibration(camera_interface.ImagingSourceCamera, daq_instrument.An
             camera_interface.ImagingSourceCamera.save(self)
         
     def close(self):
+        self.finish_daq_activity()
+        self.waveform = numpy.zeros(100)#Make sure that outputs are on 0V
+        daq_instrument.AnalogIO.run(self)
         daq_instrument.AnalogIO.release_instrument(self)
         camera_interface.ImagingSourceCamera.stop(self)
         camera_interface.ImagingSourceCamera.close(self)
@@ -57,8 +68,8 @@ class ScannerCalibration(camera_interface.ImagingSourceCamera, daq_instrument.An
     def process_data(self):
         import tiffile
         tiffile.imsave(file.generate_filename('c:\\_del\\calib.tiff'), self.video, software = 'visexpman')
-        from visexpA.engine.datahandlers import hdf5io
-        hdf5io.save_item(file.generate_filename('c:\\_del\\calib.hdf5'), 'data', self.video, filelocking = False)
+#        from visexpA.engine.datahandlers import hdf5io
+#        hdf5io.save_item(file.generate_filename('c:\\_del\\calib.hdf5'), 'data', self.video, filelocking = False)
         
     
 if __name__ == "__main__":
@@ -66,3 +77,4 @@ if __name__ == "__main__":
     sc = ScannerCalibration(config)
     sc.run()
     sc.close()
+    print 'DONE'
