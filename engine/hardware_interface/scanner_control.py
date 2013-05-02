@@ -860,7 +860,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 elif parameters['pattern']  == 'Sine':
                     self.tp.scan_mask_per_axis = {}
                     pos_x, pos_y, self.tp.scan_mask_per_axis['x'], self.tp.scan_mask_per_axis['y'], speeds = \
-                                generate_sinus_calibration_signal(parameters['scanner_speed'], parameters['scanning_range'], int(parameters['repeats']), self.tp.aio.daq_config['AO_SAMPLE_RATE'])
+                                generate_sinus_calibration_signal(parameters['scanner_speed'], parameters['scanning_range'], int(parameters['repeats']), self.tp.aio.daq_config['AO_SAMPLE_RATE'], max_linearity_error = self.config.SINUS_CALIBRATION_MAX_LINEARITY_ERROR)
                     self.tp.scan_mask = self.tp.scan_mask_per_axis['x'] + self.tp.scan_mask_per_axis['y']
                     self.tp.start_measurement(pos_x, pos_y)
             except:
@@ -885,6 +885,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 calibdata = {}
                 calibdata['pmt'] = copy.deepcopy(self.tp.raw_pmt_frame)
                 calibdata['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
+                calibdata['pattern'] = parameters['pattern']
                 if parameters['pattern']  == 'Scanner':
                     calibdata['scanner_speed'] = parameters['scanner_speed']
                     calibdata['accel_speed'] = self.tp.accel_speed
@@ -897,7 +898,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                     calibdata['profile_parameters'] = profile_parameters
                     calibdata['line_profiles'] = line_profiles
                 elif parameters['pattern']  == 'Sine':
-                    pass
+                    calibdata['bode'] = scanner_bode_diagram(calibdata['pmt'], calibdata['mask'], calibdata['parameters']['scanner_speed'], self.config.SINUS_CALIBRATION_MAX_LINEARITY_ERROR)
                 hdf5io.save_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', calibdata, overwrite=True, filelocking=False)
                 self.queues['data'].put(calibdata)
             self.printc('calib_ready')
@@ -960,8 +961,8 @@ def process_calibdata(pmt, mask, parameters):
             profile_parameters[axis][dir]['delay'] = []
     for line in lines:
         for k, v in line.items():
-            p0 = [1., v.shape[0]/2.0, 1.]
             try:
+                p0 = [1., v.shape[0]/2.0, 1.]
                 coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(v.shape[0]), v, p0=p0)
                 delay = coeff[1]/(v.shape[0])
                 sigma = coeff[2]/(v.shape[0])
@@ -1021,6 +1022,42 @@ def generate_sinus_calibration_signal(frqs, amplitude, repeats, fs, max_linearit
 #    plot(t, mask_y)
 #    show()
     return pos_x, pos_y, mask_x, mask_y, speeds
+    
+def scanner_bode_diagram(pmt, mask, frqs, max_linearity_error):
+    '''
+    Generate Bode diagram of both scanners based on calibration data
+    '''
+    bode_amplitudes = []
+    bode_phases = []
+    for axis_i in range(2):#x and y part of the data
+        pmt_chunk = pmt[axis_i*pmt.shape[0]/2:(axis_i+1)*pmt.shape[0]/2]
+        mask_chunk = mask[axis_i*mask.shape[0]/2:(axis_i+1)*mask.shape[0]/2]
+        boundaries = numpy.nonzero(numpy.diff(mask_chunk))[0]
+        repeats = boundaries.shape[0]/2/len(frqs)
+        bode_amplitude = []
+        bode_phase = []
+        for frq_i in range(len(frqs)):
+            traces = []
+            for repeat in range(repeats):
+                start_i = boundaries[2*(frq_i*repeats+repeat)]
+                end_i = boundaries[2*(frq_i*repeats+repeat)+1]
+                traces.append(pmt_chunk[start_i: end_i][:,0])
+            signal = numpy.array(traces).mean(axis=0)
+            try:
+                p0 = [1., signal.shape[0]/2.0, 1.]
+                coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(signal.shape[0]), signal, p0=p0)
+                mean = coeff[1]/(signal.shape[0])#phase characteristic
+                sigma = coeff[2]/(signal.shape[0])#amplitude characteristic
+            except RuntimeError:
+                mean = 0.5
+                sigma = 0.25
+            bode_amplitude.append(sigma)
+            bode_phase.append(mean)
+        bode_amplitude = numpy.array(bode_amplitude)/bode_amplitude[0]#assuming that amplitude gain is 1.0 at the lowest frequency
+        bode_phase = 2*utils.sinus_linear_range(max_linearity_error)*numpy.array(bode_phase) - bode_phase[0]#assuming that there is not phase shift at the lowest frequency
+        bode_amplitudes.append(bode_amplitude)
+        bode_phases.append(bode_phase)
+    return {'frq': numpy.array(frqs), 'amplitude': bode_amplitudes, 'phase': bode_phases}
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):
@@ -1301,7 +1338,7 @@ class TestScannerControl(unittest.TestCase):
         plot(tp.scanner_positions.T)
         show()
         
-    @unittest.skip('Run only for debug purposes')    
+#    @unittest.skip('Run only for debug purposes')    
     def test_09_fft_scan_signal(self):
         from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
         import scipy
@@ -1338,7 +1375,7 @@ class TestScannerControl(unittest.TestCase):
 #        plot(t, y)
         show()
         
-    @unittest.skip('Run only for debug purposes')    
+    @unittest.skip('')    
     def test_10_process_calibdata(self):
         p = '/mnt/databig/software_test/ref_data/scanner_calib/calib_repeats.hdf5'
         calibdata = hdf5io.read_item(p, 'calibdata', filelocking=False)
@@ -1346,10 +1383,20 @@ class TestScannerControl(unittest.TestCase):
         profile_parameters, line_profiles = process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])
         from visexpman.engine.generic import colors
         colors.imshow(line_profiles)
-        
     
-    @unittest.skip('Run only for debug purposes')    
-    def test_11_calculate_trigger_signal(self):
+    @unittest.skip('')    
+    def test_11_process_sine_calibdata(self):
+        p = '/mnt/databig/software_test/ref_data/scanner_calib/sine_calib.hdf5'
+        calibdata = hdf5io.read_item(p, 'calibdata', filelocking=False)
+        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+        pmt = calibdata['pmt']
+        mask = calibdata['mask']
+        frqs = calibdata['parameters']['scanner_speed']
+        print scanner_bode_diagram(pmt, mask, frqs)
+        pass
+    
+    @unittest.skip('')
+    def test_12_calculate_trigger_signal(self):
         config = ScannerTestConfig()
         spatial_resolution = 2
         spatial_resolution = 1.0/spatial_resolution
@@ -1362,7 +1409,7 @@ class TestScannerControl(unittest.TestCase):
         pass
         
     @unittest.skip('Run only for debug purposes')
-    def test_12_run_twophoton(self):
+    def test_13_run_twophoton(self):
         import time
         import Image
         from visexpA.engine.dataprocessors.generic import normalize
@@ -1403,8 +1450,8 @@ class TestScannerControl(unittest.TestCase):
             plot(tp.scanner_positions.T)
             show()
 
-    #@unittest.skip('Run only for debug purposes')
-    def test_13_generate_sinus_calibration_signal(self):
+    @unittest.skip('Run only for debug purposes')
+    def test_14_generate_sinus_calibration_signal(self):
         repeats = 3
         amplitude = 20#um
         speeds = [1000, 2000]#um/s

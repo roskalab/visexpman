@@ -264,16 +264,44 @@ def rois_to_roi_locations(rois, objective_position, objective_origin):
     roi_locations = utils.rcd(numpy.array(roi_locations))
     roi_locations['depth'] = objective_position + objective_origin
     return roi_locations
+    
+def read_phys(filename):
+    import struct
+    f =open(filename)
+    offset = f.read(4)
+    offset = struct.unpack('>i',offset)[0]
+    f.seek(4+offset)
+    dim1 = f.read(4)
+    dim2 = f.read(4)
+    dim1 = struct.unpack('>i',dim1)[0]
+    dim2 = struct.unpack('>i',dim2)[0]
+    data = f.read(2*dim1*dim2)
+    data = numpy.array(struct.unpack('>'+''.join(dim1*dim2*['h']),data), dtype = numpy.int16).reshape((dim1, dim2))
+    f.close()
+    return data
    
+def phys2clampfit(filename):
+    '''
+    Converts phys file with trigger information to be readable by clampfit software
+   ''' 
+    data = read_phys(filename)
+    data = data.flatten('F').reshape(dim1, dim2)
+    data.tofile(filename.replace('.phys', 'c.phys'))
+    
    
 class TestExperimentData(unittest.TestCase):
-#    @unittest.skip("")
+    @unittest.skip("")
     def test_01_read_merge_rois(self):
         path = '/mnt/databig/testdata/read_merge_rois/mouse_test_1-1-2012_1-1-2012_0_0.hdf5'
         cells = hdf5io.read_item(path, 'cells', filelocking = self.config.ENABLE_HDF5_FILELOCKING)
         roi_locations, rois = read_merge_rois(cells, 'g2', 'scanned_2vessels_0_0', -130, 0, 80, 4)
         roi_locations, rois = add_auxiliary_rois(rois, 9, -130, -100, aux_roi_distance = 5.0)
         pass
+        
+    def test_02_elphys(self):
+        from visexpman.users.zoltan.test import unit_test_runner
+        working_folder = unit_test_runner.prepare_test_data('elphys')
+        convert_phys(os.path.join(working_folder,os.listdir(working_folder)[0]))
         
 if __name__=='__main__':
     unittest.main()

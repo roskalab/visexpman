@@ -56,6 +56,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         self.SCANNER_HOLD_TIME = 30.0e-3
         self.SCANNER_SETTING_TIME = [3e-4, 1e-3]#This time constraint sets the speed of scanner (lenght of transient)
         SCANNER_TRIGGER_CONFIG = {'offset': 0.0, 'pulse_width': 20.0e-6, 'amplitude':5.0, 'enable':False}
+        self.SINUS_CALIBRATION_MAX_LINEARITY_ERROR = 1e-2
         self.PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'AI' : 0,'COLOR': 'RED', 'ENABLE': False}}
         DAQ_CONFIG = [
