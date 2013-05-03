@@ -174,7 +174,8 @@ class AnalogIO(instrument.Instrument):
     def _write_waveform(self):
         if os.name == 'nt' and self.daq_config['ENABLE']:
             if self.enable_ao:
-#                a = (self.waveform.min(), self.waveform.max())
+#                print self.waveform.min(), self.waveform.max()
+#                print self.waveform.shape
                 self.analog_output.WriteAnalogF64(self.number_of_ao_samples,
                                     False,
                                     self.daq_config['DAQ_TIMEOUT'],

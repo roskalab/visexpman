@@ -2033,7 +2033,7 @@ class CaImagingPoller(Poller):
         Poller.__init__(self, parent)
         self.config = parent.config
         from multiprocessing import Queue, Process
-        self.queues = {'in':Queue(), 'out':Queue(), 'parameters': Queue(), 'data': Queue(), 'frame': Queue(),  'udp': Queue()}
+        self.queues = {'in':Queue(), 'out':Queue(), 'parameters': Queue(), 'data': Queue(1), 'frame': Queue(),  'udp': Queue()}
         self.process = Process(target=scanner_control.two_photon_scanner_process,  args = (self.config, self.queues))
         self.process.start()
         self.init_variables()
@@ -2308,7 +2308,7 @@ class CaImagingPoller(Poller):
             imout = numpy.zeros((image.shape[0],  image.shape[1],  3))
         except:#TMP, at high frame rates, empty images are tried to display
             self.printc(image.shape)
-            self.printc(image)
+#            self.printc(image)
             
         for i in range(len(self.enabled_channels)):
             channel_color = [self.config.PMTS[pmtch]['COLOR'] for pmtch in self.config.PMTS.keys() if self.config.PMTS[pmtch]['AI'] == self.enabled_channels[i]][0]

@@ -22,6 +22,14 @@ import file
 
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
+def resample_array(array, factor):
+    '''
+    Increases sampling rate of array with factor
+    '''
+    if factor == 1:
+        return array
+    else:
+        return numpy.array([array]*int(factor)).flatten('F')
 
 def sinus_linear_range(error):
     def f(x, e):
