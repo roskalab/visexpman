@@ -594,10 +594,11 @@ class TwoPhotonScanner(instrument.Instrument):
             scan_mask2trigger(trigger_signal_config['offset'], trigger_signal_config['width'], trigger_signal_config['amplitude'])
         self.start_measurement(pos_x, pos_y, self.trigger_signal)
         
-    def read_pmt(self):
+    def read_pmt(self, collect_data):
         #This function shal run in the highest priority process
         self.raw_pmt_frame = self.aio.read_analog()
-        self.pmt_raw.append(self.raw_pmt_frame)
+        if collect_data:
+            self.pmt_raw.append(self.raw_pmt_frame)
         return copy.deepcopy(self.raw_pmt_frame)
         
     def finish_measurement(self, generate_frames = True):
@@ -754,7 +755,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             frame_ct = 0
             #start scan loop
             while True:
-                self.queues['frame'].put(self.tp.read_pmt())                    
+                self.queues['frame'].put(self.tp.read_pmt(collect_data = parameters['enable_recording']))                    
                 frame_ct += 1
                 if (not self.queue_in[0].empty() and self.queue_in[0].get() == 'stop_scan') or frame_ct == nframes or frame_ct >= self.max_nframes:
                     break
@@ -1029,6 +1030,10 @@ def scanner_bode_diagram(pmt, mask, frqs, max_linearity_error):
     '''
     bode_amplitudes = []
     bode_phases = []
+    sigmas = []
+    means = []
+    signals = []
+    gauss_amplitudes = []
     for axis_i in range(2):#x and y part of the data
         pmt_chunk = pmt[axis_i*pmt.shape[0]/2:(axis_i+1)*pmt.shape[0]/2]
         mask_chunk = mask[axis_i*mask.shape[0]/2:(axis_i+1)*mask.shape[0]/2]
@@ -1044,20 +1049,25 @@ def scanner_bode_diagram(pmt, mask, frqs, max_linearity_error):
                 traces.append(pmt_chunk[start_i: end_i][:,0])
             signal = numpy.array(traces).mean(axis=0)
             try:
-                p0 = [1., signal.shape[0]/2.0, 1.]
+                p0 = [1., 0.5*signal.shape[0], 1.]
+                p0 = [1., signal.argmax(), 1.]
                 coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(signal.shape[0]), signal, p0=p0)
                 mean = coeff[1]/(signal.shape[0])#phase characteristic
                 sigma = coeff[2]/(signal.shape[0])#amplitude characteristic
             except RuntimeError:
                 mean = 0.5
                 sigma = 0.25
+            sigmas.append(sigma)
+            means.append(mean)
+            signals.append(signal)
+            gauss_amplitudes.append(coeff[0])
             bode_amplitude.append(sigma)
             bode_phase.append(mean)
         bode_amplitude = numpy.array(bode_amplitude)/bode_amplitude[0]#assuming that amplitude gain is 1.0 at the lowest frequency
         bode_phase = 2*utils.sinus_linear_range(max_linearity_error)*(numpy.array(bode_phase) - bode_phase[0])#assuming that there is not phase shift at the lowest frequency
         bode_amplitudes.append(bode_amplitude)
         bode_phases.append(bode_phase)
-    return {'frq': numpy.array(frqs), 'amplitude': bode_amplitudes, 'phase': bode_phases}
+    return {'frq': numpy.array(frqs), 'amplitude': bode_amplitudes, 'phase': bode_phases, 'sigmas': sigmas, 'means':means, 'signals' :signals, 'gauss_amplitudes':gauss_amplitudes}
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):
@@ -1355,6 +1365,7 @@ class TestScannerControl(unittest.TestCase):
         #NOTE1: Is there significant difference between pixel size of the different lines??????
         #NOTE2: how to use interpolation for distorting samples by pixel_size
         #NOTE3: Applying scanner transfer function shall be faster, consider transformation to complex frequency domain 
+        #NOTE4: nominal, real scanner position, fix interpretation/terminology of signals
         spatial_resolution = 2
         spatial_resolution = 1.0/spatial_resolution
         position = utils.rc((0, 0))

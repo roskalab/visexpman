@@ -36,7 +36,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         self.COMMAND_RELAY_SERVER['ENABLE'] = False
         self.BASE_PORT = 20000
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
-            {#TODO: probably IP addresses are not necessary here
+            {
             'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
             'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 

@@ -2033,7 +2033,7 @@ class CaImagingPoller(Poller):
         Poller.__init__(self, parent)
         self.config = parent.config
         from multiprocessing import Queue, Process
-        self.queues = {'in':Queue(), 'out':Queue(), 'parameters': Queue(), 'data': Queue(1), 'frame': Queue(),  'udp': Queue()}
+        self.queues = {'in':Queue(), 'out':Queue(), 'parameters': Queue(), 'data': Queue(), 'frame': Queue(),  'udp': Queue()}
         self.process = Process(target=scanner_control.two_photon_scanner_process,  args = (self.config, self.queues))
         self.process.start()
         self.init_variables()
@@ -2417,8 +2417,10 @@ class CaImagingPoller(Poller):
     def calib_ready(self):
         self.printc('Calibration ready')
         self.update_scan_run_status('ready')
-        if not self.queues['data'].empty():
-            self.emit(QtCore.SIGNAL('plot_calibdata'))
+        while True:
+            if not self.queues['data'].empty():
+                self.emit(QtCore.SIGNAL('plot_calibdata'))
+                break
             
     ####### Helpers ###########
     def _select_ai_channel(self):
