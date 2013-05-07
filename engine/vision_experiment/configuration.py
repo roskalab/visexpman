@@ -16,9 +16,6 @@ HiMEAConfig:
 ElphysConfig:
         inherits VisionExperimentConfig and expands it with electrophisiology setup specific parameters that are not used on other platforms
         Platform name: elphys
-        
-
-
 '''
 
 
