@@ -15,7 +15,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
         self.root_folder = '/mnt/datafast/debug/data'
-#        self.root_folder = '/mnt/rznb/data'
+        self.root_folder = '/mnt/rznb/data'
         if not os.path.exists(self.root_folder) and os.name == 'nt':
             self.root_folder = 'v:\\debug\\data'
         LOG_PATH = self.root_folder
@@ -57,6 +57,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         self.SCANNER_SETTING_TIME = [3e-4, 1e-3]#This time constraint sets the speed of scanner (lenght of transient)
         SCANNER_TRIGGER_CONFIG = {'offset': 0.0, 'pulse_width': 20.0e-6, 'amplitude':5.0, 'enable':False}
         self.SINUS_CALIBRATION_MAX_LINEARITY_ERROR = 10e-2
+        self.CA_FRAME_TRIGGER_AMPLITUDE = 5.0
         self.PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'AI' : 0,'COLOR': 'RED', 'ENABLE': False}}
         DAQ_CONFIG = [
@@ -65,7 +66,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         'DAQ_TIMEOUT' : 5.0, 
         'AO_SAMPLE_RATE' : 400000,
         'AI_SAMPLE_RATE' : 400000,
-        'AO_CHANNEL' : 'Dev1/ao0:2',
+        'AO_CHANNEL' : 'Dev1/ao0:3',
         'AI_CHANNEL' : 'Dev1/ai0:1',
         'MAX_VOLTAGE' : 5.0,
         'MIN_VOLTAGE' : -5.0,
