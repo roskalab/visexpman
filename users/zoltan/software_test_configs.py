@@ -11,7 +11,8 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 
 
-class CaImagingTestConfig(configuration.VisionExperimentConfig):
+class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
+    
     def _set_user_parameters(self):
         #### paths/data handling ####
         self.root_folder = '/mnt/datafast/debug/data'
@@ -43,22 +44,17 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
             'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
             }
         COORDINATE_SYSTEM='ulcorner'
-        self.MAX_PMT_VOLTAGE = 8.0
-        self.SCANNER_MAX_SPEED = utils.rc((1e7, 1e7))#um/s
-        self.SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
-        self.SCANNER_DELAY = 0#As function of scanner speed
-        self.SCANNER_START_STOP_TIME = 0.02
-        self.SCANNER_MAX_POSITION = 350.0
-        self.POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0
-        self.XMIRROR_OFFSET = 0*-64.0#um
-        self.YMIRROR_OFFSET = 0.0#um
-        self.SCANNER_RAMP_TIME = 100.0e-3#Time to move the scanners into initial position
-        self.SCANNER_HOLD_TIME = 30.0e-3
-        self.SCANNER_SETTING_TIME = [3e-4, 1e-3]#This time constraint sets the speed of scanner (lenght of transient)
+        MAX_PMT_VOLTAGE = 8.0
+        SCANNER_START_STOP_TIME = 0.02
+        SCANNER_MAX_POSITION = 350.0
+        POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0
+        XMIRROR_OFFSET = 0*-64.0#um
+        YMIRROR_OFFSET = 0.0#um
+        SCANNER_SETTING_TIME = [3e-4, 1e-3]#This time constraint sets the speed of scanner (lenght of transient)
         SCANNER_TRIGGER_CONFIG = {'offset': 0.0, 'pulse_width': 20.0e-6, 'amplitude':5.0, 'enable':False}
-        self.SINUS_CALIBRATION_MAX_LINEARITY_ERROR = 10e-2
-        self.CA_FRAME_TRIGGER_AMPLITUDE = 5.0
-        self.PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
+        SINUS_CALIBRATION_MAX_LINEARITY_ERROR = 10e-2
+        CA_FRAME_TRIGGER_AMPLITUDE = 5.0
+        PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'AI' : 0,'COLOR': 'RED', 'ENABLE': False}}
         DAQ_CONFIG = [
         {

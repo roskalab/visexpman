@@ -2,13 +2,13 @@ import numpy
 import os
 import serial
 from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
+from visexpman.engine.vision_experiment.configuration import ElphysConfig
 import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.generic.utils as utils
 import scipy.interpolate
 
-class MVSSA(VisionExperimentConfig):
+class MVSSA(ElphysConfig):
     '''
     Miguel's Electrophisology visual stimulation, standalone
     '''
@@ -79,13 +79,12 @@ class MVSSA(VisionExperimentConfig):
 
         self._create_parameters_from_locals(locals())
 
-class MVS(VisionExperimentConfig):
+class MVS(ElphysConfig):
     '''
     Miguel's Electrophisology visual stimulation
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'MovingShapeParameters'
-        PLATFORM = 'elphys'
         EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===
         v_drive_data_folder = 'C:\\Data'

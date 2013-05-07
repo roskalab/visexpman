@@ -31,7 +31,7 @@ def generate_filename(config, id, experiment_name = '',  cell_name = '', nfragme
     filenames['datafile'] = []
     filenames['local_datafile'] = []
     filenames['other_files'] = []
-    if config.PLATFORM == 'mes':
+    if config.PLATFORM == 'rc_cortical':
         filenames['mes_files'] = []
         prefix = 'fragment'
     else:
