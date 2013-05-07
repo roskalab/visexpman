@@ -29,6 +29,13 @@
                 python-pp
             From source (check pypi.org)
                 mahotas, polygon,pymorph
+            Install Framework:
+            mkdir visexp
+            cd visexp
+            git clone git@github.com:roskalab/visexpman.git
+            git clone git@github.com:hillierdani/visexpA.git
+            sudo gedit /usr/lib/python2.7/dist-packages/visexp.pth
+            type in full path of previously created visexp folder
                         
         = Windows XP/Windows7 =
             Usage: Visual stimulation, retinal Ca imaging, RC Cortical GUI
@@ -219,6 +226,9 @@
                 Helpers:
                     Intert a delay:  time.sleep(delay in seconds)
                     control parallel port pin: self.parallel_port.set_data_bit(pin id 0...7, logical value (0, 1))
+                    
+        = Run stimulation software =
+        python c:\visexp\visexpman\engine\visexp_runner.py <username> <machine config>
 
 '''
 
