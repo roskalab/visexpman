@@ -2136,7 +2136,8 @@ class CaImagingPoller(Poller):
                                         'self.parent.central_widget.main_widget.use_user_parameters.input', 
                                         'self.parent.central_widget.main_widget.beamer_control.trigger_delay.input', 
                                         'self.parent.central_widget.main_widget.beamer_control.trigger_pulse_width.input', 
-                                        'self.parent.central_widget.main_widget.beamer_control.enable_beamer.input'
+                                        'self.parent.central_widget.main_widget.beamer_control.enable_beamer.input', 
+                                        'self.parent.central_widget.calibration_widget.calib_scan_pattern.pattern', 
                                       ]
         for pn in self.parent.central_widget.calibration_widget.parameter_names:
             self.widget_context_fields.append('self.parent.central_widget.calibration_widget.scanner_parameters[\'{0}\'].input'.format(pn))
@@ -2285,13 +2286,8 @@ class CaImagingPoller(Poller):
         self.update_scan_run_status('saving')
         
     def frame_update(self):
-        if not self.queues['frame'].empty():
+        if not self.queues['frame'].empty() and self.scan_run:
             rawframe = self.queues['frame'].get()
-#            h=hdf5io.Hdf5io('v:\\debug\\20130430\\frame_problem.hdf5', filelocking=False)
-#            h.rawframe = rawframe
-#            h.scan_parameters = self.scan_parameters
-#            h.save(['rawframe', 'scan_parameters'])
-#            h.close()
             self.current_frame = scanner_control.raw2frame(rawframe, self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'])
             if not hasattr(self, 'main_image'):
                 self.main_image={}
@@ -2310,9 +2306,10 @@ class CaImagingPoller(Poller):
         from visexpA.engine.dataprocessors import generic
         try:
             imout = numpy.zeros((image.shape[0],  image.shape[1],  3))
-        except:#TMP
+        except:#TMP, at high frame rates, empty images are tried to display
             self.printc(image.shape)
-            self.printc(image)
+#            self.printc(image)
+            
         for i in range(len(self.enabled_channels)):
             channel_color = [self.config.PMTS[pmtch]['COLOR'] for pmtch in self.config.PMTS.keys() if self.config.PMTS[pmtch]['AI'] == self.enabled_channels[i]][0]
             if len(self.enabled_channels) == 1:
@@ -2323,6 +2320,7 @@ class CaImagingPoller(Poller):
                 imout[:, :, 0] = self.apply_histogram(self.apply_filters(self.scale_image(image[:, :, channel_index])))
             elif channel_color == 'GREEN':
                 imout[:, :, 1] = self.apply_histogram(self.apply_filters(self.scale_image(image[:, :, channel_index])))
+                
                 channel_index += 1
         imout = numpy.cast['uint8'](255*imout)
         #convert to PIL image
@@ -2398,6 +2396,7 @@ class CaImagingPoller(Poller):
                     if len(par_value) == 1:
                         par_value = par_value[0]
                     self.parameters[pn] = par_value
+            self.parameters['pattern'] = str(self.parent.central_widget.calibration_widget.calib_scan_pattern.pattern.currentText())
             for pn, widget in self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets.items():
                 if hasattr(widget, 'input'):
                     try:
@@ -2418,8 +2417,10 @@ class CaImagingPoller(Poller):
     def calib_ready(self):
         self.printc('Calibration ready')
         self.update_scan_run_status('ready')
-        if not self.queues['data'].empty():
-            self.emit(QtCore.SIGNAL('plot_calibdata'))
+        while True:
+            if not self.queues['data'].empty():
+                self.emit(QtCore.SIGNAL('plot_calibdata'))
+                break
             
     ####### Helpers ###########
     def _select_ai_channel(self):

@@ -36,6 +36,18 @@ STYLE = 'background-color:#303030;color:#D0D0D0;selection-color:#0000A0;selectio
 STYLE='background-color:#C0C0C0;'
 #STYLE=''
 
+def plot(widget, x, y, name, color,  width = 1, clear = False):
+    if clear:
+        widget.clear()
+    setattr(widget, name, Qwt.QwtPlotCurve(name))
+    getattr(widget, name).setRenderHint(Qwt.QwtPlotItem.RenderAntialiased)
+    getattr(widget, name).attach(widget)
+    pen1 = Qt.QPen(color)
+    pen1.setWidth(width)
+    getattr(widget, name).setPen(pen1)
+    getattr(widget, name).setData(x, y)
+    widget.replot()
+
 class CalibrationScanningPattern(gui.GroupBox):
     def __init__(self, parent):
         gui.GroupBox.__init__(self, parent, 'Calibration scanning pattern')
@@ -43,6 +55,8 @@ class CalibrationScanningPattern(gui.GroupBox):
     def create_widgets(self):
         self.pattern = QtGui.QComboBox(self)
         self.pattern.addItems(QtCore.QStringList(['Sine',  'Scanner']))
+        self.pattern.setEditable(True)
+        
         self.widgets = {'scanning_range' : gui.LabeledInput(self, 'Scanning range [um]'), 
                                     'repeats' : gui.LabeledInput(self, 'Repeats'), 'start': QtGui.QPushButton('Run',  self), 
                                     'enable_fft_filter' : gui.LabeledCheckBox(self, 'Enable FFT Filter'), 
@@ -407,7 +421,10 @@ class CaImagingGui(Qt.QMainWindow):
         self.show()
         self.init_widget_content()
         self.poller.init_debug()
-        self.poller.update_main_image()
+        try:
+            self.poller.update_main_image()
+        except:
+            pass
         if qt_app is not None: qt_app.exec_()
         
     def create_widgets(self):
@@ -421,6 +438,8 @@ class CaImagingGui(Qt.QMainWindow):
                     ref = introspect.string2objectreference(self,ref_string.replace('parent.',''))
                 except:
                     continue
+                if hasattr(ref, 'setEditText'):
+                    ref.setEditText(value)
                 if hasattr(ref,'setCheckState'):
                     ref.setCheckState(int(value))
                 elif hasattr(ref,'setEditText'):
@@ -465,61 +484,70 @@ class CaImagingGui(Qt.QMainWindow):
     def show_image(self, image, scale=None, origin=None):
 #        import Image
 #        Image.fromarray(image).save('c:\\temp\\im.bmp')
-        self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image))#, utils.rc((600, 600))))
+#        self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image))#, utils.rc((600, 600))))
+        self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image, utils.rc((600, 600))))
         
     def plot_histogram(self, x, hist, lut):
-        self.central_widget.image_analysis.plot.clear()
-        self.central_widget.image_analysis.plot.histogram = Qwt.QwtPlotCurve('H')
-        self.central_widget.image_analysis.plot.histogram.setRenderHint(Qwt.QwtPlotItem.RenderAntialiased)
-        self.central_widget.image_analysis.plot.histogram.attach(self.central_widget.image_analysis.plot)
-        pen1 = Qt.QPen(Qt.Qt.red)
-        pen1.setWidth(1)
-        self.central_widget.image_analysis.plot.histogram.setPen(pen1)
-        self.central_widget.image_analysis.plot.histogram.setData(x, hist)
+        plot(self.central_widget.image_analysis.plot, x, hist, 'hist', color = Qt.Qt.red,  width = 1, clear = True)
         if lut is not None:
-            self.central_widget.image_analysis.plot.lut = Qwt.QwtPlotCurve('LUT')
-            self.central_widget.image_analysis.plot.lut.setRenderHint(Qwt.QwtPlotItem.RenderAntialiased)
-            self.central_widget.image_analysis.plot.lut.attach(self.central_widget.image_analysis.plot)
-            pen2 = Qt.QPen(Qt.Qt.black)
-            pen2.setWidth(1.5)
-            self.central_widget.image_analysis.plot.lut.setPen(pen2)
-            self.central_widget.image_analysis.plot.lut.setData(x, lut)
+            plot(self.central_widget.image_analysis.plot, x, lut, 'lut', color = Qt.Qt.black,  width = 1.5)
         self.central_widget.calibration_widget.plot.replot()
 
     def plot_calibdata(self):
         calibdata = self.poller.queues['data'].get()
-        self.central_widget.calibration_widget.plot.setdata(calibdata['pmt'][:, 0], penwidth=1.5, color=Qt.Qt.black)
+        if calibdata['parameters']['pattern'] =='Sine':#y signals are not displayed
+            plot_range = calibdata['pmt'].shape[0]/2
+        elif calibdata['parameters']['pattern'] =='Scanner':
+            plot_range = calibdata['pmt'].shape[0]
+        bf = calibdata['parameters']['binning_factor']
+        self.central_widget.calibration_widget.plot.setdata(calibdata['pmt'][:, 0][0:plot_range], penwidth=1.5, color=Qt.Qt.black)
         if calibdata['pmt'].shape[1] ==2:
-            self.central_widget.calibration_widget.plot.adddata(calibdata['pmt'][:, 1],color=Qt.Qt.black, penwidth=1.5)
-        self.central_widget.calibration_widget.plot.adddata(calibdata['waveform'][:, 0],color=Qt.Qt.green, penwidth=1.5)
-        self.central_widget.calibration_widget.plot.adddata(calibdata['waveform'][:, 1],color=Qt.Qt.red, penwidth=1.5)
-        self.central_widget.calibration_widget.plot.adddata(calibdata['mask'],color=Qt.Qt.blue, penwidth=1.5)
+            self.central_widget.calibration_widget.plot.adddata(calibdata['pmt'][:, 1][0:plot_range],color=Qt.Qt.black, penwidth=1.5)
+        self.central_widget.calibration_widget.plot.adddata(utils.resample_array(calibdata['waveform'][:, 0], bf)[0:plot_range],color=Qt.Qt.green, penwidth=1.5)
+        if calibdata['parameters']['pattern'] =='Scanner':
+            self.central_widget.calibration_widget.plot.adddata(utils.resample_array(calibdata['waveform'][:, 1], bf)[0:plot_range],color=Qt.Qt.red, penwidth=1.5)
+        self.central_widget.calibration_widget.plot.adddata(utils.resample_array(calibdata['mask'], bf)[0:plot_range], color=Qt.Qt.blue, penwidth=1.5)
         self.central_widget.calibration_widget.plot.replot()
+            
         if calibdata['parameters'].has_key('POSITION_TO_SCANNER_VOLTAGE'):
             pos2voltage = calibdata['parameters']['POSITION_TO_SCANNER_VOLTAGE']
         else:
             pos2voltage = self.config.POSITION_TO_SCANNER_VOLTAGE
-        overshoot = ((calibdata['waveform'][:,0].max() - calibdata['waveform'][:,0].min()) - calibdata['parameters']['scanning_range']*pos2voltage)/pos2voltage
-        line_rate = 1.0/(calibdata['waveform'][:, 0].shape[0]/(calibdata['parameters']['AO_SAMPLE_RATE']*calibdata['parameters']['repeats']*4))
-        self.printc(
-                    'Accel max: {0:.3e} um/s2,  max speed {1:.3e} um/s, overshoot {2:2.3f} um, line rate: {3:3.1f} Hz, scan time efficiency {4:2.1f} %'
-                    .format(calibdata['accel_speed']['accel_x'].max(), calibdata['accel_speed']['speed_x'].max(),  overshoot, line_rate,  100.0*calibdata['mask'].sum()/calibdata['mask'].shape[0]))
-        try:
-            for axis in calibdata['profile_parameters'].keys():
-                for dir in calibdata['profile_parameters'][axis].keys():
-                    self.printc('{0}, {1}, sigma {2}, delay {3}'
-                                    .format(axis, dir, numpy.round(calibdata['profile_parameters'][axis][dir]['sigma'], 4), numpy.round(calibdata['profile_parameters'][axis][dir]['delay'], 4)))
-            self.show_image(calibdata['line_profiles'])
-        except:
-            pass
+        if not calibdata['parameters'].has_key('pattern') or calibdata['parameters']['pattern'] =='Sine':
+            self.printc(calibdata['bode']['frq'])
+            self.printc(calibdata['bode']['amplitude'][0])
+            self.printc(calibdata['bode']['phase'][0])
+            plot(self.central_widget.image_analysis.plot, calibdata['bode']['frq'], calibdata['bode']['amplitude'][0], 'x_amplitude', color = Qt.Qt.red, clear = True)
+            plot(self.central_widget.image_analysis.plot, calibdata['bode']['frq'], calibdata['bode']['phase'][0], 'x_phase', color = Qt.Qt.yellow)
+#            plot(self.central_widget.image_analysis.plot, calibdata['bode']['frq'], calibdata['bode']['amplitude'][1], 'y_amplitude', color = Qt.Qt.green)
+#            plot(self.central_widget.image_analysis.plot, calibdata['bode']['frq'], calibdata['bode']['phase'][1], 'y_phase', color = Qt.Qt.blue)
+            self.printc('Scanner speeds {0}'.format(calibdata['scanner_speed']))
+        elif calibdata['parameters']['pattern'] =='Scanner':
+            overshoot = ((calibdata['waveform'][:,0].max() - calibdata['waveform'][:,0].min()) - calibdata['parameters']['scanning_range']*pos2voltage)/pos2voltage
+            line_rate = 1.0/(calibdata['waveform'][:, 0].shape[0]/(calibdata['parameters']['AO_SAMPLE_RATE']*calibdata['parameters']['repeats']*4))
+            self.printc(
+                        'Accel max: {0:.3e} um/s2,  max speed {1:.3e} um/s, overshoot {2:2.3f} um, line rate: {3:3.1f} Hz, scan time efficiency {4:2.1f} %'
+                        .format(calibdata['accel_speed']['accel_x'].max(), calibdata['accel_speed']['speed_x'].max(),  overshoot, line_rate,  100.0*calibdata['mask'].sum()/calibdata['mask'].shape[0]))
+            try:
+                for axis in calibdata['profile_parameters'].keys():
+                    for dir in calibdata['profile_parameters'][axis].keys():
+                        self.printc('{0}, {1}, sigma {2}, delay {3}'
+                                        .format(axis, dir, numpy.round(calibdata['profile_parameters'][axis][dir]['sigma'], 4), numpy.round(calibdata['profile_parameters'][axis][dir]['delay'], 4)))
+                self.show_image(calibdata['line_profiles'])
+            except:
+                self.printc(traceback.format_exc())
 
     def fromfile(self):
         from visexpA.engine.datahandlers import hdf5io
         p = os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5')
-        p = '/mnt/databig/software_test/ref_data/scanner_calib/calib_repeats.hdf5'
+#        p = '/mnt/databig/software_test/ref_data/scanner_calib/calib_repeats.hdf5'
+#        p = '/mnt/databig/software_test/ref_data/scanner_calib/sine_calib.hdf5'
         calibdata = hdf5io.read_item(p, 'calibdata', filelocking=False)
         from visexpman.engine.hardware_interface import scanner_control
-        calibdata['profile_parameters'], calibdata['line_profiles'] = scanner_control.process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])
+        if not calibdata.has_key('pattern') or calibdata['pattern'] =='Sine':
+            calibdata['bode'] = scanner_control.scanner_bode_diagram(calibdata['pmt'], calibdata['mask'], calibdata['parameters']['scanner_speed'], self.config.SINUS_CALIBRATION_MAX_LINEARITY_ERROR)
+        elif calibdata['pattern'] =='Scanner':
+            calibdata['profile_parameters'], calibdata['line_profiles'] = scanner_control.process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'], self.config.SINUS_CALIBRATION_MAX_LINEARITY_ERROR)
         self.poller.queues['data'].put(calibdata)
         self.plot_calibdata()
         

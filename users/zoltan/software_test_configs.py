@@ -36,7 +36,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         self.COMMAND_RELAY_SERVER['ENABLE'] = False
         self.BASE_PORT = 20000
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
-            {#TODO: probably IP addresses are not necessary here
+            {
             'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
             'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
@@ -56,6 +56,7 @@ class CaImagingTestConfig(configuration.VisionExperimentConfig):
         self.SCANNER_HOLD_TIME = 30.0e-3
         self.SCANNER_SETTING_TIME = [3e-4, 1e-3]#This time constraint sets the speed of scanner (lenght of transient)
         SCANNER_TRIGGER_CONFIG = {'offset': 0.0, 'pulse_width': 20.0e-6, 'amplitude':5.0, 'enable':False}
+        self.SINUS_CALIBRATION_MAX_LINEARITY_ERROR = 10e-2
         self.PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'AI' : 0,'COLOR': 'RED', 'ENABLE': False}}
         DAQ_CONFIG = [

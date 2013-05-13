@@ -140,7 +140,6 @@ class AEPHVS(VisionExperimentConfig):
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = v_drive_data_folder
-        CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         
         #=== screen ===
         FULLSCREEN = True
@@ -189,6 +188,32 @@ class AEPHVS(VisionExperimentConfig):
                     'ENABLE' : True
                     },
                     ]
+                    
+        self.GAMMA_CORRECTION = numpy.array([
+                                             [0, 15.6], 
+                                             [20, 54],
+                                             [40, 175], 
+                                             [60, 500],
+                                             [70, 725], 
+                                             [80, 996],
+                                             [90, 1300], 
+                                             [100, 1630],
+                                             [110, 2000],
+                                             [120, 2400], 
+                                             [130, 2850], 
+                                             [140, 3250], 
+                                             [150, 3810], 
+                                             [160, 4460],
+                                             [165, 4820], 
+                                             [170, 5130],  
+                                             [180, 5890], 
+                                             [190, 6630], 
+                                             [200, 7430],
+                                             [210, 8300], 
+                                             [220, 9000], 
+                                             [230, 9500],
+                                             [255, 9500], 
+                                             ])
         #=== Others ===
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
         self._create_parameters_from_locals(locals(), check_path = check_path)
@@ -199,23 +224,25 @@ class MEASetup(AEPHVS):
     '''
     def _set_user_parameters(self):
         AEPHVS._set_user_parameters(self, check_path=False)
-        FULLSCREEN = not True#TMP
-        SCREEN_RESOLUTION = utils.rc((1024, 768))
+        FULLSCREEN = True#TMP
+        SCREEN_RESOLUTION = utils.cr((1024, 768))
         SCREEN_EXPECTED_FRAME_RATE = 60.0#TMP
         SCREEN_MAX_FRAME_RATE = 60.0#TMP
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0#TMP
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0#Has to be adjusted
         ENABLE_UDP = False
 
         PLATFORM = 'standalone'
-        root_folder = '/home/mouse/visexp/data'
-        LOG_PATH = r'/home/mouse/visexp/data/log'
+        root_folder = 'c:\\Data'
+        LOG_PATH = 'c:\\Data\\log'
         DATA_PATH = root_folder
         EXPERIMENT_DATA_PATH = root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH
-        ENABLE_PARALLEL_PORT = not True#TMP
-        ACQUISITION_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 0
-        
+        ENABLE_PARALLEL_PORT = True
+        ACQUISITION_TRIGGER_PIN = 4
+        FRAME_TRIGGER_PIN = 6
+        self.DAQ_CONFIG[0]['ENABLE'] = False
+        self.DAQ_CONFIG[1]['ENABLE'] = False
+        del self.GAMMA_CORRECTION#Gamma calibration has to be done
         self._create_parameters_from_locals(locals())
 
 if __name__ == "__main__":    

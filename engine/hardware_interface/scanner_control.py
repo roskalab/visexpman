@@ -510,6 +510,7 @@ class TwoPhotonScanner(instrument.Instrument):
             self.binning_factor = int(self.binning_factor)
             
     def start_measurement(self, scanner_x, scanner_y,  trigger = None):
+#        print scanner_x.shape, scanner_y.shape
         #Convert from position to voltage
         self.scanner_positions = numpy.array([scanner_x, scanner_y])
         if trigger is not None:
@@ -534,7 +535,8 @@ class TwoPhotonScanner(instrument.Instrument):
                     self.speeds[axis]['scan'] = speeds[numpy.nonzero(speeds)[0]].mean()
         #calculate maximal movement on x axis
         self.maximal_movement = scanner_x.max() - scanner_x.min()
-        self.boundaries = numpy.nonzero(numpy.diff(self.scan_mask))[0]+1
+        if hasattr(self.scan_mask, 'dtype'):
+            self.boundaries = numpy.nonzero(numpy.diff(self.scan_mask))[0]+1
         self.open_shutter()
         self.aio.start_daq_activity()
         
@@ -592,13 +594,14 @@ class TwoPhotonScanner(instrument.Instrument):
             scan_mask2trigger(trigger_signal_config['offset'], trigger_signal_config['width'], trigger_signal_config['amplitude'])
         self.start_measurement(pos_x, pos_y, self.trigger_signal)
         
-    def read_pmt(self):
+    def read_pmt(self, collect_data):
         #This function shal run in the highest priority process
         self.raw_pmt_frame = self.aio.read_analog()
-        self.pmt_raw.append(self.raw_pmt_frame)
+        if collect_data:
+            self.pmt_raw.append(self.raw_pmt_frame)
         return copy.deepcopy(self.raw_pmt_frame)
         
-    def finish_measurement(self):
+    def finish_measurement(self, generate_frames = True):
         self.aio.finish_daq_activity()
         self.close_shutter()
         #value of ao at stopping continous generation is unknown
@@ -609,10 +612,11 @@ class TwoPhotonScanner(instrument.Instrument):
             time.sleep(1.0)
             self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr((0.0, 0.0)), self.config.SCANNER_RAMP_TIME)
         #Gather measurment data
-        if hasattr(self, 'sinus_pattern') and self.sinus_pattern:
-            self.data = numpy.array([frame_from_sinus_pattern_scan(raw_pmt_data, self.scan_mask, self.backscan, self.binning_factor) for raw_pmt_data in self.pmt_raw])#dimension: time, subframe, height, width, channels
-        else:
-            self.data = numpy.array([raw2frame(raw_pmt_data, self.binning_factor, self.boundaries) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
+        if generate_frames:
+            if hasattr(self, 'sinus_pattern') and self.sinus_pattern:
+                self.data = numpy.array([frame_from_sinus_pattern_scan(raw_pmt_data, self.scan_mask, self.backscan, self.binning_factor) for raw_pmt_data in self.pmt_raw])#dimension: time, subframe, height, width, channels
+            else:
+                self.data = numpy.array([raw2frame(raw_pmt_data, self.binning_factor, self.boundaries) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
         
     def open_shutter(self):
         self.shutter.set()
@@ -625,10 +629,19 @@ class TwoPhotonScanner(instrument.Instrument):
         self.shutter.release_instrument()
         
 ####### Helpers #####################
-def raw2frame(rawdata,  binning_factor,  boundaries):
+def raw2frame(rawdata, binning_factor, boundaries, b = False):
+#    if b:
+#        import pdb
+#        import Image
+#        from visexpA.engine.dataprocessors.generic import normalize
+#        pdb.set_trace()
+#    if rawdata.shape[1] == 2:
+#        binned_pmt_data = binning_data(rawdata[:, 1:], binning_factor)
+#    else:
     binned_pmt_data = binning_data(rawdata, binning_factor)
+#    return numpy.array((numpy.split(rawdata, boundaries)[1::2]))
     return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
-    
+
 def binning_data(data, factor):
     '''
     data: two dimensional pmt data : 1. dim: pmt signal, 2. dim: channel
@@ -654,7 +667,8 @@ def scan_mask2trigger(scan_mask,  offset,  width,  amplitude, ao_sample_rate):
     
     high_value_indexes = (numpy.array([range(width_samples)]*trigger_rising_edges.shape[0])+numpy.array([trigger_rising_edges.tolist()]*width_samples).T).flatten()
     trigger_signal = numpy.zeros_like(trigger_mask, dtype = numpy.float64)
-    trigger_signal[high_value_indexes] = amplitude
+    if len(high_value_indexes) > 0:
+        trigger_signal[high_value_indexes] = amplitude
     trigger_signal *= trigger_mask
     return trigger_signal
         
@@ -741,14 +755,14 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             frame_ct = 0
             #start scan loop
             while True:
-                self.queues['frame'].put(self.tp.read_pmt())                    
+                self.queues['frame'].put(self.tp.read_pmt(collect_data = parameters['enable_recording']))                    
                 frame_ct += 1
                 if (not self.queue_in[0].empty() and self.queue_in[0].get() == 'stop_scan') or frame_ct == nframes or frame_ct >= self.max_nframes:
                     break
                 time.sleep(0.01)
             #Finish, save
             self.printc('Scanning ended, {0} frames recorded' .format(frame_ct))
-            self.tp.finish_measurement()
+            self.tp.finish_measurement(generate_frames = parameters['enable_recording'])
             if parameters['enable_recording']:
                 self._save_cadata(config, parameters)
             self.printc('scan_ready')
@@ -801,6 +815,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             h.save(data_to_save.keys())
             h.close()
         self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
+#        return
         if self.filenames.has_key('other_files') and 'tiff' in self.filenames['other_files'][0]:
             import tiffile
             from visexpA.engine.dataprocessors import generic
@@ -837,10 +852,18 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 return
             if not isinstance(parameters['scanner_speed'],  list):
                 parameters['scanner_speed'] = [parameters['scanner_speed']]
-            lines = generate_test_lines(parameters['scanning_range'], int(parameters['repeats']), parameters['scanner_speed'])
+            if parameters['pattern']  == 'Scanner':
+                lines = generate_test_lines(parameters['scanning_range'], int(parameters['repeats']), parameters['scanner_speed'])
             self.tp = TwoPhotonScanner(config)
             try:
-                self.tp.start_line_scan(lines, setting_time = parameters['SCANNER_SETTING_TIME'], filter = parameters)
+                if parameters['pattern']  == 'Scanner':
+                    self.tp.start_line_scan(lines, setting_time = parameters['SCANNER_SETTING_TIME'], filter = parameters)
+                elif parameters['pattern']  == 'Sine':
+                    self.tp.scan_mask_per_axis = {}
+                    pos_x, pos_y, self.tp.scan_mask_per_axis['x'], self.tp.scan_mask_per_axis['y'], speeds = \
+                                generate_sinus_calibration_signal(parameters['scanner_speed'], parameters['scanning_range'], int(parameters['repeats']), self.tp.aio.daq_config['AO_SAMPLE_RATE'], max_linearity_error = self.config.SINUS_CALIBRATION_MAX_LINEARITY_ERROR)
+                    self.tp.scan_mask = self.tp.scan_mask_per_axis['x'] + self.tp.scan_mask_per_axis['y']
+                    self.tp.start_measurement(pos_x, pos_y, trigger = numpy.zeros_like(pos_x))
             except:
                 self.printc(traceback.format_exc())
                 self.printc('calib_ready')
@@ -863,17 +886,23 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                 calibdata = {}
                 calibdata['pmt'] = copy.deepcopy(self.tp.raw_pmt_frame)
                 calibdata['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
-                calibdata['scanner_speed'] = parameters['scanner_speed']
-                calibdata['accel_speed'] = self.tp.accel_speed
+                parameters['binning_factor'] = self.tp.binning_factor
+                if parameters['pattern']  == 'Scanner':
+                    calibdata['scanner_speed'] = parameters['scanner_speed']
+                    calibdata['accel_speed'] = self.tp.accel_speed
+                elif parameters['pattern']  == 'Sine':
+                    calibdata['scanner_speed'] = speeds
                 calibdata['mask'] = self.tp.scan_mask
                 calibdata['parameters'] = parameters
-                profile_parameters, line_profiles = process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])
-                calibdata['profile_parameters'] = profile_parameters
-                calibdata['line_profiles'] = line_profiles
-                hdf5io.save_item(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5'), 'calibdata', calibdata, overwrite=True, filelocking=False)
+                if parameters['pattern']  == 'Scanner':
+                    profile_parameters, line_profiles = process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])
+                    calibdata['profile_parameters'] = profile_parameters
+                    calibdata['line_profiles'] = line_profiles
+                elif parameters['pattern']  == 'Sine':
+                    calibdata['bode'] = scanner_bode_diagram(calibdata['pmt'], calibdata['mask'], calibdata['parameters']['scanner_speed'], self.config.SINUS_CALIBRATION_MAX_LINEARITY_ERROR)
+                hdf5io.save_item(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5')), 'calibdata', calibdata, overwrite=True, filelocking=False)
                 self.queues['data'].put(calibdata)
             self.printc('calib_ready')
-            
     
 def two_photon_scanner_process(config, queues):
     '''
@@ -933,10 +962,14 @@ def process_calibdata(pmt, mask, parameters):
             profile_parameters[axis][dir]['delay'] = []
     for line in lines:
         for k, v in line.items():
-            p0 = [1., v.shape[0]/2.0, 1.]
-            coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(v.shape[0]), v, p0=p0)
-            delay = coeff[1]/(v.shape[0])
-            sigma = coeff[2]/(v.shape[0])
+            try:
+                p0 = [1., v.shape[0]/2.0, 1.]
+                coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(v.shape[0]), v, p0=p0)
+                delay = coeff[1]/(v.shape[0])
+                sigma = coeff[2]/(v.shape[0])
+            except:
+                delay = 0.5
+                sigma = 0.25
             profile_parameters[k.split('_')[0]][k.split('_')[1]]['delay'].append(delay)
             profile_parameters[k.split('_')[0]][k.split('_')[1]]['sigma'].append(sigma)
             resampled = scipy.misc.imresize(numpy.array([v]), (1, int(ncols)))[0,:]
@@ -956,6 +989,85 @@ def process_calibdata(pmt, mask, parameters):
             line_profiles[line_index: line_index + line_width,:, 2] = calculated
         line_counter += 2
     return profile_parameters, line_profiles
+    
+def generate_sinus_calibration_signal(frqs, amplitude, repeats, fs, max_linearity_error=1e-2):
+    chunks = []
+    speeds = numpy.array(frqs)*amplitude*numpy.pi
+    mask  = []
+    for frq in frqs:
+        duration = repeats/float(frq)
+        t = numpy.linspace(0, duration, fs*duration, False)
+        phases = 2*numpy.pi*t*frq
+        chunk = 0.5*amplitude*numpy.sin(phases)
+        chunks.append(chunk)
+        linearity_range = utils.sinus_linear_range(max_linearity_error)
+        linearity_range_samples = int(numpy.round(linearity_range/(2*numpy.pi*repeats)*duration*fs))
+        step = t.shape[0]/repeats
+        offset = step/2
+        starts = numpy.arange(repeats)*step+offset - linearity_range_samples
+        mask_chunk = numpy.zeros_like(t)
+        for start in starts:
+            mask_chunk[start:start+2*linearity_range_samples] = 1.0
+        mask.append(mask_chunk)
+    pos_x = numpy.concatenate(chunks)
+    mask = numpy.concatenate(mask)
+    mask_x = numpy.concatenate((mask, numpy.zeros_like(mask)))
+    mask_y = numpy.concatenate((numpy.zeros_like(mask), mask))
+    t = numpy.linspace(0, pos_x.shape[0]/float(fs)*2, pos_x.shape[0]*2, False)
+    pos_y = numpy.concatenate((numpy.zeros_like(pos_x), pos_x))
+    pos_x = numpy.concatenate((pos_x, numpy.zeros_like(pos_x)))
+#    from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+#    plot(t, pos_x)
+#    plot(t, pos_y)
+#    plot(t, mask_x)
+#    plot(t, mask_y)
+#    show()
+    return pos_x, pos_y, mask_x, mask_y, speeds
+    
+def scanner_bode_diagram(pmt, mask, frqs, max_linearity_error):
+    '''
+    Generate Bode diagram of both scanners based on calibration data
+    '''
+    bode_amplitudes = []
+    bode_phases = []
+    sigmas = []
+    means = []
+    signals = []
+    gauss_amplitudes = []
+    for axis_i in range(2):#x and y part of the data
+        pmt_chunk = pmt[axis_i*pmt.shape[0]/2:(axis_i+1)*pmt.shape[0]/2]
+        mask_chunk = mask[axis_i*mask.shape[0]/2:(axis_i+1)*mask.shape[0]/2]
+        boundaries = numpy.nonzero(numpy.diff(mask_chunk))[0]
+        repeats = boundaries.shape[0]/2/len(frqs)
+        bode_amplitude = []
+        bode_phase = []
+        for frq_i in range(len(frqs)):
+            traces = []
+            for repeat in range(repeats):
+                start_i = boundaries[2*(frq_i*repeats+repeat)]
+                end_i = boundaries[2*(frq_i*repeats+repeat)+1]
+                traces.append(pmt_chunk[start_i: end_i][:,0])
+            signal = numpy.array(traces).mean(axis=0)
+            try:
+                p0 = [1., 0.5*signal.shape[0], 1.]
+                p0 = [1., signal.argmax(), 1.]
+                coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(signal.shape[0]), signal, p0=p0)
+                mean = coeff[1]/(signal.shape[0])#phase characteristic
+                sigma = coeff[2]/(signal.shape[0])#amplitude characteristic
+            except RuntimeError:
+                mean = 0.5
+                sigma = 0.25
+            sigmas.append(sigma)
+            means.append(mean)
+            signals.append(signal)
+            gauss_amplitudes.append(coeff[0])
+            bode_amplitude.append(sigma)
+            bode_phase.append(mean)
+        bode_amplitude = numpy.array(bode_amplitude)/bode_amplitude[0]#assuming that amplitude gain is 1.0 at the lowest frequency
+        bode_phase = 2*utils.sinus_linear_range(max_linearity_error)*(numpy.array(bode_phase) - bode_phase[0])#assuming that there is not phase shift at the lowest frequency
+        bode_amplitudes.append(bode_amplitude)
+        bode_phases.append(bode_phase)
+    return {'frq': numpy.array(frqs), 'amplitude': bode_amplitudes, 'phase': bode_phases, 'sigmas': sigmas, 'means':means, 'signals' :signals, 'gauss_amplitudes':gauss_amplitudes}
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):
@@ -1119,8 +1231,8 @@ class TestScannerControl(unittest.TestCase):
         config = ScannerTestConfig()
         config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'aio'
         config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
-        config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 250000
-        config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 500000
+        config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 400000
+        config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 400000
         config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
         config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
         config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
@@ -1236,11 +1348,12 @@ class TestScannerControl(unittest.TestCase):
         plot(tp.scanner_positions.T)
         show()
         
-    @unittest.skip('Run only for debug purposes')    
+#    @unittest.skip('Run only for debug purposes')    
     def test_09_fft_scan_signal(self):
         from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
         import scipy
         import scipy.fftpack
+        from visexpman.engine.generic.introspect import Timer
         config = ScannerTestConfig()
 #        fs = 10000
 #        
@@ -1249,7 +1362,10 @@ class TestScannerControl(unittest.TestCase):
 #        ideal_signal = numpy.concatenate((numpy.linspace(0, 1, t.shape[0]*tup, False), numpy.linspace(1, 0, t.shape[0]*tdown, False)))
 #        ideal_signal = numpy.sin(2*numpy.pi*t)
 
-
+        #NOTE1: Is there significant difference between pixel size of the different lines??????
+        #NOTE2: how to use interpolation for distorting samples by pixel_size
+        #NOTE3: Applying scanner transfer function shall be faster, consider transformation to complex frequency domain 
+        #NOTE4: nominal, real scanner position, fix interpretation/terminology of signals
         spatial_resolution = 2
         spatial_resolution = 1.0/spatial_resolution
         position = utils.rc((0, 0))
@@ -1257,23 +1373,44 @@ class TestScannerControl(unittest.TestCase):
         setting_time = [3e-4, 2e-3]
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
-        fmax = 2000
-        t, x = spectral_filtering(pos_x, fmax, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
-        t, y = spectral_filtering(pos_y, fmax, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
+        fmax = 2200
+        with Timer(''):
+            t, x = spectral_filtering(pos_x, fmax, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
+            t, y = spectral_filtering(pos_y, fmax, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
         #Error
         x_error = abs(pos_x-x)*scan_mask
         y_error = abs(pos_y-y)*scan_mask
-        print x_error.max(), numpy.histogram(x_error)
-        print y_error.max(), numpy.histogram(y_error)
+        print x_error.max()#, numpy.histogram(x_error)
+        print y_error.max()#, numpy.histogram(y_error)
+        #small rotation caused y signal:
+        print numpy.arctan(4*y_error.max()/size['col'])*180/numpy.pi 
         figure(1)
         plot(t, pos_x)
-        plot(t, x)
+        plot(t, x*scan_mask)
+        plot(t, scan_mask*2*max(pos_x.max(), x.max())-max(pos_x.max(), x.max()))
 #        figure(2)
 #        plot(t, pos_y)
 #        plot(t, y)
+#        plot(t, scan_mask*2*max(pos_x.max(), x.max())-max(pos_x.max(), x.max()))
+        with Timer(''):
+            pixel_size = numpy.zeros_like(scan_mask)
+            pixel_size[1:] = numpy.diff(x)
+            masked_sample_size = numpy.zeros_like(scan_mask)
+            masked_sample_size[1:] = numpy.diff(pos_x)*scan_mask[:-1]
+            if masked_sample_size.min() >= 0 and masked_sample_size.max() > 0:
+                pixel_size = numpy.where(pixel_size<0, 0, pixel_size)
+            elif masked_sample_size.min() < 0 and masked_sample_size.max() <= 0:
+                pixel_size = numpy.where(pixel_size>0, 0, pixel_size)        
+        figure(3)
+        plot(numpy.diff(pos_x)*scan_mask[:-1])
+        plot(numpy.diff(x)*scan_mask[:-1])
+        plot(pixel_size)
+        #Pixels shall be dropped where resolution (step size between adjecent samples) is subzero.
+        #Where step size increases, horizontal size of pixels are also increased, thus multiple pixels have the same value on the output image.
+        #At smaller step sizes multiple samples are averaged into one pixel
         show()
         
-    @unittest.skip('Run only for debug purposes')    
+    @unittest.skip('')    
     def test_10_process_calibdata(self):
         p = '/mnt/databig/software_test/ref_data/scanner_calib/calib_repeats.hdf5'
         calibdata = hdf5io.read_item(p, 'calibdata', filelocking=False)
@@ -1281,10 +1418,20 @@ class TestScannerControl(unittest.TestCase):
         profile_parameters, line_profiles = process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'])
         from visexpman.engine.generic import colors
         colors.imshow(line_profiles)
-        
     
-#    @unittest.skip('Run only for debug purposes')    
-    def test_11_calculate_trigger_signal(self):
+    @unittest.skip('')    
+    def test_11_process_sine_calibdata(self):
+        p = '/mnt/databig/software_test/ref_data/scanner_calib/sine_calib.hdf5'
+        calibdata = hdf5io.read_item(p, 'calibdata', filelocking=False)
+        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+        pmt = calibdata['pmt']
+        mask = calibdata['mask']
+        frqs = calibdata['parameters']['scanner_speed']
+        print scanner_bode_diagram(pmt, mask, frqs)
+        pass
+    
+    @unittest.skip('')
+    def test_12_calculate_trigger_signal(self):
         config = ScannerTestConfig()
         spatial_resolution = 2
         spatial_resolution = 1.0/spatial_resolution
@@ -1295,6 +1442,56 @@ class TestScannerControl(unittest.TestCase):
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         trigger_signal = scan_mask2trigger(scan_mask, 0, 20.0e-6, 1.0, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
         pass
+        
+    @unittest.skip('Run only for debug purposes')
+    def test_13_run_twophoton(self):
+        import time
+        import Image
+        from visexpA.engine.dataprocessors.generic import normalize
+        plot_enable = not False
+        config = ScannerTestConfig()
+        config.DAQ_CONFIG[0]['ANALOG_CONFIG'] = 'aio'
+        config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
+        config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 200000
+        config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 200000
+        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
+        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
+        config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
+        config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
+        spatial_resolution = 2
+        spatial_resolution = 1.0/spatial_resolution
+        position = utils.rc((0, 0))
+        size = utils.rc((128, 128))
+        setting_time = [3e-4, 2e-3]        
+        tp = TwoPhotonScanner(config)
+        tp.start_rectangular_scan(size, spatial_resolution =  spatial_resolution, setting_time = setting_time)
+        for i in range(3):
+            tp.read_pmt()
+        tp.finish_measurement()
+        tp.release_instrument()
+        Image.fromarray(numpy.cast['uint8'](80*(tp.data[0,:,:,0]+2))).save('v:\\debug\\ch0.png')
+        Image.fromarray(numpy.cast['uint8'](80*(tp.data[0,:,:,1]+2))).save('v:\\debug\\ch1.png')
+        if plot_enable:
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+            figure(1)
+            plot(tp.pmt_raw[0])
+            figure(2)
+            plot(tp.data[0][0][:,0])
+            plot(tp.data[0][0][:,1])
+            figure(3)
+            plot(tp.data[0][1][:,0])
+            plot(tp.data[0][1][:,1])
+            figure(4)
+            plot(tp.scanner_positions.T)
+            show()
+
+    @unittest.skip('Run only for debug purposes')
+    def test_14_generate_sinus_calibration_signal(self):
+        repeats = 3
+        amplitude = 20#um
+        speeds = [1000, 2000]#um/s
+        fs = 400000
+        posx, posy, mask_x, mask_y, speeds = generate_sinus_calibration_signal(speeds, amplitude, repeats, fs)
         
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)

@@ -7,6 +7,7 @@ import ctypes
 import os
 import os.path
 import unittest
+from visexpman.engine.generic import configuration
 
 class VideoCamera(instrument.Instrument):
     def __init__(self, config):
@@ -60,6 +61,7 @@ class ImagingSourceCamera(VideoCamera):
         if self.dllref.IC_SetFrameRate(self.grabber_handle,  ctypes.c_float(self.frame_rate)) != 1:
             raise RuntimeError('Setting frame rate did not succeed')
         self.snap_timeout = self.dllref.IC_GetFrameRate(self.grabber_handle)
+#        print self.dllref.IC_SetCameraProperty(self.grabber_handle, 4, ctypes.c_long(self.snap_timeout))#Exposure time
         self.isrunning = False
         self.frame_counter = 0
         self.framep = []
@@ -115,13 +117,21 @@ class ImagingSourceCamera(VideoCamera):
     def close(self):
         self.dllref.IC_CloseVideoCaptureDevice(self.grabber_handle) 
         self.dllref.IC_CloseLibrary()
+
+class TestConfig(configuration.Config):
+    def _create_application_parameters(self):
+#        self.CAMERA_FRAME_RATE = 30.0
+#        VIDEO_FORMAT = 'RGB24 (744x480)'
+        self.CAMERA_FRAME_RATE = 160.0
+        VIDEO_FORMAT = 'RGB24 (320x240)'
+        self._create_parameters_from_locals(locals())
                 
 class TestCamera(unittest.TestCase):
     def test_01_record_some_frames(self):
-        cam = ImagingSourceCamera(None)
+        cam = ImagingSourceCamera(TestConfig())
         cam.start()
         with Timer(''):
-            while cam.frame_counter <= 30*30: 
+            while cam.frame_counter <= 30: 
                 cam.save()
         with Timer(''):
             cam.stop()
