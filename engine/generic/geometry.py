@@ -674,6 +674,12 @@ def op_masked(function, inarray,  *args,  **kwargs):
     if 'outmask' in locals():
         inarray = numpy.ma.array(inarray, mask=outmask)
     return inarray
+
+def rectangular_roi(center, radius, imshape):
+    '''Input: rc value with row and col dtype.
+    Returns rowstart,rowend,colstart,colend cropped at image shape
+    '''
+    return [max(0, center['row']-radius), min(center['row']+radius, imshape[0]), max(0, center['col']-radius), min(center['col']+radius, imshape[1])]
     
 def match_sizes_centered(images):
     '''Crops the borders of two images to make both the same size. Their center remains aligned, i.e. the borders are trimmed symmetrically.'''

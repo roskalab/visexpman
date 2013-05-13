@@ -193,6 +193,10 @@ class MovingGratingPre(experiment.PreExperiment):
                             velocity = 0, white_bar_width = self.experiment_config.WHITE_BAR_WIDTHS[0],
                             duty_cycle = self.experiment_config.DUTY_CYCLES[0], part_of_drawing_sequence = True)
 
+class BlackPre(experiment.PreExperiment):
+    def run(self):
+        self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
+
 #Support for old config classes
 class GratingConfig(MovingGratingConfig):
     pass
