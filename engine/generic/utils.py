@@ -270,7 +270,7 @@ def nd(rcarray, squeeze=False, dim_order=None):
         res = numpy.c_[[rcarray[f] for f in names_in_order]].T # take field by field in the default order
     else: # faster way
         res= rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
-    if squeeze:
+    if squeeze or rcarray.ndim==0:
         res=numpy.squeeze(res)
     return res
 
