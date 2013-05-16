@@ -385,6 +385,8 @@ class RcCorticalCaImagingConfig(VisionExperimentConfig):
         MES_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
         TILTING_LIMIT = [1.5, [0.0, 10.0]]
+        
+        MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
         self._create_parameters_from_locals(locals())
         
 class AoCorticalCaImagingConfig(VisionExperimentConfig):

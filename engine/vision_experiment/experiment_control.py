@@ -168,7 +168,9 @@ class ExperimentControl(object):
         self.stimulus_frame_info = []
         self.start_time = time.time()
         self.filenames = {}
-        if self.config.PLATFORM == 'rc_cortical' and not self._load_experiment_parameters():
+        load_parameters_successful = self._load_experiment_parameters()
+        if self.config.PLATFORM == 'rc_cortical':
+           if not load_parameters_successful:
             self.abort = True
         else:
             self.id = str(int(time.time()))
@@ -503,7 +505,7 @@ class ExperimentControl(object):
                             sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)
         if not pulses_detected:
             self.printl('Stimulus sync signal is NOT detected')
-        if self.config.PLATFORM == 'rc_cortical':
+        if self.config.PLATFORM == 'rc_cortical' and not self.parameters['enable_intrinsic']:
             a, b, pulses_detected =\
             experiment_data.preprocess_stimulus_sync(\
                             analog_input_data[:, self.config.MES_SYNC_CHANNEL_INDEX], sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)

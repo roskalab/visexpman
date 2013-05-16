@@ -281,11 +281,21 @@ class MainPoller(Poller):
                                 self.measurement_duration = 0
                             self.parent.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
                             self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(False)
+                            if self.experiment_parameters['enable_intrinsic']:
+                                import threading
+                                from visexpman.engine.hardware_interface import camera_interface
+                                p = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'_intrinsic.hdf5')
+                                self.printc('camera data will be saved to '+p)
+                                self.camera_runner = threading.Thread(target =camera_interface.opencv_camera_runner, args = (p, self.measurement_duration+3.0, self.config))
+                                self.camera_runner.start()
                         elif command == 'measurement_finished':
                             self.measurement_running = False
                             self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
                         elif command == 'measurement_ready':
                             self.add_measurement_id(parameter)
+                            self.printc('Camera data is being saved...')
+                            self.camera_runner.join()
+                            self.printc('camera recording finished')
                         elif command == 'fragment_check_ready':
                             #ID is saved, flag will be updated in mouse later when the measurement file is closed
                             self.fragment_check_ready_id = parameter
@@ -1481,6 +1491,8 @@ class MainPoller(Poller):
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
         self.printc('Stopping experiment requested, please wait')
+        self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
+        self.parent.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
 
     def graceful_stop_experiment(self):
         command = 'SOCgraceful_stop_experimentEOCguiEOP'
@@ -1573,7 +1585,7 @@ class MainPoller(Poller):
             del h.parameters['laser_intensities']
         if h.parameters.has_key('objective_positions'):
             del h.parameters['objective_positions']
-        if self.experiment_parameters.has_key('region_name'):
+        if self.experiment_parameters.has_key('region_name') and not self.experiment_parameters['enable_intrinsic']:
             h.xy_scan_parameters = copy.deepcopy(self.scan_regions[self.experiment_parameters['region_name']]['xy_scan_parameters'])
             fields_to_save.append('xy_scan_parameters')
         if hasattr(self, 'animal_parameters'):

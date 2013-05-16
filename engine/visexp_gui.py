@@ -492,7 +492,7 @@ class VisionExperimentGui(QtGui.QWidget):
             if status['info'].has_key('laser_intensity'):
                 try:
                     laser_intensity = '{0:1.1f}'.format(float(status['info']['laser_intensity']))
-                except ValueError, TypeError:
+                except:
                     laser_intensity = 'NA'
             else:
                 laser_intensity = 0.0
@@ -813,6 +813,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.log.copy()
         self.poller.abort = True
         self.poller.wait()
+        sys.exit(0)
         #TMP111self.mouse_file_handler.abort = True
 #        time.sleep(15.0) #Enough time to close network connections
         

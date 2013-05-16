@@ -648,7 +648,7 @@ version_paths = {
     'visexpA': 'version', 
     'sklearn':'__version__',
     'Polygon':'__version__',
-    'zmq': 'pyzmq_version',
+    #TODO:'zmq': 'pyzmq_version',
     }    
     
 def imported_modules():
@@ -1241,6 +1241,9 @@ class TestUtils(unittest.TestCase):
             pass
             
 if __name__ == "__main__":
+    module_names, visexpman_module_paths = imported_modules()
+    module_versions, module_version = module_versions(module_names)
+    pass
     #commented out by Daniel:
     #start_point = cr((0.0, 0.0))
     #end_point = cr((10.0, 10.0))
