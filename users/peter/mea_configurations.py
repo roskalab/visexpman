@@ -2,9 +2,9 @@ import os
 import os.path
 import serial
 from visexpman.engine.generic import utils
-from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
+from visexpman.engine.vision_experiment.configuration import HiMEAConfig, MCMEAConfig
 
-class MEASetup(VisionExperimentConfig):#Hierlemann machine config
+class MEASetup(HiMEAConfig):#Hierlemann machine config
     '''
     '''
     def _set_user_parameters(self):
@@ -67,9 +67,8 @@ class MEASetup(VisionExperimentConfig):#Hierlemann machine config
   
 #######################################################################################################        
               
-class OldMeaSetup(VisionExperimentConfig): #David machine config
+class OldMeaSetup(MCMEAConfig): #David machine config
     def _set_user_parameters(self):
-        PLATFORM = 'mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===
         root = 'D:\\'
@@ -137,7 +136,7 @@ class OldMeaSetup(VisionExperimentConfig): #David machine config
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction', filelocking=False))
         self._create_parameters_from_locals(locals())
             
-class PetersConfig(VisionExperimentConfig):
+class PetersConfig(HiMEAConfig):
     
     def _set_user_specific_parameters(self):
         # ACQUISITION_TRIGGER_PIN = 4 # we have to start the measurements by hand

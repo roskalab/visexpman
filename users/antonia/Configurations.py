@@ -2,7 +2,7 @@ import numpy
 import os
 import serial
 from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
+from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig, ElphysConfig
 import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 import visexpman.engine.generic.utils as utils
@@ -27,14 +27,12 @@ class SPC(VisionExperimentConfig):
         self.PULSE_OVERHEAD = 10.0e-3 #in seconds
         self._create_parameters_from_locals(locals())
         
-class Debug(VisionExperimentConfig):
+class Debug(ElphysConfig):
     '''
     Antona's Electrophisology visual stimulation
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'RandomShapeParameters'
-        PLATFORM = 'elphys'
-        EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===
         if os.name == 'nt':
             v_drive_data_folder = 'V:\\debug\\data'
@@ -124,14 +122,12 @@ class Debug(VisionExperimentConfig):
 
         self._create_parameters_from_locals(locals())
 
-class AEPHVS(VisionExperimentConfig):
+class AEPHVS(ElphysConfig):
     '''
     Antona's Electrophisology visual stimulation
     '''
     def _set_user_parameters(self, check_path = True):        
         EXPERIMENT_CONFIG = 'ManipulationExperimentConfig'
-        PLATFORM = 'elphys'
-        EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===
         if os.name == 'nt':
             v_drive_data_folder = 'c:\\Data'

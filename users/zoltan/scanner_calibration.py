@@ -107,6 +107,7 @@ def scanner_calib():
     
 def evaluate_calibdata():
     p = '/mnt/datafast/debug/20130503/calibs'
+    p = '/mnt/rznb/data/20130503/calibs'
     max_linearity_error = 10e-2
     a = []
     fi = []

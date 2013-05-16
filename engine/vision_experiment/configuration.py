@@ -1,3 +1,24 @@
+'''
+VisionExperimentConfig: 
+        contains common parameters, that are used on all experiment platforms. These are visual stimulation, networking, paths
+RetinalCaImagingConfig: 
+        inherits VisionExperimentConfig and expands it with retinal ca imaging specific parameters that are not used on other platforms.
+        Platform name: retinal_ca
+RcCorticalCaImagingConfig, AoCorticalCaImagingConfig: 
+        inherits VisionExperimentConfig and expands it with cortical ca imaging specific parameters that are not used on other platforms
+        Platform name: rc_cortical or ao_cortical
+MCMEAConfig:
+        inherits VisionExperimentConfig and expands it with Multichannel multi electrode array specific parameters that are not used on other platforms
+        Platfrom name: mc_mea
+HiMEAConfig:
+        inherits VisionExperimentConfig and expands it with Hierleman multi electrode array specific parameters that are not used on other platforms
+        Platfrom name: hi_mea
+ElphysConfig:
+        inherits VisionExperimentConfig and expands it with electrophisiology setup specific parameters that are not used on other platforms
+        Platform name: elphys
+'''
+
+
 import os
 import sys
 import numpy
@@ -29,9 +50,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
             EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
             CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
-            
-            
-            MEASUREMENT_PLATFORM = 'mes', 'elphys', 'mea', 'smallapp'
            
         '''        
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
@@ -45,7 +63,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         PIN_RANGE = [0,  7]        
-        PLATFORM = ['undefined', ['mes', 'elphys', 'mea', 'standalone', 'smallapp', 'undefined']]
+        PLATFORM = ['undefined', ['retinal_ca', 'rc_cortical', 'cortical_ao', 'mc_mea', 'hi_mea', 'elphys', 'mea', 'standalone', 'smallapp', 'undefined']]
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         ENABLE_HDF5_FILELOCKING = False
         
@@ -70,56 +88,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
             }
         }
-        
-        ################ Mes parameters #############
-        ENABLE_MES = False
-        MES_TIMEOUT = [10.0, [1.0, 100.0]]
-        MES_RECORD_START_DELAY = [3.0, [1.0, 10.0]]
-        OBJECTIVE_POSITION_LIMIT = [1000.0, [500.0, 2000.0]]
-        MES_Z_SCAN_SCOPE = [100.0, [0.0, 200.0]]
-        DEFAULT_Z_SCAN_OVERLAP = [10.0, [0.0,  50]]
-        OBJECTIVE_TRANSIENT_SMOOTHING_TIME = [13, [0, 20]]
-        #default XZ scanning config
-        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE' : 100.0}
-        XZ_FRAME_CLIPPING = {'top': 4,  'bottom':3}
-        ROI_PATTERN_SIZE = [2, [1, 10]]
-        ROI_PATTERN_RADIUS = [1, [0, 50]]
-        
-        ########### Vision experiment manager GUI #################
-        screen_size = utils.cr((800, 600))
-        if len(sys.argv) > 0:
-            if 'gui' in sys.argv[0]: #if gui is the main module
-                screen_size = QtGui.QDesktopWidget().screenGeometry()
-                screen_size = utils.cr((0.75*screen_size.width(), 0.9*screen_size.height()))
-        MAX_REGISTRATION_TIME = [30.0, [0.5, 600.0]]
-        GUI_STAGE_TIMEOUT = [30.0, [0.5, 60.0]]
-        DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
-        GUI_POSITION = utils.cr((5, 5))
-        GUI_SIZE = screen_size
-        TAB_SIZE = utils.cr((0.27 * screen_size['col'], 0.6 * screen_size['row']))
-        COMMON_TAB_SIZE = utils.cr((0.3 * screen_size['col'], 0.1 * screen_size['row']))
-        STANDARDIO_WIDGET_TAB_SIZE = utils.cr((0.3 * screen_size['col'], 0.3 * screen_size['row']))
-        IMAGE_SIZE = utils.cr((0.33 * screen_size['col'], 0.33 * screen_size['col']))
-        OVERVIEW_IMAGE_SIZE = utils.cr((0.6 * screen_size['col'], 0.6* screen_size['col']))
-        ROI_INFO_IMAGE_SIZE = utils.rc((int(1.55*IMAGE_SIZE['row']), int(1.35*OVERVIEW_IMAGE_SIZE['col'])))#FIXME: this is not reasonable but working
-        ROI_CURVE_IMAGE_CUTOUT = [1600, [0, 2000]]
-        SIDEBAR_SIZE = [30, [10, 100]]
-        GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
-        GREEN_LABELING = ['']
-        MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
-        #realignment parameters
-        MAX_REALIGNMENT_OFFSET = [50.0, [10.0, 1000.0]]
-        ACCEPTABLE_REALIGNMENT_OFFSET = [2.0, [0.1, 10.0]]
-        REALIGNMENT_XY_THRESHOLD = [1.0, [0.1, 10.0]]
-        REALIGNMENT_Z_THRESHOLD = [1.0, [0.1, 10.0]]
-        CELL_MERGE_DISTANCE = [3.0, [1.0, 20.0]]
-        MIN_SCAN_REGION_AVERAGING = [3, [1, 10]]
-        
-        #############  Jobhandler  ############
-        PARSE_PERIOD = [5.0, [0.0, 10.0]]
-        MOUSE_FILE_CHECK_PERIOD = [15.0, [0.0, 60.0]]
-        ENABLE_ZIGZAG_CORRECTION = True
-        
+
         ############### Display/graphics parameters: ################
         SCREEN_RESOLUTION = utils.rc([600, 800])        
         FULLSCREEN = False
@@ -202,10 +171,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #                                                'ND50': 6, 
 #                                                }]]
         ENABLE_SHUTTER = False
-        LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
-        STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
-        MES_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
-        SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
+        
 #                 DAQ_CONFIG = [[
 #         {
 #         'ANALOG_CONFIG' : 'aio', #'ai', 'ao', 'aio', 'undefined'
@@ -232,7 +198,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         'ENABLE' : True
 #         }
 #         ]]
-        TILTING_LIMIT = [1.5, [0.0, 10.0]]
+        
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 
@@ -317,6 +283,137 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
                 all_keys.append(v['key'])
         return commands
         
+class RetinalCaImagingConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        ################ Ca imaging GUI #######################
+        PLATFORM = 'retinal_ca'
+        MAX_PMT_VOLTAGE = [8.0,[0.0,15.0]]
+        SCANNER_MAX_SPEED = utils.rc((1e7, 1e7))#um/s
+        SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
+        SCANNER_START_STOP_TIME = [0.02, [0.0, 1.0]]#Time to set scanner to initaial position or zero position
+        SCANNER_MAX_POSITION = [350.0, [100.0, 500.0]]#Corresponds to maximal amplitude of scanner contol signal
+        POSITION_TO_SCANNER_VOLTAGE = [2.0/128.0, [1e-5,1]]#Conversion rate between laser beam position and scanner control voltage
+        XMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]#Offset of scanner signal cannot exceed 2 V
+        YMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]
+        SCANNER_RAMP_TIME = [100.0e-3, [1e-4, 1.0]]#Time to move the scanners into initial position
+        SCANNER_HOLD_TIME = [30.0e-3, [1e-4, 1.0]] #Time to hold scanners on initial position
+        SCANNER_SETTING_TIME = [[3e-4, 1e-3],[[1e-6, 1e-6],[1.0, 1.0]]]#This time constraint sets the speed of scanner (lenght of transient)
+        SCANNER_TRIGGER_CONFIG = {'offset': 0.0, 'pulse_width': 20.0e-6, 'amplitude':5.0, 'enable':False}
+        SINUS_CALIBRATION_MAX_LINEARITY_ERROR = [10e-2,[1e-5,50e-2]]
+        CA_FRAME_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
+        PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
+                            'SIDE': {'AI' : 0,'COLOR': 'RED', 'ENABLE': False}}
+        DAQ_CONFIG = [
+        {
+        'ANALOG_CONFIG' : 'aio',
+        'DAQ_TIMEOUT' : 5.0, 
+        'AO_SAMPLE_RATE' : 400000,
+        'AI_SAMPLE_RATE' : 400000,
+        'AO_CHANNEL' : 'Dev1/ao0:3',
+        'AI_CHANNEL' : 'Dev1/ai0:1',
+        'MAX_VOLTAGE' : 5.0,
+        'MIN_VOLTAGE' : -5.0,
+        'DURATION_OF_AI_READ' : 2.0,
+        'ENABLE' : False
+        },
+        {
+        'DAQ_TIMEOUT' : 1.0, 
+        'DO_CHANNEL' : 'Dev1/port0/line0',
+        'ENABLE' : False
+        }
+        ]
+        CAIMAGE_DISPLAY = {}
+        CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
+        CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = False
+        self._create_parameters_from_locals(locals())
+        
+class RcCorticalCaImagingConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'rc_cortical'
+        ################ Mes parameters #############
+        MES_TIMEOUT = [10.0, [1.0, 100.0]]
+        MES_RECORD_START_DELAY = [3.0, [1.0, 10.0]]
+        OBJECTIVE_POSITION_LIMIT = [1000.0, [500.0, 2000.0]]
+        MES_Z_SCAN_SCOPE = [100.0, [0.0, 200.0]]
+        DEFAULT_Z_SCAN_OVERLAP = [10.0, [0.0,  50]]
+        OBJECTIVE_TRANSIENT_SMOOTHING_TIME = [13, [0, 20]]
+        #default XZ scanning config
+        XZ_SCAN_CONFIG = {'LINE_LENGTH':20.0, 'Z_PIXEL_SIZE' : 33.0, 'Z_RESOLUTION':3.03, 'Z_RANGE' : 100.0}
+        XZ_FRAME_CLIPPING = {'top': 4,  'bottom':3}
+        ROI_PATTERN_SIZE = [2, [1, 10]]
+        ROI_PATTERN_RADIUS = [1, [0, 50]]
+        
+                ########### Vision experiment manager GUI #################
+        screen_size = utils.cr((800, 600))
+        if len(sys.argv) > 0:
+            if 'gui' in sys.argv[0]: #if gui is the main module
+                screen_size = QtGui.QDesktopWidget().screenGeometry()
+                screen_size = utils.cr((0.75*screen_size.width(), 0.9*screen_size.height()))
+        MAX_REGISTRATION_TIME = [30.0, [0.5, 600.0]]
+        GUI_STAGE_TIMEOUT = [30.0, [0.5, 60.0]]
+        DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
+        GUI_POSITION = utils.cr((5, 5))
+        GUI_SIZE = screen_size
+        TAB_SIZE = utils.cr((0.27 * screen_size['col'], 0.6 * screen_size['row']))
+        COMMON_TAB_SIZE = utils.cr((0.3 * screen_size['col'], 0.1 * screen_size['row']))
+        STANDARDIO_WIDGET_TAB_SIZE = utils.cr((0.3 * screen_size['col'], 0.3 * screen_size['row']))
+        IMAGE_SIZE = utils.cr((0.33 * screen_size['col'], 0.33 * screen_size['col']))
+        OVERVIEW_IMAGE_SIZE = utils.cr((0.6 * screen_size['col'], 0.6* screen_size['col']))
+        ROI_INFO_IMAGE_SIZE = utils.rc((int(1.55*IMAGE_SIZE['row']), int(1.35*OVERVIEW_IMAGE_SIZE['col'])))#FIXME: this is not reasonable but working
+        ROI_CURVE_IMAGE_CUTOUT = [1600, [0, 2000]]
+        SIDEBAR_SIZE = [30, [10, 100]]
+        GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
+        GREEN_LABELING = ['']
+        MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
+        #realignment parameters
+        MAX_REALIGNMENT_OFFSET = [50.0, [10.0, 1000.0]]
+        ACCEPTABLE_REALIGNMENT_OFFSET = [2.0, [0.1, 10.0]]
+        REALIGNMENT_XY_THRESHOLD = [1.0, [0.1, 10.0]]
+        REALIGNMENT_Z_THRESHOLD = [1.0, [0.1, 10.0]]
+        CELL_MERGE_DISTANCE = [3.0, [1.0, 20.0]]
+        MIN_SCAN_REGION_AVERAGING = [3, [1, 10]]
+        
+        #############  Jobhandler  ############
+        PARSE_PERIOD = [5.0, [0.0, 10.0]]
+        MOUSE_FILE_CHECK_PERIOD = [15.0, [0.0, 60.0]]
+        ENABLE_ZIGZAG_CORRECTION = True
+        
+        LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
+        STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
+        MES_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
+        SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
+        TILTING_LIMIT = [1.5, [0.0, 10.0]]
+        self._create_parameters_from_locals(locals())
+        
+class AoCorticalCaImagingConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'ao_cortical'
+        self._create_parameters_from_locals(locals())
+        
+class MCMEAConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'mc_mea'
+        EXPERIMENT_FILE_FORMAT = 'mat'
+        self._create_parameters_from_locals(locals())
+
+class HiMEAConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'hi_mea'
+        EXPERIMENT_FILE_FORMAT = 'mat'
+        self._create_parameters_from_locals(locals())
+
+class ElphysConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'elphys'
+        EXPERIMENT_FILE_FORMAT = 'mat'
+        self._create_parameters_from_locals(locals())
+
 class TestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
         PAR1 = 'par'
