@@ -1526,6 +1526,10 @@ class MainPoller(Poller):
                                                                                             self.experiment_parameters['laser_intensities'][1], 
                                                                                             self.experiment_parameters['number_of_depths'])
             #generic.expspace(self.experiment_parameters['laser_intensities'][0], self.experiment_parameters['laser_intensities'][1],  self.experiment_parameters['objective_positions'].shape[0])
+        if self.parent.main_widget.experiment_control_groupbox.enable_intrinsic.input.checkState() ==2:
+            self.experiment_parameters['enable_intrinsic'] = True
+        else:
+            self.experiment_parameters['enable_intrinsic'] = False
         #Set back next/prev/redo button texts
         self.parent.main_widget.experiment_control_groupbox.next_depth_button.setText('Next')
         self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
@@ -1899,7 +1903,8 @@ class MainPoller(Poller):
             self.running = True
             h = hdf5io.Hdf5io(self.mouse_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             field_names_to_save = []
-            with introspect.Timer('save time'):
+#            with introspect.Timer('save time'):
+            if True:
                 while not self.queues['mouse_file_handler'].empty():
                     field_name, field_value = self.queues['mouse_file_handler'].get()
                     setattr(h, field_name, field_value)

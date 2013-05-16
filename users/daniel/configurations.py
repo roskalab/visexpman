@@ -548,7 +548,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
                     'SAMPLE_RATE' : 5000,
-                    'AI_CHANNEL' : 'Dev1/ai0:2',
+                    'AI_CHANNEL' : 'Dev1/ai0:3',#stim frames, ca frames, led control, intrinsic frame start/stop
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],

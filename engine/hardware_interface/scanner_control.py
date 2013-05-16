@@ -37,7 +37,10 @@ import daq_instrument
 import instrument
 import os
 if os.name=='nt':
-    import PyDAQmx
+    try:
+        import PyDAQmx
+    except ImportError:
+        pass
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 from visexpman.engine.generic import log

@@ -86,9 +86,6 @@ class ExperimentControl(object):
         if context.has_key('stage_origin'):
             self.stage_origin = context['stage_origin']
         message_to_screen = ''
-        if not self.connections['mes'].connected_to_remote_client() and self.config.PLATFORM == 'mes':
-            message_to_screen = self.printl('No connection with MES')
-            return message_to_screen
         message = self._prepare_experiment(context)
         if message is not None:
             message_to_screen += message
@@ -180,36 +177,45 @@ class ExperimentControl(object):
         if self.abort:
             return
         if self.config.PLATFORM == 'mes':
-            result,  laser_intensity = self.mes_interface.read_laser_intensity()
-            if result:
-                self.initial_laser_intensity = laser_intensity
-                self.laser_intensity = laser_intensity
-            else:
-                self.printl('Laser intensity CANNOT be read')
-                return None
-            parameters2set = ['laser_intensity', 'objective_position']
-            for parameter_name2set in parameters2set:                
-                if self.parameters.has_key(parameter_name2set):
-                    value = self.parameters[parameter_name2set]
-                elif context.has_key(parameter_name2set) :
-                    value = context[parameter_name2set]
+            if not self.parameters['enable_intrinsic']:
+                #Check network connection before any interaction with mes
+                if not self.connections['mes'].connected_to_remote_client():
+                    message_to_screen = self.printl('No connection with MES')
+                    return message_to_screen
+                result,  laser_intensity = self.mes_interface.read_laser_intensity()
+                if result:
+                    self.initial_laser_intensity = laser_intensity
+                    self.laser_intensity = laser_intensity
                 else:
-                    value = None
-                if not value is None:
-                    result, adjusted_value= getattr(self.mes_interface, 'set_'+parameter_name2set)(value)
-                    if not result:
-                        self.abort = True
-                        self.printl('{0} is not set'.format(parameter_name2set.replace('_', ' ').capitalize()))
+                    self.printl('Laser intensity CANNOT be read')
+                    return None
+                parameters2set = ['laser_intensity', 'objective_position']
+                for parameter_name2set in parameters2set:                
+                    if self.parameters.has_key(parameter_name2set):
+                        value = self.parameters[parameter_name2set]
+                    elif context.has_key(parameter_name2set) :
+                        value = context[parameter_name2set]
                     else:
-                        self.printl('{0} is set to {1}'.format(parameter_name2set.replace('_', ' ').capitalize(), value))
-                        setattr(self,  parameter_name2set,  value)
+                        value = None
+                    if not value is None:
+                        result, adjusted_value= getattr(self.mes_interface, 'set_'+parameter_name2set)(value)
+                        if not result:
+                            self.abort = True
+                            self.printl('{0} is not set'.format(parameter_name2set.replace('_', ' ').capitalize()))
+                        else:
+                            self.printl('{0} is set to {1}'.format(parameter_name2set.replace('_', ' ').capitalize(), value))
+                            setattr(self,  parameter_name2set,  value)
             #read stage and objective
             self.stage_position = self.stage.read_position() - self.stage_origin
-            result, self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
-            if not result:
-                time.sleep(0.4)#This message does not reach gui, perhaps a small delay will ensure it
-                self.printl('Objective position cannot be read, check STIM-MES connection')
-                return None
+            if not self.parameters['enable_intrinsic']:
+                result, self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
+                if not result:
+                    time.sleep(0.4)#This message does not reach gui, perhaps a small delay will ensure it
+                    self.printl('Objective position cannot be read, check STIM-MES connection')
+                    return None
+            else:
+                self.objective_position = 0
+                self.objective_origin = 0
         self._prepare_files()
         return message_to_screen 
 
@@ -233,7 +239,7 @@ class ExperimentControl(object):
         self.stimulus_frame_info_pointer = 0
         self.frame_counter = 0
         self.stimulus_frame_info = []
-        if self.config.PLATFORM == 'mes':
+        if self.config.PLATFORM == 'mes' and not self.parameters['enable_intrinsic']:
             if not self._pre_post_experiment_scan(is_pre=True):
                 return False
         # Start ai recording
@@ -245,31 +251,35 @@ class ExperimentControl(object):
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
             #start two photon recording
-            if self.scan_mode == 'xyz':
-                scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
-                                                                                      parameter_file = self.filenames['mes_fragments'][fragment_id], 
-                                                                                      scan_time = self.mes_record_time)
+            if self.parameters['enable_intrinsic']:
+                pass#here camera recording initiated
+                return True
             else:
-                if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
-                    #Before starting scan, set xz lines
-                    if self.roi_locations is None:
-                        self.printl('No ROIs found')
-                        return False
-                elif self.scan_mode == 'xy':
-                    if hasattr(self, 'xy_scan_parameters') and not self.xy_scan_parameters is None:
-                        self.xy_scan_parameters.tofile(self.filenames['mes_fragments'][fragment_id])
-                scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
-                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
-            scan_start_success2 = False
-            if not scan_start_success:
-                self.printl('Scan did not start, retrying...')
-                scan_start_success2, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
-                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
-            if scan_start_success2 or scan_start_success:
-                time.sleep(1.0)
-            else:
-                self.printl('Scan start ERROR')
-            return (scan_start_success2 or scan_start_success)
+                if self.scan_mode == 'xyz':
+                    scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
+                                                                                          parameter_file = self.filenames['mes_fragments'][fragment_id], 
+                                                                                          scan_time = self.mes_record_time)
+                else:
+                    if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
+                        #Before starting scan, set xz lines
+                        if self.roi_locations is None:
+                            self.printl('No ROIs found')
+                            return False
+                    elif self.scan_mode == 'xy':
+                        if hasattr(self, 'xy_scan_parameters') and not self.xy_scan_parameters is None:
+                            self.xy_scan_parameters.tofile(self.filenames['mes_fragments'][fragment_id])
+                    scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
+                        parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
+                scan_start_success2 = False
+                if not scan_start_success:
+                    self.printl('Scan did not start, retrying...')
+                    scan_start_success2, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
+                        parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
+                if scan_start_success2 or scan_start_success:
+                    time.sleep(1.0)
+                else:
+                    self.printl('Scan start ERROR')
+                return (scan_start_success2 or scan_start_success)
         elif self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mea':
             #Set acquisition trigger pin to high
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
@@ -293,7 +303,7 @@ class ExperimentControl(object):
                 self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 1)
                 self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 0)
             data_acquisition_stop_success = True
-        elif self.config.PLATFORM == 'mes':
+        elif self.config.PLATFORM == 'mes' and not self.parameters['enable_intrinsic']:
             self.mes_timeout = 2.0 * self.fragment_durations[fragment_id]            
             if self.mes_timeout < self.config.MES_TIMEOUT:
                 self.mes_timeout = self.config.MES_TIMEOUT
@@ -308,6 +318,8 @@ class ExperimentControl(object):
                 data_acquisition_stop_success =  False
         elif self.config.PLATFORM == 'standalone':
             data_acquisition_stop_success =  True
+        else:
+            data_acquisition_stop_success =  True
         #Stop acquiring analog signals
         if self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
             self.printl('Analog acquisition finished')
@@ -317,7 +329,7 @@ class ExperimentControl(object):
         result = True
         aborted = False
         if self._stop_data_acquisition(fragment_id):
-            if self.config.PLATFORM == 'mes':
+            if self.config.PLATFORM == 'mes' and not self.parameters['enable_intrinsic']:
                 if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
                     self.printl('Wait for data save complete')
                     if self.scan_mode == 'xyz':
@@ -334,7 +346,7 @@ class ExperimentControl(object):
             else:
                 pass
             if not aborted and result:
-                if self.config.PLATFORM == 'mes':
+                if self.config.PLATFORM == 'mes' and not self.parameters['enable_intrinsic']:
                     if self.mes_record_time > 30.0:
                         time.sleep(1.0)#Ensure that scanner starts???
                         try:
