@@ -1,4 +1,4 @@
-import visexpman.engine.generic.utils as utils
+from visexpman.engine.generic import utils
 
 for module_name in utils.version_paths.keys():
     try:
@@ -12,3 +12,4 @@ try:
     p.setData(0)
 except:
     print 'parallel port driver is not loaded'
+#TODO:  run unittests

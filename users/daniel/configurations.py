@@ -7,7 +7,7 @@ import sys
 import shutil
 
 from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
+from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig,RcCorticalCaImagingConfig
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 
@@ -177,7 +177,7 @@ class MBP(VisionExperimentConfig):
         VisionExperimentConfig._create_parameters_from_locals(self, locals())
         #VisionExperimentConfig._set_parameters_from_locals(self, locals())
         
-class DebugOnLaptop(VisionExperimentConfig):
+class DebugOnLaptop(RcCorticalCaImagingConfig):
     '''
     Windows development machine
     '''
@@ -292,7 +292,7 @@ class DebugOnLaptop(VisionExperimentConfig):
         self._create_parameters_from_locals(locals())
         
 
-class Debug(VisionExperimentConfig):
+class Debug(RcCorticalCaImagingConfig):
     '''
     Windows development machine
     '''
@@ -450,7 +450,7 @@ class Debug(VisionExperimentConfig):
         GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
         self._create_parameters_from_locals(locals())
         
-class RcMicroscopeSetup(VisionExperimentConfig):
+class RcMicroscopeSetup(RcCorticalCaImagingConfig):
     '''
     Visual stimulation machine of 3D microscope setup
     '''
@@ -499,7 +499,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
-        PLATFORM = 'mes'
+        PLATFORM = 'rc_cortical'
         #=== Network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True

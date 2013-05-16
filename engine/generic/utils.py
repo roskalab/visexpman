@@ -270,7 +270,7 @@ def nd(rcarray, squeeze=False, dim_order=None):
         res = numpy.c_[[rcarray[f] for f in names_in_order]].T # take field by field in the default order
     else: # faster way
         res= rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
-    if squeeze:
+    if squeeze or rcarray.ndim==0:
         res=numpy.squeeze(res)
     return res
 
@@ -647,7 +647,8 @@ version_paths = {
     'visexpman': 'version', 
     'visexpA': 'version', 
     'sklearn':'__version__',
-    'Polygon':'__version__'
+    'Polygon':'__version__',
+    'zmq': 'pyzmq_version',
     }    
     
 def imported_modules():
@@ -700,8 +701,11 @@ def module_versions(modules):
                 try:
                     version_path = version_paths[module].split('.')
                     version = getattr(sys.modules[module], version_path[0])
-                    if not isinstance(version, str):                        
-                        version = getattr(version, version_path[1])                        
+                    if not isinstance(version, str):
+                        if callable(getattr(version, version_path[1])):
+                            version = getattr(version, version_path[1])()
+                        else:
+                            version = getattr(version, version_path[1])                        
                 except AttributeError:
                     version = ''                
                 module_version += '%s %s\n'%(module, version.replace('\n', ' '))

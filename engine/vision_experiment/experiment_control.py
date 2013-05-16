@@ -48,7 +48,7 @@ class ExperimentControl(object):
             self.number_of_fragments = 1
         from experiment import PreExperiment
         if not issubclass(self.__class__,PreExperiment): #In case of preexperiment, fragment durations are not expected
-            if self.config.PLATFORM == 'mes' and not hasattr(self, 'fragment_durations'):
+            if self.config.PLATFORM == 'rc_cortical' and not hasattr(self, 'fragment_durations'):
                 raise RuntimeError('At MES platform self.fragment_durations variable is mandatory')
             if hasattr(self, 'fragment_durations'):
                 if not hasattr(self.fragment_durations, 'index') and not hasattr(self.fragment_durations, 'shape'):
@@ -93,7 +93,7 @@ class ExperimentControl(object):
             if context.has_key('experiment_count'):
                 message = '{0} {1}'.format( context['experiment_count'],  message)
             message_to_screen += self.printl(message,  application_log = True) + '\n'
-            if self.config.PLATFORM == 'mes':
+            if self.config.PLATFORM == 'rc_cortical':
                 measurement_duration = numpy.round(numpy.array(self.fragment_durations).sum() + self.config.MES_RECORD_START_DELAY * len(self.fragment_durations), 1)
                 self.printl('SOCmeasurement_startedEOC{0}EOP'.format(measurement_duration))
             self.finished_fragment_index = 0
@@ -127,7 +127,7 @@ class ExperimentControl(object):
         self._finish_experiment()
         #Send message to screen, log experiment completition
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'
-        if self.config.PLATFORM == 'mes':
+        if self.config.PLATFORM == 'rc_cortical':
             self.printl('SOCmeasurement_finishedEOC{0}EOP'.format(self.id))
         self.application_log.flush()
         return message_to_screen
@@ -168,7 +168,7 @@ class ExperimentControl(object):
         self.stimulus_frame_info = []
         self.start_time = time.time()
         self.filenames = {}
-        if self.config.PLATFORM == 'mes' and not self._load_experiment_parameters():
+        if self.config.PLATFORM == 'rc_cortical' and not self._load_experiment_parameters():
             self.abort = True
         else:
             self.id = str(int(time.time()))
@@ -176,7 +176,7 @@ class ExperimentControl(object):
         self._initialize_devices()
         if self.abort:
             return
-        if self.config.PLATFORM == 'mes':
+        if self.config.PLATFORM == 'rc_cortical':
             if not self.parameters['enable_intrinsic']:
                 #Check network connection before any interaction with mes
                 if not self.connections['mes'].connected_to_remote_client():
@@ -239,14 +239,14 @@ class ExperimentControl(object):
         self.stimulus_frame_info_pointer = 0
         self.frame_counter = 0
         self.stimulus_frame_info = []
-        if self.config.PLATFORM == 'mes' and not self.parameters['enable_intrinsic']:
+        if self.config.PLATFORM == 'rc_cortical' and not self.parameters['enable_intrinsic']:
             if not self._pre_post_experiment_scan(is_pre=True):
                 return False
         # Start ai recording
         self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time)
         if self.analog_input.start_daq_activity():
             self.printl('Analog signal recording started')
-        if self.config.PLATFORM == 'mes':
+        if self.config.PLATFORM == 'rc_cortical':
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
@@ -280,7 +280,7 @@ class ExperimentControl(object):
                 else:
                     self.printl('Scan start ERROR')
                 return (scan_start_success2 or scan_start_success)
-        elif self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mea':
+        elif self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mc_mea':
             #Set acquisition trigger pin to high
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
@@ -296,14 +296,14 @@ class ExperimentControl(object):
         -waits for mes data acquisition complete
         '''
         #Stop external measurements
-        if self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mea':
+        if self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mc_mea':
             #Clear acquisition trigger pin
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
-            if self.config.PLATFORM == 'mea':
+            if self.config.PLATFORM == 'mc_mea':
                 self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 1)
                 self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 0)
             data_acquisition_stop_success = True
-        elif self.config.PLATFORM == 'mes' and not self.parameters['enable_intrinsic']:
+        elif self.config.PLATFORM == 'rc_cortical' and not self.parameters['enable_intrinsic']:
             self.mes_timeout = 2.0 * self.fragment_durations[fragment_id]            
             if self.mes_timeout < self.config.MES_TIMEOUT:
                 self.mes_timeout = self.config.MES_TIMEOUT
@@ -329,7 +329,7 @@ class ExperimentControl(object):
         result = True
         aborted = False
         if self._stop_data_acquisition(fragment_id):
-            if self.config.PLATFORM == 'mes' and not self.parameters['enable_intrinsic']:
+            if self.config.PLATFORM == 'rc_cortical' and not self.parameters['enable_intrinsic']:
                 if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
                     self.printl('Wait for data save complete')
                     if self.scan_mode == 'xyz':
@@ -346,7 +346,7 @@ class ExperimentControl(object):
             else:
                 pass
             if not aborted and result:
-                if self.config.PLATFORM == 'mes' and not self.parameters['enable_intrinsic']:
+                if self.config.PLATFORM == 'rc_cortical' and not self.parameters['enable_intrinsic']:
                     if self.mes_record_time > 30.0:
                         time.sleep(1.0)#Ensure that scanner starts???
                         try:
@@ -355,7 +355,7 @@ class ExperimentControl(object):
                         except:
                             self.printl(traceback.format_exc())
                 self._save_fragment_data(fragment_id)
-                if self.config.PLATFORM == 'mes':
+                if self.config.PLATFORM == 'rc_cortical':
                     for i in range(5):#Workaround for the temporary failure of queue.put().
                         time.sleep(0.1)
                         self.queues['gui']['out'].put('queue_put_problem_dummy_message')
@@ -387,7 +387,7 @@ class ExperimentControl(object):
         self.led_controller = daq_instrument.AnalogPulse(self.config, self.log, self.start_time, id = 1)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
         self.analog_input = None #This is instantiated at the beginning of each fragment
         self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
-        if self.config.PLATFORM == 'mes':
+        if self.config.PLATFORM == 'rc_cortical':
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
 
     def _close_devices(self):
@@ -432,7 +432,7 @@ class ExperimentControl(object):
             elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
                 fragment_name = 'fragment_{0}_{1}_{2}' .format(self.name_tag, self.id, fragment_id)
             fragment_filename = os.path.join(self.config.EXPERIMENT_DATA_PATH, '{0}.{1}' .format(fragment_name, self.config.EXPERIMENT_FILE_FORMAT))
-            if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5' and  self.config.PLATFORM == 'mes':
+            if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5' and  self.config.PLATFORM == 'rc_cortical':
                 if hasattr(self, 'objective_position'):
                     if self.parameters.has_key('region_name'):
                         fragment_filename = fragment_filename.replace('fragment_', 
@@ -503,7 +503,7 @@ class ExperimentControl(object):
                             sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)
         if not pulses_detected:
             self.printl('Stimulus sync signal is NOT detected')
-        if self.config.PLATFORM == 'mes':
+        if self.config.PLATFORM == 'rc_cortical':
             a, b, pulses_detected =\
             experiment_data.preprocess_stimulus_sync(\
                             analog_input_data[:, self.config.MES_SYNC_CHANNEL_INDEX], sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)
@@ -537,7 +537,7 @@ class ExperimentControl(object):
                 data_to_file['animal_parameters'] = self.animal_parameters
             else:
                 self.printl('NO animal parameters saved')
-            if self.config.PLATFORM == 'mes':
+            if self.config.PLATFORM == 'rc_cortical':
                 data_to_file['mes_data_path'] = os.path.split(self.filenames['mes_fragments'][fragment_id])[-1]
                 if hasattr(self, 'rois'):
                     data_to_file['rois'] = self.rois
@@ -558,7 +558,7 @@ class ExperimentControl(object):
                 data_to_file['start_of_acquisition'] = self.start_of_acquisition
         data_to_file['stimulus_frame_info'] = stimulus_frame_info
         self.stimulus_frame_info_pointer = len(self.stimulus_frame_info)
-        if self.config.PLATFORM == 'mes':
+        if self.config.PLATFORM == 'rc_cortical':
             if hasattr(self, 'laser_intensity'):
                 data_to_file['laser_intensity'] = self.laser_intensity
         return data_to_file
@@ -572,7 +572,7 @@ class ExperimentControl(object):
             self.fragment_files[fragment_id].experiment_config_name = self.experiment_config_name
 #            experiment_data.save_config(self.fragment_files[fragment_id], self.config, self.experiment_config)
             #Save stage and objective position
-            if self.config.PLATFORM == 'mes':
+            if self.config.PLATFORM == 'rc_cortical':
                 experiment_data.save_position(self.fragment_files[fragment_id], self.stage_position, self.objective_position)
             setattr(self.fragment_files[fragment_id], self.fragment_names[fragment_id], data_to_file)
             self.fragment_files[fragment_id].save([self.fragment_names[fragment_id], 'call_parameters', 'experiment_name', 'experiment_config_name'])

@@ -512,15 +512,12 @@ class TwoPhotonScanner(instrument.Instrument):
         else:
             self.binning_factor = int(self.binning_factor)
             
-    def start_measurement(self, scanner_x, scanner_y,  trigger = None):
-#        print scanner_x.shape, scanner_y.shape
+    def start_measurement(self, scanner_x, scanner_y, stimulus_trigger, frame_trigger):
         #Convert from position to voltage
         self.scanner_positions = numpy.array([scanner_x, scanner_y])
-        if trigger is not None:
-            self.scanner_control_signal = numpy.array([scanner_x + self.config.XMIRROR_OFFSET, scanner_y + self.config.YMIRROR_OFFSET,  trigger/self.config.POSITION_TO_SCANNER_VOLTAGE]) * self.config.POSITION_TO_SCANNER_VOLTAGE
-        else:
-            self.scanner_control_signal = numpy.array([scanner_x + self.config.XMIRROR_OFFSET, scanner_y + self.config.YMIRROR_OFFSET]) * self.config.POSITION_TO_SCANNER_VOLTAGE
-        self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr(self.scanner_control_signal[:2,0]), self.config.SCANNER_RAMP_TIME, self.config.SCANNER_HOLD_TIME,  trigger = trigger)
+        self.scanner_control_signal = \
+            numpy.array([scanner_x + self.config.XMIRROR_OFFSET, scanner_y + self.config.YMIRROR_OFFSET, stimulus_trigger/self.config.POSITION_TO_SCANNER_VOLTAGE, frame_trigger/self.config.POSITION_TO_SCANNER_VOLTAGE]) * self.config.POSITION_TO_SCANNER_VOLTAGE
+        self._set_scanner_voltage(utils.cr((0.0, 0.0)), utils.cr(self.scanner_control_signal[:2,0]), self.config.SCANNER_RAMP_TIME, self.config.SCANNER_HOLD_TIME,  trigger = stimulus_trigger)
         self.aio.waveform = self.scanner_control_signal.T
         self.data = []
         self.pmt_raw = []
@@ -543,7 +540,7 @@ class TwoPhotonScanner(instrument.Instrument):
         self.open_shutter()
         self.aio.start_daq_activity()
         
-    def _set_scanner_voltage(self, initial_voltage, target_voltage, ramp_time, hold_time = 0, trigger = None):
+    def _set_scanner_voltage(self, initial_voltage, target_voltage, ramp_time, hold_time = 0, trigger=None):
         ramp_samples = int(self.aio.daq_config['AO_SAMPLE_RATE']*ramp_time)
         hold_samples = int(self.aio.daq_config['AO_SAMPLE_RATE']*hold_time)
         scanner_x_waveform = target_voltage['col'] * numpy.ones(ramp_samples + hold_samples)
@@ -551,10 +548,10 @@ class TwoPhotonScanner(instrument.Instrument):
         scanner_y_waveform = target_voltage['row'] * numpy.ones(ramp_samples + hold_samples)
         scanner_y_waveform[:ramp_samples] = numpy.linspace(initial_voltage['row'], target_voltage['row'], ramp_samples)
         self.config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'finite'
-        if self.aio.number_of_ao_channels == 3:
-            self.aio.waveform = numpy.array([scanner_x_waveform, scanner_y_waveform, numpy.zeros_like(scanner_y_waveform)]).T
-        elif trigger is None or self.aio.number_of_ao_channels == 2:
-            self.aio.waveform = numpy.array([scanner_x_waveform, scanner_y_waveform]).T
+        if self.aio.number_of_ao_channels == 4:
+            self.aio.waveform = numpy.array([scanner_x_waveform, scanner_y_waveform, numpy.zeros_like(scanner_y_waveform), numpy.zeros_like(scanner_y_waveform)]).T
+        else:
+            raise RuntimeError('Analog output channel configuration incorrect')
         self.aio.run()
         self.config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
         
@@ -579,7 +576,8 @@ class TwoPhotonScanner(instrument.Instrument):
             self.trigger_signal = numpy.zeros_like(self.scan_mask)
         else:
             self.trigger_signal = scan_mask2trigger(self.scan_mask, trigger_signal_config['offset'], trigger_signal_config['width'], trigger_signal_config['amplitude'], self.aio.daq_config['AO_SAMPLE_RATE'])
-        self.start_measurement(pos_x, pos_y, self.trigger_signal)
+        self.frame_trigger = generate_frame_trigger(self.scan_mask,self.config.CA_FRAME_TRIGGER_AMPLITUDE)
+        self.start_measurement(pos_x, pos_y, self.trigger_signal, self.frame_trigger)
         
     def start_line_scan(self, lines, setting_time = None, trigger_signal_config = None, filter = None):
         if setting_time == None:
@@ -674,6 +672,12 @@ def scan_mask2trigger(scan_mask,  offset,  width,  amplitude, ao_sample_rate):
         trigger_signal[high_value_indexes] = amplitude
     trigger_signal *= trigger_mask
     return trigger_signal
+    
+def generate_frame_trigger(scan_mask, amplitude):
+    frame_trigger = amplitude * numpy.ones_like(scan_mask)
+    frame_trigger[:numpy.nonzero(scan_mask)[0][0]] = 0.0
+    frame_trigger[-1] = 0.0
+    return frame_trigger
         
 def generate_test_lines(scanner_range, repeats, speeds):
     lines1 = [
@@ -1056,6 +1060,7 @@ def scanner_bode_diagram(pmt, mask, frqs, max_linearity_error):
                 p0 = [1., signal.argmax(), 1.]
                 coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(signal.shape[0]), signal, p0=p0)
                 mean = coeff[1]/(signal.shape[0])#phase characteristic
+                print coeff[1]
                 sigma = coeff[2]/(signal.shape[0])#amplitude characteristic
             except RuntimeError:
                 mean = 0.5
@@ -1351,7 +1356,7 @@ class TestScannerControl(unittest.TestCase):
         plot(tp.scanner_positions.T)
         show()
         
-#    @unittest.skip('Run only for debug purposes')    
+    @unittest.skip('Run only for debug purposes')    
     def test_09_fft_scan_signal(self):
         from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
         import scipy
@@ -1433,7 +1438,7 @@ class TestScannerControl(unittest.TestCase):
         print scanner_bode_diagram(pmt, mask, frqs)
         pass
     
-    @unittest.skip('')
+#    @unittest.skip('')
     def test_12_calculate_trigger_signal(self):
         config = ScannerTestConfig()
         spatial_resolution = 2
@@ -1444,7 +1449,13 @@ class TestScannerControl(unittest.TestCase):
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         trigger_signal = scan_mask2trigger(scan_mask, 0, 20.0e-6, 1.0, config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'])
-        pass
+        frame_trigger = generate_frame_trigger(scan_mask,5)
+        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+        plot(pos_x)
+        plot(pos_y)
+        plot(scan_mask)
+        plot(frame_trigger)
+        show()
         
     @unittest.skip('Run only for debug purposes')
     def test_13_run_twophoton(self):

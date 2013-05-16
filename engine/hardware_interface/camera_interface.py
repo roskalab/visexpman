@@ -10,8 +10,9 @@ import unittest
 from visexpman.engine.generic import configuration
 
 class VideoCamera(instrument.Instrument):
-    def __init__(self, config):
+    def __init__(self, config,debug=False):
         self.config = config
+        self.debug=debug
         self._init_camera()
         
     def start(self):
@@ -29,6 +30,55 @@ class VideoCamera(instrument.Instrument):
     def close(self):
         pass
 
+class OpenCVCamera(VideoCamera):
+    def _init_camera(self):
+        import cv2
+        if self.config.SHOW_PREVIEW_WINDOW:
+            self.preview_window=cv2.namedWindow("preview")
+        else:
+            self.preview_window=None
+        self.grabber_handle = cv2.VideoCapture(0)
+        if hasattr(self.config, 'CAMERA_WIDTH_PIXELS'):
+            self.w = self.config.CAMERA_WIDTH_PIXELS
+        else: 
+            self.w = 1024
+        if hasattr(self.config, 'CAMERA_HEIGHT_PIXELS'):
+            self.h = self.config.CAMERA_HEIGHT_PIXELS
+        else:
+            self.h=768
+        self.grabber_handle.set(3,self.w)
+        self.grabber_handle.set(4,self.h)
+        
+        #if hasattr(self.config, 'CAMERA_FRAME_RATE'):
+           # self.frame_rate = self.config.CAMERA_FRAME_RATE
+        #else:
+        
+    def start(self, recording_length_s):
+        import cv2
+        if self.grabber_handle.isOpened(): # try to get the first frame
+            rval, frame = self.grabber_handle.read()
+        else:
+            rval = False
+        self.frames = []
+        self.timestamps = [time.time()]
+        while rval and self.timestamps[-1]-self.timestamps[0]<recording_length_s:
+            if self.preview_window is not None:
+                cv2.imshow("preview", frame)
+            rval, frame = self.grabber_handle.read()
+            if rval: 
+                self.frames.append(frame)
+                self.timestamps.append(time.time())
+                #send sync signal here
+                #if communication_interface_available:
+                    #send bit
+            key = cv2.waitKey(1)
+            if key == 27: # exit on ESC
+                break
+        if self.debug:
+            print 'frames: {0}, duration:{1} s, average framerate:{2} fps'.format(len(self.frames),(self.timestamps[-1]-self.timestamps[0]),1.0/numpy.diff(self.timestamps).mean())
+        
+        
+        
 class ImagingSourceCamera(VideoCamera):
     def _init_camera(self):
         dllpath = r'c:\tis\bin\win32\tisgrabber.dll'
@@ -136,6 +186,20 @@ class TestCamera(unittest.TestCase):
         with Timer(''):
             cam.stop()
         cam.close()
+
+class TestCVCameraConfig(configuration.Config):
+    def _create_application_parameters(self):
+#        self.CAMERA_FRAME_RATE = 30.0
+#        VIDEO_FORMAT = 'RGB24 (744x480)'
+        self.CAMERA_HEIGHT_PIXELS = 768
+        self.CAMERA_WIDTH_PIXELS = 1024
+        self.SHOW_PREVIEW_WINDOW=False
+        self._create_parameters_from_locals(locals())
+                
+class TestCVCamera(unittest.TestCase):
+    def test_01_record_some_frames(self):
+        cam = OpenCVCamera(TestCVCameraConfig(),debug=True)
+        cam.start(5)
 
 if __name__ == '__main__':
     unittest.main()
