@@ -182,8 +182,9 @@ class ExperimentControl(object):
             if not self.parameters['enable_intrinsic']:
                 #Check network connection before any interaction with mes
                 if not self.connections['mes'].connected_to_remote_client():
-                    message_to_screen = self.printl('No connection with MES')
-                    return message_to_screen
+                    self.printl('No connection with MES')
+                    time.sleep(0.5)
+                    return None
                 result,  laser_intensity = self.mes_interface.read_laser_intensity()
                 if result:
                     self.initial_laser_intensity = laser_intensity

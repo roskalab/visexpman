@@ -35,70 +35,59 @@ class VideoCamera(instrument.Instrument):
         pass
 
 class OpenCVCamera(VideoCamera):
-    def _init_camera(self):
+    def start(self, recording_length_s, filename):
         if self.config.SHOW_PREVIEW_WINDOW:
-            self.preview_window=cv2.namedWindow("preview "+str(time.time()))
+            self.preview_window=cv2.namedWindow("preview")
         else:
             self.preview_window=None
-        self.grabber_handle = cv2.VideoCapture(0)
+        #import motmot.cam_iface.cam_iface_ctypes as cam_iface
+        grabber_handle = cv2.VideoCapture(0)
         if hasattr(self.config, 'CAMERA_WIDTH_PIXELS'):
             self.w = self.config.CAMERA_WIDTH_PIXELS
         else: 
-            self.w = 1024
+            self.w = 640
         if hasattr(self.config, 'CAMERA_HEIGHT_PIXELS'):
             self.h = self.config.CAMERA_HEIGHT_PIXELS
         else:
-            self.h=768
-        self.grabber_handle.set(3,self.w)
-        self.grabber_handle.set(4,self.h)
-        
+            self.h=480
+        grabber_handle.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH,self.w)
+        grabber_handle.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT,self.h)
+        grabber_handle.set(cv2.cv.CV_CAP_PROP_FPS, 15)
         #if hasattr(self.config, 'CAMERA_FRAME_RATE'):
            # self.frame_rate = self.config.CAMERA_FRAME_RATE
         #else:
-        
-    def start(self, recording_length_s, filename):
-        time.sleep(3)
-        if self.grabber_handle.isOpened(): # try to get the first frame
-            rval, frame = self.grabber_handle.read()
+        if grabber_handle.isOpened(): # try to get the first frame
+            rval, frame = grabber_handle.read()
         else:
             rval = False
-        self.frames = []
-        self.timestamps = [time.time()]
         with closing(tables.openFile(filename, 'w')) as h1:
             h1.createEArray(h1.root, 'rawdata',  tables.UInt8Atom((self.h, self.w)), (0, ), 'Intrinsic', filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1))
-            
-            while rval and self.timestamps[-1]-self.timestamps[0]<recording_length_s:
+            h1.createEArray(h1.root, 'timestamps',  tables.Float64Atom((1, )), (0, ), 'Frame timestamps')
+            h1.root.timestamps.append(time.time())
+            while rval and h1.root.timestamps[-1][0]-h1.root.timestamps[0][0]<recording_length_s:
                 if self.preview_window is not None:
                     cv2.imshow("preview", frame)
-                rval, frame = self.grabber_handle.read()
+                rval, frame = grabber_handle.read()
                 if rval: 
                     frame = frame[:, :, 0]
                     h1.root.rawdata.append(frame)
-                    h1.flush()
-    #                self.frames.append(frame)
-                    self.timestamps.append(time.time())
+                    h1.root.timestamps.append(time.time())
                     #send sync signal here
                     #if communication_interface_available:
                         #send bit
                 key = cv2.waitKey(1)
                 if key == 27: # exit on ESC
                     break
-                time.sleep(0.01)
-            
-            if self.debug and len(self.timestamps)>1:
-                print 'frames: {0}, duration:{1} s, average framerate:{2} fps'.format(len(self.frames),(self.timestamps[-1]-self.timestamps[0]),1.0/numpy.diff(self.timestamps).mean())
-            #Does not work:
-            h1.createCArray('/', 'timestamp', atom=tables.Float64Atom((len(self.timestamps))), shape = (len(self.timestamps), ))
-            h1.root.timestamps = numpy.array(self.timestamps)
+            h1.flush()
+            if self.debug and len(h1.root.timestamps)>1:
+                print 'frames: {0}, duration:{1} s, average framerate:{2} fps'.format(len(h1.root.rawdata),(h1.root.timestamps[-1]-h1.root.timestamps[0]),1.0/numpy.diff(h1.root.timestamps.read().flatten()).mean())
+        grabber_handle.release()
         cv2.destroyWindow('preview')
         
-    def close(self):
-        if hasattr(self, 'preview_window'):
-            del self.preview_window
-        self.grabber_handle.release()
+   
 
 def opencv_camera_runner(filename, duration, config):
-    cam = OpenCVCamera(config, debug=False)
+    cam = OpenCVCamera(config, debug=True)
     cam.start(duration, filename)
     cam.close()
         
@@ -202,11 +191,9 @@ class TestISConfig(configuration.Config):
         
 class TestCVCameraConfig(configuration.Config):
     def _create_application_parameters(self):
-#        self.CAMERA_FRAME_RATE = 30.0
-#        VIDEO_FORMAT = 'RGB24 (744x480)'
-        self.CAMERA_HEIGHT_PIXELS = 768
-        self.CAMERA_WIDTH_PIXELS = 1024
-        self.SHOW_PREVIEW_WINDOW= not False
+        self.CAMERA_HEIGHT_PIXELS = 480
+        self.CAMERA_WIDTH_PIXELS = 640
+        self.SHOW_PREVIEW_WINDOW= True
         self._create_parameters_from_locals(locals())
 
                 
@@ -224,42 +211,44 @@ class TestCamera(unittest.TestCase):
         
     @unittest.skip('')    
     def test_02_record_some_frames_firewire_cam(self):
-        import os
-        import os.path
-        p = 'c:\\tmp\\test.hdf5'
-        if os.path.exists(p):
-            os.remove(p)
-        cam = OpenCVCamera(TestCVCameraConfig(),debug=True)
-        cam.start(2, p)
+        simple_camera()
         
 #    @unittest.skip('')    
     def test_02_record_some_frames_firewire_cam(self):
-        import os
-        import os.path
-        import threading
-        p = 'c:\\tmp\\test.hdf5'
-        duration = 2.0
-        config = TestCVCameraConfig()
+        threaded_camera()
+        
+def simple_camera():
+    import os
+    import os.path
+    p = 'c:\\tmp\\testsuimple.hdf5'
+    if os.path.exists(p):
+        os.remove(p)
+    cam = OpenCVCamera(TestCVCameraConfig(),debug=True)
+    cam.start(7, p)
+    
+def threaded_camera():
+    import os
+    import os.path
+    import threading
+    p = 'c:\\tmp\\test.hdf5'
+    duration = 20.0
+    config = TestCVCameraConfig()
 #        cam = OpenCVCamera(config, debug=False)
-        for i in range(3):
-            print i
-            if os.path.exists(p):
-                os.remove(p)
+    for i in range(1):
+        print i
+        if os.path.exists(p):
+            os.remove(p)
 #            if os.path.exists(p+'.zip'):
 #                os.remove(p+'.zip')
 #            cam.start(p, duration)
 #            t = threading.Thread(target = cam.start, args = (p, duration))
-            t = threading.Thread(target = opencv_camera_runner, args = (p, duration, config))
-            t.start()
-            t.join()
+        t = threading.Thread(target = opencv_camera_runner, args = (p, duration, config))
+        t.start()
+        t.join()
         
         
 if __name__ == '__main__':
-#    import os
-#    import os.path
-#    p = 'c:\\tmp\\test.hdf5'
-#    if os.path.exists(p):
-#        os.remove(p)
-#    cam = OpenCVCamera(TestCVCameraConfig(),debug=True)
-#    cam.start(4, p)
-    unittest.main()
+    simple_camera()
+    print('simple done')
+    #threaded_camera()
+    #unittest.main()

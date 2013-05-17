@@ -107,7 +107,7 @@ def scanner_calib():
     
 def evaluate_calibdata():
     p = '/mnt/datafast/debug/20130503/calibs'
-    p = '/mnt/rznb/data/20130503/calibs'
+#    p = '/mnt/rznb/data/20130503/calibs'
     max_linearity_error = 10e-2
     a = []
     fi = []
@@ -133,9 +133,13 @@ def evaluate_calibdata():
     plot(frq, 2*utils.sinus_linear_range(max_linearity_error)*(fi-fi[-1]))
     legend(('gain', 'phase'))
     show()
+    
+def evaluate_videos():
+    p = '/mnt/datafast/debug/20130503/camcalibs/x/calib_00000.hdf5'
+    pass
 
 if __name__ == "__main__":
-    if True:
-        evaluate_calibdata()
-    elif False:
-        scanner_calib()
+    evaluate_videos()
+    evaluate_calibdata()
+#    scanner_calib()
+#    hdf5io.lockman.__del__()

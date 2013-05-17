@@ -292,10 +292,13 @@ class MainPoller(Poller):
                             self.measurement_running = False
                             self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
                         elif command == 'measurement_ready':
+                            if self.experiment_parameters['enable_intrinsic']:
+                                self.printc('Camera data is being saved...')
+                                self.camera_runner.join()
+                                self.printc('Camera recording finished')
+#                            else:
                             self.add_measurement_id(parameter)
-                            self.printc('Camera data is being saved...')
-                            self.camera_runner.join()
-                            self.printc('camera recording finished')
+                            
                         elif command == 'fragment_check_ready':
                             #ID is saved, flag will be updated in mouse later when the measurement file is closed
                             self.fragment_check_ready_id = parameter
