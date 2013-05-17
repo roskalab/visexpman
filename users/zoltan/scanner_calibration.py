@@ -132,14 +132,77 @@ def evaluate_calibdata():
     plot(frq, a/a[-1])
     plot(frq, 2*utils.sinus_linear_range(max_linearity_error)*(fi-fi[-1]))
     legend(('gain', 'phase'))
-    show()
+#    show()
     
 def evaluate_videos():
-    p = '/mnt/datafast/debug/20130503/camcalibs/x/calib_00000.hdf5'
+    p = '/mnt/datafast/debug/20130503/camcalibs'
+    i=0
+    for pp in ['x', 'y']:
+        i+=1
+        for fn in os.listdir(os.path.join(p, pp)):
+            if 'hdf5' in fn:
+                evaluate_video(os.path.join(p, pp, fn),pp)
+#    show()
+    
+def evaluate_video(p, axis):
+    h=hdf5io.Hdf5io(p,filelocking=False)
+    h.load('video')
+    rvideo = h.video
+    h.load('config')
+    h.close()
+    frqs = h.config['F'][1::2]
+    #Threshold video
+    video = numpy.where(rvideo<2*rvideo.min(),False, True)
+    import tiffile
+#    tiffile.imsave(file.generate_filename('/mnt/rznb/1.tiff'), numpy.cast['uint8'](255*video), software = 'visexpman')
+    #Find horizontal size of beam
+    sizes = []
+    for i in range(video.shape[0]):
+        try:
+            sizes.append(process_frame(video[i,:,:],axis))
+        except:
+            pass
+    sizes = numpy.array(sizes)
+    #Eliminate non-moving beam sizes
+    masked_sizes = numpy.where(sizes>50, sizes, 0)
+    indexes = numpy.diff(numpy.nonzero(masked_sizes)[0])
+    indexes = numpy.nonzero(numpy.where(indexes > 1, indexes, 0))[0]
+    avgsizes = numpy.array([chunk.mean() for chunk in numpy.split(sizes, indexes+1)[1::2]])
+    chunks = numpy.split(video, indexes)[1::2]
+    totiff = numpy.zeros((len(chunks), rvideo.shape[1], rvideo.shape[2]),dtype = numpy.uint8)
+    for ci in range(len(chunks)):
+        totiff[ci,:,:] = chunks[ci].sum(axis=0)
+    totiff = numpy.cast['uint8'](numpy.where(totiff>0, 255, 0))
+    tiffile.imsave(file.generate_filename('/mnt/rznb/1.tiff'), totiff, software = 'visexpman')
+    figure(10*ord(axis))
+#    figure(1)
+    try:
+        plot(frqs,avgsizes/avgsizes.max())
+    except:
+        try:
+            plot(frqs[:avgsizes.shape[0]],avgsizes/avgsizes.max())
+        except:
+            pass
+    figure(10*ord(axis)+1)
+    plot(sizes)
+#    try:
+#        plot(frqs,avgsizes/avgsizes.max())
+#    except:
+#        pass
     pass
+    
+def process_frame(frame, axis):
+    coo = numpy.nonzero(frame)
+    s1 = coo[0].max()-coo[0].min()
+    s2 = coo[1].max()-coo[1].min()
+    if axis == 'x':
+        return s2
+    elif axis == 'y':
+        return s1
 
 if __name__ == "__main__":
     evaluate_videos()
     evaluate_calibdata()
+    show()
 #    scanner_calib()
 #    hdf5io.lockman.__del__()

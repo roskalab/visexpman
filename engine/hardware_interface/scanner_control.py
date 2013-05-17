@@ -1060,7 +1060,7 @@ def scanner_bode_diagram(pmt, mask, frqs, max_linearity_error):
                 p0 = [1., signal.argmax(), 1.]
                 coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(signal.shape[0]), signal, p0=p0)
                 mean = coeff[1]/(signal.shape[0])#phase characteristic
-                print coeff[1]
+                print coeff[1],frqs[frq_i]
                 sigma = coeff[2]/(signal.shape[0])#amplitude characteristic
             except RuntimeError:
                 mean = 0.5
