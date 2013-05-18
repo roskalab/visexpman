@@ -135,6 +135,13 @@ def evaluate_calibdata():
 #    show()
     
 def evaluate_videos():
+    '''
+    Strategy:
+    First approach:
+    1 .Find segment indexes in video
+    2. Add frames within one segment
+    3. Plot accumulated fragments to tiff sequence
+    '''
     p = '/mnt/datafast/debug/20130503/camcalibs'
     i=0
     for pp in ['x', 'y']:
@@ -151,54 +158,50 @@ def evaluate_video(p, axis):
     h.load('config')
     h.close()
     frqs = h.config['F'][1::2]
-    #Threshold video
-    video = numpy.where(rvideo<2*rvideo.min(),False, True)
-    import tiffile
-#    tiffile.imsave(file.generate_filename('/mnt/rznb/1.tiff'), numpy.cast['uint8'](255*video), software = 'visexpman')
-    #Find horizontal size of beam
+    mask = numpy.where(rvideo<2*rvideo.min(),False, True)
+    masked_video = rvideo*mask
     sizes = []
-    for i in range(video.shape[0]):
-        try:
-            sizes.append(process_frame(video[i,:,:],axis))
-        except:
-            pass
+    for fri in range(rvideo.shape[0]):
+        frame = masked_video[fri,:,:]
+        sizes.append(numpy.nonzero(frame)[0].shape[0])
     sizes = numpy.array(sizes)
-    #Eliminate non-moving beam sizes
-    masked_sizes = numpy.where(sizes>50, sizes, 0)
-    indexes = numpy.diff(numpy.nonzero(masked_sizes)[0])
-    indexes = numpy.nonzero(numpy.where(indexes > 1, indexes, 0))[0]
-    avgsizes = numpy.array([chunk.mean() for chunk in numpy.split(sizes, indexes+1)[1::2]])
-    chunks = numpy.split(video, indexes)[1::2]
-    totiff = numpy.zeros((len(chunks), rvideo.shape[1], rvideo.shape[2]),dtype = numpy.uint8)
-    for ci in range(len(chunks)):
-        totiff[ci,:,:] = chunks[ci].sum(axis=0)
-    totiff = numpy.cast['uint8'](numpy.where(totiff>0, 255, 0))
-    tiffile.imsave(file.generate_filename('/mnt/rznb/1.tiff'), totiff, software = 'visexpman')
-    figure(10*ord(axis))
-#    figure(1)
-    try:
-        plot(frqs,avgsizes/avgsizes.max())
-    except:
-        try:
-            plot(frqs[:avgsizes.shape[0]],avgsizes/avgsizes.max())
-        except:
-            pass
-    figure(10*ord(axis)+1)
-    plot(sizes)
-#    try:
-#        plot(frqs,avgsizes/avgsizes.max())
-#    except:
-#        pass
+    #calculate segment indexes
+    diffs = abs(numpy.diff(sizes))
+    indexes = numpy.nonzero(numpy.where(diffs > diffs.max()/3, True, False))[0]
+    indexes = indexes[numpy.nonzero(numpy.where(numpy.diff(indexes) == 1, 0, 1))[0]]
+    indexes = indexes[:-1]
+    masked_video = normalize(masked_video,outtype=numpy.uint8)
+    segments = numpy.split(masked_video, indexes)[1::2]
+    mean_images = numpy.zeros((len(segments), masked_video.shape[1], masked_video.shape[2]))
+    curves = numpy.zeros((len(segments), masked_video.shape[2]))
+    for segment_i in range(len(segments)):
+        segment_mean = segments[segment_i].mean(axis=0)
+        curves[segment_i] = segment_mean.mean(axis=0)
+#        dim_order = [0, 1]
+#        from visexpA.engine.dataprocessors import signal
+#        sigma = 2
+#        positions = signal.regmax(segment_mean,dim_order, sigma = sigma)
+#        for pos in positions:
+#            segment_mean[pos['row'],pos['col']] = 255
+        mean_images[segment_i, :, :] = segment_mean
+    #Beam profile over frequencies
+    Image.fromarray(normalize(curves,outtype=numpy.uint8)).show()
+#    mean_images = normalize(mean_images,outtype=numpy.uint8)
+    import tiffile
+    tiffile.imsave(file.generate_filename('/mnt/rznb/1.tiff'), numpy.cast['uint8'](mean_images), software = 'visexpman')
     pass
+    return
     
-def process_frame(frame, axis):
-    coo = numpy.nonzero(frame)
-    s1 = coo[0].max()-coo[0].min()
-    s2 = coo[1].max()-coo[1].min()
-    if axis == 'x':
-        return s2
-    elif axis == 'y':
-        return s1
+    
+    
+    
+    
+    
+    
+    
+    
+    
+  
 
 if __name__ == "__main__":
     evaluate_videos()
