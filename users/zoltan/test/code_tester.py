@@ -1,35 +1,45 @@
-import time
+from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+from visexpA.engine.datahandlers.hdf5io import Hdf5io, read_item
 import numpy
-from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.generic import configuration
-class TestConfig(configuration.Config):
-    def _create_application_parameters(self):
-        DAQ_CONFIG = [
-        {
-        'ANALOG_CONFIG' : 'ao',
-        'DAQ_TIMEOUT' : 2.0, 
-        'AO_SAMPLE_RATE' : 100000,
-        'AO_CHANNEL' : 'Dev1/ao0',
-        'MAX_VOLTAGE' : 8.0,
-        'MIN_VOLTAGE' : -8.0,
-        'DURATION_OF_AI_READ' : 2.0,
-        'ENABLE' : True
-        },
-        ]
-        self._create_parameters_from_locals(locals())
-if __name__ == "__main__":
-    duration = 50
-    f = 200
-    A = 1.0
-    config = TestConfig()
-    aio = daq_instrument.AnalogIO(config)
-    fs = aio.ao_sample_rate
-    t = numpy.linspace(0,  duration,  duration*fs, False)
-    signal = 0.5*A*numpy.sin(2*numpy.pi*t*f)
-    aio.waveform = signal
-    aio.start_daq_activity()
-    time.sleep(duration)
-    aio.release_instrument()
-#    from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
-#    plot(t, signal)
-#    show()
+from visexpman.engine.hardware_interface import scanner_control
+import Image
+from visexpA.engine.dataprocessors.generic import normalize
+import os
+import os.path
+from visexpman.engine.generic import utils
+fs = 1000
+f = 10
+t = numpy.linspace(0, 1,fs, False)
+x = numpy.sin(numpy.pi*2*t*f)
+X = numpy.fft.fft(x)
+ns = t.shape[0]/2
+gain = numpy.ones(ns)*0.5
+#gain = numpy.linspace(1, 0, ns, False)
+phase = numpy.pi*numpy.arange(0, ns)/ns
+phase = numpy.ones(ns)*numpy.pi/2
+#phase *= 0
+#phase[1] = numpy.pi
+phase_r = phase.tolist()
+phase_r.reverse()
+phase = numpy.concatenate((phase, -numpy.array(phase_r)))
+gain_r = gain.tolist()
+gain_r.reverse()
+gain = numpy.concatenate((gain, numpy.array(gain_r)))
+
+H = numpy.vectorize(complex)(gain, phase)
+y = numpy.fft.ifft(H*X)
+#y = numpy.fft.ifft(X)
+figure(1)
+plot(t, x)
+plot(t, y.real)
+plot(t, y.imag)
+#plot(t, numpy.arctan(y.imag, y.real)*0)
+#legend(('x', 'y real', 'y imag', ''))
+figure(2)
+plot(gain)
+plot(phase)
+figure(3)
+plot(X.real)
+plot(X.imag)
+show()
+pass

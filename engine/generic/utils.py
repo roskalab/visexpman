@@ -22,6 +22,14 @@ import file
 
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
+def resample_array(array, factor):
+    '''
+    Increases sampling rate of array with factor
+    '''
+    if factor == 1:
+        return array
+    else:
+        return numpy.array([array]*int(factor)).flatten('F')
 
 def sinus_linear_range(error):
     def f(x, e):
@@ -262,7 +270,7 @@ def nd(rcarray, squeeze=False, dim_order=None):
         res = numpy.c_[[rcarray[f] for f in names_in_order]].T # take field by field in the default order
     else: # faster way
         res= rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
-    if squeeze:
+    if squeeze or rcarray.ndim==0:
         res=numpy.squeeze(res)
     return res
 
@@ -639,7 +647,8 @@ version_paths = {
     'visexpman': 'version', 
     'visexpA': 'version', 
     'sklearn':'__version__',
-    'Polygon':'__version__'
+    'Polygon':'__version__',
+    #TODO:'zmq': 'pyzmq_version',
     }    
     
 def imported_modules():
@@ -692,8 +701,11 @@ def module_versions(modules):
                 try:
                     version_path = version_paths[module].split('.')
                     version = getattr(sys.modules[module], version_path[0])
-                    if not isinstance(version, str):                        
-                        version = getattr(version, version_path[1])                        
+                    if not isinstance(version, str):
+                        if callable(getattr(version, version_path[1])):
+                            version = getattr(version, version_path[1])()
+                        else:
+                            version = getattr(version, version_path[1])                        
                 except AttributeError:
                     version = ''                
                 module_version += '%s %s\n'%(module, version.replace('\n', ' '))
@@ -1234,6 +1246,9 @@ class TestUtils(unittest.TestCase):
             pass
             
 if __name__ == "__main__":
+    module_names, visexpman_module_paths = imported_modules()
+    module_versions, module_version = module_versions(module_names)
+    pass
     #commented out by Daniel:
     #start_point = cr((0.0, 0.0))
     #end_point = cr((10.0, 10.0))

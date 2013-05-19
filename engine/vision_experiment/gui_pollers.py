@@ -281,11 +281,24 @@ class MainPoller(Poller):
                                 self.measurement_duration = 0
                             self.parent.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
                             self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(False)
+                            if self.experiment_parameters['enable_intrinsic']:
+                                import threading
+                                from visexpman.engine.hardware_interface import camera_interface
+                                p = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'_intrinsic.hdf5')
+                                self.printc('camera data will be saved to '+p)
+                                self.camera_runner = threading.Thread(target =camera_interface.opencv_camera_runner, args = (p, self.measurement_duration+3.0, self.config))
+                                self.camera_runner.start()
                         elif command == 'measurement_finished':
                             self.measurement_running = False
                             self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
                         elif command == 'measurement_ready':
+                            if self.experiment_parameters['enable_intrinsic']:
+                                self.printc('Camera data is being saved...')
+                                self.camera_runner.join()
+                                self.printc('Camera recording finished')
+#                            else:
                             self.add_measurement_id(parameter)
+                            
                         elif command == 'fragment_check_ready':
                             #ID is saved, flag will be updated in mouse later when the measurement file is closed
                             self.fragment_check_ready_id = parameter
@@ -1481,6 +1494,8 @@ class MainPoller(Poller):
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
         self.printc('Stopping experiment requested, please wait')
+        self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
+        self.parent.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
 
     def graceful_stop_experiment(self):
         command = 'SOCgraceful_stop_experimentEOCguiEOP'
@@ -1526,6 +1541,10 @@ class MainPoller(Poller):
                                                                                             self.experiment_parameters['laser_intensities'][1], 
                                                                                             self.experiment_parameters['number_of_depths'])
             #generic.expspace(self.experiment_parameters['laser_intensities'][0], self.experiment_parameters['laser_intensities'][1],  self.experiment_parameters['objective_positions'].shape[0])
+        if self.parent.main_widget.experiment_control_groupbox.enable_intrinsic.input.checkState() ==2:
+            self.experiment_parameters['enable_intrinsic'] = True
+        else:
+            self.experiment_parameters['enable_intrinsic'] = False
         #Set back next/prev/redo button texts
         self.parent.main_widget.experiment_control_groupbox.next_depth_button.setText('Next')
         self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
@@ -1569,7 +1588,7 @@ class MainPoller(Poller):
             del h.parameters['laser_intensities']
         if h.parameters.has_key('objective_positions'):
             del h.parameters['objective_positions']
-        if self.experiment_parameters.has_key('region_name'):
+        if self.experiment_parameters.has_key('region_name') and not self.experiment_parameters['enable_intrinsic']:
             h.xy_scan_parameters = copy.deepcopy(self.scan_regions[self.experiment_parameters['region_name']]['xy_scan_parameters'])
             fields_to_save.append('xy_scan_parameters')
         if hasattr(self, 'animal_parameters'):
@@ -1899,7 +1918,8 @@ class MainPoller(Poller):
             self.running = True
             h = hdf5io.Hdf5io(self.mouse_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             field_names_to_save = []
-            with introspect.Timer('save time'):
+#            with introspect.Timer('save time'):
+            if True:
                 while not self.queues['mouse_file_handler'].empty():
                     field_name, field_value = self.queues['mouse_file_handler'].get()
                     setattr(h, field_name, field_value)
@@ -2134,6 +2154,10 @@ class CaImagingPoller(Poller):
                                         'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name', 
                                         'self.parent.central_widget.image_analysis.histogram_range.input', 
                                         'self.parent.central_widget.main_widget.use_user_parameters.input', 
+                                        'self.parent.central_widget.main_widget.beamer_control.trigger_delay.input', 
+                                        'self.parent.central_widget.main_widget.beamer_control.trigger_pulse_width.input', 
+                                        'self.parent.central_widget.main_widget.beamer_control.enable_beamer.input', 
+                                        'self.parent.central_widget.calibration_widget.calib_scan_pattern.pattern', 
                                       ]
         for pn in self.parent.central_widget.calibration_widget.parameter_names:
             self.widget_context_fields.append('self.parent.central_widget.calibration_widget.scanner_parameters[\'{0}\'].input'.format(pn))
@@ -2169,7 +2193,7 @@ class CaImagingPoller(Poller):
             if message_chunks[0] == 'sec' and message_chunks[2] == 'filename':
                 duration = float(message_chunks[1])
                 measurement_name = message_chunks[3].split('.')[0]
-                self.scan(self, duration=duration, name = measurement_name)
+                self.scan(duration=duration, name = measurement_name)
         
         
     def update_main_image(self):
@@ -2237,6 +2261,16 @@ class CaImagingPoller(Poller):
             self.parameters['enable_recording'] = (self.parent.central_widget.main_widget.measurement_files.enable_recording.input.checkState()==2)
             #figure out which analog channels need to be sampled
             self.parameters['AI_CHANNEL'], self.enabled_channels = self._select_ai_channel()
+            #Read projector trigger config
+            if self.parent.central_widget.main_widget.beamer_control.enable_beamer.input.checkState() == 2:
+                try:
+                    self.parameters['SCANNER_TRIGGER_CONFIG'] = {}
+                    self.parameters['SCANNER_TRIGGER_CONFIG']['offset'] = float(str(self.parent.central_widget.main_widget.beamer_control.trigger_delay.input.text()))*1e-6
+                    self.parameters['SCANNER_TRIGGER_CONFIG']['width'] = float(str(self.parent.central_widget.main_widget.beamer_control.trigger_pulse_width.input.text()))*1e-6
+                    self.parameters['SCANNER_TRIGGER_CONFIG']['amplitude'] = 5.0
+                    self.parameters['SCANNER_TRIGGER_CONFIG']['enable'] = True
+                except ValueError:
+                    pass
             #generate filename/create dirs
             folder = os.path.join(self.config.EXPERIMENT_DATA_PATH,  utils.date_string())
             file.mkdir_notexists(folder)
@@ -2272,8 +2306,9 @@ class CaImagingPoller(Poller):
         self.update_scan_run_status('saving')
         
     def frame_update(self):
-        if not self.queues['frame'].empty():
-            self.current_frame = scanner_control.raw2frame(self.queues['frame'].get(),  self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'])
+        if not self.queues['frame'].empty() and self.scan_run:
+            rawframe = self.queues['frame'].get()
+            self.current_frame = scanner_control.raw2frame(rawframe, self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'])
             if not hasattr(self, 'main_image'):
                 self.main_image={}
             self.main_image['image'] = self.current_frame
@@ -2291,9 +2326,10 @@ class CaImagingPoller(Poller):
         from visexpA.engine.dataprocessors import generic
         try:
             imout = numpy.zeros((image.shape[0],  image.shape[1],  3))
-        except:#TMP
+        except:#TMP, at high frame rates, empty images are tried to display
             self.printc(image.shape)
-            self.printc(image)
+#            self.printc(image)
+            
         for i in range(len(self.enabled_channels)):
             channel_color = [self.config.PMTS[pmtch]['COLOR'] for pmtch in self.config.PMTS.keys() if self.config.PMTS[pmtch]['AI'] == self.enabled_channels[i]][0]
             if len(self.enabled_channels) == 1:
@@ -2304,6 +2340,7 @@ class CaImagingPoller(Poller):
                 imout[:, :, 0] = self.apply_histogram(self.apply_filters(self.scale_image(image[:, :, channel_index])))
             elif channel_color == 'GREEN':
                 imout[:, :, 1] = self.apply_histogram(self.apply_filters(self.scale_image(image[:, :, channel_index])))
+                
                 channel_index += 1
         imout = numpy.cast['uint8'](255*imout)
         #convert to PIL image
@@ -2379,10 +2416,14 @@ class CaImagingPoller(Poller):
                     if len(par_value) == 1:
                         par_value = par_value[0]
                     self.parameters[pn] = par_value
+            self.parameters['pattern'] = str(self.parent.central_widget.calibration_widget.calib_scan_pattern.pattern.currentText())
             for pn, widget in self.parent.central_widget.calibration_widget.calib_scan_pattern.widgets.items():
-                if hasattr(widget, 'input') and hasattr(getattr(widget, 'input'), 'text'):
+                if hasattr(widget, 'input'):
                     try:
-                        self.parameters[pn] = float(str(widget.input.text()))
+                        if hasattr(getattr(widget, 'input'), 'checkState'):
+                            self.parameters[pn] = (widget.input.checkState()==2)
+                        elif hasattr(getattr(widget, 'input'), 'text'):
+                            self.parameters[pn] = float(str(widget.input.text()))
                     except ValueError:
                         pass
             self.queues['parameters'].put(self.parameters)
@@ -2396,8 +2437,10 @@ class CaImagingPoller(Poller):
     def calib_ready(self):
         self.printc('Calibration ready')
         self.update_scan_run_status('ready')
-        if not self.queues['data'].empty():
-            self.emit(QtCore.SIGNAL('plot_calibdata'))
+        while True:
+            if not self.queues['data'].empty():
+                self.emit(QtCore.SIGNAL('plot_calibdata'))
+                break
             
     ####### Helpers ###########
     def _select_ai_channel(self):

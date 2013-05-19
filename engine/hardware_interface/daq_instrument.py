@@ -174,6 +174,8 @@ class AnalogIO(instrument.Instrument):
     def _write_waveform(self):
         if os.name == 'nt' and self.daq_config['ENABLE']:
             if self.enable_ao:
+#                print self.waveform.min(), self.waveform.max()
+#                print self.waveform.shape
                 self.analog_output.WriteAnalogF64(self.number_of_ao_samples,
                                     False,
                                     self.daq_config['DAQ_TIMEOUT'],
@@ -201,7 +203,7 @@ class AnalogIO(instrument.Instrument):
                 
             if self.enable_ai:
                 #clear ai buffer
-                self.ai_data = numpy.zeros((self.number_of_ai_samples*self.number_of_ai_channels), dtype=numpy.float64)
+                self.ai_data = numpy.zeros(self.number_of_ai_samples*self.number_of_ai_channels, dtype=numpy.float64)
             self._configure_timing() #this cannot be done during init because the lenght of the signal is not known before waveform is set
             self._write_waveform()
             if self.enable_ao:
@@ -228,7 +230,7 @@ class AnalogIO(instrument.Instrument):
                     pass
                 self.ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
                 self.ai_raw_data = self.ai_data
-                self.ai_data = self.ai_data.reshape((self.number_of_ai_channels, self.read.value)).transpose()
+                self.ai_data = self.ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose()
                 return copy.deepcopy(self.ai_data)
 
     def finish_daq_activity(self, abort = False):

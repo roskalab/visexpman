@@ -78,14 +78,14 @@ class VisionExperimentGui(QtGui.QWidget):
         self.block_widgets(False)
         
     def create_gui(self):
-        self.main_widget = gui.MainWidget(self, self.config)
-        self.animal_parameters_widget = gui.AnimalParametersWidget(self, self.config)
-        self.images_widget = gui.ImagesWidget(self, self.config)
-        self.overview_widget = gui.OverviewWidget(self, self.config)
-        self.roi_widget = gui.RoiWidget(self, self.config)
-        self.common_widget = gui.CommonWidget(self, self.config)
-        self.helpers_widget = gui.HelpersWidget(self, self.config)
-        self.zstack_widget = gui.ZstackWidget(self, self.config)
+        self.main_widget = gui.MainWidget(self)
+        self.animal_parameters_widget = gui.AnimalParametersWidget(self)
+        self.images_widget = gui.ImagesWidget(self)
+        self.overview_widget = gui.OverviewWidget(self)
+        self.roi_widget = gui.RoiWidget(self)
+        self.common_widget = gui.CommonWidget(self)
+        self.helpers_widget = gui.HelpersWidget(self)
+        self.zstack_widget = gui.ZstackWidget(self)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Main')
         self.main_tab.addTab(self.roi_widget, 'ROI')
@@ -97,7 +97,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.image_tab = QtGui.QTabWidget(self)
         self.image_tab.addTab(self.images_widget, 'Regions')
         self.image_tab.addTab(self.overview_widget, 'Overview')
-        self.standard_io_widget = gui.StandardIOWidget(self, self.config)
+        self.standard_io_widget = gui.StandardIOWidget(self)
         experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
         experiment_config_names = []
         for experiment_config in experiment_config_list:
@@ -492,7 +492,7 @@ class VisionExperimentGui(QtGui.QWidget):
             if status['info'].has_key('laser_intensity'):
                 try:
                     laser_intensity = '{0:1.1f}'.format(float(status['info']['laser_intensity']))
-                except ValueError:
+                except:
                     laser_intensity = 'NA'
             else:
                 laser_intensity = 0.0
@@ -813,6 +813,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.log.copy()
         self.poller.abort = True
         self.poller.wait()
+        sys.exit(0)
         #TMP111self.mouse_file_handler.abort = True
 #        time.sleep(15.0) #Enough time to close network connections
         

@@ -140,6 +140,7 @@ class Parameter(object):
         elif self._type == 'enumerated':
             in_range = False
             if not self.v in range_:
+                print self.v
                 raise OutOfRangeParameterValue
         elif self._type == 'numeric':            
             if range_ == None:                
