@@ -7,26 +7,29 @@ from visexpA.engine.dataprocessors.generic import normalize
 import os
 import os.path
 from visexpman.engine.generic import utils
-fs = 1000
-f = 10
+fs = 100
+f = 15
 t = numpy.linspace(0, 1,fs, False)
 x = numpy.sin(numpy.pi*2*t*f)
 X = numpy.fft.fft(x)
 ns = t.shape[0]/2
 gain = numpy.ones(ns)*0.5
+gain[fs/8:] = 0.25
 #gain = numpy.linspace(1, 0, ns, False)
 phase = numpy.pi*numpy.arange(0, ns)/ns
 phase = numpy.ones(ns)*numpy.pi/2
 #phase *= 0
 #phase[1] = numpy.pi
+#Mirror phase and concatenate 
 phase_r = phase.tolist()
 phase_r.reverse()
 phase = numpy.concatenate((phase, -numpy.array(phase_r)))
+#Mirror gain and multiply the mirror with -1
 gain_r = gain.tolist()
 gain_r.reverse()
 gain = numpy.concatenate((gain, numpy.array(gain_r)))
 
-H = numpy.vectorize(complex)(gain, phase)
+H = numpy.vectorize(complex)(gain*numpy.cos(phase), gain*numpy.sin(phase))
 y = numpy.fft.ifft(H*X)
 #y = numpy.fft.ifft(X)
 figure(1)
