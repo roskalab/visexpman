@@ -54,6 +54,8 @@ class SmallApp(QtGui.QWidget):
         self.connect_signals()
         self.show()
         if self.config.SMALLAPP.has_key('POLLER'):
+            if hasattr(self.poller,  'init_widgets'):
+                self.poller.init_widgets()
             self.poller.start()
         
     def add_console(self):
