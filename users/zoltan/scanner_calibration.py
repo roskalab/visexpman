@@ -128,11 +128,27 @@ def evaluate_calibdata():
     #    plot(t, scanner_control.gauss(t, res['gauss_amplitudes'][0], fi[-1], a[-1]))
     #    title('{0} Hz, {1}, {2}'.format(frq[-1], fi[-1], a[-1]))
     #print frq
+    phase = 2*utils.sinus_linear_range(max_linearity_error)*(fi-fi[-1])
     figure(len(frq)+1)
     plot(frq, a/a[-1])
-    plot(frq, 2*utils.sinus_linear_range(max_linearity_error)*(fi-fi[-1]))
-    legend(('gain', 'phase'))
+    plot(frq, phase)
+    
+    import scipy.optimize
+    p0 = [1.0/2500,0.0]
+    frq = numpy.array(frq)
+    coeff, var_matrix = scipy.optimize.curve_fit(linear, frq, phase, p0=p0)
+#    plot(frq, p0[0]*frq+p0[1])
+    plot(frq, coeff[0]*frq+coeff[1])
+    legend(('gain', 'phase', 'fitted'))
+    print coeff#[ 0.00043265 -0.02486131]
+    
+    
 #    show()
+    
+def linear(x, *p):
+    A, B = p
+    return A*x + B
+
     
 def evaluate_videos():
     '''
@@ -192,20 +208,8 @@ def evaluate_video(p, axis):
     pass
     return
     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-  
-
 if __name__ == "__main__":
-    evaluate_videos()
+#    evaluate_videos()
     evaluate_calibdata()
     show()
 #    scanner_calib()
-#    hdf5io.lockman.__del__()
