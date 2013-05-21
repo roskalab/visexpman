@@ -128,18 +128,88 @@ def evaluate_calibdata():
     #    plot(t, scanner_control.gauss(t, res['gauss_amplitudes'][0], fi[-1], a[-1]))
     #    title('{0} Hz, {1}, {2}'.format(frq[-1], fi[-1], a[-1]))
     #print frq
+    phase = 2*utils.sinus_linear_range(max_linearity_error)*(fi-fi[-1])
     figure(len(frq)+1)
     plot(frq, a/a[-1])
-    plot(frq, 2*utils.sinus_linear_range(max_linearity_error)*(fi-fi[-1]))
-    legend(('gain', 'phase'))
-    show()
+    plot(frq, phase)
+    
+    import scipy.optimize
+    p0 = [1.0/2500,0.0]
+    frq = numpy.array(frq)
+    coeff, var_matrix = scipy.optimize.curve_fit(linear, frq, phase, p0=p0)
+#    plot(frq, p0[0]*frq+p0[1])
+    plot(frq, coeff[0]*frq+coeff[1])
+    legend(('gain', 'phase', 'fitted'))
+    print coeff#[ 0.00043265 -0.02486131]
+    
+    
+#    show()
+    
+def linear(x, *p):
+    A, B = p
+    return A*x + B
+
     
 def evaluate_videos():
-    p = '/mnt/datafast/debug/20130503/camcalibs/x/calib_00000.hdf5'
+    '''
+    Strategy:
+    First approach:
+    1 .Find segment indexes in video
+    2. Add frames within one segment
+    3. Plot accumulated fragments to tiff sequence
+    '''
+    p = '/mnt/datafast/debug/20130503/camcalibs'
+    i=0
+    for pp in ['x', 'y']:
+        i+=1
+        for fn in os.listdir(os.path.join(p, pp)):
+            if 'hdf5' in fn:
+                evaluate_video(os.path.join(p, pp, fn),pp)
+#    show()
+    
+def evaluate_video(p, axis):
+    h=hdf5io.Hdf5io(p,filelocking=False)
+    h.load('video')
+    rvideo = h.video
+    h.load('config')
+    h.close()
+    frqs = h.config['F'][1::2]
+    mask = numpy.where(rvideo<2*rvideo.min(),False, True)
+    masked_video = rvideo*mask
+    sizes = []
+    for fri in range(rvideo.shape[0]):
+        frame = masked_video[fri,:,:]
+        sizes.append(numpy.nonzero(frame)[0].shape[0])
+    sizes = numpy.array(sizes)
+    #calculate segment indexes
+    diffs = abs(numpy.diff(sizes))
+    indexes = numpy.nonzero(numpy.where(diffs > diffs.max()/3, True, False))[0]
+    indexes = indexes[numpy.nonzero(numpy.where(numpy.diff(indexes) == 1, 0, 1))[0]]
+    indexes = indexes[:-1]
+    masked_video = normalize(masked_video,outtype=numpy.uint8)
+    segments = numpy.split(masked_video, indexes)[1::2]
+    mean_images = numpy.zeros((len(segments), masked_video.shape[1], masked_video.shape[2]))
+    curves = numpy.zeros((len(segments), masked_video.shape[2]))
+    for segment_i in range(len(segments)):
+        segment_mean = segments[segment_i].mean(axis=0)
+        curves[segment_i] = segment_mean.mean(axis=0)
+#        dim_order = [0, 1]
+#        from visexpA.engine.dataprocessors import signal
+#        sigma = 2
+#        positions = signal.regmax(segment_mean,dim_order, sigma = sigma)
+#        for pos in positions:
+#            segment_mean[pos['row'],pos['col']] = 255
+        mean_images[segment_i, :, :] = segment_mean
+    #Beam profile over frequencies
+    Image.fromarray(normalize(curves,outtype=numpy.uint8)).show()
+#    mean_images = normalize(mean_images,outtype=numpy.uint8)
+    import tiffile
+    tiffile.imsave(file.generate_filename('/mnt/rznb/1.tiff'), numpy.cast['uint8'](mean_images), software = 'visexpman')
     pass
-
+    return
+    
 if __name__ == "__main__":
-    evaluate_videos()
+#    evaluate_videos()
     evaluate_calibdata()
+    show()
 #    scanner_calib()
-#    hdf5io.lockman.__del__()
