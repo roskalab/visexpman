@@ -105,7 +105,8 @@ class VisionExperimentGui(QtGui.QWidget):
         experiment_config_names.sort()
         self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
         try:
-            self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
+            if hasattr(self.config, 'EXPERIMENT_CONFIG'):
+                self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
         except ValueError:
             pass
         

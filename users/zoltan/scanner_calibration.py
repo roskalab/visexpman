@@ -142,8 +142,7 @@ def evaluate_calibdata():
     legend(('gain', 'phase', 'fitted'))
     print coeff#[ 0.00043265 -0.02486131]
     
-    
-#    show()
+    #    show()
     
 def linear(x, *p):
     A, B = p
