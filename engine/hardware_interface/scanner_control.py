@@ -525,7 +525,10 @@ class TwoPhotonScanner(instrument.Instrument):
         self.frame_rate = float(self.aio.daq_config['AO_SAMPLE_RATE'])/self.scanner_positions.shape[1]
         self.scanner_time_efficiency = self.scan_mask.sum()/self.scan_mask.shape[0]
         #Calculate scanner phase shift
-        self.phase_shift, error = calculate_phase_shift(scanner_x, self.scan_mask, self.config)
+        if False:
+            self.phase_shift, error = calculate_phase_shift(scanner_x, self.scan_mask, self.config)
+        else:
+            self.phase_shift = 0
         if hasattr(self, 'accel_speed'):
             #calculate speeds
             self.speeds = {}
@@ -635,7 +638,7 @@ class TwoPhotonScanner(instrument.Instrument):
 def raw2frame(rawdata, binning_factor, boundaries, phase_shift = 0):
     binned_pmt_data = binning_data(rawdata, binning_factor)
     if phase_shift != 0:
-        binned_pmt_data = numpy.roll(binned_pmt_data, phase_shift)
+        binned_pmt_data = numpy.roll(binned_pmt_data, -phase_shift)
     return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
 
 def binning_data(data, factor):
@@ -795,7 +798,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.printc('saving_data')
         #gather data to save
         data_to_save = {}
-        data_to_save['rawdata'] = numpy.rollaxis(self.tp.data, 0, 3)
+        data_to_save['raw_data'] = numpy.rollaxis(self.tp.data, 0, 3)#TMP:rawdata cannot be saved
         data_to_save['scan_parameters'] = self.scan_parameters
         data_to_save['scan_parameters']['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
         data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
@@ -811,13 +814,15 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             data_to_save['machine_config'] = experiment_data.pickle_config(self.config)
             from visexpA.engine.datahandlers.datatypes import ImageData
-            h = ImageData(self.filenames['datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+            h = ImageData(self.filenames['local_datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             for node, value in data_to_save.items():
                 setattr(h, node, value)
             h.save(data_to_save.keys())
             h.close()
+            import shutil
+            shutil.move(self.filenames['local_datafile'][0], self.filenames['datafile'][0])
         self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
-#        return
+        return
         if self.filenames.has_key('other_files') and 'tiff' in self.filenames['other_files'][0]:
             import tiffile
             from visexpA.engine.dataprocessors import generic
@@ -1581,7 +1586,7 @@ class TestScannerControl(unittest.TestCase):
     def test_16_estimate_scanner_position_shift(self):
         from visexpman.engine.generic.introspect import Timer
         config = ScannerTestConfig()
-        spatial_resolution = 4
+        spatial_resolution = 1
         spatial_resolution = 1.0/spatial_resolution
         position = utils.rc((0, 0))
         size = utils.rc((128, 128))
@@ -1589,12 +1594,12 @@ class TestScannerControl(unittest.TestCase):
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         with Timer(''):
-            shift, error = calculate_phase_shift(pos_x, scan_mask, config,False)
+            shift, error = calculate_phase_shift(pos_x, scan_mask, config,True)
         print shift, abs(error).max()
         from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
-#        figure(20)
-#        plot(pos_x)
-#        show()
+        figure(20)
+        plot(pos_x)
+        show()
 
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)

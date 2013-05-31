@@ -199,6 +199,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
         self.connect_and_map_signal(self.helpers_widget.add_simulated_measurement_file_button, 'add_simulated_measurement_file')
         self.connect_and_map_signal(self.helpers_widget.rebuild_cell_database_button, 'rebuild_cell_database')
+        self.connect_and_map_signal(self.helpers_widget.camera_button, 'camera_test')
         self.connect(self.standard_io_widget.console_message_filter_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.console_message_filter_changed)
 
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.remove_measurement_button, 'remove_measurement_file_from_database')
@@ -798,7 +799,10 @@ class VisionExperimentGui(QtGui.QWidget):
         if not isinstance(text, str):
             text = str(text)
         self.console_text  += text + '\n'
-        self.update_console()
+        try:
+            self.update_console()
+        except RuntimeError:
+            pass#gui not yet initialized
 #        print text
         try:
             self.log.info(text)
@@ -985,5 +989,3 @@ def run_gui():
 
 if __name__ == '__main__':
     run_gui()
-#    hdf5io.lockman.__del__()
-    

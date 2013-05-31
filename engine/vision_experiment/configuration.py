@@ -17,7 +17,6 @@ ElphysConfig:
         inherits VisionExperimentConfig and expands it with electrophisiology setup specific parameters that are not used on other platforms
         Platform name: elphys
 '''
-
 import os
 import sys
 import numpy
@@ -197,7 +196,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         'ENABLE' : True
 #         }
 #         ]]
-        
+        GREEN_LABELING = ['']
+        GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 
@@ -361,8 +361,6 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
         ROI_INFO_IMAGE_SIZE = utils.rc((int(1.55*IMAGE_SIZE['row']), int(1.35*OVERVIEW_IMAGE_SIZE['col'])))#FIXME: this is not reasonable but working
         ROI_CURVE_IMAGE_CUTOUT = [1600, [0, 2000]]
         SIDEBAR_SIZE = [30, [10, 100]]
-        GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
-        GREEN_LABELING = ['']
         MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
         #realignment parameters
         MAX_REALIGNMENT_OFFSET = [50.0, [10.0, 1000.0]]

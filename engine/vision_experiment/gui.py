@@ -573,6 +573,7 @@ class HelpersWidget(QtGui.QWidget):
         self.select_connection_list.addItems(QtCore.QStringList(self.connection_names))
         self.send_command_button = QtGui.QPushButton('Send command',  self)
         self.gui_test_button = QtGui.QPushButton('Gui test',  self)
+        self.camera_button = QtGui.QPushButton('Camera',  self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -588,6 +589,7 @@ class HelpersWidget(QtGui.QWidget):
         self.layout.addWidget(self.rebuild_cell_database_button, 1, 4, 1, 1)
         
         self.layout.addWidget(self.gui_test_button, 2, 0)
+        self.layout.addWidget(self.camera_button, 3, 0)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)

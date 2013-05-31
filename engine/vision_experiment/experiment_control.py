@@ -249,46 +249,47 @@ class ExperimentControl(object):
         self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time)
         if self.analog_input.start_daq_activity():
             self.printl('Analog signal recording started')
-        if self.config.PLATFORM == 'rc_cortical':
+        if (self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical'):
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
-            #start two photon recording
             if self.parameters['enable_intrinsic']:
-                pass#here camera recording initiated
+                nframes = self.mes_record_time * self.config.CAMERA_MAX_FRAME_RATE
+                self.mes_interface.acquire_video(nframes, parameter_file = self.filenames['mes_fragments'][fragment_id])
                 return True
+        if self.config.PLATFORM == 'rc_cortical':
+            #start two photon recording
+            if self.scan_mode == 'xyz':
+                scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
+                                                                                      parameter_file = self.filenames['mes_fragments'][fragment_id], 
+                                                                                      scan_time = self.mes_record_time)
             else:
-                if self.scan_mode == 'xyz':
-                    scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
-                                                                                          parameter_file = self.filenames['mes_fragments'][fragment_id], 
-                                                                                          scan_time = self.mes_record_time)
-                else:
-                    if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
-                        #Before starting scan, set xz lines
-                        if self.roi_locations is None:
-                            self.printl('No ROIs found')
-                            return False
-                    elif self.scan_mode == 'xy':
-                        if hasattr(self, 'xy_scan_parameters') and not self.xy_scan_parameters is None:
-                            self.xy_scan_parameters.tofile(self.filenames['mes_fragments'][fragment_id])
-                    scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
-                        parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
-                scan_start_success2 = False
-                if not scan_start_success:
-                    self.printl('Scan did not start, retrying...')
-                    scan_start_success2, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
-                        parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
-                if scan_start_success2 or scan_start_success:
-                    time.sleep(1.0)
-                else:
-                    self.printl('Scan start ERROR')
-                return (scan_start_success2 or scan_start_success)
+                if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
+                    #Before starting scan, set xz lines
+                    if self.roi_locations is None:
+                        self.printl('No ROIs found')
+                        return False
+                elif self.scan_mode == 'xy':
+                    if hasattr(self, 'xy_scan_parameters') and not self.xy_scan_parameters is None:
+                        self.xy_scan_parameters.tofile(self.filenames['mes_fragments'][fragment_id])
+                scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
+                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
+            scan_start_success2 = False
+            if not scan_start_success:
+                self.printl('Scan did not start, retrying...')
+                scan_start_success2, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
+                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
+            if scan_start_success2 or scan_start_success:
+                time.sleep(1.0)
+            else:
+                self.printl('Scan start ERROR')
+            return (scan_start_success2 or scan_start_success)
         elif self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mc_mea':
             #Set acquisition trigger pin to high
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
             return True
-        elif self.config.PLATFORM == 'standalone':
+        elif self.config.PLATFORM == 'standalone' or self.config.PLATFORM == 'ao_cortical':
             return True
         return False
 
@@ -390,7 +391,7 @@ class ExperimentControl(object):
         self.led_controller = daq_instrument.AnalogPulse(self.config, self.log, self.start_time, id = 1)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
         self.analog_input = None #This is instantiated at the beginning of each fragment
         self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
-        if self.config.PLATFORM == 'rc_cortical':
+        if self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
 
     def _close_devices(self):
@@ -435,7 +436,7 @@ class ExperimentControl(object):
             elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
                 fragment_name = 'fragment_{0}_{1}_{2}' .format(self.name_tag, self.id, fragment_id)
             fragment_filename = os.path.join(self.config.EXPERIMENT_DATA_PATH, '{0}.{1}' .format(fragment_name, self.config.EXPERIMENT_FILE_FORMAT))
-            if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5' and  self.config.PLATFORM == 'rc_cortical':
+            if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5' and  (self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical'):
                 if hasattr(self, 'objective_position'):
                     if self.parameters.has_key('region_name'):
                         fragment_filename = fragment_filename.replace('fragment_', 

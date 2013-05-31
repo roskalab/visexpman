@@ -1643,6 +1643,9 @@ class MainPoller(Poller):
             p.plot(scanned_trajectory['masked_line'][::undersample])
             p.plot(scanned_trajectory['roi'][::undersample])
             p.show()
+            
+    def camera_test(self):
+        self.mes_interface.acquire_video(float(str(self.parent.scanc())))
 
     ########### Network debugger tools #################
     def send_command(self):
@@ -2290,7 +2293,7 @@ class CaImagingPoller(Poller):
         self.update_status(frame_rate = (numpy.round(self.scan_parameters['frame_rate'], 2),  'Hz'))
         self.printc('Scanner max speeds (x, y): {0}, {1} um/s, scanning speed x axis: {2} um/s,overshoot: {3} um\nphase shift {4}'
                     .format(self.scan_parameters['speeds']['x']['max'], self.scan_parameters['speeds']['y']['max'], self.scan_parameters['speeds']['x']['scan'], self.scan_parameters['overshoot'],
-                            scan_parameters['phase_shift'])
+                            self.scan_parameters['phase_shift'])
                                                                           )
         self.scan_start_time = time.time()
         self.printc('Scan started')
@@ -2309,6 +2312,8 @@ class CaImagingPoller(Poller):
     def frame_update(self):
         if not self.queues['frame'].empty() and self.scan_run:
             rawframe = self.queues['frame'].get()
+            if self.parent.central_widget.main_widget.enable_phase_shift.input.checkState() == 0:
+                self.scan_parameters['phase_shift'] = 0
             self.current_frame = scanner_control.raw2frame(rawframe, self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'], self.scan_parameters['phase_shift'])
             if not hasattr(self, 'main_image'):
                 self.main_image={}

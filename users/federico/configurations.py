@@ -107,7 +107,7 @@ class ProtocolDevelopment(VisionExperimentConfig):
         
         self._create_parameters_from_locals(locals())
         
-class AoSetup(AoCorticalCaImagingConfig):
+class AoMicroscopeSetup(AoCorticalCaImagingConfig):
     '''
     Visual stimulation machine of 3D microscope setup
     '''
@@ -134,15 +134,14 @@ class AoSetup(AoCorticalCaImagingConfig):
         EXPERIMENT_DATA_PATH = v_drive_data_folder
         MES_DATA_FOLDER = 'V:\\experiment_data_ao'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
-        self.CONTEXT_NAME = 'gui.hdf5'
+        self.CONTEXT_NAME = 'gui_ao.hdf5'
         CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
         if os.name != 'nt':
             DATABIG_PATH = '/mnt/databig/data'
             self.TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
-        
 
         #=== screen ===
-        FULLSCREEN = True
+        FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
@@ -238,11 +237,8 @@ class AoSetup(AoCorticalCaImagingConfig):
         GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
         
         #Intrinsic imaging:
-        self.CAMERA_HEIGHT_PIXELS = 768
-        self.CAMERA_WIDTH_PIXELS = 1024
-        self.SHOW_PREVIEW_WINDOW=True
+        self.CAMERA_MAX_FRAME_RATE=15
         self._create_parameters_from_locals(locals(), check_path = check_path)
         
 if __name__ == "__main__":
     pass
-    
