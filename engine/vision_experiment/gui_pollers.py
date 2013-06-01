@@ -2406,6 +2406,9 @@ class CaImagingPoller(Poller):
     def snap(self):
         self.scan(nframes=1)
         
+    def snap1(self):#For calibration purposes
+        self.scan(nframes=10)
+        
     ######### Calibration related #############
     def calib(self):
         if self.scan_run:

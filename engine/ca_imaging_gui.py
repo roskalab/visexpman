@@ -275,6 +275,8 @@ class ControlWidget(QtGui.QWidget):
         self.scan_mode = QtGui.QComboBox(self)
         self.layout.addWidget(self.scan_mode, 0, 2)
         self.scan_mode.addItems(QtCore.QStringList(['background',  'roi']))
+        self.snap1 = QtGui.QPushButton('Snap10',  self)
+        self.layout.addWidget(self.snap, 0, 3)
         self.draw_mode = gui.LabeledComboBox(self, 'Select tool')
         self.layout.addWidget(self.draw_mode, 1, 0,  1, 2)
         self.draw_mode.input.addItems(QtCore.QStringList(['draw rectangle',  'draw line',  'select point',  'zoom in',  'zoom out']))
@@ -455,6 +457,7 @@ class CaImagingGui(Qt.QMainWindow):
         self.connect(self.central_widget.image_analysis.histogram_range.input, QtCore.SIGNAL('textEdited(QString)'), self.update_main_image)
         self.connect_and_map_signal(self.central_widget.control_widget.scan, 'scan')
         self.connect_and_map_signal(self.central_widget.control_widget.snap, 'snap')
+        self.connect_and_map_signal(self.central_widget.control_widget.snap1, 'snap1')
         self.connect_and_map_signal(self.central_widget.calibration_widget.calib_scan_pattern.widgets['start'], 'calib')
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         

@@ -107,12 +107,15 @@ def scanner_calib():
     
 def evaluate_calibdata():
     p = '/mnt/datafast/debug/20130503/calibs'
-#    p = '/mnt/rznb/data/20130503/calibs'
+    p = '/mnt/rznb/data/20130503/calibs'
+    p = '/home/rz/visexp/data/calibs'
     max_linearity_error = 10e-2
     a = []
     fi = []
     frq = []
-    fs =os.listdir(p)[:-2]
+    fs =os.listdir(p)
+    fs.sort()
+    fs = fs[:-2]
     fs.reverse()
     for f in fs:
         calibdata = hdf5io.read_item(os.path.join(p, f), 'calibdata', filelocking=False)
@@ -122,11 +125,11 @@ def evaluate_calibdata():
         a.append(res['sigmas'][0])
         fi.append(res['means'][0])
         frq.append(res['frq'][0])
-    #    figure(len(frq))
-        t = numpy.linspace(0, 1, res['signals'][0].shape[0])
-    #    plot(t, res['signals'][0])
-    #    plot(t, scanner_control.gauss(t, res['gauss_amplitudes'][0], fi[-1], a[-1]))
-    #    title('{0} Hz, {1}, {2}'.format(frq[-1], fi[-1], a[-1]))
+#        figure(len(frq))
+#        t = numpy.linspace(0, 1, res['signals'][0].shape[0])
+#        plot(t, res['signals'][0])
+#        plot(t, scanner_control.gauss(t, res['gauss_amplitudes'][0], fi[-1], a[-1]))
+#        title('{0} Hz, {1}, {2}'.format(frq[-1], fi[-1], a[-1]))
     #print frq
     phase = 2*utils.sinus_linear_range(max_linearity_error)*(fi-fi[-1])
     figure(len(frq)+1)
@@ -207,8 +210,90 @@ def evaluate_video(p, axis):
     pass
     return
     
+def delay_curve():
+    #1. method
+    folder1 = '/home/rz/visexp/data/calibs'
+    fns = os.listdir(folder1)
+    fns.sort()
+    fns = fns[:-2]
+    resolutions = []
+    delays = []
+    for fn in fns:
+        calibdata = hdf5io.read_item(os.path.join(folder1, fn),  'calibdata',  filelocking=False)
+        signal = calibdata['pmt']
+        mask = utils.resample_array(calibdata['mask'], calibdata['parameters']['binning_factor'])
+        scanner = utils.resample_array(calibdata['waveform'][:, 0], calibdata['parameters']['binning_factor'])
+        #Calculate scan size and resolution
+        npoints = numpy.diff(numpy.nonzero(numpy.diff(mask))[0][:2])[0]
+        scan_range = ((scanner*mask).max() - (scanner*mask).min())*128/2
+        resolutions.append(npoints/scan_range)
+        #Extract peak delay
+        indexes = numpy.nonzero(numpy.diff(mask))[0]
+        indexes = indexes[:indexes.shape[0]/2]
+        signal = numpy.array((numpy.split(signal, indexes)[1::2])).mean(axis=0)[:,0]
+        p0 = [1., signal.argmax(), 1.]
+        import scipy.optimize
+        coeff, var_matrix = scipy.optimize.curve_fit(scanner_control.gauss, numpy.arange(signal.shape[0]), signal, p0=p0)
+        delays.append(coeff[1]/signal.shape[0])
+#        plot(signal)
+#        plot(scanner_control.gauss(numpy.arange(signal.shape[0]),  *coeff))
+        pass
+    #2. method
+    folder2 = '/home/rz/visexp/data/shift_size_calib'
+    fns = os.listdir(folder2)
+    fns.sort()
+    fns = fns
+    delays = {}
+    figct = 0
+    for fn in fns:
+        rawdata = hdf5io.read_item(os.path.join(folder2,  fn),  'rawdata',  filelocking=False)
+        scan_parameters = hdf5io.read_item(os.path.join(folder2,  fn),  'scan_parameters',  filelocking=False)
+        resolution = 1/scan_parameters['resolution']
+        scan_range = scan_parameters['scan_size']['col']
+        curve = rawdata[:,:,0,0].mean(axis=0)
+        
+        p0 = [1., curve.argmax(), 1.]
+        import scipy.optimize
+        try:
+            coeff, var_matrix = scipy.optimize.curve_fit(scanner_control.gauss, numpy.arange(curve.shape[0]), curve, p0=p0)
+            delay = coeff[1]/curve.shape[0]
+        except:
+            delay = 0
+        if not delays.has_key(scan_range):
+            delays[scan_range] = []
+        delays[scan_range].append([resolution, delay])
+        figure(figct)
+        plot(curve)
+        plot(scanner_control.gauss(numpy.arange(curve.shape[0]),  *coeff))
+        t = '{0} um {1} pixel um {2:0.3f}'.format(scan_range,  resolution, delay)
+        title(t)
+        figct += 1
+        fn = os.path.join('/home/rz/Downloads/plots', t+'.png')
+        savefig(fn)
+        fig = numpy.asarray(Image.open(fn))
+        pic = normalize(rawdata[:,:,0,0], numpy.uint8)
+        ima = numpy.zeros((fig.shape[0]+pic.shape[0],  max(fig.shape[1],  pic.shape[1]), 3 ),  dtype = numpy.uint8)
+        ima[0:fig.shape[0],  0:fig.shape[1],  :] = fig[:, :, 0:3]
+        ima[fig.shape[0]: fig.shape[0] + pic.shape[0], 0:pic.shape[1],  1] = pic
+        os.remove(fn)
+        Image.fromarray(ima).save(fn)
+        pass
+    figure(figct)
+    srs = delays.keys()
+    srs.sort()
+    for scan_range in srs:
+        data = numpy.array(delays[scan_range])
+        plot(data[:, 0],  data[:, 1],  '*-')
+    fn = os.path.join('/home/rz/Downloads/plots/pos.png')
+    legend(map(str, srs))
+    savefig(fn)
+    pass
+    pass
+    pass
+    
 if __name__ == "__main__":
+    delay_curve()
 #    evaluate_videos()
-    evaluate_calibdata()
-    show()
+#    evaluate_calibdata()
+#    show()
 #    scanner_calib()
