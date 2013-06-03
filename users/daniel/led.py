@@ -105,6 +105,31 @@ class Led3x100ms0p4VStimulationConfig(experiment.ExperimentConfig):
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
 
+class LedKamill2Config(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.BEEP_AT_EXPERIMENT_START_STOP = True
+        self.PAUSE_BETWEEN_FLASHES = 10.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 2.0
+        self.FLASH_AMPLITUDE = 5.0 #max 10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class LedKamill10Config(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.BEEP_AT_EXPERIMENT_START_STOP = True
+        self.PAUSE_BETWEEN_FLASHES = 20.0
+        self.NUMBER_OF_FLASHES = 1.0
+        self.FLASH_DURATION = 10.0
+        self.FLASH_AMPLITUDE = 0.5 #max 10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+        
 class LedPre(experiment.PreExperiment):
     def run(self):
         self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
@@ -122,6 +147,9 @@ class LedStimulation(experiment.Experiment):
         self.number_of_fragments = len(self.fragment_durations)
     
     def run(self, fragment_id = 0):
+        if hasattr(self.experiment_config, 'BEEP_AT_EXPERIMENT_START_STOP') and self.experiment_config.BEEP_AT_EXPERIMENT_START_STOP:
+            import winsound
+            winsound.PlaySound('SystemHand',winsound.SND_ALIAS)
         self.show_fullscreen(color = 0.0, duration = 0.0)
         number_of_flashes_in_fragment = self.fragment_repeats[fragment_id]
         fragment_duration = self.fragment_durations[fragment_id]
@@ -138,3 +166,152 @@ class LedStimulation(experiment.Experiment):
                 break
             else:
                 time.sleep(1.0)
+        if hasattr(self.experiment_config, 'BEEP_AT_EXPERIMENT_START_STOP') and self.experiment_config.BEEP_AT_EXPERIMENT_START_STOP:
+            import winsound
+            winsound.PlaySound('ExitWindows',winsound.SND_ALIAS)
+
+                
+class KamillLedStimulation(experiment.Experiment):
+    '''
+    Flashes externally connected blue led controller by generating analog control signals using daq analog output
+    '''
+    def prepare(self):
+        self.period_time = self.experiment_config.FLASH_DURATION + self.experiment_config.PAUSE_BETWEEN_FLASHES
+#        self.stimulus_duration = self.experiment_config.NUMBER_OF_FLASHES * self.period_time
+#        self.fragment_durations, self.fragment_repeats = timing.schedule_fragments(self.period_time, self.experiment_config.NUMBER_OF_FLASHES, self.machine_config.MAXIMUM_RECORDING_DURATION)
+        self.fragment_repeats = [self.experiment_config.NUMBER_OF_FLASHES]
+        self.fragment_durations = [42.0]
+        self.number_of_fragments = len(self.fragment_durations)
+    
+    def run(self, fragment_id = 0):
+        self.show_fullscreen(color = 0.0, duration = 0.0)
+        number_of_flashes_in_fragment = self.fragment_repeats[fragment_id]
+        fragment_duration = self.fragment_durations[fragment_id]
+        offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)
+        self.led_controller.set([[[10.0], 2.0, self.experiment_config.FLASH_AMPLITUDE]], 12.0)
+        self.led_controller.start()
+        self.led_controller.set([[[20.0], 10.0, self.experiment_config.FLASH_AMPLITUDE]], 30.0)
+        self.led_controller.start()
+        
+LED_DELAY = 1.5
+class uLedA75um1sUpDown(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 15.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um1sLeftRight(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 15.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um1sULBR(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 15.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um1sBLUR(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 15.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+
+class uLedA75um2sUpDown(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 25.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um2sLeftRight(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 25.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um2sULBR(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 25.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um2sBLUR(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 25.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+        
+class uLedA75um3sUpDown(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 40.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um3sLeftRight(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 40.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um3sULBR(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 40.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um3sBLUR(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 40.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um5sUpDown(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 60.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um5sLeftRight(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 60.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um5sULBR(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 60.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class uLedA75um5sBLUR(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 60.0
+        self.runnable = 'uLedPilotExp'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+
+
+class uLedPilotExp(experiment.Experiment):
+    def prepare(self):
+        self.fragment_durations = [self.experiment_config.DURATION+LED_DELAY * 3]
+    def run(self):
+        self.add_text('LED array experiment', color = (1.0,  0.0,  0.0), position = utils.cr((400,300)))
+        self.show_fullscreen(color = 0.0, duration = 0.0)
+        time.sleep(self.experiment_config.DURATION)
