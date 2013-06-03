@@ -17,8 +17,6 @@ ElphysConfig:
         inherits VisionExperimentConfig and expands it with electrophisiology setup specific parameters that are not used on other platforms
         Platform name: elphys
 '''
-
-
 import os
 import sys
 import numpy
@@ -63,7 +61,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         PIN_RANGE = [0,  7]        
-        PLATFORM = ['undefined', ['retinal_ca', 'rc_cortical', 'cortical_ao', 'mc_mea', 'hi_mea', 'elphys', 'mea', 'standalone', 'smallapp', 'undefined']]
+        PLATFORM = ['undefined', ['retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'elphys', 'mea', 'standalone', 'smallapp', 'undefined']]
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         ENABLE_HDF5_FILELOCKING = False
         
@@ -198,7 +196,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         'ENABLE' : True
 #         }
 #         ]]
-        
+        GREEN_LABELING = ['']
+        GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 
@@ -328,10 +327,9 @@ class RetinalCaImagingConfig(VisionExperimentConfig):
         CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = False
         self._create_parameters_from_locals(locals())
         
-class RcCorticalCaImagingConfig(VisionExperimentConfig):
+class CorticalCaImagingConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
-        PLATFORM = 'rc_cortical'
         ################ Mes parameters #############
         MES_TIMEOUT = [10.0, [1.0, 100.0]]
         MES_RECORD_START_DELAY = [3.0, [1.0, 10.0]]
@@ -344,8 +342,7 @@ class RcCorticalCaImagingConfig(VisionExperimentConfig):
         XZ_FRAME_CLIPPING = {'top': 4,  'bottom':3}
         ROI_PATTERN_SIZE = [2, [1, 10]]
         ROI_PATTERN_RADIUS = [1, [0, 50]]
-        
-                ########### Vision experiment manager GUI #################
+        ########### Vision experiment manager GUI #################
         screen_size = utils.cr((800, 600))
         if len(sys.argv) > 0:
             if 'gui' in sys.argv[0]: #if gui is the main module
@@ -364,8 +361,6 @@ class RcCorticalCaImagingConfig(VisionExperimentConfig):
         ROI_INFO_IMAGE_SIZE = utils.rc((int(1.55*IMAGE_SIZE['row']), int(1.35*OVERVIEW_IMAGE_SIZE['col'])))#FIXME: this is not reasonable but working
         ROI_CURVE_IMAGE_CUTOUT = [1600, [0, 2000]]
         SIDEBAR_SIZE = [30, [10, 100]]
-        GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
-        GREEN_LABELING = ['']
         MANUAL_URL = 'http://pprl/ZoltanRaics/Visexpman/manual'
         #realignment parameters
         MAX_REALIGNMENT_OFFSET = [50.0, [10.0, 1000.0]]
@@ -374,23 +369,33 @@ class RcCorticalCaImagingConfig(VisionExperimentConfig):
         REALIGNMENT_Z_THRESHOLD = [1.0, [0.1, 10.0]]
         CELL_MERGE_DISTANCE = [3.0, [1.0, 20.0]]
         MIN_SCAN_REGION_AVERAGING = [3, [1, 10]]
+        LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
+        STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
+        MES_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
+        SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
+        TILTING_LIMIT = [1.5, [0.0, 10.0]]
+        
+        MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
+        self._create_parameters_from_locals(locals())
+        
+        
+class RcCorticalCaImagingConfig(CorticalCaImagingConfig):
+    def _create_application_parameters(self):
+        CorticalCaImagingConfig._create_application_parameters(self)
+        PLATFORM = 'rc_cortical'
         
         #############  Jobhandler  ############
         PARSE_PERIOD = [5.0, [0.0, 10.0]]
         MOUSE_FILE_CHECK_PERIOD = [15.0, [0.0, 60.0]]
         ENABLE_ZIGZAG_CORRECTION = True
         
-        LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
-        STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
-        MES_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
-        SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
-        TILTING_LIMIT = [1.5, [0.0, 10.0]]
         self._create_parameters_from_locals(locals())
         
-class AoCorticalCaImagingConfig(VisionExperimentConfig):
+class AoCorticalCaImagingConfig(CorticalCaImagingConfig):
     def _create_application_parameters(self):
-        VisionExperimentConfig._create_application_parameters(self)
+        CorticalCaImagingConfig._create_application_parameters(self)
         PLATFORM = 'ao_cortical'
+        
         self._create_parameters_from_locals(locals())
         
 class MCMEAConfig(VisionExperimentConfig):

@@ -52,7 +52,7 @@ class Debug(ElphysConfig):
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.5
+        SCREEN_UM_TO_PIXEL_SCALE = 0.6
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT =  (self.OS == 'win')
@@ -145,7 +145,8 @@ class AEPHVS(ElphysConfig):
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.5
+        SCREEN_UM_TO_PIXEL_SCALE = 0.6
+        BACKGROUND_COLOR = [0.5,0.5,0.5]
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True

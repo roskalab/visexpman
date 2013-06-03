@@ -270,6 +270,11 @@ def read_phys(filename):
     f =open(filename)
     offset = f.read(4)
     offset = struct.unpack('>i',offset)[0]
+    header= f.read(offset)
+    metadata = {}
+    for item in [param.split(':') for param in header.split('\r')]:
+        if len(item)==2:
+            metadata[item[0]] = item[1]
     f.seek(4+offset)
     dim1 = f.read(4)
     dim2 = f.read(4)
@@ -278,7 +283,7 @@ def read_phys(filename):
     data = f.read(2*dim1*dim2)
     data = numpy.array(struct.unpack('>'+''.join(dim1*dim2*['h']),data), dtype = numpy.int16).reshape((dim1, dim2))
     f.close()
-    return data
+    return data, metadata
    
 def phys2clampfit(filename):
     '''

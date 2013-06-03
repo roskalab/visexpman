@@ -10,7 +10,6 @@ MAT/HDF5
 
 '''
 
-
 import os.path
 import numpy
 import time
@@ -276,6 +275,8 @@ class ControlWidget(QtGui.QWidget):
         self.scan_mode = QtGui.QComboBox(self)
         self.layout.addWidget(self.scan_mode, 0, 2)
         self.scan_mode.addItems(QtCore.QStringList(['background',  'roi']))
+        self.snap1 = QtGui.QPushButton('Snap10',  self)
+        self.layout.addWidget(self.snap, 0, 3)
         self.draw_mode = gui.LabeledComboBox(self, 'Select tool')
         self.layout.addWidget(self.draw_mode, 1, 0,  1, 2)
         self.draw_mode.input.addItems(QtCore.QStringList(['draw rectangle',  'draw line',  'select point',  'zoom in',  'zoom out']))
@@ -318,6 +319,7 @@ class MainWidget(QtGui.QWidget):
         self.background_scan_parameters.setFixedWidth(500)
         self.background_scan_parameters.setFixedHeight(75)
         self.use_user_parameters = gui.LabeledCheckBox(self, 'Use user scan parameters')
+        self.enable_phase_shift = gui.LabeledCheckBox(self, 'enable phase shift')
         self.roi_scan_parameters = RoiScanParameters(self)
         self.roi_scan_parameters.setFixedWidth(500)
         self.roi_scan_parameters.setFixedHeight(200)
@@ -331,6 +333,7 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.beamer_control, 1, 1, 1, 1)
         self.layout.addWidget(self.background_scan_parameters, 2, 0, 1, 2)
         self.layout.addWidget(self.use_user_parameters, 3, 0, 1, 1)
+        self.layout.addWidget(self.enable_phase_shift, 3, 1, 1, 1)
         self.layout.addWidget(self.roi_scan_parameters, 4, 0, 1, 2)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
@@ -357,7 +360,7 @@ class CentralWidget(QtGui.QWidget):
         
         self.control_widget = ControlWidget(self)
         self.image = QtGui.QLabel()
-        self.blank_image = 128*numpy.ones((400,  400,  3), dtype = numpy.uint8)
+        self.blank_image = 128*numpy.ones((self.config.MAIN_IMAGE_SIZE['row'],  self.config.MAIN_IMAGE_SIZE['col'],  3), dtype = numpy.uint8)
         self.image.setPixmap(imaged.array_to_qpixmap(self.blank_image))
         self.image.setObjectName("image")
         self.image.mousePressEvent = self.getPos
@@ -454,6 +457,7 @@ class CaImagingGui(Qt.QMainWindow):
         self.connect(self.central_widget.image_analysis.histogram_range.input, QtCore.SIGNAL('textEdited(QString)'), self.update_main_image)
         self.connect_and_map_signal(self.central_widget.control_widget.scan, 'scan')
         self.connect_and_map_signal(self.central_widget.control_widget.snap, 'snap')
+        self.connect_and_map_signal(self.central_widget.control_widget.snap1, 'snap1')
         self.connect_and_map_signal(self.central_widget.calibration_widget.calib_scan_pattern.widgets['start'], 'calib')
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
@@ -485,7 +489,7 @@ class CaImagingGui(Qt.QMainWindow):
 #        import Image
 #        Image.fromarray(image).save('c:\\temp\\im.bmp')
 #        self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image))#, utils.rc((600, 600))))
-        self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image, utils.rc((600, 600))))
+        self.central_widget.image.setPixmap(imaged.array_to_qpixmap(image, self.config.MAIN_IMAGE_SIZE))
         
     def plot_histogram(self, x, hist, lut):
         plot(self.central_widget.image_analysis.plot, x, hist, 'hist', color = Qt.Qt.red,  width = 1, clear = True)

@@ -123,7 +123,7 @@ class AllegraStage(StageControl):
                     if time.time() - start_of_wait > move_timeout:
                         #Log: no reponse from stage                    
                         break
-                    if hasattr(self.queue,  'empty'):
+                    if hasattr(self,'queue') and hasattr(self.queue,  'empty'):
                         if not self.queue.empty():
                             if 'stop' in parameter_extract.findall(self.queue.get())[0]:
                                 print 'stop stage'
@@ -286,7 +286,7 @@ class MotorizedGoniometer(StageControl):
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
-        
+        unit_test_runner.TEST_stage_com_port = 'COM1'
         stage_serial_port = {
                                     'port' :  unit_test_runner.TEST_stage_com_port,
                                     'baudrate' : 19200,
@@ -383,6 +383,9 @@ class TestAllegraStage(unittest.TestCase):
 #                 print '{0}\t{1}\t{2}\t{3}\t{4}' .format(spd[i], accel[j], self.motor.movement, self.motor.movement_time, self.motor.expected_move_time)
         
         self.assertEqual((result, (abs(self.stage.position - initial_position)).sum()), (True, 0.0))
+        
+    def test_06_debug_stage(self):
+        pass
 
 class TestMotorizedGoniometer(unittest.TestCase):
     def setUp(self):

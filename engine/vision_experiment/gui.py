@@ -153,6 +153,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.scan_mode = QtGui.QComboBox(self)
         self.scan_mode.addItems(QtCore.QStringList(['xy', 'xz']))
         self.experiment_progress = QtGui.QProgressBar(self)
+        self.enable_intrinsic = gui.LabeledCheckBox(self, 'Enable instrinsic imaging')
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -169,6 +170,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.laser_intensities_label, 2, 3, 1, 1)
         self.layout.addWidget(self.laser_intensities_combobox, 2, 4, 1, 1)
         self.layout.addWidget(self.experiment_progress, 3, 0, 1, 2)
+        self.layout.addWidget(self.enable_intrinsic, 3, 2, 1, 2)
         self.setLayout(self.layout)        
 
 class AnimalParametersWidget(QtGui.QWidget):
@@ -295,9 +297,9 @@ class ZstackWidget(QtGui.QWidget):
         
 ################### Image display #######################
 class ImagesWidget(QtGui.QWidget):
-    def __init__(self, parent, config):
+    def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
-        self.config = config
+        self.config = parent.config
         self.create_widgets()
         self.create_layout()
         self.resize(self.config.OVERVIEW_IMAGE_SIZE['col'], self.config.OVERVIEW_IMAGE_SIZE['row'])
@@ -323,9 +325,9 @@ class ImagesWidget(QtGui.QWidget):
         self.setLayout(self.layout)
         
 class OverviewWidget(QtGui.QWidget):
-    def __init__(self, parent, config):
+    def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
-        self.config = config
+        self.config = parent.config
         self.create_widgets()
         self.create_layout()
         self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
@@ -415,9 +417,9 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.setLayout(self.layout)
         
 class RoiWidget(QtGui.QWidget):
-    def __init__(self, parent, config):
+    def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
-        self.config = config
+        self.config = parent.config
         self.create_widgets()
         self.create_layout()
         self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
@@ -520,9 +522,9 @@ class RoiWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
 class MainWidget(QtGui.QWidget):
-    def __init__(self, parent, config):
+    def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
-        self.config = config
+        self.config = parent.config
         self.create_widgets()
         self.create_layout()
         self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
@@ -544,9 +546,9 @@ class MainWidget(QtGui.QWidget):
 
 ################### Debug/helper widgets #######################
 class HelpersWidget(QtGui.QWidget):
-    def __init__(self, parent, config):
+    def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
-        self.config = config
+        self.config = parent.config
         #generate connection name list
         self.connection_names = ['']
         for k, v in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
@@ -571,6 +573,7 @@ class HelpersWidget(QtGui.QWidget):
         self.select_connection_list.addItems(QtCore.QStringList(self.connection_names))
         self.send_command_button = QtGui.QPushButton('Send command',  self)
         self.gui_test_button = QtGui.QPushButton('Gui test',  self)
+        self.camera_button = QtGui.QPushButton('Camera',  self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -586,15 +589,16 @@ class HelpersWidget(QtGui.QWidget):
         self.layout.addWidget(self.rebuild_cell_database_button, 1, 4, 1, 1)
         
         self.layout.addWidget(self.gui_test_button, 2, 0)
+        self.layout.addWidget(self.camera_button, 3, 0)
         
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
 
 class CommonWidget(QtGui.QWidget):
-    def __init__(self, parent, config):
+    def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
-        self.config = config
+        self.config = parent.config
         #generate connection name list
         self.create_widgets()
         self.create_layout()
@@ -665,9 +669,9 @@ class CommonWidget(QtGui.QWidget):
 
 
 class StandardIOWidget(QtGui.QWidget):
-    def __init__(self, parent, config):
+    def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
-        self.config = config
+        self.config = parent.config
         self.filter_names = ['',]
         for k, v in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
             if 'GUI' in k:

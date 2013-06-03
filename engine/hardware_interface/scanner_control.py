@@ -37,7 +37,10 @@ import daq_instrument
 import instrument
 import os
 if os.name=='nt':
-    import PyDAQmx
+    try:
+        import PyDAQmx
+    except ImportError:
+        pass
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 from visexpman.engine.generic import log
@@ -521,6 +524,11 @@ class TwoPhotonScanner(instrument.Instrument):
         #calculate scanning parameters
         self.frame_rate = float(self.aio.daq_config['AO_SAMPLE_RATE'])/self.scanner_positions.shape[1]
         self.scanner_time_efficiency = self.scan_mask.sum()/self.scan_mask.shape[0]
+        #Calculate scanner phase shift
+        if False:
+            self.phase_shift, error = calculate_phase_shift(scanner_x, self.scan_mask, self.config)
+        else:
+            self.phase_shift = 0
         if hasattr(self, 'accel_speed'):
             #calculate speeds
             self.speeds = {}
@@ -614,7 +622,7 @@ class TwoPhotonScanner(instrument.Instrument):
             if hasattr(self, 'sinus_pattern') and self.sinus_pattern:
                 self.data = numpy.array([frame_from_sinus_pattern_scan(raw_pmt_data, self.scan_mask, self.backscan, self.binning_factor) for raw_pmt_data in self.pmt_raw])#dimension: time, subframe, height, width, channels
             else:
-                self.data = numpy.array([raw2frame(raw_pmt_data, self.binning_factor, self.boundaries) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
+                self.data = numpy.array([raw2frame(raw_pmt_data, self.binning_factor, self.boundaries, self.phase_shift) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
         
     def open_shutter(self):
         self.shutter.set()
@@ -627,17 +635,10 @@ class TwoPhotonScanner(instrument.Instrument):
         self.shutter.release_instrument()
         
 ####### Helpers #####################
-def raw2frame(rawdata, binning_factor, boundaries, b = False):
-#    if b:
-#        import pdb
-#        import Image
-#        from visexpA.engine.dataprocessors.generic import normalize
-#        pdb.set_trace()
-#    if rawdata.shape[1] == 2:
-#        binned_pmt_data = binning_data(rawdata[:, 1:], binning_factor)
-#    else:
+def raw2frame(rawdata, binning_factor, boundaries, phase_shift = 0):
     binned_pmt_data = binning_data(rawdata, binning_factor)
-#    return numpy.array((numpy.split(rawdata, boundaries)[1::2]))
+    if phase_shift != 0:
+        binned_pmt_data = numpy.roll(binned_pmt_data, -phase_shift)
     return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
 
 def binning_data(data, factor):
@@ -784,7 +785,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             
     def _send_scan_parameters2guipoller(self, config, parameters):
         #Send image parameters to poller
-        pnames = ['frame_rate',  'binning_factor', 'boundaries',  'scanner_time_efficiency', 'speeds']
+        pnames = ['frame_rate',  'binning_factor', 'boundaries',  'scanner_time_efficiency', 'speeds', 'phase_shift']
         self.scan_parameters = {}
         for p in pnames:
             self.scan_parameters[p] = getattr(self.tp, p)
@@ -797,7 +798,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.printc('saving_data')
         #gather data to save
         data_to_save = {}
-        data_to_save['rawdata'] = numpy.rollaxis(self.tp.data, 0, 3)
+        data_to_save['raw_data'] = numpy.rollaxis(self.tp.data, 0, 3)#TMP:rawdata cannot be saved
         data_to_save['scan_parameters'] = self.scan_parameters
         data_to_save['scan_parameters']['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
         data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
@@ -813,13 +814,15 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             data_to_save['machine_config'] = experiment_data.pickle_config(self.config)
             from visexpA.engine.datahandlers.datatypes import ImageData
-            h = ImageData(self.filenames['datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+            h = ImageData(self.filenames['local_datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             for node, value in data_to_save.items():
                 setattr(h, node, value)
             h.save(data_to_save.keys())
             h.close()
+            import shutil
+            shutil.move(self.filenames['local_datafile'][0], self.filenames['datafile'][0])
         self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
-#        return
+        return
         if self.filenames.has_key('other_files') and 'tiff' in self.filenames['other_files'][0]:
             import tiffile
             from visexpA.engine.dataprocessors import generic
@@ -1057,7 +1060,7 @@ def scanner_bode_diagram(pmt, mask, frqs, max_linearity_error):
                 p0 = [1., signal.argmax(), 1.]
                 coeff, var_matrix = scipy.optimize.curve_fit(gauss, numpy.arange(signal.shape[0]), signal, p0=p0)
                 mean = coeff[1]/(signal.shape[0])#phase characteristic
-                print coeff[1]
+                print coeff[1],frqs[frq_i]
                 sigma = coeff[2]/(signal.shape[0])#amplitude characteristic
             except RuntimeError:
                 mean = 0.5
@@ -1073,6 +1076,58 @@ def scanner_bode_diagram(pmt, mask, frqs, max_linearity_error):
         bode_amplitudes.append(bode_amplitude)
         bode_phases.append(bode_phase)
     return {'frq': numpy.array(frqs), 'amplitude': bode_amplitudes, 'phase': bode_phases, 'sigmas': sigmas, 'means':means, 'signals' :signals, 'gauss_amplitudes':gauss_amplitudes}
+
+def apply_scanner_transfer_function(x, fsample, phase_params = [ 0.00043265, -0.02486131],debug=False):
+    phase = numpy.arange(x.shape[0]/2)*fsample/(x.shape[0]/2)*phase_params[0]+phase_params[1]
+    phase = numpy.where(phase<0, 0, phase)
+    gain = numpy.ones(x.shape[0]/2)
+    #Mirror phase
+    phase_r = phase.tolist()
+    phase_r.reverse()
+    phase = numpy.concatenate((-phase, numpy.array(phase_r)))
+    #Mirror gain
+    gain_r = gain.tolist()
+    gain_r.reverse()
+    gain = numpy.concatenate((gain, numpy.array(gain_r)))
+    #Calculate filtered signal
+    X = numpy.fft.fft(x)
+    H = numpy.vectorize(complex)(gain*numpy.cos(phase), gain*numpy.sin(phase))
+    y = numpy.fft.ifft(H*X)
+    if debug:
+        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+        figure(10)
+        plot(X.real)
+        plot(X.imag)        
+    return y.real
+    
+def calculate_phase_shift(pos_x, scan_mask, config, debug = False):
+    indexes = numpy.nonzero(numpy.where(numpy.diff(scan_mask)>0, 1, 0))[0]
+    nperiods = 10#The more periods are used, the better accuracy we get
+    if indexes.shape[0] < nperiods:
+        nperiods = indexes.shape[0]-1
+    indexes = numpy.array([indexes[0], indexes[nperiods]])
+    if numpy.diff(indexes)%2 == 1:
+        indexes[1] += 1
+    pos_x_period = pos_x[indexes[0]:indexes[1]]
+    pos_x_est=apply_scanner_transfer_function(pos_x_period,config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'], phase_params = [ 0.00043265, -0.02486131], debug= debug)
+    from scipy.signal import correlate
+    shift = correlate(pos_x_est, pos_x_period).argmax() - pos_x_period.shape[0]+1
+    error = numpy.roll(pos_x_period, shift) - pos_x_est
+    if debug:
+        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+        print (pos_x_est.max()-pos_x_est.min()) - (pos_x_period.max() - pos_x_period.min())
+        figure(1)
+        plot(pos_x_period)
+        plot(pos_x_est)
+        figure(2)
+        plot(pos_x_period/abs(pos_x_period).max())
+        plot(scan_mask[indexes[0]:indexes[1]]*error)
+        figure(3)
+        plot(numpy.roll(pos_x_period, shift))
+        plot(pos_x_est)
+        print shift, abs(error).max()
+    return shift, error
+    
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):
@@ -1435,7 +1490,7 @@ class TestScannerControl(unittest.TestCase):
         print scanner_bode_diagram(pmt, mask, frqs)
         pass
     
-#    @unittest.skip('')
+    @unittest.skip('')
     def test_12_calculate_trigger_signal(self):
         config = ScannerTestConfig()
         spatial_resolution = 2
@@ -1504,6 +1559,48 @@ class TestScannerControl(unittest.TestCase):
         fs = 400000
         posx, posy, mask_x, mask_y, speeds = generate_sinus_calibration_signal(speeds, amplitude, repeats, fs)
         
+    @unittest.skip('Run only for debug purposes')
+    def test_15_scanner_transfer_function(self):
+        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+        frqs = [300, 600,1600]
+        for i in range(len(frqs)):
+            fs = 1e6
+            f = frqs[i]
+            tmax = 10.0/f
+    #        tmax = 1.0
+            nsamples = int(fs*tmax)
+            if nsamples/2.0 != numpy.round(nsamples/2.0):
+                nsamples += 1
+            t = numpy.linspace(0, tmax,nsamples, False)
+            x = numpy.sin(numpy.pi*2*t*f)
+            y=apply_scanner_transfer_function(x,fs, phase_params = [ 0.00043265, -0.02486131])
+            figure(i)
+            plot(x)
+            plot(y)
+            print x.max(), y.max()
+            from scipy.signal import correlate
+            print correlate(y, x).argmax() - x.shape[0]+1
+        show()
+
+#    @unittest.skip('Run only for debug purposes')
+    def test_16_estimate_scanner_position_shift(self):
+        from visexpman.engine.generic.introspect import Timer
+        config = ScannerTestConfig()
+        spatial_resolution = 1
+        spatial_resolution = 1.0/spatial_resolution
+        position = utils.rc((0, 0))
+        size = utils.rc((128, 128))
+        setting_time = [3e-4, 2e-3]
+        frames_to_scan = 1
+        pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
+        with Timer(''):
+            shift, error = calculate_phase_shift(pos_x, scan_mask, config,True)
+        print shift, abs(error).max()
+        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+        figure(20)
+        plot(pos_x)
+        show()
+
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)
         waveform = numpy.array([waveform, waveform])
@@ -1512,6 +1609,6 @@ class TestScannerControl(unittest.TestCase):
         waveform[:, -2] = numpy.zeros(2)
         waveform[:, -3] = numpy.zeros(2)
         return waveform.T
-        
+
 if __name__ == "__main__":
     unittest.main()

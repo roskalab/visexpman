@@ -648,7 +648,7 @@ version_paths = {
     'visexpA': 'version', 
     'sklearn':'__version__',
     'Polygon':'__version__',
-    'zmq': 'pyzmq_version',
+    #TODO:'zmq': 'pyzmq_version',
     }    
     
 def imported_modules():
@@ -856,7 +856,12 @@ def timestamp2ymdhms(timestamp):
 def timestamp2ymdhm(timestamp):
     time_struct = time.localtime(timestamp)
     return '{0}-{1}-{2}+{3:2}:{4:2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min).replace(' ','0').replace('+',' ')
-    
+
+def timestamp2ymd(timestamp):
+    time_struct = time.localtime(timestamp)
+    return '{0}-{1}-{2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday).replace(' ','0').replace('+',' ')
+
+
 class Timeout(object):
     def __init__(self, timeout, sleep_period = 0.01):
         self.start_time = time.time()
@@ -1241,6 +1246,9 @@ class TestUtils(unittest.TestCase):
             pass
             
 if __name__ == "__main__":
+    module_names, visexpman_module_paths = imported_modules()
+    module_versions, module_version = module_versions(module_names)
+    pass
     #commented out by Daniel:
     #start_point = cr((0.0, 0.0))
     #end_point = cr((10.0, 10.0))

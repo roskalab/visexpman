@@ -24,7 +24,6 @@ from visexpman.engine.generic import file
 from visexpman.users.zoltan.test import unit_test_runner
 parameter_extract = re.compile('EOC(.+)EOP')
 
-
 def generate_scan_points_mat(points, mat_file):
     '''
     Points shall be a struct array of numpy.float64 with x, y and z fields.
@@ -52,7 +51,7 @@ def read_objective_info(mat_file,  log=None):
 def set_mes_mesaurement_save_flag(mat_file, flag):
     m = matlabfile.MatData(reference_path, target_path)
     m.rawmat['DATA'][0]['DELETEE'] = int(flag) #Not tested, this addressing might be wrong
-    m.flush()   
+    m.flush()
 
 def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 'xy', autozigzag = False, channels = None):
     '''
@@ -589,6 +588,16 @@ class MesInterface(object):
         if timeout == -1:
             timeout = self.config.MES_TIMEOUT
         return self._wait_for_mes_response(timeout, 'SOCacquire_line_scanEOCsaveOKEOP')
+        
+    def acquire_video(self, nframes, parameter_file = None):
+        d = {}
+        d['nframes'] = int(nframes)
+        if parameter_file is None:
+            fn = file.generate_filename(os.path.join(self.config.MES_DATA_FOLDER, 'camparams.mat'))
+        else:
+            fn = parameter_file
+        scipy.io.savemat(fn, d, oned_as = 'column')
+        self.queues['mes']['out'].put('SOCacquire_camera_imageEOC{0}EOP'.format(fn))
 
 ####################### Private functions ########################
     def _wait_for_mes_response(self, timeout, expected_responses):

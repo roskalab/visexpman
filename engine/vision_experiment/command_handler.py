@@ -128,7 +128,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log)
         return 'selected experiment: ' + str(experiment_index) + ' '
 
-    def execute_experiment(self, **kwargs):
+    def execute_experiment(self, *args, **kwargs):
         '''
         There are two ways of executing and experiment:
         1. source code of experiment and experiment config classes are received from a remote machine. These classes are instantiated and the experiment
@@ -137,6 +137,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         '''
         if kwargs.has_key('source_code'):
             source_code = kwargs['source_code']
+        elif len(args)>=1:#Legacy labview protocol
+            source_code = args[0]
         else:
            source_code = ''
         if kwargs.has_key('experiment_config'):

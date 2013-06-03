@@ -281,11 +281,24 @@ class MainPoller(Poller):
                                 self.measurement_duration = 0
                             self.parent.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
                             self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(False)
+                            if self.experiment_parameters['enable_intrinsic']:
+                                import threading
+                                from visexpman.engine.hardware_interface import camera_interface
+                                p = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'_intrinsic.hdf5')
+                                self.printc('camera data will be saved to '+p)
+                                self.camera_runner = threading.Thread(target =camera_interface.opencv_camera_runner, args = (p, self.measurement_duration+3.0, self.config))
+                                self.camera_runner.start()
                         elif command == 'measurement_finished':
                             self.measurement_running = False
                             self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
                         elif command == 'measurement_ready':
+                            if self.experiment_parameters['enable_intrinsic']:
+                                self.printc('Camera data is being saved...')
+                                self.camera_runner.join()
+                                self.printc('Camera recording finished')
+#                            else:
                             self.add_measurement_id(parameter)
+                            
                         elif command == 'fragment_check_ready':
                             #ID is saved, flag will be updated in mouse later when the measurement file is closed
                             self.fragment_check_ready_id = parameter
@@ -1481,6 +1494,8 @@ class MainPoller(Poller):
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
         self.printc('Stopping experiment requested, please wait')
+        self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
+        self.parent.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
 
     def graceful_stop_experiment(self):
         command = 'SOCgraceful_stop_experimentEOCguiEOP'
@@ -1526,6 +1541,10 @@ class MainPoller(Poller):
                                                                                             self.experiment_parameters['laser_intensities'][1], 
                                                                                             self.experiment_parameters['number_of_depths'])
             #generic.expspace(self.experiment_parameters['laser_intensities'][0], self.experiment_parameters['laser_intensities'][1],  self.experiment_parameters['objective_positions'].shape[0])
+        if self.parent.main_widget.experiment_control_groupbox.enable_intrinsic.input.checkState() ==2:
+            self.experiment_parameters['enable_intrinsic'] = True
+        else:
+            self.experiment_parameters['enable_intrinsic'] = False
         #Set back next/prev/redo button texts
         self.parent.main_widget.experiment_control_groupbox.next_depth_button.setText('Next')
         self.parent.main_widget.experiment_control_groupbox.previous_depth_button.setText('Prev')
@@ -1569,7 +1588,7 @@ class MainPoller(Poller):
             del h.parameters['laser_intensities']
         if h.parameters.has_key('objective_positions'):
             del h.parameters['objective_positions']
-        if self.experiment_parameters.has_key('region_name'):
+        if self.experiment_parameters.has_key('region_name') and not self.experiment_parameters['enable_intrinsic']:
             h.xy_scan_parameters = copy.deepcopy(self.scan_regions[self.experiment_parameters['region_name']]['xy_scan_parameters'])
             fields_to_save.append('xy_scan_parameters')
         if hasattr(self, 'animal_parameters'):
@@ -1624,6 +1643,9 @@ class MainPoller(Poller):
             p.plot(scanned_trajectory['masked_line'][::undersample])
             p.plot(scanned_trajectory['roi'][::undersample])
             p.show()
+            
+    def camera_test(self):
+        self.mes_interface.acquire_video(float(str(self.parent.scanc())))
 
     ########### Network debugger tools #################
     def send_command(self):
@@ -1899,7 +1921,8 @@ class MainPoller(Poller):
             self.running = True
             h = hdf5io.Hdf5io(self.mouse_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             field_names_to_save = []
-            with introspect.Timer('save time'):
+#            with introspect.Timer('save time'):
+            if True:
                 while not self.queues['mouse_file_handler'].empty():
                     field_name, field_value = self.queues['mouse_file_handler'].get()
                     setattr(h, field_name, field_value)
@@ -2268,8 +2291,9 @@ class CaImagingPoller(Poller):
     def scan_started(self):
         self.scan_parameters = self.queues['data'].get()
         self.update_status(frame_rate = (numpy.round(self.scan_parameters['frame_rate'], 2),  'Hz'))
-        self.printc('Scanner max speeds (x, y): {0}, {1} um/s, scanning speed x axis: {2} um/s,overshoot: {3} um'
-                    .format(self.scan_parameters['speeds']['x']['max'], self.scan_parameters['speeds']['y']['max'], self.scan_parameters['speeds']['x']['scan'], self.scan_parameters['overshoot'])
+        self.printc('Scanner max speeds (x, y): {0}, {1} um/s, scanning speed x axis: {2} um/s,overshoot: {3} um\nphase shift {4}'
+                    .format(self.scan_parameters['speeds']['x']['max'], self.scan_parameters['speeds']['y']['max'], self.scan_parameters['speeds']['x']['scan'], self.scan_parameters['overshoot'],
+                            self.scan_parameters['phase_shift'])
                                                                           )
         self.scan_start_time = time.time()
         self.printc('Scan started')
@@ -2288,7 +2312,9 @@ class CaImagingPoller(Poller):
     def frame_update(self):
         if not self.queues['frame'].empty() and self.scan_run:
             rawframe = self.queues['frame'].get()
-            self.current_frame = scanner_control.raw2frame(rawframe, self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'])
+            if self.parent.central_widget.main_widget.enable_phase_shift.input.checkState() == 0:
+                self.scan_parameters['phase_shift'] = 0
+            self.current_frame = scanner_control.raw2frame(rawframe, self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'], self.scan_parameters['phase_shift'])
             if not hasattr(self, 'main_image'):
                 self.main_image={}
             self.main_image['image'] = self.current_frame
@@ -2379,6 +2405,9 @@ class CaImagingPoller(Poller):
     ######### Snap one image ################
     def snap(self):
         self.scan(nframes=1)
+        
+    def snap1(self):#For calibration purposes
+        self.scan(nframes=10)
         
     ######### Calibration related #############
     def calib(self):

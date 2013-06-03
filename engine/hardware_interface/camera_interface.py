@@ -1,13 +1,17 @@
 import copy
 from visexpman.engine.generic.introspect import Timer
 import numpy
+from contextlib import closing
 import instrument
 import time
 import ctypes
 import os
 import os.path
 import unittest
+import cv2
 from visexpman.engine.generic import configuration
+from visexpman.engine.generic import file
+import tables
 
 class VideoCamera(instrument.Instrument):
     def __init__(self, config,debug=False):
@@ -31,52 +35,61 @@ class VideoCamera(instrument.Instrument):
         pass
 
 class OpenCVCamera(VideoCamera):
-    def _init_camera(self):
-        import cv2
+    def start(self, recording_length_s, filename):
         if self.config.SHOW_PREVIEW_WINDOW:
             self.preview_window=cv2.namedWindow("preview")
         else:
             self.preview_window=None
-        self.grabber_handle = cv2.VideoCapture(0)
+        #import motmot.cam_iface.cam_iface_ctypes as cam_iface
+        grabber_handle = cv2.VideoCapture(0)
         if hasattr(self.config, 'CAMERA_WIDTH_PIXELS'):
             self.w = self.config.CAMERA_WIDTH_PIXELS
         else: 
-            self.w = 1024
+            self.w = 640
         if hasattr(self.config, 'CAMERA_HEIGHT_PIXELS'):
             self.h = self.config.CAMERA_HEIGHT_PIXELS
         else:
-            self.h=768
-        self.grabber_handle.set(3,self.w)
-        self.grabber_handle.set(4,self.h)
-        
+            self.h=480
+        grabber_handle.set(cv2.cv.CV_CAP_PROP_FRAME_WIDTH,self.w)
+        grabber_handle.set(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT,self.h)
+        grabber_handle.set(cv2.cv.CV_CAP_PROP_FPS, 15)
         #if hasattr(self.config, 'CAMERA_FRAME_RATE'):
            # self.frame_rate = self.config.CAMERA_FRAME_RATE
         #else:
-        
-    def start(self, recording_length_s):
-        import cv2
-        if self.grabber_handle.isOpened(): # try to get the first frame
-            rval, frame = self.grabber_handle.read()
+        if grabber_handle.isOpened(): # try to get the first frame
+            rval, frame = grabber_handle.read()
         else:
             rval = False
-        self.frames = []
-        self.timestamps = [time.time()]
-        while rval and self.timestamps[-1]-self.timestamps[0]<recording_length_s:
-            if self.preview_window is not None:
-                cv2.imshow("preview", frame)
-            rval, frame = self.grabber_handle.read()
-            if rval: 
-                self.frames.append(frame)
-                self.timestamps.append(time.time())
-                #send sync signal here
-                #if communication_interface_available:
-                    #send bit
-            key = cv2.waitKey(1)
-            if key == 27: # exit on ESC
-                break
-        if self.debug:
-            print 'frames: {0}, duration:{1} s, average framerate:{2} fps'.format(len(self.frames),(self.timestamps[-1]-self.timestamps[0]),1.0/numpy.diff(self.timestamps).mean())
+        with closing(tables.openFile(filename, 'w')) as h1:
+            h1.createEArray(h1.root, 'rawdata',  tables.UInt8Atom((self.h, self.w)), (0, ), 'Intrinsic', filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1))
+            h1.createEArray(h1.root, 'timestamps',  tables.Float64Atom((1, )), (0, ), 'Frame timestamps')
+            h1.root.timestamps.append(time.time())
+            while rval and h1.root.timestamps[-1][0]-h1.root.timestamps[0][0]<recording_length_s:
+                if self.preview_window is not None:
+                    cv2.imshow("preview", frame)
+                rval, frame = grabber_handle.read()
+                if rval: 
+                    frame = frame[:, :, 0]
+                    h1.root.rawdata.append(frame)
+                    h1.root.timestamps.append(time.time())
+                    #send sync signal here
+                    #if communication_interface_available:
+                        #send bit
+                key = cv2.waitKey(1)
+                if key == 27: # exit on ESC
+                    break
+            h1.flush()
+            if self.debug and len(h1.root.timestamps)>1:
+                print 'frames: {0}, duration:{1} s, average framerate:{2} fps'.format(len(h1.root.rawdata),(h1.root.timestamps[-1]-h1.root.timestamps[0]),1.0/numpy.diff(h1.root.timestamps.read().flatten()).mean())
+        grabber_handle.release()
+        cv2.destroyWindow('preview')
         
+   
+
+def opencv_camera_runner(filename, duration, config):
+    cam = OpenCVCamera(config, debug=True)
+    cam.start(duration, filename)
+    cam.close()
         
         
 class ImagingSourceCamera(VideoCamera):
@@ -168,17 +181,26 @@ class ImagingSourceCamera(VideoCamera):
         self.dllref.IC_CloseVideoCaptureDevice(self.grabber_handle) 
         self.dllref.IC_CloseLibrary()
 
-class TestConfig(configuration.Config):
+class TestISConfig(configuration.Config):
     def _create_application_parameters(self):
 #        self.CAMERA_FRAME_RATE = 30.0
 #        VIDEO_FORMAT = 'RGB24 (744x480)'
         self.CAMERA_FRAME_RATE = 160.0
         VIDEO_FORMAT = 'RGB24 (320x240)'
         self._create_parameters_from_locals(locals())
+        
+class TestCVCameraConfig(configuration.Config):
+    def _create_application_parameters(self):
+        self.CAMERA_HEIGHT_PIXELS = 480
+        self.CAMERA_WIDTH_PIXELS = 640
+        self.SHOW_PREVIEW_WINDOW= True
+        self._create_parameters_from_locals(locals())
+
                 
 class TestCamera(unittest.TestCase):
+    @unittest.skip('')
     def test_01_record_some_frames(self):
-        cam = ImagingSourceCamera(TestConfig())
+        cam = ImagingSourceCamera(TestISConfig())
         cam.start()
         with Timer(''):
             while cam.frame_counter <= 30: 
@@ -186,20 +208,47 @@ class TestCamera(unittest.TestCase):
         with Timer(''):
             cam.stop()
         cam.close()
-
-class TestCVCameraConfig(configuration.Config):
-    def _create_application_parameters(self):
-#        self.CAMERA_FRAME_RATE = 30.0
-#        VIDEO_FORMAT = 'RGB24 (744x480)'
-        self.CAMERA_HEIGHT_PIXELS = 768
-        self.CAMERA_WIDTH_PIXELS = 1024
-        self.SHOW_PREVIEW_WINDOW=False
-        self._create_parameters_from_locals(locals())
-                
-class TestCVCamera(unittest.TestCase):
-    def test_01_record_some_frames(self):
-        cam = OpenCVCamera(TestCVCameraConfig(),debug=True)
-        cam.start(5)
-
+        
+    @unittest.skip('')    
+    def test_02_record_some_frames_firewire_cam(self):
+        simple_camera()
+        
+#    @unittest.skip('')    
+    def test_02_record_some_frames_firewire_cam(self):
+        threaded_camera()
+        
+def simple_camera():
+    import os
+    import os.path
+    p = 'c:\\tmp\\testsuimple.hdf5'
+    if os.path.exists(p):
+        os.remove(p)
+    cam = OpenCVCamera(TestCVCameraConfig(),debug=True)
+    cam.start(7, p)
+    
+def threaded_camera():
+    import os
+    import os.path
+    import threading
+    p = 'c:\\tmp\\test.hdf5'
+    duration = 20.0
+    config = TestCVCameraConfig()
+#        cam = OpenCVCamera(config, debug=False)
+    for i in range(1):
+        print i
+        if os.path.exists(p):
+            os.remove(p)
+#            if os.path.exists(p+'.zip'):
+#                os.remove(p+'.zip')
+#            cam.start(p, duration)
+#            t = threading.Thread(target = cam.start, args = (p, duration))
+        t = threading.Thread(target = opencv_camera_runner, args = (p, duration, config))
+        t.start()
+        t.join()
+        
+        
 if __name__ == '__main__':
-    unittest.main()
+    simple_camera()
+    print('simple done')
+    #threaded_camera()
+    #unittest.main()

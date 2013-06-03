@@ -27,7 +27,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
 #        EXPERIMENT_FILE_FORMAT = 'mat'
         #### experiment specific ####
-        PARSE_PERIOD = 0.1
+        PARSE_PERIOD = [0.1, [0.0, 100.0]]
         
         #### Network ####
         ENABLE_UDP = (os.name == 'nt')
@@ -78,7 +78,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         self.CAIMAGE_DISPLAY = {}
         self.CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
         self.CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = True
-        
+        MAIN_IMAGE_SIZE = utils.rc((500,500))
 #        if os.name == 'nt':
 #            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
         self._create_parameters_from_locals(locals())
@@ -161,4 +161,3 @@ class FlowmeterDebug(peter_configurations.MEASetup):
         peter_configurations.MEASetup._set_user_parameters(self)
         EMULATE_FLOWMETER = True
         self._create_parameters_from_locals(locals())
-        pass

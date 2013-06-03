@@ -78,14 +78,14 @@ class VisionExperimentGui(QtGui.QWidget):
         self.block_widgets(False)
         
     def create_gui(self):
-        self.main_widget = gui.MainWidget(self, self.config)
-        self.animal_parameters_widget = gui.AnimalParametersWidget(self, self.config)
-        self.images_widget = gui.ImagesWidget(self, self.config)
-        self.overview_widget = gui.OverviewWidget(self, self.config)
-        self.roi_widget = gui.RoiWidget(self, self.config)
-        self.common_widget = gui.CommonWidget(self, self.config)
-        self.helpers_widget = gui.HelpersWidget(self, self.config)
-        self.zstack_widget = gui.ZstackWidget(self, self.config)
+        self.main_widget = gui.MainWidget(self)
+        self.animal_parameters_widget = gui.AnimalParametersWidget(self)
+        self.images_widget = gui.ImagesWidget(self)
+        self.overview_widget = gui.OverviewWidget(self)
+        self.roi_widget = gui.RoiWidget(self)
+        self.common_widget = gui.CommonWidget(self)
+        self.helpers_widget = gui.HelpersWidget(self)
+        self.zstack_widget = gui.ZstackWidget(self)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Main')
         self.main_tab.addTab(self.roi_widget, 'ROI')
@@ -97,7 +97,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.image_tab = QtGui.QTabWidget(self)
         self.image_tab.addTab(self.images_widget, 'Regions')
         self.image_tab.addTab(self.overview_widget, 'Overview')
-        self.standard_io_widget = gui.StandardIOWidget(self, self.config)
+        self.standard_io_widget = gui.StandardIOWidget(self)
         experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
         experiment_config_names = []
         for experiment_config in experiment_config_list:
@@ -105,7 +105,8 @@ class VisionExperimentGui(QtGui.QWidget):
         experiment_config_names.sort()
         self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
         try:
-            self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
+            if hasattr(self.config, 'EXPERIMENT_CONFIG'):
+                self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
         except ValueError:
             pass
         
@@ -198,6 +199,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.connect(self.standard_io_widget.clear_console_button, QtCore.SIGNAL('clicked()'),  self.clear_console)
         self.connect_and_map_signal(self.helpers_widget.add_simulated_measurement_file_button, 'add_simulated_measurement_file')
         self.connect_and_map_signal(self.helpers_widget.rebuild_cell_database_button, 'rebuild_cell_database')
+        self.connect_and_map_signal(self.helpers_widget.camera_button, 'camera_test')
         self.connect(self.standard_io_widget.console_message_filter_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.console_message_filter_changed)
 
         self.connect_and_map_signal(self.main_widget.measurement_datafile_status_groupbox.remove_measurement_button, 'remove_measurement_file_from_database')
@@ -492,7 +494,7 @@ class VisionExperimentGui(QtGui.QWidget):
             if status['info'].has_key('laser_intensity'):
                 try:
                     laser_intensity = '{0:1.1f}'.format(float(status['info']['laser_intensity']))
-                except ValueError:
+                except:
                     laser_intensity = 'NA'
             else:
                 laser_intensity = 0.0
@@ -797,7 +799,10 @@ class VisionExperimentGui(QtGui.QWidget):
         if not isinstance(text, str):
             text = str(text)
         self.console_text  += text + '\n'
-        self.update_console()
+        try:
+            self.update_console()
+        except RuntimeError:
+            pass#gui not yet initialized
 #        print text
         try:
             self.log.info(text)
@@ -813,6 +818,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.log.copy()
         self.poller.abort = True
         self.poller.wait()
+        sys.exit(0)
         #TMP111self.mouse_file_handler.abort = True
 #        time.sleep(15.0) #Enough time to close network connections
         
@@ -983,5 +989,3 @@ def run_gui():
 
 if __name__ == '__main__':
     run_gui()
-#    hdf5io.lockman.__del__()
-    
