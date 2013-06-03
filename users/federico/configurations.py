@@ -8,7 +8,7 @@ from visexpman.engine.generic.parameter import Parameter
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig, AoCorticalCaImagingConfig
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
-        
+
 class ProtocolDevelopment(VisionExperimentConfig):
     '''
     Windows development machine
@@ -31,8 +31,8 @@ class ProtocolDevelopment(VisionExperimentConfig):
             file.mkdir_notexists(folder)
         
         #=== screen ===
-        FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.cr([800, 600])
+        FULLSCREEN = not False
+        SCREEN_RESOLUTION = utils.cr([1280, 800])
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE =  False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
@@ -141,20 +141,20 @@ class AoMicroscopeSetup(AoCorticalCaImagingConfig):
             self.TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
 
         #=== screen ===
-        FULLSCREEN = not True
-        SCREEN_RESOLUTION = utils.cr([800, 600])
+        FULLSCREEN = True
+        SCREEN_RESOLUTION = utils.cr([1280, 800])
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
         #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm
-        SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [390.0, [0, 500]] #mm
+        SCREEN_PIXEL_WIDTH = [0.35, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen
         #=== Network ===
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.31'
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.236'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
         #=== hardware ===
@@ -237,7 +237,7 @@ class AoMicroscopeSetup(AoCorticalCaImagingConfig):
         GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
         
         #Intrinsic imaging:
-        self.CAMERA_MAX_FRAME_RATE=15
+        self.CAMERA_MAX_FRAME_RATE=8
         self._create_parameters_from_locals(locals(), check_path = check_path)
         
 if __name__ == "__main__":

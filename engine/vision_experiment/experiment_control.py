@@ -254,8 +254,7 @@ class ExperimentControl(object):
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
             utils.empty_queue(self.queues['mes']['in'])
             if self.parameters['enable_intrinsic']:
-                nframes = self.mes_record_time * self.config.CAMERA_MAX_FRAME_RATE
-                self.mes_interface.acquire_video(nframes, parameter_file = self.filenames['mes_fragments'][fragment_id])
+                self.mes_interface.acquire_video(self.mes_record_time, self.config.CAMERA_MAX_FRAME_RATE, parameter_file = self.filenames['mes_fragments'][fragment_id])
                 return True
         if self.config.PLATFORM == 'rc_cortical':
             #start two photon recording

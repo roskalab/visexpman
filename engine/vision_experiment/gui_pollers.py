@@ -17,7 +17,7 @@ if os.name == 'nt':
     import winsound
 else:
     winsound = None
-
+    
 import PyQt4.Qt as Qt
 import PyQt4.QtCore as QtCore
 
@@ -281,13 +281,13 @@ class MainPoller(Poller):
                                 self.measurement_duration = 0
                             self.parent.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
                             self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(False)
-                            if self.experiment_parameters['enable_intrinsic']:
-                                import threading
-                                from visexpman.engine.hardware_interface import camera_interface
-                                p = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'_intrinsic.hdf5')
-                                self.printc('camera data will be saved to '+p)
-                                self.camera_runner = threading.Thread(target =camera_interface.opencv_camera_runner, args = (p, self.measurement_duration+3.0, self.config))
-                                self.camera_runner.start()
+#                            if self.experiment_parameters['enable_intrinsic']:
+#                                import threading
+#                                from visexpman.engine.hardware_interface import camera_interface
+#                                p = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'_intrinsic.hdf5')
+#                                self.printc('camera data will be saved to '+p)
+#                                self.camera_runner = threading.Thread(target =camera_interface.opencv_camera_runner, args = (p, self.measurement_duration+3.0, self.config))
+#                                self.camera_runner.start()
                         elif command == 'measurement_finished':
                             self.measurement_running = False
                             self.parent.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
@@ -1645,7 +1645,7 @@ class MainPoller(Poller):
             p.show()
             
     def camera_test(self):
-        self.mes_interface.acquire_video(float(str(self.parent.scanc())))
+        self.mes_interface.acquire_video(float(str(self.parent.scanc())), 5)
 
     ########### Network debugger tools #################
     def send_command(self):

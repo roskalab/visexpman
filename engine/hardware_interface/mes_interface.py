@@ -589,9 +589,10 @@ class MesInterface(object):
             timeout = self.config.MES_TIMEOUT
         return self._wait_for_mes_response(timeout, 'SOCacquire_line_scanEOCsaveOKEOP')
         
-    def acquire_video(self, nframes, parameter_file = None):
+    def acquire_video(self, duration, frame_rate, parameter_file = None):
         d = {}
-        d['nframes'] = int(nframes)
+        d['duration'] = int(duration)
+        d['frame_rate'] = int(frame_rate)
         if parameter_file is None:
             fn = file.generate_filename(os.path.join(self.config.MES_DATA_FOLDER, 'camparams.mat'))
         else:

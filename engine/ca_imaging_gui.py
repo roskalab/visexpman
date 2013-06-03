@@ -276,7 +276,7 @@ class ControlWidget(QtGui.QWidget):
         self.layout.addWidget(self.scan_mode, 0, 2)
         self.scan_mode.addItems(QtCore.QStringList(['background',  'roi']))
         self.snap1 = QtGui.QPushButton('Snap10',  self)
-        self.layout.addWidget(self.snap, 0, 3)
+        self.layout.addWidget(self.snap1, 1, 2)
         self.draw_mode = gui.LabeledComboBox(self, 'Select tool')
         self.layout.addWidget(self.draw_mode, 1, 0,  1, 2)
         self.draw_mode.input.addItems(QtCore.QStringList(['draw rectangle',  'draw line',  'select point',  'zoom in',  'zoom out']))
