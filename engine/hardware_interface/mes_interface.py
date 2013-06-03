@@ -562,7 +562,7 @@ class MesInterface(object):
             set_scan_parameter_file(scan_time, line_scan_path, line_scan_path, 
                                     scan_mode = scan_mode, autozigzag = autozigzag, channels = channels)
             #previously sent garbage is removed from queue
-            utils.empty_queue(self.queues['mes']['in'])        
+            utils.empty_queue(self.queues['mes']['in'])
             #Acquire line scan if MES is connected
             if self.connection.connected_to_remote_client():
                 self.queues['mes']['out'].put('SOCacquire_line_scanEOC{0}EOP' .format(line_scan_path_on_mes))

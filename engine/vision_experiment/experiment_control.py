@@ -251,11 +251,11 @@ class ExperimentControl(object):
                     if hasattr(self, 'scan_region'):
                         self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
                 scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
-                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
+                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)               
             if scan_start_success:
                 time.sleep(1.0)
             else:
-                self.printl('Scan start ERROR')
+                self.printl('Scan start ERROR, check netwok connection to MES, restart experiment or rename scan region')
             return scan_start_success
         elif self.config.PLATFORM == 'elphys':
             #Set acquisition trigger pin to high

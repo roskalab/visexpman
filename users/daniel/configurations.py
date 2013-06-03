@@ -496,7 +496,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         CONTEXT_PATH = os.path.join(v_drive_folder, 'context')
         if os.name != 'nt':
             DATABIG_PATH = '/mnt/databig/data'
-            TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
+            self.TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
         #CAPTURE_PATH = os.path.join(v_drive_folder, 'captured')
 
         #=== screen ===
@@ -561,7 +561,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
                     'SAMPLE_RATE' : 5000,
-                    'AI_CHANNEL' : 'Dev1/ai0:2',
+                    'AI_CHANNEL' : 'Dev1/ai0:3',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
@@ -600,6 +600,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
                                      }
         GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
         self._create_parameters_from_locals(locals())        
+        
         
 class VS3DUS(RcMicroscopeSetup):
     pass

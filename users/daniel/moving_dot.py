@@ -40,7 +40,7 @@ class MovingDotConfig(experiment.ExperimentConfig):
         self.pre_runnable = 'MovingDotPre'
         self.USER_ADJUSTABLE_PARAMETERS = ['DIAMETER_UM', 'SPEED', 'NDOTS', 'RANDOMIZE']        
         self._create_parameters_from_locals(locals())
-
+        
 class MovingDot200umConfig(MovingDotConfig):
     def _create_application_parameters(self):
         MovingDotConfig._create_application_parameters(self)

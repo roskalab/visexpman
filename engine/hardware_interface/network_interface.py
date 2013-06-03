@@ -7,7 +7,10 @@ import visexpman.engine.generic.configuration
 import PyQt4.QtCore as QtCore
 import os
 import numpy
-import blosc
+try:
+    import blosc
+except:
+    pass
 import simplejson
 import os.path
 import sys
@@ -157,6 +160,9 @@ class CallableViaZeroMQ(threading.Thread):
         threading.Thread.__init__(self)
         
     def run(self):
+        if self.port is None:
+            print 'callable via zmq did not get a port number'
+            return
         self.context=zmq.Context(1)
         self.server = self.context.socket(zmq.REP)
         self.server.bind('tcp://*:'+str(self.port))

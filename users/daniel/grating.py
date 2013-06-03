@@ -8,21 +8,22 @@ import copy
 class MovingGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing        
-        self.NUMBER_OF_MARCHING_PHASES = 4
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
-        self.MARCH_TIME = 2.5
-        self.GRATING_STAND_TIME = 2.0
+        self.NUMBER_OF_MARCHING_PHASES = 4 #number of static bar compositions at beginning
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3 #how many times the bar hit a point -> this + speed = moving time
+        self.MARCH_TIME = 2.5 # standing phase time
+        self.GRATING_STAND_TIME = 2.0 #post-moving-phase time
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
         self.WHITE_BAR_WIDTHS = [300.0]
         self.VELOCITIES = [1200.0]
-        self.DUTY_CYCLES = [2.5] 
+        self.DUTY_CYCLES = [2.5] #white and blck bar ratio -> number of bars 
         self.REPEATS = 3
-        self.PAUSE_BEFORE_AFTER = 5.0
+        self.PAUSE_BEFORE_AFTER = 5.0 #very beginning and end witing time
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
         
+
 class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing
@@ -39,6 +40,24 @@ class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
         self.PAUSE_BEFORE_AFTER = 5.0
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
+        self._create_parameters_from_locals(locals())
+        
+class MovingGratingNoMarchingBlackPreConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME = 4.0
+        self.GRATING_STAND_TIME = 4.0
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [1200.0]#1800
+        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())
         
 class MovingGratingWithFlashConfig(MovingGratingNoMarchingConfig):
@@ -91,6 +110,60 @@ class ShortMovingGratingConfig(MovingGratingWithFlashConfig):
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
         
+class MovingGratingConfig16Directions(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME = 4.0
+        self.GRATING_STAND_TIME = 4.0
+        #Grating parameters
+        self.ORIENTATIONS = numpy.arange(0, 360, 22.5).tolist()
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [1200.0]#1800
+        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+        self._create_parameters_from_locals(locals())
+
+        
+class KamillMovingGratingNoMarchingConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME = 4.0
+        self.GRATING_STAND_TIME = 4.0
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [1200.0]#1800
+        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'BlackPre'
+        self._create_parameters_from_locals(locals())
+
+               
+class KamillMovingGratingWithFlashConfig(KamillMovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        KamillMovingGratingNoMarchingConfig._create_parameters(self)
+        #Flash config
+        self.ENABLE_FLASH = True
+        self.FLASH_DURATION = 2.0
+        self.TIMING = [10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0]
+        self.FLASH_REPEATS = 1
+        self.BLACK = 0.0
+        self.WHITE = 1.0
+        self.PAUSE_BEFORE_AFTER = 1.0        
+        
+class BlackPre(experiment.PreExperiment):    
+    def run(self):
+        self.show_fullscreen(color = 0.0, duration = 0,flip=False)
+                
 class MovingGrating(experiment.Experiment):
     def prepare(self):
         self.marching_phases = -numpy.linspace(0, 360, self.experiment_config.NUMBER_OF_MARCHING_PHASES + 1)[:-1]        
@@ -125,7 +198,7 @@ class MovingGrating(experiment.Experiment):
             raise RuntimeError('Stimulus too long')
         self.fragment_durations = self.period_time*self.experiment_config.REPEATS + 2 * self.experiment_config.PAUSE_BEFORE_AFTER 
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
-            self.fragment_durations+= self.experiment_config.FLASH_REPEATS * numpy.array(self.experiment_config.TIMING).sum()
+            self.fragment_durations += self.experiment_config.FLASH_REPEATS * numpy.array(self.experiment_config.TIMING).sum()
         self.fragment_durations = [self.fragment_durations]
         self.number_of_fragments = len(self.fragment_durations)
         #Group stimulus units into fragments
@@ -193,6 +266,7 @@ class MovingGratingPre(experiment.PreExperiment):
                             orientation = self.experiment_config.ORIENTATIONS[0], 
                             velocity = 0, white_bar_width = self.experiment_config.WHITE_BAR_WIDTHS[0],
                             duty_cycle = self.experiment_config.DUTY_CYCLES[0], part_of_drawing_sequence = True)
+                          
 
 class PixelSizeCalibrationConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
