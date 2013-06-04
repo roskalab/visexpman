@@ -6,7 +6,7 @@ import os.path
 import os
 import shutil
 import random
-            
+
 class IntrinsicProtConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SCREEN_PER_MASK_RATIO = 3
@@ -35,6 +35,10 @@ class IntrinsicProtocol(experiment.Experiment):
         self.fragment_durations = [self.experiment_config.DURATION*len(self.positions)*2+self.experiment_config.PAUSE]
     
     def run(self):
+        #Initial delay and flash
+        self.show_fullscreen(color = 0.0, duration=self.experiment_config.PAUSE)
+        self.show_fullscreen(color = 1.0, duration=1.0)
+        self.show_fullscreen(color = 0.0, duration=self.experiment_config.PAUSE)
         for i in range(2):
             spd = self.experiment_config.SPEEDS
             if i ==1:

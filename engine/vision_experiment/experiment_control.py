@@ -23,6 +23,7 @@ from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.hardware_interface import instrument
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.hardware_interface import stage_control
+from visexpman.engine.hardware_interface import digital_io
 
 import visexpA.engine.datahandlers.hdf5io as hdf5io
 
@@ -380,7 +381,10 @@ class ExperimentControl(object):
         '''
         All the devices are initialized here, that allow rerun like operations
         '''
-        self.parallel_port = instrument.ParallelPort(self.config, self.log, self.start_time)
+        if hasattr(self.config, 'SERIAL_DIO_PORT'):
+            self.parallel_port = digital_io.SerialPortDigitalIO(self.config, self.log, self.start_time)
+        else:
+            self.parallel_port = instrument.ParallelPort(self.config, self.log, self.start_time)
         self.filterwheels = []
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):
             self.number_of_filterwheels = len(self.config.FILTERWHEEL_SERIAL_PORT)

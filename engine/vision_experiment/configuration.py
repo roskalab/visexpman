@@ -28,7 +28,7 @@ try:
     import serial
 except:
     pass
-
+    
 import tempfile
 import unittest
 
@@ -198,6 +198,9 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         ]]
         GREEN_LABELING = ['']
         GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
+        
+        STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
+        SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 
@@ -370,9 +373,7 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
         CELL_MERGE_DISTANCE = [3.0, [1.0, 20.0]]
         MIN_SCAN_REGION_AVERAGING = [3, [1, 10]]
         LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
-        STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         MES_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
-        SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
         TILTING_LIMIT = [1.5, [0.0, 10.0]]
         
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100

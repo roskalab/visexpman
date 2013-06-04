@@ -5,7 +5,7 @@ from visexpman.engine.generic.parameter import Parameter
 from visexpman.engine.vision_experiment.configuration import ElphysConfig
 import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
-import visexpman.engine.generic.utils as utils
+from visexpman.engine.generic import utils
 import scipy.interpolate
 
 class MVSSA(ElphysConfig):
@@ -163,6 +163,16 @@ class MVS(ElphysConfig):
         #=== Others ===
         USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
+        self._create_parameters_from_locals(locals())
+        
+class KamillSetup(MVS):
+    def _set_user_parameters(self): 
+        MVS._set_user_parameters(self)
+        SCREEN_UM_TO_PIXEL_SCALE = 0.45
+        SERIAL_DIO_PORT = 'COM3'
+        ACQUISITION_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PIN = 1
+        FULLSCREEN = False
         self._create_parameters_from_locals(locals())
         
 if __name__ == "__main__":    

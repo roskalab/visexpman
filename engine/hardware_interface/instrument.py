@@ -1,4 +1,3 @@
-
 try:
     import serial
 except:
@@ -144,7 +143,7 @@ class ParallelPort(parallel_port_ancestors):
             self._update_io()
             
             #logging
-            if log:                
+            if log:
                 self.log_during_experiment('Parallel port data bits set to %i' % self.iostate['data'])                
                     
     def close_instrument(self):

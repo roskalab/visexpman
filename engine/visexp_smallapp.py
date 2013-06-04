@@ -161,7 +161,7 @@ class SerialportPulseGenerator(SmallApp):
             self.printc('Provide pulse width in numeric format')
             return
         try:
-            s = digital_io.SerialPulse(self.config.SERIAL_PORT)
+            s = digital_io.SerialPortDigitalIO(self.config)
             for i in range(1):
                 if pulse_width > 0:
                     s.pulse(pulse_width)

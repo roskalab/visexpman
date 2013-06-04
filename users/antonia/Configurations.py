@@ -18,10 +18,11 @@ class SPC(VisionExperimentConfig):
         GUI_SIZE = utils.rc((400, 300))
         GUI_REFRESH_PERIOD = 1.0
         ##### Flowmeter parameters #######
+        
         if os.name == 'nt':
-            SERIAL_PORT = 'COM1'
+            SERIAL_DIO_PORT = 'COM1'
         else:
-            SERIAL_PORT = '/dev/ttyS0'
+            SERIAL_DIO_PORT  = '/dev/ttyS0'
         self.MAX_PULSE_WIDTH = 3.0 #in seconds
         self.MIN_PULSE_WIDTH = 20.0e-3 #in seconds
         self.PULSE_OVERHEAD = 10.0e-3 #in seconds
