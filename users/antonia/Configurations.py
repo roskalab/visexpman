@@ -127,7 +127,7 @@ class AEPHVS(ElphysConfig):
     '''
     Antona's Electrophisology visual stimulation
     '''
-    def _set_user_parameters(self, check_path = True):        
+    def _set_user_parameters(self, check_path = True):
         EXPERIMENT_CONFIG = 'ManipulationExperimentConfig'
         #=== paths/data handling ===
         if os.name == 'nt':

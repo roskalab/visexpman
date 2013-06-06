@@ -168,13 +168,21 @@ class MVS(ElphysConfig):
 class KamillSetup(MVS):
     def _set_user_parameters(self): 
         MVS._set_user_parameters(self)
-        SCREEN_UM_TO_PIXEL_SCALE = 0.45
+        SCREEN_UM_TO_PIXEL_SCALE = 2.0
         SERIAL_DIO_PORT = 'COM3'
-        ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 1
-        FULLSCREEN = False
+        ACQUISITION_TRIGGER_PIN = 1
+        FRAME_TRIGGER_PIN = 0
+        FULLSCREEN = True
+        ENABLE_FILTERWHEEL = True
+        FILTERWHEEL_SERIAL_PORT = [{
+                                    'port' :  'COM4',
+                                    'baudrate' : 115200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }, 
+                                    ]
         self._create_parameters_from_locals(locals())
         
 if __name__ == "__main__":    
-    c = LaserProjectorConfig()
-    c.print_parameters() 
+    pass

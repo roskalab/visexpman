@@ -1,9 +1,9 @@
 
 import pygame
-
+import copy
 import socket
 import time
-#import os#?
+
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import colors
 from visexpman.engine.generic import graphics
@@ -12,8 +12,6 @@ import Image
 
 from OpenGL.GL import *#?
 from OpenGL.GLUT import *
-
-import copy
 
 def experiment_choices(experiment_list):
     '''
@@ -77,7 +75,7 @@ class VisionExperimentScreen(graphics.Screen):
         #count number of message rows and limit their number
         lines = ''
         for line in message:
-            if len(line) > 0:
+            if line is not None and len(line) > 0:
                 lines += line + '\n'
         lines = lines.split('\n')
         lines = lines[-self.config.NUMBER_OF_MESSAGE_ROWS:]

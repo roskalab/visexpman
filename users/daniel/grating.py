@@ -1,9 +1,10 @@
-from visexpman.engine.vision_experiment import experiment
-from visexpman.engine.generic import utils
 import numpy
 import time
 import random
 import copy
+
+from visexpman.engine.vision_experiment import experiment
+from visexpman.engine.generic import utils
 
 class MovingGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -120,7 +121,7 @@ class MovingGrating(experiment.Experiment):
         
 #         self.overall_duration *= len(self.experiment_config.ORIENTATIONS)
         self.period_time = self.overall_duration / self.experiment_config.REPEATS
-        if self.period_time > self.machine_config.MAXIMUM_RECORDING_DURATION:
+        if hasattr(self.machine_config, 'MAXIMUM_RECORDING_DURATION') and self.period_time > self.machine_config.MAXIMUM_RECORDING_DURATION:
             raise RuntimeError('Stimulus too long')
         self.fragment_durations = self.period_time*self.experiment_config.REPEATS + 2 * self.experiment_config.PAUSE_BEFORE_AFTER 
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:

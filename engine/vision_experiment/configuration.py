@@ -28,7 +28,7 @@ try:
     import serial
 except:
     pass
-    
+
 import tempfile
 import unittest
 
@@ -418,6 +418,7 @@ class ElphysConfig(VisionExperimentConfig):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'elphys'
         EXPERIMENT_FILE_FORMAT = 'mat'
+        ELPHYS_SIGNAL_CHANNEL_INDEX = [0, [0, 10]]
         self._create_parameters_from_locals(locals())
 
 class TestConfig(visexpman.engine.generic.configuration.Config):

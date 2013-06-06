@@ -80,7 +80,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
     def filterwheel(self, filterwheel_id = 1, filter_position = 1):
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):
             try:
-                filterwheel = instrument.Filterwheel(self.config, id = int(filterwheel_id))
+                filterwheel = instrument.Filterwheel(self.config, id = int(filterwheel_id)-1)
                 filterwheel.set(int(filter_position))
                 if os.name == 'nt':
                     filterwheel.release_instrument()
@@ -150,6 +150,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             loadable_source_code = source_code.replace('<newline>', '\n')
             loadable_source_code = loadable_source_code.replace('<comma>', ',')
             loadable_source_code = loadable_source_code.replace('<equal>', '=')
+            loadable_source_code = loadable_source_code.replace('\r', '; ')
             experiment_class_name = find_experiment_class_name.findall(loadable_source_code)[0]
             experiment_config_class_name = find_experiment_config_class_name.findall(loadable_source_code)[0]
             #rename classes
@@ -173,8 +174,9 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         utils.is_keyword_in_queue(self.queues['gui']['in'], 'abort', keep_in_queue = False)
         context = {}
         context['stage_origin'] = self.stage_origin
-        result = self.experiment_config.runnable.run_experiment(context)
-        return result
+        if self.experiment_config is not None:
+            result = self.experiment_config.runnable.run_experiment(context)
+            return result
 
 class CommandSender(QtCore.QThread):
     '''

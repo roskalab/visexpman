@@ -245,9 +245,10 @@ def generate_delay_curve():
     output_folder = 'V:\\debug\\out'
     fns = os.listdir(folder2)
     fns.sort()
-    fns = fns
+#    fns = fns[:10]
     delays = {}
-    bead_sizes = {}
+    delays_pix = {}
+    bead_sizes = {}#Useless, relative position matters
     figct = 0
     for fn in fns:
         rawdata = hdf5io.read_item(os.path.join(folder2,  fn),  'raw_data',  filelocking=False)
@@ -260,15 +261,19 @@ def generate_delay_curve():
         try:
             coeff, var_matrix = scipy.optimize.curve_fit(scanner_control.gauss, numpy.arange(curve.shape[0]), curve, p0=p0)
             delay = coeff[1]/curve.shape[0]
+            delay_pix = coeff[1]
             size_pix = coeff[2]
         except:
             delay = 0
+            delay_pix = 0
             size_pix = 0
         size = size_pix / resolution
         if not delays.has_key(scan_range):
             delays[scan_range] = []
+            delays_pix[scan_range] = []
             bead_sizes[scan_range] = []
         delays[scan_range].append([resolution, delay])
+        delays_pix[scan_range].append([resolution, delay_pix])
         bead_sizes[scan_range].append([resolution, size])
         figure(figct)
         plot(curve)
@@ -287,37 +292,87 @@ def generate_delay_curve():
         Image.fromarray(ima).save(fn)
         pass
     fn = file.generate_filename(os.path.join(output_folder, 'res.hdf5'))
-    hdf5io.save_item(fn, 'delays', utils.object2array(delays), filelocking=False)
-    hdf5io.save_item(fn, 'bead_sizes', utils.object2array(bead_sizes), filelocking=False)
+    for vn in ['delays',  'bead_sizes']:
+        hdf5io.save_item(fn, vn, utils.object2array(locals()[vn]), filelocking=False)
+    
     return fn
 
 def plot_delay_curve(fn):
     delays = utils.array2object(hdf5io.read_item(fn,  'delays', filelocking=False))
     bead_sizes = utils.array2object(hdf5io.read_item(fn,  'bead_sizes', filelocking=False))
-    figure(100)
+    fn = os.path.join(os.path.split(fn)[0], 'plot.png')
     srs = delays.keys()
     srs.sort()
+    alldata = []
+    #Generate scan_range, resolution, relative position table
     for scan_range in srs:
         data = numpy.array(delays[scan_range])
-        plot(data[:, 0],  data[:, 1],  '*-')
-    legend(map(str, srs))
-    xlabel('resolution, pixel/um')
-    ylabel('delay %')
-    fn = os.path.join(os.path.split(fn)[0], 'pos.png')    
-    savefig(fn)
-    figure(101)
+        data[:,1] -= data[-1,1]
+        scan_range_vector = scan_range*numpy.ones(data.shape[0])
+        alldata_item = numpy.zeros((scan_range_vector.shape[0],  3))
+        alldata_item[:, 0] = scan_range_vector
+        alldata_item[:, 1:] = data
+        alldata.extend(alldata_item)
+    alldata = numpy.array(alldata)
+    figure(200)
     for scan_range in srs:
         data = numpy.array(bead_sizes[scan_range])
         plot(data[:, 0],  data[:, 1],  '*-')
     legend(map(str, srs))
-    xlabel('resolution, pixel/um')
-    ylabel('bead size um')
-    show()
-
+    xlabel('resolution [pixel/um]')
+    ylabel('bead size [um]')
+    savefig(file.generate_filename(fn))
+    #Plot bead position over resolution
+    figure(201)
+    for scan_range in srs:
+        data = numpy.array([item for item in alldata if item[0] == scan_range])
+        plot(data[:,1],  data[:,2], '*-')
+    legend(map(str, srs))
+    xlabel('resolution [pixel/um]')
+    ylabel('bead position [PU]')
+    savefig(file.generate_filename(fn))
+    #Plot bead position over scan range
+    figure(202)
+    resolutions = set(alldata[:,1])
+    resolutions = list(resolutions)
+    resolutions.sort()
+#    resolutions = [res for res in resolutions if int(res) == res]
+    for resolution in resolutions:
+        data = numpy.array([item for item in alldata if item[1] == resolution])
+        plot(data[:,0],  data[:,2], '*-')
+    legend(map(str, resolutions))
+    xlabel('scan range [um]')
+    ylabel('bead position [PU]')
+    savefig(file.generate_filename(fn))
+    resolutions.reverse()
+    y, x = numpy.meshgrid(resolutions, srs)
+    z = []
+    for xx, yy in zip(x.flatten(),  y.flatten()):
+        value = [item[2] for item in alldata if item[0] == xx and item[1] == yy]
+        if len(value) == 0:
+            if len(z)>0:
+                value = z[-1]
+            else:
+                value = numpy.NaN
+        else:
+            value = value[0]
+        z.append(value)
+    z = numpy.array(z).reshape(x.shape)
+    from scipy import interpolate
+    f = interpolate.interp2d(x, y, z, kind='linear')#CONTINUE HERE
     
+    
+    import mpl_toolkits.mplot3d.axes3d as p3
+    fig=figure(203)
+    ax = p3.Axes3D(fig)
+    ax.plot_wireframe(x, y, z)
+    ax.set_xlabel('scan range [um]')
+    ax.set_ylabel('resolution [pixel/um]')
+    ax.set_zlabel('bead position [PU]')    
+#    show()
     
 if __name__ == "__main__":
-#    fn=generate_delay_curve()
+#    plot_delay_curve(generate_delay_curve())
     plot_delay_curve('V:\\debug\\out\\res_00000.hdf5')
 #    evaluate_videos()
 #    evaluate_calibdata()

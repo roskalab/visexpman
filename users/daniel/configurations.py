@@ -687,7 +687,16 @@ class Stim2Bmp(VisionExperimentConfig):
         GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
         self._create_parameters_from_locals(locals())
 
-
+from visexpman.users.antonia.Configurations import AEPHVS as AEPHVS_original
+class AEPHVS(AEPHVS_original):
+    def _set_user_parameters(self):
+        AEPHVS_original._set_user_parameters(self)
+        FULLSCREEN = not True
+        COORDINATE_SYSTEM='ulcorner'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        EXPERIMENT_CONFIG = ''
+        self._create_parameters_from_locals(locals())
+    
 if __name__ == "__main__":
     pass
     
