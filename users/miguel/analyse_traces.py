@@ -5,16 +5,13 @@ import numpy
 import os.path
 from visexpA.engine.dataprocessors.signal import estimate_baseline
 
-#def signal2spikes(signal):
-    
-
 if __name__=='__main__':
 
 
 
     folder = '/mnt/datafast/'
-    folder = 'V:\\'
-    folder = '/mnt/rznb/'
+#    folder = 'V:\\'
+#    folder = '/mnt/rznb/'
     pmat = os.path.join(folder, 'debug',  'migueldata',  '20130315_C2#015Miguel_Ch2!spike0_00000_0.mat')
     pphys = os.path.join(folder, 'debug',  'migueldata',  '20130315_C2#015Miguel_Ch2!spike0.phys')
     raw_elphys_signal, metadata = experiment_data.read_phys(pphys)

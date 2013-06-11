@@ -19,7 +19,6 @@ if os.name == 'nt':
     import win32api
 
 import file
-
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 def resample_array(array, factor):

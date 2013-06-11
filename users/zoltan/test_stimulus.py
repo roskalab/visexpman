@@ -48,6 +48,13 @@ class DebugExperimentConfig(experiment.ExperimentConfig):
         
 class Debug(experiment.Experiment):
     def run(self):
+        ncheckers = utils.rc((3, 3))
+        colors = numpy.zeros((1, ncheckers['row'], ncheckers['col'], 3))
+        colors[0,0,0,:]=numpy.array([1.0, 1.0, 0.0])
+        colors[0,1,1,:]=numpy.array([0.0, 1.0, 0.0])
+        colors[0,2,2,:]=numpy.array([1.0, 0.0, 0.0])
+        self.show_checkerboard(ncheckers, duration = 0.5, color = colors, box_size = utils.rc((10, 10)))
+        return
         self.increasing_spot([100,200], 1.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, 1.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0)))
         t0 = self.machine_config.SCREEN_EXPECTED_FRAME_RATE
         self.flash_stimulus('ff', [1/t0, 2/t0]*3, 1.0)
@@ -78,6 +85,10 @@ class Debug(experiment.Experiment):
             duty_cycle = 1.0)
             
 if __name__ == "__main__":
-    v = visexp_runner.VisionExperimentRunner('zoltan',  'SwDebugConfig')
-    v.run_experiment(user_experiment_config = 'DebugExperimentConfig')
+
+#    v = visexp_runner.VisionExperimentRunner('zoltan',  'SwDebugConfig')
+#    v.run_experiment(user_experiment_config = 'DebugExperimentConfig')
+    
+    v = visexp_runner.VisionExperimentRunner('antonia',  'Debug')
+    v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')
 #    v.run_experiment(user_experiment_config = 'ColorFlickerExpConfig')

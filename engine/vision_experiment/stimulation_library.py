@@ -523,53 +523,41 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
-#                    
-#    def show_checkerboard(self,   n_checkers,  duration = 0.0,  pos = (0,  0),  color = [],  box_size = (0, 0), flip = True):
-#        '''
-#        Shows checkerboard:
-#            n_checkers = (x dir (column), y dir (rows)), above 32x32 config, frame drop may occur
-#            pos - position of display area
-#            color - array of color values. Each item corresponds to one box
-#            box_size - size of a box in pixel   
-#            duration - duration of stimulus in seconds            
-#            color - array of color values. Each item corresponds to one box. 0 position is the top left box, the last one is the bottom right
-#        Usage example:
-#            n_checkers = (21, 21)
-#            box_size = [80, 50]    
-#            n_frames = 100    
-#            cols = random_colors(n_checkers[0] * n_checkers[1],  frames = n_frames) 
-#            for i in range(n_frames):
-#                self.st.show_checkerboard(n_checkers, duration = 0, pos = (0, 0), color = cols[i], box_size = box_size)
-#        '''
-#        
-#        box_size_p = (box_size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  box_size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
-#        pos_p = (pos[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  pos[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
-#        
-#        #check if number of boxes are the power of two
-#        max_checker_number = max(n_checkers)
-#        checker_number_two_log = math.log(max_checker_number,  2)
-#        if checker_number_two_log != math.floor(checker_number_two_log) or  n_checkers[0] != n_checkers[1]:
-#            new_size = int(2 ** math.ceil(checker_number_two_log))
-#            n_checkers_fixed = (new_size,  new_size)
-#        else:
-#            n_checkers_fixed = n_checkers            
-#        
-#        #centerpoint is shifted, so an offset shall be calculated to move it back
-#        x_offset = int((n_checkers_fixed[0] - n_checkers[0]) * box_size_p[0] * 0.5)
-#        y_offset = int((n_checkers_fixed[1] - n_checkers[1]) * box_size_p[1] * 0.5)
-#        pos_offset = (pos_p[0]  + x_offset,  pos_p[1]  - y_offset)
-#            
-#        self.screen.logOnFlip('show_checkerboard(' + str(n_checkers)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color[:self.config.MAX_LOG_COLORS])  + ', ' + str(box_size)  + ')',  psychopy.log.DATA) 
-#        texture = Image.new('RGBA',  n_checkers_fixed) 
-#        for row in range(n_checkers[1]):
-#            for column in range(n_checkers[0]):            
-#                texture.putpixel((column, row),  utils.convert_int_color(color.convert_color_from_pp(color.convert_color(color[row * n_checkers[0] + column]))))
-#        
-#        self.checkerboard.setPos(pos_offset)
-#        self.checkerboard.setTex(texture) 
-#        self.checkerboard.setSize((box_size_p[0] * n_checkers_fixed[0],  box_size_p[1] * n_checkers_fixed[1]))        
-#        
-#        self._show_stimulus(duration,  self.checkerboard, flip)
+           
+                    
+    def show_checkerboard(self, n_checkers, duration = 0.0, pos = utils.cr((0,  0)), color = [], box_size = utils.cr((0,  0)), flip = True, save_frame_info = True):
+        '''
+        Shows checkerboard:
+            n_checkers = (x dir (column), y dir (rows))
+            pos - position of display area
+            box_size - size of a box in um
+            duration - duration of stimulus in seconds            
+            color - array of color values. Dimensions:
+                            1. Frame
+                            2. row
+                            3. col
+                            4. color channel
+        '''
+        self.log_on_flip_message_initial = 'show_checkerboard(' + str(n_checkers)+ ', ' + str(duration) +', ' + str(box_size) +')'
+        self.log_on_flip_message_continous = 'show_checkerboard'
+        first_flip = False
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe())
+        nframes = color.shape[0]
+        nshapes = n_checkers['row']*n_checkers['col']
+        if not hasattr(box_size, 'dtype'):
+            box_size = utils.rc((box_size, box_size))
+        shape_size = numpy.array([numpy.ones(nshapes*nframes)*box_size['row'], numpy.ones(nshapes*nframes)*box_size['col']]).T
+        grid_positions = numpy.array(numpy.meshgrid(numpy.linspace(-(n_checkers['row']-1)/2.0, (n_checkers['row']-1)/2.0, n_checkers['row'])*box_size['row'], numpy.linspace(-(n_checkers['col']-1)/2.0, (n_checkers['col']-1)/2.0, n_checkers['col'])*box_size['col']),dtype=numpy.float).T
+        shape_positions = utils.rc(numpy.array([numpy.array(grid_positions[:,:,0].flatten().tolist()*nframes), numpy.array(grid_positions[:,:,1].flatten().tolist()*nframes)]))
+        color_adjusted = color[:,::-1,:,:]
+        self.show_shapes('rectangle', shape_size, shape_positions, nshapes, 
+                    duration = duration, 
+                    color = numpy.reshape(color_adjusted.flatten(), (color_adjusted.shape[0], color_adjusted.shape[1]*color_adjusted.shape[2],color_adjusted.shape[3])), 
+                    block_trigger = False, colors_per_shape = False, save_frame_info = False)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+
 #
 #    def show_ring(self,  n_rings, diameter,  inner_diameter = [],  duration = 0.0,  n_slices = 1,  colors = [],  pos = (0,  0), flip = True):
 #        """
@@ -933,21 +921,22 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             start_i = shape_pointer * n_vertices
             end_i = (shape_pointer + nshapes) * n_vertices
             shape_pointer = shape_pointer + nshapes
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
 #            self._show_text()
             glVertexPointerf(frames_vertices[start_i:end_i])
             for i in range(n_frames_per_pattern):
                 for shape_i in range(nshapes):
                     if colors_per_shape:
                         glColor3fv(colors.convert_color(color[shape_i], self.config))
-                    elif isinstance(color[0],  list):
+                    elif isinstance(color[0], list):
                         glColor3fv(colors.convert_color(color[frame_i][shape_i], self.config))
                     elif isinstance(color[0], numpy.ndarray):
                         glColor3fv(colors.convert_color(color[frame_i][shape_i].tolist(), self.config))
                     else:
                         glColor3fv(colors.convert_color(color, self.config))
-                    glDrawArrays(GL_POLYGON,  shape_i * n_vertices, n_vertices)
-                    
+                    glDrawArrays(GL_POLYGON, shape_i * n_vertices, n_vertices)
+                    if self.abort:
+                        break
                 #Make sure that at the first flip the parameters of the function call are logged
                 if not first_flip:
                     self.log_on_flip_message = self.log_on_flip_message_initial
@@ -955,6 +944,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 self._flip_and_block_trigger(frame_i, n_frames, True, block_trigger)
+                if self.abort:
+                    break
             if self.abort:
                 break
                 
@@ -1065,6 +1056,48 @@ class StimulationSequences(Stimulations):
                 if self.abort:
                     break
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        
+    def white_noise(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None):
+        '''
+        pixel_size : in um
+        flickering_frequency: pattern change frequency, 0: max frame rate
+        colors: set of colors or intensities to be used
+        n_on_pixels: if provided the number of white pixels shown. colors shall be a list of two.
+        '''
+        self.log.info('white_noise(' + str(duration)+ ', ' + str(pixel_size) +', ' + str(flickering_frequency) +', ' + str(colors) +', ' + str(n_on_pixels) + ')')
+        self._save_stimulus_frame_info(inspect.currentframe())
+        if flickering_frequency == 0:
+            npatterns = duration * self.config.SCREEN_EXPECTED_FRAME_RATE
+            pattern_duration = 0
+        else:
+            npatterns = duration * flickering_frequency
+            pattern_duration = 1.0/flickering_frequency
+        if not hasattr(pixel_size, 'dtype'):
+            pixel_size = utils.rc((pixel_size, pixel_size))
+        npixels = utils.rc((int(self.config.SCREEN_SIZE_UM['row']/pixel_size['row']), int(self.config.SCREEN_SIZE_UM['col']/pixel_size['col'])))
+        if isinstance(colors[0],list):
+            n_channels = len(colors[0])
+        else:
+            n_channels = 1
+        color = numpy.zeros((npatterns, npixels['row'], npixels['col'], n_channels))
+        numpy.random.seed(0)
+        randmask = numpy.random.random(color.shape[:-1])
+        if n_on_pixels is None:
+            ranges =  numpy.linspace(0, 1, len(colors)+1)
+            for r_i in range(ranges.shape[0]-1):
+                indexes = numpy.nonzero(numpy.where(randmask > ranges[r_i], 1, 0) * numpy.where(randmask <= ranges[r_i + 1], 1, 0))
+                color[indexes] = colors[r_i]
+        elif len(colors) == 2:
+            indexes = numpy.nonzero(randmask[0])
+            import random
+            random.seed(0)
+            for pattern_i in range(int(npatterns)):
+                rows = [random.choice(indexes[0]) for i in range(n_on_pixels)]
+                cols = [random.choice(indexes[1]) for i in range(n_on_pixels)]
+                color[pattern_i][rows, cols] = colors[-1]
+                pass
+        self.show_checkerboard(npixels, duration = pattern_duration, color = color, box_size = pixel_size, save_frame_info = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
     def sine_wave_shape(self):

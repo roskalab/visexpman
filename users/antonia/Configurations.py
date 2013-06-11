@@ -38,7 +38,7 @@ class Debug(ElphysConfig):
         if os.name == 'nt':
             v_drive_data_folder = 'V:\\debug\\data'
         else:
-            v_drive_data_folder = '/home/zoltan/visexp/debug/data'
+            v_drive_data_folder = '/mnt/datafast/debug/data'
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = v_drive_data_folder
@@ -56,7 +56,7 @@ class Debug(ElphysConfig):
         SCREEN_UM_TO_PIXEL_SCALE = 0.6
         
         #=== hardware ===
-        ENABLE_PARALLEL_PORT =  (self.OS == 'win')
+        ENABLE_PARALLEL_PORT = (self.OS == 'win')
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         
@@ -226,9 +226,10 @@ class MEASetup(AEPHVS):
         SCREEN_RESOLUTION = utils.cr((1024, 768))
         SCREEN_EXPECTED_FRAME_RATE = 60.0#TMP
         SCREEN_MAX_FRAME_RATE = 60.0#TMP
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0#Has to be adjusted
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0/1.6276
         ENABLE_UDP = False
-
+        BACKGROUND_COLOR = [0.5,0.5,0.5]
+        INSERT_FLIP_DELAY = True
         PLATFORM = 'standalone'
         root_folder = 'c:\\Data'
         LOG_PATH = 'c:\\Data\\log'
@@ -236,11 +237,17 @@ class MEASetup(AEPHVS):
         EXPERIMENT_DATA_PATH = root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH
         ENABLE_PARALLEL_PORT = True
-        ACQUISITION_TRIGGER_PIN = 4
-        FRAME_TRIGGER_PIN = 6
+        ACQUISITION_TRIGGER_PIN = 1
+        FRAME_TRIGGER_PIN = 0
         self.DAQ_CONFIG[0]['ENABLE'] = False
         self.DAQ_CONFIG[1]['ENABLE'] = False
-        del self.GAMMA_CORRECTION#Gamma calibration has to be done
+        gamma_corr_filename = 'c:\\visexp\\data\\gamma.hdf5'
+        if os.path.exists(gamma_corr_filename):
+            from visexpA.engine.datahandlers import hdf5io
+            import copy
+            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
+        else:
+            del self.GAMMA_CORRECTION#Gamma calibration has to be done
         self._create_parameters_from_locals(locals())
 
 if __name__ == "__main__":    

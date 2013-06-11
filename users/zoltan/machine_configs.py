@@ -117,22 +117,25 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         root_folder = '/mnt/datafast/debug'
         if not os.path.exists(root_folder):
             root_folder = '/mnt/rznb'
+            if not os.path.exists(root_folder):
+                root_folder = 'V:\\debug'
         drive_data_folder = os.path.join(root_folder, 'experiment_data')
         LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = drive_data_folder
         self.CONTEXT_NAME = 'gui_dev.hdf5'
         CONTEXT_PATH = os.path.join(root_folder, 'context')
+        CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         #Create folders that does not exists
-        for folder in [drive_data_folder, LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, CONTEXT_PATH]:
+        for folder in [drive_data_folder, LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, CONTEXT_PATH, CAPTURE_PATH]:
             file.mkdir_notexists(folder)
         
         #=== screen ===
         FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
         COORDINATE_SYSTEM='center'
-        ENABLE_FRAME_CAPTURE =  False
+        ENABLE_FRAME_CAPTURE =  True
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
         

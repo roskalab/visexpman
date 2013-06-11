@@ -433,7 +433,6 @@ class Debug(RcMicroscopeSetup):
     '''
     def _set_user_parameters(self):
         RcMicroscopeSetup._set_user_parameters(self)
-        
         #=== screen ===
         FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
