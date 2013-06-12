@@ -134,16 +134,23 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         #=== screen ===
         FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0/1.6276
+        INSERT_FLIP_DELAY = True
         COORDINATE_SYSTEM='center'
-        ENABLE_FRAME_CAPTURE =  True
+        ENABLE_FRAME_CAPTURE =  not True
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
+        SCREEN_MAX_FRAME_RATE = 60.0
+        gamma_corr_filename = 'c:\\visexp\\data\\gamma.hdf5'
+        if os.path.exists(gamma_corr_filename):
+            from visexpA.engine.datahandlers import hdf5io
+            import copy
+            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
         
         #=== Network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
         #=== hardware ===
-        ENABLE_PARALLEL_PORT = False
+        ENABLE_PARALLEL_PORT = not False
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3

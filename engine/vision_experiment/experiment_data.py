@@ -267,7 +267,7 @@ def rois_to_roi_locations(rois, objective_position, objective_origin):
     
 def read_phys(filename):
     import struct
-    f =open(filename)
+    f =open(filename,  'rb')
     offset = f.read(4)
     offset = struct.unpack('>i',offset)[0]
     header= f.read(offset)
@@ -280,11 +280,10 @@ def read_phys(filename):
     dim2 = f.read(4)
     dim1 = struct.unpack('>i',dim1)[0]
     dim2 = struct.unpack('>i',dim2)[0]
-    data = f.read(2*dim1*dim2)
-    data = numpy.array(struct.unpack('>'+''.join(dim1*dim2*['h']),data), dtype = numpy.int16).reshape((dim1, dim2))
+    data = numpy.fromfile(f, dtype=numpy.int16, count=dim1*dim2).reshape((dim1, dim2))
     f.close()
     return data, metadata
-   
+
 def phys2clampfit(filename):
     '''
     Converts phys file with trigger information to be readable by clampfit software

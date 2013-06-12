@@ -1,5 +1,5 @@
 from visexpman.engine.generic import utils
-import visexpman.engine.vision_experiment.experiment as experiment
+from visexpman.engine.vision_experiment import experiment
 import time
 import numpy
 import os.path
@@ -10,7 +10,7 @@ import random
 class WhiteNoiseParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.DURATION = 1.0
-        self.PIXEL_SIZE = 90.0
+        self.PIXEL_SIZE = 50.0
         self.FLICKERING_FREQUENCY = 30.0
         self.N_WHITE_PIXELS = None
         self.COLORS = [0.0, 1.0]

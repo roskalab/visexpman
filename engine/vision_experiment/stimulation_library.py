@@ -11,7 +11,6 @@ from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
-
 import command_handler
 import experiment_control
 from visexpman.engine.generic import graphics #Not used
@@ -914,7 +913,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             n_frames_per_pattern = 1
         else:
             n_frames_per_pattern = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
-
+        if hasattr(color, 'dtype') and hasattr(self.config, 'GAMMA_CORRECTION'):
+            color_corrected = self.config.GAMMA_CORRECTION(color)
+        else:
+            color_corrected = color
         glEnableClientState(GL_VERTEX_ARRAY)
         shape_pointer = 0
         for frame_i in range(n_frames):
@@ -927,13 +929,13 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             for i in range(n_frames_per_pattern):
                 for shape_i in range(nshapes):
                     if colors_per_shape:
-                        glColor3fv(colors.convert_color(color[shape_i], self.config))
-                    elif isinstance(color[0], list):
-                        glColor3fv(colors.convert_color(color[frame_i][shape_i], self.config))
-                    elif isinstance(color[0], numpy.ndarray):
-                        glColor3fv(colors.convert_color(color[frame_i][shape_i].tolist(), self.config))
+                        glColor3fv(colors.convert_color(color_corrected[shape_i], self.config))
+                    elif isinstance(color_corrected[0], list):
+                        glColor3fv(colors.convert_color(color_corrected[frame_i][shape_i], self.config))
+                    elif isinstance(color_corrected[0], numpy.ndarray):
+                        glColor3fv(colors.convert_color(color_corrected[frame_i][shape_i].tolist()))
                     else:
-                        glColor3fv(colors.convert_color(color, self.config))
+                        glColor3fv(colors.convert_color(color_corrected, self.config))
                     glDrawArrays(GL_POLYGON, shape_i * n_vertices, n_vertices)
                     if self.abort:
                         break
@@ -1069,10 +1071,10 @@ class StimulationSequences(Stimulations):
         self._save_stimulus_frame_info(inspect.currentframe())
         if flickering_frequency == 0:
             npatterns = duration * self.config.SCREEN_EXPECTED_FRAME_RATE
-            pattern_duration = 0
+            pattern_duration = 1
         else:
             npatterns = duration * flickering_frequency
-            pattern_duration = 1.0/flickering_frequency
+            pattern_duration = self.config.SCREEN_EXPECTED_FRAME_RATE/flickering_frequency
         if not hasattr(pixel_size, 'dtype'):
             pixel_size = utils.rc((pixel_size, pixel_size))
         npixels = utils.rc((int(self.config.SCREEN_SIZE_UM['row']/pixel_size['row']), int(self.config.SCREEN_SIZE_UM['col']/pixel_size['col'])))
@@ -1097,7 +1099,8 @@ class StimulationSequences(Stimulations):
                 cols = [random.choice(indexes[1]) for i in range(n_on_pixels)]
                 color[pattern_i][rows, cols] = colors[-1]
                 pass
-        self.show_checkerboard(npixels, duration = pattern_duration, color = color, box_size = pixel_size, save_frame_info = False)
+        color = numpy.repeat(color, pattern_duration, 0)
+        self.show_checkerboard(npixels, duration = 0, color = color, box_size = pixel_size, save_frame_info = True)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
     def sine_wave_shape(self):

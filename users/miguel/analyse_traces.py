@@ -11,8 +11,8 @@ class EplhysProcessor(object):
         self.process_file('')
         
     def process_file(self,filename):
-        pmat = os.path.join(self.folder, 'debug',  'migueldata',  '20130315_C2#015Miguel_Ch2!spike0_00000_0.mat')
-        pphys = os.path.join(self.folder, 'debug',  'migueldata',  '20130315_C2#015Miguel_Ch2!spike0.phys')
+        pmat = os.path.join(self.folder,  'debug', 'migueldata', '20130315_C2#015Miguel_Ch2!spike0_00000_0.mat')
+        pphys = os.path.join(self.folder, 'debug', 'migueldata', '20130315_C2#015Miguel_Ch2!spike0.phys')
         raw_elphys_signal, metadata = experiment_data.read_phys(pphys)
         fs = float(metadata['Sample Rate'])
         prerecord_time =   float(metadata['Pre-Record Time (mS)'])/1000.0
@@ -34,10 +34,10 @@ class EplhysProcessor(object):
             log[k] = stim_data['experiment_log_dict'][k][0][0][0]
             timestamps.append(float(k.replace('time_','').replace('p','.')))
         timestamps.sort()
-        f = open('/mnt/rznb/explog.txt','wt')
-        for timestamp in timestamps:
-            f.write(str(timestamp) + '\t' + log['time_' + str(timestamp).replace('.', 'p')]+'\r\n')
-        f.close()
+#        f = open('/mnt/rznb/explog.txt','wt')
+#        for timestamp in timestamps:
+#            f.write(str(timestamp) + '\t' + log['time_' + str(timestamp).replace('.', 'p')]+'\r\n')
+#        f.close()
         baseline = estimate_baseline(elphys_signal,calculate_bandwidth=False)
         import spike_sort.core
         res = spike_sort.core.extract.detect_spikes({'data':numpy.array([elphys_signal-elphys_signal.min() ]), 'n_contacts': 1, 'FS': fs})['data']/1000.0
@@ -64,6 +64,7 @@ if __name__=='__main__':
 
     folder = '/mnt/datafast/'
 #    folder = 'V:\\'
+#    folder = 'C:\\_del'
 #    folder = '/mnt/rznb/'
     e=EplhysProcessor(folder)
     show()

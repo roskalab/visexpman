@@ -8,7 +8,7 @@ from visexpman.engine.generic import utils
 import stimulation_library
 
 import inspect
-import visexpA.engine.datahandlers.hdf5io as hdf5io
+from visexpA.engine.datahandlers import hdf5io
 from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
 
@@ -78,7 +78,7 @@ class Experiment(stimulation_library.StimulationSequences):
         if source_code != None:
             self.source_code = source_code
         self.experiment_name = self.__class__.__name__.split('_')[0]
-        self.experiment_config_name = self.experiment_config.__class__.__name__
+        self.experiment_config_name = self.experiment_config.__class__.__name__.split('_')[0]
         self.name_tag = self.experiment_config_name.replace('Config', '').replace('config', '')
         self.prepare()
         stimulation_library.Stimulations.__init__(self, self.machine_config, application_log)

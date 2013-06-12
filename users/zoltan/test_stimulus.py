@@ -40,6 +40,26 @@ class WDC(VisionExperimentConfig):
         
         self._create_parameters_from_locals(locals())
         
+class WhiteNoiseParameters(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.DURATION = 1.0
+        self.PIXEL_SIZE = 50.0
+        self.FLICKERING_FREQUENCY = 30.0
+        self.N_WHITE_PIXELS = None
+        self.COLORS = [0.0, 1.0]
+        self.runnable = 'WhiteNoiseExperiment'
+        self._create_parameters_from_locals(locals())
+
+class WhiteNoiseExperiment(experiment.Experiment):
+    def run(self):
+        self.white_noise(duration = self.experiment_config.DURATION,
+            pixel_size = self.experiment_config.PIXEL_SIZE, 
+            flickering_frequency = self.experiment_config.FLICKERING_FREQUENCY, 
+            colors = self.experiment_config.COLORS,
+            n_on_pixels = self.experiment_config.N_WHITE_PIXELS)
+        self.show_fullscreen()
+
+        
 class DebugExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'Debug'
@@ -85,10 +105,10 @@ class Debug(experiment.Experiment):
             duty_cycle = 1.0)
             
 if __name__ == "__main__":
-
-#    v = visexp_runner.VisionExperimentRunner('zoltan',  'SwDebugConfig')
 #    v.run_experiment(user_experiment_config = 'DebugExperimentConfig')
-    
-    v = visexp_runner.VisionExperimentRunner('antonia',  'Debug')
-    v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')
-#    v.run_experiment(user_experiment_config = 'ColorFlickerExpConfig')
+    if True:
+        v = visexp_runner.VisionExperimentRunner('antonia',  'MEASetup')
+        v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')
+    else:
+        v = visexp_runner.VisionExperimentRunner('zoltan',  'SwDebugConfig')
+        v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')

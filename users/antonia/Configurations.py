@@ -5,7 +5,7 @@ from visexpman.engine.generic.parameter import Parameter
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig, ElphysConfig
 import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
-import visexpman.engine.generic.utils as utils
+from visexpman.engine.generic import utils
 import scipy.interpolate
 
 class SPC(VisionExperimentConfig):
@@ -172,7 +172,7 @@ class AEPHVS(ElphysConfig):
                     'AI_CHANNEL' : 'Dev2/ai1:2',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
-                    'DURATION_OF_AI_READ' : 300.0,
+                    'DURATION_OF_AI_READ' : 900.0,
                     'ENABLE' : True
                     },
                     {
@@ -224,9 +224,10 @@ class MEASetup(AEPHVS):
         AEPHVS._set_user_parameters(self, check_path=False)
         FULLSCREEN = True#TMP
         SCREEN_RESOLUTION = utils.cr((1024, 768))
-        SCREEN_EXPECTED_FRAME_RATE = 60.0#TMP
-        SCREEN_MAX_FRAME_RATE = 60.0#TMP
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0/1.6276
+        SCREEN_RESOLUTION = utils.cr((800, 600))
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0
+        SCREEN_UM_TO_PIXEL_SCALE = 1.28/1.6276
         ENABLE_UDP = False
         BACKGROUND_COLOR = [0.5,0.5,0.5]
         INSERT_FLIP_DELAY = True
