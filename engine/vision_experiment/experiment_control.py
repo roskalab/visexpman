@@ -590,6 +590,9 @@ class ExperimentControl(object):
                 time.sleep(1.0)
             shutil.copy(self.filenames['local_fragments'][fragment_id], self.filenames['fragments'][fragment_id])
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
+            data_to_file['call_parameters'] = self.parameters
+            data_to_file['experiment_name'] = self.experiment_name
+            data_to_file['experiment_config_name'] = self.experiment_config_name
             self.fragment_data[self.filenames['local_fragments'][fragment_id]] = data_to_file
         self.printl('Measurement data saved to: {0}'.format(os.path.split(self.filenames['fragments'][fragment_id])[1]))
 

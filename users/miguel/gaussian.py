@@ -28,7 +28,7 @@ class GaussContrastConfig(experiment.ExperimentConfig):
         
 class GaussContrastExperiment(experiment.Experiment):
     def prepare(self):
-        random.seed()
+        random.seed(0)
         self.intensities = []
         if self.experiment_config.WAVEFORM == 'flicker':
             number_of_flicker_per_intensity_step = int(numpy.round(self.experiment_config.TIME_COURSE / self.experiment_config.FLICKERING_TIME, 0))

@@ -1,49 +1,131 @@
 from visexpman.engine.vision_experiment import experiment_data
+from visexpman.engine.generic import file
+from visexpman.engine.generic import utils
 import scipy.io
 from matplotlib.pyplot import plot, show,figure,legend, xlabel,title,savefig
 import numpy
 import os.path
-from visexpA.engine.dataprocessors.signal import estimate_baseline
+import os
+import shutil
+from visexpA.engine.datahandlers import hdf5io
+#from visexpA.engine.dataprocessors.signal import estimate_baseline
 
 class EplhysProcessor(object):
     def __init__(self, folder):
         self.folder=folder
-        self.process_file('')
+        self.plot_folder = os.path.join(self.folder, 'plots')
+        if os.path.exists(self.plot_folder):
+            shutil.rmtree(self.plot_folder)
+        os.mkdir(self.plot_folder)
+        self.figure_counter = 1
+        if False:
+            self.check_stimulation_uniformity('gaussian.py')
+        else:
+            p=os.path.join(self.folder, 'data.hdf5')
+            matfiles = utils.array2object(hdf5io.read_item(p, 'matfiles', filelocking=False))
+            intensities = utils.array2object(hdf5io.read_item(p, 'intensities', filelocking=False))
+            self.ti = hdf5io.read_item(p, 'ti', filelocking=False)
+            sizes = [i.shape[0] for i in intensities]
+            wrong_matfiles = [matfiles[i] for i in range(len(sizes)) if sizes[i] != 9000]
+            all_intensities = numpy.zeros((len(intensities), intensities[0].shape[0]))
+            stats = numpy.zeros((len(intensities), 3, 2))
+            for i in range(len(intensities)):
+                if len(intensities[i].shape) == 2:
+                    all_intensities[i] = intensities[i][:, 0]
+                else:
+                    all_intensities[i] = intensities[i]
+                stats[i, 0, 0] = all_intensities[i][:3000].mean()
+                stats[i, 0, 1] = all_intensities[i][:3000].std()
+                stats[i, 1, 0] = all_intensities[i][3000:6000].mean()
+                stats[i, 1, 1] = all_intensities[i][3000:6000].std()
+                stats[i, 2, 0] = all_intensities[i][6000:].mean()
+                stats[i, 2, 1] = all_intensities[i][6000:].std()
+            if False:
+                figure(1)
+                plot(stats[:, 0, 0])
+                plot(stats[:, 2, 0])
+                figure(2)
+                plot(stats[:, 0, 1])
+                plot(stats[:, 1, 1])
+                plot(stats[:, 2, 1])
+                figure(3)
+                plot(stats[:, 1, 0])
+                show()
+            self.intensity = all_intensities[0]
+            for f in file.find_files_and_folders(self.folder, extension = 'phys')[1]:    
+                self.process_file(f)
         
-    def process_file(self,filename):
-        pmat = os.path.join(self.folder,  'debug', 'migueldata', '20130315_C2#015Miguel_Ch2!spike0_00000_0.mat')
-        pphys = os.path.join(self.folder, 'debug', 'migueldata', '20130315_C2#015Miguel_Ch2!spike0.phys')
-        raw_elphys_signal, metadata = experiment_data.read_phys(pphys)
-        fs = float(metadata['Sample Rate'])
-        prerecord_time =   float(metadata['Pre-Record Time (mS)'])/1000.0
-        voltage_scale =   float(metadata['Waveform Scale Factors'])
-        elphys_signal = raw_elphys_signal[0,:]
-        te = numpy.linspace(0, elphys_signal.shape[0]/float(fs), elphys_signal.shape[0])
-        stim_data = scipy.io.loadmat(pmat, mat_dtype=True)
+    def check_stimulation_uniformity(self, stimulus_name):
+        '''
+        Check if all stimulations were identical
+        '''
+        matfiles = []
         intensities = []
-        for stim in stim_data['stimulus_frame_info'][0,:]:
-            if str(stim['stimulus_type'][0][0][0]) == 'show_shape' and stim['is_last'][0][0][0][0]==0:
-                intensities.extend(stim['parameters'][0][0]['color'][0][0].tolist())
-            pass
-        intensities = numpy.array(intensities)
-        ti = numpy.linspace(0, intensities.shape[0]/stim_data['config']['machine_config'][0][0]['SCREEN_EXPECTED_FRAME_RATE'][0][0][0][0], intensities.shape[0])+prerecord_time
-        #Restore experiment log
+        for matfile in file.find_files_and_folders(self.folder, extension = 'mat')[1]:
+            try:
+                t, intensity = self.read_spot_intensity(matfile)
+                intensities.append(intensity)
+                matfiles.append(matfile)
+            except:
+                print matfile
+        
+        p=os.path.join(self.folder, 'data.hdf5')
+        hdf5io.save_item(p, 'matfiles', utils.object2array(matfiles),  filelocking=False)
+        hdf5io.save_item(p, 'intensities', utils.object2array(intensities),  filelocking=False)
+        hdf5io.save_item(p, 'ti', t,  filelocking=False)
+        
+    def restore_experiment_log(self, matfilename, outfile=None):#Not working
+        stim_data = scipy.io.loadmat(matfilename, mat_dtype=True)
         log = {}
         timestamps = []
         for k in stim_data['experiment_log_dict'].dtype.names:
             log[k] = stim_data['experiment_log_dict'][k][0][0][0]
             timestamps.append(float(k.replace('time_','').replace('p','.')))
         timestamps.sort()
-#        f = open('/mnt/rznb/explog.txt','wt')
-#        for timestamp in timestamps:
-#            f.write(str(timestamp) + '\t' + log['time_' + str(timestamp).replace('.', 'p')]+'\r\n')
-#        f.close()
-        baseline = estimate_baseline(elphys_signal,calculate_bandwidth=False)
+        logs = ''
+        if outfile is not None:
+            f = open(outfile,'wt')
+        for timestamp in timestamps:
+            line = str(timestamp) + '\t' + log['time_' + str(timestamp).replace('.', 'p')]+'\r\n'
+            logs += line
+            if outfile is not None:
+                f.write(line)
+        if outfile is not None:
+            f.close()
+        return logs
+        
+    def read_spot_intensity(self, filename):
+        stim_data = scipy.io.loadmat(filename, mat_dtype=True)
+        intensities = []
+        if len(stim_data['stimulus_frame_info'][0,:])>10:
+            for stim in stim_data['stimulus_frame_info'][0,:]:
+                if str(stim['stimulus_type'][0][0][0]) == 'show_shape' and stim['is_last'][0][0][0][0]==0:
+                    intensities.append(stim['parameters'][0][0]['color'][0][0][0][0])
+        else:
+            for stim in stim_data['stimulus_frame_info'][0,:]:
+                if str(stim['stimulus_type'][0][0][0]) == 'show_shape' and stim['is_last'][0][0][0][0]==0:
+                    intensities.extend(stim['parameters'][0][0]['color'][0][0].tolist())
+                    break
+                pass
+        intensities = numpy.array(intensities)
+        ti = numpy.linspace(0, intensities.shape[0]/stim_data['config']['machine_config'][0][0]['SCREEN_EXPECTED_FRAME_RATE'][0][0][0][0], intensities.shape[0])
+        return ti, intensities
+        
+    def process_file(self,filename):
+        raw_elphys_signal, metadata = experiment_data.read_phys(filename)
+        fs = float(metadata['Sample Rate'])
+        prerecord_time =   float(metadata['Pre-Record Time (mS)'])/1000.0
+        voltage_scale =   float(metadata['Waveform Scale Factors'])
+        elphys_signal = raw_elphys_signal[0,:]
+        te = numpy.linspace(0, elphys_signal.shape[0]/float(fs), elphys_signal.shape[0])
+        
+        ti = self.ti + prerecord_time
         import spike_sort.core
         res = spike_sort.core.extract.detect_spikes({'data':numpy.array([elphys_signal-elphys_signal.min() ]), 'n_contacts': 1, 'FS': fs})['data']/1000.0
         
-        figure(1)
-        plot(ti, intensities)
+        figure(self.figure_counter)
+        self.figure_counter += 1
+        plot(ti, self.intensity)
     #    plot(res[1:], 1/numpy.diff(res))
         time_window = 1.0
         tsp = []
@@ -55,10 +137,11 @@ class EplhysProcessor(object):
                 mask = mask * numpy.where(res >= tsp[-2], True, False)
             spiking_frequency.append(numpy.nonzero(mask)[0].shape[0]/time_window)
         plot(tsp, spiking_frequency)
-        legend(['spot intensity [%]', 'Spiking frequency [Hz]'])
+        legend(['spot intensity [PU]', 'Spiking frequency [Hz]'])
         xlabel('Time [s]')
-        title(pphys)
-        savefig(pphys.replace('.phys', '.png'))
+        title(filename)
+        savefig(os.path.join(self.plot_folder,  filename.replace(self.folder, '').replace(os.sep, '_').replace('.phys', '.png')))
+        print filename,  ti.max(),  max(tsp),  te.max()
 
 if __name__=='__main__':
 
@@ -66,6 +149,6 @@ if __name__=='__main__':
 #    folder = 'V:\\'
 #    folder = 'C:\\_del'
 #    folder = '/mnt/rznb/'
-    e=EplhysProcessor(folder)
+    e=EplhysProcessor(os.path.join(folder,  'debug', 'migueldata'))
     show()
 
