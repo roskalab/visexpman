@@ -72,6 +72,15 @@ class MovingGratingWithFlashConfig(MovingGratingNoMarchingConfig):
         self.WHITE = 1.0
         self.PAUSE_BEFORE_AFTER = 12.0
         
+class MovingGratingSineConfig(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.PROFILE = 'sin'
+        self.DUTY_CYCLES = [1.0] #put 1.0 to a different config
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+#         self._create_parameters_from_locals(locals())
+        
 if 0:
     class MovingGratingNoMarchingNoStandingConfig(experiment.ExperimentConfig):
         def _create_parameters(self):
@@ -210,6 +219,10 @@ class MovingGrating(experiment.Experiment):
         #Flash
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
             self.flash_stimulus(self.experiment_config.TIMING, flash_color = self.experiment_config.WHITE, background_color = self.experiment_config.BLACK, repeats = self.experiment_config.FLASH_REPEATS)
+        if hasattr(self.experiment_config, 'PROFILE'):
+            profile = self.experiment_config.PROFILE
+        else:
+            profile = 'sqr'
         #moving grating
         frame_counter = 0
         segment_counter = 0
@@ -225,17 +238,20 @@ class MovingGrating(experiment.Experiment):
                     else:
                         static_grating_duration = self.experiment_config.MARCH_TIME
                     self.show_grating(duration = static_grating_duration, 
+                            profile = profile, 
                             orientation = orientation, 
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],
                             starting_phase = phase)
                 #Show moving grating
                 self.show_grating(duration = stimulus_unit['move_time'], 
+                            profile = profile, 
                             orientation = orientation, 
                             velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'])
                 #Show static grating
                 self.show_grating(duration = self.experiment_config.GRATING_STAND_TIME, 
+                            profile = profile, 
                             orientation = orientation, 
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'])
@@ -262,7 +278,11 @@ class MovingGrating(experiment.Experiment):
                 
 class MovingGratingPre(experiment.PreExperiment):    
     def run(self):
-        self.show_grating(duration = 0, 
+        if hasattr(self.experiment_config, 'PROFILE'):
+            profile = self.experiment_config.PROFILE
+        else:
+            profile = 'sqr'
+        self.show_grating(duration = 0, profile = profile,
                             orientation = self.experiment_config.ORIENTATIONS[0], 
                             velocity = 0, white_bar_width = self.experiment_config.WHITE_BAR_WIDTHS[0],
                             duty_cycle = self.experiment_config.DUTY_CYCLES[0], part_of_drawing_sequence = True)
