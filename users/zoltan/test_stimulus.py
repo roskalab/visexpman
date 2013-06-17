@@ -16,7 +16,7 @@ class WDC(VisionExperimentConfig):
     '''
     Visexp runner windows test config
     '''
-    def _set_user_parameters(self):        
+    def _set_user_parameters(self):
 
         #paths
         EXPERIMENT_CONFIG = 'DebugExperimentConfig'
@@ -67,7 +67,12 @@ class DebugExperimentConfig(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())          
         
 class Debug(experiment.Experiment):
+    def prepare(self):
+        self.fragment_durations = [2]
+    
     def run(self):
+        self.show_shape(duration=2,size=100)
+        return
         ncheckers = utils.rc((3, 3))
         colors = numpy.zeros((1, ncheckers['row'], ncheckers['col'], 3))
         colors[0,0,0,:]=numpy.array([1.0, 1.0, 0.0])

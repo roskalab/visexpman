@@ -209,7 +209,7 @@ def evaluate_video(p, axis):
     tiffile.imsave(file.generate_filename('/mnt/rznb/1.tiff'), numpy.cast['uint8'](mean_images), software = 'visexpman')
     pass
     return
-    
+
 def generate_delay_curve():
     if False:
         #1. method
@@ -246,7 +246,7 @@ def generate_delay_curve():
     fns = os.listdir(folder2)
     fns.sort()
 #    fns = fns[:10]
-    delays = {}
+    offsets = {}
     delays_pix = {}
     bead_sizes = {}#Useless, relative position matters
     figct = 0
@@ -268,11 +268,11 @@ def generate_delay_curve():
             delay_pix = 0
             size_pix = 0
         size = size_pix / resolution
-        if not delays.has_key(scan_range):
-            delays[scan_range] = []
+        if not offsets.has_key(scan_range):
+            offsets[scan_range] = []
             delays_pix[scan_range] = []
             bead_sizes[scan_range] = []
-        delays[scan_range].append([resolution, delay])
+        offsets[scan_range].append([resolution, delay])
         delays_pix[scan_range].append([resolution, delay_pix])
         bead_sizes[scan_range].append([resolution, size])
         figure(figct)
@@ -291,10 +291,9 @@ def generate_delay_curve():
         os.remove(fn)
         Image.fromarray(ima).save(fn)
         pass
-    fn = file.generate_filename(os.path.join(output_folder, 'res.hdf5'))
-    for vn in ['delays',  'bead_sizes']:
+    fn = file.generate_filename(os.path.join(output_folder, 'ca_image_offset_calibration.hdf5'))
+    for vn in ['offsets',  'bead_sizes']:
         hdf5io.save_item(fn, vn, utils.object2array(locals()[vn]), filelocking=False)
-    
     return fn
 
 def plot_delay_curve(fn):
@@ -345,35 +344,128 @@ def plot_delay_curve(fn):
     ylabel('bead position [PU]')
     savefig(file.generate_filename(fn))
     resolutions.reverse()
-    y, x = numpy.meshgrid(resolutions, srs)
-    z = []
-    for xx, yy in zip(x.flatten(),  y.flatten()):
-        value = [item[2] for item in alldata if item[0] == xx and item[1] == yy]
+    resolution_axis, scan_range_axis = numpy.meshgrid(resolutions, srs)
+    offset = []
+    for scan_range_axis_flattened, resolution_axis_flattened in zip(scan_range_axis.flatten(),  resolution_axis.flatten()):
+        value = [item[2] for item in alldata if item[0] == scan_range_axis_flattened and item[1] == resolution_axis_flattened]
         if len(value) == 0:
-            if len(z)>0:
-                value = z[-1]
+            if len(offset)>0:
+                value = offset[-1]
             else:
                 value = numpy.NaN
         else:
             value = value[0]
-        z.append(value)
-    z = numpy.array(z).reshape(x.shape)
+        offset.append(value)
+    offset = numpy.array(offset).reshape(scan_range_axis.shape)
     from scipy import interpolate
-    f = interpolate.interp2d(x, y, z, kind='linear')#CONTINUE HERE
+    f = interpolate.interp2d(scan_range_axis, resolution_axis, offset, kind='linear')#CONTINUE HERE
     
     
     import mpl_toolkits.mplot3d.axes3d as p3
     fig=figure(203)
     ax = p3.Axes3D(fig)
-    ax.plot_wireframe(x, y, z)
+    ax.plot_wireframe(scan_range_axis, resolution_axis, offset)
     ax.set_xlabel('scan range [um]')
     ax.set_ylabel('resolution [pixel/um]')
     ax.set_zlabel('bead position [PU]')    
+    pass
 #    show()
     
+def recordings2calibdata(datafolder,  output_folder, enable_plot=False):
+    '''
+    Reads and sorts recordings from the same fluorescent bead with different scan ranges and resolutions.
+    The relative horizontal position of the bead are calculated and from this data a 3d calibration curve is generated where scan range [um]
+    and resolution [pixel/um] are the two axes. The highest resolution is considered a position with 0 offset.
+    '''
+    filenames = os.listdir(datafolder)
+    filenames.sort()
+#    filenames = filenames[:10]#TMP
+    offsets = []
+    figct = 0
+    for fn in filenames:
+        #read rawdata and scan parameters from file
+        h= hdf5io.Hdf5io(os.path.join(datafolder,  fn), filelocking=False)
+        rawdata = h.findvar('rawdata')
+        if rawdata is None:
+            rawdata = h.findvar('raw_data')
+        scan_parameters = h.findvar('scan_parameters')
+        h.close()
+        #get resolution, scan range and convert image to curve
+        resolution = 1/scan_parameters['resolution']
+        scan_range = scan_parameters['scan_size']['col']
+        curve = rawdata.mean(axis=2).mean(axis=0)[:,0]
+        #Fit gaussian on the curve, its mean is the position of the bead
+        p0 = [1., curve.argmax(), 1.]
+        import scipy.optimize
+        try:
+            coeff, var_matrix = scipy.optimize.curve_fit(scanner_control.gauss, numpy.arange(curve.shape[0]), curve, p0=p0)
+            offset = coeff[1]/curve.shape[0]
+        except:
+            offset = 0
+        offsets.append([scan_range, resolution, offset])
+        if enable_plot:
+            figure(figct)
+            plot(curve)
+            plot(scanner_control.gauss(numpy.arange(curve.shape[0]),  *coeff))
+            t = '{0} um {1} pixel um {2:0.3f}'.format(scan_range,  resolution, offset)
+            title(t)
+            figct += 1
+            fn = os.path.join(output_folder, t+'.png')
+            savefig(fn)
+            fig = numpy.asarray(Image.open(fn))
+            pic = normalize(rawdata[:,:,0,0], numpy.uint8)
+            ima = numpy.zeros((fig.shape[0]+pic.shape[0],  max(fig.shape[1],  pic.shape[1]), 3 ),  dtype = numpy.uint8)
+            ima[0:fig.shape[0],  0:fig.shape[1],  :] = fig[:, :, 0:3]
+            ima[fig.shape[0]: fig.shape[0] + pic.shape[0], 0:pic.shape[1],  1] = pic
+            os.remove(fn)
+            Image.fromarray(ima).save(fn)
+    offsets = numpy.array(offsets)
+    #Convert [scan_range, resolution, offset] data to meshgrid order
+    scan_ranges = list(set(offsets[:,0].tolist()))
+    scan_ranges.sort()
+    scan_ranges.reverse()
+    resolutions = list(set(offsets[:,1].tolist()))
+    resolutions.sort()
+    resolutions.reverse()
+    resolutions, scan_ranges = numpy.meshgrid(resolutions, scan_ranges)
+    offsets_mg = []
+    for scan_range, resolution in zip(scan_ranges.flatten(),  resolutions.flatten()):
+        value = [item[2] for item in offsets if item[0] == scan_range and item[1] == resolution]
+        if len(value) == 0:
+            if len(offsets_mg)>0:
+                value = offsets_mg[-1]
+            else:
+                value = numpy.NaN
+        else:
+            value = value[0]
+        offsets_mg.append(value)
+    offsets_mg = numpy.array(offsets_mg).reshape(scan_ranges.shape)
+    import mpl_toolkits.mplot3d.axes3d as p3
+    fig=figure(203)
+    ax = p3.Axes3D(fig)
+    ax.plot_wireframe(scan_ranges, resolutions, offsets_mg)
+    ax.set_xlabel('scan range [um]')
+    ax.set_ylabel('resolution [pixel/um]')
+    ax.set_zlabel('bead position [PU]')
+    savefig(os.path.join(output_folder, 'curve.png'))
+    
+    
+    
+    
+    from scipy import interpolate
+    f = interpolate.interp2d(scan_ranges, resolutions, offsets_mg, kind='linear')
+    
+    fn = file.generate_filename(os.path.join(output_folder, 'image_offset_calibration.hdf5'))
+    hdf5io.save_item(fn, 'offsets', offsets, filelocking=False)
+    hdf5io.save_item(fn, 'scan_ranges', scan_ranges, filelocking=False)
+    hdf5io.save_item(fn, 'resolutions', resolutions, filelocking=False)
+    hdf5io.save_item(fn, 'offsets_mg', offsets_mg, filelocking=False)
+    return fn
+    
 if __name__ == "__main__":
+    recordings2calibdata('V:\\debug\\data\\2013-06-02', 'V:\\debug\\out1')
 #    plot_delay_curve(generate_delay_curve())
-    plot_delay_curve('V:\\debug\\out\\res_00000.hdf5')
+#    plot_delay_curve('V:\\debug\\out\\res_00000.hdf5')
 #    evaluate_videos()
 #    evaluate_calibdata()
 #    show()

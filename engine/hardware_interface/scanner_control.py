@@ -511,6 +511,8 @@ class TwoPhotonScanner(instrument.Instrument):
             raise RuntimeError('AI sample rate must be the multiple of AO sample rate')
         else:
             self.binning_factor = int(self.binning_factor)
+        import visexpman
+        self.load_calibdata(os.path.join(os.path.split(visexpman.__file__)[0], 'data', 'calibration', 'image_offset_calibration.hdf5'))
             
     def start_measurement(self, scanner_x, scanner_y, stimulus_trigger, frame_trigger):
         #Convert from position to voltage
@@ -576,6 +578,7 @@ class TwoPhotonScanner(instrument.Instrument):
         pos_x, pos_y, self.scan_mask, self.accel_speed, result = generate_rectangular_scan(size, position, spatial_resolution, 1, setting_time, self.config)
         if not result:
             raise RuntimeError('Scanning pattern is not feasable')
+        self.image_offset = self.get_image_offset(size['col'], 1.0/spatial_resolution)
         self.is_rectangular_scan = True
         if trigger_signal_config is None or not trigger_signal_config['enable']:
             self.trigger_signal = numpy.zeros_like(self.scan_mask)
@@ -623,6 +626,28 @@ class TwoPhotonScanner(instrument.Instrument):
                 self.data = numpy.array([frame_from_sinus_pattern_scan(raw_pmt_data, self.scan_mask, self.backscan, self.binning_factor) for raw_pmt_data in self.pmt_raw])#dimension: time, subframe, height, width, channels
             else:
                 self.data = numpy.array([raw2frame(raw_pmt_data, self.binning_factor, self.boundaries, self.phase_shift) for raw_pmt_data in self.pmt_raw])#dimension: time, height, width, channels
+    
+    def get_image_offset(self, scan_range, resolution):
+        '''
+        Returns image offset in pixels based on calibration data
+        '''
+        if isinstance(self.calibdata['resolutions'], list):
+            max_resolution = max(self.calibdata['resolutions'])
+        elif hasattr(self.calibdata['resolutions'], 'dtype'):
+            max_resolution = self.calibdata['resolutions'].max()
+        offset_rel = self.image_offsets(scan_range, resolution) - self.image_offsets(scan_range, max_resolution)
+        offset = scan_range * resolution * offset_rel
+        return int(offset[0])
+        
+    def load_calibdata(self, filename):
+        h = hdf5io.Hdf5io(filename, filelocking=False)
+        self.calibdata = {}
+        nodes = ['scan_ranges', 'resolutions', 'offsets_mg']
+        for node in nodes:
+            self.calibdata[node] = h.findvar(node)
+        from scipy import interpolate
+        self.image_offsets = interpolate.interp2d(self.calibdata['scan_ranges'], self.calibdata['resolutions'], self.calibdata['offsets_mg'], kind='linear')
+        h.close()
         
     def open_shutter(self):
         self.shutter.set()
@@ -785,7 +810,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             
     def _send_scan_parameters2guipoller(self, config, parameters):
         #Send image parameters to poller
-        pnames = ['frame_rate',  'binning_factor', 'boundaries',  'scanner_time_efficiency', 'speeds', 'phase_shift']
+        pnames = ['frame_rate',  'binning_factor', 'boundaries',  'scanner_time_efficiency', 'speeds', 'image_offset']
         self.scan_parameters = {}
         for p in pnames:
             self.scan_parameters[p] = getattr(self.tp, p)
@@ -1127,7 +1152,6 @@ def calculate_phase_shift(pos_x, scan_mask, config, debug = False):
         plot(pos_x_est)
         print shift, abs(error).max()
     return shift, error
-    
 
 class TestScannerControl(unittest.TestCase):
     def setUp(self):

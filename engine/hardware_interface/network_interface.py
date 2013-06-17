@@ -591,14 +591,15 @@ def start_client(config, client_name, connection_name, queue_in, queue_out):
     '''
     Returns a reference to the client thread.
     '''
-    client = QueuedClient(queue_out, queue_in, 
-                          config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'], 
-                          config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'][connection_name][client_name]['PORT'], 
-                          config.COMMAND_RELAY_SERVER['TIMEOUT'], 
-                          client_name)
-    if config.COMMAND_RELAY_SERVER['CLIENTS_ENABLE']:
-        client.start()
-    return client
+    if config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].has_key(connection_name):
+        client = QueuedClient(queue_out, queue_in, 
+                              config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'], 
+                              config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'][connection_name][client_name]['PORT'], 
+                              config.COMMAND_RELAY_SERVER['TIMEOUT'], 
+                              client_name)
+        if config.COMMAND_RELAY_SERVER['CLIENTS_ENABLE']:
+            client.start()
+        return client
 
 #============= Helpers ====================#
 
@@ -1097,3 +1098,4 @@ if __name__ == "__main__":
     suite = unittest.TestLoader().loadTestsFromTestCase(TestZMQInterface)
     unittest.TextTestRunner().run(suite)
     print 'all done'
+    

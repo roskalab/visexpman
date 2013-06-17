@@ -27,6 +27,8 @@ class ExperimentConfig(Config):
             raise ValueError('You must specify the class which will run the experiment')
         else:
             if experiment_class == None and source_code == None:
+                if not hasattr(self.machine_config, 'users'):
+                    self.machine_config.users = [self.machine_config.user]
                 for u in self.machine_config.users:
                     try:
                         self.runnable = utils.fetch_classes('visexpman.users.'+ u, classname = self.runnable,  
@@ -168,3 +170,9 @@ def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = No
     return experiment_config
     a = experiment_module.MovingDot(machine_config, None, experiment_config)
     
+def get_fragment_duration(experiment_config_class, config):
+    experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+    experiment_class_object = experiment_class(config,None,None,None).runnable
+    if hasattr(experiment_class_object, 'fragment_durations'):
+        return experiment_class_object.fragment_durations
+        

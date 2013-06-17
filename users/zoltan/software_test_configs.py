@@ -30,20 +30,19 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         
         #### Network ####
-        ENABLE_UDP = (os.name == 'nt')
+        ENABLE_UDP_TRIGGER= (os.name == 'nt')
         UDP_PORT = 446
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
-        self.COMMAND_RELAY_SERVER['ENABLE'] = False
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
+        self.COMMAND_RELAY_SERVER['ENABLE'] = True
         self.BASE_PORT = 20000
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
             {
-            'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
-            'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
             'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
             }
-        COORDINATE_SYSTEM='ulcorner'
+        COORDINATE_SYSTEM='center'
+        self.CA_IMAGING_START_DELAY = 5.0#NEW
         MAX_PMT_VOLTAGE = 8.0
         SCANNER_START_STOP_TIME = 0.02
         SCANNER_MAX_POSITION = 350.0

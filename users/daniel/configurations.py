@@ -684,6 +684,12 @@ class Stim2Bmp(VisionExperimentConfig):
             'transfermode': 'file'
                                      }
         GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
+        gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical.hdf5')
+        if os.path.exists(gamma_corr_filename):
+            from visexpA.engine.datahandlers import hdf5io
+            import copy
+            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction'))        
+
         self._create_parameters_from_locals(locals())
 
 from visexpman.users.antonia.Configurations import AEPHVS as AEPHVS_original
@@ -698,4 +704,3 @@ class AEPHVS(AEPHVS_original):
     
 if __name__ == "__main__":
     pass
-    

@@ -2061,7 +2061,10 @@ class CaImagingPoller(Poller):
         self.process.start()
         self.init_variables()
         self.load_context()
-        if self.config.ENABLE_UDP:
+        self.init_network()
+                
+    def init_network(self):
+        if self.config.ENABLE_UDP_TRIGGER:
             server_address = ''
             import socket
             try:
@@ -2069,12 +2072,23 @@ class CaImagingPoller(Poller):
                 self.udp_listener.start()
             except socket.error:
                 print 'In Labview Imaging Disable UDP triggering'
+        self.command_relay_server = network_interface.CommandRelayServer(self.config)
+        self.connections = {}
+        self.queues['stim'] = {}
+        self.queues['stim']['out'] = Queue.Queue()
+        self.queues['stim']['in'] = Queue.Queue()
+        self.connections['stim'] = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.queues['stim']['in'], self.queues['stim']['out'])
+        self.queues['analysis'] = {}
+        self.queues['analysis']['out'] = Queue.Queue()
+        self.queues['analysis']['in'] = Queue.Queue()
+        self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
 
     def periodic(self):
         if self.scan_run and self.scan_start_time is not None:
             self.update_status(scan_is_running_for = (numpy.round(time.time() - self.scan_start_time),  's'))
         else:
             self.update_status(scan_is_running_for = (0,  's'))
+        self.emit(QtCore.SIGNAL('update_progress_bar'))
         
     def run_in_all_iterations(self):
         self.udp_handler()
@@ -2099,11 +2113,39 @@ class CaImagingPoller(Poller):
                     self.printc(traceback.format_exc())
             else:
                 self.printc(message_raw)
+                
+        try:
+            for k, queue in self.queues.items():                
+                if hasattr(queue, 'has_key') and queue.has_key('in') and not queue['in'].empty():
+                    messages = queue['in'].get()
+                    if 'EOPSOC' in messages:
+                        messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
+                    else:
+                        messages = [messages]
+                    for message in messages:
+                        command = command_extract.findall(message)
+                        if len(command) > 0:
+                            command = command[0]
+                        parameter = parameter_extract.findall(message)
+                        if len(parameter) > 0:
+                            parameter = parameter[0]
+                        if command == 'connection':
+                            message = command
+                        elif command == 'echo' and parameter == 'GUI':
+                            message = ''
+                        elif message == 'connected to server':
+                            #This is sent by the local queued client and its meaning can be confusing, therefore not shown
+                            message = ''
+                        else:
+                            self.printc(k.upper() + ' '  +  message)
+        except:
+            self.printc(traceback.format_exc())
 
     def connect_signals(self):
         Poller.connect_signals(self)
         self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
         self.parent.connect(self, QtCore.SIGNAL('update_scan_run_status'),  self.parent.update_scan_run_status)
+        self.parent.connect(self, QtCore.SIGNAL('update_progress_bar'),  self.parent.update_progress_bar)
         self.parent.connect(self, QtCore.SIGNAL('plot_calibdata'),  self.parent.plot_calibdata)
         self.parent.connect(self, QtCore.SIGNAL('plot_histogram'),  self.parent.plot_histogram)
                 
@@ -2197,13 +2239,12 @@ class CaImagingPoller(Poller):
                 duration = float(message_chunks[1])
                 measurement_name = message_chunks[3].split('.')[0]
                 self.scan(duration=duration, name = measurement_name)
-        
-        
+
     def update_main_image(self):
         aichannel, self.enabled_channels = self._select_ai_channel()
         if hasattr(self, 'main_image') and self.main_image.has_key('image'):
             self.show_image(self.process_images(self.main_image['image']), self.main_image['resolution'], self.main_image['center'])
-        
+
     def update_status(self, **kwargs):
         for k,  v in kwargs.items():
             self.status[k] = v
@@ -2216,7 +2257,7 @@ class CaImagingPoller(Poller):
             if ct%param_per_line==0 and  ct != 0:
                 text+= '\n'
         self.parent.central_widget.status.setText(text)
-        
+
     def update_scan_run_status(self, status):
         self.emit(QtCore.SIGNAL('update_scan_run_status'), status)
         
@@ -2225,11 +2266,43 @@ class CaImagingPoller(Poller):
 
     def close(self):
         self.queues['out'].put('SOCquitEOCEOP')
+        if self.config.__class__.__name__ == 'CaImagingTestConfig':
+            self.queues['stim']['out'].put('SOCexitEOCEOP')
+        self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
+        self.queues['analysis']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.save_context()
-        self.process.join()
+        self.process.join()    
         
     ########### Commands #################
-    def scan(self, duration=None, nframes=None, name = None):
+    def start_experiment(self):
+        if self.scan_run:
+            self.printc('Experiment already running')
+            return
+        experiment_name = self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText()
+        self.measurement_starttime = time.time()
+        id = str(int(self.measurement_starttime))
+        #Find out fragment duration
+        from visexpman.engine.vision_experiment import experiment
+        fragment_durations = experiment.get_fragment_duration(experiment_name, self.config)
+        if fragment_durations is None:
+            self.printc('Fragment duration is not calculated in experiment class')
+            return
+        elif len(fragment_durations) > 1:
+            raise RuntimeError('Multiple fragment experiments not yet supported')
+        self.measurement_duration = fragment_durations[0]+self.config.CA_IMAGING_START_DELAY
+        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
+        command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(id, experiment_name)
+        self.queues['stim']['out'].put(command)
+        self.scan(duration = self.measurement_duration, id = id, enable_record = True)
+        
+    def stop_experiment(self):
+        if self.scan_run:
+            self.printc('Stopping experiment requested, please wait')
+            self.queues['out'].put('stop_scan')
+            self.queues['stim']['out'].put('SOCabort_experimentEOCguiEOP')
+            self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
+    
+    def scan(self, duration=None, nframes=None, name = None, id = None, enable_record = None):
         if self.scan_run:
             self.queues['out'].put('stop_scan')
             self.printc('Scan stop requested')
@@ -2261,7 +2334,10 @@ class CaImagingPoller(Poller):
                         self.parameters[pn] = float(str(self.parent.central_widget.calibration_widget.scanner_parameters[pn].input.text()))
                     except ValueError:
                         pass#value from machine config will be used
-            self.parameters['enable_recording'] = (self.parent.central_widget.main_widget.measurement_files.enable_recording.input.checkState()==2)
+            if enable_record is None:
+                self.parameters['enable_recording'] = (self.parent.central_widget.main_widget.measurement_files.enable_recording.input.checkState()==2)
+            else:
+                self.parameters['enable_recording'] = enable_record
             #figure out which analog channels need to be sampled
             self.parameters['AI_CHANNEL'], self.enabled_channels = self._select_ai_channel()
             #Read projector trigger config
@@ -2275,13 +2351,19 @@ class CaImagingPoller(Poller):
                 except ValueError:
                     pass
             #generate filename/create dirs
-            folder = os.path.join(self.config.EXPERIMENT_DATA_PATH,  utils.date_string())
-            file.mkdir_notexists(folder)
+            if True:
+                folder = os.path.join(self.config.EXPERIMENT_DATA_PATH,  utils.date_string())
+                file.mkdir_notexists(folder)
+            else:
+                folder = self.config.EXPERIMENT_DATA_PATH
             cell_name = str(self.parent.central_widget.main_widget.measurement_files.cell_name.input.currentText())
             experiment_name = str(self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText())
             if len(experiment_name) == 0 and name is not None:
                 experiment_name = name
-            self.id = str(int(time.time()))
+            if id == None:
+                self.id = str(int(time.time()))
+            else:
+                self.id = id
             filenames = experiment_data.generate_filename(self.config, self.id, experiment_name,  cell_name,  depth = self.objective_position,  user_extensions = ['tiff'], output_folder = folder)
             self.parameters['filenames'] = filenames
             self.queues['parameters'].put(self.parameters)
@@ -2291,9 +2373,9 @@ class CaImagingPoller(Poller):
     def scan_started(self):
         self.scan_parameters = self.queues['data'].get()
         self.update_status(frame_rate = (numpy.round(self.scan_parameters['frame_rate'], 2),  'Hz'))
-        self.printc('Scanner max speeds (x, y): {0}, {1} um/s, scanning speed x axis: {2} um/s,overshoot: {3} um\nphase shift {4}'
+        self.printc('Scanner max speeds (x, y): {0}, {1} um/s, scanning speed x axis: {2} um/s,overshoot: {3} um\nimage offset {4}'
                     .format(self.scan_parameters['speeds']['x']['max'], self.scan_parameters['speeds']['y']['max'], self.scan_parameters['speeds']['x']['scan'], self.scan_parameters['overshoot'],
-                            self.scan_parameters['phase_shift'])
+                            self.scan_parameters['image_offset'])
                                                                           )
         self.scan_start_time = time.time()
         self.printc('Scan started')
@@ -2466,4 +2548,5 @@ class CaImagingPoller(Poller):
         return ai_channel, enabled_channels
 
 if __name__ == '__main__':
-    CaImagingRecorder(None)
+    pass
+    

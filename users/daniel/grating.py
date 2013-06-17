@@ -54,6 +54,15 @@ class MovingGratingWithFlashConfig(MovingGratingNoMarchingConfig):
         self.WHITE = 1.0
         self.PAUSE_BEFORE_AFTER = 12.0
         
+class MovingGratingSineConfig(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.PROFILE = 'sin'
+        self.DUTY_CYCLES = [1.0] #put 1.0 to a different config
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+#         self._create_parameters_from_locals(locals())
+        
 if 0:
     class MovingGratingNoMarchingNoStandingConfig(experiment.ExperimentConfig):
         def _create_parameters(self):
@@ -91,6 +100,60 @@ class ShortMovingGratingConfig(MovingGratingWithFlashConfig):
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
         
+class MovingGratingConfig16Directions(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME = 4.0
+        self.GRATING_STAND_TIME = 4.0
+        #Grating parameters
+        self.ORIENTATIONS = numpy.arange(0, 360, 22.5).tolist()
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [1200.0]#1800
+        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+        self._create_parameters_from_locals(locals())
+
+        
+class KamillMovingGratingNoMarchingConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME = 4.0
+        self.GRATING_STAND_TIME = 4.0
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [1200.0]#1800
+        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'BlackPre'
+        self._create_parameters_from_locals(locals())
+
+               
+class KamillMovingGratingWithFlashConfig(KamillMovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        KamillMovingGratingNoMarchingConfig._create_parameters(self)
+        #Flash config
+        self.ENABLE_FLASH = True
+        self.FLASH_DURATION = 2.0
+        self.TIMING = [10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0]
+        self.FLASH_REPEATS = 1
+        self.BLACK = 0.0
+        self.WHITE = 1.0
+        self.PAUSE_BEFORE_AFTER = 1.0        
+        
+class BlackPre(experiment.PreExperiment):    
+    def run(self):
+        self.show_fullscreen(color = 0.0, duration = 0,flip=False)
+                
 class MovingGrating(experiment.Experiment):
     def prepare(self):
         self.marching_phases = -numpy.linspace(0, 360, self.experiment_config.NUMBER_OF_MARCHING_PHASES + 1)[:-1]        
@@ -137,6 +200,10 @@ class MovingGrating(experiment.Experiment):
         #Flash
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
             self.flash_stimulus('ff', self.experiment_config.TIMING, colors = self.experiment_config.WHITE, background_color = self.experiment_config.BLACK, repeats = self.experiment_config.FLASH_REPEATS)
+        if hasattr(self.experiment_config, 'PROFILE'):
+            profile = self.experiment_config.PROFILE
+        else:
+            profile = 'sqr'
         #moving grating
         frame_counter = 0
         segment_counter = 0
@@ -152,17 +219,20 @@ class MovingGrating(experiment.Experiment):
                     else:
                         static_grating_duration = self.experiment_config.MARCH_TIME
                     self.show_grating(duration = static_grating_duration, 
+                            profile = profile, 
                             orientation = orientation, 
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],
                             starting_phase = phase)
                 #Show moving grating
                 self.show_grating(duration = stimulus_unit['move_time'], 
+                            profile = profile, 
                             orientation = orientation, 
                             velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'])
                 #Show static grating
                 self.show_grating(duration = self.experiment_config.GRATING_STAND_TIME, 
+                            profile = profile, 
                             orientation = orientation, 
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'])
@@ -189,7 +259,11 @@ class MovingGrating(experiment.Experiment):
                 
 class MovingGratingPre(experiment.PreExperiment):    
     def run(self):
-        self.show_grating(duration = 0, 
+        if hasattr(self.experiment_config, 'PROFILE'):
+            profile = self.experiment_config.PROFILE
+        else:
+            profile = 'sqr'
+        self.show_grating(duration = 0, profile = profile,
                             orientation = self.experiment_config.ORIENTATIONS[0], 
                             velocity = 0, white_bar_width = self.experiment_config.WHITE_BAR_WIDTHS[0],
                             duty_cycle = self.experiment_config.DUTY_CYCLES[0], part_of_drawing_sequence = True)
@@ -201,3 +275,4 @@ class BlackPre(experiment.PreExperiment):
 #Support for old config classes
 class GratingConfig(MovingGratingConfig):
     pass
+    

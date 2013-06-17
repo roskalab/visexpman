@@ -165,8 +165,9 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
             self.queues['gui']['out'].put('SOCclose_connectionEOCstop_clientEOP')
             time.sleep(3.0)
-            self.log.queue(self.connections['mes'].log_queue, 'mes connection')
-            self.log.queue(self.connections['gui'].log_queue, 'gui connection')
+            for conn in ['mes', 'gui']:
+                if self.connections.has_key(conn) and  hasattr(self.connections[conn], 'log_queue'):
+                    self.log.queue(self.connections[conn].log_queue, conn +' connection')
             self.log.info('Network connections terminated')
         
     def _init_network(self):
@@ -652,7 +653,10 @@ class TestVisionExperimentRunner(unittest.TestCase):
                 print reference_string
                 return False
         return True
-
+        
+def visexp_application_runner(user, config):
+    v = VisionExperimentRunner(user, config)
+    v.run_loop()
 
 if __name__ == "__main__":
     commands = []
@@ -671,3 +675,4 @@ if __name__ == "__main__":
     #TODO: test case for showshape(dur = 1.0), showfullscreen(dur = 1.0) sequence
     #TODO: test case for um_to_pixel_scale parameter
     #TODO full screeen grating test with ulcorner coord system
+    

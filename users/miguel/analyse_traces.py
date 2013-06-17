@@ -54,7 +54,7 @@ class EplhysProcessor(object):
             self.intensity = all_intensities[0]
             for f in file.find_files_and_folders(self.folder, extension = 'phys')[1]:    
                 self.process_file(f)
-        
+
     def check_stimulation_uniformity(self, stimulus_name):
         '''
         Check if all stimulations were identical
@@ -112,43 +112,62 @@ class EplhysProcessor(object):
         return ti, intensities
         
     def process_file(self,filename):
-        raw_elphys_signal, metadata = experiment_data.read_phys(filename)
-        fs = float(metadata['Sample Rate'])
-        prerecord_time =   float(metadata['Pre-Record Time (mS)'])/1000.0
-        voltage_scale =   float(metadata['Waveform Scale Factors'])
-        elphys_signal = raw_elphys_signal[0,:]
-        te = numpy.linspace(0, elphys_signal.shape[0]/float(fs), elphys_signal.shape[0])
+        try:
+            raw_elphys_signal, metadata = experiment_data.read_phys(filename)
+            if raw_elphys_signal.shape[0] == 0 or os.stat(filename).st_size < 2000:
+                return
+            fs = float(metadata['Sample Rate'])
+            prerecord_time = float(metadata['Pre-Record Time (mS)'])/1000.0
+            voltage_scale = float(metadata['Waveform Scale Factors'])
+            elphys_signal = raw_elphys_signal[0,:]
+            te = numpy.linspace(0, elphys_signal.shape[0]/float(fs), elphys_signal.shape[0])
+            
+            ti = self.ti
+            import spike_sort.core
+            res = spike_sort.core.extract.detect_spikes({'data':numpy.array([elphys_signal-elphys_signal.min() ]), 'n_contacts': 1, 'FS': fs})['data']/1000.0
+            time_offset = 50+prerecord_time#50 sec is the TIME_COURSE experiment parameter
+            ti -= time_offset
+            te -= time_offset
+            figure(self.figure_counter)
+            self.figure_counter += 1
+            plot(ti, self.intensity)
+        #    plot(res[1:], 1/numpy.diff(res))
+            time_window = 5.0
+            time_window_offset = int(time_offset)%int(time_window)
+            tsp = []
+            spiking_frequency = []
+            for i in range(int(te.max()/time_window)):
+                tsp.append(i*time_window+time_window_offset)
+                mask = numpy.where(res < tsp[-1], True, False) 
+                if i > 1:
+                    mask = mask * numpy.where(res >= tsp[-2], True, False)
+                spiking_frequency.append(numpy.nonzero(mask)[0].shape[0]/time_window)
+            tsp = numpy.array(tsp)-time_offset
+            plot(tsp, spiking_frequency)
+            legend(['spot intensity [PU]', 'Spiking frequency [Hz]'])
+            xlabel('Time [s]')
+            title(filename)
+            print filename,  ti.max(),  max(tsp),  te.max()
+            if ti.max()/te.max() < 1.5:#Ignore short recordings
+                savefig(os.path.join(self.plot_folder,  filename.replace(self.folder, '').replace(os.sep, '_').replace('.phys', '.png')))
+                record = {}
+                record['time_window'] = time_window
+                record['t_elphys'] = te
+                record['elphys_signal'] = elphys_signal
+                record['t_spikes'] = tsp
+                record['spiking_frequency'] = spiking_frequency
+                record['t_stimulus'] = ti
+                record['spot_intensity'] = self.intensity
+                scipy.io.savemat(os.path.join(self.plot_folder,  filename.replace(self.folder, '').replace(os.sep, '_').replace('.phys', '.mat')), record, oned_as = 'row', long_field_names=True)
+        except:
+            import pdb
+            pdb.set_trace()
         
-        ti = self.ti + prerecord_time
-        import spike_sort.core
-        res = spike_sort.core.extract.detect_spikes({'data':numpy.array([elphys_signal-elphys_signal.min() ]), 'n_contacts': 1, 'FS': fs})['data']/1000.0
-        
-        figure(self.figure_counter)
-        self.figure_counter += 1
-        plot(ti, self.intensity)
-    #    plot(res[1:], 1/numpy.diff(res))
-        time_window = 1.0
-        tsp = []
-        spiking_frequency = []
-        for i in range(int(te.max()/time_window)):
-            tsp.append(i*time_window)
-            mask = numpy.where(res < tsp[-1], True, False) 
-            if i > 1:
-                mask = mask * numpy.where(res >= tsp[-2], True, False)
-            spiking_frequency.append(numpy.nonzero(mask)[0].shape[0]/time_window)
-        plot(tsp, spiking_frequency)
-        legend(['spot intensity [PU]', 'Spiking frequency [Hz]'])
-        xlabel('Time [s]')
-        title(filename)
-        savefig(os.path.join(self.plot_folder,  filename.replace(self.folder, '').replace(os.sep, '_').replace('.phys', '.png')))
-        print filename,  ti.max(),  max(tsp),  te.max()
 
 if __name__=='__main__':
 
     folder = '/mnt/datafast/'
-#    folder = 'V:\\'
+    folder = 'V:\\'
 #    folder = 'C:\\_del'
 #    folder = '/mnt/rznb/'
     e=EplhysProcessor(os.path.join(folder,  'debug', 'migueldata'))
-    show()
-

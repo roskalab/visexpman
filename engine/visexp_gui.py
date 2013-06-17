@@ -27,6 +27,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.vision_experiment import gui
+from visexpman.engine.generic import gui_generic
 from visexpman.engine.vision_experiment import gui_pollers
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
@@ -98,17 +99,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.image_tab.addTab(self.images_widget, 'Regions')
         self.image_tab.addTab(self.overview_widget, 'Overview')
         self.standard_io_widget = gui.StandardIOWidget(self)
-        experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
-        experiment_config_names = []
-        for experiment_config in experiment_config_list:
-            experiment_config_names.append(experiment_config[1].__name__)
-        experiment_config_names.sort()
-        self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
-        try:
-            if hasattr(self.config, 'EXPERIMENT_CONFIG'):
-                self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
-        except ValueError:
-            pass
+        gui_generic.load_experiment_config_names(self.config, self.main_widget.experiment_control_groupbox.experiment_name)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -989,3 +980,4 @@ def run_gui():
 
 if __name__ == '__main__':
     run_gui()
+    

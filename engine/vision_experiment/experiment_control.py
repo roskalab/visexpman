@@ -107,15 +107,15 @@ class ExperimentControl(object):
                     message_to_screen += self.printl('Graceful stop requested',  application_log = True) + '\n'
                     break
                 elif self._start_fragment(fragment_id):
-                        if self.number_of_fragments == 1:
-                            self.run()
-                        else:
-                            self.run(fragment_id)
-                        if not self._finish_fragment(fragment_id):
-                            self.abort = True
-                            #close fragment files
-                            self.fragment_files[fragment_id].close()
-                            break #Do not record further fragments in case of error
+                    if self.number_of_fragments == 1:
+                        self.run()
+                    else:
+                        self.run(fragment_id)
+                    if not self._finish_fragment(fragment_id):
+                        self.abort = True
+                        #close fragment files
+                        self.fragment_files[fragment_id].close()
+                        break #Do not record further fragments in case of error
                 else:
                     self.abort = True
                     if not hasattr(self, 'analog_input') or not hasattr(self.analog_input, 'finish_daq_activity'):
@@ -247,9 +247,10 @@ class ExperimentControl(object):
             if not self._pre_post_experiment_scan(is_pre=True):
                 return False
         # Start ai recording
-        self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time)
-        if self.analog_input.start_daq_activity():
-            self.printl('Analog signal recording started')
+        if self.config.PLATFORM != 'retinal_ca':
+            self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time)
+            if self.analog_input.start_daq_activity():
+                self.printl('Analog signal recording started')
         if (self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical'):
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
@@ -289,7 +290,7 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
             return True
-        elif self.config.PLATFORM == 'standalone' or self.config.PLATFORM == 'ao_cortical':
+        elif self.config.PLATFORM in ['standalone', 'ao_cortical', 'retinal_ca']:
             return True
         return False
 
@@ -325,7 +326,7 @@ class ExperimentControl(object):
         else:
             data_acquisition_stop_success =  True
         #Stop acquiring analog signals
-        if self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
+        if hasattr(self.analog_input, 'finish_daq_activity') and self.analog_input.finish_daq_activity(abort = utils.is_abort_experiment_in_queue(self.queues['gui']['in'])):
             self.printl('Analog acquisition finished')
         return data_acquisition_stop_success
 
@@ -391,7 +392,8 @@ class ExperimentControl(object):
         else:
             #If filterwheels neither configured, nor enabled, two virtual ones are created, so that experiments calling filterwheel functions could be called
             self.number_of_filterwheels = 2
-        self.led_controller = daq_instrument.AnalogPulse(self.config, self.log, self.start_time, id = 1)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
+        if self.config.PLATFORM != 'retinal_ca':
+            self.led_controller = daq_instrument.AnalogPulse(self.config, self.log, self.start_time, id = 1)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
         self.analog_input = None #This is instantiated at the beginning of each fragment
         self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
         if self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
@@ -402,18 +404,43 @@ class ExperimentControl(object):
         if self.config.OS == 'win':
             for filterwheel in self.filterwheels:
                 filterwheel.release_instrument()
-        self.led_controller.release_instrument()
+        if hasattr(self, 'led_controller'):
+            self.led_controller.release_instrument()
         self.stage.release_instrument()
 
 
     ############### File handling ##################
     def _prepare_files(self):
-        self._generate_filenames()
+        if hasattr(self,'scan_mode'):
+            scan_mode = self.scan_mode
+        else:
+            scan_mode = ''
+        if hasattr(self,'objective_position'):
+            objective_position = self.objective_position
+        else:
+            objective_position = ''
+        if self.parameters.has_key('region_name'):
+            region_name = self.parameters['region_name']
+        else:
+            region_name = ''
+        local_folder = 'd:\\tmp'
+        if not os.path.exists(local_folder):
+            local_folder = tempfile.mkdtemp()
+        self.filenames = experiment_data.generate_filename(self.config, 
+                                                                                self.id, 
+                                                                                experiment_name = self.name_tag, 
+                                                                                region_name = region_name, 
+                                                                                scan_mode = scan_mode, 
+                                                                                tmp_folder = local_folder,
+                                                                                depth = objective_position)
+#        self._generate_filenames()
         self._create_files()
         self.stimulus_frame_info_pointer = 0
 
     def _generate_filenames(self):
         ''''
+        OBSOLETE
+        -------------------------------
         Generates the necessary filenames for the experiment. The following files are generated during an experiment:
         experiment log file: 
         zipped:
@@ -456,13 +483,13 @@ class ExperimentControl(object):
                 local_folder = tempfile.mkdtemp()
             local_fragment_file_name = os.path.join(local_folder, os.path.split(fragment_filename)[-1])
             self.filenames['local_fragments'].append(local_fragment_file_name)
-            self.filenames['fragments'].append(fragment_filename )
+            self.filenames['fragments'].append(fragment_filename)
             self.fragment_names.append(fragment_name.replace('fragment_', ''))
 
     def _create_files(self):
         self.fragment_files = []
         self.fragment_data = {}
-        for fragment_file_name in self.filenames['local_fragments']:
+        for fragment_file_name in self.filenames['local_datafile']:
             if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5':
                 self.fragment_files.append(hdf5io.Hdf5io(fragment_file_name, filelocking=self.config.ENABLE_HDF5_FILELOCKING))
         if self.config.EXPERIMENT_FILE_FORMAT  == 'mat':
@@ -581,20 +608,20 @@ class ExperimentControl(object):
             #Save stage and objective position
             if self.config.PLATFORM == 'rc_cortical':
                 experiment_data.save_position(self.fragment_files[fragment_id], self.stage_position, self.objective_position)
-            setattr(self.fragment_files[fragment_id], self.fragment_names[fragment_id], data_to_file)
-            self.fragment_files[fragment_id].save([self.fragment_names[fragment_id], 'call_parameters', 'experiment_name', 'experiment_config_name'])
+            setattr(self.fragment_files[fragment_id], self.filenames['names'][fragment_id], data_to_file)
+            self.fragment_files[fragment_id].save([self.filenames['names'][fragment_id], 'call_parameters', 'experiment_name', 'experiment_config_name'])
             self.fragment_files[fragment_id].close()
             if hasattr(self, 'fragment_durations'):
                 time.sleep(1.0 + 0.01 * self.fragment_durations[fragment_id])#Wait till data is written to disk
             else:
                 time.sleep(1.0)
-            shutil.copy(self.filenames['local_fragments'][fragment_id], self.filenames['fragments'][fragment_id])
+            shutil.copy(self.filenames['local_datafile'][fragment_id], self.filenames['datafile'][fragment_id])
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             data_to_file['call_parameters'] = self.parameters
             data_to_file['experiment_name'] = self.experiment_name
             data_to_file['experiment_config_name'] = self.experiment_config_name
-            self.fragment_data[self.filenames['local_fragments'][fragment_id]] = data_to_file
-        self.printl('Measurement data saved to: {0}'.format(os.path.split(self.filenames['fragments'][fragment_id])[1]))
+            self.fragment_data[self.filenames['local_datafile'][fragment_id]] = data_to_file
+        self.printl('Measurement data saved to: {0}'.format(os.path.split(self.filenames['datafile'][fragment_id])[1]))
 
     def _finish_data_fragments(self):
         #Experiment log, source code, module versions
@@ -607,7 +634,7 @@ class ExperimentControl(object):
                 data_to_mat['experiment_log_dict'] = experiment_log_dict
                 data_to_mat['config'] = experiment_data.save_config(None, self.config, self.experiment_config)
                 scipy.io.savemat(fragment_path, data_to_mat, oned_as = 'row', long_field_names=True)
-                shutil.move(self.filenames['local_fragments'][fragment_id], self.filenames['fragments'][fragment_id])
+                shutil.move(self.filenames['local_datafile'][fragment_id], self.filenames['datafile'][fragment_id])
                 fragment_id += 1
                 
 

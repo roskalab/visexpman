@@ -9,7 +9,6 @@ MAT/HDF5
 
 
 '''
-
 import os.path
 import numpy
 import time
@@ -435,6 +434,7 @@ class CaImagingGui(Qt.QMainWindow):
         self.setCentralWidget(self.central_widget) 
         
     def init_widget_content(self):
+        gui.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         if hasattr(self.poller,'widget_context_values'):
             for ref_string, value in self.poller.widget_context_values.items():
                 try:
@@ -459,6 +459,8 @@ class CaImagingGui(Qt.QMainWindow):
         self.connect_and_map_signal(self.central_widget.control_widget.snap, 'snap')
         self.connect_and_map_signal(self.central_widget.control_widget.snap1, 'snap1')
         self.connect_and_map_signal(self.central_widget.calibration_widget.calib_scan_pattern.widgets['start'], 'calib')
+        self.connect_and_map_signal(self.central_widget.main_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
+        self.connect_and_map_signal(self.central_widget.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment')
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
     def update_main_image(self, text):
@@ -554,7 +556,16 @@ class CaImagingGui(Qt.QMainWindow):
             calibdata['profile_parameters'], calibdata['line_profiles'] = scanner_control.process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'], self.config.SINUS_CALIBRATION_MAX_LINEARITY_ERROR)
         self.poller.queues['data'].put(calibdata)
         self.plot_calibdata()
-        
+
+    def update_progress_bar(self):
+        if self.poller.scan_run:
+            elapsed_time = int(time.time() - self.poller.measurement_starttime)
+            if elapsed_time > self.poller.measurement_duration:
+                elapsed_time = self.poller.measurement_duration
+            self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(elapsed_time)
+        else:
+            self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
+
     def update_scan_run_status(self, status):
         '''
         Scan button color and text is updated according to current status of scanning process. During preparation and datasaving button is disabled
@@ -580,6 +591,11 @@ class CaImagingGui(Qt.QMainWindow):
         e.accept()
         self.poller.abort = True
         self.poller.wait()
-    
+        
+   
 if __name__ == '__main__':
+    from visexpman.engine.visexp_runner import visexp_application_runner
+    from multiprocessing import Process
+    process = Process(target=visexp_application_runner,  args = ('zoltan', 'CaImagingTestConfig'))
+    process.start()
     CaImagingGui('zoltan', 'CaImagingTestConfig')
