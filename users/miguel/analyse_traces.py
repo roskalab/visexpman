@@ -2,7 +2,7 @@ from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.generic import file
 from visexpman.engine.generic import utils
 import scipy.io
-from matplotlib.pyplot import plot, show,figure,legend, xlabel,title,savefig
+from matplotlib.pyplot import plot, show,figure,legend, xlabel,title,savefig, clf
 import numpy
 import os.path
 import os
@@ -121,29 +121,27 @@ class EplhysProcessor(object):
             voltage_scale = float(metadata['Waveform Scale Factors'])
             elphys_signal = raw_elphys_signal[0,:]
             te = numpy.linspace(0, elphys_signal.shape[0]/float(fs), elphys_signal.shape[0])
-            
-            ti = self.ti
+            import copy
+            ti = copy.deepcopy(self.ti)
             import spike_sort.core
             res = spike_sort.core.extract.detect_spikes({'data':numpy.array([elphys_signal-elphys_signal.min() ]), 'n_contacts': 1, 'FS': fs})['data']/1000.0
             time_offset = 50+prerecord_time#50 sec is the TIME_COURSE experiment parameter
-            ti -= time_offset
-            te -= time_offset
-            figure(self.figure_counter)
-            self.figure_counter += 1
-            plot(ti, self.intensity)
-        #    plot(res[1:], 1/numpy.diff(res))
+            fig=figure(1)
             time_window = 5.0
             time_window_offset = int(time_offset)%int(time_window)
             tsp = []
             spiking_frequency = []
-            for i in range(int(te.max()/time_window)):
+            for i in range(int((te.max()-te.min()-time_window_offset)/time_window)):
                 tsp.append(i*time_window+time_window_offset)
                 mask = numpy.where(res < tsp[-1], True, False) 
                 if i > 1:
                     mask = mask * numpy.where(res >= tsp[-2], True, False)
                 spiking_frequency.append(numpy.nonzero(mask)[0].shape[0]/time_window)
             tsp = numpy.array(tsp)-time_offset
+            ti -= time_offset
+            te -= time_offset
             plot(tsp, spiking_frequency)
+            plot(ti, self.intensity)
             legend(['spot intensity [PU]', 'Spiking frequency [Hz]'])
             xlabel('Time [s]')
             title(filename)
@@ -159,15 +157,15 @@ class EplhysProcessor(object):
                 record['t_stimulus'] = ti
                 record['spot_intensity'] = self.intensity
                 scipy.io.savemat(os.path.join(self.plot_folder,  filename.replace(self.folder, '').replace(os.sep, '_').replace('.phys', '.mat')), record, oned_as = 'row', long_field_names=True)
+            clf()
         except:
-            import pdb
-            pdb.set_trace()
+            pass
         
 
 if __name__=='__main__':
 
     folder = '/mnt/datafast/'
-    folder = 'V:\\'
+#    folder = 'V:\\'
 #    folder = 'C:\\_del'
 #    folder = '/mnt/rznb/'
     e=EplhysProcessor(os.path.join(folder,  'debug', 'migueldata'))
