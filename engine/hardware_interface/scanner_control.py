@@ -660,10 +660,10 @@ class TwoPhotonScanner(instrument.Instrument):
         self.shutter.release_instrument()
         
 ####### Helpers #####################
-def raw2frame(rawdata, binning_factor, boundaries, phase_shift = 0):
+def raw2frame(rawdata, binning_factor, boundaries, offset = 0):
     binned_pmt_data = binning_data(rawdata, binning_factor)
-    if phase_shift != 0:
-        binned_pmt_data = numpy.roll(binned_pmt_data, -phase_shift)
+    if offset != 0:
+        binned_pmt_data = numpy.roll(binned_pmt_data, -offset)
     return numpy.array((numpy.split(binned_pmt_data, boundaries)[1::2]))
 
 def binning_data(data, factor):
@@ -823,7 +823,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.printc('saving_data')
         #gather data to save
         data_to_save = {}
-        data_to_save['raw_data'] = numpy.rollaxis(self.tp.data, 0, 3)#TMP:rawdata cannot be saved
+        data_to_save['cadata'] = numpy.rollaxis(self.tp.data, 0, 3)#TMP:rawdata cannot be saved
         data_to_save['scan_parameters'] = self.scan_parameters
         data_to_save['scan_parameters']['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
         data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
@@ -1636,3 +1636,4 @@ class TestScannerControl(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+    

@@ -6,8 +6,6 @@ Config parameters:
 EXPERIMENT_DATA_PATH
 MAT/HDF5
 
-
-
 '''
 import os.path
 import numpy
@@ -318,7 +316,8 @@ class MainWidget(QtGui.QWidget):
         self.background_scan_parameters.setFixedWidth(500)
         self.background_scan_parameters.setFixedHeight(75)
         self.use_user_parameters = gui.LabeledCheckBox(self, 'Use user scan parameters')
-        self.enable_phase_shift = gui.LabeledCheckBox(self, 'enable phase shift')
+        self.enable_image_offset = gui.LabeledCheckBox(self, 'enable image offset')
+        self.enable_image_offset.setCheckState(2)
         self.roi_scan_parameters = RoiScanParameters(self)
         self.roi_scan_parameters.setFixedWidth(500)
         self.roi_scan_parameters.setFixedHeight(200)
@@ -332,7 +331,7 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.beamer_control, 1, 1, 1, 1)
         self.layout.addWidget(self.background_scan_parameters, 2, 0, 1, 2)
         self.layout.addWidget(self.use_user_parameters, 3, 0, 1, 1)
-        self.layout.addWidget(self.enable_phase_shift, 3, 1, 1, 1)
+        self.layout.addWidget(self.enable_image_offset, 3, 1, 1, 1)
         self.layout.addWidget(self.roi_scan_parameters, 4, 0, 1, 2)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
@@ -558,7 +557,7 @@ class CaImagingGui(Qt.QMainWindow):
         self.plot_calibdata()
 
     def update_progress_bar(self):
-        if self.poller.scan_run:
+        if self.poller.scan_run and hasattr(self.poller, 'measurement_starttime'):
             elapsed_time = int(time.time() - self.poller.measurement_starttime)
             if elapsed_time > self.poller.measurement_duration:
                 elapsed_time = self.poller.measurement_duration

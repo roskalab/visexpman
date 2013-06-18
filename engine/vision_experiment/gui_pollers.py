@@ -2394,9 +2394,12 @@ class CaImagingPoller(Poller):
     def frame_update(self):
         if not self.queues['frame'].empty() and self.scan_run:
             rawframe = self.queues['frame'].get()
-            if self.parent.central_widget.main_widget.enable_phase_shift.input.checkState() == 0:
-                self.scan_parameters['phase_shift'] = 0
-            self.current_frame = scanner_control.raw2frame(rawframe, self.scan_parameters['binning_factor'], self.scan_parameters['boundaries'], self.scan_parameters['phase_shift'])
+            if self.parent.central_widget.main_widget.enable_image_offset.input.checkState() == 0:
+                self.scan_parameters['image_offset'] = 0
+            self.current_frame = scanner_control.raw2frame(rawframe, 
+                                                                            self.scan_parameters['binning_factor'], 
+                                                                            self.scan_parameters['boundaries'], 
+                                                                            self.scan_parameters['image_offset'])
             if not hasattr(self, 'main_image'):
                 self.main_image={}
             self.main_image['image'] = self.current_frame
@@ -2532,7 +2535,6 @@ class CaImagingPoller(Poller):
             if not self.queues['data'].empty():
                 self.emit(QtCore.SIGNAL('plot_calibdata'))
                 break
-            
     ####### Helpers ###########
     def _select_ai_channel(self):
         #figure out which analog channels need to be sampled
@@ -2549,4 +2551,3 @@ class CaImagingPoller(Poller):
 
 if __name__ == '__main__':
     pass
-    
