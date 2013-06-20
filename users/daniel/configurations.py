@@ -701,6 +701,18 @@ class AEPHVS(AEPHVS_original):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         EXPERIMENT_CONFIG = ''
         self._create_parameters_from_locals(locals())
+        
+from visexpman.users.miguel.configurations import KamillSetup as KamillSetup_original
+class KamillSetup(KamillSetup_original):
+    def _set_user_parameters(self):
+        KamillSetup_original._set_user_parameters(self)
+        SCREEN_RESOLUTION = utils.cr([1024, 768])
+        FULLSCREEN = True
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        EXPERIMENT_CONFIG = ''
+        self._create_parameters_from_locals(locals())
+
     
 if __name__ == "__main__":
     pass
+    

@@ -462,8 +462,67 @@ def recordings2calibdata(datafolder,  output_folder, enable_plot=False):
     hdf5io.save_item(fn, 'offsets_mg', offsets_mg, filelocking=False)
     return fn
     
+def calculate_bead_size(folder):
+    data = []
+    for fn in os.listdir(folder):
+        h=hdf5io.Hdf5io(os.path.join(folder, fn), filelocking=False)
+        cadata = h.findvar('cadata')
+        resolution = 1/h.findvar('scan_parameters')['resolution']
+        h.close()
+        vertical_profile = cadata[:,:,:,0].mean(axis=2).mean(axis=0)
+        horizontal_profile = cadata[:,:,:,0].mean(axis=2).mean(axis=1)
+        sizes = []
+        positions = []
+        import scipy.optimize
+        for profile in [vertical_profile, horizontal_profile]:
+            p0 = [1., profile.argmax(), 1.]
+            try:
+                coeff, var_matrix = scipy.optimize.curve_fit(scanner_control.gauss, numpy.arange(profile.shape[0]), profile, p0=p0)
+                size = 4*coeff[2]/resolution
+                position = numpy.round(coeff[1]/profile.shape[0], 2)
+            except:
+                size = 0
+                position = 0
+            sizes.append(size)
+            positions.append(position)
+        data.append([positions[0], resolution, sizes[0]])
+        data.append([positions[1], resolution, sizes[1]])
+        print sizes
+        print positions
+        print 1/resolution, sizes[0]/sizes[1]
+    pass
+    data=numpy.array(data)
+    data23dplot(data)
+    positions_v = set(data[:,0][0::2])
+    positions_h = set(data[:,0][1::2])
+    resolutions = set(data[:,1])
+    #plots:
+    #3d plot: position, resolution, size x; size y
+        
+def data23dplot(data):
+    '''
+    [axis1, axis2, data]
+    '''
+    axis1=list(set(data[:, 0]))
+    axis2=list(set(data[:, 1]))
+    axis1_mg, axis2_mg = numpy.meshgrid(axis1, axis2)
+    values = []
+    for ax1_v, ax2_v in zip(axis1_mg.flatten(),  axis2_mg.flatten()):
+        value = [item[2] for item in data if item[0] == ax1_v and item[1] == ax2_v]
+        if len(value) == 0:
+            if len(values) == 0:
+                value = numpy.NaN
+            else:
+                value=values[-1]
+        else:
+            value = value[0]
+        values.append(value)
+    return numpy.array(values)
+    
+    
 if __name__ == "__main__":
-    recordings2calibdata('V:\\debug\\data\\2013-06-02', 'V:\\debug\\out1')
+    calculate_bead_size('V:\\debug\\data\\2013-06-18')
+#    recordings2calibdata('V:\\debug\\data\\2013-06-02', 'V:\\debug\\out1')
 #    plot_delay_curve(generate_delay_curve())
 #    plot_delay_curve('V:\\debug\\out\\res_00000.hdf5')
 #    evaluate_videos()

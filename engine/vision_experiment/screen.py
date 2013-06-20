@@ -10,7 +10,7 @@ from visexpman.engine.generic import graphics
 from visexpman.engine.generic import file
 import Image
 
-from OpenGL.GL import *#?
+from OpenGL.GL import *
 from OpenGL.GLUT import *
 
 def experiment_choices(experiment_list):
@@ -52,8 +52,12 @@ class VisionExperimentScreen(graphics.Screen):
                 bullseye_path = file.get_tmp_file('bmp')
                 im = Image.open(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'))
                 im = im.resize((self.bullseye_size_in_pixel, self.bullseye_size_in_pixel))
-                im.save(bullseye_path)
-            self.render_imagefile(bullseye_path, position = self.config.SCREEN_CENTER)
+                try:
+                    im.save(bullseye_path)
+                    self.render_imagefile(bullseye_path, position = self.config.SCREEN_CENTER)
+                except:
+                    pass
+            
         
     def _show_menu(self, flip = False):
         '''

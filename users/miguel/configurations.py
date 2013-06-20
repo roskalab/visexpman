@@ -168,7 +168,8 @@ class MVS(ElphysConfig):
 class KamillSetup(MVS):
     def _set_user_parameters(self): 
         MVS._set_user_parameters(self)
-        SCREEN_UM_TO_PIXEL_SCALE = 2.0
+        SCREEN_UM_TO_PIXEL_SCALE = 0.5
+        SCREEN_EXPECTED_FRAME_RATE = 75.0
         SERIAL_DIO_PORT = 'COM3'
         ACQUISITION_TRIGGER_PIN = 1
         FRAME_TRIGGER_PIN = 0
@@ -186,3 +187,4 @@ class KamillSetup(MVS):
         
 if __name__ == "__main__":    
     pass
+    
