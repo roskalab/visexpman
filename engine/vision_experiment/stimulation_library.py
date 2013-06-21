@@ -962,7 +962,7 @@ class StimulationSequences(Stimulations):
     def export2video(self, filename):
         videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.bmp'), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         
-    def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True):
+    def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
         '''
         Use cases:
         shape: like show_shape, ff = fullfield
@@ -1011,7 +1011,14 @@ class StimulationSequences(Stimulations):
                                 size = utils.rc((sizes[(i-1)/2],sizes[(i-1)/2]))
                         else:
                             size = sizes
-                        self.show_shape(shape = shape,  duration = timing[i],  pos = position,  color = color,  background_color = background_color,  size = size,  block_trigger = block_trigger, save_frame_info = False)
+                        if hasattr(ring_sizes, '__iter__') and len(ring_sizes.shape) > 0:
+                            if len(ring_sizes.dtype) == 2 : #row, col format
+                                ring_size = utils.rc((ring_sizes[(i-1)/2]['row'], ring_sizes[(i-1)/2]['col']))
+                            else:
+                                ring_size = utils.rc((ring_sizes[(i-1)/2],ring_sizes[(i-1)/2]))
+                        else:
+                            ring_size = ring_sizes
+                        self.show_shape(shape = shape,  duration = timing[i],  pos = position,  color = color,  background_color = background_color,  size = size,  block_trigger = block_trigger, save_frame_info = False, ring_size = ring_size)
                 else:
                     self.show_fullscreen(color = background_color, duration = timing[i], save_frame_info = False, block_trigger = False)
                 state = not state
