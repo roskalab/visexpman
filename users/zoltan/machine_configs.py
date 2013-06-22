@@ -119,6 +119,8 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
             root_folder = '/mnt/rznb'
             if not os.path.exists(root_folder):
                 root_folder = 'V:\\debug'
+                if not os.path.exists(root_folder):
+                    root_folder = '/home/zoltan/Downloads'
         drive_data_folder = os.path.join(root_folder, 'experiment_data')
         LOG_PATH = os.path.join(drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
@@ -134,7 +136,7 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         #=== screen ===
         FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0/1.6276
+        SCREEN_UM_TO_PIXEL_SCALE = 0.5
         INSERT_FLIP_DELAY = True
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE =  not True
@@ -150,7 +152,7 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
         #=== hardware ===
-        ENABLE_PARALLEL_PORT = not False
+        ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3

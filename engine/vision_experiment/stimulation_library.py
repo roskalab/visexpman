@@ -431,6 +431,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             raise RuntimeError('Parameter size is provided in an unsupported format')
         size_pixel = utils.rc_multiply_with_constant(size_pixel, self.config.SCREEN_UM_TO_PIXEL_SCALE)        
         pos_pixel = utils.rc_multiply_with_constant(pos, self.config.SCREEN_UM_TO_PIXEL_SCALE)        
+        ring_size_pixel = ring_size * self.config.SCREEN_UM_TO_PIXEL_SCALE
         #Calculate vertices
         points_per_round = 360
         if shape == 'circle' or shape == '' or shape == 'o' or shape == 'c' or shape =='spot':
@@ -524,7 +525,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         
            
                     
-    def show_checkerboard(self, n_checkers, duration = 0.0, pos = utils.cr((0,  0)), color = [], box_size = utils.cr((0,  0)), flip = True, save_frame_info = True):
+    def show_checkerboard(self, n_checkers, duration = 0.0, pos = utils.cr((0,  0)), color = [], box_size = utils.cr((0,  0)), background_color = None, flip = True, save_frame_info = True,block_trigger=False):
         '''
         Shows checkerboard:
             n_checkers = (x dir (column), y dir (rows))
@@ -553,7 +554,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         self.show_shapes('rectangle', shape_size, shape_positions, nshapes, 
                     duration = duration, 
                     color = numpy.reshape(color_adjusted.flatten(), (color_adjusted.shape[0], color_adjusted.shape[1]*color_adjusted.shape[2],color_adjusted.shape[3])), 
-                    block_trigger = False, colors_per_shape = False, save_frame_info = False)
+                    background_color = background_color,
+                    block_trigger = block_trigger, colors_per_shape = False, save_frame_info = False)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
@@ -869,7 +871,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         '''
         self.show_shapes('o', dot_diameters, dot_positions, ndots, duration = duration,  color = color, block_trigger = block_trigger, colors_per_shape = False)
                     
-    def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  color = (1.0,  1.0,  1.0), block_trigger = False, colors_per_shape = True, save_frame_info = True):
+    def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  color = (1.0,  1.0,  1.0), background_color = None, block_trigger = False, colors_per_shape = True, save_frame_info = True):
         '''
         Shows a huge number (up to several hunders) of shapes.
         Parameters:
@@ -917,6 +919,12 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             color_corrected = self.config.GAMMA_CORRECTION(color)
         else:
             color_corrected = color
+        if background_color != None:
+            background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
+            converted_background_color = colors.convert_color(background_color, self.config)
+            glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
+        else:
+            converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)        
         glEnableClientState(GL_VERTEX_ARRAY)
         shape_pointer = 0
         for frame_i in range(n_frames):
@@ -952,6 +960,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 break
                 
         glDisableClientState(GL_VERTEX_ARRAY)
+        #Restore original background color
+        if background_color != None:            
+            glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
@@ -986,6 +997,15 @@ class StimulationSequences(Stimulations):
                     n_flashes = 0
                 else:
                     n_flashes = sizes.shape[0]
+            elif isinstance(ring_sizes, list):
+                n_flashes = len(ring_sizes)
+            elif hasattr(ring_sizes, 'dtype'):
+                if len(ring_sizes.shape) == 0:
+                    n_flashes = 0
+                else:
+                    n_flashes = ring_sizes.shape[0]
+            else:
+                raise RuntimeError('sizes or ring_sizes parameter shall be list or numpy.array.')
             if n_flashes == 0:
                 if isinstance(colors, list):
                     n_flashes = len(colors)
@@ -1012,10 +1032,7 @@ class StimulationSequences(Stimulations):
                         else:
                             size = sizes
                         if hasattr(ring_sizes, '__iter__') and len(ring_sizes.shape) > 0:
-                            if len(ring_sizes.dtype) == 2 : #row, col format
-                                ring_size = utils.rc((ring_sizes[(i-1)/2]['row'], ring_sizes[(i-1)/2]['col']))
-                            else:
-                                ring_size = utils.rc((ring_sizes[(i-1)/2],ring_sizes[(i-1)/2]))
+                            ring_size = ring_sizes[(i-1)/2]
                         else:
                             ring_size = ring_sizes
                         self.show_shape(shape = shape,  duration = timing[i],  pos = position,  color = color,  background_color = background_color,  size = size,  block_trigger = block_trigger, save_frame_info = False, ring_size = ring_size)

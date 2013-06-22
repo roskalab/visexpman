@@ -111,9 +111,12 @@ class Debug(experiment.Experiment):
             
 if __name__ == "__main__":
 #    v.run_experiment(user_experiment_config = 'DebugExperimentConfig')
-    if True:
+    if not True:
         v = visexp_runner.VisionExperimentRunner('antonia',  'MEASetup')
         v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')
+    elif True:
+        v = visexp_runner.VisionExperimentRunner(['zoltan', 'chi'], 'SwDebugConfig')
+        v.run_experiment(user_experiment_config = 'CheckerboardParameters')
     else:
         v = visexp_runner.VisionExperimentRunner('zoltan',  'SwDebugConfig')
         v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')
