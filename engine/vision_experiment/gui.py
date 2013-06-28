@@ -799,6 +799,16 @@ class MainPoller(Poller):
         self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.queues['analysis']['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.command_relay_server.shutdown_servers()
+        #Delete MES tmp files
+        try:
+            import tempfile
+            for f in os.listdir(tempfile.gettempdir()):
+                fullpath = os.path.join(tempfile.gettempdir(), f)
+                if 'mat' in fullpath:
+                    os.remove(fullpath)
+        except:
+            print traceback.format_exc()
+        
         time.sleep(3.0)
 
     def periodic(self):
