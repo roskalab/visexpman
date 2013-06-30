@@ -487,17 +487,33 @@ def calculate_bead_size(folder):
             positions.append(position)
         data.append([positions[0], resolution, sizes[0]])
         data.append([positions[1], resolution, sizes[1]])
-        print sizes
-        print positions
-        print 1/resolution, sizes[0]/sizes[1]
+        if False:
+            print sizes
+            print positions
+            print 1/resolution, sizes[0]/sizes[1]
     pass
     data=numpy.array(data)
-    data23dplot(data)
-    positions_v = set(data[:,0][0::2])
-    positions_h = set(data[:,0][1::2])
-    resolutions = set(data[:,1])
+    positions_h, resolutions_h, values_h = data23dplot(data[0::2])
+    positions_v, resolutions_v, values_v = data23dplot(data[1::2])
     #plots:
     #3d plot: position, resolution, size x; size y
+    import mpl_toolkits.mplot3d.axes3d as p3
+    fig=figure(203)
+    ax = p3.Axes3D(fig)
+    ax.plot_wireframe(positions_v, resolutions_v, values_v)
+#    ax.plot_wireframe(positions_h, resolutions_h, values_h)
+    ax.set_xlabel('positions [%]')
+    ax.set_ylabel('resolution [pixel/um]')
+    ax.set_zlabel('v bead size [um]')
+    
+    
+    fig=figure(204)
+    ax = p3.Axes3D(fig)
+    ax.plot_wireframe(positions_h, resolutions_h, values_h)
+    ax.set_xlabel('positions [%]')
+    ax.set_ylabel('resolution [pixel/um]')
+    ax.set_zlabel('h bead size [um]')
+    show()
         
 def data23dplot(data):
     '''
@@ -505,6 +521,8 @@ def data23dplot(data):
     '''
     axis1=list(set(data[:, 0]))
     axis2=list(set(data[:, 1]))
+    axis1.sort()
+    axis2.sort()
     axis1_mg, axis2_mg = numpy.meshgrid(axis1, axis2)
     values = []
     for ax1_v, ax2_v in zip(axis1_mg.flatten(),  axis2_mg.flatten()):
@@ -517,11 +535,27 @@ def data23dplot(data):
         else:
             value = value[0]
         values.append(value)
-    return numpy.array(values)
+    return axis1_mg, axis2_mg, numpy.array(values).reshape(axis1_mg.shape)
     
     
 if __name__ == "__main__":
-    calculate_bead_size('V:\\debug\\data\\2013-06-18')
+#    import mpl_toolkits.mplot3d.axes3d as p3
+#    x=numpy.linspace(0, 10, 10)
+#    y=numpy.linspace(5, 8, 10)
+#    x, y=numpy.meshgrid(x, y) 
+#    z=numpy.ones_like(x)  
+#    z[1, 1]=10
+#        
+#    fig=figure(203)
+#    ax = p3.Axes3D(fig)
+#    ax.plot_wireframe(x, y, z)
+#    ax.set_xlabel('x')
+#    ax.set_ylabel('y')
+#    ax.set_zlabel('z')
+#    show()
+    p='/mnt/datafast/debug/data/2013-06-18'
+#    p='V:\\debug\\data\\2013-06-18'
+    calculate_bead_size(p)
 #    recordings2calibdata('V:\\debug\\data\\2013-06-02', 'V:\\debug\\out1')
 #    plot_delay_curve(generate_delay_curve())
 #    plot_delay_curve('V:\\debug\\out\\res_00000.hdf5')

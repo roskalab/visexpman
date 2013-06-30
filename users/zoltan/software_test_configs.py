@@ -46,7 +46,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         MAX_PMT_VOLTAGE = 8.0
         SCANNER_START_STOP_TIME = 0.02
         SCANNER_MAX_POSITION = 350.0
-        POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0
+        POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0*(10.0/9.0)#10 um bead is 9 um
         XMIRROR_OFFSET = 0*-64.0#um
         YMIRROR_OFFSET = 0.0#um
         SCANNER_SETTING_TIME = [3e-4, 1e-3]#This time constraint sets the speed of scanner (lenght of transient)
@@ -72,7 +72,17 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         'DAQ_TIMEOUT' : 1.0, 
         'DO_CHANNEL' : unit_test_runner.TEST_daq_device + '/port0/line0',
         'ENABLE' : True
-        }
+        }, 
+        {
+                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
+                    'DAQ_TIMEOUT' : 3.0,
+                    'SAMPLE_RATE' : 5000,
+                    'AI_CHANNEL' : 'Dev1/ai2:3',#stim frames, ca frames, led control, intrinsic frame start/stop
+                    'MAX_VOLTAGE' : 10.0,
+                    'MIN_VOLTAGE' : -10.0,
+                    'DURATION_OF_AI_READ' : 2*self.MAXIMUM_RECORDING_DURATION,
+                    'ENABLE' : True
+        },
         ]
         self.CAIMAGE_DISPLAY = {}
         self.CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False

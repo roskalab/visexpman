@@ -41,6 +41,8 @@ class VisionExperimentScreen(graphics.Screen):
         color = self.config.BACKGROUND_COLOR
         if hasattr(self, 'user_background_color'):
             color = colors.convert_color(self.user_background_color)
+        if hasattr(self.config, 'GAMMA_CORRECTION'):
+            color = self.config.GAMMA_CORRECTION(color)
         self.clear_screen(color = color)
         
     def _display_bullseye(self):

@@ -212,6 +212,15 @@ class MainPoller(Poller):
         for file_path in self.files_to_delete:
             if os.path.exists(file_path):
                 os.remove(file_path)
+        #Delete MES tmp files
+        try:
+            import tempfile
+            for f in os.listdir(tempfile.gettempdir()):
+                fullpath = os.path.join(tempfile.gettempdir(), f)
+                if 'mat' in fullpath:
+                    os.remove(fullpath)
+        except:
+            print traceback.format_exc()
         for connection in self.connections.values():
             connection.wait()
         print 'Poller stopped'

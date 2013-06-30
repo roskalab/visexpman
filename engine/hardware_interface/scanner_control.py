@@ -783,13 +783,22 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             self._send_scan_parameters2guipoller(config, parameters)
             self.printc('scan_started')
             frame_ct = 0
+            #Set up sync signal recording
+            if len(self.config.DAQ_CONFIG) >= 3:
+                self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time, id = 2)
+                if self.analog_input.start_daq_activity():
+                    self.printl('Sznc signal recording started')
             #start scan loop
+            self.abort = False
             while True:
                 self.queues['frame'].put(self.tp.read_pmt(collect_data = parameters['enable_recording']))                    
                 frame_ct += 1
                 if (not self.queue_in[0].empty() and self.queue_in[0].get() == 'stop_scan') or frame_ct == nframes or frame_ct >= self.max_nframes:
                     break
+                    self.abort = True
                 time.sleep(0.01)
+            if hasattr(self, 'analog_input') and self.analog_input.finish_daq_activity(abort = self.abort):
+                self.printl('sync signal acquisition finished')
             #Finish, save
             self.printc('Scanning ended, {0} frames recorded' .format(frame_ct))
             self.tp.finish_measurement(generate_frames = parameters['enable_recording'])
@@ -824,6 +833,8 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         #gather data to save
         data_to_save = {}
         data_to_save['cadata'] = numpy.rollaxis(self.tp.data, 0, 3)#TMP:rawdata cannot be saved
+		if hasattr(self, 'analog_input') and hasattr(self.analog_input, 'ai_data'):
+            data_to_save['sync'] = self.analog_input.ai_data
         data_to_save['scan_parameters'] = self.scan_parameters
         data_to_save['scan_parameters']['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
         data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
