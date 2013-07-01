@@ -45,6 +45,10 @@ class ExperimentConfig(Config):
                     if pre_experiment_class[1].__name__ == self.pre_runnable:
                         self.pre_runnable = pre_experiment_class[1](self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the pre experiment code
                         break
+        if hasattr(self, 'runnable') and source_code is not None:
+            self.runnable.experiment_source_code = source_code
+        else:
+            self.runnable.experiment_source_code = None
 
     def run(self, fragment_id = 0):
         if self.runnable == None:

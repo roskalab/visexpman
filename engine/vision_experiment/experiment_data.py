@@ -95,7 +95,7 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_sign
     return stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected
 
 #################### Saving/loading data to hdf5 ####################
-def pack_software_environment():
+def pack_software_environment(experiment_source_code = None):
         software_environment = {}
         module_names, visexpman_module_paths = utils.imported_modules()
         module_versions, software_environment['module_version'] = utils.module_versions(module_names)
@@ -110,6 +110,8 @@ def pack_software_environment():
             if os.path.exists(module_path):
                 zipfile_handler.write(module_path, zip_path)
         software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
+        if experiment_source_code is not None:
+            software_environment['experiment_source_code'] = experiment_source_code
         zipfile_handler.close()
         return software_environment
 

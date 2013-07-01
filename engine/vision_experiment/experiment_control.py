@@ -549,7 +549,7 @@ class ExperimentControl(object):
             experiment_source = self.source_code
         else:
             experiment_source = utils.file_to_binary_array(inspect.getfile(self.__class__).replace('.pyc', '.py'))
-        software_environment = experiment_data.pack_software_environment()
+        software_environment = experiment_data.pack_software_environment(self.experiment_source_code)
         data_to_file = {
                                     'sync_data' : analog_input_data, 
                                     'current_fragment' : fragment_id, #deprecated
@@ -636,25 +636,6 @@ class ExperimentControl(object):
                 scipy.io.savemat(fragment_path, data_to_mat, oned_as = 'row', long_field_names=True)
                 shutil.move(self.filenames['local_datafile'][fragment_id], self.filenames['datafile'][fragment_id])
                 fragment_id += 1
-                
-
-    def _pack_software_environment(self):
-        software_environment = {}
-        module_names, visexpman_module_paths = utils.imported_modules()
-        module_versions, software_environment['module_version'] = utils.module_versions(module_names)
-        stream = io.BytesIO()
-        stream = StringIO.StringIO()
-        zipfile_handler = zipfile.ZipFile(stream, 'a')
-        for module_path in visexpman_module_paths:
-            if 'visexpA' in module_path:
-                zip_path = '/visexpA' + module_path.split('visexpA')[-1]
-            elif 'visexpman' in module_path:
-                zip_path = '/visexpman' + module_path.split('visexpman')[-1]
-            if os.path.exists(module_path):
-                zipfile_handler.write(module_path, zip_path)
-        software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
-        zipfile_handler.close()
-        return software_environment
 
     def _pre_post_experiment_scan(self, is_pre):
         '''
