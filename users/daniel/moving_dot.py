@@ -121,13 +121,6 @@ class MovingDot(experiment.Experiment):
         if hasattr(self,'shown_directions'):
             self.experiment_specific_data['shown_directions']= self.shown_directions[fragment_id]
             
-    def cleanup(self):#TODO: this is obsolete
-        #add experiment identifier node to experiment hdf5
-        experiment_identifier = '{0}_{1}'.format(self.experiment_name, int(self.experiment_control.start_time))
-        self.experiment_hdf5_path = os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, experiment_identifier + '.hdf5')
-        setattr(self.hdf5, experiment_identifier, {'id': None})
-        self.hdf5.save(experiment_identifier)
-        
     def prepare(self):
         diameter_pix = self.experiment_config.DIAMETER_UM[0]*self.experiment_config.machine_config.SCREEN_UM_TO_PIXEL_SCALE
         self.diameter_pix = diameter_pix

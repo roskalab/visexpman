@@ -42,6 +42,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
             'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
             }
         COORDINATE_SYSTEM='center'
+        ######################### Ca imaging specific ################################ 
         self.CA_IMAGING_START_DELAY = 5.0#NEW
         MAX_PMT_VOLTAGE = 8.0
         SCANNER_START_STOP_TIME = 0.02

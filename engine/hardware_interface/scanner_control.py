@@ -25,7 +25,6 @@ Parameters:
 
 '''
 #eliminate position and speed overshoots - not possible
-#TODO: check generated scan for acceleration, speed and position limits
 import numpy
 import scipy.io
 import time
@@ -832,8 +831,8 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.printc('saving_data')
         #gather data to save
         data_to_save = {}
-        data_to_save['cadata'] = numpy.rollaxis(self.tp.data, 0, 3)#TMP:rawdata cannot be saved
-		if hasattr(self, 'analog_input') and hasattr(self.analog_input, 'ai_data'):
+        data_to_save['raw_data'] = numpy.rollaxis(self.tp.data, 0, 3)#TMP:rawdata cannot be saved
+        if hasattr(self, 'analog_input') and hasattr(self.analog_input, 'ai_data'):
             data_to_save['sync'] = self.analog_input.ai_data
         data_to_save['scan_parameters'] = self.scan_parameters
         data_to_save['scan_parameters']['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
@@ -851,9 +850,8 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             data_to_save['machine_config'] = experiment_data.pickle_config(self.config)
             from visexpA.engine.datahandlers.datatypes import ImageData
             h = ImageData(self.filenames['local_datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-            for node, value in data_to_save.items():
-                setattr(h, node, value)
-            h.save(data_to_save.keys())
+            h.cadata = data_to_save
+            h.save('cadata')
             h.close()
             import shutil
             shutil.move(self.filenames['local_datafile'][0], self.filenames['datafile'][0])

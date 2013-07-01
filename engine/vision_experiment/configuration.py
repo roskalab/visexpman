@@ -138,8 +138,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         MESSAGE_POSITION = utils.cr((-0.48,-0.15))
         NUMBER_OF_MESSAGE_ROWS = [15, [1, 40]]
         MAX_MESSAGE_LENGTH = [180,  [10,  1000]] #length of message displayed on screen
-#TODO obsolete        SEGMENT_DURATION = [100,  [1,  100000]]
-#TODO obsolete        ACTION_BETWEEN_STIMULUS = 'no' #keystroke, wait_xx in sec. no =  off
 
         ############# External hardware ######################
         #parallel port
@@ -290,6 +288,7 @@ class RetinalCaImagingConfig(VisionExperimentConfig):
         VisionExperimentConfig._create_application_parameters(self)
         ################ Ca imaging GUI #######################
         PLATFORM = 'retinal_ca'
+        STIM_RECORDS_ANALOG_SIGNALS = False
         MAX_PMT_VOLTAGE = [8.0,[0.0,15.0]]
         SCANNER_MAX_SPEED = utils.rc((1e7, 1e7))#um/s
         SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
@@ -334,6 +333,7 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
         ################ Mes parameters #############
+        STIM_RECORDS_ANALOG_SIGNALS = True
         MES_TIMEOUT = [10.0, [1.0, 100.0]]
         MES_RECORD_START_DELAY = [3.0, [1.0, 10.0]]
         OBJECTIVE_POSITION_LIMIT = [1000.0, [500.0, 2000.0]]
@@ -404,6 +404,7 @@ class MCMEAConfig(VisionExperimentConfig):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'mc_mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
+        STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
 
 class HiMEAConfig(VisionExperimentConfig):
@@ -411,6 +412,7 @@ class HiMEAConfig(VisionExperimentConfig):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'hi_mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
+        STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
 
 class ElphysConfig(VisionExperimentConfig):
@@ -419,6 +421,7 @@ class ElphysConfig(VisionExperimentConfig):
         PLATFORM = 'elphys'
         EXPERIMENT_FILE_FORMAT = 'mat'
         ELPHYS_SIGNAL_CHANNEL_INDEX = [0, [0, 10]]
+        STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
 
 class TestConfig(visexpman.engine.generic.configuration.Config):

@@ -216,7 +216,6 @@ class Shutter(Instrument):
                     pass
 
 class Filterwheel(Instrument):
-    #TODO: incorporate enable to FILTERWHEEL_SERIAL_PORT (FILTERWHEEL_SERIAL)
     def init_communication_interface(self):
         self.position = -1        
         if self.config.ENABLE_FILTERWHEEL:

@@ -111,7 +111,7 @@ def pack_software_environment(experiment_source_code = None):
                 zipfile_handler.write(module_path, zip_path)
         software_environment['source_code'] = numpy.fromstring(stream.getvalue(), dtype = numpy.uint8)
         if experiment_source_code is not None:
-            software_environment['experiment_source_code'] = experiment_source_code
+            software_environment['experiment_source_code'] = numpy.fromstring(experiment_source_code, dtype = numpy.uint8)
         zipfile_handler.close()
         return software_environment
 
@@ -154,14 +154,7 @@ def pickle_config(config):
     if hasattr(config_modified, 'GAMMA_CORRECTION'):
         config_modified.GAMMA_CORRECTION = 0
     return utils.object2array(config_modified)
-    
-def save_position(hdf5, stagexyz, objective_z = None):
-    '''
-    z is the objective's position, since this is more frequently used than z_stage.
-    '''
-    hdf5.position = utils.pack_position(stagexyz, objective_z)
-    hdf5.save('position')
-    
+       
 def read_merge_rois(cells, cell_group, region_name, objective_position, objective_origin, z_range, merge_distance):
     '''
     Reads rois of selected group, performs filtering based on objective position and merge distance

@@ -247,8 +247,8 @@ class ExperimentControl(object):
             if not self._pre_post_experiment_scan(is_pre=True):
                 return False
         # Start ai recording
-        if self.config.PLATFORM != 'retinal_ca':
-            self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time)
+        if self.config.PLATFORM != 'retinal_ca' and self.config.STIM_RECORDS_ANALOG_SIGNALS:
+            self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time,  id=0)
             if self.analog_input.start_daq_activity():
                 self.printl('Analog signal recording started')
         if (self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical'):
@@ -559,6 +559,9 @@ class ExperimentControl(object):
                                     'generated_data' : self.experiment_specific_data, 
                                     'experiment_source' : experiment_source, 
                                     'software_environment' : software_environment, 
+                                    'call_parameters': self.parameters, 
+                                    'experiment_name': self.experiment_name, 
+                                    'experiment_config_name': self.experiment_config_name, 
                                     }
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             data_to_file['machine_config'] = experiment_data.pickle_config(self.config)
@@ -573,18 +576,9 @@ class ExperimentControl(object):
                 self.printl('NO animal parameters saved')
             if self.config.PLATFORM == 'rc_cortical':
                 data_to_file['mes_data_path'] = os.path.split(self.filenames['mes_fragments'][fragment_id])[-1]
-                if hasattr(self, 'rois'):
-                    data_to_file['rois'] = self.rois
-                if hasattr(self, 'roi_locations'):
-                    data_to_file['roi_locations'] = self.roi_locations
-                if hasattr(self, 'xz_config'):
-                    data_to_file['xz_config'] = self.xz_config
-                if hasattr(self, 'prepost_scan_image'):
-                    data_to_file['prepost_scan_image'] = self.prepost_scan_image
-                if hasattr(self, 'scanner_trajectory'):
-                    data_to_file['scanner_trajectory'] = self.scanner_trajectory
-                if hasattr(self, 'anesthesia_history'):
-                    data_to_file['anesthesia_history'] = self.anesthesia_history
+                for attribute_name in ['rois', 'roi_locations', 'xz_config', 'prepost_scan_image', 'scanner_trajectory', 'anesthesia_history']:
+                    if hasattr(self, attribute_name):
+                        data_to_file[attribute_name] = getattr(self, attribute_name)
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             stimulus_frame_info = stimulus_frame_info_with_data_series_index
             data_to_file['config'] = experiment_data.save_config(None, self.config, self.experiment_config)
@@ -600,16 +594,11 @@ class ExperimentControl(object):
     def _save_fragment_data(self, fragment_id):
         data_to_file = self._prepare_fragment_data(fragment_id)
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
-            #Save experiment calling parameters:
-            self.fragment_files[fragment_id].call_parameters = self.parameters
-            self.fragment_files[fragment_id].experiment_name = self.experiment_name
-            self.fragment_files[fragment_id].experiment_config_name = self.experiment_config_name
-#            experiment_data.save_config(self.fragment_files[fragment_id], self.config, self.experiment_config)
             #Save stage and objective position
             if self.config.PLATFORM == 'rc_cortical':
-                experiment_data.save_position(self.fragment_files[fragment_id], self.stage_position, self.objective_position)
+                data_to_file['position'] = utils.pack_position(self.stage_position, self.objective_position)
             setattr(self.fragment_files[fragment_id], self.filenames['names'][fragment_id], data_to_file)
-            self.fragment_files[fragment_id].save([self.filenames['names'][fragment_id], 'call_parameters', 'experiment_name', 'experiment_config_name'])
+            self.fragment_files[fragment_id].save([self.filenames['names'][fragment_id]])
             self.fragment_files[fragment_id].close()
             if hasattr(self, 'fragment_durations'):
                 time.sleep(1.0 + 0.01 * self.fragment_durations[fragment_id])#Wait till data is written to disk
@@ -617,9 +606,6 @@ class ExperimentControl(object):
                 time.sleep(1.0)
             shutil.copy(self.filenames['local_datafile'][fragment_id], self.filenames['datafile'][fragment_id])
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
-            data_to_file['call_parameters'] = self.parameters
-            data_to_file['experiment_name'] = self.experiment_name
-            data_to_file['experiment_config_name'] = self.experiment_config_name
             self.fragment_data[self.filenames['local_datafile'][fragment_id]] = data_to_file
         self.printl('Measurement data saved to: {0}'.format(os.path.split(self.filenames['datafile'][fragment_id])[1]))
 
