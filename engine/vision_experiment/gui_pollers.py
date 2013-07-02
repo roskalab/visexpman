@@ -2145,6 +2145,11 @@ class CaImagingPoller(Poller):
                         elif message == 'connected to server':
                             #This is sent by the local queued client and its meaning can be confusing, therefore not shown
                             message = ''
+                        elif command == 'measurement_ready':#Datafile from stim is ready
+                            self.queues['out'].put('stim_datafile_ready')
+                            self.stim_app_running=False
+                        elif command == 'measurement_started':#Stimulation started
+                            self.stim_app_running=True
                         else:
                             self.printc(k.upper() + ' '  +  message)
         except:
@@ -2198,6 +2203,7 @@ class CaImagingPoller(Poller):
             
     def init_variables(self):
         self.scan_run = False
+        self.stim_app_running=False
         self.status = {}
         self.objective_position = 0
         self.scan_start_time = None
@@ -2318,6 +2324,7 @@ class CaImagingPoller(Poller):
         else:
             self.update_scan_run_status('prepare')
             self.parameters = {}
+            self.parameters['stim_app_running'] = self.stim_app_running
             if duration is not None:
                 self.parameters['duration'] = duration
             if nframes is not None:

@@ -327,6 +327,7 @@ class RetinalCaImagingConfig(VisionExperimentConfig):
         CAIMAGE_DISPLAY = {}
         CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
         CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = False
+        STIMULATION_FILE_READY_TIMEOUT = [10.0,  [0.0, 100.0]]
         self._create_parameters_from_locals(locals())
         
 class CorticalCaImagingConfig(VisionExperimentConfig):
