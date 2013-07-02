@@ -1,4 +1,5 @@
 import numpy
+import datetime
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -183,7 +184,7 @@ class AnimalParametersWidget(QtGui.QWidget):
             self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
 
     def create_widgets(self):
-        default_date = QtCore.QDate(2012, 1, 1)
+        default_date = QtCore.QDate(datetime.datetime.now().year, 1, 1)
         date_format = QtCore.QString('dd-MM-yyyy')
         ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])                
         self.mouse_birth_date_label = QtGui.QLabel('Mouse birth date',  self)        
@@ -208,7 +209,7 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.id.setEditable(True)
         self.mouse_strain_label = QtGui.QLabel('Mouse strain',  self)
         self.mouse_strain = QtGui.QComboBox(self)
-        self.mouse_strain.addItems(QtCore.QStringList(['chatdtr', 'chat', 'bl6', 'grik4']))
+        self.mouse_strain.addItems(QtCore.QStringList(['chatdtr', 'chat', 'chattomato','bl6', 'grik4']))
         self.mouse_strain.setEditable(True)
         self.green_labeling_label = QtGui.QLabel('Green labeling',  self)
         self.green_labeling = QtGui.QComboBox(self)

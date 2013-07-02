@@ -14,6 +14,7 @@ if TEST_test:
     argparser.add_argument('--daq', help='Tests using DAQmx are enabled, assumes that daq device is connected and the operating system is windows', action='store_true')
     argparser.add_argument('--stage', help='Stage tests enabled, stage controller has to be connected via serial port', action='store_true')
     argparser.add_argument('--goniometer', help='Goniometer tests enabled, Motorized goniometer has to be connected via serial port', action='store_true')
+    argparser.add_argument('--remote_focus', help='Remote focus tests enabled, Remote focus controller has to be connected via serial port', action='store_true')
     argparser.add_argument('--mes', help='Tests using MES are enabled. MES computer shall be available.', action='store_true')
     argparser.add_argument('--pp', help='Tests using parallel port are enabled. Parallel port driver has to be loaded and user shall have root access if tests are run on linux', action='store_true')
     argparser.add_argument('--fw', help='Filterwheel tests enabled.', action='store_true')
@@ -24,6 +25,7 @@ if TEST_test:
     TEST_daq = getattr(argparser.parse_args(), 'daq')
     TEST_stage = getattr(argparser.parse_args(), 'stage')
     TEST_goniometer = getattr(argparser.parse_args(), 'goniometer')
+    TEST_remote_focus = getattr(argparser.parse_args(), 'remote_focus')
     TEST_mes = getattr(argparser.parse_args(), 'mes')
     TEST_parallel_port = getattr(argparser.parse_args(), 'pp')
     TEST_filterwheel = getattr(argparser.parse_args(), 'fw')
@@ -34,6 +36,7 @@ else:
     TEST_daq = False
     TEST_stage = False
     TEST_goniometer = False
+    TEST_remote_focus = False
     TEST_mes = False
     TEST_parallel_port = False
     TEST_filterwheel = False

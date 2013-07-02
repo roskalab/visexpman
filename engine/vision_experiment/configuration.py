@@ -199,6 +199,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
+        
+        MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 
@@ -376,8 +378,6 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
         LED_CONTROLLER_INSTRUMENT_INDEX = [0, [0, 100]]
         MES_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         TILTING_LIMIT = [1.5, [0.0, 10.0]]
-        
-        MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
         self._create_parameters_from_locals(locals())
         
         

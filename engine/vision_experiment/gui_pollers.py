@@ -2362,7 +2362,7 @@ class CaImagingPoller(Poller):
                     self.parameters['SCANNER_TRIGGER_CONFIG'] = {}
                     self.parameters['SCANNER_TRIGGER_CONFIG']['offset'] = float(str(self.parent.central_widget.main_widget.beamer_control.trigger_delay.input.text()))*1e-6
                     self.parameters['SCANNER_TRIGGER_CONFIG']['width'] = float(str(self.parent.central_widget.main_widget.beamer_control.trigger_pulse_width.input.text()))*1e-6
-                    self.parameters['SCANNER_TRIGGER_CONFIG']['amplitude'] = 5.0
+                    self.parameters['SCANNER_TRIGGER_CONFIG']['amplitude'] = self.config.SCANNER_TRIGGER_CONFIG['amplitude']
                     self.parameters['SCANNER_TRIGGER_CONFIG']['enable'] = True
                 except ValueError:
                     pass

@@ -16,7 +16,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
         self.root_folder = '/mnt/datafast/debug/data'
-        self.root_folder = '/mnt/rznb/data'
+#        self.root_folder = '/mnt/rznb/data'
         if not os.path.exists(self.root_folder) and os.name == 'nt':
             self.root_folder = 'v:\\debug\\data'
         LOG_PATH = self.root_folder
@@ -35,7 +35,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
-        self.BASE_PORT = 20000
+        self.BASE_PORT = 30000
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
             {
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 

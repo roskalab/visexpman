@@ -236,7 +236,7 @@ class MotorizedGoniometer(StageControl):
         else:
             return False
 
-    def read_position(self,  print_position = False):
+    def read_position(self, print_position = False):
         #flush input buffer
         self.serial_port.read(100)
         result  = False
@@ -283,6 +283,30 @@ class MotorizedGoniometer(StageControl):
             return True
         else:
             return False
+            
+class RemoteFocus(StageControl):
+    '''
+    Remote Focus device controls objective position. Default baud rate is 1200
+    '''
+    def execute_command(self, command, wait_after_command = True):
+        self.serial_port.write(command + '\r\n')
+        if wait_after_command:
+            time.sleep(100e-3)
+    
+    def read_position(self, print_position = False):
+        self.serial_port.read(100)
+        self.execute_command('WZ')
+        response = self.serial_port.read(100)
+        if len(response)>0:
+            try:
+                return float(response)
+            except:
+                return 0.0
+                
+    def move(self, position):
+        self.execute_command('MZ{0}'.format(position))
+
+    
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
@@ -298,6 +322,13 @@ class MotorTestConfig(visexpman.engine.generic.configuration.Config):
         goniometer_serial_port = {
                                     'port' :  unit_test_runner.TEST_goniometer_com_port,
                                     'baudrate' : 9600,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,
+                                    }
+        remote_focus_serial_port = {
+                                    'port' :  unit_test_runner.TEST_remote_focus_com_port,
+                                    'baudrate' : 1200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
                                     'bytesize' : serial.EIGHTBITS,
@@ -321,6 +352,9 @@ class MotorTestConfig(visexpman.engine.generic.configuration.Config):
                  'ACCELERATION' : 1000000,
                  'MOVE_TIMEOUT' : 15.0,
                  'DEGREE_PER_USTEP' : degree_factor * numpy.ones(2, dtype = numpy.float)
+                 },
+                 {'SERIAL_PORT' : remote_focus_serial_port,
+                 'ENABLE':True,
                  }]
         
         self._create_parameters_from_locals(locals())
@@ -405,6 +439,20 @@ class TestMotorizedGoniometer(unittest.TestCase):
                 results.append(self.mg.move(m))
                 time.sleep(0.0)
         self.assertEqual(False in results,  False)
+        
+class TestRemoteFocus(unittest.TestCase):
+    def setUp(self):
+        self.config = MotorTestConfig()
+        self.rf = RemoteFocus(self.config, id = 2)
+
+    def tearDown(self):
+        self.rf.release_instrument()
+
+    @unittest.skipIf(not unit_test_runner.TEST_remote_focus,  'Stage tests disabled')
+    def test_01(self):
+        print self.rf.read_position()
+        self.rf.move(10)
+        print self.rf.read_position()
         
 if __name__ == "__main__":
     unittest.main()

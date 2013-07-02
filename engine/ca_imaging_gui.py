@@ -317,7 +317,7 @@ class MainWidget(QtGui.QWidget):
         self.background_scan_parameters.setFixedHeight(75)
         self.use_user_parameters = gui.LabeledCheckBox(self, 'Use user scan parameters')
         self.enable_image_offset = gui.LabeledCheckBox(self, 'enable image offset')
-        self.enable_image_offset.setCheckState(2)
+        self.enable_image_offset.input.setCheckState(2)
         self.roi_scan_parameters = RoiScanParameters(self)
         self.roi_scan_parameters.setFixedWidth(500)
         self.roi_scan_parameters.setFixedHeight(200)
@@ -596,5 +596,5 @@ if __name__ == '__main__':
     from visexpman.engine.visexp_runner import visexp_application_runner
     from multiprocessing import Process
     process = Process(target=visexp_application_runner,  args = ('zoltan', 'CaImagingTestConfig'))
-    process.start()
+#    process.start()
     CaImagingGui('zoltan', 'CaImagingTestConfig')
