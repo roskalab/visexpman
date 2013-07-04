@@ -40,6 +40,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
             {
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
             'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
+            'GUI_ELPHYS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}},
             }
         COORDINATE_SYSTEM='center'
         ######################### Ca imaging specific ################################ 

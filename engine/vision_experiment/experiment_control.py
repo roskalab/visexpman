@@ -426,6 +426,7 @@ class ExperimentControl(object):
         local_folder = 'd:\\tmp'
         if not os.path.exists(local_folder):
             local_folder = tempfile.mkdtemp()
+            
         self.filenames = experiment_data.generate_filename(self.config, 
                                                                                 self.id, 
                                                                                 experiment_name = self.name_tag, 
@@ -433,7 +434,6 @@ class ExperimentControl(object):
                                                                                 scan_mode = scan_mode, 
                                                                                 tmp_folder = local_folder,
                                                                                 depth = objective_position)
-#        self._generate_filenames()
         self._create_files()
         self.stimulus_frame_info_pointer = 0
 

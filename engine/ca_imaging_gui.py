@@ -596,5 +596,5 @@ if __name__ == '__main__':
     from visexpman.engine.visexp_runner import visexp_application_runner
     from multiprocessing import Process
     process = Process(target=visexp_application_runner,  args = ('zoltan', 'CaImagingTestConfig'))
-#    process.start()
+    process.start()
     CaImagingGui('zoltan', 'CaImagingTestConfig')

@@ -33,7 +33,7 @@ def generate_filename(config, id, experiment_name = '',  cell_name = '', nfragme
     filenames['other_files'] = []
     if config.PLATFORM == 'rc_cortical':
         filenames['mes_files'] = []
-        prefix = 'fragment'
+        prefix = 'fragment'#FIXME: this is obsolete
     else:
         prefix = ''
     if output_folder is None:

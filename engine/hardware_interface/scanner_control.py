@@ -760,11 +760,6 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             parameters = self.queues['parameters'].get()
             config = self._update_config(parameters)
             self.filenames = parameters['filenames']
-            #Set up sync signal recording
-            if len(self.config.DAQ_CONFIG) >= 3:
-                self.analog_input = daq_instrument.AnalogIO(self.config, id = 2)
-                if self.analog_input.start_daq_activity():
-                    self.printc('Sync signal recording started')
             #Initialize scanner  devices
             self.tp = TwoPhotonScanner(config)
             try:
@@ -796,8 +791,6 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                     break
                     self.abort = True
                 time.sleep(0.01)
-            if hasattr(self, 'analog_input') and self.analog_input.finish_daq_activity(abort = self.abort):
-                self.printc('Sync signal acquisition finished')
             #Finish, save
             self.printc('Scanning ended, {0} frames recorded' .format(frame_ct))
             self.tp.finish_measurement(generate_frames = parameters['enable_recording'])
@@ -845,8 +838,6 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         #gather data to save
         data_to_save = {}
         data_to_save['raw_data'] = numpy.rollaxis(self.tp.data, 0, 3)#TMP:rawdata cannot be saved
-        if hasattr(self, 'analog_input') and hasattr(self.analog_input, 'ai_data'):
-            data_to_save['sync'] = self.analog_input.ai_data
         data_to_save['scan_parameters'] = self.scan_parameters
         data_to_save['scan_parameters']['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
         data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
@@ -862,12 +853,12 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             data_to_save['machine_config'] = experiment_data.pickle_config(self.config)
             from visexpA.engine.datahandlers.datatypes import ImageData
-            h = ImageData(self.filenames['local_datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+            h = ImageData(self.filenames['datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             h.cadata = data_to_save
             h.save('cadata')
             h.close()
             import shutil
-            shutil.move(self.filenames['local_datafile'][0], self.filenames['datafile'][0])
+#            shutil.move(self.filenames['local_datafile'][0], self.filenames['datafile'][0])
         self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
         return
         if self.filenames.has_key('other_files') and 'tiff' in self.filenames['other_files'][0]:

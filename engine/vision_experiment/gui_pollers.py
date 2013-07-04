@@ -2090,6 +2090,10 @@ class CaImagingPoller(Poller):
         self.queues['analysis']['out'] = Queue.Queue()
         self.queues['analysis']['in'] = Queue.Queue()
         self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
+        self.queues['elphys'] = {}
+        self.queues['elphys']['out'] = Queue.Queue()
+        self.queues['elphys']['in'] = Queue.Queue()
+        self.connections['elphys'] = network_interface.start_client(self.config, 'GUI', 'GUI_ELPHYS', self.queues['analysis']['in'], self.queues['analysis']['out'])        
 
     def periodic(self):
         if self.scan_run and self.scan_start_time is not None:
@@ -2282,10 +2286,10 @@ class CaImagingPoller(Poller):
         self.queues['out'].put('SOCquitEOCEOP')
         if self.config.__class__.__name__ == 'CaImagingTestConfig':
             self.queues['stim']['out'].put('SOCexitEOCEOP')
-        self.queues['stim']['out'].put('SOCclose_connectionEOCstop_clientEOP')
-        self.queues['analysis']['out'].put('SOCclose_connectionEOCstop_clientEOP')
+        for conn_name in self.queues.keys():
+            self.queues[conn_name]['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.save_context()
-        self.process.join()    
+        self.process.join()
         
     ########### Commands #################
     def start_experiment(self):
@@ -2366,7 +2370,7 @@ class CaImagingPoller(Poller):
                 except ValueError:
                     pass
             #generate filename/create dirs
-            if True:
+            if False:
                 folder = os.path.join(self.config.EXPERIMENT_DATA_PATH,  utils.date_string())
                 file.mkdir_notexists(folder)
             else:
@@ -2379,7 +2383,11 @@ class CaImagingPoller(Poller):
                 self.id = str(int(time.time()))
             else:
                 self.id = id
-            filenames = experiment_data.generate_filename(self.config, self.id, experiment_name,  cell_name,  depth = self.objective_position,  user_extensions = ['tiff'], output_folder = folder)
+            filenames = experiment_data.generate_filename(self.config, 
+                                                                            self.id, 
+                                                                            experiment_name.replace('Config', '').replace('config', ''),  
+                                                                            cell_name,  
+                                                                            user_extensions = ['tiff'], output_folder = folder)
             self.parameters['filenames'] = filenames
             self.queues['parameters'].put(self.parameters)
             self.queues['out'].put('start_scan')

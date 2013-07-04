@@ -68,10 +68,10 @@ class DebugExperimentConfig(experiment.ExperimentConfig):
         
 class Debug(experiment.Experiment):
     def prepare(self):
-        self.fragment_durations = [2]
+        self.fragment_durations = [5]
     
     def run(self):
-        self.show_shape(duration=2,size=100)
+        self.show_shape(duration=5.0,size=100)
         return
         ncheckers = utils.rc((3, 3))
         colors = numpy.zeros((1, ncheckers['row'], ncheckers['col'], 3))
@@ -87,7 +87,6 @@ class Debug(experiment.Experiment):
         self.flash_stimulus('o', [1.0/t0, 2.0/t0, 1.0/t0, 2.0/t0, 1.0/t0], numpy.array([[0.5, 1.0]]).T, sizes = utils.rc((100, 100)))
         self.flash_stimulus('o', [1.0/t0, 2.0/t0, 1.0/t0, 2.0/t0, 1.0/t0], numpy.array([[0.5, 1.0]]).T, sizes = utils.rc(numpy.array([[100, 100], [200, 200]])))
         self.flash_stimulus('o', [1.0/t0, 2.0/t0, 1.0/t0, 2.0/t0, 1.0/t0], numpy.array([[0.5, 1.0]]).T, sizes = numpy.array([[100, 200]]).T)
-        
         return
         self.show_shape(shape='r', color = numpy.array([[1.0, 0.5]]).T, duration = 2.0/self.machine_config.SCREEN_EXPECTED_FRAME_RATE, size = utils.cr((100.0, 100.0)),pos = utils.cr(numpy.array([[0,100], [0, 100]])))
         self.show_grating(duration = 2.0,  
