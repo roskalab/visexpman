@@ -760,6 +760,11 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             parameters = self.queues['parameters'].get()
             config = self._update_config(parameters)
             self.filenames = parameters['filenames']
+            #Set up sync signal recording
+            if len(self.config.DAQ_CONFIG) >= 3:
+                self.analog_input = daq_instrument.AnalogIO(self.config, id = 2)
+                if self.analog_input.start_daq_activity():
+                    self.printc('Sync signal recording started')
             #Initialize scanner  devices
             self.tp = TwoPhotonScanner(config)
             try:
@@ -782,11 +787,6 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             self._send_scan_parameters2guipoller(config, parameters)
             self.printc('scan_started')
             frame_ct = 0
-            #Set up sync signal recording
-            if len(self.config.DAQ_CONFIG) >= 3:
-                self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time, id = 2)
-                if self.analog_input.start_daq_activity():
-                    self.printl('Sznc signal recording started')
             #start scan loop
             self.abort = False
             while True:
@@ -797,7 +797,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                     self.abort = True
                 time.sleep(0.01)
             if hasattr(self, 'analog_input') and self.analog_input.finish_daq_activity(abort = self.abort):
-                self.printl('sync signal acquisition finished')
+                self.printc('Sync signal acquisition finished')
             #Finish, save
             self.printc('Scanning ended, {0} frames recorded' .format(frame_ct))
             self.tp.finish_measurement(generate_frames = parameters['enable_recording'])
@@ -1658,4 +1658,3 @@ class TestScannerControl(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-    

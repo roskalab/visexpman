@@ -28,101 +28,6 @@ class SPC(VisionExperimentConfig):
         self.PULSE_OVERHEAD = 10.0e-3 #in seconds
         self._create_parameters_from_locals(locals())
         
-class Debug(ElphysConfig):
-    '''
-    Antona's Electrophisology visual stimulation
-    '''
-    def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'RandomShapeParameters'
-        #=== paths/data handling ===
-        if os.name == 'nt':
-            v_drive_data_folder = 'V:\\debug\\data'
-        else:
-            v_drive_data_folder = '/mnt/datafast/debug/data'
-        LOG_PATH = os.path.join(v_drive_data_folder, 'log')
-        EXPERIMENT_LOG_PATH = LOG_PATH
-        EXPERIMENT_DATA_PATH = v_drive_data_folder
-        ARCHIVE_PATH = v_drive_data_folder
-        CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
-        
-        #=== screen ===
-        FULLSCREEN = not True
-        SCREEN_RESOLUTION = utils.cr([800,600])
-#        SCREEN_RESOLUTION = utils.cr([1024, 768])
-        COORDINATE_SYSTEM='center'
-        ENABLE_FRAME_CAPTURE = False
-        SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 0.6
-        
-        #=== hardware ===
-        ENABLE_PARALLEL_PORT = (self.OS == 'win')
-        ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
-        
-        #=== network ===
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        ENABLE_UDP = (self.OS == 'win')
-  
-        #=== Filterwheel ===
-        ENABLE_FILTERWHEEL = False
-        #=== LED controller ===
-        STIM_SYNC_CHANNEL_INDEX = 1
-        DAQ_CONFIG = [
-                      {
-                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
-                    'DAQ_TIMEOUT' : 3.0,
-                    'SAMPLE_RATE' : 10000,
-                    'AI_CHANNEL' : 'Dev2/ai1:2',
-                    'MAX_VOLTAGE' : 10.0,
-                    'MIN_VOLTAGE' : -10.0,
-                    'DURATION_OF_AI_READ' : 300.0,
-                    'ENABLE' :  (self.OS == 'win')
-                    },
-                    {
-                    'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
-                    'DAQ_TIMEOUT' : 1.0,
-                    'AO_SAMPLE_RATE' : 10000,
-                    'AO_CHANNEL' : 'Dev1/ao0:0',
-                    'MAX_VOLTAGE' : 3.0,
-                    'MIN_VOLTAGE' : 0.0,
-                    'DURATION_OF_AI_READ' : 1.0,
-                    'ENABLE' :  (self.OS == 'win')
-                    },
-                    ]
-        #=== Others ===
-        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, }
-        self.GAMMA_CORRECTION = numpy.array([
-                                            [0, 12.5], 
-                                            [10, 27], 
-                                            [20, 55], 
-                                            [30, 83], 
-                                            [40, 109], 
-                                            [50, 256], 
-                                            [60, 351], 
-                                            [70, 490], 
-                                            [80, 646], 
-                                            [90, 826], 
-                                            [100, 950], 
-                                            [110, 1088], 
-                                            [120, 1245], 
-                                            [130, 1340], 
-                                            [140, 4590], 
-                                            [150, 6528], 
-                                            [160, 8390], 
-                                            [170, 11530], 
-                                            [180, 14170], 
-                                            [190, 16400], 
-                                            [200, 17680], 
-                                            [210, 18790], 
-                                            [220, 19160], 
-                                            [230, 19250], 
-                                            [240, 19250], 
-                                            [255, 19260], 
-                                            ])
-
-        self._create_parameters_from_locals(locals())
-
 class AEPHVS(ElphysConfig):
     '''
     Antona's Electrophisology visual stimulation
@@ -152,7 +57,8 @@ class AEPHVS(ElphysConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
-        FRAME_TRIGGER_PIN = 0
+        BLOCK_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PIN = 1
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -164,6 +70,7 @@ class AEPHVS(ElphysConfig):
         
         #=== EphysData and stimulus Framerate recorder and LED controller ===
         STIM_SYNC_CHANNEL_INDEX = 1
+        STIM_RECORDS_ANALOG_SIGNALS = True
         DAQ_CONFIG = [
                       {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
@@ -249,6 +156,17 @@ class MEASetup(AEPHVS):
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
         else:
             del self.GAMMA_CORRECTION#Gamma calibration has to be done
+        self._create_parameters_from_locals(locals())
+        
+class Debug(AEPHVS):
+    '''
+    Antona's Electrophisology visual stimulation
+    '''
+    def _set_user_parameters(self):
+        AEPHVS._set_user_parameters(self, check_path=False)
+#        FULLSCREEN = not True
+        COORDINATE_SYSTEM='center'
+        ENABLE_FRAME_CAPTURE = False
         self._create_parameters_from_locals(locals())
 
 if __name__ == "__main__":    

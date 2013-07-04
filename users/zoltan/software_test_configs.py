@@ -75,14 +75,14 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         'ENABLE' : True
         }, 
         {
-                    'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
-                    'DAQ_TIMEOUT' : 3.0,
-                    'SAMPLE_RATE' : 5000,
-                    'AI_CHANNEL' : 'Dev1/ai2:3',#stim frames, ca frames, led control, intrinsic frame start/stop
-                    'MAX_VOLTAGE' : 10.0,
-                    'MIN_VOLTAGE' : -10.0,
-                    'DURATION_OF_AI_READ' : 2*self.MAXIMUM_RECORDING_DURATION,
-                    'ENABLE' : True
+        'ANALOG_CONFIG' : 'ai',
+        'DAQ_TIMEOUT' : 3.0,
+        'SAMPLE_RATE' : 5000,
+        'AI_CHANNEL' : 'Dev1/ai2:3',
+        'MAX_VOLTAGE' : 10.0,
+        'MIN_VOLTAGE' : -10.0,
+        'DURATION_OF_AI_READ' : 2*self.MAXIMUM_RECORDING_DURATION,
+        'ENABLE' : True
         },
         ]
         self.CAIMAGE_DISPLAY = {}

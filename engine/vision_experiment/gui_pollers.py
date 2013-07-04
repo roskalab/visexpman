@@ -1119,7 +1119,6 @@ class MainPoller(Poller):
             self.emit(QtCore.SIGNAL('clear_image_display'), 1)
             self.emit(QtCore.SIGNAL('clear_image_display'), 3)
             self.parent.main_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.setCheckState(0)
-            self.parent.main_tab.setCurrentIndex(0)#Switch to main tab
             #Initialize anesthesi history
             self.anesthesia_history = []
             self.save2mouse_file('anesthesia_history')

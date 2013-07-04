@@ -129,6 +129,7 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         CONTEXT_PATH = os.path.join(root_folder, 'context')
         CAPTURE_PATH = os.path.join(drive_data_folder, 'capture')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
+        STIM_RECORDS_ANALOG_SIGNALS = True
         #Create folders that does not exists
         for folder in [drive_data_folder, LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, CONTEXT_PATH, CAPTURE_PATH]:
             file.mkdir_notexists(folder)

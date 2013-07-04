@@ -157,7 +157,7 @@ class MesInterface(object):
         #Generate parameter file
         data_to_mes_mat = {}
         data_to_mes_mat['DATA'] = {}
-        data_to_mes_mat['DATA']['z_relative'] = numpy.array([position], dtype = numpy.float64)[0]
+        data_to_mes_mat['DATA']['z_relative'] = numpy.array([round(position, 0)], dtype = numpy.float64)[0]
         scipy.io.savemat(parameter_path, data_to_mes_mat, oned_as = 'column') 
         result = False
         if self.connection.connected_to_remote_client():

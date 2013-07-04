@@ -286,12 +286,19 @@ class ZstackWidget(QtGui.QWidget):
     def create_widgets(self):
         self.tile_scan_groupbox = TileScanGroupBox(self)
         self.z_stack_button = QtGui.QPushButton('Create Z stack', self)
+        self.zstart = gui.LabeledInput(self, 'z start')
+        self.zstop = gui.LabeledInput(self, 'z stop')
+        self.zstep = gui.LabeledInput(self, 'z step')
+        self.averaging = gui.LabeledInput(self, 'Averaging')
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.z_stack_button, 0, 0, 1, 1)
-        self.layout.addWidget(self.tile_scan_groupbox, 1, 0, 1, 5)
-        
+        ct = 0
+        for w in [self.zstart, self.zstop, self.zstep, self.averaging]:
+            self.layout.addWidget(w, 1, 2*ct, 1, 1)
+            ct += 1
+        self.layout.addWidget(self.tile_scan_groupbox, 3, 0, 1, 8)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)

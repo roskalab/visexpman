@@ -247,7 +247,7 @@ class ExperimentControl(object):
             if not self._pre_post_experiment_scan(is_pre=True):
                 return False
         # Start ai recording
-        if self.config.PLATFORM != 'retinal_ca' and self.config.STIM_RECORDS_ANALOG_SIGNALS:
+        if self.config.STIM_RECORDS_ANALOG_SIGNALS:
             self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time,  id=0)
             if self.analog_input.start_daq_activity():
                 self.printl('Analog signal recording started')
@@ -559,10 +559,11 @@ class ExperimentControl(object):
                                     'generated_data' : self.experiment_specific_data, 
                                     'experiment_source' : experiment_source, 
                                     'software_environment' : software_environment, 
-                                    'call_parameters': self.parameters, 
                                     'experiment_name': self.experiment_name, 
                                     'experiment_config_name': self.experiment_config_name, 
                                     }
+        if len(self.parameters.keys()) > 0:#Empty dictionary not saved
+            data_to_file['call_parameters'] = self.parameters
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             data_to_file['machine_config'] = experiment_data.pickle_config(self.config)
             data_to_file['experiment_config'] = experiment_data.pickle_config(self.experiment_config)
@@ -718,3 +719,4 @@ class ExperimentControl(object):
         if hasattr(self, 'log') and experiment_log:
             self.log.info(str(message))
         return message
+        

@@ -150,7 +150,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             loadable_source_code = source_code.replace('<newline>', '\n')
             loadable_source_code = loadable_source_code.replace('<comma>', ',')
             loadable_source_code = loadable_source_code.replace('<equal>', '=')
-            loadable_source_code = loadable_source_code.replace('\r', '; ')
+#            loadable_source_code = loadable_source_code.replace('\r', '; ')
             experiment_class_name = find_experiment_class_name.findall(loadable_source_code)[0]
             experiment_config_class_name = find_experiment_config_class_name.findall(loadable_source_code)[0]
             #rename classes
