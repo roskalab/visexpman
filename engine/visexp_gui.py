@@ -45,7 +45,7 @@ parameter_extract = re.compile('EOC(.+)EOP')
 ENABLE_MOUSE_FILE_HANDLER = False
 
 ################### Main widget #######################
-class VisionExperimentGui(QtGui.QWidget):
+class CorticalVisionExperimentGui(QtGui.QWidget):
     '''
     Main Qt GUI class of vision experiment manager gui.
     '''
@@ -54,7 +54,7 @@ class VisionExperimentGui(QtGui.QWidget):
         self.config.user = user
         self.console_text = ''
         self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True)
-        self.poller = gui_pollers.MainPoller(self)
+        self.poller = gui_pollers.CorticalGUIPoller(self)
         self.queues = self.poller.queues
         if ENABLE_MOUSE_FILE_HANDLER:
             self.mouse_file_handler = gui.MouseFileHandler(self)
@@ -972,12 +972,90 @@ class GuiTest(QtCore.QThread):
         
     def printc(self, text):
         self.emit(QtCore.SIGNAL('printc'), text)
+        
+class CentralWidget(QtGui.QWidget):
+    def __init__(self, parent, config):
+        QtGui.QWidget.__init__(self, parent)
+        self.config = config
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        pass
+#        self.main_widget = MainWidget(self)
+#        self.calibration_widget = CalibrationWidget(self)
+#        self.animal_parameters_widget = guiv.AnimalParametersWidget(self)
+#        self.zstack_widget = guiv.ZstackWidget(self)
+#        self.main_tab = QtGui.QTabWidget(self)
+#        self.main_tab.addTab(self.main_widget, 'Ca imaging')
+#        self.main_tab.addTab(self.zstack_widget, 'Z stack')
+#        self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
+#        self.main_tab.addTab(self.calibration_widget, 'Calibration')
+#        self.main_tab.setCurrentIndex(0)
 
-def run_gui():
+    def create_layout(self):
+        pass
+        
+class VisionExperimentGui(Qt.QMainWindow):
+    def __init__(self, user, config_class, appname):
+        if QtCore.QCoreApplication.instance() is None:
+            qt_app = Qt.QApplication([])
+        self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = configuration.VisionExperimentConfig,direct = False)[0][1]()
+        self.config.user = user
+        self.console_text = ''
+        self.log = log.Log(appname, file.generate_filename(os.path.join(self.config.LOG_PATH, appname+'_log.txt')), local_saving = True)
+        Qt.QMainWindow.__init__(self)
+        self.setWindowTitle('{0} - {1} - {2}' .format(appname, user, config_class))
+        self.create_widgets()
+        self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
+        self.poller = gui_pollers.VisexpGuiPoller(self)
+        self.init_variables()
+        self.connect_signals()
+        self.poller.start()
+        self.show()
+        self.init_widget_content()
+        if qt_app is not None: qt_app.exec_()
+        
+    def create_widgets(self):
+        self.central_widget = CentralWidget(self, self.config)
+        self.setCentralWidget(self.central_widget) 
+        
+    def init_variables(self):
+        self.console_text = ''
+        
+    def init_widget_content(self):
+        pass
+        
+    def connect_signals(self):
+        pass
+        
+    def printc(self, text):
+        if not isinstance(text, str):
+            text = str(text)
+        self.console_text  += utils.time_stamp_to_hms(time.time()) + ' '  + text + '\n'
+        self.update_console()
+        
+    def update_console(self):
+        pass
+        
+    def closeEvent(self, e):
+        self.printc('Please wait till gui closes')
+        e.accept()
+        self.poller.abort = True
+        self.poller.wait()
+        
+def run_cortical_gui():
     app = Qt.QApplication(sys.argv)
-    gui = VisionExperimentGui(sys.argv[1], sys.argv[2])
+    gui = CorticalVisionExperimentGui(sys.argv[1], sys.argv[2])
     app.exec_()
+    
+def run_elphys_gui():
+    gui = VisionExperimentGui('zoltan', 'SwDebugConfig', 'elphys')
+#    gui = VisionExperimentGui(sys.argv[1], sys.argv[2], sys.argv[3])
 
 if __name__ == '__main__':
-    run_gui()
+    if True:
+        run_elphys_gui()
+    else:
+        run_cortical_gui()
     

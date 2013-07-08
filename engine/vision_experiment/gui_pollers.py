@@ -27,6 +27,7 @@ from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.hardware_interface import stage_control
 from visexpman.engine.hardware_interface import scanner_control
 from visexpman.engine.hardware_interface import flowmeter
+from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine import generic
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
@@ -118,7 +119,7 @@ parameter_extract = re.compile('EOC(.+)EOP')
 command_extract = re.compile('SOC(.+)EOC')
 
 ################### Poller #######################
-class MainPoller(Poller):
+class CorticalGUIPoller(Poller):
     #Initializing, loader methods
     def __init__(self, parent):
         self.gui_thread_queue = Queue.Queue()
@@ -2571,6 +2572,55 @@ class CaImagingPoller(Poller):
         elif len(enabled_channels) == 1:
             ai_channel = '{0}/ai{1}'.format(ai_channel.split('/')[0], enabled_channels[0])
         return ai_channel, enabled_channels
+        
+class VisexpGuiPoller(Poller):
+    def __init__(self, parent):
+        Poller.__init__(self, parent)
+        self.config = parent.config
+        self.init_variables()
+        self.load_context()
+        self.init_network()
+        
+    def init_variables(self):
+        self.queues = {}
+        
+    def load_context(self):
+        pass
+        
+    def save_context(self):
+        pass
+        
+    def init_network(self):
+        self.command_relay_server = network_interface.CommandRelayServer(self.config)
+        self.connections = {}
+        self.queues['imaging'] = {}
+        self.queues['imaging']['out'] = Queue.Queue()
+        self.queues['imaging']['in'] = Queue.Queue()
+        self.connections['imaging'] = network_interface.start_client(self.config, 'GUI', 'GUI_IMAGING', self.queues['imaging']['in'], self.queues['imaging']['out'])
+        self.queues['stim'] = {}
+        self.queues['stim']['out'] = Queue.Queue()
+        self.queues['stim']['in'] = Queue.Queue()
+        self.connections['stim'] = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.queues['stim']['in'], self.queues['stim']['out'])
+        self.queues['analysis'] = {}
+        self.queues['analysis']['out'] = Queue.Queue()
+        self.queues['analysis']['in'] = Queue.Queue()
+        self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
+        
+    def start_experiment(self):
+        pass
+        
+    def _start_analog_recording(self):
+        self.analog_input = daq_instrument.AnalogIO(self.config, id=2)
+        self.analog_input.start_daq_activity()
 
+    def _finish_analog_recording(self,abort):
+        self.analog_input.finish_daq_activity(abort = abort)
+        
+    def close(self):
+        for conn_name in self.queues.keys():
+            self.queues[conn_name]['out'].put('SOCclose_connectionEOCstop_clientEOP')
+        self.save_context()
+
+        
 if __name__ == '__main__':
     pass
