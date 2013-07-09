@@ -27,7 +27,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.vision_experiment import gui
-from visexpman.engine.generic import gui_generic
+from visexpman.engine.generic import gui as gui_generic
 from visexpman.engine.vision_experiment import gui_pollers
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
@@ -973,6 +973,26 @@ class GuiTest(QtCore.QThread):
     def printc(self, text):
         self.emit(QtCore.SIGNAL('printc'), text)
         
+class MainWidget(QtGui.QWidget):
+    def __init__(self, parent):
+        QtGui.QWidget.__init__(self, parent)
+        self.config = parent.config
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        self.experiment_control_groupbox = gui.ExperimentControlGroupBox(self)
+        self.experiment_control_groupbox.setFixedWidth(350)
+        self.experiment_control_groupbox.setFixedHeight(150)
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
+        self.layout.setRowStretch(10, 5)
+        self.layout.setColumnStretch(5,10)
+        self.setLayout(self.layout)
+
+        
 class CentralWidget(QtGui.QWidget):
     def __init__(self, parent, config):
         QtGui.QWidget.__init__(self, parent)
@@ -981,20 +1001,24 @@ class CentralWidget(QtGui.QWidget):
         self.create_layout()
         
     def create_widgets(self):
-        pass
-#        self.main_widget = MainWidget(self)
-#        self.calibration_widget = CalibrationWidget(self)
-#        self.animal_parameters_widget = guiv.AnimalParametersWidget(self)
-#        self.zstack_widget = guiv.ZstackWidget(self)
-#        self.main_tab = QtGui.QTabWidget(self)
-#        self.main_tab.addTab(self.main_widget, 'Ca imaging')
-#        self.main_tab.addTab(self.zstack_widget, 'Z stack')
-#        self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
-#        self.main_tab.addTab(self.calibration_widget, 'Calibration')
-#        self.main_tab.setCurrentIndex(0)
+        self.main_widget = MainWidget(self)
+        self.animal_parameters_widget = gui.AnimalParametersWidget(self)
+        self.main_tab = QtGui.QTabWidget(self)
+        self.main_tab.addTab(self.main_widget, 'Main')
+        self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
+        self.main_tab.setCurrentIndex(0)
+        
+        self.text_out = QtGui.QTextEdit(self)
+        self.text_out.setPlainText('')
+        self.text_out.setReadOnly(True)
+        self.text_out.ensureCursorVisible()
+        self.text_out.setCursorWidth(5)
 
     def create_layout(self):
-        pass
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.main_tab, 0, 0, 1, 1)
+        self.layout.addWidget(self.text_out, 1, 0, 1, 1)
+        self.setLayout(self.layout)
         
 class VisionExperimentGui(Qt.QMainWindow):
     def __init__(self, user, config_class, appname):
@@ -1024,7 +1048,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.console_text = ''
         
     def init_widget_content(self):
-        pass
+        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
         pass

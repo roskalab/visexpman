@@ -2288,7 +2288,8 @@ class CaImagingPoller(Poller):
         if self.config.__class__.__name__ == 'CaImagingTestConfig':
             self.queues['stim']['out'].put('SOCexitEOCEOP')
         for conn_name in self.queues.keys():
-            self.queues[conn_name]['out'].put('SOCclose_connectionEOCstop_clientEOP')
+            if utills.safe_has_key(self.queues[conn_name],'out'):
+                self.queues[conn_name]['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.save_context()
         self.process.join()
         

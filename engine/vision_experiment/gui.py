@@ -126,8 +126,9 @@ class AnalysisStatusGroupbox(QtGui.QGroupBox):
         self.setLayout(self.layout)
 
 class ExperimentControlGroupBox(QtGui.QGroupBox):
-    def __init__(self, parent):
+    def __init__(self, parent, extended = False):
         QtGui.QGroupBox.__init__(self, 'Experiment control', parent)
+        self.extended = extended
         self.create_widgets()
         self.create_layout()
 
@@ -137,41 +138,46 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.experiment_name.setEditable(True)
         self.experiment_name.addItems(QtCore.QStringList([]))
         self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
-        self.start_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
+        if self.extended:
+            self.start_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.stop_experiment_button = QtGui.QPushButton('Stop',  self)
-        self.stop_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
-        self.next_depth_button = QtGui.QPushButton('Next',  self)
-        self.redo_depth_button = QtGui.QPushButton('Redo',  self)
-        self.previous_depth_button = QtGui.QPushButton('Prev',  self)
-        self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful\nstop',  self)
-#        self.identify_flourescence_intensity_distribution_button = QtGui.QPushButton('Fluorescence distribution',  self)
-        self.objective_positions_label = QtGui.QLabel('Objective range [um]\n start,end,step',  self)
-        self.objective_positions_combobox = QtGui.QComboBox(self)
-        self.objective_positions_combobox.setEditable(True)
-        self.laser_intensities_label = QtGui.QLabel('Laser intensity \n(min, max) [%]',  self)
-        self.laser_intensities_combobox = QtGui.QComboBox(self)
-        self.laser_intensities_combobox.setEditable(True)
-        self.scan_mode = QtGui.QComboBox(self)
-        self.scan_mode.addItems(QtCore.QStringList(['xy', 'xz']))
+        if self.extended:
+            self.stop_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
+            self.next_depth_button = QtGui.QPushButton('Next',  self)
+            self.redo_depth_button = QtGui.QPushButton('Redo',  self)
+            self.previous_depth_button = QtGui.QPushButton('Prev',  self)
+            self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful\nstop',  self)
+            self.objective_positions_label = QtGui.QLabel('Objective range [um]\n start,end,step',  self)
+            self.objective_positions_combobox = QtGui.QComboBox(self)
+            self.objective_positions_combobox.setEditable(True)
+            self.laser_intensities_label = QtGui.QLabel('Laser intensity \n(min, max) [%]',  self)
+            self.laser_intensities_combobox = QtGui.QComboBox(self)
+            self.laser_intensities_combobox.setEditable(True)
+            self.scan_mode = QtGui.QComboBox(self)
+            self.scan_mode.addItems(QtCore.QStringList(['xy', 'xz']))
+            self.enable_intrinsic = gui.LabeledCheckBox(self, 'Enable instrinsic imaging')
         self.experiment_progress = QtGui.QProgressBar(self)
-        self.enable_intrinsic = gui.LabeledCheckBox(self, 'Enable instrinsic imaging')
+        
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.experiment_name, 0, 0, 1, 2)
         self.layout.addWidget(self.start_experiment_button, 0, 2, 1, 2)
         self.layout.addWidget(self.stop_experiment_button, 0, 4)
-        self.layout.addWidget(self.graceful_stop_experiment_button, 1, 4)
-        self.layout.addWidget(self.previous_depth_button, 1, 1, 1, 1)
-        self.layout.addWidget(self.next_depth_button, 1, 3, 1, 1)
-        self.layout.addWidget(self.redo_depth_button, 1, 2, 1, 1)
-        self.layout.addWidget(self.scan_mode, 1, 0)
-        self.layout.addWidget(self.objective_positions_label, 2, 0)
-        self.layout.addWidget(self.objective_positions_combobox, 2, 1, 1, 2)
-        self.layout.addWidget(self.laser_intensities_label, 2, 3, 1, 1)
-        self.layout.addWidget(self.laser_intensities_combobox, 2, 4, 1, 1)
-        self.layout.addWidget(self.experiment_progress, 3, 0, 1, 2)
-        self.layout.addWidget(self.enable_intrinsic, 3, 2, 1, 2)
+        if self.extended:
+            self.layout.addWidget(self.graceful_stop_experiment_button, 1, 4)
+            self.layout.addWidget(self.previous_depth_button, 1, 1, 1, 1)
+            self.layout.addWidget(self.next_depth_button, 1, 3, 1, 1)
+            self.layout.addWidget(self.redo_depth_button, 1, 2, 1, 1)
+            self.layout.addWidget(self.scan_mode, 1, 0)
+            self.layout.addWidget(self.objective_positions_label, 2, 0)
+            self.layout.addWidget(self.objective_positions_combobox, 2, 1, 1, 2)
+            self.layout.addWidget(self.laser_intensities_label, 2, 3, 1, 1)
+            self.layout.addWidget(self.laser_intensities_combobox, 2, 4, 1, 1)
+            self.layout.addWidget(self.enable_intrinsic, 3, 2, 1, 2)
+            self.layout.addWidget(self.experiment_progress, 3, 0, 1, 2)
+        else:
+            self.layout.addWidget(self.experiment_progress, 3, 0, 1, 4)
         self.setLayout(self.layout)        
 
 class AnimalParametersWidget(QtGui.QWidget):
