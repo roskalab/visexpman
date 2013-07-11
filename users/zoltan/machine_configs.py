@@ -116,8 +116,36 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
     Converting stimulus to video file
     '''
     def _set_user_parameters(self):        
-#        EXPERIMENT_CONFIG = 'MovingGratingConfig'
+        EXPERIMENT_CONFIG = 'IncreasingAnnulusParameters'
         PLATFORM = 'standalone'
+        ENABLE_UDP=False
+        BACKGROUND_COLOR = [0.5,0.5,0.5]
+        SCREEN_UM_TO_PIXEL_SCALE = 0.5
+        self.GAMMA_CORRECTION = numpy.array([
+                                             [0, 15.6], 
+                                             [20, 54],
+                                             [40, 175], 
+                                             [60, 500],
+                                             [70, 725], 
+                                             [80, 996],
+                                             [90, 1300], 
+                                             [100, 1630],
+                                             [110, 2000],
+                                             [120, 2400], 
+                                             [130, 2850], 
+                                             [140, 3250], 
+                                             [150, 3810], 
+                                             [160, 4460],
+                                             [165, 4820], 
+                                             [170, 5130],  
+                                             [180, 5890], 
+                                             [190, 6630], 
+                                             [200, 7430],
+                                             [210, 8300], 
+                                             [220, 9000], 
+                                             [230, 9500],
+                                             [255, 9500], 
+                                             ])
         root_folder = '/mnt/datafast/debug'
         if not os.path.exists(root_folder):
             root_folder = '/mnt/rznb'
@@ -141,7 +169,7 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         #=== screen ===
         FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
-        SCREEN_UM_TO_PIXEL_SCALE = 0.5
+#        SCREEN_UM_TO_PIXEL_SCALE = 0.5
         INSERT_FLIP_DELAY = True
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE =  not True

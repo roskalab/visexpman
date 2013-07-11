@@ -8,7 +8,7 @@ class IncreasingAnnulusParameters(experiment.ExperimentConfig):
         self.SIZE =1250
         self.INNER_CIRCLE_SIZES = [0, 125, 250, 375, 500, 625]
         self.ON_TIME = 2.0
-        self.OFF_TIME = 5.0/2
+        self.OFF_TIME = 5.0
         self.BACKGROUND = 0.5
         self.COLORS = [1.0, 0.0]
         self.USER_FRAGMENT_NAME = 'FILENAME'

@@ -115,7 +115,10 @@ if __name__ == "__main__":
         v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')
     elif True:
         v = visexp_runner.VisionExperimentRunner(['zoltan', 'chi'], 'SwDebugConfig')
-        v.run_experiment(user_experiment_config = 'CheckerboardParameters')
+        if not True:
+            v.run_loop()
+        else:
+            v.run_experiment(user_experiment_config = 'IncreasingAnnulusParameters')
     else:
         v = visexp_runner.VisionExperimentRunner('zoltan',  'SwDebugConfig')
         v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')

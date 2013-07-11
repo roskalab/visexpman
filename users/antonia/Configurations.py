@@ -149,6 +149,7 @@ class MEASetup(AEPHVS):
         FRAME_TRIGGER_PIN = 0
         self.DAQ_CONFIG[0]['ENABLE'] = False
         self.DAQ_CONFIG[1]['ENABLE'] = False
+        COLOR_MASK = numpy.array([0.0,  1.0,  1.0])
         gamma_corr_filename = 'c:\\visexp\\data\\gamma.hdf5'
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io

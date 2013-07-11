@@ -2081,20 +2081,13 @@ class CaImagingPoller(Poller):
                 self.udp_listener.start()
             except socket.error:
                 print 'In Labview Imaging Disable UDP triggering'
-        self.command_relay_server = network_interface.CommandRelayServer(self.config)
+        
         self.connections = {}
-        self.queues['stim'] = {}
-        self.queues['stim']['out'] = Queue.Queue()
-        self.queues['stim']['in'] = Queue.Queue()
-        self.connections['stim'] = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.queues['stim']['in'], self.queues['stim']['out'])
-        self.queues['analysis'] = {}
-        self.queues['analysis']['out'] = Queue.Queue()
-        self.queues['analysis']['in'] = Queue.Queue()
-        self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
-        self.queues['elphys'] = {}
-        self.queues['elphys']['out'] = Queue.Queue()
-        self.queues['elphys']['in'] = Queue.Queue()
-        self.connections['elphys'] = network_interface.start_client(self.config, 'GUI', 'GUI_ELPHYS', self.queues['analysis']['in'], self.queues['analysis']['out'])        
+        self.queues = {}
+        self.queues['gui'] = {}
+        self.queues['gui']['out'] = Queue.Queue()
+        self.queues['gui']['in'] = Queue.Queue()
+        self.connections['gui'] = network_interface.start_client(self.config, 'IMAGING', 'GUI_IMAGING', self.queues['gui']['in'], self.queues['gui']['out'])
 
     def periodic(self):
         if self.scan_run and self.scan_start_time is not None:

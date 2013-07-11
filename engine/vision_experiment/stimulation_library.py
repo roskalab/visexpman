@@ -442,7 +442,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             shape_type = 'rectangle'
         elif shape == 'annuli' or shape == 'annulus' or shape == 'a':
             vertices_outer_ring = utils.calculate_circle_vertices([size_pixel['col'],  size_pixel['row']],  resolution = points_per_round / 360.0)#resolution is vertex per degree
-            vertices_inner_ring = utils.calculate_circle_vertices([size_pixel['col'] - ring_size,  size_pixel['row'] - ring_size],  resolution = points_per_round / 360.0)#resolution is vertex per degree
+            vertices_inner_ring = utils.calculate_circle_vertices([size_pixel['col'] - 2*ring_size_pixel,  size_pixel['row'] - 2*ring_size_pixel],  resolution = points_per_round / 360.0)#resolution is vertex per degree
             vertices = numpy.zeros(shape = (vertices_outer_ring.shape[0] * 2, 2))
             vertices[:vertices_outer_ring.shape[0]] = vertices_outer_ring
             vertices[vertices_outer_ring.shape[0]:] = vertices_inner_ring
@@ -490,7 +490,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices)
             else:
                 n = int(n_vertices/2)                
-                glColor3fv(colors.convert_color(converted_background_color, self.config))
+                glColor3fv(converted_background_color)
                 glDrawArrays(GL_POLYGON,  n, n)
                 if hasattr(color,  'shape') and len(color.shape) ==2:
                     glColor3fv(colors.convert_color(color[frame_i], self.config))
