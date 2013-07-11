@@ -718,6 +718,22 @@ class StandardIOWidget(QtGui.QWidget):
         self.layout.setRowStretch(300, 300)
         self.layout.setColumnStretch(0, 100)
         self.setLayout(self.layout)
+        
+class ExperimentOptionsGroupBox(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, 'Experiment options', parent)
+        self.create_widgets()
+        self.create_layout()
+
+    def create_widgets(self):
+        self.enable_ca_recording = gui.LabeledCheckBox(self, 'Record Ca signal')
+        self.enable_elphys_recording = gui.LabeledCheckBox(self, 'Record electrophyisiology signal')
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.enable_ca_recording, 0, 0, 1, 2)
+        self.layout.addWidget(self.enable_elphys_recording, 0, 2, 1, 2)
+        self.setLayout(self.layout)
 
 if __name__ == '__main__':
     pass

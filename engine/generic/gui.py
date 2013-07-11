@@ -93,8 +93,14 @@ def load_experiment_config_names(config, widget):
         widget.addItems(QtCore.QStringList(experiment_config_names))
         try:
             if hasattr(config, 'EXPERIMENT_CONFIG'):
-                widget.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
+                widget.setCurrentIndex(experiment_config_names.index(config.EXPERIMENT_CONFIG))
         except ValueError:
             pass
     return experiment_config_list
     
+def connect_and_map_signal(self, widget, mapped_signal_parameter, widget_signal_name = 'clicked'):
+        if hasattr(self.poller, mapped_signal_parameter):
+            self.signal_mapper.setMapping(widget, QtCore.QString(mapped_signal_parameter))
+            getattr(getattr(widget, widget_signal_name), 'connect')(self.signal_mapper.map)
+        else:
+            self.printc('{0} method does not exists'.format(mapped_signal_parameter))

@@ -2577,10 +2577,18 @@ class VisexpGuiPoller(Poller):
         
     def init_variables(self):
         self.queues = {}
+        self.stimulation_finished = False
+        self.imaging_finished = False
+        self.analog_recording_started=False
+        
+    def connect_signals(self):
+        self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
         
     def load_context(self):
-        pass
-        
+        if os.path.exists(self.config.CONTEXT_FILE):
+            context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+            context_hdf5.close()
+            
     def save_context(self):
         pass
         
@@ -2600,21 +2608,133 @@ class VisexpGuiPoller(Poller):
         self.queues['analysis']['in'] = Queue.Queue()
         self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
         
-    def start_experiment(self):
-        pass
+    def update_network_connection_status(self):
+        #Check for network connection status
+        if hasattr(self.parent, 'common_widget') and hasattr(self.command_relay_server, 'servers'):
+            connection_status = self.command_relay_server.get_connection_status()
+            connected = ''
+            n_connected = 0
+            if connection_status['GUI_IMAGING/IMAGING'] and connection_status['GUI_IMAGING/GUI']:
+                connected += 'IMAGING  '
+                n_connected += 1
+            if connection_status['GUI_STIM/STIM'] and connection_status['GUI_STIM/GUI']:
+                connected += 'STIM  '
+                n_connected += 1
+            if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
+                connected += 'ANALYSIS  '
+                n_connected += 1
+            n_connections = len(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].keys())
+            connected = 'Alive connections ({0}/{1}): '.format(n_connected, n_connections) + connected
+            self.parent.central_widget.main_widget.network_status.setText(connected)
+
+    def run_in_all_iterations(self):
+        self.update_network_connection_status()
+        if hasattr(self, 'experiment_parameters') and ((self.imaging_finished ^ (not self.experiment_parameters['enable_ca_recording'])) and self.stimulation_finished):
+            self._finish_analog_recording()
+            self.imaging_finished = False
+            self.stimulation_finished = False
+            
+    def periodic(self):
+        if self.analog_recording_started and hasattr(self, 'measurement_starttime') and hasattr(self, 'measurement_duration'):
+            elapsed_time = int(time.time() - self.measurement_starttime)
+            if elapsed_time > self.measurement_duration:
+                elapsed_time = self.measurement_duration
+            self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(elapsed_time)
+        else:
+            self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
+
+    def handle_commands(self):
+        try:
+            for k, queue in self.queues.items():                
+                if hasattr(queue, 'has_key') and queue.has_key('in') and not queue['in'].empty():
+                    messages = queue['in'].get()
+                    if 'EOPSOC' in messages:
+                        messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
+                    else:
+                        messages = [messages]
+                    for message in messages:
+                        command = command_extract.findall(message)
+                        if len(command) > 0:
+                            command = command[0]
+                        parameter = parameter_extract.findall(message)
+                        if len(parameter) > 0:
+                            parameter = parameter[0]
+                        if command == 'connection':
+                            message = command
+                        elif command == 'echo' and parameter == 'GUI':
+                            message = ''
+                        elif message == 'connected to server':
+                            #This is sent by the local queued client and its meaning can be confusing, therefore not shown
+                            message = ''
+                        elif message == 'stim_started':
+                            self.measurement_starttime = time.time()
+                            try:
+                                self.measurement_duration = int(numpy.ceil(float(parameter)))
+                            except:
+                                self.measurement_duration = 0
+                        elif message == 'imaging_finished':
+                            self.imaging_finished = True
+                        elif message == 'stim_finished':
+                            self.stimulation_finished = True
+                        else:
+                            self.printc(k.upper() + ' '  +  message)
+        except:
+            self.printc(traceback.format_exc())
         
+    def start_experiment(self):
+        self.printc('Starting experiment, please wait')
+        self.experiment_parameters = {}
+        self.experiment_parameters['experiment_config'] = str(self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText())
+        self.experiment_parameters['enable_ca_recording'] = (self.parent.central_widget.main_widget.experiment_options_groupbox.enable_ca_recording.input.checkState() == 2)
+        self.experiment_parameters['enable_elphys_recording'] = (self.parent.central_widget.main_widget.experiment_options_groupbox.enable_elphys_recording.input.checkState() == 2)
+        self.experiment_parameters['id'] = str(int(time.time()))
+        #Save parameters to hdf5 file
+        parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
+        if os.path.exists(parameter_file):
+            self.printc('ID alread exists: {0}'.format(self.experiment_parameters['id']))
+        h = hdf5io.Hdf5io(parameter_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+        fields_to_save = ['parameters']
+        h.parameters = copy.deepcopy(self.experiment_parameters)
+        if hasattr(self, 'animal_parameters'):
+            h.animal_parameters = copy.deepcopy(self.animal_parameters)
+            fields_to_save.append('animal_parameters')
+        if hasattr(self, 'anesthesia_history'):
+            h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
+            fields_to_save.append('anesthesia_history')
+        h.save(fields_to_save)
+        h.close()
+        self.printc('{0} parameter file generated'.format(self.experiment_parameters['id']))
+        command = 'SOCstart_experimentEOCid={0}EOP' .format(self.experiment_parameters['id'])
+        self.queues['stim']['out'].put(command)
+        if self.experiment_parameters['enable_ca_recording']:
+            self.queues['imaging']['out'].put(command)
+        self._start_analog_recording()
+        self.stimulation_finished = False
+        self.imaging_finished = False
+        
+    def stop_experiment(self):
+        self.printc('Stopping experiment requested, please wait')
+        command = 'SOCabort_experimentEOCguiEOP'
+        for conn in ['imaging', 'stim']:
+            self.queues[conn]['out'].put(command)
+        self._finish_analog_recording()
+        self.parent.central_widget.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
+        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
+
     def _start_analog_recording(self):
         self.analog_input = daq_instrument.AnalogIO(self.config, id=2)
         self.analog_input.start_daq_activity()
+        self.analog_recording_started=True
 
-    def _finish_analog_recording(self,abort):
-        self.analog_input.finish_daq_activity(abort = abort)
-        
+    def _finish_analog_recording(self, abort=True):
+        if self.analog_recording_started:
+            self.analog_input.finish_daq_activity(abort = abort)
+            self.analog_recording_started=False
+
     def close(self):
         for conn_name in self.queues.keys():
             self.queues[conn_name]['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.save_context()
 
-        
 if __name__ == '__main__':
     pass

@@ -984,14 +984,19 @@ class MainWidget(QtGui.QWidget):
         self.experiment_control_groupbox = gui.ExperimentControlGroupBox(self)
         self.experiment_control_groupbox.setFixedWidth(350)
         self.experiment_control_groupbox.setFixedHeight(150)
+        self.experiment_options_groupbox = gui.ExperimentOptionsGroupBox(self)
+        self.experiment_options_groupbox.setFixedWidth(350)
+        self.experiment_options_groupbox.setFixedHeight(100)
+        self.network_status = QtGui.QLabel('', self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
+        self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 1, 1)
+        self.layout.addWidget(self.network_status, 2, 0, 1, 1)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
-
         
 class CentralWidget(QtGui.QWidget):
     def __init__(self, parent, config):
@@ -1051,7 +1056,13 @@ class VisionExperimentGui(Qt.QMainWindow):
         gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
-        pass
+        self.signal_mapper = QtCore.QSignalMapper(self)
+        widget2poller_function = [[self.central_widget.main_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment'],
+                                  [self.central_widget.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment'],
+                                  ]
+        for item in widget2poller_function:
+            gui_generic.connect_and_map_signal(self, item[0],item[1])
+        self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
     def printc(self, text):
         if not isinstance(text, str):
@@ -1060,7 +1071,8 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.update_console()
         
     def update_console(self):
-        pass
+        self.central_widget.text_out.setPlainText(self.console_text)
+        self.central_widget.text_out.moveCursor(QtGui.QTextCursor.End)
         
     def closeEvent(self, e):
         self.printc('Please wait till gui closes')
