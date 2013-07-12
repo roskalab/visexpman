@@ -121,6 +121,10 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         ENABLE_UDP=False
         BACKGROUND_COLOR = [0.5,0.5,0.5]
         SCREEN_UM_TO_PIXEL_SCALE = 0.5
+        COLOR_MASK = numpy.array([0.0, 1.0, 1.0])
+        import copy
+        TEXT_COLOR = copy.deepcopy(BACKGROUND_COLOR)
+        TEXT_COLOR[1] += 0.15
         self.GAMMA_CORRECTION = numpy.array([
                                              [0, 15.6], 
                                              [20, 54],

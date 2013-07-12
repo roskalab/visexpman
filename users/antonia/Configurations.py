@@ -150,6 +150,9 @@ class MEASetup(AEPHVS):
         self.DAQ_CONFIG[0]['ENABLE'] = False
         self.DAQ_CONFIG[1]['ENABLE'] = False
         COLOR_MASK = numpy.array([0.0,  1.0,  1.0])
+        import copy
+        TEXT_COLOR = copy.deepcopy(BACKGROUND_COLOR)
+        TEXT_COLOR[1] += 0.2
         gamma_corr_filename = 'c:\\visexp\\data\\gamma.hdf5'
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io

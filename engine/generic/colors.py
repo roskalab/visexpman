@@ -26,7 +26,7 @@ def convert_color(color, config = None):
     else:
         converted_color = color
     if hasattr(config, 'COLOR_MASK'):
-        converted_color = config.COLOR_MASK * nupy.array(converted_color)
+        converted_color = config.COLOR_MASK * numpy.array(converted_color)
     if hasattr(config, 'GAMMA_CORRECTION'):
         converted_color =config.GAMMA_CORRECTION(converted_color).tolist()
     return converted_color

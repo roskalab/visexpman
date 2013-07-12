@@ -43,6 +43,8 @@ class VisionExperimentScreen(graphics.Screen):
             color = colors.convert_color(self.user_background_color)
         if hasattr(self.config, 'GAMMA_CORRECTION'):
             color = self.config.GAMMA_CORRECTION(color)
+        if hasattr(self.config, 'COLOR_MASK'):
+            color *= self.config.COLOR_MASK
         self.clear_screen(color = color)
         
     def _display_bullseye(self):
@@ -70,7 +72,12 @@ class VisionExperimentScreen(graphics.Screen):
         self.menu_text = self.config.MENU_TEXT + experiment_choices(self.experiment_config_list) + '\nSelected experiment config: '
         if len(self.experiment_config_list) > 0:
             self.menu_text += self.experiment_config_list[int(self.selected_experiment_config_index)][1].__name__
-        self.render_text(self.menu_text, color = self.config.TEXT_COLOR, position = self.menu_position, text_style = self.text_style)
+        text_color = self.config.TEXT_COLOR
+        if hasattr(self.config, 'GAMMA_CORRECTION'):
+            text_color = self.config.GAMMA_CORRECTION(text_color)
+        if hasattr(self.config, 'COLOR_MASK'):
+            text_color *= self.config.COLOR_MASK
+        self.render_text(self.menu_text, color = text_color, position = self.menu_position, text_style = self.text_style)
         if flip:
             self.flip()
 
@@ -88,7 +95,12 @@ class VisionExperimentScreen(graphics.Screen):
         limited_message = ''
         for line in lines:
             limited_message += line + '\n'
-        self.render_text(limited_message, color = self.config.TEXT_COLOR, position = self.message_position, text_style = self.text_style)
+        text_color = self.config.TEXT_COLOR
+        if hasattr(self.config, 'GAMMA_CORRECTION'):
+            text_color = self.config.GAMMA_CORRECTION(text_color)
+        if hasattr(self.config, 'COLOR_MASK'):
+            text_color *= self.config.COLOR_MASK
+        self.render_text(limited_message, color = text_color, position = self.message_position, text_style = self.text_style)
         if flip:
             self.flip()
 
