@@ -1086,7 +1086,7 @@ def run_cortical_gui():
     app.exec_()
     
 def run_elphys_gui():
-    gui = VisionExperimentGui('zoltan', 'SwDebugConfig', 'elphys')
+    gui = VisionExperimentGui('zoltan', 'CaImagingTestConfig', 'elphys')
 #    gui = VisionExperimentGui(sys.argv[1], sys.argv[2], sys.argv[3])
 
 if __name__ == '__main__':

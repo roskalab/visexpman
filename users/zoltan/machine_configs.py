@@ -227,7 +227,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
             {
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
             'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
-            'GUI_ELPHYS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}},
+            'GUI_IMAGING'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'IMAGING' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}},
             }
         COORDINATE_SYSTEM='center'
         ######################### Ca imaging specific ################################ 
@@ -277,6 +277,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         self.CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
         self.CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = True
         MAIN_IMAGE_SIZE = utils.rc((500,500))
+        GUI_SIZE =  utils.cr((1280,1024))
 #        if os.name == 'nt':
 #            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
         self._create_parameters_from_locals(locals())

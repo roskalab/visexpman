@@ -127,6 +127,17 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.selected_experiment_config_index = int(experiment_index)
         self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log)
         return 'selected experiment: ' + str(experiment_index) + ' '
+        
+    def start_experiment(self, id = None):
+        if id is None:
+            return
+        parameters = hdf5io.read_item(os.apth.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5'),'parameters',filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+        kwargs = []
+        kwargs['id'] = id
+        kwargs['experiment_config'] = parameters['experiment_config']
+        if parameters.has_key('source_code'):
+            kwargs['source_code'] = parameters['source_code']
+        self.execute_experiment(**kwargs)
 
     def execute_experiment(self, *args, **kwargs):
         '''
@@ -146,19 +157,20 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                 if experiment_config[1].__name__ == kwargs['experiment_config']:
                     self.experiment_config = experiment_config[1](self.config, self.queues, self.connections, self.log, parameters = kwargs)
                     break
-        elif source_code != '':
-            loadable_source_code = source_code.replace('<newline>', '\n')
-            loadable_source_code = loadable_source_code.replace('<comma>', ',')
-            loadable_source_code = loadable_source_code.replace('<equal>', '=')
-#            loadable_source_code = loadable_source_code.replace('\r', '; ')
-            experiment_class_name = find_experiment_class_name.findall(loadable_source_code)[0]
-            experiment_config_class_name = find_experiment_config_class_name.findall(loadable_source_code)[0]
-            #rename classes
-            tag = '_' + str(int(time.time()))
-            loadable_source_code = loadable_source_code.replace(experiment_class_name, experiment_class_name+tag)
-            loadable_source_code = loadable_source_code.replace(experiment_config_class_name, experiment_config_class_name+tag)
-            
-            introspect.import_code(loadable_source_code,'experiment_module',add_to_sys_modules=1)
+        elif (source_code != '' and isinstance(source_code, str)) or hasattr(source_code, 'dtype'):
+            if hasattr(source_code, 'dtype'):
+                loadable_source_code = utils.array2object(source_code)
+            else:
+                loadable_source_code = source_code.replace('<newline>', '\n')
+                loadable_source_code = loadable_source_code.replace('<comma>', ',')
+                loadable_source_code = loadable_source_code.replace('<equal>', '=')
+                experiment_class_name = find_experiment_class_name.findall(loadable_source_code)[0]
+                experiment_config_class_name = find_experiment_config_class_name.findall(loadable_source_code)[0]
+                #rename classes
+                tag = '_' + str(int(time.time()))
+                loadable_source_code = loadable_source_code.replace(experiment_class_name, experiment_class_name+tag)
+                loadable_source_code = loadable_source_code.replace(experiment_config_class_name, experiment_config_class_name+tag)
+            introspect.import_code(loadable_source_code,'experiment_module', add_to_sys_modules=1)
             experiment_module = __import__('experiment_module')
             self.experiment_config = getattr(experiment_module, experiment_config_class_name+tag)(self.config, self.queues, \
                                                                                                   self.connections, self.log, getattr(experiment_module,experiment_class_name+tag), loadable_source_code)

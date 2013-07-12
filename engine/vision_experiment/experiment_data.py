@@ -21,7 +21,7 @@ from visexpA.engine.dataprocessors import generic as gen
 
 import unittest
 
-def generate_filename(config, id, experiment_name = '',  cell_name = '', nfragments = 1, region_name = '',  depth = '',  scan_mode = '', user_extensions = [], tmp_folder = None, experiment_config = None, output_folder = None):
+def generate_filename(config, id, experiment_name = '',  cell_name = '', nfragments = 1, region_name = '',  depth = '',  scan_mode = '', end_tag = '', user_extensions = [], tmp_folder = None, experiment_config = None, output_folder = None):
     '''
     Format:
     scan_mode, region_name, cell_name, depth, experiment_name, id, fragment_id
@@ -52,7 +52,7 @@ def generate_filename(config, id, experiment_name = '',  cell_name = '', nfragme
                     name += tag + '_'
             name = name[:-1]
         filenames['names'].append(name)
-        filename = '{0}.{1}'.format(name, config.EXPERIMENT_FILE_FORMAT)
+        filename = '{0}{1}.{2}'.format(name, end_tag, config.EXPERIMENT_FILE_FORMAT)
         filenames['datafile'].append(os.path.join(output_folder, filename))
         if tmp_folder is None or not os.path.exists(tmp_folder):
             tmp_folder = tempfile.mkdtemp()

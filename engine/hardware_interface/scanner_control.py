@@ -821,19 +821,6 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.queues['data'].put(self.scan_parameters)
         
     def _save_cadata(self, scan_config,parameters):
-        if parameters['stim_app_running']:
-            #Wait for notification from stimulation software
-            t0 = time.time()
-            while self.queues['in'].empty():
-                if time.time()-t0 > self.config.STIMULATION_FILE_READY_TIMEOUT:
-                    self.printc('Recording not saved because stimulation datafile is not ready')
-                    return
-                    break
-                else:
-                    time.sleep(0.1)
-            if self.queues['in'].get() != 'stim_datafile_ready':
-                self.printc('Recording not saved because stimulation datafile is not ready')
-                return
         self.printc('saving_data')
         #gather data to save
         data_to_save = {}
@@ -861,7 +848,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
 #            shutil.move(self.filenames['local_datafile'][0], self.filenames['datafile'][0])
         self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
         return
-        if self.filenames.has_key('other_files') and 'tiff' in self.filenames['other_files'][0]:
+        if self.filenames.has_key('other_files') and 'tiff' in self.filenames['other_files'][0]:#Converting datafile to tiff shall take place in elphys/main gui
             import tiffile
             from visexpA.engine.dataprocessors import generic
             tiff_description = 'Roskalab'

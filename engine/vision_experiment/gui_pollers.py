@@ -2142,11 +2142,6 @@ class CaImagingPoller(Poller):
                         elif message == 'connected to server':
                             #This is sent by the local queued client and its meaning can be confusing, therefore not shown
                             message = ''
-                        elif command == 'measurement_ready':#Datafile from stim is ready
-                            self.queues['out'].put('stim_datafile_ready')
-                            self.stim_app_running=False
-                        elif command == 'measurement_started':#Stimulation started
-                            self.stim_app_running=True
                         else:
                             self.printc(k.upper() + ' '  +  message)
         except:
@@ -2200,7 +2195,6 @@ class CaImagingPoller(Poller):
             
     def init_variables(self):
         self.scan_run = False
-        self.stim_app_running=False
         self.status = {}
         self.objective_position = 0
         self.scan_start_time = None
@@ -2287,32 +2281,31 @@ class CaImagingPoller(Poller):
         self.process.join()
         
     ########### Commands #################
-    def start_experiment(self):
+    def start_experiment(self,id = None):
         if self.scan_run:
             self.printc('Experiment already running')
             return
         experiment_name = self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText()
         self.measurement_starttime = time.time()
-        id = str(int(self.measurement_starttime))
-        #Find out fragment duration
-        from visexpman.engine.vision_experiment import experiment
-        fragment_durations = experiment.get_fragment_duration(experiment_name, self.config)
-        if fragment_durations is None:
-            self.printc('Fragment duration is not calculated in experiment class')
+        if id is None:
+            id = str(int(self.measurement_starttime))
+        #Load parameter file
+        parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
+        if not os.path.exists(parameter_file):
+            self.printc('Parameter file does not exists: {0}'.format(parameter_file))
             return
-        elif len(fragment_durations) > 1:
-            raise RuntimeError('Multiple fragment experiments not yet supported')
-        self.measurement_duration = fragment_durations[0]+self.config.CA_IMAGING_START_DELAY
-        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
-        command = 'SOCexecute_experimentEOCid={0},experiment_config={1}EOP' .format(id, experiment_name)
-        self.queues['stim']['out'].put(command)
-        self.scan(duration = self.measurement_duration, id = id, enable_record = True)
+        h = hdf5io.Hdf5io(parameter_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+        h.load('parameters')
+        h.close()
+        if h.parameters['enable_ca_recording']:
+            self.scan(duration = h.parameters['measurement_duration'], id = id, enable_record = True)
+        else:
+            self.printc('Ca signal recording is disabled')
         
     def stop_experiment(self):
         if self.scan_run:
             self.printc('Stopping experiment requested, please wait')
             self.queues['out'].put('stop_scan')
-            self.queues['stim']['out'].put('SOCabort_experimentEOCguiEOP')
             self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
     
     def scan(self, duration=None, nframes=None, name = None, id = None, enable_record = None):
@@ -2322,7 +2315,6 @@ class CaImagingPoller(Poller):
         else:
             self.update_scan_run_status('prepare')
             self.parameters = {}
-            self.parameters['stim_app_running'] = self.stim_app_running
             if duration is not None:
                 self.parameters['duration'] = duration
             if nframes is not None:
@@ -2382,6 +2374,7 @@ class CaImagingPoller(Poller):
                                                                             self.id, 
                                                                             experiment_name.replace('Config', '').replace('config', ''),  
                                                                             cell_name,  
+                                                                            end_tag = '_ca',
                                                                             user_extensions = ['tiff'], output_folder = folder)
             self.parameters['filenames'] = filenames
             self.queues['parameters'].put(self.parameters)
@@ -2666,12 +2659,6 @@ class VisexpGuiPoller(Poller):
                         elif message == 'connected to server':
                             #This is sent by the local queued client and its meaning can be confusing, therefore not shown
                             message = ''
-                        elif message == 'stim_started':
-                            self.measurement_starttime = time.time()
-                            try:
-                                self.measurement_duration = int(numpy.ceil(float(parameter)))
-                            except:
-                                self.measurement_duration = 0
                         elif message == 'imaging_finished':
                             self.imaging_finished = True
                         elif message == 'stim_finished':
@@ -2688,10 +2675,20 @@ class VisexpGuiPoller(Poller):
         self.experiment_parameters['enable_ca_recording'] = (self.parent.central_widget.main_widget.experiment_options_groupbox.enable_ca_recording.input.checkState() == 2)
         self.experiment_parameters['enable_elphys_recording'] = (self.parent.central_widget.main_widget.experiment_options_groupbox.enable_elphys_recording.input.checkState() == 2)
         self.experiment_parameters['id'] = str(int(time.time()))
+        #Find out experiment duration
+        from visexpman.engine.vision_experiment import experiment
+        fragment_durations = experiment.get_fragment_duration(self.experiment_parameters['experiment_config'], self.config)
+        if fragment_durations is None:
+            self.printc('Fragment duration is not calculated in experiment class')
+            return
+        elif len(fragment_durations) > 1:
+            raise RuntimeError('Multiple fragment experiments not yet supported')
+        self.measurement_duration = fragment_durations[0]+self.config.CA_IMAGING_START_DELAY
+        self.experiment_parameters['measurement_duration'] = self.measurement_duration
         #Save parameters to hdf5 file
         parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
         if os.path.exists(parameter_file):
-            self.printc('ID alread exists: {0}'.format(self.experiment_parameters['id']))
+            self.printc('ID already exists: {0}'.format(self.experiment_parameters['id']))
         h = hdf5io.Hdf5io(parameter_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         fields_to_save = ['parameters']
         h.parameters = copy.deepcopy(self.experiment_parameters)
@@ -2711,6 +2708,7 @@ class VisexpGuiPoller(Poller):
         self._start_analog_recording()
         self.stimulation_finished = False
         self.imaging_finished = False
+        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
         
     def stop_experiment(self):
         self.printc('Stopping experiment requested, please wait')
