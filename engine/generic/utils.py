@@ -642,7 +642,6 @@ version_paths = {
     'celery' : '__version__',
     'pp' : 'version',
     'mahotas': 'version.version',
-    'Helpers' : 'version', 
     'visexpman': 'version', 
     'visexpA': 'version', 
     'sklearn':'__version__',

@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-4.6.dtd">
 <!-- eric4 project file for project visexpman -->
-<!-- Saved: 2011-11-18, 13:49:01 -->
-<!-- Copyright (C) 2011 Zoltan Raics, zoltan.raics@fmi.ch -->
+<!-- Saved: 2013-07-12, 15:36:49 -->
+<!-- Copyright (C) 2013 Zoltan Raics, zoltan.raics@fmi.ch -->
 <Project version="4.6">
   <Language>en</Language>
   <ProgLanguage mixed="0">Python</ProgLanguage>
@@ -23,7 +23,6 @@
     <Source>users/zoltan/flash_screen_stimulus.py</Source>
     <Source>users/zoltan/configurations.py</Source>
     <Source>users/zoltan/flash_colors_stimulus.py</Source>
-    <Source>users/zoltan/test/test_stimulus.py</Source>
     <Source>users/zoltan/test/remote_interface_tester.py</Source>
     <Source>users/zoltan/test/stimulus_library_test_data.py</Source>
     <Source>users/karl/electrophysiology_configuration.py</Source>
@@ -35,12 +34,6 @@
     <Source>users/templateuser/ds_stimulus.py</Source>
     <Source>users/peter/mea_configurations.py</Source>
     <Source>engine/run_virtual_reality.py</Source>
-    <Source>engine/visual_stimulation/configuration.py</Source>
-    <Source>engine/visual_stimulation/experiment.py</Source>
-    <Source>engine/visual_stimulation/stimulation_control.py</Source>
-    <Source>engine/visual_stimulation/stimulation_library.py</Source>
-    <Source>engine/visual_stimulation/user_interface.py</Source>
-    <Source>engine/visual_stimulation/command_handler.py</Source>
     <Source>engine/run_visual_stimulation.py</Source>
     <Source>engine/hardware_interface/daq_instrument.py</Source>
     <Source>engine/hardware_interface/instrument.py</Source>
@@ -52,7 +45,6 @@
     <Source>engine/generic/parameter.py</Source>
     <Source>__init__.py</Source>
     <Source>engine/__init__.py</Source>
-    <Source>engine/visual_stimulation/__init__.py</Source>
     <Source>engine/hardware_interface/__init__.py</Source>
     <Source>users/zoltan/__init__.py</Source>
     <Source>users/zoltan/experiment_tests.py</Source>
@@ -85,11 +77,44 @@
     <Source>users/zoltan/test/code_tester.py</Source>
     <Source>users/zoltan/test/test_installation.py</Source>
     <Source>users/templateuser/presentinator_experiment.py</Source>
-    <Source>engine/visexpman_gui.py</Source>
     <Source>users/zoltan/test/test_server.py</Source>
     <Source>engine/hardware_interface/mes_interface.py</Source>
     <Source>users/zoltan/machine_configs.py</Source>
     <Source>engine/generic/log.py</Source>
+    <Source>engine/hardware_interface/digital_io.py</Source>
+    <Source>engine/hardware_interface/flowmeter.py</Source>
+    <Source>engine/hardware_interface/stage_control.py</Source>
+    <Source>engine/hardware_interface/lightmeter.py</Source>
+    <Source>engine/hardware_interface/zmqcontext.py</Source>
+    <Source>engine/hardware_interface/zmqsocket.py</Source>
+    <Source>engine/hardware_interface/polychrome_interface.py</Source>
+    <Source>engine/hardware_interface/scanner_control.py</Source>
+    <Source>engine/hardware_interface/camera_interface.py</Source>
+    <Source>engine/generic/command_parser.py</Source>
+    <Source>engine/generic/file.py</Source>
+    <Source>engine/generic/string.py</Source>
+    <Source>engine/generic/timing.py</Source>
+    <Source>engine/generic/fitellipse.py</Source>
+    <Source>engine/generic/colors.py</Source>
+    <Source>engine/generic/gui.py</Source>
+    <Source>engine/generic/ArrayConvert.py</Source>
+    <Source>engine/generic/shmem_sync.py</Source>
+    <Source>engine/generic/shmem.py</Source>
+    <Source>engine/generic/shmem_views.py</Source>
+    <Source>engine/vision_experiment/__init__.py</Source>
+    <Source>engine/vision_experiment/screen.py</Source>
+    <Source>engine/vision_experiment/configuration.py</Source>
+    <Source>engine/vision_experiment/experiment.py</Source>
+    <Source>engine/vision_experiment/stimulation_library.py</Source>
+    <Source>engine/vision_experiment/experiment_control.py</Source>
+    <Source>engine/vision_experiment/command_handler.py</Source>
+    <Source>engine/vision_experiment/gui.py</Source>
+    <Source>engine/vision_experiment/experiment_data.py</Source>
+    <Source>engine/vision_experiment/gui_pollers.py</Source>
+    <Source>engine/visexp_scanner.py</Source>
+    <Source>engine/ca_imaging_gui.py</Source>
+    <Source>engine/visexp_gui.py</Source>
+    <Source>engine/visexp_smallapp.py</Source>
   </Sources>
   <Forms>
   </Forms>
