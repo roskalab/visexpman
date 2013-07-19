@@ -547,16 +547,15 @@ class QueuedClient(QtCore.QThread):
                         time.sleep(0.05)
                 else:
                     time.sleep(self.no_message_timeout)
-                time.sleep(0.1)
                 self.connection.close()
                 time.sleep(1.0 + 1.5 * random.random())
                 self.printl('connection closed')                
                 self.queue_in.put('connection closed')
             except socket.error:
-                self.printl('socket error: ' + traceback.format_exc())                
+                self.printl('socket error: ' + traceback.format_exc())
             except:
                 self.printl(traceback.format_exc())
-                
+            time.sleep(0.1)
             if shutdown_request:
                 self.printl('stop client')
                 break

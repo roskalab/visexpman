@@ -476,6 +476,7 @@ class CaImagingGui(Qt.QMainWindow):
         if not isinstance(text, str):
             text = str(text)
         self.console_text  += utils.time_stamp_to_hms(time.time()) + ' '  + text + '\n'
+        self.poller.queues['gui']['out'].put(text)
         self.update_console()
         
     def update_console(self):
@@ -555,16 +556,7 @@ class CaImagingGui(Qt.QMainWindow):
             calibdata['profile_parameters'], calibdata['line_profiles'] = scanner_control.process_calibdata(calibdata['pmt'], calibdata['mask'], calibdata['parameters'], self.config.SINUS_CALIBRATION_MAX_LINEARITY_ERROR)
         self.poller.queues['data'].put(calibdata)
         self.plot_calibdata()
-
-    def update_progress_bar(self):
-        if self.poller.scan_run and hasattr(self.poller, 'measurement_starttime'):
-            elapsed_time = int(time.time() - self.poller.measurement_starttime)
-            if elapsed_time > self.poller.measurement_duration:
-                elapsed_time = self.poller.measurement_duration
-            self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(elapsed_time)
-        else:
-            self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
-
+    
     def update_scan_run_status(self, status):
         '''
         Scan button color and text is updated according to current status of scanning process. During preparation and datasaving button is disabled
@@ -590,11 +582,10 @@ class CaImagingGui(Qt.QMainWindow):
         e.accept()
         self.poller.abort = True
         self.poller.wait()
-        
    
 if __name__ == '__main__':
     from visexpman.engine.visexp_runner import visexp_application_runner
     from multiprocessing import Process
-    process = Process(target=visexp_application_runner,  args = ('zoltan', 'CaImagingTestConfig'))
-    process.start()
+#    process = Process(target=visexp_application_runner,  args = ('zoltan', 'CaImagingTestConfig'))
+#    process.start()
     CaImagingGui('zoltan', 'CaImagingTestConfig')

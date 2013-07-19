@@ -164,8 +164,9 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         if unit_test_runner.TEST_enable_network:
             self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
             self.queues['gui']['out'].put('SOCclose_connectionEOCstop_clientEOP')
+            self.queues['imaging']['out'].put('SOCclose_connectionEOCstop_clientEOP')
             time.sleep(3.0)
-            for conn in ['mes', 'gui']:
+            for conn in ['mes', 'gui',  'imaging']:
                 if self.connections.has_key(conn) and  hasattr(self.connections[conn], 'log_queue'):
                     self.log.queue(self.connections[conn].log_queue, conn +' connection')
             self.log.info('Network connections terminated')
@@ -176,12 +177,16 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         self.queues['gui'] = {}
         self.queues['gui']['out'] = Queue.Queue()
         self.queues['gui']['in'] = Queue.Queue()
+        self.connections['gui'] = network_interface.start_client(self.config, 'STIM', 'GUI_STIM', self.queues['gui']['in'], self.queues['gui']['out'])
         self.queues['mes'] = {}
         self.queues['mes']['out'] = Queue.Queue()
         self.queues['mes']['in'] = Queue.Queue()
-        self.queues['udp'] = {'in' : Queue.Queue() }
-        self.connections['gui'] = network_interface.start_client(self.config, 'STIM', 'GUI_STIM', self.queues['gui']['in'], self.queues['gui']['out'])
         self.connections['mes'] = network_interface.start_client(self.config, 'STIM', 'STIM_MES', self.queues['mes']['in'], self.queues['mes']['out'])
+        self.queues['imaging'] = {}
+        self.queues['imaging']['out'] = Queue.Queue()
+        self.queues['imaging']['in'] = Queue.Queue()
+        self.connections['imaging'] = network_interface.start_client(self.config, 'STIM', 'STIM_IMAGING', self.queues['imaging']['in'], self.queues['imaging']['out'])
+        self.queues['udp'] = {'in' : Queue.Queue() }
         if self.config.ENABLE_UDP:
             server_address = ''
             self.udp_listener = network_interface.NetworkListener(server_address, self.queues['udp']['in'], socket.SOCK_DGRAM, self.config.UDP_PORT)

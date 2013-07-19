@@ -2081,20 +2081,21 @@ class CaImagingPoller(Poller):
                 self.udp_listener.start()
             except socket.error:
                 print 'In Labview Imaging Disable UDP triggering'
-        
         self.connections = {}
-        self.queues = {}
         self.queues['gui'] = {}
         self.queues['gui']['out'] = Queue.Queue()
         self.queues['gui']['in'] = Queue.Queue()
         self.connections['gui'] = network_interface.start_client(self.config, 'IMAGING', 'GUI_IMAGING', self.queues['gui']['in'], self.queues['gui']['out'])
+        self.queues['stim'] = {}
+        self.queues['stim']['out'] = Queue.Queue()
+        self.queues['stim']['in'] = Queue.Queue()
+        self.connections['stim'] = network_interface.start_client(self.config, 'IMAGING', 'STIM_IMAGING', self.queues['stim']['in'], self.queues['stim']['out'])
 
     def periodic(self):
         if self.scan_run and self.scan_start_time is not None:
             self.update_status(scan_is_running_for = (numpy.round(time.time() - self.scan_start_time),  's'))
         else:
             self.update_status(scan_is_running_for = (0,  's'))
-        self.emit(QtCore.SIGNAL('update_progress_bar'))
         
     def run_in_all_iterations(self):
         self.udp_handler()
@@ -2139,9 +2140,13 @@ class CaImagingPoller(Poller):
                             message = command
                         elif command == 'echo' and parameter == 'GUI':
                             message = ''
+                        elif command == 'start_experiment':
+                            self.start_experiment(id = parameter.split('=')[1])
                         elif message == 'connected to server':
                             #This is sent by the local queued client and its meaning can be confusing, therefore not shown
                             message = ''
+                        elif isinstance(command, str) and hasattr(self, command):
+                            getattr(self, command)()
                         else:
                             self.printc(k.upper() + ' '  +  message)
         except:
@@ -2151,7 +2156,6 @@ class CaImagingPoller(Poller):
         Poller.connect_signals(self)
         self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
         self.parent.connect(self, QtCore.SIGNAL('update_scan_run_status'),  self.parent.update_scan_run_status)
-        self.parent.connect(self, QtCore.SIGNAL('update_progress_bar'),  self.parent.update_progress_bar)
         self.parent.connect(self, QtCore.SIGNAL('plot_calibdata'),  self.parent.plot_calibdata)
         self.parent.connect(self, QtCore.SIGNAL('plot_histogram'),  self.parent.plot_histogram)
                 
@@ -2272,10 +2276,10 @@ class CaImagingPoller(Poller):
 
     def close(self):
         self.queues['out'].put('SOCquitEOCEOP')
-        if self.config.__class__.__name__ == 'CaImagingTestConfig':
-            self.queues['stim']['out'].put('SOCexitEOCEOP')
+#        if self.config.__class__.__name__ == 'CaImagingTestConfig':
+#            self.queues['stim']['out'].put('SOCexitEOCEOP')
         for conn_name in self.queues.keys():
-            if utills.safe_has_key(self.queues[conn_name],'out'):
+            if hasattr(self.queues[conn_name], 'has_key') and self.queues[conn_name].has_key('out'):
                 self.queues[conn_name]['out'].put('SOCclose_connectionEOCstop_clientEOP')
         self.save_context()
         self.process.join()
@@ -2285,10 +2289,8 @@ class CaImagingPoller(Poller):
         if self.scan_run:
             self.printc('Experiment already running')
             return
-        experiment_name = self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText()
-        self.measurement_starttime = time.time()
         if id is None:
-            id = str(int(self.measurement_starttime))
+            return
         #Load parameter file
         parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
         if not os.path.exists(parameter_file):
@@ -2307,6 +2309,9 @@ class CaImagingPoller(Poller):
             self.printc('Stopping experiment requested, please wait')
             self.queues['out'].put('stop_scan')
             self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
+            
+    def abort_experiment(self):
+        self.stop_experiment()
     
     def scan(self, duration=None, nframes=None, name = None, id = None, enable_record = None):
         if self.scan_run:
@@ -2390,6 +2395,7 @@ class CaImagingPoller(Poller):
                                                                           )
         self.scan_start_time = time.time()
         self.printc('Scan started')
+        self.queues['stim']['out'].put('SOCimaging_startedEOCEOP')
         self.update_scan_run_status('started')
         
     def scan_ready(self):
@@ -2397,6 +2403,7 @@ class CaImagingPoller(Poller):
         self.scan_parameters = {}
         self.scan_start_time = None
         self.printc('Scan ready')
+        self.queues['gui']['out'].put('SOCimaging_finishedEOCEOP')
         
     def saving_data(self):
         self.printc('Saving data')
@@ -2603,7 +2610,7 @@ class VisexpGuiPoller(Poller):
         
     def update_network_connection_status(self):
         #Check for network connection status
-        if hasattr(self.parent, 'common_widget') and hasattr(self.command_relay_server, 'servers'):
+        if hasattr(self.parent, 'central_widget') and hasattr(self.command_relay_server, 'servers'):
             connection_status = self.command_relay_server.get_connection_status()
             connected = ''
             n_connected = 0
@@ -2616,6 +2623,9 @@ class VisexpGuiPoller(Poller):
             if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
                 connected += 'ANALYSIS  '
                 n_connected += 1
+            if connection_status['STIM_IMAGING/IMAGING'] and connection_status['STIM_IMAGING/STIM']:
+                connected += 'STIM-IMAGING  '
+                n_connected += 1
             n_connections = len(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].keys())
             connected = 'Alive connections ({0}/{1}): '.format(n_connected, n_connections) + connected
             self.parent.central_widget.main_widget.network_status.setText(connected)
@@ -2626,6 +2636,7 @@ class VisexpGuiPoller(Poller):
             self._finish_analog_recording()
             self.imaging_finished = False
             self.stimulation_finished = False
+            self._finish_experiment()
             
     def periodic(self):
         if self.analog_recording_started and hasattr(self, 'measurement_starttime') and hasattr(self, 'measurement_duration'):
@@ -2656,13 +2667,13 @@ class VisexpGuiPoller(Poller):
                             message = command
                         elif command == 'echo' and parameter == 'GUI':
                             message = ''
+                        elif command == 'imaging_finished':
+                            self.imaging_finished = True
+                        elif command == 'stim_finished':
+                            self.stimulation_finished = True
                         elif message == 'connected to server':
                             #This is sent by the local queued client and its meaning can be confusing, therefore not shown
                             message = ''
-                        elif message == 'imaging_finished':
-                            self.imaging_finished = True
-                        elif message == 'stim_finished':
-                            self.stimulation_finished = True
                         else:
                             self.printc(k.upper() + ' '  +  message)
         except:
@@ -2703,8 +2714,6 @@ class VisexpGuiPoller(Poller):
         self.printc('{0} parameter file generated'.format(self.experiment_parameters['id']))
         command = 'SOCstart_experimentEOCid={0}EOP' .format(self.experiment_parameters['id'])
         self.queues['stim']['out'].put(command)
-        if self.experiment_parameters['enable_ca_recording']:
-            self.queues['imaging']['out'].put(command)
         self._start_analog_recording()
         self.stimulation_finished = False
         self.imaging_finished = False
@@ -2723,15 +2732,38 @@ class VisexpGuiPoller(Poller):
         self.analog_input = daq_instrument.AnalogIO(self.config, id=2)
         self.analog_input.start_daq_activity()
         self.analog_recording_started=True
+        self.printc('Analog recording started')
 
-    def _finish_analog_recording(self, abort=True):
+    def _finish_analog_recording(self, abort=False):
         if self.analog_recording_started:
             self.analog_input.finish_daq_activity(abort = abort)
             self.analog_recording_started=False
+            self.printc('Analog recording finished')
+            
+    def _finish_experiment(self):
+        os.remove(os.path.join(self.config.EXPERIMENT_DATA_PATH,  self.experiment_parameters['id']+'.hdf5'))
+        if hasattr(self.analog_input, 'ai_data'):
+            analog_input_data = self.analog_input.ai_data
+        #Move data to one file
+        for fn in os.listdir(self.config.EXPERIMENT_DATA_PATH):
+            if self.experiment_parameters['id'] in fn:
+                path = os.path.join(self.config.EXPERIMENT_DATA_PATH, fn)
+                if fn.split('.')[0].split('_')[-1] == 'ca':
+                    cadata = hdf5io.read_item(path, 'cadata', filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+                    os.remove(path)
+                else:
+                    h = hdf5io.Hdf5io(path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+        h.cadata = cadata
+        h.analog_inputs = analog_input_data
+        h.save(['cadata', 'analog_inputs'])
+        h.close()
+        self.printc('All data saved to {0}'.format(h.filename))
 
     def close(self):
         for conn_name in self.queues.keys():
             self.queues[conn_name]['out'].put('SOCclose_connectionEOCstop_clientEOP')
+        time.sleep(0.5)                
+        self.command_relay_server.shutdown_servers()
         self.save_context()
 
 if __name__ == '__main__':

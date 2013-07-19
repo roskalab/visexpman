@@ -63,15 +63,16 @@ class WhiteNoiseExperiment(experiment.Experiment):
 class DebugExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'Debug'
+        self.DURATION = 50.0
 #        self.pre_runnable = 'TestPre'
         self._create_parameters_from_locals(locals())          
         
 class Debug(experiment.Experiment):
     def prepare(self):
-        self.fragment_durations = [5]
+        self.fragment_durations = [self.experiment_config.DURATION]
     
     def run(self):
-        self.show_shape(duration=5.0,size=100)
+        self.show_shape(duration=self.experiment_config.DURATION,size=100)
         return
         ncheckers = utils.rc((3, 3))
         colors = numpy.zeros((1, ncheckers['row'], ncheckers['col'], 3))

@@ -130,6 +130,8 @@ class ExperimentControl(object):
         message_to_screen += self.printl('Experiment finished at {0}' .format(utils.datetime_string()),  application_log = True) + '\n'
         if self.config.PLATFORM == 'rc_cortical':
             self.printl('SOCmeasurement_finishedEOC{0}EOP'.format(self.id))
+        else:
+            self.printl('SOCstim_finishedEOC{0}EOP'.format(self.id))
         self.application_log.flush()
         return message_to_screen
         
@@ -143,7 +145,9 @@ class ExperimentControl(object):
             return False
         h = hdf5io.Hdf5io(self.parameter_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         mandatory_fields_to_load = ['parameters']
-        fields_to_load = ['xy_scan_parameters', 'animal_parameters', 'anesthesia_history']
+        fields_to_load = ['animal_parameters', 'anesthesia_history']
+        if self.config.PLATFORM == 'rc_cortical':
+            fields_to_load .append('xy_scan_parameters')
         fields_to_load.extend(mandatory_fields_to_load)
         for field in fields_to_load:
             value = h.findvar(field)
@@ -153,14 +157,14 @@ class ExperimentControl(object):
                     return False
             if field == 'parameters':
                 self.parameters = dict(self.parameters.items() + value.items())
-                self.scan_mode = self.parameters['scan_mode']
+                if self.parameters.has_key('scan_mode'):
+                    self.scan_mode = self.parameters['scan_mode']
+                    if self.scan_mode == 'xz':
+                        fields_to_load += ['xz_config', 'rois', 'roi_locations']
                 self.id = self.parameters['id']
-                if self.scan_mode == 'xz':
-                    fields_to_load += ['xz_config', 'rois', 'roi_locations']
             else:
                 setattr(self, field,  value)
         h.close()
-        os.remove(self.parameter_file)
         return True
 
     def _prepare_experiment(self, context):
@@ -173,7 +177,7 @@ class ExperimentControl(object):
         if self.config.PLATFORM == 'rc_cortical':
            if not load_parameters_successful:
             self.abort = True
-        else:
+        elif not hasattr(self, 'id'):
             self.id = str(int(time.time()))
         self._initialize_experiment_log()
         self._initialize_devices()
@@ -290,7 +294,19 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
             return True
-        elif self.config.PLATFORM in ['standalone', 'ao_cortical', 'retinal_ca']:
+        elif self.config.PLATFORM == 'retinal_ca':
+            if self.parameters.has_key('enable_ca_recording') and self.parameters['enable_ca_recording']:
+                command = 'SOCstart_experimentEOCid={0}EOP' .format(self.id)
+                self.queues['imaging']['out'].put(command)
+                utils.empty_queue(self.queues['imaging']['in'])
+                result = False
+                if utils.wait_data_appear_in_queue(self.queues['imaging']['in'], self.config.CA_IMAGING_START_TIMEOUT):
+                    if 'imaging_started' in self.queues['imaging']['in'].get():
+                        result = True
+            else:
+                result = True
+            return result
+        elif self.config.PLATFORM in ['standalone', 'ao_cortical']:
             return True
         return False
 
@@ -529,13 +545,14 @@ class ExperimentControl(object):
             analog_input_data = hdf5io.read_item(f.replace('.mat', '.hdf5'), '_'.join(os.path.split(f.replace('.mat', ''))[1].split('_')[-3:]), filelocking=False)['sync_data']
         else:
             analog_input_data = numpy.zeros((2, 2))
-            self.printl('Analog input data is NOT available')
+            if self.config.PLATFORM != 'retinal_ca':
+                self.printl('Analog input data is NOT available')
         stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected =\
                             experiment_data.preprocess_stimulus_sync(\
                             analog_input_data[:, self.config.STIM_SYNC_CHANNEL_INDEX], 
                             stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:], 
                             sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)
-        if not pulses_detected:
+        if not pulses_detected and self.config.PLATFORM != 'retinal_ca':
             self.printl('Stimulus sync signal is NOT detected')
         if self.config.PLATFORM == 'rc_cortical' and not self.parameters['enable_intrinsic']:
             a, b, pulses_detected =\

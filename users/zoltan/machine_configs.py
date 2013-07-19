@@ -217,9 +217,9 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         
         #### Network ####
-        ENABLE_UDP_TRIGGER= (os.name == 'nt')
+        ENABLE_UDP_TRIGGER= False
         UDP_PORT = 446
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.32'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
         self.BASE_PORT = 30000
@@ -228,10 +228,12 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
             'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
             'GUI_IMAGING'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'IMAGING' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}},
+            'STIM_IMAGING'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+10}, 'IMAGING' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 11}},
             }
         COORDINATE_SYSTEM='center'
         ######################### Ca imaging specific ################################ 
         self.CA_IMAGING_START_DELAY = 5.0#NEW
+        self.CA_IMAGING_START_TIMEOUT = 15.0
         MAX_PMT_VOLTAGE = 8.0
         SCANNER_START_STOP_TIME = 0.02
         SCANNER_MAX_POSITION = 350.0
@@ -262,11 +264,11 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         'DO_CHANNEL' : unit_test_runner.TEST_daq_device + '/port0/line0',
         'ENABLE' : True
         }, 
-        {
+        {#Ca sync, stim sync, elphys
         'ANALOG_CONFIG' : 'ai',
         'DAQ_TIMEOUT' : 3.0,
         'SAMPLE_RATE' : 5000,
-        'AI_CHANNEL' : 'Dev1/ai2:3',
+        'AI_CHANNEL' : 'Dev1/ai0:2',
         'MAX_VOLTAGE' : 10.0,
         'MIN_VOLTAGE' : -10.0,
         'DURATION_OF_AI_READ' : 2*self.MAXIMUM_RECORDING_DURATION,

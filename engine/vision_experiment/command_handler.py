@@ -33,7 +33,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
     def __init__(self):
         self.keyboard_command_queue = Queue.Queue()
         #Here the set of queues are defined from commands are parsed
-        queue_in = [self.queues['mes']['in'], self.queues['gui']['in'], self.keyboard_command_queue, self.queues['udp']['in']]
+        queue_in = [self.queues['imaging']['in'],  self.queues['mes']['in'], self.queues['gui']['in'], self.keyboard_command_queue, self.queues['udp']['in']]
         #Set of queues where command parser output is relayed NOT YET IMPLEMENTED IN command_parser
         queue_out = self.queues['gui']['out']
         command_parser.CommandParser.__init__(self, queue_in, queue_out, log = self.log, failsafe = False)
@@ -128,12 +128,10 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.experiment_config = self.experiment_config_list[int(self.selected_experiment_config_index)][1](self.config, self.queues, self.connections, self.log)
         return 'selected experiment: ' + str(experiment_index) + ' '
         
-    def start_experiment(self, id = None):
-        if id is None:
+    def start_experiment(self, **kwargs):
+        if kwargs['id'] is None:
             return
-        parameters = hdf5io.read_item(os.apth.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5'),'parameters',filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-        kwargs = []
-        kwargs['id'] = id
+        parameters = hdf5io.read_item(os.path.join(self.config.EXPERIMENT_DATA_PATH, kwargs['id']+'.hdf5'),'parameters',filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         kwargs['experiment_config'] = parameters['experiment_config']
         if parameters.has_key('source_code'):
             kwargs['source_code'] = parameters['source_code']
