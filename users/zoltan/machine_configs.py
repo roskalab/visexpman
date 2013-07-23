@@ -222,7 +222,8 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.32'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
-        self.BASE_PORT = 30000
+        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 10.0
+        self.BASE_PORT = 10000
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
             {
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 

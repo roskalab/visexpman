@@ -2073,14 +2073,6 @@ class CaImagingPoller(Poller):
         self.init_network()
                 
     def init_network(self):
-        if self.config.ENABLE_UDP_TRIGGER:
-            server_address = ''
-            import socket
-            try:
-                self.udp_listener = network_interface.NetworkListener(server_address, self.queues['udp'], socket.SOCK_DGRAM, self.config.UDP_PORT)
-                self.udp_listener.start()
-            except socket.error:
-                print 'In Labview Imaging Disable UDP triggering'
         self.connections = {}
         self.queues['gui'] = {}
         self.queues['gui']['out'] = Queue.Queue()
@@ -2120,7 +2112,6 @@ class CaImagingPoller(Poller):
                     self.printc(traceback.format_exc())
             else:
                 self.printc(message_raw)
-                
         try:
             for k, queue in self.queues.items():                
                 if hasattr(queue, 'has_key') and queue.has_key('in') and not queue['in'].empty():
@@ -2138,8 +2129,6 @@ class CaImagingPoller(Poller):
                             parameter = parameter[0]
                         if command == 'connection':
                             message = command
-                        elif command == 'echo' and parameter == 'GUI':
-                            message = ''
                         elif command == 'start_experiment':
                             self.start_experiment(id = parameter.split('=')[1])
                         elif message == 'connected to server':
@@ -2147,8 +2136,8 @@ class CaImagingPoller(Poller):
                             message = ''
                         elif isinstance(command, str) and hasattr(self, command):
                             getattr(self, command)()
-                        else:
-                            self.printc(k.upper() + ' '  +  message)
+#                        else:
+#                            self.printc(k.upper() + ' '  +  message)
         except:
             self.printc(traceback.format_exc())
 
@@ -2403,7 +2392,7 @@ class CaImagingPoller(Poller):
         self.scan_parameters = {}
         self.scan_start_time = None
         self.printc('Scan ready')
-        self.queues['gui']['out'].put('SOCimaging_finishedEOCEOP')
+        self.queues['gui']['out'].put('SOCimaging_finishedEOC{0}EOP'.format(self.id))
         
     def saving_data(self):
         self.printc('Saving data')
@@ -2588,13 +2577,13 @@ class VisexpGuiPoller(Poller):
         if os.path.exists(self.config.CONTEXT_FILE):
             context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             context_hdf5.close()
-            
+
     def save_context(self):
         pass
-        
+
     def init_network(self):
-        self.command_relay_server = network_interface.CommandRelayServer(self.config)
         self.connections = {}
+        self.command_relay_server = network_interface.CommandRelayServer(self.config)
         self.queues['imaging'] = {}
         self.queues['imaging']['out'] = Queue.Queue()
         self.queues['imaging']['in'] = Queue.Queue()
@@ -2654,28 +2643,33 @@ class VisexpGuiPoller(Poller):
                     messages = queue['in'].get()
                     if 'EOPSOC' in messages:
                         messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
+                    elif 'EOP' in messages:
+                        messages = messages.split('EOP')
+                        messages[0] += 'EOP'
                     else:
                         messages = [messages]
+                    print messages
                     for message in messages:
-                        command = command_extract.findall(message)
-                        if len(command) > 0:
-                            command = command[0]
-                        parameter = parameter_extract.findall(message)
-                        if len(parameter) > 0:
-                            parameter = parameter[0]
-                        if command == 'connection':
-                            message = command
-                        elif command == 'echo' and parameter == 'GUI':
-                            message = ''
-                        elif command == 'imaging_finished':
-                            self.imaging_finished = True
-                        elif command == 'stim_finished':
-                            self.stimulation_finished = True
-                        elif message == 'connected to server':
-                            #This is sent by the local queued client and its meaning can be confusing, therefore not shown
-                            message = ''
-                        else:
-                            self.printc(k.upper() + ' '  +  message)
+                        if len(message)>0:
+                            command = command_extract.findall(message)
+                            if len(command) > 0:
+                                command = command[0]
+                            parameter = parameter_extract.findall(message)
+                            if len(parameter) > 0:
+                                parameter = parameter[0]
+                            if command == 'connection':
+                                message = command
+                            elif command == 'echo' and parameter == 'GUI':
+                                message = ''
+                            elif command == 'imaging_finished':
+                                self.imaging_finished = True
+                            elif command == 'stim_finished':
+                                self.stimulation_finished = True
+                            elif message == 'connected to server':
+                                #This is sent by the local queued client and its meaning can be confusing, therefore not shown
+                                message = ''
+                            else:
+                                self.printc(k.upper() + ' '  +  message)
         except:
             self.printc(traceback.format_exc())
         
@@ -2725,7 +2719,7 @@ class VisexpGuiPoller(Poller):
         for conn in ['imaging', 'stim']:
             self.queues[conn]['out'].put(command)
         self._finish_analog_recording()
-        self.parent.central_widget.main_widget.experiment_control_groupbox.start_experiment_button.setEnabled(True)
+        self._finish_experiment()
         self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
 
     def _start_analog_recording(self):
@@ -2741,6 +2735,7 @@ class VisexpGuiPoller(Poller):
             self.printc('Analog recording finished')
             
     def _finish_experiment(self):
+        self.printc('Saving datafiles, please wait...')
         os.remove(os.path.join(self.config.EXPERIMENT_DATA_PATH,  self.experiment_parameters['id']+'.hdf5'))
         if hasattr(self.analog_input, 'ai_data'):
             analog_input_data = self.analog_input.ai_data

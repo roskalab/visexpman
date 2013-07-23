@@ -1031,6 +1031,7 @@ class VisionExperimentGui(Qt.QMainWindow):
             qt_app = Qt.QApplication([])
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = configuration.VisionExperimentConfig,direct = False)[0][1]()
         self.config.user = user
+        self.config.appname = appname
         self.console_text = ''
         self.log = log.Log(appname, file.generate_filename(os.path.join(self.config.LOG_PATH, appname+'_log.txt')), local_saving = True)
         Qt.QMainWindow.__init__(self)
@@ -1085,13 +1086,10 @@ def run_cortical_gui():
     gui = CorticalVisionExperimentGui(sys.argv[1], sys.argv[2])
     app.exec_()
     
-def run_elphys_gui():
-    gui = VisionExperimentGui('zoltan', 'CaImagingTestConfig', 'elphys')
-#    gui = VisionExperimentGui(sys.argv[1], sys.argv[2], sys.argv[3])
-
 if __name__ == '__main__':
     if True:
-        run_elphys_gui()
+        if len(sys.argv) == 2:
+            gui =  VisionExperimentGui('zoltan', 'CaImagingTestConfig', sys.argv[1])
     else:
         run_cortical_gui()
     

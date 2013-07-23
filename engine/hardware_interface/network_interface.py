@@ -261,6 +261,7 @@ class SockServer(SocketServer.TCPServer):
         self.alive_message = 'SOCechoEOCaliveEOP'
         self.shutdown_requested = False        
         self.keepalive = True#Client can request to stop keep alive check until the next message
+        self.start_time = time.time()
         
     def shutdown_request(self):
         self.shutdown_requested = True
@@ -268,7 +269,7 @@ class SockServer(SocketServer.TCPServer):
     def printl(self, message):        
         debug_message = self.name + ': ' + str(message)
         if DISPLAY_MESSAGE:
-            print debug_message
+            print time.time()-self.start_time, debug_message
         if self.log_queue != None:
             self.log_queue.put([time.time(), debug_message], True)
         
@@ -292,7 +293,10 @@ class SockServer(SocketServer.TCPServer):
                         if now - self.last_alive_message > 0.2 * self.connection_timeout:
                             try:
                                 if self.keepalive:
-                                    request.send(self.alive_message)
+                                    try:
+                                        request.send(self.alive_message)
+                                    except:
+                                        self.printl(traceback.format_exc())
                                     self.last_alive_message = now
                             except:
                                 self.printl(traceback.format_exc())
@@ -466,12 +470,13 @@ class QueuedClient(QtCore.QThread):
         self.no_message_timeout = timeout
         self.alive_message = 'SOCechoEOCaliveEOP'
         self.endpoint_name = endpoint_name
-        self.log_queue = Queue.Queue()        
+        self.log_queue = Queue.Queue()
+        self.start_time = time.time()
         
     def printl(self, message):
         debug_message = str(message)
         if DISPLAY_MESSAGE:
-            print debug_message        
+            print time.time()-self.start_time, debug_message
         self.log_queue.put([time.time(), debug_message], True)
         
     def run(self):   
@@ -496,7 +501,7 @@ class QueuedClient(QtCore.QThread):
                     connection_close_request = True
                     self.printl(traceback.format_exc())
                 if 'connected' in data:
-                    while True:                    
+                    while True:
                         if not self.queue_out.empty():
                             out = self.queue_out.get()
                             if 'stop_client' in out:
@@ -524,7 +529,7 @@ class QueuedClient(QtCore.QThread):
                                 if sys.exc_info()[0].__name__ == 'timeout':
                                     self.last_receive_timout = time.time()
                                 data = ''
-                            if len(data) > 0:                            
+                            if len(data) > 0:
                                 if self.alive_message in data and keepalive:
                                    #Send back keep alive message
                                     data = data.replace(self.alive_message,'')
@@ -551,8 +556,6 @@ class QueuedClient(QtCore.QThread):
                 time.sleep(1.0 + 1.5 * random.random())
                 self.printl('connection closed')                
                 self.queue_in.put('connection closed')
-            except socket.error:
-                self.printl('socket error: ' + traceback.format_exc())
             except:
                 self.printl(traceback.format_exc())
             time.sleep(0.1)
