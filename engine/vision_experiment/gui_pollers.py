@@ -2143,10 +2143,10 @@ class CaImagingPoller(Poller):
 
     def connect_signals(self):
         Poller.connect_signals(self)
-        self.parent.connect(self, QtCore.SIGNAL('show_image'),  self.parent.show_image)
-        self.parent.connect(self, QtCore.SIGNAL('update_scan_run_status'),  self.parent.update_scan_run_status)
-        self.parent.connect(self, QtCore.SIGNAL('plot_calibdata'),  self.parent.plot_calibdata)
-        self.parent.connect(self, QtCore.SIGNAL('plot_histogram'),  self.parent.plot_histogram)
+        self.parent.connect(self, QtCore.SIGNAL('show_image'), self.parent.show_image)
+        self.parent.connect(self, QtCore.SIGNAL('update_scan_run_status'), self.parent.update_scan_run_status)
+        self.parent.connect(self, QtCore.SIGNAL('plot_calibdata'), self.parent.plot_calibdata)
+        self.parent.connect(self, QtCore.SIGNAL('plot_histogram'), self.parent.plot_histogram)
                 
     def load_context(self):
         if os.path.exists(self.config.CONTEXT_FILE):
@@ -2630,8 +2630,8 @@ class VisexpGuiPoller(Poller):
     def periodic(self):
         if self.analog_recording_started and hasattr(self, 'measurement_starttime') and hasattr(self, 'measurement_duration'):
             elapsed_time = int(time.time() - self.measurement_starttime)
-            if elapsed_time > self.measurement_duration:
-                elapsed_time = self.measurement_duration
+            if elapsed_time > self.measurement_duration-1:
+                elapsed_time = self.measurement_duration-1
             self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(elapsed_time)
         else:
             self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
@@ -2648,7 +2648,6 @@ class VisexpGuiPoller(Poller):
                         messages[0] += 'EOP'
                     else:
                         messages = [messages]
-                    print messages
                     for message in messages:
                         if len(message)>0:
                             command = command_extract.findall(message)
@@ -2688,7 +2687,7 @@ class VisexpGuiPoller(Poller):
             return
         elif len(fragment_durations) > 1:
             raise RuntimeError('Multiple fragment experiments not yet supported')
-        self.measurement_duration = fragment_durations[0]+self.config.CA_IMAGING_START_DELAY
+        self.measurement_duration = 1.1*fragment_durations[0]+self.config.CA_IMAGING_START_DELAY+self.config.GUI_DATA_SAVE_TIME
         self.experiment_parameters['measurement_duration'] = self.measurement_duration
         #Save parameters to hdf5 file
         parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
@@ -2711,7 +2710,9 @@ class VisexpGuiPoller(Poller):
         self._start_analog_recording()
         self.stimulation_finished = False
         self.imaging_finished = False
+        self.printc('Experiment duration is {0} seconds, expected end at {1}'.format(int(self.measurement_duration), utils.time_stamp_to_hm(time.time() + self.measurement_duration)))
         self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
+        self.measurement_starttime=time.time()
         
     def stop_experiment(self):
         self.printc('Stopping experiment requested, please wait')
@@ -2748,11 +2749,16 @@ class VisexpGuiPoller(Poller):
                     os.remove(path)
                 else:
                     h = hdf5io.Hdf5io(path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-        h.cadata = cadata
+        nodes2save = ['analog_inputs']
+        if self.experiment_parameters['enable_ca_recording']:
+            h.cadata = cadata
+            nodes2save.append('cadata')
         h.analog_inputs = analog_input_data
-        h.save(['cadata', 'analog_inputs'])
+        h.save(nodes2save)
+        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(self.measurement_duration)
         h.close()
         self.printc('All data saved to {0}'.format(h.filename))
+        
 
     def close(self):
         for conn_name in self.queues.keys():

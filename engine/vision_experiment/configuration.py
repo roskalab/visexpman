@@ -201,6 +201,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
         
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
+        GUI_DATA_SAVE_TIME = [10.0,  [0, 100]]
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 

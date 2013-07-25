@@ -39,7 +39,7 @@ class AEPHVS(ElphysConfig):
             v_drive_data_folder = 'c:\\Data'
         else:
             v_drive_data_folder = '/home/zoltan/visexp/debug/data'
-        LOG_PATH = os.path.join(v_drive_data_folder, 'log')
+        LOG_PATH = 'C:\\Data\\log'
         EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = v_drive_data_folder
         
@@ -57,8 +57,8 @@ class AEPHVS(ElphysConfig):
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
-        BLOCK_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 1
+        BLOCK_TRIGGER_PIN = 1
+        FRAME_TRIGGER_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
@@ -173,6 +173,18 @@ class Debug(AEPHVS):
         ENABLE_FRAME_CAPTURE = False
         self._create_parameters_from_locals(locals())
 
+class ChiBlocktrigger(AEPHVS):
+    '''
+    Antona's Electrophisology visual stimulation
+    '''
+    def _set_user_parameters(self):
+        AEPHVS._set_user_parameters(self, check_path=False)
+        ACQUISITION_TRIGGER_PIN = 2
+        BLOCK_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PIN = 1
+        self._create_parameters_from_locals(locals())
+
+        
 if __name__ == "__main__":    
     c = LaserProjectorConfig()
     c.print_parameters() 

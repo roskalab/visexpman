@@ -300,12 +300,6 @@ class MainWidget(QtGui.QWidget):
         self.create_layout()
         
     def create_widgets(self):
-        self.experiment_control_groupbox = ExperimentControlGroupBox(self)
-        self.experiment_control_groupbox.setFixedWidth(250)
-        self.experiment_control_groupbox.setFixedHeight(150)
-        self.measurement_files = MeasurementFiles(self)
-        self.measurement_files.setFixedWidth(250)
-        self.measurement_files.setFixedHeight(150)
         self.objective_control = ObjectiveControl(self)
         self.objective_control.setFixedWidth(250)
         self.objective_control.setFixedHeight(150)
@@ -325,8 +319,6 @@ class MainWidget(QtGui.QWidget):
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
-        self.layout.addWidget(self.measurement_files, 0, 1, 1, 1)
         self.layout.addWidget(self.objective_control, 1, 0, 1, 1)
         self.layout.addWidget(self.beamer_control, 1, 1, 1, 1)
         self.layout.addWidget(self.background_scan_parameters, 2, 0, 1, 2)
@@ -347,12 +339,10 @@ class CentralWidget(QtGui.QWidget):
     def create_widgets(self):
         self.main_widget = MainWidget(self)
         self.calibration_widget = CalibrationWidget(self)
-        self.animal_parameters_widget = guiv.AnimalParametersWidget(self)
         self.zstack_widget = guiv.ZstackWidget(self)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Ca imaging')
         self.main_tab.addTab(self.zstack_widget, 'Z stack')
-        self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
         self.main_tab.addTab(self.calibration_widget, 'Calibration')
         self.main_tab.setCurrentIndex(0)
         
@@ -433,7 +423,6 @@ class CaImagingGui(Qt.QMainWindow):
         self.setCentralWidget(self.central_widget) 
         
     def init_widget_content(self):
-        gui.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         if hasattr(self.poller,'widget_context_values'):
             for ref_string, value in self.poller.widget_context_values.items():
                 try:
@@ -458,8 +447,6 @@ class CaImagingGui(Qt.QMainWindow):
         self.connect_and_map_signal(self.central_widget.control_widget.snap, 'snap')
         self.connect_and_map_signal(self.central_widget.control_widget.snap1, 'snap1')
         self.connect_and_map_signal(self.central_widget.calibration_widget.calib_scan_pattern.widgets['start'], 'calib')
-        self.connect_and_map_signal(self.central_widget.main_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment')
-        self.connect_and_map_signal(self.central_widget.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment')
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
     def update_main_image(self, text):

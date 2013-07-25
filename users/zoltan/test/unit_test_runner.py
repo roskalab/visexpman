@@ -67,7 +67,6 @@ if TEST_os == 'nt':
     TEST_reference_z_stack_file = 'v:\\data\\test\\mes\\z_stack_ref.mat'
     TEST_reference_data_folder = 'v:\\data\\test'
     TEST_com_port = 'COM4'
-    TEST_working_folder = 'v:\\unit_test_output'
     
     TEST_stage_com_port = 'COM1'
     TEST_goniometer_com_port = 'COM9'

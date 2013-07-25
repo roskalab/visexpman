@@ -209,7 +209,11 @@ class Screen(object):
             if abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE) > 1.0:
                 print abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if self.config.ENABLE_FRAME_CAPTURE:
-            self.save_frame(file.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.bmp')))
+            if hasattr(self.config, 'CAPTURE_FORMAT'):
+                fileformat = self.config.CAPTURE_FORMAT
+            else:
+                foleformat = 'png'
+            self.save_frame(file.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.{0}'.format(fileformat))))
         
         
     def scale_screen(self):

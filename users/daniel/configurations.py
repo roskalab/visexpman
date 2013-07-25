@@ -210,7 +210,6 @@ class RcMicroscopeSetup(RcCorticalCaImagingConfig):
         if os.name != 'nt':
             DATABIG_PATH = '/mnt/databig/data'
             self.TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
-        
 
         #=== screen ===
         FULLSCREEN = True

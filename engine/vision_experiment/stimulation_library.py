@@ -502,7 +502,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 self.log_on_flip_message = self.log_on_flip_message_initial
                 first_flip = True
             else:
-                if time.time() - start_time > duration and duration >=1.0:
+                if time.time() - start_time > duration and duration >=1.0 and not self.config.ENABLE_FRAME_CAPTURE:
                     stop_stimulus = True
                     self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
                 else:
@@ -786,19 +786,18 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         #calculate grating profile period from spatial frequency
         period = int(bar_width * (1.0 + duty_cycle))
         #modify profile length so that the profile will contain integer number of repetitions
-        repetitions = numpy.ceil(display_area_adjusted[1]/period)
+        repetitions = numpy.ceil(display_area_adjusted[0]/period)
         profile_length = period * repetitions
-        cut_off_ratio = display_area_adjusted[1]/profile_length
+        cut_off_ratio = display_area_adjusted[0]/profile_length
         profile_length = int(profile_length)
         waveform_duty_cycle = 1.0 / (1.0 + duty_cycle)
         stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle)
         stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], profile_length, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, waveform_duty_cycle)
         stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], profile_length, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, waveform_duty_cycle)
-        stimulus_profile = numpy.array([[stimulus_profile_r],  [stimulus_profile_g],  [stimulus_profile_b]])
+        stimulus_profile = numpy.array([[stimulus_profile_r], [stimulus_profile_g], [stimulus_profile_b]])
         stimulus_profile = stimulus_profile.transpose()
         if hasattr(self.config, 'GAMMA_CORRECTION'):
             stimulus_profile = self.config.GAMMA_CORRECTION(stimulus_profile)
-        
         if duration == 0.0:
             n_frames = 1
         else:
@@ -819,24 +818,16 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
         glEnable(GL_TEXTURE_2D)
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-        texture_coordinates = numpy.array(
-                             [
-                             [cut_off_ratio, 1.0],
-                             [cut_off_ratio, 0.0],
-                             [0.0, 0.0],
-                             [0.0, 1.0],
-                             ])
                              
         texture_coordinates = numpy.array(
                              [
-                             [1.0, cut_off_ratio],
-                             [0.0, cut_off_ratio],
+                             [cut_off_ratio, 1.0],
+                             [0.0, 1.0],
                              [0.0, 0.0],
-                             [1.0, 0.0],
+                             [cut_off_ratio, 0.0],
                              ])
-                                     
+
         glTexCoordPointerf(texture_coordinates)
-        
         start_time = time.time()
 #         pixel_velocity= -1.5/stimulus_profile.shape[0]
 #         n_frames = int(numpy.sqrt(800**2+600**2)/1.5)

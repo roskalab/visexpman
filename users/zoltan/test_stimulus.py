@@ -63,7 +63,7 @@ class WhiteNoiseExperiment(experiment.Experiment):
 class DebugExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'Debug'
-        self.DURATION = 50.0
+        self.DURATION = 10.0
 #        self.pre_runnable = 'TestPre'
         self._create_parameters_from_locals(locals())          
         
@@ -72,6 +72,15 @@ class Debug(experiment.Experiment):
         self.fragment_durations = [self.experiment_config.DURATION]
     
     def run(self):
+#        oris = [0,45,90]
+#        for ori in oris:
+#            self.abort=False
+#            while True:
+#                self.show_grating(duration=10, white_bar_width=300, orientation=ori,display_area = utils.cr((800, 100)),velocity=80,duty_cycle=2.5)
+#                break
+#                if self.abort:
+#                    break
+#        return
         self.show_shape(duration=self.experiment_config.DURATION,size=100)
         return
         ncheckers = utils.rc((3, 3))
@@ -110,8 +119,10 @@ class Debug(experiment.Experiment):
             duty_cycle = 1.0)
             
 if __name__ == "__main__":
-#    v.run_experiment(user_experiment_config = 'DebugExperimentConfig')
-    if not True:
+    if True:
+        v = visexp_runner.VisionExperimentRunner(['zoltan', 'chi'], 'SwDebugConfig')
+        v.run_experiment(user_experiment_config = 'DebugExperimentConfig')
+    elif not True:
         v = visexp_runner.VisionExperimentRunner('antonia',  'MEASetup')
         v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')
     elif True:
