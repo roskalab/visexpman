@@ -116,7 +116,7 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
     Converting stimulus to video file
     '''
     def _set_user_parameters(self):        
-        EXPERIMENT_CONFIG = 'IncreasingAnnulusParameters'
+#        EXPERIMENT_CONFIG = 'IncreasingAnnulusParameters'
         PLATFORM = 'standalone'
         ENABLE_UDP=False
         BACKGROUND_COLOR = [0.5,0.5,0.5]

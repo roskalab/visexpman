@@ -212,7 +212,7 @@ class Screen(object):
             if hasattr(self.config, 'CAPTURE_FORMAT'):
                 fileformat = self.config.CAPTURE_FORMAT
             else:
-                foleformat = 'png'
+                fileformat = 'png'
             self.save_frame(file.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.{0}'.format(fileformat))))
         
         

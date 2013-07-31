@@ -6,6 +6,40 @@ import copy
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import utils
 
+class MovingGratingConfigFindOrientation(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPEATS = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 2
+        self.TUNING_SPEEDS = [1200.0, 300.]
+        self.TUNING_WHITE_BAR_WIDTHS = [300.0,500.0]
+        self.TUNING_ORIENTATION = 90.0
+        self.GRATING_STAND_TIME = 5.0
+        
+        self.NUMBER_OF_MARCHING_PHASES = 0
+        self.MARCH_TIME = 0
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.WHITE_BAR_WIDTHS = [300.0]
+        self.VELOCITIES = [1200.0]
+        self.DUTY_CYCLES = [self.machine_config.SCREEN_SIZE_UM['col']*1.414/self.WHITE_BAR_WIDTHS] 
+        self.PAUSE_BEFORE_AFTER = 0.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+        self._create_parameters_from_locals(locals())
+        
+class MovingGratingSpeedTuning(MovingGratingConfigFindOrientation):
+    def _create_parameters(self):
+        MovingGratingConfigFindOrientation._create_parameters(self)
+        self.VELOCITIES = self.TUNING_SPEEDS
+        self.ORIENTATIONS = [self.TUNING_ORIENTATION]
+        self._create_parameters_from_locals(locals())
+        
+class MovingGratingSpatialFreqencyTuning(MovingGratingConfigFindOrientation):
+    def _create_parameters(self):
+        MovingGratingConfigFindOrientation._create_parameters(self)
+        self.WHITE_BAR_WIDTHS = self.TUNING_WHITE_BAR_WIDTHS
+        self.ORIENTATIONS = [self.TUNING_ORIENTATION]
+        self._create_parameters_from_locals(locals())
+
 class MovingGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing        
@@ -17,7 +51,7 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.ORIENTATIONS = range(0, 360, 45)
         self.WHITE_BAR_WIDTHS = [300.0]
         self.VELOCITIES = [1200.0]
-        self.DUTY_CYCLES = [2.5] 
+        self.DUTY_CYCLES = [2.5]
         self.REPEATS = 3
         self.PAUSE_BEFORE_AFTER = 5.0
         self.runnable = 'MovingGrating'

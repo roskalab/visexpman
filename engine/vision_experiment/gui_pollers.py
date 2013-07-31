@@ -2292,17 +2292,16 @@ class CaImagingPoller(Poller):
             self.scan(duration = h.parameters['measurement_duration'], id = id, enable_record = True)
         else:
             self.printc('Ca signal recording is disabled')
-        
+
     def stop_experiment(self):
         if self.scan_run:
             self.printc('Stopping experiment requested, please wait')
             self.queues['out'].put('stop_scan')
-            self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
             
     def abort_experiment(self):
         self.stop_experiment()
     
-    def scan(self, duration=None, nframes=None, name = None, id = None, enable_record = None):
+    def scan(self, duration=None, nframes=None, name = '', id = None, enable_record = None):
         if self.scan_run:
             self.queues['out'].put('stop_scan')
             self.printc('Scan stop requested')
@@ -2335,7 +2334,7 @@ class CaImagingPoller(Poller):
                     except ValueError:
                         pass#value from machine config will be used
             if enable_record is None:
-                self.parameters['enable_recording'] = (self.parent.central_widget.main_widget.measurement_files.enable_recording.input.checkState()==2)
+                self.parameters['enable_recording'] = False
             else:
                 self.parameters['enable_recording'] = enable_record
             #figure out which analog channels need to be sampled
@@ -2356,18 +2355,13 @@ class CaImagingPoller(Poller):
                 file.mkdir_notexists(folder)
             else:
                 folder = self.config.EXPERIMENT_DATA_PATH
-            cell_name = str(self.parent.central_widget.main_widget.measurement_files.cell_name.input.currentText())
-            experiment_name = str(self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText())
-            if len(experiment_name) == 0 and name is not None:
-                experiment_name = name
             if id == None:
                 self.id = str(int(time.time()))
             else:
                 self.id = id
             filenames = experiment_data.generate_filename(self.config, 
                                                                             self.id, 
-                                                                            experiment_name.replace('Config', '').replace('config', ''),  
-                                                                            cell_name,  
+                                                                            name.replace('Config', '').replace('config', ''),  
                                                                             end_tag = '_ca',
                                                                             user_extensions = ['tiff'], output_folder = folder)
             self.parameters['filenames'] = filenames
@@ -2720,7 +2714,7 @@ class VisexpGuiPoller(Poller):
         for conn in ['imaging', 'stim']:
             self.queues[conn]['out'].put(command)
         self._finish_analog_recording()
-        self._finish_experiment()
+        self._finish_experiment(True)
         self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
 
     def _start_analog_recording(self):
@@ -2735,7 +2729,7 @@ class VisexpGuiPoller(Poller):
             self.analog_recording_started=False
             self.printc('Analog recording finished')
             
-    def _finish_experiment(self):
+    def _finish_experiment(self,  stopped=False):
         self.printc('Saving datafiles, please wait...')
         os.remove(os.path.join(self.config.EXPERIMENT_DATA_PATH,  self.experiment_parameters['id']+'.hdf5'))
         if hasattr(self.analog_input, 'ai_data'):
@@ -2745,19 +2739,17 @@ class VisexpGuiPoller(Poller):
             if self.experiment_parameters['id'] in fn:
                 path = os.path.join(self.config.EXPERIMENT_DATA_PATH, fn)
                 if fn.split('.')[0].split('_')[-1] == 'ca':
-                    cadata = hdf5io.read_item(path, 'cadata', filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-                    os.remove(path)
+                    pass#Don't do anything woth cadata file
                 else:
                     h = hdf5io.Hdf5io(path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         nodes2save = ['analog_inputs']
-        if self.experiment_parameters['enable_ca_recording']:
-            h.cadata = cadata
-            nodes2save.append('cadata')
-        h.analog_inputs = analog_input_data
-        h.save(nodes2save)
+        if 'h' in locals():
+            h.analog_inputs = analog_input_data
+            h.save(nodes2save)
         self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(self.measurement_duration)
-        h.close()
-        self.printc('All data saved to {0}'.format(h.filename))
+        if 'h' in locals():
+            h.close()
+            self.printc('All data saved to {0}'.format(h.filename))
         
 
     def close(self):

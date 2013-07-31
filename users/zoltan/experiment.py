@@ -20,10 +20,10 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.DUTY_CYCLES = [2.5] 
         self.REPEATS = 1
         self.PAUSE_BEFORE_AFTER = 0.0
-        self.runnable = 'MovingGrating'
+        self.runnable = 'MovingGrating1'
         self._create_parameters_from_locals(locals())
         
-class MovingGrating(grating.MovingGrating):
+class MovingGrating1(grating.MovingGrating):
     def run(self, fragment_id=0):
         shutil.rmtree(self.machine_config.CAPTURE_PATH)
         os.mkdir(self.machine_config.CAPTURE_PATH)

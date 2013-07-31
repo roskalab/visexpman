@@ -765,6 +765,11 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             try:
                 self.tp.start_rectangular_scan(parameters['scan_size'], parameters['scan_center'], parameters['resolution'], setting_time = config.SCANNER_SETTING_TIME, 
                                       trigger_signal_config = config.SCANNER_TRIGGER_CONFIG)
+                if parameters['enable_recording']:
+                    from visexpA.engine.datahandlers.datatypes import ImageData
+                    import tables
+                    self.h = ImageData(self.filenames['datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+                    raw_data = self.h.h5f.createEArray(self.h.h5f.root, 'raw_data', tables.Float64Atom(), (0, ))
             except:
                 self.printc(traceback.format_exc())
                 self.printc('scan_ready')
@@ -785,7 +790,10 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             #start scan loop
             self.abort = False
             while True:
-                self.queues['frame'].put(self.tp.read_pmt(collect_data = parameters['enable_recording']))                    
+                pmtdata = self.tp.read_pmt(collect_data = parameters['enable_recording'])
+                if parameters['enable_recording']:
+                    raw_data.append(pmtdata.flatten())
+                self.queues['frame'].put(pmtdata)
                 frame_ct += 1
                 if (not self.queue_in[0].empty() and self.queue_in[0].get() == 'stop_scan') or frame_ct == nframes or frame_ct >= self.max_nframes:
                     break
@@ -824,11 +832,12 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         self.printc('saving_data')
         #gather data to save
         data_to_save = {}
-        data_to_save['raw_data'] = numpy.rollaxis(self.tp.data, 0, 3)#TMP:rawdata cannot be saved
+        #data_to_save['raw_data'] = numpy.rollaxis(self.tp.data, 0, 3)#TMP:rawdata cannot be saved
         data_to_save['scan_parameters'] = self.scan_parameters
         data_to_save['scan_parameters']['waveform'] = copy.deepcopy(self.tp.scanner_control_signal.T)
         data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
         data_to_save['scan_parameters']['scan_config'] = copy.deepcopy(scan_config.get_all_parameters())
+        data_to_save['scan_parameters']['raw_frame_shape'] = self.tp.raw_pmt_frame.shape
         data_to_save['scan_parameters'].update(parameters)
         if False:
             data_to_save['animal_parameters'] = {}
@@ -839,12 +848,10 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             scipy.io.savemat(self.filenames['datafile'][0], data_to_save, oned_as = 'row', long_field_names=True)
         elif self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             data_to_save['machine_config'] = experiment_data.pickle_config(self.config)
-            from visexpA.engine.datahandlers.datatypes import ImageData
-            h = ImageData(self.filenames['datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-            h.cadata = data_to_save
-            h.save('cadata')
-            h.close()
-            import shutil
+            self.h.cadata = data_to_save
+            self.h.save('cadata')
+            self.h.close()
+#            import shutil
 #            shutil.move(self.filenames['local_datafile'][0], self.filenames['datafile'][0])
         self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
         return
