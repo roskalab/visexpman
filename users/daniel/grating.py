@@ -5,6 +5,37 @@ import time
 import random
 import copy
 
+class MovingGratingConfigFindOrientation(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPEATS = 5
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 2
+        self.TUNING_SPEEDS = [800.0, 400.0,100.0]
+        self.TUNING_WHITE_BAR_WIDTHS = [150.0, 300.0, 600.0, 1000.0]
+        self.TUNING_ORIENTATION = 90.0
+        self.MARCH_TIME = 1.0
+        self.GREY_INSTEAD_OF_MARCHING=True
+        
+        self.NUMBER_OF_MARCHING_PHASES = 0
+        self.GRATING_STAND_TIME = 0
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.WHITE_BAR_WIDTHS = [300.0]
+        self.VELOCITIES = [800.0]
+        self.DUTY_CYCLES = [self.machine_config.SCREEN_SIZE_UM['col']*1.414/self.WHITE_BAR_WIDTHS] 
+        self.PAUSE_BEFORE_AFTER = 0.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'MovingGratingPre'
+        self._create_parameters_from_locals(locals())
+        
+class MovingGratingTuning(MovingGratingConfigFindOrientation):
+    def _create_parameters(self):
+        MovingGratingConfigFindOrientation._create_parameters(self)
+        self.VELOCITIES = self.TUNING_SPEEDS
+        self.WHITE_BAR_WIDTHS = self.TUNING_WHITE_BAR_WIDTHS
+        self.ORIENTATIONS = [self.TUNING_ORIENTATION]
+        self.DUTY_CYCLES = [1.0]
+        self.REPEATS = 3
+        self._create_parameters_from_locals(locals())
+
 class MovingGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing        
@@ -155,7 +186,6 @@ class KamillMovingGratingNoMarchingConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())
-
                
 class KamillMovingGratingWithFlashConfig(KamillMovingGratingNoMarchingConfig):
     def _create_parameters(self):
@@ -168,7 +198,37 @@ class KamillMovingGratingWithFlashConfig(KamillMovingGratingNoMarchingConfig):
         self.BLACK = 0.0
         self.WHITE = 1.0
         self.PAUSE_BEFORE_AFTER = 1.0        
-        
+
+class KamillFastMovingGratingMarchingConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        #Timing
+        self.NUMBER_OF_MARCHING_PHASES = 3
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+        self.MARCH_TIME = 2.0
+        self.GRATING_STAND_TIME = 0.2
+        #Grating parameters
+        self.ORIENTATIONS = range(0, 360, 45)
+        self.WHITE_BAR_WIDTHS = [300.0]#300
+        self.VELOCITIES = [1800.0]#1800
+        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.REPEATS = 2
+        self.PAUSE_BEFORE_AFTER = 5.0
+        self.runnable = 'MovingGrating'
+        self.pre_runnable = 'BlackPre'
+        self._create_parameters_from_locals(locals())
+               
+class KamillFastMovingGratingWithFlashConfig(KamillFastMovingGratingMarchingConfig):
+    def _create_parameters(self):
+        KamillFastMovingGratingNoMarchingConfig._create_parameters(self)
+        #Flash config
+        self.ENABLE_FLASH = True
+        self.FLASH_DURATION = 2.0
+        self.TIMING = [10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0]
+        self.FLASH_REPEATS = 1
+        self.BLACK = 0.0
+        self.WHITE = 1.0
+        self.PAUSE_BEFORE_AFTER = 1.0            
+                
 class BlackPre(experiment.PreExperiment):    
     def run(self):
         self.show_fullscreen(color = 0.0, duration = 0,flip=False)
@@ -180,8 +240,8 @@ class MovingGrating(experiment.Experiment):
         self.overall_duration = 0
         orientations = copy.deepcopy(self.experiment_config.ORIENTATIONS)
         for repeat in range(self.experiment_config.REPEATS):
-            for white_bar_width in self.experiment_config.WHITE_BAR_WIDTHS:
-                for velocity in self.experiment_config.VELOCITIES:
+            for velocity in self.experiment_config.VELOCITIES:
+                for white_bar_width in self.experiment_config.WHITE_BAR_WIDTHS:
                     for duty_cycle in self.experiment_config.DUTY_CYCLES:
 #                        if repeat > 0:
 #                            random.shuffle(orientations)
@@ -231,26 +291,32 @@ class MovingGrating(experiment.Experiment):
         for stimulus_unit in self.fragmented_stimulus_units[fragment_id]:
                 #Show marching grating
                 orientation = stimulus_unit['orientation']
-                for phase in self.marching_phases:
-                    if not is_first_dislayed:
-                        is_first_dislayed = True
-                        static_grating_duration = self.experiment_config.PAUSE_BEFORE_AFTER + self.experiment_config.MARCH_TIME
-                    else:
-                        static_grating_duration = self.experiment_config.MARCH_TIME
-                    self.show_grating(duration = static_grating_duration, 
-                            profile = profile, 
-                            orientation = orientation, 
-                            velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
-                            duty_cycle = stimulus_unit['duty_cycle'],
-                            starting_phase = phase)
+                if not is_first_dislayed:
+                    is_first_dislayed = True
+                    static_grating_duration = self.experiment_config.PAUSE_BEFORE_AFTER + self.experiment_config.MARCH_TIME
+                else:
+                    static_grating_duration = self.experiment_config.MARCH_TIME
+                if hasattr(self.experiment_config, 'GREY_INSTEAD_OF_MARCHING') and self.experiment_config.GREY_INSTEAD_OF_MARCHING:
+                        self.show_fullscreen(color = 0.5, duration = static_grating_duration)
+                else:
+                    for phase in self.marching_phases:
+                        self.show_grating(duration = static_grating_duration, 
+                                    profile = profile, 
+                                    orientation = orientation, 
+                                    velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
+                                    duty_cycle = stimulus_unit['duty_cycle'],
+                                    starting_phase = phase)
                 #Show moving grating
                 self.show_grating(duration = stimulus_unit['move_time'], 
                             profile = profile, 
                             orientation = orientation, 
                             velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
-                            duty_cycle = stimulus_unit['duty_cycle'])
+                            duty_cycle = stimulus_unit['duty_cycle'],
+                            starting_phase = 1/(1+stimulus_unit['duty_cycle'])*360
+                            )
                 #Show static grating
-                self.show_grating(duration = self.experiment_config.GRATING_STAND_TIME, 
+                if self.experiment_config.GRATING_STAND_TIME>0:
+                    self.show_grating(duration = self.experiment_config.GRATING_STAND_TIME, 
                             profile = profile, 
                             orientation = orientation, 
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],

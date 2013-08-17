@@ -314,8 +314,7 @@ class SockServer(SocketServer.TCPServer):
                         if len(data) > 0: #Non empty messages are processed                        
                             if not self.alive_message in data: #Save message to debug queue except for keep alive messages
                                 self.printl(data)
-                            if 'close' in data or\
-                               'close_connection' in data or\
+                            if 'close_connection' in data or\
                                'quit' in data:                               
                                 self.printl('connection close requested')
                                 connection_close_request = True

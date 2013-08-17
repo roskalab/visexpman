@@ -306,7 +306,7 @@ class ExperimentControl(object):
                     if self.scan_mode == 'xyz':
                         scan_data_save_success = self.mes_interface.wait_for_rc_scan_save_complete(self.mes_timeout)
                     else:
-                        scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(0.5 * self.mes_timeout)
+                        scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(0.75 * self.mes_timeout)
                     if scan_data_save_success:
                         self.printl('MES data save complete')
                     else:
@@ -319,7 +319,7 @@ class ExperimentControl(object):
                 pass
             if not aborted: #TMP and result:
                 if self.config.PLATFORM == 'mes':
-                    if self.mes_record_time > 30.0:
+                    if self.mes_record_time > 30.0 and self.scan_mode != 'xy':
                         time.sleep(1.0)#Ensure that scanner starts???
                         try:
                             if not self._pre_post_experiment_scan(is_pre=False):

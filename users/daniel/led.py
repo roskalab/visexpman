@@ -108,10 +108,10 @@ class Led3x100ms0p4VStimulationConfig(experiment.ExperimentConfig):
 class LedKamill2Config(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.BEEP_AT_EXPERIMENT_START_STOP = True
-        self.PAUSE_BETWEEN_FLASHES = 10.0
+        self.PAUSE_BETWEEN_FLASHES = 15.0
         self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 2.0
-        self.FLASH_AMPLITUDE = 5.0 #max 10.0
+        self.FLASH_DURATION = 5.0
+        self.FLASH_AMPLITUDE = 2.0 #max 10.0
         self.DELAY_BEFORE_FIRST_FLASH = 10.0
         self.runnable = 'LedStimulation'
         self.pre_runnable = 'LedPre'
@@ -121,9 +121,9 @@ class LedKamill10Config(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.BEEP_AT_EXPERIMENT_START_STOP = True
         self.PAUSE_BETWEEN_FLASHES = 20.0
-        self.NUMBER_OF_FLASHES = 1.0
+        self.NUMBER_OF_FLASHES = 3.0
         self.FLASH_DURATION = 10.0
-        self.FLASH_AMPLITUDE = 0.5 #max 10.0
+        self.FLASH_AMPLITUDE = 2.0 #max 10.0
         self.DELAY_BEFORE_FIRST_FLASH = 10.0
         self.runnable = 'LedStimulation'
         self.pre_runnable = 'LedPre'
