@@ -866,7 +866,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         '''
         Shows a huge number (up to several hunders) of shapes.
         Parameters:
-            shape_size: one dimensional list of shape sizes in um or the size of rectangle, in this case a two dimensional array is also supporetd
+            shape_size: one dimensional list of shape sizes in um or the size of rectangle, in this case a two dimensional array is also supported
             shape_positions: one dimensional list of shape positions (row, col) in um.
             nshapes: number of shapes per frame
             color: can be a single tuple of the rgb values that apply to each shapes over the whole stimulation. Both list and numpy formats are supported
