@@ -4,6 +4,25 @@ import shutil
 import numpy
 import tempfile
 
+def copier(src_dst_list, message_list):
+    '''Background copier function: provide source,target path tuples in src_dst_list.
+    The first item in src_dst_list is used to control the process: src_dst_list[0]=='active' means the process
+    stays alive and copies any item put in the list.
+    Exceptions are dumped into the message_list. Both lists should be Manager.list() instances.
+    '''
+    try:
+        while src_dst_list[0] =='active':
+            tasklist=src_dst_list[1:]
+            for source,target in tasklist:
+                if not os.path.exists(target) and os.path.exists(source) and os.stat(source).st_size!=os.stat(target).st_size:
+                    shutil.copy(source, target)
+                    if os.path.exists(target) and os.stat(source).st_size==os.stat(target).st_size:
+                        src_dst_list.remove((source,target))
+                        
+    except Exception as e:
+        message_list.append(str(e))
+
+
 def free_space(path):
     s=os.statvfs(path)
     return (s.f_bavail * s.f_frsize)
