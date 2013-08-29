@@ -1,8 +1,6 @@
 import os, re
 import os.path
 import shutil
-import string
-print string.__file__F
 import numpy
 import tempfile
 import time
@@ -12,75 +10,96 @@ import time
 from distutils import file_util,  dir_util
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
-class BackgroundCopier(threading.Thread,multiprocessing.Process):
-    '''Background copier function: provide source,target path tuples in src_dst_list.
-    The first item in src_dst_list is used to control the process: src_dst_list[0]=='active' means the process
-    stays alive and copies any item put in the list.
-    Exceptions are dumped into the message_list. Both lists should be Manager.list() instances.
-    '''
-    def __init__(self, pullerport,postpone_seconds = 60, thread=1,debug=0):
-        from visexpman.engine.hardware_interface.network_interface import ZeroMQPuller
-        self.puller = ZeroMQPuller(pullerport)
-        self.puller.start()
-        self.isthread = thread
-        if thread:
-            threading.Thread.__init__(self)
-            self.exception_list=Queue.Queue()
-        else:
-            multiprocessing.Process.__init__(self)
-            self.exception_list = multiprocessing.Queue()
-        self.debug = debug
-        self.postponed_list = [] #collects items that could not be copied for any reason
-        self.postpone_seconds= postpone_seconds
-        self.parentpid = os.getpid() #init is executed in the parent process
-        
-    def run(self):
-        import psutil
-        while 1:
-            # make sure this process terminates when parent is no longer alive
-            if not self.isthread:
-                p = psutil.Process(os.getpid())
-                if p.parent.pid!=self.parentpid:
-                    self.close()
-                    return
-            if len(self.puller.queue)==0:
-                time.sleep(0.5)
-                if self.debug:
-                    self.exception_list.put('No message')
-            if len(self.puller.queue)>0:
-                file_list = self.puller.queue[:]
-            elif len(self.postponed_list)>0:
-                time.sleep(self.postpone_seconds)
-                if self.debug:
-                    self.exception_list.put('Retrying after '+str(self.postpone_seconds)+' seconds')
-                file_list = self.postponed_list[:]
+def BackgroundCopier(pullerport,postpone_seconds = 60, thread=1,debug=0):
+    if thread:
+        base = threading.Thread
+    else:
+        base = multiprocessing.Process
+    class BackgroundCopierClass(base):
+        '''Background copier function: provide source,target path tuples in src_dst_list.
+        The first item in src_dst_list is used to control the process: src_dst_list[0]=='active' means the process
+        stays alive and copies any item put in the list.
+        Exceptions are dumped into the message_list. Both lists should be Manager.list() instances.
+        '''
+        def __init__(self, pullerport,postpone_seconds = 60, thread=1,debug=0):
+            from visexpman.engine.hardware_interface.network_interface import ZeroMQPuller
+            self.puller = ZeroMQPuller(pullerport,threaded=True,debug=True)
+            self.puller.start()
+            self.isthread = thread
+            if thread:
+                threading.Thread.__init__(self)
+                self.exception_list=Queue.Queue()
             else:
-                continue
-            for item in file_list:
-                if item=='TERMINATE':
-                    self.close()
-                    return
-                print item
-                source=item[0]; target  = item[1]
-                try:
-                    if not os.path.exists(target) and os.path.exists(source) and os.stat(source).st_size!=os.stat(target).st_size:
-                        shutil.copy(source, target)
-                        if os.path.exists(target) and os.stat(source).st_size==os.stat(target).st_size:
-                            if self.debug:
-                                self.exception_list.put('File '+source+' copied OK')
-                        
-                except Exception as e:
-                    self.exception_list.put(str(e))
-                    self.postponed_list.append((source,target))
-                if item in self.puller.queue:
-                    self.puller.queue.remove(item)
-                elif item in self.postponed_list:
-                    self.postponed_list.remove(item)
+                multiprocessing.Process.__init__(self)
+                self.exception_list = multiprocessing.Queue()
+            self.debug = debug
+            self.postponed_list = [] #collects items that could not be copied for any reason
+            self.postpone_seconds= postpone_seconds
+            self.parentpid = os.getpid() #init is executed in the parent process
+            
+        def run(self):
+            import psutil
+            while 1:
+                # make sure this process terminates when parent is no longer alive
+                if not self.isthread:
+                    p = psutil.Process(os.getpid())
+                    if p.parent.pid!=self.parentpid:
+                        self.close()
+                        print 'Parent died?'
+                        print os.getpid()
+                        print self.parentpid
+                        return
+                if len(self.puller.queue)==0:
+                    time.sleep(0.5)
+                    if self.debug:
+                        self.exception_list.put('No message')
+                if len(self.puller.queue)>0:
+                    file_list = self.puller.queue[:]
+                elif len(self.postponed_list)>0:
+                    time.sleep(self.postpone_seconds)
+                    if self.debug:
+                        self.exception_list.put('Retrying after '+str(self.postpone_seconds)+' seconds')
+                    file_list = self.postponed_list[:]
+                else:
+                    continue
+                for item in file_list:
+                    try:
+                        print 'Bg copier processing:'
+                        print item
+                        current_exception=''
+                        if item=='TERMINATE':
+                            self.close()
+                            return
+                        source=item[0]; target  = item[1]
+                        try:
+                            if not os.path.exists(source):
+                                current_exception='source file does not exist {0}'.format(source)
+                            elif not os.path.exists(target) or (os.path.exists(target) and os.stat(source).st_size!=os.stat(target).st_size):
+                                shutil.copy(source, target)
+                                if os.path.exists(target) and os.stat(source).st_size==os.stat(target).st_size:
+                                    if self.debug:
+                                        current_exception='File '+source+' copied OK'
+                            else:
+                                current_exception = '{0} has same size as {1}'.format(source, target)
+                        except Exception as e:
+                            current_exception=str(e)
+                            self.postponed_list.append((source,target))
+                        if item in self.puller.queue:
+                            self.puller.queue.remove(item)
+                        elif item in self.postponed_list:
+                            self.postponed_list.remove(item)
+                       # print list(self.puller.queue)
+                        #print 'filelist: {0}'.format(file_list)
+                       # print list(self.postponed_list)
+                        self.exception_list.put(current_exception)
+                        time.sleep(1)
+                    except Exceptions as e:
+                        print e
 
-    def close(self):
-        self.puller.join()
-        self.puller.close()
-        
+        def close(self):
+            self.puller.join()
+            self.puller.close()
+    return BackgroundCopierClass(pullerport,postpone_seconds, thread,debug)
 
 def free_space(path):
     s=os.statvfs(path)
@@ -505,17 +524,22 @@ class TestUtils(unittest.TestCase):
         def message_printer(message_list):
             while 1:
                 if message_list.empty():
-                    time.sleep(0.1)
+                    time.sleep(0.4)
+                    print 'message list empty'
                 else:
                     while not message_list.empty():
-                        print message_list.get()
+                        msg= message_list.get()
+                        print msg
+                        if msg=='TERMINATE':
+                            return
         print os.getpid()
         sourcedir = tempfile.mkdtemp()
         targetdir = tempfile.mkdtemp()
         files = [tempfile.mkstemp(dir=sourcedir,suffix=str(i1)+'.png')[1] for i1 in range(5)]
+        [ numpy.savetxt(f1, numpy.random.rand(128,)) for f1 in files]
         srcdstlist = zip(files, [os.path.join(targetdir,os.path.split(f1)[1]) for f1 in files])
         pusher = ZeroMQPusher(22222)
-        p1 = BackgroundCopier(22222,postpone_seconds=15,debug=1)
+        p1 = BackgroundCopier(22222,postpone_seconds=5,debug=1,thread=1)
         lister = threading.Thread(target=message_printer, args=(p1.exception_list,))
         lister.start()
         p1.start()
@@ -523,7 +547,9 @@ class TestUtils(unittest.TestCase):
             pusher.send(item)
         pusher.send('TERMINATE')
         p1.join()
+        p1.exception_list.put('TERMINATE')
         lister.join()
+        pusher.close()
         pass
         
         
