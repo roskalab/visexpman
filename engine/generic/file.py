@@ -1,12 +1,86 @@
 import os, re
 import os.path
 import shutil
+import string
+print string.__file__F
 import numpy
 import tempfile
 import time
 import subprocess as sub
+import multiprocessing,threading,Queue
+import time
 from distutils import file_util,  dir_util
 timestamp_re = re.compile('.*(\d{10,10}).*')
+
+class BackgroundCopier(threading.Thread,multiprocessing.Process):
+    '''Background copier function: provide source,target path tuples in src_dst_list.
+    The first item in src_dst_list is used to control the process: src_dst_list[0]=='active' means the process
+    stays alive and copies any item put in the list.
+    Exceptions are dumped into the message_list. Both lists should be Manager.list() instances.
+    '''
+    def __init__(self, pullerport,postpone_seconds = 60, thread=1,debug=0):
+        from visexpman.engine.hardware_interface.network_interface import ZeroMQPuller
+        self.puller = ZeroMQPuller(pullerport)
+        self.puller.start()
+        self.isthread = thread
+        if thread:
+            threading.Thread.__init__(self)
+            self.exception_list=Queue.Queue()
+        else:
+            multiprocessing.Process.__init__(self)
+            self.exception_list = multiprocessing.Queue()
+        self.debug = debug
+        self.postponed_list = [] #collects items that could not be copied for any reason
+        self.postpone_seconds= postpone_seconds
+        self.parentpid = os.getpid() #init is executed in the parent process
+        
+    def run(self):
+        import psutil
+        while 1:
+            # make sure this process terminates when parent is no longer alive
+            if not self.isthread:
+                p = psutil.Process(os.getpid())
+                if p.parent.pid!=self.parentpid:
+                    self.close()
+                    return
+            if len(self.puller.queue)==0:
+                time.sleep(0.5)
+                if self.debug:
+                    self.exception_list.put('No message')
+            if len(self.puller.queue)>0:
+                file_list = self.puller.queue[:]
+            elif len(self.postponed_list)>0:
+                time.sleep(self.postpone_seconds)
+                if self.debug:
+                    self.exception_list.put('Retrying after '+str(self.postpone_seconds)+' seconds')
+                file_list = self.postponed_list[:]
+            else:
+                continue
+            for item in file_list:
+                if item=='TERMINATE':
+                    self.close()
+                    return
+                print item
+                source=item[0]; target  = item[1]
+                try:
+                    if not os.path.exists(target) and os.path.exists(source) and os.stat(source).st_size!=os.stat(target).st_size:
+                        shutil.copy(source, target)
+                        if os.path.exists(target) and os.stat(source).st_size==os.stat(target).st_size:
+                            if self.debug:
+                                self.exception_list.put('File '+source+' copied OK')
+                        
+                except Exception as e:
+                    self.exception_list.put(str(e))
+                    self.postponed_list.append((source,target))
+                if item in self.puller.queue:
+                    self.puller.queue.remove(item)
+                elif item in self.postponed_list:
+                    self.postponed_list.remove(item)
+
+    def close(self):
+        self.puller.join()
+        self.puller.close()
+        
 
 def free_space(path):
     s=os.statvfs(path)
@@ -410,7 +484,7 @@ class TestUtils(unittest.TestCase):
     def tearDown(self):
         os.remove(self.filename)
         pass
-    
+    @unittest.skip('')
     def test_pngsave(self):
         import numpy, Image
         from visexpman.engine.generic.introspect import hash_variables
@@ -423,6 +497,35 @@ class TestUtils(unittest.TestCase):
         pilconfirm = Image.open(self.filename)
         self.assertTrue((pilconfirm.info['mycomment']==pilpic.info['mycomment']) and (pilconfirm.info['myhash']==pilpic.info['myhash']))
         pass
+        
+    def test_copier(self):
+        from multiprocessing import Process,Manager
+        from visexpman.engine.hardware_interface.network_interface import ZeroMQPusher
+        import threading
+        def message_printer(message_list):
+            while 1:
+                if message_list.empty():
+                    time.sleep(0.1)
+                else:
+                    while not message_list.empty():
+                        print message_list.get()
+        print os.getpid()
+        sourcedir = tempfile.mkdtemp()
+        targetdir = tempfile.mkdtemp()
+        files = [tempfile.mkstemp(dir=sourcedir,suffix=str(i1)+'.png')[1] for i1 in range(5)]
+        srcdstlist = zip(files, [os.path.join(targetdir,os.path.split(f1)[1]) for f1 in files])
+        pusher = ZeroMQPusher(22222)
+        p1 = BackgroundCopier(22222,postpone_seconds=15,debug=1)
+        lister = threading.Thread(target=message_printer, args=(p1.exception_list,))
+        lister.start()
+        p1.start()
+        for item in srcdstlist:
+            pusher.send(item)
+        pusher.send('TERMINATE')
+        p1.join()
+        lister.join()
+        pass
+        
         
 if __name__=='__main__':
     import sys

@@ -25,6 +25,7 @@ import traceback
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 from visexpman.engine.generic.introspect import list_type
 import multiprocessing
+import psutil
 from multiprocessing import Process, Manager,  Event
 DISPLAY_MESSAGE = False
 
@@ -58,6 +59,7 @@ class ZeroMQPuller(multiprocessing.Process):#threading.Thread):
         super(ZeroMQPuller, self).__init__()
         self.exit = multiprocessing.Event()
         self.maxiter= maxiter
+        self.parentpid = os.getpid() #init is executed in the parent process
         
     def run(self):
         self.debug=0
@@ -72,6 +74,11 @@ class ZeroMQPuller(multiprocessing.Process):#threading.Thread):
             self.poll = zmq.Poller()
             self.poll.register(self.client, zmq.POLLIN)
             while not self.exit.is_set():
+                # make sure this process terminates when parent is no longer alive
+                p = psutil.Process(os.getpid())
+                if p.parent.pid != self.parentpid:
+                    self.close()
+                    return
                 socks = dict(self.poll.poll(1000)) #timeout in each second allows stopping process via the close method
                 if self.debug:
                     self.queue.append(10)
@@ -150,13 +157,16 @@ class ZeroMQPusher(object):
         self.socket.close()
         self.context.term()
 
-class CallableViaZeroMQ(threading.Thread):
+class CallableViaZeroMQ(threading.Thread, multiprocessing.Process):
     '''Interface to call a method via ZeroMQ socket'''
-    def __init__(self, port):
+    def __init__(self, port, thread=1):
         '''We allow methods be called directly by another thread but you must ensure data is protected by locks. In those cases locks block concurrent access but allow fine grained concurrency
         between direct method calls and calls via ZMQ'''
         self.port = port
-        threading.Thread.__init__(self)
+        if thread:
+            threading.Thread.__init__(self)
+        else:
+            multiprocessing.Process.__init__(self)
         
     def run(self):
         if self.port is None:
