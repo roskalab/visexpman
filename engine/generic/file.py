@@ -23,7 +23,7 @@ def BackgroundCopier(pullerport,postpone_seconds = 60, thread=1,debug=0):
         '''
         def __init__(self, pullerport,postpone_seconds = 60, thread=1,debug=0):
             from visexpman.engine.hardware_interface.network_interface import ZeroMQPuller
-            self.puller = ZeroMQPuller(pullerport,threaded=True,debug=True)
+            self.puller = ZeroMQPuller(pullerport,threaded=False,debug=True)
             self.puller.start()
             self.isthread = thread
             if thread:
@@ -36,19 +36,25 @@ def BackgroundCopier(pullerport,postpone_seconds = 60, thread=1,debug=0):
             self.postponed_list = [] #collects items that could not be copied for any reason
             self.postpone_seconds= postpone_seconds
             self.parentpid = os.getpid() #init is executed in the parent process
+            self.manager = multiprocessing.Manager()
+            self.pid1 = self.manager.Value('i',0)
             
         def run(self):
             import psutil
+            self.pid1.set(os.getpid())
+            self.logfile=open('/tmp/log.txt','w+')
             while 1:
                 # make sure this process terminates when parent is no longer alive
                 if not self.isthread:
                     p = psutil.Process(os.getpid())
+                    self.exception_list.put('Bg pid:{0}, parentpid:{1}, current parentpid{2}'.format(p.pid,self.parentpid,p.parent.pid))
                     if p.parent.pid!=self.parentpid:
                         self.close()
-                        print 'Parent died?'
-                        print os.getpid()
-                        print self.parentpid
+                        self.logfile.write( 'Parent died?')
                         return
+                    else:
+                        self.logfile.write('pid:{1},current time:{0}'.format(time.time(),os.getpid()))
+                    self.logfile.flush()
                 if len(self.puller.queue)==0:
                     time.sleep(0.5)
                     if self.debug:
@@ -56,16 +62,17 @@ def BackgroundCopier(pullerport,postpone_seconds = 60, thread=1,debug=0):
                 if len(self.puller.queue)>0:
                     file_list = self.puller.queue[:]
                 elif len(self.postponed_list)>0:
+                    self.logfile.write('sleeping to process postponded list\n')
+                    self.logfile.flush()
                     time.sleep(self.postpone_seconds)
                     if self.debug:
                         self.exception_list.put('Retrying after '+str(self.postpone_seconds)+' seconds')
                     file_list = self.postponed_list[:]
                 else:
+                    self.logfile.write('nothing to do\n')
                     continue
                 for item in file_list:
                     try:
-                        print 'Bg copier processing:'
-                        print item
                         current_exception=''
                         if item=='TERMINATE':
                             self.close()
@@ -73,7 +80,7 @@ def BackgroundCopier(pullerport,postpone_seconds = 60, thread=1,debug=0):
                         source=item[0]; target  = item[1]
                         try:
                             if not os.path.exists(source):
-                                current_exception='source file does not exist {0}'.format(source)
+                                current_exception='source file does not exist {0}'.format(item)
                             elif not os.path.exists(target) or (os.path.exists(target) and os.stat(source).st_size!=os.stat(target).st_size):
                                 shutil.copy(source, target)
                                 if os.path.exists(target) and os.stat(source).st_size==os.stat(target).st_size:
@@ -88,11 +95,7 @@ def BackgroundCopier(pullerport,postpone_seconds = 60, thread=1,debug=0):
                             self.puller.queue.remove(item)
                         elif item in self.postponed_list:
                             self.postponed_list.remove(item)
-                       # print list(self.puller.queue)
-                        #print 'filelist: {0}'.format(file_list)
-                       # print list(self.postponed_list)
                         self.exception_list.put(current_exception)
-                        time.sleep(1)
                     except Exceptions as e:
                         print e
 
@@ -525,7 +528,7 @@ class TestUtils(unittest.TestCase):
             while 1:
                 if message_list.empty():
                     time.sleep(0.4)
-                    print 'message list empty'
+                    #print 'message list empty'
                 else:
                     while not message_list.empty():
                         msg= message_list.get()
@@ -533,21 +536,28 @@ class TestUtils(unittest.TestCase):
                         if msg=='TERMINATE':
                             return
         print os.getpid()
+        killit=1
         sourcedir = tempfile.mkdtemp()
         targetdir = tempfile.mkdtemp()
         files = [tempfile.mkstemp(dir=sourcedir,suffix=str(i1)+'.png')[1] for i1 in range(5)]
         [ numpy.savetxt(f1, numpy.random.rand(128,)) for f1 in files]
         srcdstlist = zip(files, [os.path.join(targetdir,os.path.split(f1)[1]) for f1 in files])
         pusher = ZeroMQPusher(22222)
-        p1 = BackgroundCopier(22222,postpone_seconds=5,debug=1,thread=1)
+        p1 = BackgroundCopier(22222,postpone_seconds=5,debug=1,thread=0)
         lister = threading.Thread(target=message_printer, args=(p1.exception_list,))
         lister.start()
         p1.start()
+        print p1.pid1.value
         for item in srcdstlist:
             pusher.send(item)
+        if killit and not p1.isthread:
+            import signal
+            time.sleep(3)
+            os.kill(os.getpid(), signal.SIGKILL) #kill parent process and see whether child processes quit automatically
+            return
         pusher.send('TERMINATE')
         p1.join()
-        p1.exception_list.put('TERMINATE')
+        p1.exception_list.put('TERMINATE') #shuts down listener thread
         lister.join()
         pusher.close()
         pass
