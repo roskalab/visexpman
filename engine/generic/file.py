@@ -8,9 +8,10 @@ import subprocess as sub
 import multiprocessing,threading,Queue
 import time
 from distutils import file_util,  dir_util
+import psutil
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
-def BackgroundCopier(pullerport,postpone_seconds = 60, thread=1,debug=0):
+def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
     if thread:
         base = threading.Thread
     else:
@@ -21,88 +22,112 @@ def BackgroundCopier(pullerport,postpone_seconds = 60, thread=1,debug=0):
         stays alive and copies any item put in the list.
         Exceptions are dumped into the message_list. Both lists should be Manager.list() instances.
         '''
-        def __init__(self, pullerport,postpone_seconds = 60, thread=1,debug=0):
-            from visexpman.engine.hardware_interface.network_interface import ZeroMQPuller
-            self.puller = ZeroMQPuller(pullerport,threaded=False,debug=True)
-            self.puller.start()
+        def __init__(self, command_queue,postpone_seconds = 60, thread=1,debug=0):
             self.isthread = thread
+            self.command_queue=command_queue
             if thread:
                 threading.Thread.__init__(self)
-                self.exception_list=Queue.Queue()
+                self.message_out_queue=Queue.Queue()
             else:
                 multiprocessing.Process.__init__(self)
-                self.exception_list = multiprocessing.Queue()
+                self.message_out_queue = multiprocessing.Queue()
             self.debug = debug
-            self.postponed_list = [] #collects items that could not be copied for any reason
             self.postpone_seconds= postpone_seconds
             self.parentpid = os.getpid() #init is executed in the parent process
-            self.manager = multiprocessing.Manager()
-            self.pid1 = self.manager.Value('i',0)
+            self.timeout=0.5 #sec
             
         def run(self):
-            import psutil
-            self.pid1.set(os.getpid())
             self.logfile=open('/tmp/log.txt','w+')
-            while 1:
-                # make sure this process terminates when parent is no longer alive
-                if not self.isthread:
-                    p = psutil.Process(os.getpid())
-                    self.exception_list.put('Bg pid:{0}, parentpid:{1}, current parentpid{2}'.format(p.pid,self.parentpid,p.parent.pid))
-                    if p.parent.pid!=self.parentpid:
-                        self.close()
-                        self.logfile.write( 'Parent died?')
-                        return
-                    else:
-                        self.logfile.write('pid:{1},current time:{0}'.format(time.time(),os.getpid()))
-                    self.logfile.flush()
-                if len(self.puller.queue)==0:
-                    time.sleep(0.5)
-                    if self.debug:
-                        self.exception_list.put('No message')
-                if len(self.puller.queue)>0:
-                    file_list = self.puller.queue[:]
-                elif len(self.postponed_list)>0:
-                    self.logfile.write('sleeping to process postponded list\n')
-                    self.logfile.flush()
-                    time.sleep(self.postpone_seconds)
-                    if self.debug:
-                        self.exception_list.put('Retrying after '+str(self.postpone_seconds)+' seconds')
-                    file_list = self.postponed_list[:]
+            try:
+                if self.isthread:
+                    self.postponed_list = [] #collects items that could not be copied for any reason
                 else:
-                    self.logfile.write('nothing to do\n')
-                    continue
-                for item in file_list:
-                    try:
-                        current_exception=''
-                        if item=='TERMINATE':
+                    self.manager = multiprocessing.Manager()
+                    self.postponed_list = self.manager.list() #collects items that could not be copied for any reason
+                    self.pid1 = self.manager.Value('i',0)
+                    self.pid1.set(os.getpid())
+                while 1:
+                    # make sure this process terminates when parent is no longer alive
+                    if not self.isthread:
+                        p = psutil.Process(os.getpid())
+                        #self.message_out_queue.put('Bg pid:{0}, parentpid:{1}, current parentpid{2}'.format(p.pid,self.parentpid,p.parent.pid))
+                        if p.parent.pid!=self.parentpid:
+                            if debug:
+                                self.logfile.write( 'Parent died?')
                             self.close()
                             return
-                        source=item[0]; target  = item[1]
+                        else:
+                            if self.debug:
+                                self.logfile.write('pid:{1},current time:{0}'.format(time.time(),os.getpid()))
+                            self.logfile.flush()
+                    if self.command_queue.empty() and len(self.postponed_list)==0:
+                        time.sleep(0.5)
+                        file_list = []
+                        if self.debug:
+                            pass#self.message_out_queue.put('No message',True,self.timeout)
+                    elif not self.command_queue.empty(): #first process new commands
+                        file_list = [self.command_queue.get(True,self.timeout)]
+                    elif len(self.postponed_list)>0: #no commands but some leftovers
+                        if debug:
+                            self.logfile.write('sleeping to process postponded list\n')
+                            self.logfile.flush()
+                        time.sleep(self.postpone_seconds)
+                        if self.debug:
+                            self.message_out_queue.put('Retrying after '+str(self.postpone_seconds)+' seconds',True,self.timeout)
+                        file_list = self.postponed_list[:]
+                    else:
+                        if self.debug:
+                            self.logfile.write('nothing to do\n');self.logfile.flush()
+                        continue
+                    if debug and self.isthread:
+                        print file_list
+                    for item in file_list:
                         try:
-                            if not os.path.exists(source):
-                                current_exception='source file does not exist {0}'.format(item)
-                            elif not os.path.exists(target) or (os.path.exists(target) and os.stat(source).st_size!=os.stat(target).st_size):
-                                shutil.copy(source, target)
-                                if os.path.exists(target) and os.stat(source).st_size==os.stat(target).st_size:
-                                    if self.debug:
-                                        current_exception='File '+source+' copied OK'
-                            else:
-                                current_exception = '{0} has same size as {1}'.format(source, target)
+                            current_exception=''
+                            if item=='TERMINATE':
+                                self.close()
+                                return
+                            source=item[0]; target  = item[1]
+                            try:
+                                if not os.path.exists(source):
+                                    current_exception='source file does not exist {0}'.format(item)
+                                elif not os.path.exists(target) or (os.path.exists(target) and os.stat(source).st_size!=os.stat(target).st_size):
+                                    shutil.copy(source, target)
+                                    if os.path.exists(target) and os.stat(source).st_size==os.stat(target).st_size:
+                                        if self.debug:
+                                            current_exception='File '+source+' copied OK'
+                                else:
+                                    current_exception = '{0} has same size as {1}'.format(source, target)
+                            except Exception as e:
+                                current_exception=str(e)
+                                print e
+                                self.postponed_list.append((source,target))
+                            if item in self.postponed_list:
+                                self.postponed_list.remove(item)
+                            self.message_out_queue.put(current_exception,True,self.timeout)
                         except Exception as e:
-                            current_exception=str(e)
-                            self.postponed_list.append((source,target))
-                        if item in self.puller.queue:
-                            self.puller.queue.remove(item)
-                        elif item in self.postponed_list:
-                            self.postponed_list.remove(item)
-                        self.exception_list.put(current_exception)
-                    except Exceptions as e:
-                        print e
-
+                            self.logfile.write(str(e))
+            except Exception as e:
+                self.logfile.write(str(e))
+                self.logfile.flush()
+               
         def close(self):
-            self.puller.join()
-            self.puller.close()
-    return BackgroundCopierClass(pullerport,postpone_seconds, thread,debug)
+            try:
+                self.manager.shutdown()
+                children = psutil.Process(os.getpid()).get_children(recursive=True)
+                self.logfile.write('no of children:{0}'.format(len(children)))
+                for c1 in children:
+                    c1.kill()
+                    self.logfile.write('{0} with pid {1} killed\n'.format(c1.name,c1.pid))
+                    self.logfile.flush()
+            except Exception as e:
+                self.logfile.write(str(e))
+                self.logfile.flush()
+            if self.debug:
+                self.logfile.write('logfile close')
+                self.logfile.close()
+
+    return BackgroundCopierClass(command_queue,postpone_seconds, thread,debug)
 
 def free_space(path):
     s=os.statvfs(path)
@@ -542,24 +567,26 @@ class TestUtils(unittest.TestCase):
         files = [tempfile.mkstemp(dir=sourcedir,suffix=str(i1)+'.png')[1] for i1 in range(5)]
         [ numpy.savetxt(f1, numpy.random.rand(128,)) for f1 in files]
         srcdstlist = zip(files, [os.path.join(targetdir,os.path.split(f1)[1]) for f1 in files])
-        pusher = ZeroMQPusher(22222)
-        p1 = BackgroundCopier(22222,postpone_seconds=5,debug=1,thread=0)
-        lister = threading.Thread(target=message_printer, args=(p1.exception_list,))
+        command_queue = multiprocessing.Queue()
+        p1 = BackgroundCopier(command_queue,postpone_seconds=5,debug=1,thread=0)
+        lister = threading.Thread(target=message_printer, args=(p1.message_out_queue,))
         lister.start()
         p1.start()
-        print p1.pid1.value
         for item in srcdstlist:
-            pusher.send(item)
+            command_queue.put(item)
         if killit and not p1.isthread:
             import signal
-            time.sleep(3)
+            children = psutil.Process(os.getpid()).get_children(recursive=True)
+            print('no of children:{0}'.format(len(children)))
+            for c1 in children:
+                print('child pid {0} name {1}'.format(c1.pid,c1.name))
+            time.sleep(1)
             os.kill(os.getpid(), signal.SIGKILL) #kill parent process and see whether child processes quit automatically
             return
-        pusher.send('TERMINATE')
+        command_queue.put('TERMINATE')
         p1.join()
-        p1.exception_list.put('TERMINATE') #shuts down listener thread
+        p1.message_out_queue.put('TERMINATE') #shuts down listener thread
         lister.join()
-        pusher.close()
         pass
         
         
