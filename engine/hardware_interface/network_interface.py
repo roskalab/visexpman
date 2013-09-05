@@ -109,7 +109,6 @@ def ZeroMQPuller( port, queue=None, type='PULL', serializer='json', maxiter=floa
                                     self.queue.put(msg)
                                 elif hasattr(self.queue, 'append'):
                                     self.queue.append(msg) #propagate TERMINATE command in case receiver also handles it
-                                print 'poller terminated'
                                 return
                         except Exception as e:
                             msg = str(e)
