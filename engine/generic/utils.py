@@ -260,7 +260,7 @@ def argsort(seq):
     #by ubuntu
     return sorted(range(len(seq)), key=seq.__getitem__)
     
-def nd(rcarray, squeeze=False, dim_order=None):
+def nd(rcarray, squeeze=False, dim_order=None,tuples=0):
     '''Convenience function to convert a recarray to nd array'''
     if dim_order is None: dim_order = [0, 1, 2]
     dim_names4current_data = dim_names0[:len(rcarray.dtype.names)]
@@ -271,6 +271,8 @@ def nd(rcarray, squeeze=False, dim_order=None):
         res= rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
     if squeeze or rcarray.ndim==0:
         res=numpy.squeeze(res)
+    if tuples: #gives back list of tuples on which set operations can be performed
+        res = [tuple(item) for item in res]
     return res
 
 def rcd(raw):

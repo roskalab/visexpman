@@ -25,6 +25,7 @@ import traceback
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 from visexpman.engine.generic.introspect import list_type
 import multiprocessing
+import psutil
 from multiprocessing import Process, Manager,  Event
 DISPLAY_MESSAGE = False
 
@@ -43,77 +44,102 @@ def zmq_device(in_port, out_port, monitor_port, in_type='PULL', out_type='PUSH',
     device.start()
     time.sleep(.2)
     return device
-        
-class ZeroMQPuller(multiprocessing.Process):#threading.Thread):
-    '''Pulls zmq messages from a server and puts it in a python queue'''
-    def __init__(self, port, queue=None, type='PULL', serializer='json', maxiter=float('Inf')): #type can be zmq.SUB too
-        self.serializer= serializer
-        self.queue = queue
-        self.port=port
-        self.serializer=serializer
-        if queue is None:
-            self.manager= multiprocessing.Manager()
-            self.queue=self.manager.list()
-        self.type=type
-        super(ZeroMQPuller, self).__init__()
-        self.exit = multiprocessing.Event()
-        self.maxiter= maxiter
-        
-    def run(self):
-        self.debug=0
-        try:
-            self.pid1 = os.getpid()
-            self.context = zmq.Context(1)
-            self.client = self.context.socket(getattr(zmq, self.type))
-            if self.type=='SUB':
-                self.client.setsockopt(zmq.SUBSCRIBE, '')
-            self.client.setsockopt(zmq.LINGER, 150)
-            self.client.connect('tcp://localhost:{0}'.format(self.port))
-            self.poll = zmq.Poller()
-            self.poll.register(self.client, zmq.POLLIN)
-            while not self.exit.is_set():
-                socks = dict(self.poll.poll(1000)) #timeout in each second allows stopping process via the close method
-                if self.debug:
-                    self.queue.append(10)
-                if socks.get(self.client) == zmq.POLLIN:
-                    try:
-                        if self.serializer == 'json':
-                            msg = self.client.recv_json()
-                        else:
-                            msg = self.client.recv()
-                        if self.debug:
-                            self.queue.append(msg)
-                        if msg=='TERMINATE': # exit process via network 
-                            self.client.close()
-                            self.context.term()
+
+def ZeroMQPuller( port, queue=None, type='PULL', serializer='json', maxiter=float('Inf'), threaded=False,debug=False): #type can be zmq.SUB too
+    if threaded is True:
+        base = threading.Thread
+    else:
+        base = multiprocessing.Process
+    class ZeroMQPullerClass(base):
+        '''Pulls zmq messages from a server and puts it in a python queue'''
+        def __init__(self, port, queue=None, type='PULL', serializer='json', maxiter=float('Inf'), threaded=False,debug=False): #type can be zmq.SUB too
+            self.serializer= serializer
+            self.queue = queue
+            self.port=port
+            self.serializer=serializer
+            self.threaded = threaded
+            if queue is None:
+                if not threaded:
+                    self.manager= multiprocessing.Manager()
+                    self.queue=self.manager.list()
+                else:
+                    self.queue=[] # list is thread safe for reading only!
+            self.type=type
+            if threaded:
+                threading.Thread.__init__(self)
+                self.exit = threading.Event()
+            else:
+                multiprocessing.Process.__init__(self)
+                self.exit = multiprocessing.Event()
+                self.parentpid = os.getpid() #init is executed in the parent process
+            self.maxiter= maxiter
+            self.debug=debug
+            
+        def run(self):
+            try:
+                self.pid1 = os.getpid()
+                self.context = zmq.Context(1)
+                self.client = self.context.socket(getattr(zmq, self.type))
+                if self.type=='SUB':
+                    self.client.setsockopt(zmq.SUBSCRIBE, '')
+                self.client.setsockopt(zmq.LINGER, 150)
+                self.client.connect('tcp://localhost:{0}'.format(self.port))
+                self.poll = zmq.Poller()
+                self.poll.register(self.client, zmq.POLLIN)
+                while not self.exit.is_set():
+                    if not self.threaded:
+                        # make sure this process terminates when parent is no longer alive
+                        p = psutil.Process(os.getpid())
+                        if p.parent.pid != self.parentpid:
+                            self.close()
                             return
-                    except Exception as e:
-                        msg = str(e)
-                    if hasattr(self.queue, 'put'):
-                        self.queue.put(msg)
-                    elif hasattr(self.queue, 'append'):
-                        self.queue.append(msg)
-        except Exception as e:
-            msg=str(e)
-            if hasattr(self.queue, 'put'):
-                self.queue.put(msg)
-            elif hasattr(self.queue, 'append'):
-                self.queue.append(msg)
-        self.client.close()
-        self.context.term()
+                    socks = dict(self.poll.poll(1000)) #timeout in each second allows stopping process via the close method
+                    if socks.get(self.client) == zmq.POLLIN:
+                        try:
+                            if self.serializer == 'json':
+                                msg = self.client.recv_json()
+                            else:
+                                msg = self.client.recv()
+                            if self.debug and self.threaded:
+                                print 'Poller received message:{0}'.format(msg)
+                            if msg=='TERMINATE': # exit process via network 
+                                self.client.close()
+                                self.context.term()
+                                if hasattr(self.queue, 'put'):
+                                    self.queue.put(msg)
+                                elif hasattr(self.queue, 'append'):
+                                    self.queue.append(msg) #propagate TERMINATE command in case receiver also handles it
+                                print 'poller terminated'
+                                return
+                        except Exception as e:
+                            msg = str(e)
+                        if hasattr(self.queue, 'put'):
+                            self.queue.put(msg)
+                        elif hasattr(self.queue, 'append'):
+                            self.queue.append(msg)
+            except Exception as e:
+                msg=str(e)
+                if hasattr(self.queue, 'put'):
+                    self.queue.put(msg)
+                elif hasattr(self.queue, 'append'):
+                    self.queue.append(msg)
+            self.client.close()
+            self.context.term()
+            
+            
+        def close(self): #exit process if spawned on the same machine
+            print "Shutdown initiated"
+            self.debug=1
+            self.exit.set()
         
-        
-    def close(self): #exit process if spawned on the same machine
-        print "Shutdown initiated"
-        self.debug=1
-        self.exit.set()
+        def kill(self):
+            import signal
+            try:
+                os.kill(self.pid1, signal.SIGTERM)
+            except:
+                pass
     
-    def kill(self):
-        import signal
-        try:
-            os.kill(self.pid1, signal.SIGTERM)
-        except:
-            pass
+    return ZeroMQPullerClass(port, queue, type, serializer, maxiter, threaded,debug)
 
 class ZeroMQPusher(object):
     def __init__(self, port=None, type='PUSH', serializer='json'): #can be zmq.PUB too
@@ -150,13 +176,16 @@ class ZeroMQPusher(object):
         self.socket.close()
         self.context.term()
 
-class CallableViaZeroMQ(threading.Thread):
+class CallableViaZeroMQ(threading.Thread, multiprocessing.Process):
     '''Interface to call a method via ZeroMQ socket'''
-    def __init__(self, port):
+    def __init__(self, port, thread=1):
         '''We allow methods be called directly by another thread but you must ensure data is protected by locks. In those cases locks block concurrent access but allow fine grained concurrency
         between direct method calls and calls via ZMQ'''
         self.port = port
-        threading.Thread.__init__(self)
+        if thread:
+            threading.Thread.__init__(self)
+        else:
+            multiprocessing.Process.__init__(self)
         
     def run(self):
         if self.port is None:

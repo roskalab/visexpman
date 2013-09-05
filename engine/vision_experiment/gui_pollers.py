@@ -31,7 +31,7 @@ from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine import generic
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
-from visexpman.engine.generic import string
+from visexpman.engine.generic import stringop
 from visexpman.engine.generic import introspect
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
@@ -2313,15 +2313,15 @@ class CaImagingPoller(Poller):
             if nframes is not None:
                 self.parameters['nframes'] = nframes
             try:
-                self.parameters['scan_size'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_size_xy'].input.text()))
-                self.parameters['scan_center'] = utils.cr(string.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_center_xy'].input.text()))
+                self.parameters['scan_size'] = utils.cr(stringop.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_size_xy'].input.text()))
+                self.parameters['scan_center'] = utils.cr(stringop.str2params(self.parent.central_widget.main_widget.background_scan_parameters.inputs['scan_area_center_xy'].input.text()))
                 self.parameters['resolution'] = 1.0/float(str(self.parent.central_widget.main_widget.background_scan_parameters.inputs['resolution'].input.text()))
             except:
                 self.update_scan_run_status('ready')
                 return
             if self.parent.central_widget.main_widget.use_user_parameters.input.checkState() == 2:
                 try:
-                    self.parameters['SCANNER_SETTING_TIME'] = string.str2params(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_SETTING_TIME'].input.text())
+                    self.parameters['SCANNER_SETTING_TIME'] = stringop.str2params(self.parent.central_widget.calibration_widget.scanner_parameters['SCANNER_SETTING_TIME'].input.text())
                     if len(self.parameters['SCANNER_SETTING_TIME']) == 1:
                         self.parameters['SCANNER_SETTING_TIME'] = self.parameters['SCANNER_SETTING_TIME'][0]
                     elif len(self.parameters['SCANNER_SETTING_TIME']) == 0:
@@ -2460,7 +2460,7 @@ class CaImagingPoller(Poller):
         Pixels of input image are in the 0...1 range
         '''
         histogram_resolution = 0.01
-        histogram_parameters = string.str2params(self.parent.central_widget.image_analysis.histogram_range.input.text())
+        histogram_parameters = stringop.str2params(self.parent.central_widget.image_analysis.histogram_range.input.text())
         image_out = image
         if len(histogram_parameters)==3:#Apply histogram
             min,  max,  gamma = histogram_parameters
@@ -2507,7 +2507,7 @@ class CaImagingPoller(Poller):
             for pn in self.parent.central_widget.calibration_widget.parameter_names:
                 par_value = str(self.parent.central_widget.calibration_widget.scanner_parameters[pn].input.text())
                 if par_value != '':
-                    par_value = string.str2params(par_value)
+                    par_value = stringop.str2params(par_value)
                     if len(par_value) == 1:
                         par_value = par_value[0]
                     self.parameters[pn] = par_value
