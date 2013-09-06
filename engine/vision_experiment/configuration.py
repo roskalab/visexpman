@@ -57,17 +57,24 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #naming: server - client
         self.BASE_PORT = 10000
         COMMAND_RELAY_SERVER  = {
-        'RELAY_SERVER_IP' : '172.27.25.220',
+        'RELAY_SERVER_IP' : '',
+        'RELAY_SERVER_IP_FROM_TABLE': False,
         'ENABLE' : False,
         'CLIENTS_ENABLE': False, 
         'TIMEOUT':6.0,#6
         'CONNECTION_MATRIX':
-            {#TODO: probably IP addresses are not necessary here
-            'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
-            'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
-            'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
-            'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
-            }
+            {
+            'GUI_MES'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
+            'STIM_MES'  : {'STIM' : {'IP': '1', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
+            'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': '', 'LOCAL_IP': '',  'PORT': self.BASE_PORT + 5}}, 
+            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 7}}, 
+            },
+        'SERVER_IP':{
+                     'GUI_MES': '',
+                     'STIM_MES': '',
+                     'GUI_STIM': '',
+                     'GUI_ANALYSIS'  : '',
+                     }
         }
         
         ################ Mes parameters #############
@@ -230,6 +237,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         }
 #         ]]
         TILTING_LIMIT = [1.5, [0.0, 10.0]]
+        ADD_CELLS_TO_MOUSE_FILE = False
+        SHOW_OVERVIEW = False
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 

@@ -873,7 +873,22 @@ class MainPoller(Poller):
                                 pass
                             self.set_process_status_flag(parameter, flags)
                         elif command == 'find_cells_ready':
-                            self.add_cells_to_database(parameter)
+                            if self.config.ADD_CELLS_TO_MOUSE_FILE:
+                                self.add_cells_to_database(parameter)
+                            else:
+                                region_name, measurement_file_path, info = self.read_scan_regions(parameter)
+                                id = parameter
+                                self.scan_regions[region_name]['process_status'][parameter]['find_cells_ready'] = True
+                                soma_rois = hdf5io.read_item(measurement_file_path, 'soma_rois')
+                                if soma_rois is None or len(soma_rois) == 0:
+                                    number_of_new_cells = 0
+                                else:
+                                    number_of_new_cells = len(soma_rois)
+                                    if number_of_new_cells > 200:
+                                        number_of_new_cells = 50
+                                self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
+                                self.save2mouse_file(['scan_regions'])
+                                self.parent.update_jobhandler_process_status()
                         elif command == 'mouse_file_copy':
                             if parameter == '':
                                 tag = 'jobhandler'

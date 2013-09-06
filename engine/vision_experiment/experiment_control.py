@@ -172,13 +172,19 @@ class ExperimentControl(object):
         if self.abort:
             return
         if self.config.PLATFORM == 'mes':
-            result,  laser_intensity = self.mes_interface.read_laser_intensity()
+            time.sleep(1.0)
+            result, laser_intensity = self.mes_interface.read_laser_intensity()
             if result:
                 self.initial_laser_intensity = laser_intensity
                 self.laser_intensity = laser_intensity
             else:
-                self.printl('Laser intensity CANNOT be read')
-                return None
+#                 result, laser_intensity = self.mes_interface.read_laser_intensity()
+#                 if result:
+#                     self.initial_laser_intensity = laser_intensity
+#                     self.laser_intensity = laser_intensity
+#                 else:
+                    self.printl('Laser intensity CANNOT be read')
+                    return None
             parameters2set = ['laser_intensity', 'objective_position']
             for parameter_name2set in parameters2set:                
                 if self.parameters.has_key(parameter_name2set):

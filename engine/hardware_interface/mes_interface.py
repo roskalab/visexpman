@@ -233,6 +233,8 @@ class MesInterface(object):
         if timeout == None:
             timeout = self.config.MES_TIMEOUT
         if self.connection.connected_to_remote_client():
+            time.sleep(0.1)
+            utils.empty_queue(self.queues['mes']['in'])
             self.queues['mes']['out'].put('SOCread_laser_intensityEOCEOP')
             if utils.wait_data_appear_in_queue(self.queues['mes']['in'], timeout):
                 while not self.queues['mes']['in'].empty():

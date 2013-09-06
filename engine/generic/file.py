@@ -1,31 +1,156 @@
-import os
+import os, re
 import os.path
 import shutil
 import numpy
 import tempfile
+import time
+import subprocess as sub
+import multiprocessing,threading,Queue
+import time
+from distutils import file_util,  dir_util
+try:
+    import psutil
+except ImportError:
+    pass
+timestamp_re = re.compile('.*(\d{10,10}).*')
 
-def copier(src_dst_list, message_list):
-    '''Background copier function: provide source,target path tuples in src_dst_list.
-    The first item in src_dst_list is used to control the process: src_dst_list[0]=='active' means the process
-    stays alive and copies any item put in the list.
-    Exceptions are dumped into the message_list. Both lists should be Manager.list() instances.
-    '''
-    try:
-        while src_dst_list[0] =='active':
-            tasklist=src_dst_list[1:]
-            for source,target in tasklist:
-                if not os.path.exists(target) and os.path.exists(source) and os.stat(source).st_size!=os.stat(target).st_size:
-                    shutil.copy(source, target)
-                    if os.path.exists(target) and os.stat(source).st_size==os.stat(target).st_size:
-                        src_dst_list.remove((source,target))
-                        
-    except Exception as e:
-        message_list.append(str(e))
+def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
+    if thread:
+        base = threading.Thread
+    else:
+        base = multiprocessing.Process
+    class BackgroundCopierClass(base):
+        '''Background copier function: provide source,target path tuples in src_dst_list.
+        The first item in src_dst_list is used to control the process: src_dst_list[0]=='active' means the process
+        stays alive and copies any item put in the list.
+        Exceptions are dumped into the message_list. Both lists should be Manager.list() instances.
+        '''
+        def __init__(self, command_queue,postpone_seconds = 60, thread=1,debug=0):
+            self.isthread = thread
+            self.command_queue=command_queue
+            if thread:
+                threading.Thread.__init__(self)
+                self.message_out_queue=Queue.Queue()
+            else:
+                multiprocessing.Process.__init__(self)
+                self.message_out_queue = multiprocessing.Queue()
+            self.debug = debug
+            self.postpone_seconds= postpone_seconds
+            self.parentpid = os.getpid() #init is executed in the parent process
+            self.timeout=0.5 #sec
+            
+        def run(self):
+            self.logfile=open('/tmp/log.txt','w+')
+            try:
+                if self.isthread:
+                    self.postponed_list = [] #collects items that could not be copied for any reason
+                else:
+                    self.manager = multiprocessing.Manager()
+                    self.postponed_list = self.manager.list() #collects items that could not be copied for any reason
+                    self.pid1 = self.manager.Value('i',0)
+                    self.pid1.set(os.getpid())
+                while 1:
+                    # make sure this process terminates when parent is no longer alive
+                    if not self.isthread:
+                        p = psutil.Process(os.getpid())
+                        #self.message_out_queue.put('Bg pid:{0}, parentpid:{1}, current parentpid{2}'.format(p.pid,self.parentpid,p.parent.pid))
+                        if p.parent.pid!=self.parentpid:
+                            if debug:
+                                self.logfile.write( 'Parent died?')
+                            self.close()
+                            return
+                        else:
+                            if self.debug:
+                                self.logfile.write('pid:{1},current time:{0}'.format(time.time(),os.getpid()))
+                            self.logfile.flush()
+                    if self.command_queue.empty() and len(self.postponed_list)==0:
+                        time.sleep(0.5)
+                        file_list = []
+                        if self.debug:
+                            pass#self.message_out_queue.put('No message',True,self.timeout)
+                    elif not self.command_queue.empty(): #first process new commands
+                        file_list = [self.command_queue.get(True,self.timeout)]
+                    elif len(self.postponed_list)>0: #no commands but some leftovers
+                        if debug:
+                            self.logfile.write('sleeping to process postponded list\n')
+                            self.logfile.flush()
+                        time.sleep(self.postpone_seconds)
+                        if self.debug:
+                            self.message_out_queue.put('Retrying after '+str(self.postpone_seconds)+' seconds',True,self.timeout)
+                        file_list = self.postponed_list[:]
+                    else:
+                        if self.debug:
+                            self.logfile.write('nothing to do\n');self.logfile.flush()
+                        continue
+                    if debug and self.isthread:
+                        print file_list
+                    for item in file_list:
+                        try:
+                            current_exception=''
+                            if item=='TERMINATE':
+                                self.close()
+                                return
+                            source=item[0]; target  = item[1]
+                            try:
+                                if not os.path.exists(source):
+                                    current_exception='source file does not exist {0}'.format(item)
+                                elif not os.path.exists(target) or (os.path.exists(target) and os.stat(source).st_size!=os.stat(target).st_size):
+                                    shutil.copy(source, target)
+                                    if os.path.exists(target) and os.stat(source).st_size==os.stat(target).st_size:
+                                        if self.debug:
+                                            current_exception='File '+source+' copied OK'
+                                else:
+                                    current_exception = '{0} has same size as {1}'.format(source, target)
+                            except Exception as e:
+                                current_exception=str(e)
+                                print e
+                                self.postponed_list.append((source,target))
+                            if item in self.postponed_list:
+                                self.postponed_list.remove(item)
+                            self.message_out_queue.put(current_exception,True,self.timeout)
+                        except Exception as e:
+                            self.logfile.write(str(e))
+            except Exception as e:
+                self.logfile.write(str(e))
+                self.logfile.flush()
+               
+        def close(self):
+            try:
+                self.manager.shutdown()
+                children = psutil.Process(os.getpid()).get_children(recursive=True)
+                self.logfile.write('no of children:{0}'.format(len(children)))
+                for c1 in children:
+                    c1.kill()
+                    self.logfile.write('{0} with pid {1} killed\n'.format(c1.name,c1.pid))
+                    self.logfile.flush()
+            except Exception as e:
+                self.logfile.write(str(e))
+                self.logfile.flush()
+            if self.debug:
+                self.logfile.write('logfile close')
+                self.logfile.close()
 
+    return BackgroundCopierClass(command_queue,postpone_seconds, thread,debug)
 
 def free_space(path):
     s=os.statvfs(path)
     return (s.f_bavail * s.f_frsize)
+
+def file_open_by_other_process(filename):
+    '''Checks whether the given file is open by any process'''
+    ccmd = 'lsof -Fp '+filename
+    p=sub.Popen(ccmd, shell=True)
+    res= p.communicate()
+    pids = re.findall('p(\d+)', res)
+    if len(pids)<1: return False
+    elif len(pids)>1 or pids[0]!=os.getpid():return True
+
+def compare_timestamps(string1, string2):
+        '''Finds timestamps in the strings and returns true if the timestamps are the same'''
+        ts1 = timestamp_re.findall(str(string1))[0]
+        ts2 = timestamp_re.findall(str(string2))[0]
+        if int(ts1)==int(ts2): return True
+        else: return False
 
 def copy_reference_fragment_files(reference_folder, target_folder):
     if os.path.exists(target_folder):
@@ -50,6 +175,13 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
             return os.path.split(path)[1]
         else:
             return path
+            
+def get_tmp_file(suffix, delay = 0.0):
+    path = os.path.join(tempfile.gettempdir(), 'tmp.' + suffix)
+    if os.path.exists(path):
+        os.remove(path)
+    time.sleep(delay)
+    return path
 
 def mkstemp(suffix=None, filename = None):
     '''Creates a temporary file with suffix as extension, e.g. .pdf. Closes the file so that other methods can open it and do what they need.'''        
@@ -68,7 +200,33 @@ def set_file_dates(path, file_info):
 
 def mkdir_notexists(folder):
     if not os.path.exists(folder):
-        os.mkdir(folder)
+        os.makedirs(folder)
+        
+def recreate_dir(folder):
+    if os.path.exists(folder):
+        shutil.rmtree(folder)
+    os.makedirs(folder)
+
+def copy(src, dst, update=1):
+    if not os.path.exists(src):
+        raise OSError('File or directory to be copied does not exist')
+    if os.path.isfile(src): 
+        dir_util.mkpath(os.path.split(dst)[0])
+        return file_util.copy_file(src, dst, update=1)
+    else: 
+        dir_util.mkpath(dst)
+        return dir_util.copy_tree(src, dst, update=1)
+
+def total_size(source):
+        total_size_bytes = os.path.getsize(source)
+        if not os.path.isfile(source):
+            for item in os.listdir(source):
+                itempath = os.path.join(source, item)
+                if os.path.isfile(itempath):
+                    total_size_bytes += os.path.getsize(itempath)
+                elif os.path.isdir(itempath):
+                    total_size_bytes += total_size(itempath)
+        return total_size_bytes
 
 def find_files_and_folders(start_path,  extension = None, filter = None):
         '''
@@ -313,7 +471,7 @@ class TestUtils(unittest.TestCase):
     def tearDown(self):
         os.remove(self.filename)
         pass
-    
+    @unittest.skip('')
     def test_pngsave(self):
         import numpy, Image
         from visexpman.engine.generic.introspect import hash_variables
@@ -326,6 +484,51 @@ class TestUtils(unittest.TestCase):
         pilconfirm = Image.open(self.filename)
         self.assertTrue((pilconfirm.info['mycomment']==pilpic.info['mycomment']) and (pilconfirm.info['myhash']==pilpic.info['myhash']))
         pass
+        
+    def test_copier(self):
+        from multiprocessing import Process,Manager
+        from visexpman.engine.hardware_interface.network_interface import ZeroMQPusher
+        import threading
+        def message_printer(message_list):
+            while 1:
+                if message_list.empty():
+                    time.sleep(0.4)
+                    #print 'message list empty'
+                else:
+                    while not message_list.empty():
+                        msg= message_list.get()
+                        print msg
+                        if msg=='TERMINATE':
+                            return
+        print os.getpid()
+        killit=1
+        sourcedir = tempfile.mkdtemp()
+        targetdir = tempfile.mkdtemp()
+        files = [tempfile.mkstemp(dir=sourcedir,suffix=str(i1)+'.png')[1] for i1 in range(5)]
+        [ numpy.savetxt(f1, numpy.random.rand(128,)) for f1 in files]
+        srcdstlist = zip(files, [os.path.join(targetdir,os.path.split(f1)[1]) for f1 in files])
+        command_queue = multiprocessing.Queue()
+        p1 = BackgroundCopier(command_queue,postpone_seconds=5,debug=1,thread=0)
+        lister = threading.Thread(target=message_printer, args=(p1.message_out_queue,))
+        lister.start()
+        p1.start()
+        for item in srcdstlist:
+            command_queue.put(item)
+        if killit and not p1.isthread:
+            import signal
+            children = psutil.Process(os.getpid()).get_children(recursive=True)
+            print('no of children:{0}'.format(len(children)))
+            for c1 in children:
+                print('child pid {0} name {1}'.format(c1.pid,c1.name))
+            time.sleep(1)
+            os.kill(os.getpid(), signal.SIGKILL) #kill parent process and see whether child processes quit automatically
+            return
+        command_queue.put('TERMINATE')
+        p1.join()
+        p1.message_out_queue.put('TERMINATE') #shuts down listener thread
+        lister.join()
+        pass
+        
         
 if __name__=='__main__':
     unittest.main()

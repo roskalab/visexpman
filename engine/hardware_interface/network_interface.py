@@ -344,7 +344,7 @@ class SockServer(SocketServer.TCPServer):
             self.printl(traceback.format_exc())
 
 class QueuedServer(QtCore.QThread):
-    def __init__(self, queue_in, queue_out, port, name, log_queue, timeout):
+    def __init__(self, server_ip, queue_in, queue_out, port, name, log_queue, timeout):
         QtCore.QThread.__init__(self)
         self.port = port
         self.queue_in = queue_in
@@ -352,7 +352,7 @@ class QueuedServer(QtCore.QThread):
         self.log_queue = log_queue
         self.name = name
         self.timeout = timeout
-        self.server = SockServer(("", port), self.queue_in, self.queue_out, self.name, self.log_queue, self.timeout)
+        self.server = SockServer((server_ip, port), self.queue_in, self.queue_out, self.name, self.log_queue, self.timeout)
 
     def run(self):
         self.server.serve_forever()
@@ -395,8 +395,12 @@ class CommandRelayServer(object):
         for connection, connection_config in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
             endpoints = connection_config.keys()
             self.servers[connection] = {}
-            
+            if self.config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP_FROM_TABLE']:
+                server_ip = self.config.COMMAND_RELAY_SERVER['SERVER_IP'][connection]
+            else:
+                server_ip = ['','']
             self.servers[connection][endpoints[0]] = QueuedServer(
+                                                                            server_ip[0], 
                                                                             self.queues[connection][endpoints[1] + '2' + endpoints[0]], #in
                                                                             self.queues[connection][endpoints[0] + '2' + endpoints[1]], #out
                                                                             connection_config[endpoints[0]]['PORT'], 
@@ -406,6 +410,7 @@ class CommandRelayServer(object):
                                                                             )
                                                                             
             self.servers[connection][endpoints[1]] = QueuedServer(
+                                                                            server_ip[1], 
                                                                             self.queues[connection][endpoints[0] + '2' + endpoints[1]], #in
                                                                             self.queues[connection][endpoints[1] + '2' + endpoints[0]], #out
                                                                             connection_config[endpoints[1]]['PORT'], 
@@ -420,12 +425,16 @@ class CommandRelayServer(object):
                 server.start()
                 
     def shutdown_servers(self):
+        print 'shutdown servers', self.config.COMMAND_RELAY_SERVER['ENABLE']
         if self.config.COMMAND_RELAY_SERVER['ENABLE']:
             for connection_name, connection in self.servers.items():
                 for endpoint, server in connection.items():
                     server.shutdown()
+            print self.log_queue
             self.log.queue(self.log_queue)
         if hasattr(self, 'log'):
+            print 'logfile copy'
+            print self.log.log_path, self.log.path
             self.log.copy()
                 
     def get_debug_info(self, time_format = True):
@@ -453,7 +462,7 @@ class CommandRelayServer(object):
     
 
 class QueuedClient(QtCore.QThread):
-    def __init__(self, queue_out, queue_in, server_address, port, timeout, endpoint_name):
+    def __init__(self, queue_out, queue_in, server_address, port, timeout, endpoint_name, local_address = ''):
         '''
         queue_in: data coming from network connection
         queue_out: data to be sent via network
@@ -463,6 +472,7 @@ class QueuedClient(QtCore.QThread):
         self.queue_out = queue_out
         self.port = port
         self.server_address = server_address
+        self.local_address = local_address
         self.no_message_timeout = timeout
         self.alive_message = 'SOCechoEOCaliveEOP'
         self.endpoint_name = endpoint_name
@@ -481,8 +491,12 @@ class QueuedClient(QtCore.QThread):
         keepalive = True
         while True:
             connection_close_request = False
+            self.printl((self.server_address, self.local_address))
             try:
-                self.connection = socket.create_connection((self.server_address, self.port))
+                if self.local_address != '':
+                     self.connection = socket.create_connection((self.server_address, self.port), source_address = (self.local_address, 0))
+                else:
+                    self.connection = socket.create_connection((self.server_address, self.port))
                 self.printl(self.connection.getpeername())
                 self.queue_in.put('connected to server')
                 self.last_receive_timout = time.time()
@@ -535,8 +549,20 @@ class QueuedClient(QtCore.QThread):
                                 elif 'close_connection' in data:
                                     self.printl('Close requested')
                                     connection_close_request = True                                
-                                if len(data)>0:                                    
-                                    self.queue_in.put(data)
+                                if len(data)>0:
+                                    if 'EOPSOC' in data:
+                                        commands = data.split('EOPSOC')
+#                                         print commands
+                                        for i in range(len(commands)):
+                                            if i == 0:
+                                                commands[i] += 'EOP'
+                                            elif i == len(commands)-1:
+                                                commands[i] = 'SOC' + commands[i]
+                                            else:
+                                                commands[i] = 'SOC' + commands[i] + 'EOP'
+                                            self.queue_in.put(commands[i])
+                                    else:
+                                        self.queue_in.put(data)
                                     self.printl(data)
                                 self.last_message_time = time.time()
                             if time.time() - self.last_message_time > self.no_message_timeout:
@@ -591,11 +617,18 @@ def start_client(config, client_name, connection_name, queue_in, queue_out):
     '''
     Returns a reference to the client thread.
     '''
+    if config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP_FROM_TABLE']:
+        server_address = config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'][connection_name][client_name]['IP']
+        local_address = config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'][connection_name][client_name]['LOCAL_IP']
+    else:
+        server_address = config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP']
+        local_address = ''
     client = QueuedClient(queue_out, queue_in, 
-                          config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'], 
+                          server_address, 
                           config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'][connection_name][client_name]['PORT'], 
                           config.COMMAND_RELAY_SERVER['TIMEOUT'], 
-                          client_name)
+                          client_name,
+                          local_address = local_address)
     if config.COMMAND_RELAY_SERVER['CLIENTS_ENABLE']:
         client.start()
     return client

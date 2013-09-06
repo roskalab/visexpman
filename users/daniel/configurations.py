@@ -518,6 +518,20 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP_FROM_TABLE'] = True
+        self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
+            {
+            'GUI_MES'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
+            'STIM_MES'  : {'STIM' : {'IP': '192.168.1.2', 'LOCAL_IP': '192.168.1.3', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
+            'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '192.168.1.2', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': '192.168.1.2', 'LOCAL_IP': '192.168.1.3',  'PORT': self.BASE_PORT + 5}}, 
+            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '172.27.27.221', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 7}}, 
+            }
+        self.COMMAND_RELAY_SERVER['SERVER_IP'] = {\
+                     'GUI_MES': ['',''],
+                     'STIM_MES': ['192.168.1.2',''],
+                     'GUI_STIM': ['192.168.1.2', '192.168.1.2'],
+                     'GUI_ANALYSIS'  : ['', ''],
+                     }
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
@@ -586,6 +600,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         REALIGNMENT_XY_THRESHOLD = 2.0
         REALIGNMENT_Z_THRESHOLD = 1.0
         #MES scanning config
+        ADD_CELLS_TO_MOUSE_FILE = False
         
         self.ROI = {}
         self.ROI['process'] = 'all'

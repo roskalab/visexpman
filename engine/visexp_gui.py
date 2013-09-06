@@ -362,7 +362,8 @@ class VisionExperimentGui(QtGui.QWidget):
             self.show_image(image_to_display['image'], 1, image_to_display['scale'], line = line, origin = image_to_display['origin'])
             #update overwiew
             image, scale = imaged.merge_brain_regions(scan_regions, region_on_top = selected_region)
-            self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
+            if self.config.SHOW_OVERVIEW:
+                self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
             #Update region info
             if scan_regions[selected_region].has_key('add_date'):
                 region_add_date = scan_regions[selected_region]['add_date']
