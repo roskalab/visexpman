@@ -706,7 +706,7 @@ class KamillSetup(KamillSetup_original):
     def _set_user_parameters(self):
         KamillSetup_original._set_user_parameters(self)
         SCREEN_RESOLUTION = utils.cr([1024, 768])
-        FULLSCREEN = True
+        FULLSCREEN = not True
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         EXPERIMENT_CONFIG = ''
         self._create_parameters_from_locals(locals())
@@ -714,4 +714,3 @@ class KamillSetup(KamillSetup_original):
     
 if __name__ == "__main__":
     pass
-    

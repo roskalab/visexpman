@@ -16,7 +16,7 @@ import shutil
 import copy
 
 import experiment_data
-import visexpman.engine.generic.log as log
+from visexpman.engine.generic import log
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 from visexpman.engine.hardware_interface import mes_interface
@@ -84,8 +84,9 @@ class ExperimentControl(object):
         '''
         Runs a single experiment which parameters are determined by the context parameter and the self.parameters attribute
         '''
-        if context.has_key('stage_origin'):
-            self.stage_origin = context['stage_origin']
+        for vn in ['stage_origin', 'screen_center']:
+            if context.has_key(vn):
+                setattr(self, vn, context[vn])
         message_to_screen = ''
         message = self._prepare_experiment(context)
         if message is not None:

@@ -119,11 +119,11 @@ class Debug(experiment.Experiment):
             duty_cycle = 1.0)
             
 if __name__ == "__main__":
-    if True:
+    if not True:
         v = visexp_runner.VisionExperimentRunner(['zoltan', 'daniel'], 'SwDebugConfig')
 #        v.run_experiment(user_experiment_config = 'MovingGratingTuning')
         v.run_experiment(user_experiment_config = 'MovingGratingConfigFindOrientation')
-    elif True:
+    elif not True:
         v = visexp_runner.VisionExperimentRunner(['zoltan', 'chi'], 'SwDebugConfig')
         v.run_experiment(user_experiment_config = 'FullfieldSinewave')
     elif not True:

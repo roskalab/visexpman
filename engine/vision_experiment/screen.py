@@ -1,4 +1,3 @@
-
 import pygame
 import copy
 import socket
@@ -18,7 +17,7 @@ def experiment_choices(experiment_list):
     Lists and displays stimulus files that can be found in the default stimulus file folder
     '''
     return '\n'.join([str(i)+' '+experiment_list[i][1].__name__ for i in range(len(experiment_list))])
-
+    
 class VisionExperimentScreen(graphics.Screen):
     '''
     graphics.Screen is amended with vision experiment specific features: menu&message displaying
@@ -58,10 +57,9 @@ class VisionExperimentScreen(graphics.Screen):
                 im = im.resize((self.bullseye_size_in_pixel, self.bullseye_size_in_pixel))
                 try:
                     im.save(bullseye_path)
-                    self.render_imagefile(bullseye_path, position = self.config.SCREEN_CENTER)
+                    self.render_imagefile(bullseye_path, position = utils.rc_multiply_with_constant(self.screen_center, self.config.SCREEN_UM_TO_PIXEL_SCALE))
                 except:
                     pass
-            
         
     def _show_menu(self, flip = False):
         '''

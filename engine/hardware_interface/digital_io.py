@@ -3,6 +3,8 @@ import os
 import time
 import unittest
 import instrument
+import threading
+import Queue
 
 class SerialPortDigitalIO(instrument.Instrument):
     '''
@@ -36,12 +38,40 @@ class SerialPortDigitalIO(instrument.Instrument):
         if log:
             self.log_during_experiment('Serial DIO pin {0} set to {1}'.format(channel, value))
             
+class Photointerrrupter(threading.Thread):
+    def __init__(self, config):
+        threading.Thread.__init__(self)
+        self.config=config
+        self.queues = {}
+        self.command_queue = Queue.Queue()
+        self.s= {}
+        self.state = {}
+        self.t0 = time.time()
+        for id in self.config.PHOTOINTERRUPTER_SERIAL_DIO_PORT.keys():
+            self.queues[id] = Queue.Queue()
+            self.s[id] = serial.Serial(self.config.PHOTOINTERRUPTER_SERIAL_DIO_PORT[id])
+            if os.name != 'nt':
+                self.s[id].open()
+            self.state[id] = self.s[id].getCTS()
+            self.queues[id].put((self.t0, self.state[id]))
+            
+    def run(self):
+        while True:
+            if not self.command_queue.empty() and self.command_queue.get() == 'TERMINATE':
+                break
+            now = time.time()
+            for id in self.queues.keys():
+                current_state = self.s[id].getCTS()
+                if current_state != self.state[id]:
+                    self.queues[id].put((now, self.state[id]))
+            time.sleep(5e-3)
+            
 class TestConfig(object):
     def __init__(self):
         self.SERIAL_DIO_PORT = 'COM3'
     
-class TestSerialPortIO(unittest.TestCase):
-#    @unittest.skip('')
+class TestDigitalIO(unittest.TestCase):
+    @unittest.skip('')
     def test_01_pulse(self):
         config = TestConfig()
         s = SerialPortDigitalIO(config)
@@ -52,6 +82,7 @@ class TestSerialPortIO(unittest.TestCase):
     #    time.sleep(200.0)
         s.release_instrument()
         
+    @unittest.skip('')
     def test_02_test_io_lines(self):
         config = TestConfig()
         s = SerialPortDigitalIO(config)
@@ -62,6 +93,23 @@ class TestSerialPortIO(unittest.TestCase):
             s.set_data_bit(1, False)
             time.sleep(10e-3)
         s.release_instrument()
+        
+    def test_03_test_photointerrupter(self):
+        class Config():
+            def __init__(self):
+                self.PHOTOINTERRUPTER_SERIAL_DIO_PORT = {'0': 'COM3'}
+                
+        config = Config()
+        pi = Photointerrrupter(config)
+        pi.start()
+        time.sleep(10.0)
+        pi.command_queue.put('TERMINATE')
+        time.sleep(1.0)
+        for id in pi.queues.keys():
+            print id
+            while not pi.queues[id].empty():
+                transition = pi.queues[id].get()
+                print transition[0] - pi.t0, transition[1]
 
 if __name__ == '__main__':
     unittest.main()

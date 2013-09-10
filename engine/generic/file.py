@@ -8,7 +8,10 @@ import subprocess as sub
 import multiprocessing,threading,Queue
 import time
 from distutils import file_util,  dir_util
-import psutil
+try:
+    import psutil
+except:
+    pass
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
 def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):

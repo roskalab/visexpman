@@ -91,7 +91,8 @@ class MVS(ElphysConfig):
         LOG_PATH = os.path.join(v_drive_data_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH
         EXPERIMENT_DATA_PATH = v_drive_data_folder
-        
+        CONTEXT_PATH = os.path.join('C:\\temp')
+        self.CONTEXT_NAME = 'elphys.hdf5'
 #        CAPTURE_PATH = os.path.join(v_drive_data_folder, 'capture')
         
         #=== screen ===
@@ -187,4 +188,3 @@ class KamillSetup(MVS):
         
 if __name__ == "__main__":    
     pass
-    

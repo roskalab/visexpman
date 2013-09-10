@@ -39,13 +39,20 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         command_parser.CommandParser.__init__(self, queue_in, queue_out, log = self.log, failsafe = False)
         screen.ScreenAndKeyboardHandler.__init__(self)
         self.stage_origin = numpy.zeros(3)
+        self.screen_center = self.config.SCREEN_CENTER
         if hasattr(self.config, 'CONTEXT_FILE'):
             try:
-                self.stage_origin = hdf5io.read_item(self.config.CONTEXT_FILE, 'stage_origin', filelocking = self.config.ENABLE_HDF5_FILELOCKING)
+                h = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking = self.config.ENABLE_HDF5_FILELOCKING)
+                for vn in ['stage_origin', 'screen_center']:
+                    h.load(vn)
+                    if hasattr(h, vn) and getattr(h, vn) is not None:
+                        setattr(self, vn, getattr(h, vn))
+                        if vn == 'screen_center':
+                            self.screen_center = utils.rc((self.screen_center[0]['row'], self.screen_center[0]['col']))
+                h.close()
             except:
                 self.log.info('Context file cannot be opened')
-            if self.stage_origin == None:
-                self.stage_origin = numpy.zeros(3)
+        pass
         
 ###### Commands ######    
     def quit(self):
@@ -57,10 +64,21 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.quit()
         
     def bullseye(self,  size = 100):
-        self.show_bullseye = not self.show_bullseye
+        if int(size) == 0:
+            self.show_bullseye = False
+        else:
+            self.show_bullseye = True
         self.bullseye_size = size
         return 'bullseye'
-
+        
+    def set_center(self, x = None, y = None):
+        if x is not None and y is not None:
+            self.screen_center = utils.rc((-float(y), float(x)))#The - sign is just for maintain compatibility with Presentinator
+            if hasattr(self.config, 'CONTEXT_FILE'):
+                hdf5io.save_item(self.config.CONTEXT_FILE, 'screen_center', self.screen_center, overwrite=True,filelocking = self.config.ENABLE_HDF5_FILELOCKING)
+        else:
+            self.screen_center = self.config.SCREEN_CENTER
+            
     def color(self, color):
         self.user_background_color = int(color)
         return 'color'
@@ -87,7 +105,6 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                 return 'filterwheel ' + str(filterwheel_id) + ',  ' +str(filter_position)
             except:
                 return 'filterwheel ' + str(filterwheel_id) + ',  ' +str(filter_position) + '\n' + str(traceback.format_exc())
-        
         
     def stage(self,par, new_x = 0, new_y = 0, new_z = 0):
         '''
@@ -151,6 +168,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         else:
            source_code = ''
         if kwargs.has_key('experiment_config'):
+            self.experiment_config = None
             for experiment_config in self.experiment_config_list:
                 if experiment_config[1].__name__ == kwargs['experiment_config']:
                     self.experiment_config = experiment_config[1](self.config, self.queues, self.connections, self.log, parameters = kwargs)
@@ -183,7 +201,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         #Remove abort commands from queue
         utils.is_keyword_in_queue(self.queues['gui']['in'], 'abort', keep_in_queue = False)
         context = {}
-        context['stage_origin'] = self.stage_origin
+        for vn in ['stage_origin', 'screen_center']:
+            context[vn] = getattr(self, vn)
         if self.experiment_config is not None:
             result = self.experiment_config.runnable.run_experiment(context)
             return result
@@ -209,3 +228,4 @@ class CommandSender(QtCore.QThread):
     def close(self):
         self.terminate()
         self.wait()
+        
