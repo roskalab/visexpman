@@ -318,9 +318,10 @@ class SockServer(SocketServer.TCPServer):
                                'quit' in data:                               
                                 self.printl('connection close requested')
                                 connection_close_request = True
-                            elif 'keepalive' in data and 'off' in data:
+                            elif 'SOCkeepaliveEOCoffEOP' in data:
                                 self.printl('Keepalive check off')
                                 self.keepalive = False
+                                self.queue_in.put(data.replace('SOCkeepaliveEOCoffEOP', ''))
                             else:
                                 self.queue_in.put(data)
                         if now - self.last_receive_time > self.connection_timeout and self.keepalive:
@@ -365,8 +366,9 @@ class CommandRelayServer(object):
     def __init__(self, config):
         self.config = config        
         if self.config.COMMAND_RELAY_SERVER['ENABLE']:
-            self.log = log.Log('server log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'server_log.txt')), timestamp = 'no', local_saving = True) 
             self._generate_queues()
+            self.log = log.LoggerThread(self.command_queue, self.log_queue, 'server log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'server_log.txt')), timestamp = 'no', local_saving = True) 
+            self.log.start()
             self._create_servers()
             self._start_servers()
         
@@ -376,6 +378,7 @@ class CommandRelayServer(object):
         queues[connection_name][endpointA2endpointB], queues[connection_name][endpointB2endpointA]
         '''
         self.log_queue = Queue.Queue()        
+        self.command_queue = Queue.Queue()        
         self.queues = {}
         for connection, connection_config in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
             endpoints = connection_config.keys()            
@@ -404,7 +407,7 @@ class CommandRelayServer(object):
                                                                             self.queues[connection][endpoints[1] + '2' + endpoints[0]], #in
                                                                             self.queues[connection][endpoints[0] + '2' + endpoints[1]], #out
                                                                             connection_config[endpoints[0]]['PORT'], 
-                                                                            'connection: {0}, endpoint {1}, port {2}'.format(connection, endpoints[0], connection_config[endpoints[0]]['PORT']), 
+                                                                            '{0}/{1}/{2}'.format(connection, endpoints[0], connection_config[endpoints[0]]['PORT']), 
                                                                             self.log_queue, 
                                                                             self.config.COMMAND_RELAY_SERVER['TIMEOUT'], 
                                                                             )
@@ -414,7 +417,7 @@ class CommandRelayServer(object):
                                                                             self.queues[connection][endpoints[0] + '2' + endpoints[1]], #in
                                                                             self.queues[connection][endpoints[1] + '2' + endpoints[0]], #out
                                                                             connection_config[endpoints[1]]['PORT'], 
-                                                                            'connection: {0}, endpoint {1}, port {2}'.format(connection, endpoints[1], connection_config[endpoints[1]]['PORT']), 
+                                                                            '{0}/{1}/{2}'.format(connection, endpoints[1], connection_config[endpoints[1]]['PORT']), 
                                                                             self.log_queue, 
                                                                             self.config.COMMAND_RELAY_SERVER['TIMEOUT'], 
                                                                             )
@@ -425,17 +428,12 @@ class CommandRelayServer(object):
                 server.start()
                 
     def shutdown_servers(self):
-        print 'shutdown servers', self.config.COMMAND_RELAY_SERVER['ENABLE']
         if self.config.COMMAND_RELAY_SERVER['ENABLE']:
             for connection_name, connection in self.servers.items():
                 for endpoint, server in connection.items():
                     server.shutdown()
-            print self.log_queue
-            self.log.queue(self.log_queue)
-        if hasattr(self, 'log'):
-            print 'logfile copy'
-            print self.log.log_path, self.log.path
-            self.log.copy()
+            self.command_queue.put('TERMINATE')
+            self.log.join()
                 
     def get_debug_info(self, time_format = True):
         debug_info = []
@@ -458,8 +456,7 @@ class CommandRelayServer(object):
                 connection_status[connection_name + '/' + endpoint]  = server.server.connected
         if connection_id != None and endpoint_name != None:
             connection_status = self.servers[connection_id][endpoint_name].server.connected
-        return connection_status        
-    
+        return connection_status
 
 class QueuedClient(QtCore.QThread):
     def __init__(self, queue_out, queue_in, server_address, port, timeout, endpoint_name, local_address = ''):
