@@ -63,6 +63,7 @@ class Photointerrrupter(threading.Thread):
             for id in self.queues.keys():
                 current_state = self.s[id].getCTS()
                 if current_state != self.state[id]:
+                    self.state[id] = current_state
                     self.queues[id].put((now, self.state[id]))
             time.sleep(5e-3)
             
@@ -97,7 +98,7 @@ class TestDigitalIO(unittest.TestCase):
     def test_03_test_photointerrupter(self):
         class Config():
             def __init__(self):
-                self.PHOTOINTERRUPTER_SERIAL_DIO_PORT = {'0': 'COM3'}
+                self.PHOTOINTERRUPTER_SERIAL_DIO_PORT = {'0': 'COM12'}
                 
         config = Config()
         pi = Photointerrrupter(config)

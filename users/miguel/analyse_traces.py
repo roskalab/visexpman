@@ -9,6 +9,19 @@ import os
 import shutil
 from visexpA.engine.datahandlers import hdf5io
 #from visexpA.engine.dataprocessors.signal import estimate_baseline
+THRESHOLD = 'auto'
+
+cell_thresholds = {
+
+                    '20130408\\c2': 4, 
+                    '20130319\\c1': 6, 
+                    '20130301\\c1':8, 
+                    '20130222\\c3':6, 
+                    '20130213\\c1':6, 
+                    'PV2' : 6, 
+                    'PV5': 5, 
+                    'PV6': 5, 
+                   }
 
 class EplhysProcessor(object):
     def __init__(self, folder):
@@ -52,8 +65,12 @@ class EplhysProcessor(object):
                 plot(stats[:, 1, 0])
                 show()
             self.intensity = all_intensities[0]
-            for f in file.find_files_and_folders(self.folder, extension = 'phys')[1]:    
-                self.process_file(f)
+            for f in file.find_files_and_folders(self.folder, extension = 'phys')[1]:
+                threshold = [cell_thresholds[cell_name] for cell_name in cell_thresholds.keys() if cell_name.lower() in f.lower()]
+                if len(threshold)==1:
+                    self.process_file(f, threshold[0])
+                else:
+                    print threshold, f
 
     def check_stimulation_uniformity(self, stimulus_name):
         '''
@@ -111,7 +128,7 @@ class EplhysProcessor(object):
         ti = numpy.linspace(0, intensities.shape[0]/stim_data['config']['machine_config'][0][0]['SCREEN_EXPECTED_FRAME_RATE'][0][0][0][0], intensities.shape[0])
         return ti, intensities
         
-    def process_file(self,filename):
+    def process_file(self,filename, threshold = THRESHOLD):
         try:
             raw_elphys_signal, metadata = experiment_data.read_phys(filename)
             if raw_elphys_signal.shape[0] == 0 or os.stat(filename).st_size < 2000:
@@ -123,8 +140,18 @@ class EplhysProcessor(object):
             te = numpy.linspace(0, elphys_signal.shape[0]/float(fs), elphys_signal.shape[0])
             import copy
             ti = copy.deepcopy(self.ti)
+            filter_window = 25e-3 #s
+            ntaps = int(filter_window*fs)
+            if ntaps%2==0:
+                ntaps += 1
+            fcutoff = 100.0 #Hz
+            from scipy import signal
+            b = signal.firwin(ntaps, fcutoff/(0.5*fs), pass_zero=False)
+            a = [1.0]
+            data = elphys_signal-elphys_signal.min() 
+            data_filtered = scipy.signal.lfilter(b, a, data)
             import spike_sort.core
-            res = spike_sort.core.extract.detect_spikes({'data':numpy.array([elphys_signal-elphys_signal.min() ]), 'n_contacts': 1, 'FS': fs})['data']/1000.0
+            res = spike_sort.core.extract.detect_spikes({'data':numpy.array([data_filtered]), 'n_contacts': 1, 'FS': fs},  thresh = threshold)['data']/1000.0
             time_offset = 50+prerecord_time#50 sec is the TIME_COURSE experiment parameter
             fig=figure(1)
             time_window = 5.0
@@ -142,13 +169,14 @@ class EplhysProcessor(object):
             te -= time_offset
             plot(tsp, spiking_frequency)
             plot(ti, self.intensity)
-            legend(['spot intensity [PU]', 'Spiking frequency [Hz]'])
+            legend(['Spiking frequency [Hz]', 'spot intensity [PU]'])
             xlabel('Time [s]')
             title(filename)
             print filename,  ti.max(),  max(tsp),  te.max()
             if ti.max()/te.max() < 1.5:#Ignore short recordings
                 savefig(os.path.join(self.plot_folder,  filename.replace(self.folder, '').replace(os.sep, '_').replace('.phys', '.png')))
                 record = {}
+                record['threshold'] = threshold
                 record['time_window'] = time_window
                 record['t_elphys'] = te
                 record['elphys_signal'] = elphys_signal
@@ -168,4 +196,5 @@ if __name__=='__main__':
 #    folder = 'V:\\'
 #    folder = 'C:\\_del'
 #    folder = '/mnt/rznb/'
-    e=EplhysProcessor(os.path.join(folder,  'debug', 'migueldata'))
+#    e=EplhysProcessor(os.path.join(folder,  'debug', 'migueldata'))
+    e=EplhysProcessor('c:\\_del\\miguel')

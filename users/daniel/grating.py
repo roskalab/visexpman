@@ -77,7 +77,7 @@ class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
 class MovingGratingNoMarchingConfigSpeedTuning(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
-        #self.REPEATS = 3
+        self.REPEATS = 1
         #self.MARCH_TIME = 4.0
         #self.GRATING_STAND_TIME = 4.0
         #self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
@@ -87,18 +87,23 @@ class MovingGratingNoMarchingConfigSpeedTuning100(MovingGratingNoMarchingConfigS
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
         self.VELOCITIES = [100.0]
+        self.DUTY_CYCLES = [1.0]
+        self.REPEATS = 1
         self._create_parameters_from_locals(locals())
         
 class MovingGratingNoMarchingConfigSpeedTuning300(MovingGratingNoMarchingConfigSpeedTuning):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
         self.VELOCITIES = [300.0]
+        self.DUTY_CYCLES = [1.0]
+        self.REPEATS = 1
         self._create_parameters_from_locals(locals())
 
 class MovingGratingNoMarchingConfigSpeedTuning800(MovingGratingNoMarchingConfigSpeedTuning):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
         self.VELOCITIES = [800.0]
+        self.REPEATS = 1
         self._create_parameters_from_locals(locals())
 
 class MovingGratingWithFlashConfig(MovingGratingNoMarchingConfig):
