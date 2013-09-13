@@ -524,13 +524,15 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             'GUI_MES'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
             'STIM_MES'  : {'STIM' : {'IP': '192.168.1.2', 'LOCAL_IP': '192.168.1.3', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
             'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '192.168.1.2', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': '192.168.1.2', 'LOCAL_IP': '192.168.1.3',  'PORT': self.BASE_PORT + 5}}, 
-            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '192.168.3.2', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '192.168.3.2', 'LOCAL_IP': '192.168.3.3', 'PORT': self.BASE_PORT + 7}}, 
+            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '172.27.27.221', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 7}}, 
+#            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '192.168.3.2', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '192.168.3.2', 'LOCAL_IP': '192.168.3.3', 'PORT': self.BASE_PORT + 7}}, 
             }
         self.COMMAND_RELAY_SERVER['SERVER_IP'] = {\
                      'GUI_MES': ['',''],
                      'STIM_MES': ['192.168.1.2',''],
                      'GUI_STIM': ['192.168.1.2', '192.168.1.2'],
-                     'GUI_ANALYSIS'  : ['192.168.3.2', '192.168.3.2'],
+                     'GUI_ANALYSIS'  : ['', ''],
+#                     'GUI_ANALYSIS'  : ['192.168.3.2', '192.168.3.2'],
                      }
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
