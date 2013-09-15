@@ -605,7 +605,8 @@ class QueuedClient(QtCore.QThread):
         Sends an echo message to the remote client and waits for the response. If it does not arrive within the timout provided, it is assumed that the remote client is not connected
         '''
         #TODO: testcase is missing for this function
-        echo_message = 'SOCechoEOC{0}EOP'.format(self.endpoint_name)
+        import random
+        echo_message = 'SOCechoEOC{0}_{1}EOP'.format(self.endpoint_name, int(random.random()*10e5))
         self.queue_out.put(echo_message)
         t = utils.Timeout(timeout)
         return t.wait_timeout(break_wait_function = self._is_echo_arrived)        

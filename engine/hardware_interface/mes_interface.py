@@ -71,6 +71,8 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
         m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
     if channels is None:
         channels = numpy.array(numpy.array([[u'pmtUGraw']]), dtype=object)
+    elif channels in 'both':
+        channels = numpy.array([[channel] for channel in [u'pmtUGraw',  u'pmtURraw']], dtype = object)
     else:
         channels = numpy.array([[channel] for channel in channels], dtype = object)
     m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = channels
