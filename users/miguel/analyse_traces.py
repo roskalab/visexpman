@@ -148,10 +148,10 @@ class EplhysProcessor(object):
             from scipy import signal
             b = signal.firwin(ntaps, fcutoff/(0.5*fs), pass_zero=False)
             a = [1.0]
-            data = elphys_signal-elphys_signal.min() 
+            data = elphys_signal
             data_filtered = scipy.signal.lfilter(b, a, data)
             import spike_sort.core
-            res = spike_sort.core.extract.detect_spikes({'data':numpy.array([data_filtered]), 'n_contacts': 1, 'FS': fs},  thresh = threshold)['data']/1000.0
+            res = spike_sort.core.extract.detect_spikes({'data':numpy.array([data_filtered]), 'n_contacts': 1, 'FS': fs},  thresh = '{0}'.format(threshold))['data']/1000.0
             time_offset = 50+prerecord_time#50 sec is the TIME_COURSE experiment parameter
             fig=figure(1)
             time_window = 5.0
@@ -196,5 +196,5 @@ if __name__=='__main__':
 #    folder = 'V:\\'
 #    folder = 'C:\\_del'
 #    folder = '/mnt/rznb/'
-#    e=EplhysProcessor(os.path.join(folder,  'debug', 'migueldata'))
-    e=EplhysProcessor('c:\\_del\\miguel')
+    e=EplhysProcessor(os.path.join(folder,  'debug', 'migueldata'))
+#    e=EplhysProcessor('c:\\_del\\miguel')

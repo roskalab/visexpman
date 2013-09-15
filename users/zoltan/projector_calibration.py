@@ -11,7 +11,7 @@ import copy
 import argparse
 argparser = argparse.ArgumentParser()
 argparser.add_argument('--calibrate', help='Run calibration process', action='store_true')
-argparser.add_argument('--test_calibration', help='Rerun calibration process with loading gamma.hdf5 and it is not overwritten', action='store_true')
+argparser.add_argument('--check_calibration', help='Rerun calibration process with loading gamma.hdf5 and it is not overwritten', action='store_true')
 argparser.add_argument('--find_linear_range', help='Runs calibration with different intensity ranges', action='store_true')
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
@@ -55,7 +55,7 @@ class ProjectorCalibrationSetup(VisionExperimentConfig):
         self.LIGHT_METER['AVERAGING'] = 200
         
         gamma_correction_path = os.path.join(CALIBRATION_OUTPUT_PATH, 'gamma.hdf5')
-        if os.path.exists(gamma_correction_path) and getattr(argparser.parse_args(), 'test_calibration'):
+        if os.path.exists(gamma_correction_path) and getattr(argparser.parse_args(), 'check_calibration'):
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_correction_path, 'gamma_correction', filelocking = False))
         self._create_parameters_from_locals(locals())      
         
@@ -135,11 +135,11 @@ class ProjectorCalibration(experiment.Experiment):
         normalized_intensity = data2txt[:,1]/data2txt[:,1].max()
         data2txt = data2txt.T.tolist()
         data2txt.append(normalized_intensity.tolist())
-        if not getattr(argparser.parse_args(), 'test_calibration'):
+        if not getattr(argparser.parse_args(), 'check_calibration'):
             numpy.savetxt(os.path.join(os.path.split(output_file)[0], 'gamma.txt'), numpy.array(data2txt).T, fmt = '%2.9f')
         h.close()
         
-        if not getattr(argparser.parse_args(), 'test_calibration'):
+        if not getattr(argparser.parse_args(), 'check_calibration'):
             shutil.copy(output_file, os.path.join(os.path.split(output_file)[0], 'gamma.hdf5'))
         pylab.figure(1)
         pylab.plot(self.raw_ref_intensities, self.raw_measured_intensities)

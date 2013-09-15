@@ -21,10 +21,14 @@ if not exist "c:\Program Files\National Instruments\NI-DAQ" (
         copy %install_source_folder%\%daqmx_exe% %tmp_folder%\%daqmx_exe%
     )
     echo Install daqmx
+    echo Select "Reboot later" after installation
     c:
     cd %tmp_folder%
-    %daqmx_exe%
+    %daqmx_exe% 
+    ::'_exe' is not recogniezed as a command
 ) else (
+    ::This appears when daqmx is not yet installed but copied
+    ::echo Do not install python xy before Daqmx is installed
     echo Daqmx already installed
 )
 if not exist c:\Python27 (
@@ -47,9 +51,9 @@ if not exist c:\Python27\Lib\site-packages\pygame (
 ) else (
     echo Pygame already installed
 )
-echo Fix OpenGL installation
 
 if not exist c:\Python27\Lib\site-packages\OpenGL\DLLS (
+    echo Fixing OpenGL installation...
     mkdir c:\Python27\Lib\site-packages\OpenGL\DLLS
     xcopy %install_source_folder%\DLLS\*.* c:\Python27\Lib\site-packages\OpenGL\DLLS /s /y >> %tmp_folder%\copylog.txt
 )
@@ -70,18 +74,23 @@ if not exist c:\users (
     )
 )
 echo Copying python module installers ...
+::TODO: check if already copied
 xcopy %install_source_folder%\modules\*.* %tmp_folder% /s /y>> %tmp_folder%\copylog.txt
 if not exist c:\visexp (
     echo Copying Vision Experiment Manager files ...
     mkdir c:\visexp
     xcopy %visexp_files%\*.* c:\visexp /s /y >> %tmp_folder%\copylog.txt
+    mkdir c:\visexp\data
 )
 if exist %tmp_folder%\copylog.txt (
     del %tmp_folder%\copylog.txt
 )
 copy c:\visexp\visexpman\visexp_runner.bat "c:\Documents and Settings\All Users\Desktop\visexp_runner.bat"
 copy c:\visexp\visexpman\visexp_gui.bat "c:\Documents and Settings\All Users\Desktop\visexp_gui.bat"
+copy c:\visexp\visexpman\visexp_gui.bat "c:\Documents and Settings\All Users\Desktop\projector_calibration.bat"
+copy c:\visexp\visexpman\visexp_gui.bat "c:\Documents and Settings\All Users\Desktop\check_projector_calibration.bat"
 python c:\visexp\visexpman\users\zoltan\installer\post_install.py
+:: post install module installer does not work for pydaqmx
 python c:\visexp\visexpman\users\zoltan\test\test_installation.py
 echo Done
 pause
