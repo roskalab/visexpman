@@ -79,7 +79,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         'CLIENTS_ENABLE': False, 
         'TIMEOUT':6.0,#6
         'CONNECTION_MATRIX':
-            {#TODO: probably IP addresses are not necessary here
+            {
             'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
             'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
@@ -389,7 +389,7 @@ class RcCorticalCaImagingConfig(CorticalCaImagingConfig):
         
         #############  Jobhandler  ############
         PARSE_PERIOD = [5.0, [0.0, 10.0]]
-        MOUSE_FILE_CHECK_PERIOD = [15.0, [0.0, 60.0]]
+        JOB_LIST_FILE_CHECK_PERIOD = [15.0, [0.0, 60.0]]
         ENABLE_ZIGZAG_CORRECTION = True
         
         self._create_parameters_from_locals(locals())

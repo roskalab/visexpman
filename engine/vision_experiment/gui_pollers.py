@@ -323,13 +323,13 @@ class CorticalGUIPoller(Poller):
                             self.set_analysis_status_flag(parameter, flags)
                         elif command == 'find_cells_ready':
                             self.add_cells_to_database(parameter)
-                        elif command == 'mouse_file_copy':
+                        elif command == 'job_list_file_copy':
                             if parameter == '':
-                                tag = 'jobhandler'
+                                tag = 'jobs'
                             else:
                                 tag = parameter
                             if self.generate_job_list(tag = tag):
-                                self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
+                                self.queues['analysis']['out'].put('SOCjob_list_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_{0}.hdf5'.format(tag))))
                         else:
                             self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
         except:

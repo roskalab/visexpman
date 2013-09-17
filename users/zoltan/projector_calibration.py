@@ -1,4 +1,3 @@
-#TODO: reduce averaging, measure sine wave intensity, random jumps...
 import sys
 import pylab
 import time

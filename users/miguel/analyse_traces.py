@@ -1,12 +1,14 @@
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.generic import file
 from visexpman.engine.generic import utils
+import scipy.signal
 import scipy.io
-from matplotlib.pyplot import plot, show,figure,legend, xlabel,title,savefig, clf
+from matplotlib.pyplot import plot, show,figure,legend, xlabel,title,savefig, clf, subplot, ylabel
 import numpy
 import os.path
 import os
 import shutil
+import spike_sort.core
 from visexpA.engine.datahandlers import hdf5io
 #from visexpA.engine.dataprocessors.signal import estimate_baseline
 THRESHOLD = 'auto'
@@ -66,11 +68,12 @@ class EplhysProcessor(object):
                 show()
             self.intensity = all_intensities[0]
             for f in file.find_files_and_folders(self.folder, extension = 'phys')[1]:
-                threshold = [cell_thresholds[cell_name] for cell_name in cell_thresholds.keys() if cell_name.lower() in f.lower()]
-                if len(threshold)==1:
-                    self.process_file(f, threshold[0])
-                else:
-                    print threshold, f
+#                if 'PV2/20130305C4/C1/20130305_C1#002Miguelgaussian_Ch2!spike0' in f:
+                    threshold = [cell_thresholds[cell_name] for cell_name in cell_thresholds.keys() if cell_name.lower() in f.lower()]
+                    if len(threshold)==1:
+                        self.process_file(f, threshold[0])
+                    else:
+                        print threshold, f
 
     def check_stimulation_uniformity(self, stimulus_name):
         '''
@@ -128,7 +131,81 @@ class EplhysProcessor(object):
         ti = numpy.linspace(0, intensities.shape[0]/stim_data['config']['machine_config'][0][0]['SCREEN_EXPECTED_FRAME_RATE'][0][0][0][0], intensities.shape[0])
         return ti, intensities
         
-    def process_file(self,filename, threshold = THRESHOLD):
+    def highpass_filter(self, signal, cutoff_frequency, fsample, twindow=25e-3):
+        filter_window = 25e-3 #s
+        ntaps = int(twindow*fsample)
+        if ntaps%2==0:
+            ntaps += 1
+        b = scipy.signal.firwin(ntaps, cutoff_frequency/(0.5*fsample), pass_zero=False)
+        a = [1.0]
+        return scipy.signal.lfilter(b, a, signal)
+        
+    def generate_time_intervals(self, t, time_window):
+        time_intervals = (numpy.arange(-int(abs(t.min())/time_window),0)*time_window).tolist()
+        time_intervals.insert(0, t.min())
+        time_intervals.extend((numpy.arange(int(t.max()/time_window))*time_window).tolist())
+        time_intervals.append(t.max())
+        return numpy.array(time_intervals)
+        
+    def process_file(self, filename, threshold = THRESHOLD, time_window = 5.0):
+        raw_elphys_signal, metadata = experiment_data.read_phys(filename)
+        if raw_elphys_signal.shape[0] == 0 or os.stat(filename).st_size < 2000:
+            return
+        fsample = float(metadata['Sample Rate'])
+        #Filter elphys signal
+        filtered_elphys_signal = self.highpass_filter(raw_elphys_signal[0], 100.0,  fsample)
+        #Detect spikes
+        spike_times = spike_sort.core.extract.detect_spikes({'data':numpy.array([filtered_elphys_signal]), 'n_contacts': 1, 'FS': fsample},  thresh = '{0}'.format(threshold))['data'][1:]/1000.0
+        t_elphys = numpy.arange(0, filtered_elphys_signal.shape[0])/fsample
+        import copy
+        t_stim = copy.deepcopy(self.ti)
+        #shift time vectors
+        time_offset = 50.0 + 0*float(metadata['Pre-Record Time (mS)'])/1000.0
+        for tv in [t_elphys, t_stim, spike_times]:
+            tv -= time_offset
+        #Generate time intevals
+        time_intervals = self.generate_time_intervals(t_elphys, time_window)
+        t_spiking_frequency = []
+        spiking_frequency = []
+        for i in range(time_intervals.shape[0]-1):
+            tstart = time_intervals[i]
+            tend = time_intervals[i+1]
+            t = tstart + 0.5*(tend-tstart)
+            t_spiking_frequency.append(t)
+            spiking_frequency.append(numpy.nonzero(numpy.where(spike_times<tend, True, False) * numpy.where(spike_times>tstart, True, False))[0].shape[0]/time_window)
+        t_spiking_frequency = numpy.array(t_spiking_frequency)
+        spiking_frequency = numpy.array(spiking_frequency)
+        title(filename)
+        subplot(311)
+        ylabel('Spiking frequency [Hz]')
+        plot(t_spiking_frequency, spiking_frequency)
+        plot(time_intervals, numpy.ones_like(time_intervals), '.')
+        subplot(312)
+        ylabel('Raw signal')
+        plot(t_elphys, raw_elphys_signal[0])
+        plot(time_intervals, numpy.ones_like(time_intervals), '.')
+        subplot(313)
+        ylabel('Stimulus intensity [PU]')
+        plot(t_stim, self.intensity)
+        plot(time_intervals, numpy.ones_like(time_intervals), '.')
+        xlabel('Time [s]')
+        print filename
+        if t_stim.max()/t_elphys.max() < 1.5:#Ignore short recordings
+            savefig(os.path.join(self.plot_folder, filename.replace(self.folder, '').replace(os.sep, '_').replace('.phys', '.png')), dpi=300)
+            record = {}
+            record['threshold'] = threshold
+            record['time_window'] = time_window
+            record['t_elphys'] = t_elphys
+            record['elphys_signal'] = raw_elphys_signal[0]
+            record['t_spikes'] = t_spiking_frequency
+            record['spiking_frequency'] = spiking_frequency
+            record['t_stimulus'] = t_stim
+            record['spot_intensity'] = self.intensity
+            scipy.io.savemat(os.path.join(self.plot_folder,  filename.replace(self.folder, '').replace(os.sep, '_').replace('.phys', '.mat')), record, oned_as = 'row', long_field_names=True)
+            clf()
+        pass
+
+    def process_file1(self,filename, threshold = THRESHOLD):
         try:
             raw_elphys_signal, metadata = experiment_data.read_phys(filename)
             if raw_elphys_signal.shape[0] == 0 or os.stat(filename).st_size < 2000:

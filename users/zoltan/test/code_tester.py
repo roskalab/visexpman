@@ -5,7 +5,7 @@ import os.path
 import numpy
 import time
 
-if True:
+if not True:
     
     
     import socket
@@ -29,6 +29,7 @@ if True:
 else:
     def append2hdf5():
         p='/mnt/datafast/debug/ea.hdf5'
+        p='v:\\debug\\ea.hdf5'
         if os.path.exists(p):
             os.remove(p)
         handle=hdf5io.Hdf5io(p, filelocking=False)
@@ -45,8 +46,8 @@ else:
         pass
 
 from multiprocessing import Queue, Process
-#if __name__ == '__main__':
-#    append2hdf5()
+if __name__ == '__main__':
+    append2hdf5()
 #    p='/mnt/datafast/debug/earray1.hdf5'
 #    if os.path.exists(p):
 #        os.remove(p)
