@@ -765,24 +765,33 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             try:
                 self.tp.start_rectangular_scan(parameters['scan_size'], parameters['scan_center'], parameters['resolution'], setting_time = config.SCANNER_SETTING_TIME, 
                                       trigger_signal_config = config.SCANNER_TRIGGER_CONFIG)
+                if parameters.has_key('duration'):
+                    if parameters['duration'] == 0:
+                        nframes = 1
+                    else:
+                        nframes = int(numpy.round(parameters['duration'] * self.tp.frame_rate))
+                elif parameters.has_key('nframes'):
+                    nframes = parameters['nframes']
+                else:
+                    nframes = -1
                 if parameters['enable_recording']:
                     from visexpA.engine.datahandlers.datatypes import ImageData
                     import tables
                     self.h = ImageData(self.filenames['datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-                    raw_data = self.h.h5f.createEArray(self.h.h5f.root, 'raw_data', tables.Float64Atom(), (0, ))
+                    n_columns_per_frame = int(parameters['scan_size']['col']*parameters['resolution'])
+                    if nframes == -1:
+                        expectedrows = 100* self.tp.frame_rate*n_columns_per_frame
+                    else:
+                        expectedrows = nframes*n_columns_per_frame
+                    raw_data = self.h.h5f.createEArray(self.h.h5f.root, 'raw_data', 
+                                                                                tables.Float64Atom(), 
+                                                                                (0, ), 
+                                                                                filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1), 
+                                                                                expectedrows=expectedrows)
             except:
                 self.printc(traceback.format_exc())
                 self.printc('scan_ready')
                 return
-            if parameters.has_key('duration'):
-                if parameters['duration'] == 0:
-                    nframes = 1
-                else:
-                    nframes = int(numpy.round(parameters['duration'] * self.tp.frame_rate))
-            elif parameters.has_key('nframes'):
-                nframes = parameters['nframes']
-            else:
-                nframes = -1
             self._estimate_memory_demand()
             self._send_scan_parameters2guipoller(config, parameters)
             self.printc('scan_started')
@@ -790,7 +799,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             #start scan loop
             self.abort = False
             while True:
-                pmtdata = self.tp.read_pmt(collect_data = parameters['enable_recording'])
+                pmtdata = self.tp.read_pmt(collect_data = False and parameters['enable_recording']) #TMP
                 if parameters['enable_recording']:
                     raw_data.append(pmtdata.flatten())
                 self.queues['frame'].put(pmtdata)
@@ -799,9 +808,10 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                     break
                     self.abort = True
                 time.sleep(0.01)
+            self.recorded_frames = frame_ct
             #Finish, save
             self.printc('Scanning ended, {0} frames recorded' .format(frame_ct))
-            self.tp.finish_measurement(generate_frames = parameters['enable_recording'])
+            self.tp.finish_measurement(generate_frames = False and parameters['enable_recording'])#TMP
             if parameters['enable_recording']:
                 self._save_cadata(config, parameters)
             self.printc('scan_ready')
@@ -838,6 +848,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
         data_to_save['scan_parameters']['scan_config'] = copy.deepcopy(scan_config.get_all_parameters())
         data_to_save['scan_parameters']['raw_frame_shape'] = self.tp.raw_pmt_frame.shape
+        data_to_save['scan_parameters']['nframes'] = self.recorded_frames
         data_to_save['scan_parameters'].update(parameters)
         if False:
             data_to_save['animal_parameters'] = {}

@@ -25,7 +25,10 @@ import traceback
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 from visexpman.engine.generic.introspect import list_type
 import multiprocessing
-import psutil
+try:
+    import psutil
+except:
+    pass
 from multiprocessing import Process, Manager,  Event
 DISPLAY_MESSAGE = False
 

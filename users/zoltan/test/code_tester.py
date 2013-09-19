@@ -28,26 +28,35 @@ if not True:
     
 else:
     def append2hdf5():
-        p='/mnt/datafast/debug/ea.hdf5'
+#        p='/mnt/datafast/debug/ea.hdf5'
         p='v:\\debug\\ea.hdf5'
         if os.path.exists(p):
             os.remove(p)
         handle=hdf5io.Hdf5io(p, filelocking=False)
-        h=100
-        w=100
-        array_c = handle.h5f.createEArray(handle.h5f.root, 'array_c', tables.UInt8Atom(), (0,))#,  filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1))
-        array_c.append(numpy.cast['float64'](numpy.cast['uint8'](numpy.random.random(h))))
-        array_c.append(numpy.cast['float64'](numpy.cast['uint8'](numpy.random.random(h))))
-    #    from visexpman.engine.generic.introspect import Timer
-    #    for i in range(10):
-    #        with Timer(''):
-    #            array_c.append(numpy.cast['float64'](numpy.random.random((2*h, w,))[0:h, :]))
+        h=500
+        w=540
+        sh = h
+#        array_c = handle.h5f.createEArray(handle.h5f.root, 'array_c', tables.UInt8Atom(), (0,))#,  filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1))
+        array_c = handle.h5f.createEArray(handle.h5f.root, 'array_c', tables.UInt8Atom((h, w)), shape=(0, ), filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1), expectedrows=100)
+        array_c.append(numpy.cast['uint8'](256*numpy.random.random((1, h, w))))
+        
+        from visexpman.engine.generic.introspect import Timer
+        for i in range(60*10):
+            with Timer(''):
+                array_c.append(numpy.cast['uint8'](256*numpy.random.random((1, h, w))))
         handle.close()
         pass
+
+    def read_hdf5():
+        p='v:\\debug\\ea.hdf5'
+        handle=hdf5io.Hdf5io(p, filelocking=False)
+        print handle.h5f.root.array_c.read().shape
+        handle.close()
 
 from multiprocessing import Queue, Process
 if __name__ == '__main__':
     append2hdf5()
+    read_hdf5()
 #    p='/mnt/datafast/debug/earray1.hdf5'
 #    if os.path.exists(p):
 #        os.remove(p)

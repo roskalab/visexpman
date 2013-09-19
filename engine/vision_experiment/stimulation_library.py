@@ -451,10 +451,13 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             vertices[vertices_outer_ring.shape[0]:] = vertices_inner_ring
             shape_type = 'annulus'
         n_vertices = vertices.shape[0]
-        if len(pos_pixel.shape) == 0:
+        if len(pos_pixel.shape) == 0:#When does it happen?????????????
             number_of_positions = 1
             vertices = vertices + numpy.array([pos_pixel['col'], pos_pixel['row']])
-        elif len(pos_pixel.shape) == 1:
+        elif len(pos_pixel.shape) == 1 and pos_pixel.shape[0] == 1:
+            number_of_positions = 1
+            vertices = vertices + numpy.array([pos_pixel['col'], pos_pixel['row']]).T
+        elif len(pos_pixel.shape) == 1 and pos_pixel.shape[0] > 1:
             if shape_type == 'annulus':
                 raise RuntimeError('Moving annulus stimulus is not supported')
             else:
@@ -485,7 +488,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         while True:
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if shape_type != 'annulus':
-                if hasattr(color,  'shape') and len(color.shape) ==2:
+                if hasattr(color,  'shape') and len(color.shape) == 2:
                     glColor3fv(colors.convert_color(color[frame_i], self.config))
                 if number_of_positions == 1:
                     glDrawArrays(GL_POLYGON,  0, n_vertices)
