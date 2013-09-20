@@ -10,7 +10,7 @@ import time
 from distutils import file_util,  dir_util
 try:
     import psutil
-except:
+except ImportError:
     pass
 timestamp_re = re.compile('.*(\d{10,10}).*')
 

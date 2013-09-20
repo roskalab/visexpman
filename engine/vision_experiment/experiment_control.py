@@ -88,6 +88,9 @@ class ExperimentControl(object):
             if context.has_key(vn):
                 setattr(self, vn, context[vn])
         message_to_screen = ''
+        if not self.connections['mes'].connected_to_remote_client(timeout = 3.0) and self.config.PLATFORM == 'mes':
+            message_to_screen = self.printl('No connection with MES, {0}'.format(self.connections['mes'].endpoint_name))
+            return message_to_screen
         message = self._prepare_experiment(context)
         if message is not None:
             message_to_screen += message
@@ -259,6 +262,10 @@ class ExperimentControl(object):
         if (self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical'):
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
+            if self.config.IMAGING_CHANNELS == 'both':
+                channels = 'both'
+            else :
+                channels = None
             utils.empty_queue(self.queues['mes']['in'])
             if self.parameters.has_key('enable_intrinsic') and self.parameters['enable_intrinsic']:
                 self.mes_interface.acquire_video(self.mes_record_time, self.config.CAMERA_MAX_FRAME_RATE, parameter_file = self.filenames['mes_fragments'][fragment_id])
@@ -268,7 +275,8 @@ class ExperimentControl(object):
             if self.scan_mode == 'xyz':
                 scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
                                                                                       parameter_file = self.filenames['mes_fragments'][fragment_id], 
-                                                                                      scan_time = self.mes_record_time)
+                                                                                      scan_time = self.mes_record_time, 
+                                                                                      channels = channels)
             else:
                 if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
                     #Before starting scan, set xz lines
@@ -279,7 +287,7 @@ class ExperimentControl(object):
                     if hasattr(self, 'xy_scan_parameters') and not self.xy_scan_parameters is None:
                         self.xy_scan_parameters.tofile(self.filenames['mes_fragments'][fragment_id])
                 scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
-                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
+                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
             scan_start_success2 = False
             if not scan_start_success:
                 self.printl('Scan did not start, retrying...')

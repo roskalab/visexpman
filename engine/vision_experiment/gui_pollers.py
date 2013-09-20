@@ -322,7 +322,22 @@ class CorticalGUIPoller(Poller):
                                 pass
                             self.set_analysis_status_flag(parameter, flags)
                         elif command == 'find_cells_ready':
-                            self.add_cells_to_database(parameter)
+                            if self.config.ADD_CELLS_TO_MOUSE_FILE:
+                                self.add_cells_to_database(parameter)
+                            else:
+                                region_name, measurement_file_path, info = self.read_scan_regions(parameter)
+                                id = parameter 
+                                self.scan_regions[region_name]['process_status'][parameter]['find_cells_ready'] = True 
+                                soma_rois = hdf5io.read_item(measurement_file_path, 'soma_rois') 
+                                if soma_rois is None or len(soma_rois) == 0: 
+                                    number_of_new_cells = 0 
+   	                            else: 
+                                    number_of_new_cells = len(soma_rois)
+   	                                if number_of_new_cells > 200: 
+   	                                    number_of_new_cells = 50
+   	                                self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells 
+   	                                self.save2mouse_file(['scan_regions']) 
+   	                                self.parent.update_jobhandler_process_status()
                         elif command == 'job_list_file_copy':
                             if parameter == '':
                                 tag = 'jobs'
@@ -970,7 +985,10 @@ class CorticalGUIPoller(Poller):
             if self.xy_scan.has_key('path'):#For unknown reason this key is not found sometimes
                 self.files_to_delete.append(self.xy_scan['path'])
         if result:
-            self.show_image(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.xy_scan['scale'], origin = self.xy_scan['origin'])
+            if self.xy_scan.has_key(self.config.DEFAULT_PMT_CHANNEL):
+                self.show_image(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.xy_scan['scale'], origin = self.xy_scan['origin'])
+            elif self.xy_scan.has_key('pmtURraw'):
+                self.show_image(self.xy_scan['pmtURraw'], 0, self.xy_scan['scale'], origin = self.xy_scan['origin'])
             self.save_context()
             #Update objective position to ensure synchronzation with manual control of objective
             self.objective_position = self.xy_scan['objective_position'] 
@@ -1223,7 +1241,10 @@ class CorticalGUIPoller(Poller):
         scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
         scan_region['laser_intensity'] = laser_intensity
         scan_region['xy'] = {}
-        scan_region['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
+        if self.xy_scan.has_key(self.config.DEFAULT_PMT_CHANNEL):
+            scan_region['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
+        elif self.xy_scan.has_key('pmtURraw'):
+            scan_region['xy']['image'] = self.xy_scan['pmtURraw']
         scan_region['xy']['scale'] = self.xy_scan['scale']
         scan_region['xy']['origin'] = self.xy_scan['origin']
         scan_region['xy']['mes_parameters']  = self.xy_scan['mes_parameters']
@@ -1253,7 +1274,10 @@ class CorticalGUIPoller(Poller):
             return
         region_name = self.parent.get_current_region_name()
         if not self.xy_scan is None:
-            self.scan_regions[region_name]['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
+            if self.xy_scan.has_key(self.config.DEFAULT_PMT_CHANNEL):
+                self.scan_regions[region_name]['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
+            elif self.xy_scan.has_key('pmtURraw'):
+                self.scan_regions[region_name]['xy']['image'] = self.xy_scan['pmtURraw']
             self.scan_regions[region_name]['xy']['scale'] = self.xy_scan['scale']
             self.scan_regions[region_name]['xy']['origin'] = self.xy_scan['origin']
             self.save2mouse_file('scan_regions')
