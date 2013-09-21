@@ -1467,7 +1467,10 @@ class MainPoller(Poller):
                                       0.04*self.xz_scan['scaled_image'].shape[0] * self.xz_scan['scaled_scale']['col'], self.objective_position]]
         
         self.parent.update_position_display()
-        self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
+        if self.xy_scan.has_key('scaled_image_red'):
+            self.show_image(self.xz_scan['scaled_image_red'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
+        else:
+            self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
         self.save_context()
         self.xz_scan_acquired = True
         return result

@@ -317,11 +317,11 @@ class ExperimentControl(object):
                     if self.scan_mode == 'xyz':
                         scan_data_save_success = self.mes_interface.wait_for_rc_scan_save_complete(self.mes_timeout)
                     else:
-                        scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(0.75 * self.mes_timeout)
+                        scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(self.mes_timeout)
                     if scan_data_save_success:
                         self.printl('MES data save complete')
                     else:
-                        self.printl('Line scan data save error')
+                        self.printl('MES data save did not succeed')
                 else:
                     aborted = True
                     scan_data_save_success = False
