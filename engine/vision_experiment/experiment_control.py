@@ -604,10 +604,15 @@ class ExperimentControl(object):
             return False
         #Measure red channel
         self.printl('Recording red and green channel')
+        if self.config.BLACK_SCREEN_DURING_PRE_SCAN:
+            self.show_fullscreen(color=0.0, duration=0.0)
         if hasattr(self, 'scan_region'):
             self.scan_region['xy_scan_parameters'].tofile(xy_static_scan_filename)
         result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,
                                                                            scan_mode='xy', channels=['pmtUGraw','pmtURraw'])
+        if self.config.BLACK_SCREEN_DURING_PRE_SCAN and hasattr(self.experiment_config, 'pre_runnable') and self.experiment_config.pre_runnable is not None:
+            self.experiment_config.pre_runnable.run()
+            self._flip()
         if not result:
             try:
                 if os.path.exists(initial_mes_line_scan_settings_filename):

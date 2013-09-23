@@ -240,6 +240,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ADD_CELLS_TO_MOUSE_FILE = False
         SHOW_OVERVIEW = False
         IMAGING_CHANNELS = 'default' #or 'both'
+        BLACK_SCREEN_DURING_PRE_SCAN = False
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 
