@@ -234,7 +234,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if duration == 0.0:
             self.log_on_flip_message = self.log_on_flip_message_initial
             if flip:
-                self._flip(trigger = True, count = count)
+                self._flip(trigger = frame_trigger, count = count)
         elif duration == -1.0:
             i = 0
             while not self.abort:
@@ -969,8 +969,8 @@ class StimulationSequences(Stimulations):
     '''
     Stimulation sequences, helpers
     '''
-    def export2video(self, filename):
-        videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.bmp'), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
+    def export2video(self, filename, img_format='png'):
+        videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         
     def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
         '''

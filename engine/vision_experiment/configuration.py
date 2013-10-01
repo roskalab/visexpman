@@ -389,6 +389,7 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
         ADD_CELLS_TO_MOUSE_FILE = False
         SHOW_OVERVIEW = False
         IMAGING_CHANNELS = 'default' #or 'both'
+        BLACK_SCREEN_DURING_PRE_SCAN = False
         self._create_parameters_from_locals(locals())
         
         

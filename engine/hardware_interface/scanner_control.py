@@ -828,6 +828,9 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
 #        print self.max_nframes , max_memory, memory_usage_per_frame
             
     def _send_scan_parameters2guipoller(self, config, parameters):
+        '''
+        Some parameters are needed for generating live image and displaying status on gui.
+        '''
         #Send image parameters to poller
         pnames = ['frame_rate',  'binning_factor', 'boundaries',  'scanner_time_efficiency', 'speeds', 'image_offset']
         self.scan_parameters = {}

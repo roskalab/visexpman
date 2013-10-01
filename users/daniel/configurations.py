@@ -233,16 +233,16 @@ class RcMicroscopeSetup(RcCorticalCaImagingConfig):
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
             {
             'GUI_MES'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
-            'STIM_MES'  : {'STIM' : {'IP': '192.168.1.2', 'LOCAL_IP': '192.168.1.3', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
-            'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '192.168.1.2', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': '192.168.1.2', 'LOCAL_IP': '192.168.1.3',  'PORT': self.BASE_PORT + 5}}, 
-            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '172.27.27.221', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 7}}, 
+            'STIM_MES'  : {'STIM' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.3', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
+            'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '192.168.2.4', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.2',  'PORT': self.BASE_PORT + 5}}, 
+            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '192.168.2.4', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.2', 'PORT': self.BASE_PORT + 7}}, 
 #            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '192.168.3.2', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '192.168.3.2', 'LOCAL_IP': '192.168.3.3', 'PORT': self.BASE_PORT + 7}}, 
             }
         self.COMMAND_RELAY_SERVER['SERVER_IP'] = {\
                      'GUI_MES': ['',''],
-                     'STIM_MES': ['192.168.1.2',''],
-                     'GUI_STIM': ['192.168.1.2', '192.168.1.2'],
-                     'GUI_ANALYSIS'  : ['', ''],
+                     'STIM_MES': ['192.168.2.4',''],
+                     'GUI_STIM': ['192.168.2.4', '192.168.2.4'],
+                     'GUI_ANALYSIS'  : ['192.168.2.4', '192.168.2.4'],
 #                     'GUI_ANALYSIS'  : ['192.168.3.2', '192.168.3.2'],
                      }        
 
@@ -331,6 +331,7 @@ class RcMicroscopeSetup(RcCorticalCaImagingConfig):
         GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
         ADD_CELLS_TO_MOUSE_FILE = False
         IMAGING_CHANNELS = 'both'
+        BLACK_SCREEN_DURING_PRE_SCAN = True
         #Intrinsic imaging:
         self.CAMERA_HEIGHT_PIXELS = 768
         self.CAMERA_WIDTH_PIXELS = 1024

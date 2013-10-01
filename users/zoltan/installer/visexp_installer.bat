@@ -13,29 +13,29 @@ REM set visexp_files=v:\codes\zdev
 
 :: Mount m and g drive if necessary
 if not exist g:\ net use g: \\argon\roska.b
+if errorlevel 1 (
+    echo G drive cannot be mounted
+)
 if not exist m:\ net use m: \\argon\groska.mdrive
 ::Installation, phase 1
 if not exist "c:\Program Files\National Instruments\NI-DAQ" (
-    if not exist %tmp_folder%\%daqmx_exe% (
-        echo Copying daqmx ...
-        copy %install_source_folder%\%daqmx_exe% %tmp_folder%\%daqmx_exe%
-    )
+    echo Copying daqmx ...
+    if not exist %tmp_folder%\%daqmx_exe% copy %install_source_folder%\%daqmx_exe% %tmp_folder%\%daqmx_exe%
     echo Install daqmx
     echo Select "Reboot later" after installation
     c:
     cd %tmp_folder%
     %daqmx_exe% 
+    pause
     ::'_exe' is not recogniezed as a command
-) else (
+ else (
     ::This appears when daqmx is not yet installed but copied
-    ::echo Do not install python xy before Daqmx is installed
     echo Daqmx already installed
 )
 if not exist c:\Python27 (
-    if not exist %tmp_folder%\%pythonxy_exe% (
-        echo Copying pythonxy ...
-        copy %install_source_folder%\%pythonxy_exe% %tmp_folder%\%pythonxy_exe%
-    )
+    echo Copying pythonxy ...
+    if not exist %tmp_folder%\%pythonxy_exe% copy %install_source_folder%\%pythonxy_exe% %tmp_folder%\%pythonxy_exe%
+    echo Do not install python xy before Daqmx is installed
     echo Type of installation is Full
     c:
     cd %tmp_folder%
@@ -85,10 +85,17 @@ if not exist c:\visexp (
 if exist %tmp_folder%\copylog.txt (
     del %tmp_folder%\copylog.txt
 )
-copy c:\visexp\visexpman\visexp_runner.bat "c:\Documents and Settings\All Users\Desktop\visexp_runner.bat"
-copy c:\visexp\visexpman\visexp_gui.bat "c:\Documents and Settings\All Users\Desktop\visexp_gui.bat"
-copy c:\visexp\visexpman\visexp_gui.bat "c:\Documents and Settings\All Users\Desktop\projector_calibration.bat"
-copy c:\visexp\visexpman\visexp_gui.bat "c:\Documents and Settings\All Users\Desktop\check_projector_calibration.bat"
+if exist c:\users\mouse (
+    set desktop=c:\users\mouse\Desktop
+) else (
+    set desktop="c:\Documents and Settings\All Users\Desktop"
+)
+echo Copy application starters to Desktop
+copy c:\visexp\visexpman\visexp_runner.bat %desktop%\visexp_runner.bat
+copy c:\visexp\visexpman\visexp_gui.bat %desktop%\visexp_gui.bat
+copy c:\visexp\visexpman\projector_calibration.bat %desktop%\projector_calibration.bat
+copy c:\visexp\visexpman\check_projector_calibration.bat %desktop%\check_projector_calibration.bat
+echo Running post install script...
 python c:\visexp\visexpman\users\zoltan\installer\post_install.py
 :: post install module installer does not work for pydaqmx
 python c:\visexp\visexpman\users\zoltan\test\test_installation.py

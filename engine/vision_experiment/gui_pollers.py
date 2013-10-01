@@ -331,13 +331,13 @@ class CorticalGUIPoller(Poller):
                                 soma_rois = hdf5io.read_item(measurement_file_path, 'soma_rois') 
                                 if soma_rois is None or len(soma_rois) == 0: 
                                     number_of_new_cells = 0 
-   	                            else: 
+                                else: 
                                     number_of_new_cells = len(soma_rois)
-   	                                if number_of_new_cells > 200: 
-   	                                    number_of_new_cells = 50
-   	                                self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells 
-   	                                self.save2mouse_file(['scan_regions']) 
-   	                                self.parent.update_jobhandler_process_status()
+                                    if number_of_new_cells > 200: 
+                                        number_of_new_cells = 50
+                                    self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells 
+                                    self.save2mouse_file(['scan_regions']) 
+                                    self.parent.update_jobhandler_process_status()
                         elif command == 'job_list_file_copy':
                             if parameter == '':
                                 tag = 'jobs'
@@ -1024,8 +1024,11 @@ class CorticalGUIPoller(Poller):
                                       0.04*self.xz_scan['scaled_image'].shape[0] * self.xz_scan['scaled_scale']['col'], self.objective_position]]
 
         self.parent.update_position_display()
-        self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
-        self.save_context()
+        if self.xy_scan.has_key('scaled_image_red'):
+            self.show_image(self.xz_scan['scaled_image_red'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
+        else:
+            self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
+        self.save_context()       
         self.xz_scan_acquired = True
         return result
 

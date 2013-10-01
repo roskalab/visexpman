@@ -88,7 +88,7 @@ class ExperimentControl(object):
             if context.has_key(vn):
                 setattr(self, vn, context[vn])
         message_to_screen = ''
-        if not self.connections['mes'].connected_to_remote_client(timeout = 3.0) and self.config.PLATFORM == 'mes':
+        if self.config.PLATFORM == 'rc_cortical' and not self.connections['mes'].connected_to_remote_client(timeout = 3.0):
             message_to_screen = self.printl('No connection with MES, {0}'.format(self.connections['mes'].endpoint_name))
             return message_to_screen
         message = self._prepare_experiment(context)
@@ -298,9 +298,13 @@ class ExperimentControl(object):
             else:
                 self.printl('Scan start ERROR')
             return (scan_start_success2 or scan_start_success)
-        elif self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mc_mea':
+        elif self.config.PLATFORM == 'elphys':
             #Set acquisition trigger pin to high
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
+            self.start_of_acquisition = self._get_elapsed_time()
+            return True
+       elif self.config.PLATFORM == 'mc_mea':
+            self.parallel_port.set_data_bit(self.config.ACQUISITION_START_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
             return True
         elif self.config.PLATFORM == 'retinal_ca':
@@ -326,12 +330,13 @@ class ExperimentControl(object):
         -waits for mes data acquisition complete
         '''
         #Stop external measurements
-        if self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mc_mea':
+        if self.config.PLATFORM == 'elphys':
             #Clear acquisition trigger pin
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
-            if self.config.PLATFORM == 'mc_mea':
-                self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 1)
-                self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 0)
+            data_acquisition_stop_success = True
+        elif self.config.PLATFORM == 'mc_mea':
+            self.parallel_port.set_data_bit(self.config.ACQUISITION_START_PIN, 0)
+            self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 1)
             data_acquisition_stop_success = True
         elif self.config.PLATFORM == 'rc_cortical' and not self.parameters['enable_intrinsic']:
             self.mes_timeout = 2.0 * self.fragment_durations[fragment_id]            
@@ -409,6 +414,8 @@ class ExperimentControl(object):
         '''
         if hasattr(self.config, 'SERIAL_DIO_PORT'):
             self.parallel_port = digital_io.SerialPortDigitalIO(self.config, self.log, self.start_time)
+            if self.config.PLATFORM == 'mc_mea':
+                time.sleep(0.5)
         else:
             self.parallel_port = instrument.ParallelPort(self.config, self.log, self.start_time)
         self.filterwheels = []
@@ -671,8 +678,15 @@ class ExperimentControl(object):
         self.printl('Recording red and green channel')
         if hasattr(self, 'xy_scan_parameters'):
             self.xy_scan_parameters.tofile(xy_static_scan_filename)
+        if self.config.BLACK_SCREEN_DURING_PRE_SCAN:
+            self.show_fullscreen(color=0.0, duration=0.0)
+        if hasattr(self, 'scan_region'):
+            self.scan_region['xy_scan_parameters'].tofile(xy_static_scan_filename)
         result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,
                                                                            scan_mode='xy', channels=['pmtUGraw','pmtURraw'])
+        if self.config.BLACK_SCREEN_DURING_PRE_SCAN and hasattr(self.experiment_config, 'pre_runnable') and self.experiment_config.pre_runnable is not None:
+            self.experiment_config.pre_runnable.run()
+            self._flip()
         if not result:
             try:
                 if os.path.exists(initial_mes_line_scan_settings_filename):

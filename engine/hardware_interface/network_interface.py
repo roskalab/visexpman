@@ -437,19 +437,21 @@ class CommandRelayServer(object):
             else:
                 server_ip = ['','']
             self.servers[connection][endpoints[0]] = QueuedServer(
+                                                                            server_ip[0], 
                                                                             self.queues[connection][endpoints[1] + '2' + endpoints[0]], #in
                                                                             self.queues[connection][endpoints[0] + '2' + endpoints[1]], #out
                                                                             connection_config[endpoints[0]]['PORT'], 
-                                                                            'connection: {0}, endpoint {1}, port {2}'.format(connection, endpoints[0], connection_config[endpoints[0]]['PORT']), 
+                                                                            '{0}/{1}/{2}'.format(connection, endpoints[0], connection_config[endpoints[0]]['PORT']), 
                                                                             self.log_queue, 
                                                                             self.config.COMMAND_RELAY_SERVER['TIMEOUT'], 
                                                                             )
                                                                             
             self.servers[connection][endpoints[1]] = QueuedServer(
+                                                                            server_ip[1], 
                                                                             self.queues[connection][endpoints[0] + '2' + endpoints[1]], #in
                                                                             self.queues[connection][endpoints[1] + '2' + endpoints[0]], #out
                                                                             connection_config[endpoints[1]]['PORT'], 
-                                                                            'connection: {0}, endpoint {1}, port {2}'.format(connection, endpoints[1], connection_config[endpoints[1]]['PORT']), 
+                                                                            '{0}/{1}/{2}'.format(connection, endpoints[1], connection_config[endpoints[1]]['PORT']), 
                                                                             self.log_queue, 
                                                                             self.config.COMMAND_RELAY_SERVER['TIMEOUT'], 
                                                                             )
@@ -654,7 +656,6 @@ def start_client(config, client_name, connection_name, queue_in, queue_out):
     if config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].has_key(connection_name):
         client = QueuedClient(queue_out, queue_in, 
                               server_address,
-                              config.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'], 
                               config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'][connection_name][client_name]['PORT'], 
                               config.COMMAND_RELAY_SERVER['TIMEOUT'], 
                               client_name,

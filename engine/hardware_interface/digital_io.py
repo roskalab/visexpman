@@ -11,30 +11,44 @@ class SerialPortDigitalIO(instrument.Instrument):
     Serial port lines are controlled as digital io lines
     '''
     def init_instrument(self):
-        self.s = serial.Serial(self.config.SERIAL_DIO_PORT)
+        if isinstance(self.config.SERIAL_DIO_PORT, list) and len(self.config.SERIAL_DIO_PORT)>1:
+            self.s = []
+            for port in self.config.SERIAL_DIO_PORT:
+                self.s.append(serial.Serial(port))
+        else:
+            self.s = [serial.Serial(self.config.SERIAL_DIO_PORT)]
         if os.name != 'nt':
             self.s.open()
-        self.set_data_bit(0,0)
-        self.set_data_bit(1,0)
+        self.clear_pins()
+            
+    def clear_pins(self):
+        for i in range(len(self.config.SERIAL_DIO_PORT)):
+            self.set_data_bit(i*2,0)
+            self.set_data_bit(i*2+1,0)
         
     def release_instrument(self):
-        self.s.close()
+        self.clear_pins()
+        for s in self.s:
+            s.close()
 
-    def pulse(self, width):
-        self.s.setRTS(False)
-        self.s.setRTS(True)
+    def pulse(self, channel, width, log=True):
+        self.set_data_bit(channel, False, log = log)
+        self.set_data_bit(channel, True, log = log)
         time.sleep(width)
-        self.s.setRTS(False)
+        self.set_data_bit(channel, False, log = log)
         
     def set_data_bit(self, channel, value, log = True):
         '''
         channel 0: TX (orange wire on usb-uart converter)
         channel 1: RTS (green wire on usb-uart converter)
         '''
-        if channel == 0:
-            self.s.setBreak(not bool(value))
-        elif channel == 1:
-            self.s.setRTS(not bool(value))
+        device_id = channel/2
+        if len(self.s)-1 < device_id:
+            raise RuntimeError('Invalid data bit')
+        if channel%2 == 0:
+            self.s[device_id].setBreak(not bool(value))
+        elif channel%2 == 1:
+            self.s[device_id].setRTS(not bool(value))
         if log:
             self.log_during_experiment('Serial DIO pin {0} set to {1}'.format(channel, value))
             

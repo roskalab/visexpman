@@ -95,10 +95,10 @@ class ContrastSpotParameters(experiment.ExperimentConfig): # this is an exp conf
         self.POSITION = utils.rc((0,0)) # nice rc needs utils, ref to items: self.POSITION['row'], self.POSITION['col']
         
         self.RADIUS=240 #300
-        self.SPOTC=                 [0.58, 0.67,     0.5, 0.73,     0.45, 0.81,     0.38,  1.0]
-                  #      Michelson: [0.15,0.15;      0.3,0.3;       0.45,0.45;      0.6, 0.6]
-                  #real intensities:[0.195, 0.34;    0.13, 0.47;    0.095, 0.66;    0.06, 1.0]
-        self.BGCOL=0.62  #0.25
+        self.SPOTC=                 [0.134, 0.465,    0.095, 0.66,    0.062, 1.0]
+                  #      Michelson: [    0.3,0.3;       0.45,0.45;      0.6, 0.6]
+                # CHANGED 4 april
+        self.BGCOL=0.25  #computer 0.62 real 0.25
         self.RADIUSinf=4000 #infty
         self.HIGHTIME=2.0
         self.LOWTIME=6.0
@@ -125,7 +125,7 @@ class ContrastSpotExperiment(experiment.Experiment): # this is an expt class, hi
                             duration=self.experiment_config.HIGHTIME,
                             block_trigger = True)
                 self.trigger_pulse(self.machine_config.USER_PIN)                    
-                self.show_fullscreen(color = 0.5, duration=self.experiment_config.LOWTIME,
+                self.show_fullscreen(color = self.experiment_config.BGCOL, duration=self.experiment_config.LOWTIME,
                             frame_trigger = False)
                 
                         
@@ -143,10 +143,19 @@ class MELAParameters(experiment.ExperimentConfig): # this is an exp config, lowe
     def _create_parameters(self):
         self.POSITION = utils.rc((0,0)) # nice rc needs utils, ref to items: self.POSITION['row'], self.POSITION['col']
         self.RADIUS2=4000
-        self.HIGHTIME=15.0
+        self.HIGHTIME=25.0
         self.LOWTIME=12.0
         self.runnable = 'FullFieldExperiment'     # compulsory write here the name of the expt class   
-        self._create_parameters_from_locals(locals()) # compulsory                                 
+        self._create_parameters_from_locals(locals()) # compulsory      
+##----        
+class xTESTParameters(experiment.ExperimentConfig): # this is an exp config, lower order, IN LIST, calls the higher
+    def _create_parameters(self):
+        self.POSITION = utils.rc((0,0)) # nice rc needs utils, ref to items: self.POSITION['row'], self.POSITION['col']
+        self.RADIUS2=4000
+        self.HIGHTIME=250.0
+        self.LOWTIME=12.0
+        self.runnable = 'FullFieldExperiment'     # compulsory write here the name of the expt class   
+        self._create_parameters_from_locals(locals()) # compulsory                                           
 ##-------------------------------------------------------------------------------------------------------------------------------        
 class FullFieldExperiment(experiment.Experiment): # this is an expt class, higher order, NO LIST, stimulus itself is written here
     def run(self): # compulsory
@@ -199,12 +208,14 @@ class OctoShapeParameters(experiment.ExperimentConfig): # this is an exp config,
 class MovingShapeExperiment(experiment.Experiment): # this is an expt class, higher order, NO LIST, stimulus itself is written here
    
     def run(self): # compulsory
-        self.moving_shape(self.experiment_config.SHAPE_SIZE, self.experiment_config.SPEED, self.experiment_config.DIRECTIONS, 
+    
+        for i in range (3):
+            self.moving_shape(self.experiment_config.SHAPE_SIZE, self.experiment_config.SPEED, self.experiment_config.DIRECTIONS, 
                 shape = self.experiment_config.SHAPE, 
                 color = self.experiment_config.SHAPE_COLOR, 
                 background_color = self.experiment_config.SHAPE_BACKGROUND, 
                 pause=self.experiment_config.PAUSE_BETWEEN_DIRECTIONS,
-                block_trigger = False)
+                block_trigger = True)
                             
 ###################################################################################################################################         
 

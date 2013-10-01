@@ -1,6 +1,6 @@
 #!/bin/bash
 #general
-apt-get install gnome-commander eric git synaptic
+apt-get install gnome-commander eric git synaptic libav-tools libavcodec-extra-53
 #TODO: update fstab, install smb, mount rlvivo1, mdrive, gdrive
 #visexp specific
 apt-get install python-numpy python-scipy python-zc.lockfile python-sip python-imaging python-tables python-serial python-parallel python-qt4 python-qwt5-qt4 python-opengl python-pygame python-sklearn python wxgtk2.8 python-opencv python-matplotlib python-zmq python-celery python-pp

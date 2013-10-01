@@ -18,7 +18,11 @@ def install_modules():
                         install_command = 'python {0}'.format(os.path.join(folder, 'install.py'))
                     else:
                         install_command = 'python {0} install'.format(os.path.join(folder, 'setup.py'))
-                    subprocess.call(install_command, shell=True)
+                    os.chdir(folder)
+                    try:
+                        subprocess.call(install_command, shell=True)
+                    except:
+                        print 'Reboot computer and run install again'
     else:
         tmp_folder = '/tmp'
 
@@ -28,9 +32,10 @@ def create_pth():
         ppath = 'c:\\python27\\Lib\\site-packages'
     else:
         ppath = '/usr/lib/python2.7/dist-packages/'
-    f = open(os.path.join(ppath, 'visexp.pth'), 'wt')
-    f.write(package_path)
-    f.close()
+    if not os.path.exists(os.path.join(ppath, 'visexp.pth')):
+        f = open(os.path.join(ppath, 'visexp.pth'), 'wt')
+        f.write(package_path)
+        f.close()
 
 if __name__ == '__main__':
     create_pth()
