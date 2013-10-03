@@ -171,6 +171,21 @@ class SerialportPulseGenerator(SmallApp):
             s.close()
         except:
             self.printc(traceback.format_exc())
+            
+class BehavioralTester(SmallApp):
+    def create_gui(self):
+        pass
+        
+    def create_layout(self):
+        pass
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.text_out, 0, 0, 1, 10)
+        self.setLayout(self.layout)
+        
+    def connect_signals(self):
+        self.signal_mapper = QtCore.QSignalMapper(self)
+#        self.connect_and_map_signal(self.flowmeter.stop_button, 'stop_measurement')
+        self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
 
 def run_gui():
     '''

@@ -84,7 +84,7 @@ class ExperimentControl(object):
         '''
         Runs a single experiment which parameters are determined by the context parameter and the self.parameters attribute
         '''
-        for vn in ['stage_origin', 'screen_center']:
+        for vn in ['stage_origin', 'screen_center', 'parallel_port']:
             if context.has_key(vn):
                 setattr(self, vn, context[vn])
         message_to_screen = ''
@@ -303,7 +303,7 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
             return True
-       elif self.config.PLATFORM == 'mc_mea':
+        elif self.config.PLATFORM == 'mc_mea':
             self.parallel_port.set_data_bit(self.config.ACQUISITION_START_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
             return True
@@ -335,8 +335,7 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             data_acquisition_stop_success = True
         elif self.config.PLATFORM == 'mc_mea':
-            self.parallel_port.set_data_bit(self.config.ACQUISITION_START_PIN, 0)
-            self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 1)
+            self.parallel_port.pulse(self.config.ACQUISITION_STOP_PIN, 1e-3)
             data_acquisition_stop_success = True
         elif self.config.PLATFORM == 'rc_cortical' and not self.parameters['enable_intrinsic']:
             self.mes_timeout = 2.0 * self.fragment_durations[fragment_id]            
@@ -412,10 +411,10 @@ class ExperimentControl(object):
         '''
         All the devices are initialized here, that allow rerun like operations
         '''
-        if hasattr(self.config, 'SERIAL_DIO_PORT'):
+        if hasattr(self.config, 'SERIAL_DIO_PORT') and self.config.PLATFORM != 'mc_mea':
             self.parallel_port = digital_io.SerialPortDigitalIO(self.config, self.log, self.start_time)
-            if self.config.PLATFORM == 'mc_mea':
-                time.sleep(0.5)
+        elif self.config.PLATFORM == 'mc_mea':
+            pass
         else:
             self.parallel_port = instrument.ParallelPort(self.config, self.log, self.start_time)
         self.filterwheels = []
@@ -432,7 +431,8 @@ class ExperimentControl(object):
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
 
     def _close_devices(self):
-        self.parallel_port.release_instrument()
+        if self.config.PLATFORM != 'mc_mea':
+            self.parallel_port.release_instrument()
         if self.config.OS == 'win':
             for filterwheel in self.filterwheels:
                 filterwheel.release_instrument()

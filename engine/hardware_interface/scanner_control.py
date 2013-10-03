@@ -1627,7 +1627,7 @@ class TestScannerControl(unittest.TestCase):
             print correlate(y, x).argmax() - x.shape[0]+1
         show()
 
-#    @unittest.skip('Run only for debug purposes')
+    @unittest.skip('Run only for debug purposes')
     def test_16_estimate_scanner_position_shift(self):
         from visexpman.engine.generic.introspect import Timer
         config = ScannerTestConfig()
@@ -1645,6 +1645,29 @@ class TestScannerControl(unittest.TestCase):
         figure(20)
         plot(pos_x)
         show()
+        
+    def test_17_rectangular_scan_timing(self):
+        plot_enable = not False
+        config = ScannerTestConfig()
+
+        spatial_resolution = 2
+        spatial_resolution = 1.0/spatial_resolution
+        position = utils.rc((0, 0))
+        size = utils.rc((1, 100))
+        setting_time = [3e-4, 1e-3]
+        frames_to_scan = 1
+        pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
+        spectrum = abs(scipy.fft(pos_x))
+        fs = 400000.0
+        t = numpy.arange(0, scan_mask.shape[0])/fs*1e6
+        if plot_enable:
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title, xlabel
+            figure(2)
+            plot(t, pos_x)
+            plot(t, scan_mask)
+            legend(['scanner position',  'valid data'])
+            xlabel('t [us]')
+            show()
 
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)

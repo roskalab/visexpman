@@ -2038,6 +2038,28 @@ def update_mouse_files_list(config, current_mouse_files = []):
     else:
         are_new_files = False
     return are_new_files, new_mouse_files
+    
+class BehavioralTesterPoller(Poller):
+    def __init__(self, parent, config):
+        from visexpman.engine.hardware_interface import digital_io
+        Poller.__init__(self, parent)
+        self.recording = []
+        self.timeseries = []
+        self.path = file.generate_filename(os.path.join(self.config.LOG_PATH, 'recording.txt'))
+        try:
+            self.pi = digital_io.Photointerrrupter(config)
+            self.pi.start()
+        except:
+            pass
+
+    def periodic(self):
+        if hasattr(self, 'pi') and not self.pi.queues['0'].empty():
+            self.printc('{0}'.format(self.pi.queues['0'].get()))
+
+    def close(self):
+        if hasattr(self, 'pi'):
+            self.pi.command_queue.put('TERMINATE')
+            self.pi.join()
 
 class FlowmeterPoller(flowmeter.Flowmeter, Poller):
     def __init__(self, parent, config):
