@@ -162,7 +162,7 @@ class Screen(object):
         be executed synchronized to flipping
         self.frame_rate is calculated here. Wait time before flip is calculated by considering elapsed time since last flip and frame_wait_time that describes the 
         required frame rate
-        '''        
+        '''
         self.before_flip()
         #TODO: mac needs the delay
         if hasattr(self.config, 'INSERT_FLIP_DELAY') and self.config.INSERT_FLIP_DELAY:
@@ -177,9 +177,9 @@ class Screen(object):
                if self.wait_time_left > 0.0:
                    time.sleep(self.wait_time_left)
                     
-        
-        if self.config.OS == 'linux':
-            self.clock.tick(self.config.SCREEN_EXPECTED_FRAME_RATE)
+        if not self.config.STIMULUS2MEMORY:
+            if self.config.OS == 'linux':
+                self.clock.tick(self.config.SCREEN_EXPECTED_FRAME_RATE)
 #            count = ctypes.c_uint()
 #            glxext_arb.glXGetVideoSyncSGI(ctypes.byref(count))
 #            glxext_arb.glXWaitVideoSyncSGI(0, 0, ctypes.byref(count))
@@ -191,7 +191,7 @@ class Screen(object):
 #            self.prev = count.value
             
 #            glxext_arb.glXWaitVideoSyncSGI(2, (count.value+1)%2, ctypes.byref(count))
-        pygame.display.flip()
+            pygame.display.flip()
 
 #        elif window_type == 'pyglet':
 #            self.screen.flip()
@@ -214,6 +214,10 @@ class Screen(object):
             else:
                 fileformat = 'png'
             self.save_frame(file.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.{0}'.format(fileformat))))
+        if self.config.STIMULUS2MEMORY:
+            if not hasattr(self, 'stimulus_bitmaps'):
+                self.stimulus_bitmaps = []
+            self.stimulus_bitmaps.append(self.get_frame())
         
         
     def scale_screen(self):

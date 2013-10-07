@@ -54,7 +54,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
     def _flip(self,  trigger = False, count = True):
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
-        """        
+        """
         current_texture_state = glGetBooleanv(GL_TEXTURE_2D)
         if current_texture_state:
             glDisable(GL_TEXTURE_2D)
@@ -71,12 +71,12 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
         else:
             frame_rate_warning = ''
-        if self.experiment_control_dependent:
+        if self.experiment_control_dependent and not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
             if hasattr(self, 'start_time'):
                 self.elapsed_time = self.flip_time -  self.start_time
                 self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
-        if trigger:
+        if trigger and not self.config.STIMULUS2MEMORY:
             self._frame_trigger_pulse()
         self.check_abort_pressed()
         

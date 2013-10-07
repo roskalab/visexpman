@@ -81,7 +81,12 @@ class Debug(experiment.Experiment):
 #                if self.abort:
 #                    break
 #        return
-        self.show_shape(duration=self.experiment_config.DURATION,size=100)
+        from visexpman.engine.generic.introspect import Timer
+        self.config.STIMULUS2MEMORY = True
+        with Timer(''):
+            for i in range(10):
+                self.show_shape(duration=self.experiment_config.DURATION,size=10, color=i*0.1)
+        self.config.STIMULUS2MEMORY = False
         return
         ncheckers = utils.rc((3, 3))
         colors = numpy.zeros((1, ncheckers['row'], ncheckers['col'], 3))
@@ -119,10 +124,10 @@ class Debug(experiment.Experiment):
             duty_cycle = 1.0)
             
 if __name__ == "__main__":
-    if not True:
-        v = visexp_runner.VisionExperimentRunner(['zoltan', 'daniel'], 'SwDebugConfig')
+    if True:
+        v = visexp_runner.VisionExperimentRunner('zoltan', 'SwDebugConfig')
 #        v.run_experiment(user_experiment_config = 'MovingGratingTuning')
-        v.run_experiment(user_experiment_config = 'MovingGratingConfigFindOrientation')
+        v.run_experiment(user_experiment_config = 'DebugExperimentConfig')
     elif not True:
         v = visexp_runner.VisionExperimentRunner(['zoltan', 'chi'], 'SwDebugConfig')
         v.run_experiment(user_experiment_config = 'FullfieldSinewave')

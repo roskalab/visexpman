@@ -1653,7 +1653,7 @@ class TestScannerControl(unittest.TestCase):
         spatial_resolution = 2
         spatial_resolution = 1.0/spatial_resolution
         position = utils.rc((0, 0))
-        size = utils.rc((1, 100))
+        size = utils.rc((1, 10))
         setting_time = [3e-4, 1e-3]
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)

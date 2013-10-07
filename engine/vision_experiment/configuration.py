@@ -105,7 +105,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
         FLIP_EXECUTION_TIME = [0*1e-3, [-1.0, 1.0]]
         ENABLE_FRAME_CAPTURE = False
-        MAX_LOG_COLORS = [3,  [0,  100000]]        
+        MAX_LOG_COLORS = [3,  [0,  100000]]
+        STIMULUS2MEMORY = False
         
         ########  Coordinate system selection ########
         COORDINATE_SYSTEM = ['undefined', ['ulcorner','center', 'undefined']] 

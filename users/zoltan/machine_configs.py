@@ -172,9 +172,9 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         
         #=== screen ===
         FULLSCREEN = not True
-        SCREEN_RESOLUTION = utils.cr([800, 600])
+        SCREEN_RESOLUTION = utils.cr([160, 160])
 #        SCREEN_UM_TO_PIXEL_SCALE = 0.5
-        INSERT_FLIP_DELAY = True
+        INSERT_FLIP_DELAY = not True
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE =  not True
         SCREEN_EXPECTED_FRAME_RATE = 60.0
