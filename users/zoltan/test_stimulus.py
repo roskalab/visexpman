@@ -72,15 +72,10 @@ class Debug(experiment.Experiment):
         self.fragment_durations = [self.experiment_config.DURATION]
     
     def run(self):
-#        oris = [0,45,90]
-#        for ori in oris:
-#            self.abort=False
-#            while True:
-#                self.show_grating(duration=10, white_bar_width=300, orientation=ori,display_area = utils.cr((800, 100)),velocity=80,duty_cycle=2.5)
-#                break
-#                if self.abort:
-#                    break
-#        return
+        self.show_shape(duration=0,size=10, color=1.0, part_of_drawing_sequence=True, flip=False)
+        self.show_shape(duration=0,size=100, color=0.4, part_of_drawing_sequence=True, flip=True)
+        time.sleep(5.0)
+        return
         from visexpman.engine.generic.introspect import Timer
         self.config.STIMULUS2MEMORY = True
         with Timer(''):
