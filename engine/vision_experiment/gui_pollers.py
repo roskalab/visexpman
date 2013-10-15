@@ -322,14 +322,29 @@ class CorticalGUIPoller(Poller):
                                 pass
                             self.set_analysis_status_flag(parameter, flags)
                         elif command == 'find_cells_ready':
-                            self.add_cells_to_database(parameter)
-                        elif command == 'mouse_file_copy':
+                            if self.config.ADD_CELLS_TO_MOUSE_FILE:
+                                self.add_cells_to_database(parameter)
+                            else:
+                                region_name, measurement_file_path, info = self.read_scan_regions(parameter)
+                                id = parameter 
+                                self.scan_regions[region_name]['process_status'][parameter]['find_cells_ready'] = True 
+                                soma_rois = hdf5io.read_item(measurement_file_path, 'soma_rois') 
+                                if soma_rois is None or len(soma_rois) == 0: 
+                                    number_of_new_cells = 0 
+                                else: 
+                                    number_of_new_cells = len(soma_rois)
+                                    if number_of_new_cells > 200: 
+                                        number_of_new_cells = 50
+                                    self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells 
+                                    self.save2mouse_file(['scan_regions']) 
+                                    self.parent.update_jobhandler_process_status()
+                        elif command == 'job_list_file_copy':
                             if parameter == '':
-                                tag = 'jobhandler'
+                                tag = 'jobs'
                             else:
                                 tag = parameter
                             if self.generate_job_list(tag = tag):
-                                self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
+                                self.queues['analysis']['out'].put('SOCjob_list_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_{0}.hdf5'.format(tag))))
                         else:
                             self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
         except:
@@ -970,7 +985,10 @@ class CorticalGUIPoller(Poller):
             if self.xy_scan.has_key('path'):#For unknown reason this key is not found sometimes
                 self.files_to_delete.append(self.xy_scan['path'])
         if result:
-            self.show_image(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.xy_scan['scale'], origin = self.xy_scan['origin'])
+            if self.xy_scan.has_key(self.config.DEFAULT_PMT_CHANNEL):
+                self.show_image(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.xy_scan['scale'], origin = self.xy_scan['origin'])
+            elif self.xy_scan.has_key('pmtURraw'):
+                self.show_image(self.xy_scan['pmtURraw'], 0, self.xy_scan['scale'], origin = self.xy_scan['origin'])
             self.save_context()
             #Update objective position to ensure synchronzation with manual control of objective
             self.objective_position = self.xy_scan['objective_position'] 
@@ -1006,8 +1024,11 @@ class CorticalGUIPoller(Poller):
                                       0.04*self.xz_scan['scaled_image'].shape[0] * self.xz_scan['scaled_scale']['col'], self.objective_position]]
 
         self.parent.update_position_display()
-        self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
-        self.save_context()
+        if self.xy_scan.has_key('scaled_image_red'):
+            self.show_image(self.xz_scan['scaled_image_red'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
+        else:
+            self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
+        self.save_context()       
         self.xz_scan_acquired = True
         return result
 
@@ -1223,7 +1244,10 @@ class CorticalGUIPoller(Poller):
         scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
         scan_region['laser_intensity'] = laser_intensity
         scan_region['xy'] = {}
-        scan_region['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
+        if self.xy_scan.has_key(self.config.DEFAULT_PMT_CHANNEL):
+            scan_region['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
+        elif self.xy_scan.has_key('pmtURraw'):
+            scan_region['xy']['image'] = self.xy_scan['pmtURraw']
         scan_region['xy']['scale'] = self.xy_scan['scale']
         scan_region['xy']['origin'] = self.xy_scan['origin']
         scan_region['xy']['mes_parameters']  = self.xy_scan['mes_parameters']
@@ -1253,7 +1277,10 @@ class CorticalGUIPoller(Poller):
             return
         region_name = self.parent.get_current_region_name()
         if not self.xy_scan is None:
-            self.scan_regions[region_name]['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
+            if self.xy_scan.has_key(self.config.DEFAULT_PMT_CHANNEL):
+                self.scan_regions[region_name]['xy']['image'] = self.xy_scan[self.config.DEFAULT_PMT_CHANNEL]
+            elif self.xy_scan.has_key('pmtURraw'):
+                self.scan_regions[region_name]['xy']['image'] = self.xy_scan['pmtURraw']
             self.scan_regions[region_name]['xy']['scale'] = self.xy_scan['scale']
             self.scan_regions[region_name]['xy']['origin'] = self.xy_scan['origin']
             self.save2mouse_file('scan_regions')
@@ -2011,6 +2038,28 @@ def update_mouse_files_list(config, current_mouse_files = []):
     else:
         are_new_files = False
     return are_new_files, new_mouse_files
+    
+class BehavioralTesterPoller(Poller):
+    def __init__(self, parent, config):
+        from visexpman.engine.hardware_interface import digital_io
+        Poller.__init__(self, parent)
+        self.recording = []
+        self.timeseries = []
+        self.path = file.generate_filename(os.path.join(self.config.LOG_PATH, 'recording.txt'))
+        try:
+            self.pi = digital_io.Photointerrrupter(config)
+            self.pi.start()
+        except:
+            pass
+
+    def periodic(self):
+        if hasattr(self, 'pi') and not self.pi.queues['0'].empty():
+            self.printc('{0}'.format(self.pi.queues['0'].get()))
+
+    def close(self):
+        if hasattr(self, 'pi'):
+            self.pi.command_queue.put('TERMINATE')
+            self.pi.join()
 
 class FlowmeterPoller(flowmeter.Flowmeter, Poller):
     def __init__(self, parent, config):
@@ -2739,19 +2788,31 @@ class VisexpGuiPoller(Poller):
             if self.experiment_parameters['id'] in fn:
                 path = os.path.join(self.config.EXPERIMENT_DATA_PATH, fn)
                 if fn.split('.')[0].split('_')[-1] == 'ca':
-                    pass#Don't do anything woth cadata file
-                else:
                     h = hdf5io.Hdf5io(path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+                else:
+                    #Read in data generated by stimulus software
+                    node_name = os.path.split(path)[1].replace('.hdf5', '')
+                    stimulus_data = hdf5io.read_item(path, node_name, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+                    merged_filename = path
+                    
         nodes2save = ['analog_inputs']
         if 'h' in locals():
             h.analog_inputs = analog_input_data
+            if 'stimulus_data' in locals():
+                print type(stimulus_data)
+                setattr(h, node_name, stimulus_data)
+                nodes2save.append(node_name)
             h.save(nodes2save)
+            print nodes2save
         self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(self.measurement_duration)
         if 'h' in locals():
             h.close()
-            self.printc('All data saved to {0}'.format(h.filename))
-        
-
+            os.remove(merged_filename)
+            os.rename(h.filename, merged_filename)
+            self.printc('All data saved to {0}'.format(merged_filename))
+        else:
+            self.printc('Data is not saved')#Need to be refined
+            
     def close(self):
         for conn_name in self.queues.keys():
             self.queues[conn_name]['out'].put('SOCclose_connectionEOCstop_clientEOP')

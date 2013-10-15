@@ -765,24 +765,33 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             try:
                 self.tp.start_rectangular_scan(parameters['scan_size'], parameters['scan_center'], parameters['resolution'], setting_time = config.SCANNER_SETTING_TIME, 
                                       trigger_signal_config = config.SCANNER_TRIGGER_CONFIG)
+                if parameters.has_key('duration'):
+                    if parameters['duration'] == 0:
+                        nframes = 1
+                    else:
+                        nframes = int(numpy.round(parameters['duration'] * self.tp.frame_rate))
+                elif parameters.has_key('nframes'):
+                    nframes = parameters['nframes']
+                else:
+                    nframes = -1
                 if parameters['enable_recording']:
                     from visexpA.engine.datahandlers.datatypes import ImageData
                     import tables
                     self.h = ImageData(self.filenames['datafile'][0], filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-                    raw_data = self.h.h5f.createEArray(self.h.h5f.root, 'raw_data', tables.Float64Atom(), (0, ))
+                    n_columns_per_frame = int(parameters['scan_size']['col']*parameters['resolution'])
+                    if nframes == -1:
+                        expectedrows = 100* self.tp.frame_rate*n_columns_per_frame
+                    else:
+                        expectedrows = nframes*n_columns_per_frame
+                    raw_data = self.h.h5f.createEArray(self.h.h5f.root, 'raw_data', 
+                                                                                tables.Float64Atom(), 
+                                                                                (0, ), 
+                                                                                filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1), 
+                                                                                expectedrows=expectedrows)
             except:
                 self.printc(traceback.format_exc())
                 self.printc('scan_ready')
                 return
-            if parameters.has_key('duration'):
-                if parameters['duration'] == 0:
-                    nframes = 1
-                else:
-                    nframes = int(numpy.round(parameters['duration'] * self.tp.frame_rate))
-            elif parameters.has_key('nframes'):
-                nframes = parameters['nframes']
-            else:
-                nframes = -1
             self._estimate_memory_demand()
             self._send_scan_parameters2guipoller(config, parameters)
             self.printc('scan_started')
@@ -790,7 +799,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
             #start scan loop
             self.abort = False
             while True:
-                pmtdata = self.tp.read_pmt(collect_data = parameters['enable_recording'])
+                pmtdata = self.tp.read_pmt(collect_data = False and parameters['enable_recording']) #TMP
                 if parameters['enable_recording']:
                     raw_data.append(pmtdata.flatten())
                 self.queues['frame'].put(pmtdata)
@@ -799,9 +808,10 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                     break
                     self.abort = True
                 time.sleep(0.01)
+            self.recorded_frames = frame_ct
             #Finish, save
             self.printc('Scanning ended, {0} frames recorded' .format(frame_ct))
-            self.tp.finish_measurement(generate_frames = parameters['enable_recording'])
+            self.tp.finish_measurement(generate_frames = False and parameters['enable_recording'])#TMP
             if parameters['enable_recording']:
                 self._save_cadata(config, parameters)
             self.printc('scan_ready')
@@ -818,6 +828,9 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
 #        print self.max_nframes , max_memory, memory_usage_per_frame
             
     def _send_scan_parameters2guipoller(self, config, parameters):
+        '''
+        Some parameters are needed for generating live image and displaying status on gui.
+        '''
         #Send image parameters to poller
         pnames = ['frame_rate',  'binning_factor', 'boundaries',  'scanner_time_efficiency', 'speeds', 'image_offset']
         self.scan_parameters = {}
@@ -838,6 +851,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
         data_to_save['scan_parameters']['mask'] = copy.deepcopy(self.tp.scan_mask)
         data_to_save['scan_parameters']['scan_config'] = copy.deepcopy(scan_config.get_all_parameters())
         data_to_save['scan_parameters']['raw_frame_shape'] = self.tp.raw_pmt_frame.shape
+        data_to_save['scan_parameters']['nframes'] = self.recorded_frames
         data_to_save['scan_parameters'].update(parameters)
         if False:
             data_to_save['animal_parameters'] = {}
@@ -1613,7 +1627,7 @@ class TestScannerControl(unittest.TestCase):
             print correlate(y, x).argmax() - x.shape[0]+1
         show()
 
-#    @unittest.skip('Run only for debug purposes')
+    @unittest.skip('Run only for debug purposes')
     def test_16_estimate_scanner_position_shift(self):
         from visexpman.engine.generic.introspect import Timer
         config = ScannerTestConfig()
@@ -1631,6 +1645,29 @@ class TestScannerControl(unittest.TestCase):
         figure(20)
         plot(pos_x)
         show()
+        
+    def test_17_rectangular_scan_timing(self):
+        plot_enable = not False
+        config = ScannerTestConfig()
+
+        spatial_resolution = 2
+        spatial_resolution = 1.0/spatial_resolution
+        position = utils.rc((0, 0))
+        size = utils.rc((1, 10))
+        setting_time = [3e-4, 1e-3]
+        frames_to_scan = 1
+        pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
+        spectrum = abs(scipy.fft(pos_x))
+        fs = 400000.0
+        t = numpy.arange(0, scan_mask.shape[0])/fs*1e6
+        if plot_enable:
+            from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title, xlabel
+            figure(2)
+            plot(t, pos_x)
+            plot(t, scan_mask)
+            legend(['scanner position',  'valid data'])
+            xlabel('t [us]')
+            show()
 
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)

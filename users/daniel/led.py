@@ -133,7 +133,7 @@ class LedKamill10Config(experiment.ExperimentConfig):
 class LedPre(experiment.PreExperiment):
     def run(self):
         self.show_fullscreen(color = 0.0, duration = 0.0, flip = False)
-                
+        
 class LedStimulation(experiment.Experiment):
     '''
     Flashes externally connected blue led controller by generating analog control signals using daq analog output
@@ -147,30 +147,34 @@ class LedStimulation(experiment.Experiment):
         self.number_of_fragments = len(self.fragment_durations)
     
     def run(self, fragment_id = 0):
-        if hasattr(self.experiment_config, 'BEEP_AT_EXPERIMENT_START_STOP') and self.experiment_config.BEEP_AT_EXPERIMENT_START_STOP:
-            import winsound
-            winsound.PlaySound('SystemHand',winsound.SND_ALIAS)
-        self.show_fullscreen(color = 0.0, duration = 0.0)
-        number_of_flashes_in_fragment = self.fragment_repeats[fragment_id]
-        fragment_duration = self.fragment_durations[fragment_id]
-        offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)
-        if len(offsets)>1:
-            offsets[2] = offsets[2]-5.0 # add a little jitter to check if brain respons periodically and not to the acutual stimulation
-        if len(offsets)>3:
-            offsets[4] = offsets[4] +5.0 
-        time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
-        self.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
-        self.led_controller.start()
-        for i in range(int(numpy.ceil(fragment_duration))):
-            if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
-                break
-            else:
-                time.sleep(1.0)
-        if hasattr(self.experiment_config, 'BEEP_AT_EXPERIMENT_START_STOP') and self.experiment_config.BEEP_AT_EXPERIMENT_START_STOP:
-            import winsound
-            winsound.PlaySound('ExitWindows',winsound.SND_ALIAS)
+        if os.name == 'nt':
+            if hasattr(self.experiment_config, 'BEEP_AT_EXPERIMENT_START_STOP') and self.experiment_config.BEEP_AT_EXPERIMENT_START_STOP:
+                import winsound
+                winsound.PlaySound('SystemHand',winsound.SND_ALIAS)
+            self.show_fullscreen(color = 0.0, duration = 0.0)
+            number_of_flashes_in_fragment = self.fragment_repeats[fragment_id]
+            fragment_duration = self.fragment_durations[fragment_id]
+            offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)
+            if len(offsets)>1:
+                offsets[2] = offsets[2]-5.0 # add a little jitter to check if brain respons periodically and not to the acutual stimulation
+            if len(offsets)>3:
+                offsets[4] = offsets[4] +5.0 
+            time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
+            self.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
+            self.led_controller.start()
+            for i in range(int(numpy.ceil(fragment_duration))):
+                if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
+                    break
+                else:
+                    time.sleep(1.0)
+            if hasattr(self.experiment_config, 'BEEP_AT_EXPERIMENT_START_STOP') and self.experiment_config.BEEP_AT_EXPERIMENT_START_STOP:
+                import winsound
+                winsound.PlaySound('ExitWindows',winsound.SND_ALIAS)
+        else:
+            timing = [self.experiment_config.DELAY_BEFORE_FIRST_FLASH]
+            timing.extend(int(self.experiment_config.NUMBER_OF_FLASHES) * [self.experiment_config.FLASH_DURATION, self.experiment_config.PAUSE_BETWEEN_FLASHES])
+            self.flash_stimulus('ff', timing, 1.0,block_trigger=False)
 
-                
 class KamillLedStimulation(experiment.Experiment):
     '''
     Flashes externally connected blue led controller by generating analog control signals using daq analog output

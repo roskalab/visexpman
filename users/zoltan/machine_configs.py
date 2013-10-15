@@ -172,9 +172,10 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         
         #=== screen ===
         FULLSCREEN = not True
+        SCREEN_RESOLUTION = utils.cr([160, 160])
         SCREEN_RESOLUTION = utils.cr([800, 600])
 #        SCREEN_UM_TO_PIXEL_SCALE = 0.5
-        INSERT_FLIP_DELAY = True
+        INSERT_FLIP_DELAY = not True
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE =  not True
         SCREEN_EXPECTED_FRAME_RATE = 60.0
@@ -305,7 +306,7 @@ class JobhandlerTestConfig(configuration.VisionExperimentConfig):
         self.COMMAND_RELAY_SERVER['ENABLE'] = False
         self.BASE_PORT = 20000
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
-            {#TODO: probably IP addresses are not necessary here
+            {
             'GUI_MES'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 1}}, 
             'STIM_MES'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}}, 
             'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 

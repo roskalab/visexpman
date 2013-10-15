@@ -16,7 +16,7 @@ import shutil
 import copy
 
 import experiment_data
-import visexpman.engine.generic.log as log
+from visexpman.engine.generic import log
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 from visexpman.engine.hardware_interface import mes_interface
@@ -84,9 +84,13 @@ class ExperimentControl(object):
         '''
         Runs a single experiment which parameters are determined by the context parameter and the self.parameters attribute
         '''
-        if context.has_key('stage_origin'):
-            self.stage_origin = context['stage_origin']
+        for vn in ['stage_origin', 'screen_center', 'parallel_port']:
+            if context.has_key(vn):
+                setattr(self, vn, context[vn])
         message_to_screen = ''
+        if self.config.PLATFORM == 'rc_cortical' and not self.connections['mes'].connected_to_remote_client(timeout = 3.0):
+            message_to_screen = self.printl('No connection with MES, {0}'.format(self.connections['mes'].endpoint_name))
+            return message_to_screen
         message = self._prepare_experiment(context)
         if message is not None:
             message_to_screen += message
@@ -258,6 +262,10 @@ class ExperimentControl(object):
         if (self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical'):
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
+            if self.config.IMAGING_CHANNELS == 'both':
+                channels = 'both'
+            else :
+                channels = None
             utils.empty_queue(self.queues['mes']['in'])
             if self.parameters.has_key('enable_intrinsic') and self.parameters['enable_intrinsic']:
                 self.mes_interface.acquire_video(self.mes_record_time, self.config.CAMERA_MAX_FRAME_RATE, parameter_file = self.filenames['mes_fragments'][fragment_id])
@@ -267,7 +275,8 @@ class ExperimentControl(object):
             if self.scan_mode == 'xyz':
                 scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
                                                                                       parameter_file = self.filenames['mes_fragments'][fragment_id], 
-                                                                                      scan_time = self.mes_record_time)
+                                                                                      scan_time = self.mes_record_time, 
+                                                                                      channels = channels)
             else:
                 if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
                     #Before starting scan, set xz lines
@@ -278,7 +287,7 @@ class ExperimentControl(object):
                     if hasattr(self, 'xy_scan_parameters') and not self.xy_scan_parameters is None:
                         self.xy_scan_parameters.tofile(self.filenames['mes_fragments'][fragment_id])
                 scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
-                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode)
+                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
             scan_start_success2 = False
             if not scan_start_success:
                 self.printl('Scan did not start, retrying...')
@@ -289,9 +298,13 @@ class ExperimentControl(object):
             else:
                 self.printl('Scan start ERROR')
             return (scan_start_success2 or scan_start_success)
-        elif self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mc_mea':
+        elif self.config.PLATFORM == 'elphys':
             #Set acquisition trigger pin to high
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
+            self.start_of_acquisition = self._get_elapsed_time()
+            return True
+        elif self.config.PLATFORM == 'mc_mea':
+            self.parallel_port.set_data_bit(self.config.ACQUISITION_START_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
             return True
         elif self.config.PLATFORM == 'retinal_ca':
@@ -317,12 +330,12 @@ class ExperimentControl(object):
         -waits for mes data acquisition complete
         '''
         #Stop external measurements
-        if self.config.PLATFORM == 'elphys' or self.config.PLATFORM == 'mc_mea':
+        if self.config.PLATFORM == 'elphys':
             #Clear acquisition trigger pin
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
-            if self.config.PLATFORM == 'mc_mea':
-                self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 1)
-                self.parallel_port.set_data_bit(self.config.ACQUISITION_STOP_PIN, 0)
+            data_acquisition_stop_success = True
+        elif self.config.PLATFORM == 'mc_mea':
+            self.parallel_port.pulse(self.config.ACQUISITION_STOP_PIN, 1e-3)
             data_acquisition_stop_success = True
         elif self.config.PLATFORM == 'rc_cortical' and not self.parameters['enable_intrinsic']:
             self.mes_timeout = 2.0 * self.fragment_durations[fragment_id]            
@@ -398,8 +411,10 @@ class ExperimentControl(object):
         '''
         All the devices are initialized here, that allow rerun like operations
         '''
-        if hasattr(self.config, 'SERIAL_DIO_PORT'):
+        if hasattr(self.config, 'SERIAL_DIO_PORT') and self.config.PLATFORM != 'mc_mea':
             self.parallel_port = digital_io.SerialPortDigitalIO(self.config, self.log, self.start_time)
+        elif self.config.PLATFORM == 'mc_mea':
+            pass
         else:
             self.parallel_port = instrument.ParallelPort(self.config, self.log, self.start_time)
         self.filterwheels = []
@@ -416,7 +431,8 @@ class ExperimentControl(object):
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
 
     def _close_devices(self):
-        self.parallel_port.release_instrument()
+        if self.config.PLATFORM != 'mc_mea':
+            self.parallel_port.release_instrument()
         if self.config.OS == 'win':
             for filterwheel in self.filterwheels:
                 filterwheel.release_instrument()
@@ -662,8 +678,15 @@ class ExperimentControl(object):
         self.printl('Recording red and green channel')
         if hasattr(self, 'xy_scan_parameters'):
             self.xy_scan_parameters.tofile(xy_static_scan_filename)
+        if self.config.BLACK_SCREEN_DURING_PRE_SCAN:
+            self.show_fullscreen(color=0.0, duration=0.0)
+        if hasattr(self, 'scan_region'):
+            self.scan_region['xy_scan_parameters'].tofile(xy_static_scan_filename)
         result, red_channel_data_filename = self.mes_interface.line_scan(parameter_file = xy_static_scan_filename, scan_time=4.0,
                                                                            scan_mode='xy', channels=['pmtUGraw','pmtURraw'])
+        if self.config.BLACK_SCREEN_DURING_PRE_SCAN and hasattr(self.experiment_config, 'pre_runnable') and self.experiment_config.pre_runnable is not None:
+            self.experiment_config.pre_runnable.run()
+            self._flip()
         if not result:
             try:
                 if os.path.exists(initial_mes_line_scan_settings_filename):

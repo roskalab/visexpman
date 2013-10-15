@@ -71,6 +71,8 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
         m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
     if channels is None:
         channels = numpy.array(numpy.array([[u'pmtUGraw']]), dtype=object)
+    elif 'both' in channels :
+        channels = numpy.array([[channel] for channel in [u'pmtUGraw',  u'pmtURraw']], dtype = object)
     else:
         channels = numpy.array([[channel] for channel in channels], dtype = object)
     m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = channels
@@ -235,6 +237,8 @@ class MesInterface(object):
         if timeout == None:
             timeout = self.config.MES_TIMEOUT
         if self.connection.connected_to_remote_client():
+            time.sleep(0.1)
+            utils.empty_queue(self.queues['mes']['in'])
             self.queues['mes']['out'].put('SOCread_laser_intensityEOCEOP')
             if utils.wait_data_appear_in_queue(self.queues['mes']['in'], timeout):
                 while not self.queues['mes']['in'].empty():

@@ -80,8 +80,8 @@ class OldMeaSetup(MCMEAConfig): #David machine config
         
         #=== screen ===
         FULLSCREEN = True # True or False
-        SCREEN_RESOLUTION = utils.cr([1280,1024]) # !!! SET IT !!!
-    #        SCREEN_RESOLUTION = utils.cr([1024, 768])
+#        SCREEN_RESOLUTION = utils.cr([1280,1024]) # !!! SET IT !!!
+        SCREEN_RESOLUTION = utils.cr([1024, 768])
         COORDINATE_SYSTEM='center'
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
@@ -89,11 +89,13 @@ class OldMeaSetup(MCMEAConfig): #David machine config
         SCREEN_UM_TO_PIXEL_SCALE = 1.0 # 1 micron is 1 pixel, TO USE PIXELS
         
         #=== hardware === SETTING TTL 
-        ENABLE_PARALLEL_PORT =  True  #(self.OS == 'win') or False
+        ENABLE_PARALLEL_PORT =  False
+        SERIAL_DIO_PORT = ['COM5','COM4']
+        ACQUISITION_START_PIN = [1, [0,8]]
         # ACQUISITION_TRIGGER_PIN = 5 # THIS IS FOR STARTING RECORDING; not physical pin but data port # not used: we have to start recordings by hand
-        ACQUISITION_STOP_PIN = 4 # THIS IS FOR STOP THE RECORDING; not physical pin but data port
-        FRAME_TRIGGER_PIN = 5 # THIS IS IMPORTANT FOR STIM OPTICS; not physical pin but data port
-        USER_PIN = [6, [0,8]]
+        ACQUISITION_STOP_PIN = 0 # THIS IS FOR STOP THE RECORDING; not physical pin but data port
+        FRAME_TRIGGER_PIN = 3 # THIS IS IMPORTANT FOR STIM OPTICS; not physical pin but data port
+        USER_PIN = [2, [0,8]]
         # valt user pin 5 frame trigger 6 aztan vissza
         # classical parallel port pin numbering
         

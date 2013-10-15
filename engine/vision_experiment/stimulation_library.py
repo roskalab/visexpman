@@ -22,7 +22,6 @@ from visexpA.engine.datadisplay import videofile
 import unittest
 command_extract = re.compile('SOC(.+)EOC')
 
-
 class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyboardHandler):
     """
     Contains all the externally callable stimulation patterns:
@@ -55,7 +54,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
     def _flip(self,  trigger = False, count = True):
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
-        """        
+        """
         current_texture_state = glGetBooleanv(GL_TEXTURE_2D)
         if current_texture_state:
             glDisable(GL_TEXTURE_2D)
@@ -72,12 +71,12 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
         else:
             frame_rate_warning = ''
-        if self.experiment_control_dependent:
+        if self.experiment_control_dependent and not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
             if hasattr(self, 'start_time'):
                 self.elapsed_time = self.flip_time -  self.start_time
                 self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
-        if trigger:
+        if trigger and not self.config.STIMULUS2MEMORY:
             self._frame_trigger_pulse()
         self.check_abort_pressed()
         
@@ -235,7 +234,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if duration == 0.0:
             self.log_on_flip_message = self.log_on_flip_message_initial
             if flip:
-                self._flip(trigger = True, count = count)
+                self._flip(trigger = frame_trigger, count = count)
         elif duration == -1.0:
             i = 0
             while not self.abort:
@@ -404,7 +403,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 #            if self.stimulation_control.abort_stimulus():
 #                break
 
-    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, flip = True, block_trigger = False, save_frame_info = True):
+    def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, flip = True, block_trigger = False, save_frame_info = True, enable_centering = True, part_of_drawing_sequence = False):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
         If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
@@ -429,7 +428,11 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         else:
             raise RuntimeError('Parameter size is provided in an unsupported format')
         size_pixel = utils.rc_multiply_with_constant(size_pixel, self.config.SCREEN_UM_TO_PIXEL_SCALE)        
-        pos_pixel = utils.rc_multiply_with_constant(pos, self.config.SCREEN_UM_TO_PIXEL_SCALE)
+        if hasattr(self, 'screen_center') and enable_centering:
+            pos_with_offset = utils.rc_add(pos, self.screen_center)
+        else:
+            pos_with_offset = pos
+        pos_pixel = utils.rc_multiply_with_constant(pos_with_offset, self.config.SCREEN_UM_TO_PIXEL_SCALE)
         if ring_size is not None:
             ring_size_pixel = ring_size * self.config.SCREEN_UM_TO_PIXEL_SCALE
         #Calculate vertices
@@ -448,10 +451,13 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             vertices[vertices_outer_ring.shape[0]:] = vertices_inner_ring
             shape_type = 'annulus'
         n_vertices = vertices.shape[0]
-        if len(pos_pixel.shape) == 0:
+        if len(pos_pixel.shape) == 0:#When does it happen?????????????
             number_of_positions = 1
             vertices = vertices + numpy.array([pos_pixel['col'], pos_pixel['row']])
-        elif len(pos_pixel.shape) == 1:
+        elif len(pos_pixel.shape) == 1 and pos_pixel.shape[0] == 1:
+            number_of_positions = 1
+            vertices = vertices + numpy.array([pos_pixel['col'], pos_pixel['row']]).T
+        elif len(pos_pixel.shape) == 1 and pos_pixel.shape[0] > 1:
             if shape_type == 'annulus':
                 raise RuntimeError('Moving annulus stimulus is not supported')
             else:
@@ -480,9 +486,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         start_time = time.time()
         frame_i = 0
         while True:
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            if not part_of_drawing_sequence:
+                glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             if shape_type != 'annulus':
-                if hasattr(color,  'shape') and len(color.shape) ==2:
+                if hasattr(color,  'shape') and len(color.shape) == 2:
                     glColor3fv(colors.convert_color(color[frame_i], self.config))
                 if number_of_positions == 1:
                     glDrawArrays(GL_POLYGON,  0, n_vertices)
@@ -798,6 +805,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         stimulus_profile = stimulus_profile.transpose()
         if hasattr(self.config, 'GAMMA_CORRECTION'):
             stimulus_profile = self.config.GAMMA_CORRECTION(stimulus_profile)
+        if hasattr(self.config, 'COLOR_MASK'):
+            stimulus_profile *= self.config.COLOR_MASK
         if duration == 0.0:
             n_frames = 1
         else:
@@ -961,8 +970,8 @@ class StimulationSequences(Stimulations):
     '''
     Stimulation sequences, helpers
     '''
-    def export2video(self, filename):
-        videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.bmp'), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
+    def export2video(self, filename, img_format='png'):
+        videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         
     def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
         '''
@@ -1043,6 +1052,11 @@ class StimulationSequences(Stimulations):
         pass
         
     def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0,block_trigger = False):
+        #TODO:
+#        if hasattr(self, 'screen_center'):
+#            pos_with_offset = utils.rc_add(pos, self.screen_center)
+#        else:
+#            pos_with_offset = pos
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')')
         if hasattr(size, 'dtype'):
             shape_size = max(size['row'], size['col'])
@@ -1067,7 +1081,7 @@ class StimulationSequences(Stimulations):
                 end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(vaf*direction)))), self.config.SCREEN_CENTER, operation = '+')
                 start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
                 spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =vaf*direction , size = size,  block_trigger = block_trigger, save_frame_info = False)
+                self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =vaf*direction , size = size,  block_trigger = block_trigger, save_frame_info = False, enable_centering = False)
                 if pause > 0:
                     self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
                 if self.abort:

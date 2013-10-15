@@ -5,6 +5,7 @@ import os.path
 import tempfile
 import shutil
 import unittest
+import threading
 from visexpman.users.zoltan.test import unit_test_runner
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
@@ -92,7 +93,27 @@ class Log(object):
     def copy(self):
         if self.local_saving:
             shutil.copyfile(self.log_path, self.path)
+            
+class LoggerThread(threading.Thread, Log):
+    def __init__(self, command_queue, log_queue, name,  path, write_mode = 'automatic', timestamp = 'date_time', local_saving = False, format_string = '%(message)s'):
+        Log.__init__(self, name,  path, write_mode, timestamp, local_saving, format_string)
+        threading.Thread.__init__(self)
+        self.command_queue = command_queue
+        self.log_queue = log_queue
         
+    def run(self):
+        while True:
+            time.sleep(0.1)
+            if not self.command_queue.empty():
+                command = self.command_queue.get()
+                if command == 'TERMINATE':
+                    break
+            else:
+                for entry in utils.empty_queue(self.log_queue):
+                    self.info('{0}: {1}' .format(utils.time_stamp_to_hms(entry[0]), entry[1]), log_timestamp = False)
+        self.copy()
+                 
+                 
 class TestLog(unittest.TestCase):
     def setUp(self):
         self.path = file.generate_filename(os.path.join(unit_test_runner.TEST_working_folder, 'log_unit_test.txt'))
