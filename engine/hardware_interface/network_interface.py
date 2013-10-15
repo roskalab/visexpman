@@ -600,12 +600,14 @@ class QueuedClient(QtCore.QThread):
         map(self.queue_in.put, data_back_to_queue)
         return result
             
-    def connected_to_remote_client(self, timeout = 1.5):
+    def connected_to_remote_client(self, timeout = 8.0):
         '''connected_to_remote_client
         Sends an echo message to the remote client and waits for the response. If it does not arrive within the timout provided, it is assumed that the remote client is not connected
         '''
         #TODO: testcase is missing for this function
         import random
+        import traceback
+        map(self.printl, traceback.format_list(traceback.extract_stack()))
         echo_message = 'SOCechoEOC{0}_{1}EOP'.format(self.endpoint_name, int(random.random()*10e5))
         self.queue_out.put(echo_message)
         t = utils.Timeout(timeout)

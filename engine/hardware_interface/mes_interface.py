@@ -69,13 +69,18 @@ def set_scan_parameter_file(scan_time, reference_path, target_path, scan_mode = 
         ts = m.get_field(m.name2path('ts'))[0][0][0][0]
         ts = numpy.array([ts[0],ts[1],ts[2],numpy.round(float(1000*scan_time), 0)], dtype = numpy.float64)
         m.set_field(m.name2path('ts'), ts, allow_dtype_change=True)
-    if channels is None:
-        channels = numpy.array(numpy.array([[u'pmtUGraw']]), dtype=object)
+    if channels is None or channels == 'green':
+        channels_ = numpy.array(numpy.array([[u'pmtUGraw']]), dtype=object)
+    elif channels == 'red':
+        channels_ = numpy.array(numpy.array([[u'pmtURraw']]), dtype=object)
     elif 'both' in channels :
-        channels = numpy.array([[channel] for channel in [u'pmtUGraw',  u'pmtURraw']], dtype = object)
+        channels_ = numpy.array([[channel] for channel in [u'pmtUGraw',  u'pmtURraw']], dtype = object)
+    elif channels == 'default':
+        channels_ = None
     else:
-        channels = numpy.array([[channel] for channel in channels], dtype = object)
-    m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = channels
+        channels_ = numpy.array([[channel] for channel in channels], dtype = object)
+    if channels is None or 'default' not in channels:
+        m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = channels_
 #    if enable_scanner_signal_recording:
 #        m.raw_mat['DATA'][0]['info_Protocol'][0]['protocol'][0][0]['d'][0][0]['func2'][0][0] = \
 #                    numpy.array(numpy.array([[u'pmtUGraw'], [u'ScX'], [u'ScY']]), dtype=object)
@@ -483,8 +488,8 @@ class MesInterface(object):
         return mes_scan_range
 
     #######################  Line scan #######################
-    def vertical_line_scan(self, parameter_file = '', scan_time = None): #TODO: generalize to line scan
-        result, line_scan_path = self.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file, scan_time = scan_time,  scan_mode = 'xy')#Since one region is used, breakFF is not mecessary
+    def vertical_line_scan(self, parameter_file = '', scan_time = None, channels = None): #TODO: generalize to line scan
+        result, line_scan_path = self.start_line_scan(timeout = self.config.MES_TIMEOUT, parameter_file = parameter_file, scan_time = scan_time,  scan_mode = 'xy', channels = channels)#Since one region is used, breakFF is not mecessary
         if not result:
             return {}, False
         if scan_time != None:
@@ -521,6 +526,7 @@ class MesInterface(object):
         return True, line_scan_path
 
     def get_line_scan_parameters(self, timeout = -1, parameter_file = None):
+        time.sleep(1.0)
         if timeout == -1:
             timeout = self.config.MES_TIMEOUT
         if parameter_file == None:
@@ -609,9 +615,11 @@ class MesInterface(object):
             self._log_info('No MES response')
         return result
 
-    def _log_info(self, message):
+    def _log_info(self, message, enable_print=False):
         if self.log != None:
             self.log.info(message)
+        if enable_print:
+            print message
 
     def _generate_mes_file_paths(self, filename):
         path = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename))

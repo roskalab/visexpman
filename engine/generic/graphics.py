@@ -177,9 +177,9 @@ class Screen(object):
 #                if self.wait_time_left > 0.0:
 #                    time.sleep(self.wait_time_left)
                     
-        
-        if self.config.OS == 'linux':
-            self.clock.tick(self.config.SCREEN_EXPECTED_FRAME_RATE)
+        if not self.config.STIMULUS2MEMORY:
+            if self.config.OS == 'linux':
+                self.clock.tick(self.config.SCREEN_EXPECTED_FRAME_RATE)
 #            count = ctypes.c_uint()
 #            glxext_arb.glXGetVideoSyncSGI(ctypes.byref(count))
 #            glxext_arb.glXWaitVideoSyncSGI(0, 0, ctypes.byref(count))
@@ -191,7 +191,7 @@ class Screen(object):
 #            self.prev = count.value
             
 #            glxext_arb.glXWaitVideoSyncSGI(2, (count.value+1)%2, ctypes.byref(count))
-        pygame.display.flip()
+            pygame.display.flip()
 
 #        elif window_type == 'pyglet':
 #            self.screen.flip()
@@ -209,7 +209,15 @@ class Screen(object):
             if abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE) > 1.0:
                 print abs(self.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
         if self.config.ENABLE_FRAME_CAPTURE:
-            self.save_frame(file.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.bmp')))
+            if hasattr(self.config, 'CAPTURE_FORMAT'):
+                fileformat = self.config.CAPTURE_FORMAT
+            else:
+                fileformat = 'png'
+            self.save_frame(file.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.{0}'.format(fileformat))))
+        if self.config.STIMULUS2MEMORY:
+            if not hasattr(self, 'stimulus_bitmaps'):
+                self.stimulus_bitmaps = []
+            self.stimulus_bitmaps.append(self.get_frame())
         
         
     def scale_screen(self):
@@ -354,7 +362,13 @@ class Screen(object):
         pixels = glReadPixels(0, 0, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)        
         frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
         frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
-        frame.save(path)        
+        frame.save(path)
+        
+    def get_frame(self):
+        pixels = glReadPixels(0, 0, self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row'],  GL_RGB, GL_UNSIGNED_BYTE)        
+        frame = Image.fromstring('RGB', (self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), pixels)
+        frame = frame.transpose(Image.FLIP_TOP_BOTTOM)
+        return numpy.asarray(frame)
         
     def cuboid_vertices(self, sizes):
         vertices = numpy.array([

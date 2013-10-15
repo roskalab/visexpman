@@ -71,12 +71,12 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
         else:
             frame_rate_warning = ''
-        if self.experiment_control_dependent:
+        if self.experiment_control_dependent and not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
             if hasattr(self, 'start_time'):
                 self.elapsed_time = self.flip_time -  self.start_time
                 self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
-        if trigger:
+        if trigger and not self.config.STIMULUS2MEMORY:
             self._frame_trigger_pulse()
         
         command = screen.check_keyboard() #Here only commands with running experiment domain are considered

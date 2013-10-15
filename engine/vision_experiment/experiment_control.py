@@ -615,11 +615,11 @@ class ExperimentControl(object):
             self._flip()
         if not result:
             try:
+                self.printl('Recording red and green channel was NOT successful')
                 if os.path.exists(initial_mes_line_scan_settings_filename):
                     os.remove(initial_mes_line_scan_settings_filename)
                 if os.path.exists(red_channel_data_filename):
                     os.remove(red_channel_data_filename)
-                self.printl('Recording red and green channel was NOT successful')
                 return False
             except TypeError:
                 traceback_info = traceback.format_exc()

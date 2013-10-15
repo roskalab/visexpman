@@ -122,7 +122,11 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_mouse_files_combobox(os.path.split(self.poller.mouse_file)[1])#Ensuring that the filename coming from the last session is set
         if utils.safe_has_key(self.poller.xy_scan, self.config.DEFAULT_PMT_CHANNEL):
             self.show_image(self.poller.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.poller.xy_scan['scale'], origin = self.poller.xy_scan['origin'])
-        if utils.safe_has_key(self.poller.xz_scan, 'scaled_image'):
+        elif utils.safe_has_key(self.poller.xy_scan, 'pmtURraw'):
+            self.show_image(self.poller.xy_scan['pmtURraw'], 0, self.poller.xy_scan['scale'], origin = self.poller.xy_scan['origin'])
+        if utils.safe_has_key(self.poller.xz_scan, 'scaled_image_red'):
+            self.show_image(self.poller.xz_scan['scaled_image_red'], 2, self.poller.xz_scan['scaled_scale'], origin = self.poller.xz_scan['origin'])
+        elif utils.safe_has_key(self.poller.xz_scan, 'scaled_image'):
             self.show_image(self.poller.xz_scan['scaled_image'], 2, self.poller.xz_scan['scaled_scale'], origin = self.poller.xz_scan['origin'])
 
     def init_variables(self):

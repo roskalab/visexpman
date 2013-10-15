@@ -469,6 +469,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
     Visual stimulation machine of 3D microscope setup
     '''
     def _set_user_parameters(self):
+        TEXT_COLOR = [0.8, 0.0, 0.0]
         GUI_REFRESH_PERIOD = 5.0
         ENABLE_MESEXTRACTOR = True
         ENABLE_CELL_DETECTION = True
@@ -521,19 +522,17 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP_FROM_TABLE'] = True
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
             {
-            'GUI_MES'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
-            'STIM_MES'  : {'STIM' : {'IP': '192.168.1.2', 'LOCAL_IP': '192.168.1.3', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
-            'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '192.168.1.2', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': '192.168.1.2', 'LOCAL_IP': '192.168.1.3',  'PORT': self.BASE_PORT + 5}}, 
-            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '172.27.27.221', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 7}}, 
-#            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '192.168.3.2', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '192.168.3.2', 'LOCAL_IP': '192.168.3.3', 'PORT': self.BASE_PORT + 7}}, 
+            'GUI_MES'  : {'GUI' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.4', 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
+            'STIM_MES'  : {'STIM' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.3', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
+            'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.3',  'PORT': self.BASE_PORT + 5}}, 
+            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.2', 'PORT': self.BASE_PORT + 7}}, 
             }
         self.COMMAND_RELAY_SERVER['SERVER_IP'] = {\
-                     'GUI_MES': ['',''],
-                     'STIM_MES': ['192.168.1.2',''],
-                     'GUI_STIM': ['192.168.1.2', '192.168.1.2'],
-                     'GUI_ANALYSIS'  : ['', ''],
-#                     'GUI_ANALYSIS'  : ['192.168.3.2', '192.168.3.2'],
-                     }
+                     'GUI_MES': ['192.168.2.4','192.168.2.4'],
+                     'STIM_MES': ['192.168.2.4',''],
+                     'GUI_STIM': ['', '192.168.2.4'],
+                     'GUI_ANALYSIS'  : ['', '192.168.2.4'],
+                     }        
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
@@ -616,8 +615,9 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             'transfermode': 'file'
                                      }
         GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
-        IMAGING_CHANNELS = 'both'
+        IMAGING_CHANNELS = 'default'#'both'
         BLACK_SCREEN_DURING_PRE_SCAN = True
+        TEXT_COLOR = [0.3,0.0,0.0]
         gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical.hdf5')
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io

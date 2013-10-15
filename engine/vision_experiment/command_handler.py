@@ -68,7 +68,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             return 'menu is unhidden'
 
     def echo(self, par=''):
-        self.queues['mes']['out'].put('SOCechoEOCvisexpmanEOP')
+        import random
+        self.queues['mes']['out'].put('SOCechoEOCvisexpman_{0}EOP'.format(int(random.random()*10e5)))
         result = network_interface.wait_for_response(self.queues['mes']['in'], ['SOCechoEOCvisexpmanEOP'], timeout = self.config.MES_TIMEOUT)
         return 'echo ' + str(result)
         

@@ -241,6 +241,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SHOW_OVERVIEW = False
         IMAGING_CHANNELS = 'default' #or 'both'
         BLACK_SCREEN_DURING_PRE_SCAN = False
+        STIMULUS2MEMORY=False
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 

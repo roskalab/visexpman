@@ -71,6 +71,7 @@ class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
         self.PAUSE_BEFORE_AFTER = 5.0
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
+#        self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())
         
 class MovingGratingNoMarchingBlackPreConfig(experiment.ExperimentConfig):
