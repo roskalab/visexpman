@@ -92,7 +92,7 @@ class Stimulus2video(configuration.VisionExperimentConfig):
         SCREEN_MAX_FRAME_RATE = 60.0        
         
         #=== experiment specific ===
-        IMAGE_PROJECTED_ON_RETINA = False
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  

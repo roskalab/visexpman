@@ -783,7 +783,7 @@ def um_to_normalized_display(value, config):
 def retina2screen(widths, speed=None, machine_config=None, option=None):
     '''converts microns on retina to cycles per pixel on screen
     '''
-    if machine_config.IMAGE_PROJECTED_ON_RETINA == 0:
+    if machine_config.IMAGE_DIRECTLY_PROJECTED_ON_RETINA == 0:
         visualangles = um2degrees(widths) # 300um is 10 degrees
         #widthsonmonitor = tan(2*pi/360*visualangles)*monitor.distancefrom_mouseeye/monitor.pixelwidth #in pixels
         widthsonmonitor = numpy.pi/180*visualangles*machine_config.SCREEN_DISTANCE_FROM_MOUSE_EYE/machine_config.SCREEN_PIXEL_WIDTH #in pixels
@@ -802,7 +802,7 @@ def retina2screen(widths, speed=None, machine_config=None, option=None):
                 cyclespersecond[i] = speedonmonitor[i]/(widthsonmonitor[i]*2) # divide by period, i.e. width*2
                 time4onecycle_onscreen[i] = (machine_config.SCREEN_RESOLUTION['col']/onecycle_pix[i])/cyclespersecond[i]
             return cyclesperpixel, time4onecycle_onscreen
-    elif machine_config.IMAGE_PROJECTED_ON_RETINA==1:
+    elif machine_config.IMAGE_DIRECTLY_PROJECTED_ON_RETINA==1:
         widthsonmonitor = widths/machine_config.SCREEN_UM_TO_PIXEL_SCALE
         no_periods_onscreen = machine_config.SCREEN_RESOLUTION['col']/(widthsonmonitor*2)
         if speed is None:
@@ -1147,7 +1147,21 @@ def safe_has_key(var, key):
         if var.has_key(key):
             result = True
     return result
-
+    
+def item2list(item):
+    '''
+    Checks if item is a list or not. If not, makes a 1 item list of it
+    '''
+    if hasattr(item, '__iter__'):
+        item_list = item
+    else:
+        item_list = [item]
+    return item_list
+    
+def check_expected_parameter(config, parameter_name):
+    for pn in item2list(parameter_name):
+        if not hasattr(config, pn):
+            raise RuntimeError('{0} parameter must be defined'.format(pn))
 
 class TestUtils(unittest.TestCase):
     def setUp(self):

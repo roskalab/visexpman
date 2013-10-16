@@ -32,6 +32,10 @@ if not exist "c:\Program Files\National Instruments\NI-DAQ" (
     ::This appears when daqmx is not yet installed but copied
     echo Daqmx already installed
 )
+if exist c:\Python26 (
+    echo Uninstall Python 2.6 and restart installer
+    exit /B
+)
 if not exist c:\Python27 (
     echo Copying pythonxy ...
     if not exist %tmp_folder%\%pythonxy_exe% copy %install_source_folder%\%pythonxy_exe% %tmp_folder%\%pythonxy_exe%

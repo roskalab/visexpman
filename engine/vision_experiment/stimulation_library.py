@@ -970,6 +970,22 @@ class StimulationSequences(Stimulations):
     '''
     Stimulation sequences, helpers
     '''
+    def stimulusbitmap2uled(self):
+        expected_configs = ['ULED_SERIAL_PORT', 'STIMULUS2MEMORY']
+        if all([hasattr(self.machine_config, expected_config) for expected_config in expected_configs]) and self.machine_config.STIMULUS2MEMORY:
+            self.config.STIMULUS2MEMORY = False
+            from visexpman.engine.hardware_interface import microled
+            self.microledarray = microled.MicroLEDArray(self.machine_config)
+            for frame_i in range(len(self.stimulus_bitmaps)):
+                pixels = numpy.where(self.stimulus_bitmaps[frame_i] == 0, False, True)
+                self.microledarray.display_pixels(pixels, 1/self.machine_config.SCREEN_EXPECTED_FRAME_RATE-self.machine_config.FRAME_TRIGGER_PULSE_WIDTH)
+                self._frame_trigger_pulse()
+                if self.abort:
+                    break
+            self.microledarray.release_instrument()
+        else:
+            raise RuntimeError('Micro LED array stimulation is not configured properly, make sure that {0} parameters have correct values'.foramt(expected_configs))
+        
     def export2video(self, filename, img_format='png'):
         videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         
@@ -1148,7 +1164,7 @@ class StimulationSequences(Stimulations):
             for c in intensities:
                 self.show_fullscreen(duration = time_per_point, color = c)
                 self.measure_light_power(c)
-                if self.abort:
+                if self.check_abort_pressed():
                     break
                     
     def measure_light_power(self, reference_intensity):

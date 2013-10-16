@@ -207,7 +207,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         utils.is_keyword_in_queue(self.queues['gui']['in'], 'abort', keep_in_queue = False)
         context = {}
         for vn in ['stage_origin', 'screen_center', 'parallel_port']:
-            context[vn] = getattr(self, vn)
+            if hasattr(self, vn):
+                context[vn] = getattr(self, vn)
         if self.experiment_config is not None:
             result = self.experiment_config.runnable.run_experiment(context)
             return result

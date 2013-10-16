@@ -303,6 +303,10 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
             return True
+        elif self.config.PLATFORM == 'elpol':
+            if self._wait_experiment_start_trigger():
+                self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
+                return True
         elif self.config.PLATFORM == 'mc_mea':
             self.parallel_port.set_data_bit(self.config.ACQUISITION_START_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
@@ -332,6 +336,9 @@ class ExperimentControl(object):
         #Stop external measurements
         if self.config.PLATFORM == 'elphys':
             #Clear acquisition trigger pin
+            self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
+            data_acquisition_stop_success = True
+        elif self.config.PLATFORM == 'elpol':
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             data_acquisition_stop_success = True
         elif self.config.PLATFORM == 'mc_mea':
@@ -532,6 +539,26 @@ class ExperimentControl(object):
         self.filenames['experiment_log'] = \
             file.generate_filename(os.path.join(self.config.EXPERIMENT_LOG_PATH, 'log_{0}_{1}.txt' .format(self.name_tag, date)))
         self.log = log.Log('experiment log' + uuid.uuid4().hex, self.filenames['experiment_log'], write_mode = 'user control', timestamp = 'elapsed_time')
+        
+    def _wait_experiment_start_trigger(self):
+        '''
+        Returns True if trigger occured
+        '''
+        utils.check_expected_parameter(self.config, 'EXPERIMENT_START_TRIGGER')
+        result = False
+        t0 = time.time()
+        while True:
+            if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False) or (hasattr(self, 'check_abort_pressed') and self.check_abort_pressed()):#abort command from keyboard or network 
+                self.abort=True
+                break
+            if self.parallel_port.read_pin(self.config.EXPERIMENT_START_TRIGGER):#Check if trigger pin is high
+                result = True
+                break
+            if hasattr(self.config, 'EXPERIMENT_START_TRIGGER_TIMEOUT') and time.time()-t0 > self.config.EXPERIMENT_START_TRIGGER_TIMEOUT: #If configured stop wait loop after a time
+                self.printl('Experiment start trigger timeout')
+                break
+            time.sleep(1e-3)
+        return result
 
     ########## Fragment data ############
     def _prepare_fragment_data(self, fragment_id):

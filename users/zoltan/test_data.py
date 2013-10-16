@@ -66,7 +66,7 @@ class LDC(VisionExperimentConfig):
         elif dataset == 1:
             COORDINATE_SYSTEM='ulcorner'
 
-        IMAGE_PROJECTED_ON_RETINA = False
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
         FRAME_WAIT_FACTOR = 0
@@ -109,7 +109,7 @@ class PPRL(VisionExperimentConfig):
         SCREEN_UM_TO_PIXEL_SCALE = 1.0
 
         COORDINATE_SYSTEM='center'
-        IMAGE_PROJECTED_ON_RETINA = False
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
 

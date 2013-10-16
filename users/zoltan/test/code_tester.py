@@ -5,26 +5,18 @@ import os.path
 import numpy
 import time
 
-if not True:
+if True:
+    import unittest
     
-    
-    import socket
-
-#    HOST = 'localhost'    # The remote host
-#    PORT = 22002              # The same port as used by the server
-#    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#    s.bind((HOST, PORT))
-    
-    import SocketServer
-    address=('localhost', 22000)
-    s1=SocketServer.TCPServer(address, None)
-    import time
-    time.sleep(1.0)
-#    s1.socket.bind(s1.server_address)
-##    s1.server_bind()
-    pass
-    
-    
+    class TC(unittest.TestCase):
+        def setUp(self):
+            print '0'
+            
+        def test_01(self):
+            print '1'
+            
+        def test_02(self):
+            print '2'
     
 else:
     def append2hdf5():

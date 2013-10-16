@@ -36,16 +36,21 @@ class VisionExperimentRunner(command_handler.CommandHandler):
     def __init__(self, user, config_class, autostart = False):
         ########## Set up configurations ################
         try:
-            if hasattr(user, '__iter__'):
-                user_ = user[0]
-            else:
-                user_ = user
-            if hasattr(config_class, 'OS'):
-                self.config = config_class
-            else:
-                self.config = utils.fetch_classes('visexpman.users.'+user_, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+            #Load machine config from common folder
+            self.config = utils.fetch_classes('visexpman.users.common', classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         except IndexError:
-            raise RuntimeError('Configuration class does not exist: ' + str(config_class))
+            #When not found, check username folder
+            try:
+                if hasattr(user, '__iter__'):
+                    user_ = user[0]
+                else:
+                    user_ = user
+                if hasattr(config_class, 'OS'):
+                    self.config = config_class
+                else:
+                    self.config = utils.fetch_classes('visexpman.users.'+user_, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+            except IndexError:
+                raise RuntimeError('Configuration class does not exist: ' + str(config_class))
         #Save user name
         if user == '':
             self.config.user = 'undefined'
@@ -551,7 +556,53 @@ class TestVisionExperimentRunner(unittest.TestCase):
                        int(v.experiment_config.runnable.fragment_durations[0] * v.config.SCREEN_EXPECTED_FRAME_RATE), 
                         ))
         
-    
+    @unittest.skipIf(not unit_test_runner.TEST_uled,  'Microled tests disabled')
+    def test_11_microled(self):
+        raw_input('This test expects that microled array is powered and connected \n\
+                HV: 3-4 V, 500 mA, VDD: 3V, Peltier: 6 V, 1.5A, fan: 12V\n\
+                A thorlabs PM100usb intensity meter needs to be connected\n\
+                Watch the generated patterns on the led array\n\
+                Press ENTER')
+        from matplotlib.pyplot import plot, show,figure,legend, xlabel,title,savefig, clf, subplot, ylabel
+        import lightmeter
+        from multiprocessing import Queue
+        from threading import Thread
+        self.queues = {'command':Queue(), 'data': Queue(), }
+        self.process = Thread(target=lightmeter.lightmeter_acquisition_process,  args = (config, self.queues))
+        self.process.start()
+        time.sleep(1.0)
+        v = VisionExperimentRunner('zoltan', 'MicroLEDArrayTestConfig')
+        v.run_experiment(user_experiment_config = 'MicroLEDArrayExperiment')
+        time.sleep(1.0)
+        self.queues['command'].put('terminate')            
+        self.process.join()
+        self.data = []
+        while not self.queues['data'].empty():
+            self.data.append(self.queues['data'].get())
+        self.data=numpy.array(self.data)
+        plot(self.data[:, 0], self.data[:, 1])
+        show()
+        #Read logs
+        log = file.read_text_file(v.logfile_path)
+        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
+        self.assertEqual(
+                        (self.check_application_log(v), 
+                        self.check_experiment_log(v), 
+                        'show_grating(' in experiment_log,
+                        v.config.__class__, 
+                        v.config.user,
+                        'MicroLEDArrayTestConfig' in v.experiment_config.__class__.__name__, 
+                        v.experiment_config.runnable.frame_counter, 
+                        hasattr(v.runnable, 'stimulus_bitmaps'), 
+                        ),
+                        (True, True, True,
+                        visexpman.users.zoltan.automated_test_data.MicroLEDArrayTestConfig,
+                       'zoltan',
+                       True,
+                       int(v.experiment_config.runnable.fragment_durations[0] * v.config.SCREEN_EXPECTED_FRAME_RATE), 
+                       True
+                        ))
+                        
     ############## Helpers #################
     def check_application_log(self, vision_experiment_runner, experiment_run = True):
         log = file.read_text_file(vision_experiment_runner.logfile_path)

@@ -73,6 +73,7 @@ class Debug(experiment.Experiment):
     
     def run(self):
         self.show_shape(duration=0,size=10, color=1.0, part_of_drawing_sequence=True, flip=False)
+        self.show_shape(duration=0,pos = utils.rc((10, 0)), size=30, color=0.7, part_of_drawing_sequence=True, flip=False)
         self.show_shape(duration=0,size=100, color=0.4, part_of_drawing_sequence=True, flip=True)
         time.sleep(5.0)
         return

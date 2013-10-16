@@ -115,13 +115,13 @@ class MicroLEDArray(instrument.Instrument):
 
 class TestConfig(object):
     def __init__(self):
-        self.ULED_SERIAL_PORT = 'COM6'
+        self.ULED_SERIAL_PORT = 'COM4'
         self.LIGHT_METER = {'AVERAGING':1, 'TIMEOUT':100e-3}
         
 class Testuled(unittest.TestCase):
     def setUp(self):
         self.timing = [2e-3, 10e-3, 20e-3, 50e-3, 100e-3]
-#        self.timing = self.timing[:2]
+        self.timing = [30e-3]
         self.repeats = 3
         self.pause = 1.0
 #        self.timing=[10e-3]
@@ -176,10 +176,12 @@ class Testuled(unittest.TestCase):
             plot(self.data[:, 0], self.data[:, 1])
             show()
             
-#    @unittest.skip('')
+    @unittest.skip('')
     def test_02_eval_timing(self):
         from visexpA.engine.datahandlers import hdf5io
-        h=hdf5io.Hdf5io('/mnt/datafast/debug/uled/timing_00000.hdf5', filelocking=False)
+        p='/mnt/datafast/debug/uled/timing_00001.hdf5'
+        p='v:\\debug\\uled\\timing_00001.hdf5'
+        h=hdf5io.Hdf5io(p, filelocking=False)
         reps = h.findvar('repeats')
         print h.findvar('timing')
         bt=h.findvar('blocktimes')
@@ -193,6 +195,7 @@ class Testuled(unittest.TestCase):
         print numpy.diff(edges)[::2][::reps]/16*1000
         plot(data[:, 0], data[:, 1])
         show()
+
         
 if __name__ == '__main__':
     unittest.main()

@@ -66,7 +66,7 @@ class K247AWindowsConfig(VisionExperimentConfig):
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
-        IMAGE_PROJECTED_ON_RETINA = False
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [36.0, [0, 100]] #cm
         SCREEN_PIXEL_WIDTH = [0.0425, [0, 0.5]] # mm
         FRAME_WAIT_FACTOR = 0 
@@ -112,7 +112,7 @@ class MBP(VisionExperimentConfig):
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
-        IMAGE_PROJECTED_ON_RETINA = False
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [280.0, [0, 300]] #mm
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
@@ -219,7 +219,7 @@ class RcMicroscopeSetup(RcCorticalCaImagingConfig):
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
         #=== experiment specific ===
-        IMAGE_PROJECTED_ON_RETINA = False
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
@@ -244,9 +244,7 @@ class RcMicroscopeSetup(RcCorticalCaImagingConfig):
                      'GUI_STIM': ['192.168.2.4', '192.168.2.4'],
                      'GUI_ANALYSIS'  : ['192.168.2.4', '192.168.2.4'],
 #                     'GUI_ANALYSIS'  : ['192.168.3.2', '192.168.3.2'],
-                     }        
-
-
+                     }
         #=== hardware ===
         ENABLE_PARALLEL_PORT = True
         ACQUISITION_TRIGGER_PIN = 2
@@ -666,7 +664,7 @@ class Stim2Bmp(VisionExperimentConfig):
         SCREEN_MAX_FRAME_RATE = 60.0
         
         #=== experiment specific ===
-        IMAGE_PROJECTED_ON_RETINA = False
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  

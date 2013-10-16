@@ -16,6 +16,7 @@ if TEST_test:
     argparser.add_argument('--goniometer', help='Goniometer tests enabled, Motorized goniometer has to be connected via serial port', action='store_true')
     argparser.add_argument('--remote_focus', help='Remote focus tests enabled, Remote focus controller has to be connected via serial port', action='store_true')
     argparser.add_argument('--mes', help='Tests using MES are enabled. MES computer shall be available.', action='store_true')
+    argparser.add_argument('--uled', help='Tests expecting microled array are enabled.', action='store_true')
     argparser.add_argument('--pp', help='Tests using parallel port are enabled. Parallel port driver has to be loaded and user shall have root access if tests are run on linux', action='store_true')
     argparser.add_argument('--fw', help='Filterwheel tests enabled.', action='store_true')
     argparser.add_argument('--stim', help='Enable running stimulation pattern tests. Reference frames shall be available', action='store_true')
@@ -27,6 +28,7 @@ if TEST_test:
     TEST_goniometer = getattr(argparser.parse_args(), 'goniometer')
     TEST_remote_focus = getattr(argparser.parse_args(), 'remote_focus')
     TEST_mes = getattr(argparser.parse_args(), 'mes')
+    TEST_uled = getattr(argparser.parse_args(), 'uled')
     TEST_parallel_port = getattr(argparser.parse_args(), 'pp')
     TEST_filterwheel = getattr(argparser.parse_args(), 'fw')
     TEST_stim = getattr(argparser.parse_args(), 'stim')
@@ -38,6 +40,7 @@ else:
     TEST_goniometer = False
     TEST_remote_focus = False
     TEST_mes = False
+    TEST_uled = False
     TEST_parallel_port = False
     TEST_filterwheel = False
     TEST_stim = False
@@ -136,7 +139,17 @@ def prepare_test_data(modulename, clean_working_dir = True, copy_only_first_file
         if copy_only_first_file:
             break
     time.sleep(1.0)
-    return working_folder        
+    return working_folder
+    
+def run_test(path):
+    '''
+    Runs single test. Path shall contain full module path, test suite class name and test method name separated with dot
+    '''
+    module_name = '.'.join(path.split('.')[:-2])
+    __import__(module_name)
+    test_suite = unittest.TestSuite()
+    test_suite.addTest(getattr(sys.modules[module_name],path.split('.')[-2])(path.split('.')[-1]))
+    unittest.TextTestRunner(verbosity=2).run(test_suite)
 
 class UnitTestRunner():
     '''

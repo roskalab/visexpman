@@ -110,12 +110,21 @@ class ParallelPort(parallel_port_ancestors):
     
     def init_instrument(self):
         if self.config.ENABLE_PARALLEL_PORT:
-            parallel.Parallel.__init__(self)
+            try:
+                parallel.Parallel.__init__(self)
+            except WindowsError:
+                raise RuntimeError('Parallel port cannot be initialized, \
+                                   make sure that parallel port driver is installed and started')
         #Here create the variables that store the status of the IO lines
         self.iostate = {}
         self.iostate['data'] = 0
         self.iostate['data_strobe'] = 0
         self.iostate['auto_feed'] = 0
+        #Input pin assignments:
+        self.input_pins = {'10' : 'getInAcknowledge', '11': 'getInBusy', '15': 'getInError', '12': 'getInPaperOut', '13': 'getInSelected'}
+        self.iostate['in'] = {}
+        for pin in self.input_pins.keys():
+            self.iostate['in'][pin] = self.read_pin(pin)
 
     def _update_io(self):
         self.setData(self.iostate['data'])
@@ -144,7 +153,25 @@ class ParallelPort(parallel_port_ancestors):
             
             #logging
             if log:
-                self.log_during_experiment('Parallel port data bits set to %i' % self.iostate['data'])                
+                self.log_during_experiment('Parallel port data bits set to %i' % self.iostate['data'])
+                
+    def read_pin(self, pin):
+        '''
+        Pin: physical pin number
+        Input line - pin assignment:
+        getInAcknowledge - 10
+        getInBusy - 11
+        getInError - 15
+        getInPaperOut - 12
+        getInSelected - 13
+        '''
+        if not isinstance(pin, str):
+            pin_ = str(pin)
+        else:
+            pin_ = pin
+        if not self.input_pins.has_key(pin_):
+            raise RuntimeError('Invalid pin: {0},  Supported input pins: {1}'.format(pin_, self.input_pins.keys()))
+        return getattr(self, self.input_pins[pin_])()
                     
     def close_instrument(self):
         if self.config.ENABLE_PARALLEL_PORT:            

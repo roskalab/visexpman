@@ -449,3 +449,35 @@ class StageExperiment(experiment.Experiment):
         movement_vector = numpy.array([10000.0,1000.0,10.0])
         self.result1 = self.stage.move(movement_vector)
         self.result2 = self.stage.move(-movement_vector)
+
+#== Microled array test experiment ==
+class MicroLEDArrayTestConfig(configuration.VisionExperimentConfig):
+    def _set_user_parameters(self):
+        PLATFORM = 'standalone'
+        #paths
+        LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        #screen
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.cr([800, 600])
+        ULED_SERIAL_PORT='COM4'
+        
+        COORDINATE_SYSTEM='center'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self._create_parameters_from_locals(locals())
+
+class MicroLEDArrayExperimentConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'MicroLEDArrayExperiment'
+        self._create_parameters_from_locals(locals())
+        
+class MicroLEDArrayExperiment(experiment.Experiment):
+    def run(self):
+        self.fragment_durations = [4]
+        self.STIMULUS2MEMORY=False
+        for ori in [0, 45, 90]:
+            self.show_grating(duration=1.0, white_bar_width = 4.0, velocity=1.0, orientation=ori)
+        self.show_shape(shape='o', size = 5, duration=1.0, color=1.0)
+        self.stimulusbitmap2uled()
+        

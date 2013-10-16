@@ -17,11 +17,3 @@ class IncreasingSpotParameters(experiment.ExperimentConfig):
         self.USER_FRAGMENT_NAME = 'FILENAME'
         self.runnable = 'IncreasingSpotExperiment'
         self._create_parameters_from_locals(locals())
-        
-        
-class IncreasingSpotExperiment(experiment.Experiment):
-    def run(self):
-        self.printl(self.experiment_config.USER_FRAGMENT_NAME) 
-        for color in self.experiment_config.COLORS:
-            self.increasing_spot(self.experiment_config.SIZES, self.experiment_config.ON_TIME, self.experiment_config.OFF_TIME,
-                    color = color, background_color = self.experiment_config.BACKGROUND, pos = utils.rc((0,  0)),block_trigger = True)        
