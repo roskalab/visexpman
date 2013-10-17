@@ -454,17 +454,20 @@ class StageExperiment(experiment.Experiment):
 class MicroLEDArrayTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
         PLATFORM = 'standalone'
+        EXPERIMENT_CONFIG = 'MicroLEDArrayExperimentConfig'
         #paths
         LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
         EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
         #screen
         FULLSCREEN = False
-        SCREEN_RESOLUTION = utils.cr([800, 600])
+        SCREEN_RESOLUTION = utils.cr([16, 16])
+        SCREEN_EXPECTED_FRAME_RATE = 1/20e-3
         ULED_SERIAL_PORT='COM4'
-        
+        STIM_RECORDS_ANALOG_SIGNALS=False
         COORDINATE_SYSTEM='center'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
+        self.LIGHT_METER = {'AVERAGING':1, 'TIMEOUT':100e-3}
         self._create_parameters_from_locals(locals())
 
 class MicroLEDArrayExperimentConfig(experiment.ExperimentConfig):
@@ -474,10 +477,12 @@ class MicroLEDArrayExperimentConfig(experiment.ExperimentConfig):
         
 class MicroLEDArrayExperiment(experiment.Experiment):
     def run(self):
-        self.fragment_durations = [4]
-        self.STIMULUS2MEMORY=False
+        duration=1.0
+        self.fragment_durations = [4*duration]
+        self.config.STIMULUS2MEMORY=True
         for ori in [0, 45, 90]:
-            self.show_grating(duration=1.0, white_bar_width = 4.0, velocity=1.0, orientation=ori)
-        self.show_shape(shape='o', size = 5, duration=1.0, color=1.0)
+            self.show_grating(duration=duration, white_bar_width = 1.0, duty_cycle = 4.0, velocity=8.0, orientation=ori)
+        for s in range(5, 15):
+            self.show_shape(shape='o', size = s, duration=duration/10, color=1.0)
         self.stimulusbitmap2uled()
         

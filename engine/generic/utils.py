@@ -960,7 +960,6 @@ def interpolate_waveform(waveform, ratio):
     else:
         shape = ratio * waveform.shape[0]
     waveform_interpolated = waveform_interpolated.reshape(shape)
-        
     return waveform_interpolated
     
 def resample_waveform(waveform, ratio):
@@ -971,7 +970,6 @@ def resample_waveform(waveform, ratio):
         for channel in range(waveform.shape[1]):
             resampled_waveform.append(waveform[:,channel][::ratio])
         resampled_waveform = numpy.array(resampled_waveform).transpose()
-            
     return resampled_waveform
     
 def generate_pulse_train(offsets, pulse_widths, amplitudes, duration, sample_rate = None):
@@ -1018,7 +1016,6 @@ def generate_pulse_train(offsets, pulse_widths, amplitudes, duration, sample_rat
         if offset + _pulse_widths[pulse_index] > _duration or offset + 1 > _duration:
             raise RuntimeError('Last pulse falls outside the waveform')        
         waveform[offset: offset + _pulse_widths[pulse_index]] = pulse
-        
     return waveform
 
 def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):

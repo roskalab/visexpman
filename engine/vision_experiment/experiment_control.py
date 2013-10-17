@@ -183,8 +183,6 @@ class ExperimentControl(object):
             self.abort = True
         elif not hasattr(self, 'id'):
             self.id = str(int(time.time()))
-        self._initialize_experiment_log()
-        self._initialize_devices()
         if self.abort:
             return
         if self.config.PLATFORM == 'rc_cortical':
@@ -229,6 +227,8 @@ class ExperimentControl(object):
                 self.objective_position = 0
                 self.objective_origin = 0
         self._prepare_files()
+        self._initialize_experiment_log()#TODO: needs to be merged with prepare_files
+        self._initialize_devices()
         return message_to_screen 
 
     def _finish_experiment(self):

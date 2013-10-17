@@ -6,17 +6,8 @@ import numpy
 import time
 
 if True:
-    import unittest
-    
-    class TC(unittest.TestCase):
-        def setUp(self):
-            print '0'
-            
-        def test_01(self):
-            print '1'
-            
-        def test_02(self):
-            print '2'
+    import unit_test_runner
+    unit_test_runner.run_test('visexpman.engine.visexp_runner.TestVisionExperimentRunner.test_11_microled')
     
 else:
     def append2hdf5():
@@ -47,8 +38,9 @@ else:
 
 from multiprocessing import Queue, Process
 if __name__ == '__main__':
-    append2hdf5()
-    read_hdf5()
+    if False:
+        append2hdf5()
+        read_hdf5()
 #    p='/mnt/datafast/debug/earray1.hdf5'
 #    if os.path.exists(p):
 #        os.remove(p)

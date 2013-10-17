@@ -8,7 +8,7 @@ import tempfile
 import time
 import shutil
 import argparse
-TEST_test = 'unit_test' in sys.argv[0]
+TEST_test = 'unit_test' in sys.argv[0] or 'code_tester' in sys.argv[0]
 if TEST_test:
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--daq', help='Tests using DAQmx are enabled, assumes that daq device is connected and the operating system is windows', action='store_true')

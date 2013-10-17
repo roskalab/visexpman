@@ -970,21 +970,34 @@ class StimulationSequences(Stimulations):
     '''
     Stimulation sequences, helpers
     '''
+    def _merge_identical_frames(self):
+        self.merged_bitmaps = [[self.screen.stimulus_bitmaps[0], 1]]
+        for frame_i in range(1, len(self.screen.stimulus_bitmaps)):
+            if abs(self.merged_bitmaps[-1][0] - self.screen.stimulus_bitmaps[frame_i]).sum()==0:
+                self.merged_bitmaps[-1][1] += 1
+            else:
+                self.merged_bitmaps.append([self.screen.stimulus_bitmaps[frame_i], 1])
+        
     def stimulusbitmap2uled(self):
         expected_configs = ['ULED_SERIAL_PORT', 'STIMULUS2MEMORY']
         if all([hasattr(self.machine_config, expected_config) for expected_config in expected_configs]) and self.machine_config.STIMULUS2MEMORY:
             self.config.STIMULUS2MEMORY = False
             from visexpman.engine.hardware_interface import microled
             self.microledarray = microled.MicroLEDArray(self.machine_config)
-            for frame_i in range(len(self.stimulus_bitmaps)):
-                pixels = numpy.where(self.stimulus_bitmaps[frame_i] == 0, False, True)
-                self.microledarray.display_pixels(pixels, 1/self.machine_config.SCREEN_EXPECTED_FRAME_RATE-self.machine_config.FRAME_TRIGGER_PULSE_WIDTH)
+            self._merge_identical_frames()
+            for frame_i in range(len(self.merged_bitmaps)):
+                t0=time.time()
+                self.microledarray.reset()
                 self._frame_trigger_pulse()
-                if self.abort:
+                if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False) or self.check_abort_pressed():
+                    self.abort=True
                     break
+                pixels = numpy.where(self.merged_bitmaps[frame_i][0].mean(axis=2) == 0, False, True)
+                self.microledarray.display_pixels(pixels, self.merged_bitmaps[frame_i][1]/self.machine_config.SCREEN_EXPECTED_FRAME_RATE-(time.time()-t0), clear=False)
+                
             self.microledarray.release_instrument()
         else:
-            raise RuntimeError('Micro LED array stimulation is not configured properly, make sure that {0} parameters have correct values'.foramt(expected_configs))
+            raise RuntimeError('Micro LED array stimulation is not configured properly, make sure that {0} parameters have correct values'.format(expected_configs))
         
     def export2video(self, filename, img_format='png'):
         videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))

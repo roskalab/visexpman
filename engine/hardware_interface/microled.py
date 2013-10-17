@@ -126,7 +126,7 @@ class Testuled(unittest.TestCase):
         self.pause = 1.0
 #        self.timing=[10e-3]
         
-    @unittest.skip('')
+#    @unittest.skip('')
     def test_01_uled(self):
         config = TestConfig()
         from matplotlib.pyplot import plot, show,figure,legend, xlabel,title,savefig, clf, subplot, ylabel
@@ -135,7 +135,6 @@ class Testuled(unittest.TestCase):
         from threading import Thread
         from visexpman.engine.generic.introspect import Timer
         enable_measurement=not False
-        
         self.queues = {'command':Queue(), 'data': Queue(), }
         self.process = Thread(target=lightmeter.lightmeter_acquisition_process,  args = (config, self.queues))
         if enable_measurement:

@@ -564,15 +564,15 @@ class TestVisionExperimentRunner(unittest.TestCase):
                 Watch the generated patterns on the led array\n\
                 Press ENTER')
         from matplotlib.pyplot import plot, show,figure,legend, xlabel,title,savefig, clf, subplot, ylabel
-        import lightmeter
+        from visexpman.engine.hardware_interface import lightmeter
         from multiprocessing import Queue
         from threading import Thread
         self.queues = {'command':Queue(), 'data': Queue(), }
-        self.process = Thread(target=lightmeter.lightmeter_acquisition_process,  args = (config, self.queues))
+        v = VisionExperimentRunner('zoltan', 'MicroLEDArrayTestConfig')
+        self.process = Thread(target=lightmeter.lightmeter_acquisition_process,  args = (v.config, self.queues))
         self.process.start()
         time.sleep(1.0)
-        v = VisionExperimentRunner('zoltan', 'MicroLEDArrayTestConfig')
-        v.run_experiment(user_experiment_config = 'MicroLEDArrayExperiment')
+        v.run_experiment()
         time.sleep(1.0)
         self.queues['command'].put('terminate')            
         self.process.join()
@@ -580,34 +580,37 @@ class TestVisionExperimentRunner(unittest.TestCase):
         while not self.queues['data'].empty():
             self.data.append(self.queues['data'].get())
         self.data=numpy.array(self.data)
-        plot(self.data[:, 0], self.data[:, 1])
-        show()
+        try:
+            plot(self.data[:, 0], self.data[:, 1])
+#            show()
+        except:
+            pass
         #Read logs
         log = file.read_text_file(v.logfile_path)
         experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
         self.assertEqual(
                         (self.check_application_log(v), 
                         self.check_experiment_log(v), 
-                        'show_grating(' in experiment_log,
+                        'show_grating(' not in experiment_log,
                         v.config.__class__, 
                         v.config.user,
-                        'MicroLEDArrayTestConfig' in v.experiment_config.__class__.__name__, 
+                        'MicroLEDArrayExperimentConfig' in v.experiment_config.__class__.__name__, 
                         v.experiment_config.runnable.frame_counter, 
-                        hasattr(v.runnable, 'stimulus_bitmaps'), 
+                        hasattr(v.experiment_config.runnable.screen, 'stimulus_bitmaps'), 
+                        hasattr(v.experiment_config.runnable, 'merged_bitmaps'), 
                         ),
                         (True, True, True,
                         visexpman.users.zoltan.automated_test_data.MicroLEDArrayTestConfig,
                        'zoltan',
                        True,
                        int(v.experiment_config.runnable.fragment_durations[0] * v.config.SCREEN_EXPECTED_FRAME_RATE), 
-                       True
+                       True, True
                         ))
                         
     ############## Helpers #################
     def check_application_log(self, vision_experiment_runner, experiment_run = True):
         log = file.read_text_file(vision_experiment_runner.logfile_path)
-        if 'Visexpman started' in log and 'Visexpman initialized' in log and 'Visexpman quit' in log and \
-        '{\'keyword_arguments\': {}, \'method\': \'quit\', \'arguments\': ()}' in log:
+        if 'Visexpman started' in log and 'Visexpman initialized' in log and 'Visexpman quit' in log:
             result = True
         else:
             result = False
@@ -622,9 +625,8 @@ class TestVisionExperimentRunner(unittest.TestCase):
             result = True
         else:
             result = False
-        for filename in vision_experiment_runner.experiment_config.runnable.filenames['fragments']:
-            if not 'Measurement data saved to: ' + os.path.split(filename)[1] in log:
-                result = False
+        if not 'Measurement data saved to: ' + os.path.split(vision_experiment_runner.experiment_config.runnable.filenames['datafile'][0])[1] in log:
+            result = False
         return result
         
     def check_captured_frames(self, capture_folder, reference_folder):

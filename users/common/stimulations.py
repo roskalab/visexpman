@@ -5,6 +5,32 @@ import random
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
+class SpotWaveform(experiment.Experiment):
+    '''
+        Expected parameters:
+        FREQUENCIES
+        DURATION
+        PAUSE
+        BACKGROUND
+        AMPLITUDES
+        SPOT_DIAMETERS
+        WAVEFORM
+    '''
+    def prepare(self):
+        self.intensities = []
+        n_sample = self.experiment_config.DURATION*self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        for amplitude in self.experiment_config.AMPLITUDES:
+            for frq in self.experiment_config.FREQUENCIES:
+                if self.experiment_config.WAVEFORM == 'sin':
+                    self.intensities.append(numpy.array([utils.generate_waveform(self.experiment_config.WAVEFORM,  n_sample, 1.0/frq,  amplitude,  offset = self.experiment_config.BACKGROUND)].T))
+
+    def run(self):
+        for spot_diameter in self.experiment_config.SPOT_DIAMETERS:
+            for intensities in self.intensities:
+                self.show_fullscreen(color=self.experiment_config.BACKGROUND, duration = 0.5*self.experiment_config.PAUSE)
+                self.show_shape(color = intensities, background_color = self.experiment_config.OFFSET, shape = 'spot', size = spot_diameter, block_trigger=True)
+                self.show_fullscreen(color=self.experiment_config.BACKGROUND, duration = 0.5*self.experiment_config.PAUSE)
+
 class IncreasingSpotExperiment(experiment.Experiment):
     def prepare(self):
         if not hasattr(self.experiment_config, 'COLORS'):
