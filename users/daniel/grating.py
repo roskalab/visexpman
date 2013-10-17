@@ -277,6 +277,9 @@ class MovingGrating(experiment.Experiment):
         self.experiment_specific_data = {}
 
     def run(self, fragment_id = 0):
+        import sys
+        if '--MICROLED'in sys.argv:
+            self.config.STIMULUS2MEMORY = True
         #Flash
         if hasattr(self.experiment_config,  'ENABLE_FLASH') and  self.experiment_config.ENABLE_FLASH:
             self.flash_stimulus(self.experiment_config.TIMING, flash_color = self.experiment_config.WHITE, background_color = self.experiment_config.BLACK, repeats = self.experiment_config.FLASH_REPEATS)
@@ -341,6 +344,14 @@ class MovingGrating(experiment.Experiment):
                 segment_id = segment_id.replace(' ', '0')
                 self.experiment_specific_data['segment_info'][segment_id] = segment_info
                 segment_counter += 1
+        if '--MICROLED'in sys.argv:
+            self.config.STIMULUS2MEMORY = False
+            s = MicroLEDArray(self.machine_config)
+            for frame_i in range(len(self.stimulus_bitmaps)):
+                pixels = self.stimulus_bitmaps[frame_i]
+                s.display_pixels(pixels, 1/self.machine_config.SCREEN_EXPECTED_FRAME_RATE-self.machine_config.FRAME_TRIGGER_PULSE_WIDTH)
+                self._frame_trigger_pulse()
+            s.release_instrument()
         time.sleep(self.experiment_config.PAUSE_BEFORE_AFTER)
                 
 class MovingGratingPre(experiment.PreExperiment):    

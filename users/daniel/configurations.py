@@ -501,12 +501,25 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         #CAPTURE_PATH = os.path.join(v_drive_folder, 'captured')
 
         #=== screen ===
-        FULLSCREEN = True
-        SCREEN_RESOLUTION = utils.cr([800, 600])
+        import sys
+        if '--MICROLED'in sys.argv:
+            SCREEN_RESOLUTION = utils.cr([16, 16])
+            SCREEN_DISTANCE_FROM_MOUSE_EYE = [15.0, [0, 300]] #mm
+            SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, 
+            FULLSCREEN = False
+            SCREEN_EXPECTED_FRAME_RATE = 1/50e-3
+            SCREEN_MAX_FRAME_RATE = 1/50e-3
+            ULED_SERIAL_PORT = 'COM4'
+        else:
+            SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm
+            SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
+            SCREEN_RESOLUTION = utils.cr([800, 600])
+            FULLSCREEN = True
+            SCREEN_EXPECTED_FRAME_RATE = 60.0
+            SCREEN_MAX_FRAME_RATE = 60.0
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
-        SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0
+        
         #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm
@@ -622,8 +635,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io
             import copy
-            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction'))        
-        
+            self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction'))
         self._create_parameters_from_locals(locals())        
         
         

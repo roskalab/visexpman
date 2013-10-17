@@ -2063,6 +2063,7 @@ class MainPoller(Poller):
         if h.parameters.has_key('objective_positions'):
             del h.parameters['objective_positions']
         h.scan_regions = copy.deepcopy(self.scan_regions)
+        h.scan_regions = {self.experiment_parameters['region_name'] : h.scan_regions[self.experiment_parameters['region_name']]}#Keep only current scan region
         h.animal_parameters = copy.deepcopy(self.animal_parameters)
         h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
         fields_to_save = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
@@ -2215,6 +2216,14 @@ class MainPoller(Poller):
                         time.sleep(0.4)
                     h1=hdf5io.Hdf5io(copy_path)
                     h1.scan_regions = copy.deepcopy(self.scan_regions)
+                    #Keep only process status data
+                    for scan_region_name in h1.scan_regions.keys():
+                        if not h1.scan_regions[scan_region_name].has_key('process_status'):
+                            del h1.scan_regions[scan_region_name]
+                        else:
+                            for k in h1.scan_regions[scan_region_name].keys():
+                                if k != 'process_status':
+                                    del h1.scan_regions[scan_region_name][k]
                     h1.save('scan_regions', overwrite=True)
                     h1.close()
                 elif 'stim' in tag:
