@@ -1018,7 +1018,7 @@ def generate_pulse_train(offsets, pulse_widths, amplitudes, duration, sample_rat
         waveform[offset: offset + _pulse_widths[pulse_index]] = pulse
     return waveform
 
-def generate_waveform(waveform_type,  n_sample,  period,  amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):
+def generate_waveform(waveform_type,  n_sample, period, amplitude,  offset = 0,  phase = 0,  duty_cycle = 0.5):
     wave = []
     period = int(period)
     for i in range(int(n_sample)):

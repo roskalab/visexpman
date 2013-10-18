@@ -83,7 +83,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
     def _flip_and_block_trigger(self, frame_i, n_frames, frame_trigger, block_trigger):
         if block_trigger and frame_i==0:
             self._flip(trigger = frame_trigger)
-            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)            
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
         elif block_trigger and frame_i == n_frames -1:
             self._flip(trigger = frame_trigger)
             self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
@@ -107,7 +107,6 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         else:
             return False
         
-
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
         '''
         Saves:
@@ -144,6 +143,15 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
             time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
+            
+    def block_trigger_pulse(self, pulse_width=None):
+        if self.experiment_control_dependent and hasattr(self, 'parallel_port'):
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
+            if pulse_width is None:
+                time.sleep(self.config.BLOCK_TRIGGER_PULSE_WIDTH)
+            else:
+                time.sleep(pulse_width)
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
         
     def _show_text(self):
         '''

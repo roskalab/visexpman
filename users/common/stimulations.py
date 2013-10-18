@@ -21,14 +21,13 @@ class SpotWaveform(experiment.Experiment):
         n_sample = self.experiment_config.DURATION*self.machine_config.SCREEN_EXPECTED_FRAME_RATE
         for amplitude in self.experiment_config.AMPLITUDES:
             for frq in self.experiment_config.FREQUENCIES:
-                if self.experiment_config.WAVEFORM == 'sin':
-                    self.intensities.append(numpy.array([utils.generate_waveform(self.experiment_config.WAVEFORM,  n_sample, 1.0/frq,  amplitude,  offset = self.experiment_config.BACKGROUND)].T))
+                self.intensities.append(numpy.array([utils.generate_waveform(self.experiment_config.WAVEFORM, n_sample, self.machine_config.SCREEN_EXPECTED_FRAME_RATE/frq,  float(amplitude),  offset = float(self.experiment_config.BACKGROUND))]).T)
 
     def run(self):
         for spot_diameter in self.experiment_config.SPOT_DIAMETERS:
             for intensities in self.intensities:
                 self.show_fullscreen(color=self.experiment_config.BACKGROUND, duration = 0.5*self.experiment_config.PAUSE)
-                self.show_shape(color = intensities, background_color = self.experiment_config.OFFSET, shape = 'spot', size = spot_diameter, block_trigger=True)
+                self.show_shape(color = intensities, background_color = self.experiment_config.BACKGROUND, shape = 'spot', size = spot_diameter, block_trigger=True)
                 self.show_fullscreen(color=self.experiment_config.BACKGROUND, duration = 0.5*self.experiment_config.PAUSE)
 
 class IncreasingSpotExperiment(experiment.Experiment):
@@ -117,8 +116,11 @@ class MovingGrating(experiment.Experiment):
         segment_counter = 0
         self.experiment_specific_data['segment_info'] = {} 
         is_first_dislayed = False
+        orientation = None
         for stimulus_unit in self.fragmented_stimulus_units[fragment_id]:
                 #Show marching grating
+                if orientation != stimulus_unit['orientation']:
+                    self.block_trigger_pulse()
                 orientation = stimulus_unit['orientation']
                 if not is_first_dislayed:
                     is_first_dislayed = True
@@ -141,7 +143,7 @@ class MovingGrating(experiment.Experiment):
                             orientation = orientation, 
                             velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],
-                            starting_phase = 1/(1+stimulus_unit['duty_cycle'])*360, 
+                            starting_phase = self.marching_phases[-1], 
                             block_trigger=True
                             )
                 #Show static grating
@@ -168,6 +170,34 @@ class MovingGrating(experiment.Experiment):
                 segment_info['standing_last_frame'] = frame_counter-1
                 segment_id = 'segment_{0:3.0f}' .format(segment_counter)
                 segment_id = segment_id.replace(' ', '0')
-                self.experiment_specific_data['segment_info'][segment_id] = segment_info
+                self.experiment_specific_data['segment_info'][segment_id] = segment_info#TODO:redundant data, need to be removed
                 segment_counter += 1
         time.sleep(self.experiment_config.PAUSE_BEFORE_AFTER)
+
+class PixelSizeCalibration(experiment.Experiment):
+    '''
+    Helps pixel size calibration by showing 50 and 20 um circles
+    '''
+    def prepare(self):
+        self.fragment_durations = [1.0]
+        self.number_of_fragments = len(self.fragment_durations)
+
+    def run(self):
+        pattern = 0
+        self.add_text('Circle at 100,100 um, diameter is 20 um.', color = (1.0,  0.0,  0.0), position = utils.cr((10.0, 30.0)))        
+        while True:
+            if pattern == 0:
+                self.change_text(0, text = 'Circle at 100,100 um, diameter is 20 um.\n\nPress \'n\' to switch, \'s\' to stop.')
+                self.show_shape(shape = 'circle', size = 20.0, pos = utils.cr((100, 100)))
+            elif pattern == 1:
+                self.change_text(0, text = 'Circle at 50,50 um, diameter is 50 um.\n\nPress \'n\' to switch, \'s\' to stop.')
+                self.show_shape(shape = 'circle', size = 50.0, pos = utils.cr((50, 50)))
+            else:
+                pass
+            if 'stop' in self.command_buffer:
+                break
+            elif 'next' in self.command_buffer:
+                pattern += 1
+                if pattern == 2:
+                    pattern = 0
+                self.command_buffer = ''

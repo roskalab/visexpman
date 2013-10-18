@@ -8,7 +8,7 @@ class ElectroporationSetup228Config(ElectroporationConfig):
     '''
     '''
     def _set_user_parameters(self):
-        root_folder = 'c:\\data'
+        root_folder = 'o:\\'
         LOG_PATH = os.path.join(root_folder, 'log')
         if not os.path.exists(LOG_PATH):
             os.mkdir(LOG_PATH)
@@ -32,20 +32,25 @@ class ElectroporationSetup228Config(ElectroporationConfig):
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0      
         IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = 80.0#mm
-        SCREEN_PIXEL_WIDTH = 0.01925#TODO:Need to be measured
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = 340.0#mm
+        SCREEN_PIXEL_WIDTH = 0.46#50 pixels = 23 mm
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (os.name == 'nt')
-        ACQUISITION_TRIGGER_PIN = 1
-        BLOCK_TRIGGER_PIN = 1#??
+        ACQUISITION_TRIGGER_PIN = 0
+        BLOCK_TRIGGER_PIN = 1
         FRAME_TRIGGER_PIN = 2
-        EXPERIMENT_START_TRIGGER = 10
+        EXPERIMENT_START_TRIGGER = 11
         self._create_parameters_from_locals(locals())
 
 class DebugElectroporationSetup228Config(ElectroporationSetup228Config):
     def _set_user_parameters(self):
         ElectroporationSetup228Config._set_user_parameters(self)
-        FULLSCREEN = False
-        self.EXPERIMENT_START_TRIGGER_TIMEOUT = 1.0
+#        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+#        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = True
+        USER_EXPERIMENT_COMMANDS = {'stop': {'key': 's', 'domain': ['running experiment']}, 
+                                    'next': {'key': 'n', 'domain': ['running experiment']},}
+
+#        FULLSCREEN = False
+#        self.EXPERIMENT_START_TRIGGER_TIMEOUT = 1.0
         self._create_parameters_from_locals(locals())

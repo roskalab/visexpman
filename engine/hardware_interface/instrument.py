@@ -124,6 +124,7 @@ class ParallelPort(parallel_port_ancestors):
         self.input_pins = {'10' : 'getInAcknowledge', '11': 'getInBusy', '15': 'getInError', '12': 'getInPaperOut', '13': 'getInSelected'}
         self.iostate['in'] = {}
         if self.config.ENABLE_PARALLEL_PORT:
+            self._update_io()#clear all output pins
             for pin in self.input_pins.keys():
                 self.iostate['in'][pin] = self.read_pin(pin)
 
@@ -173,7 +174,7 @@ class ParallelPort(parallel_port_ancestors):
         if not self.input_pins.has_key(pin_):
             raise RuntimeError('Invalid pin: {0},  Supported input pins: {1}'.format(pin_, self.input_pins.keys()))
         if self.config.ENABLE_PARALLEL_PORT:
-            return getattr(self, self.input_pins[pin_])()
+            return bool(getattr(self, self.input_pins[pin_])())
         else:
             return False
                     

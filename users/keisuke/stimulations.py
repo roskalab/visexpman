@@ -10,4 +10,5 @@ class SinusoidalSpots(experiment.ExperimentConfig):
         self.AMPLITUDES = [1.0]
         self.SPOT_DIAMETERS = [300]
         self.WAVEFORM = 'sin'
+        self.runnable = 'SpotWaveform'
         self._create_parameters_from_locals(locals())

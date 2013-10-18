@@ -163,6 +163,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
         BLOCK_TRIGGER_PIN = [3,  PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
+        BLOCK_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         #filterwheel settings
         ENABLE_FILTERWHEEL = False
         FILTERWHEEL_SETTLING_TIME = [0.4,  [0,  20]]

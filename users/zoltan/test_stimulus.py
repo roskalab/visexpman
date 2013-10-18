@@ -12,34 +12,6 @@ from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.users.zoltan.test import unit_test_runner
 
-class WDC(VisionExperimentConfig):
-    '''
-    Visexp runner windows test config
-    '''
-    def _set_user_parameters(self):
-
-        #paths
-        EXPERIMENT_CONFIG = 'DebugExperimentConfig'
-        LOG_PATH = unit_test_runner.TEST_working_folder      
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder        
-        ARCHIVE_FORMAT = 'zip'
-        
-        #hardware
-        ENABLE_PARALLEL_PORT = True        
-        ACQUISITION_TRIGGER_PIN = 0
-        FRAME_TRIGGER_PIN = 2
-        
-        #screen
-        FULLSCREEN = False        
-        SCREEN_RESOLUTION = utils.cr([800, 600])
-        ENABLE_FRAME_CAPTURE = False
-        SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_MAX_FRAME_RATE = 60.0             
-        COORDINATE_SYSTEM='center'        
-        
-        self._create_parameters_from_locals(locals())
-        
 class WhiteNoiseParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.DURATION = 1.0
@@ -121,9 +93,9 @@ class Debug(experiment.Experiment):
             
 if __name__ == "__main__":
     if True:
-        v = visexp_runner.VisionExperimentRunner('zoltan', 'SwDebugConfig')
+        v = visexp_runner.VisionExperimentRunner('adrian', 'StimulusDevelopment')
 #        v.run_experiment(user_experiment_config = 'MovingGratingTuning')
-        v.run_experiment(user_experiment_config = 'DebugExperimentConfig')
+        v.run_experiment(user_experiment_config = 'MyGrating')
     elif not True:
         v = visexp_runner.VisionExperimentRunner(['zoltan', 'chi'], 'SwDebugConfig')
         v.run_experiment(user_experiment_config = 'FullfieldSinewave')

@@ -43,6 +43,8 @@ class ExperimentControl(object):
         '''
         Performs some basic checks and sets call parameters
         '''
+        if self.config.PLATFORM=='undefined':
+            raise RuntimeError('Machine config should contain a valid platform name')
         self.application_log = application_log
         self.config = config
         if not hasattr(self, 'number_of_fragments'):
