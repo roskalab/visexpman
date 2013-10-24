@@ -307,7 +307,7 @@ class ExperimentControl(object):
             return True
         elif self.config.PLATFORM == 'elpol':
             if self._wait_experiment_start_trigger():
-                self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
+                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)#Don't know why is it necessary
                 return True
         elif self.config.PLATFORM == 'mc_mea':
             self.parallel_port.set_data_bit(self.config.ACQUISITION_START_PIN, 1)
