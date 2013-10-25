@@ -9,7 +9,7 @@ from visexpman.engine.generic import graphics
 from visexpman.engine.generic import file
 import Image
 
-from OpenGL.GL import *
+from OpenGL.GL import *#TODO: perhaps this is not necessary
 from OpenGL.GLUT import *
 
 def experiment_choices(experiment_list):

@@ -1,3 +1,7 @@
+'''
+generic.gui module has generic gui widgets like labeled widgets. It also contains some gui helper function
+'''
+
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore

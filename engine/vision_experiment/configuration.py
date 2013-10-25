@@ -16,6 +16,12 @@ HiMEAConfig:
 ElphysConfig:
         inherits VisionExperimentConfig and expands it with electrophisiology setup specific parameters that are not used on other platforms
         Platform name: elphys
+ElectroporationConfig:
+        inherits VisionExperimentConfig and expands it with electroporation setup specific parameters that are not used on other platforms
+        Platfrom name: elpol
+BehavioralConfig:
+        inherits VisionExperimentConfig and expands it with behavioral setup specific parameters that are not used on other platforms
+        Platfrom name: behav
 '''
 import os
 import sys
@@ -61,7 +67,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         PIN_RANGE = [0,  7]        
-        PLATFORM = ['undefined', ['retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'elphys', 'mea', 'standalone', 'smallapp', 'undefined']]
+        PLATFORM = ['undefined', ['retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'elphys', 'mea', 'elpol','behav','standalone', 'smallapp', 'undefined']]
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         ENABLE_HDF5_FILELOCKING = False
         
@@ -115,9 +121,11 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         VERTICAL_AXIS_POSITIVE_DIRECTION = ['undefined',  ['up', 'down', 'undefined']]
         
         ####### Pixel scaling #################
-        IMAGE_PROJECTED_ON_RETINA = True
+        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = True
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #converts um to pixel [pixel/um]
         VISUAL_ANGLE_TO_UM_SCALE = [300.0/10.0, [0, 10000]]#300 um corresponds to 10 degrees of visual field
+        SCREEN_PIXEL_WIDTH = [1.0, [1e-10, 10e5]]
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [0.0, [0, 1000.0]] #mm
         
         ########## Commands #############
         COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
@@ -155,6 +163,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
         BLOCK_TRIGGER_PIN = [3,  PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
+        BLOCK_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         #filterwheel settings
         ENABLE_FILTERWHEEL = False
         FILTERWHEEL_SETTLING_TIME = [0.4,  [0,  20]]
@@ -237,14 +246,13 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         self.ACQUISITION_TRIGGER_OFF_p = visexpman.engine.generic.parameter.Parameter(0,  range_ = [0,  255])
         self.FRAME_TRIGGER_ON_p = visexpman.engine.generic.parameter.Parameter(ACQUISITION_TRIGGER_ON | 1<<self.FRAME_TRIGGER_PIN,  range_ = [0,  255])
         self.FRAME_TRIGGER_OFF_p = visexpman.engine.generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
-        
+        #Pixel scaling
+        if not self.IMAGE_DIRECTLY_PROJECTED_ON_RETINA_p.v:
+            self.SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180/self.VISUAL_ANGLE_TO_UM_SCALE)*self.SCREEN_DISTANCE_FROM_MOUSE_EYE/self.SCREEN_PIXEL_WIDTH #1 um on the retina is this many pixels on the screen
         #== Screen scaling ==
         self.SCREEN_PIXEL_TO_UM_SCALE_p = visexpman.engine.generic.parameter.Parameter(1.0 / self.SCREEN_UM_TO_PIXEL_SCALE,  range_ = [-1000.0,  1000.0])
         screen_resolution = 1.0 / numpy.array([self.SCREEN_RESOLUTION['col'], self.SCREEN_RESOLUTION['row']])
-        SCREEN_UM_TO_NORM_SCALE = 2.0 * self.SCREEN_PIXEL_TO_UM_SCALE_p.v * screen_resolution
-        self.SCREEN_UM_TO_NORM_SCALE_p = visexpman.engine.generic.parameter.Parameter(SCREEN_UM_TO_NORM_SCALE)
         self.SCREEN_SIZE_UM_p = visexpman.engine.generic.parameter.Parameter(utils.cr((self.SCREEN_RESOLUTION['col'] / self.SCREEN_UM_TO_PIXEL_SCALE, self.SCREEN_RESOLUTION['row'] / self.SCREEN_UM_TO_PIXEL_SCALE)))
-        
         ######################### Coordinate system #########################
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
@@ -393,7 +401,6 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
         BLACK_SCREEN_DURING_PRE_SCAN = False
         self._create_parameters_from_locals(locals())
         
-        
 class RcCorticalCaImagingConfig(CorticalCaImagingConfig):
     def _create_application_parameters(self):
         CorticalCaImagingConfig._create_application_parameters(self)
@@ -428,13 +435,30 @@ class HiMEAConfig(VisionExperimentConfig):
         EXPERIMENT_FILE_FORMAT = 'mat'
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
-
+        
 class ElphysConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'elphys'
         EXPERIMENT_FILE_FORMAT = 'mat'
         ELPHYS_SIGNAL_CHANNEL_INDEX = [0, [0, 10]]
+        STIM_RECORDS_ANALOG_SIGNALS = False
+        self._create_parameters_from_locals(locals())
+        
+class ElectroporationConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'elpol'
+        EXPERIMENT_FILE_FORMAT = 'mat'
+        EXPERIMENT_START_TRIGGER = [10, [10, 15]]
+        STIM_RECORDS_ANALOG_SIGNALS = False
+        self._create_parameters_from_locals(locals())
+
+class BehavioralConfig(VisionExperimentConfig):
+    def _create_application_parameters(self):
+        VisionExperimentConfig._create_application_parameters(self)
+        PLATFORM = 'behav'
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
 

@@ -1,3 +1,7 @@
+'''
+vision_experiment.gui implements widgets that build up the user interface of vision experiment manager applciations. Some widgets are used in multiple applications.
+'''
+
 import numpy
 import datetime
 
@@ -9,52 +13,69 @@ from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
 from visexpman.engine.generic import gui
 
-BUTTON_HIGHLIGHT = 'color: red'
+BUTTON_HIGHLIGHT = 'color: red'#TODO: this has to be eliminated
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
-
-class FlowmeterControl(QtGui.QGroupBox):
+        
+        
+############### Common widgets ###############
+class StandardIOWidget(QtGui.QWidget):
     def __init__(self, parent):
-        QtGui.QGroupBox.__init__(self, 'Flowmeter control', parent)
+        QtGui.QWidget.__init__(self, parent)
+        self.config = parent.config
+        self.filter_names = ['',]
+        for k, v in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
+            if 'GUI' in k:
+                self.filter_names.append(k.replace('GUI', '').replace('_', '').lower())
         self.create_widgets()
         self.create_layout()
+        self.resize(self.config.STANDARDIO_WIDGET_TAB_SIZE['col'], self.config.STANDARDIO_WIDGET_TAB_SIZE['row'])#TODO: remove it
         
     def create_widgets(self):
-        self.start_button = QtGui.QPushButton('Start', self)
-        self.stop_button = QtGui.QPushButton('Stop', self)
-        self.reset_button = QtGui.QPushButton('Reset', self)
-        self.status_label = QtGui.QLabel('', self)
+        self.text_out = QtGui.QTextEdit(self)
+        self.text_out.setPlainText('')
+        self.text_out.setReadOnly(True)
+        self.text_out.ensureCursorVisible()
+        self.text_out.setCursorWidth(5)
+        self.text_in = QtGui.QTextEdit(self)
+        self.text_in.setToolTip('self.printc()')
+        self.text_in.setFixedHeight(50)
+        self.execute_python_button = QtGui.QPushButton('Execute python code',  self)
+        self.clear_console_button = QtGui.QPushButton('Clear console',  self)
+        self.console_message_filter_combobox = QtGui.QComboBox(self)
+        self.console_message_filter_combobox.addItems(QtCore.QStringList(self.filter_names))
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.start_button, 0, 0)
-        self.layout.addWidget(self.stop_button, 0, 1)
-        self.layout.addWidget(self.reset_button, 0, 2)
-        self.layout.addWidget(self.status_label, 0, 3)
+        self.layout.addWidget(self.text_out, 0, 0, 30, 3)
+        self.layout.addWidget(self.text_in, 1, 3, 1, 2)
+        self.layout.addWidget(self.execute_python_button, 0, 3, 1, 1)#, alignment = QtCore.Qt.AlignTop)
+        self.layout.addWidget(self.clear_console_button, 0, 4, 1, 1)#, alignment = QtCore.Qt.AlignTop)
+        self.layout.addWidget(self.console_message_filter_combobox, 2, 3, 1, 1)#, alignment = QtCore.Qt.AlignTop)
+        self.layout.setRowStretch(300, 300)
+        self.layout.setColumnStretch(0, 100)
         self.setLayout(self.layout)
 
-class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
+class ExperimentLogGroupbox(QtGui.QGroupBox):
     def __init__(self, parent):
-        QtGui.QGroupBox.__init__(self, 'Anesthesia history', parent)
+        QtGui.QGroupBox.__init__(self, 'Experiment log', parent)
         self.create_widgets()
         self.create_layout()
         
     def create_widgets(self):
-        self.history = QtGui.QTableWidget(self)
-        self.history.setColumnCount(4)
-        self.history.setHorizontalHeaderLabels(QtCore.QStringList(['Time', 'Substance', 'Amount', 'Comment']))
-        self.history.setColumnWidth(0, 100)
-        self.history.setColumnWidth(1, 100)
-        self.history.setColumnWidth(2, 70)
-        self.history.setColumnWidth(3, 250)
-        self.history.verticalHeader().setDefaultSectionSize(15)
+        self.log = QtGui.QTableWidget(self)
+        self.log.setColumnCount(3)
+        self.log.setHorizontalHeaderLabels(QtCore.QStringList(['Time', 'Log']))
+        self.log.setColumnWidth(0, 100)
+        self.log.setColumnWidth(1, 400)
+        self.log.verticalHeader().setDefaultSectionSize(15)
         date_format = QtCore.QString('yyyy-MM-dd hh:mm')
         self.date = QtGui.QDateTimeEdit(self)
         self.date.setDisplayFormat(date_format)
         self.substance_label = QtGui.QLabel('Substance', self)
         self.substance_combobox = QtGui.QComboBox(self)
         self.substance_combobox.setEditable(True)
-        self.substance_combobox.addItems(QtCore.QStringList(['', 'chlorprothixene', 'isofluorane']))
+        self.substance_combobox.addItems(QtCore.QStringList(['', 'chlorprothixene', 'isofluorane']))#TODO: to config
         self.amount_label = QtGui.QLabel('Amount', self)
         self.amount_combobox = QtGui.QComboBox(self)
         self.amount_combobox.setEditable(True)
@@ -68,7 +89,7 @@ class AnesthesiaHistoryGroupbox(QtGui.QGroupBox):
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.history, 0, 0, 6, 5)
+        self.layout.addWidget(self.log, 0, 0, 6, 5)
         self.layout.addWidget(self.date, 7, 0, 1, 1)
         self.layout.addWidget(self.substance_label, 7, 1)
         self.layout.addWidget(self.substance_combobox, 7, 2)
@@ -126,9 +147,8 @@ class AnalysisStatusGroupbox(QtGui.QGroupBox):
         self.setLayout(self.layout)
 
 class ExperimentControlGroupBox(QtGui.QGroupBox):
-    def __init__(self, parent, extended = False):
+    def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, 'Experiment control', parent)
-        self.extended = extended
         self.create_widgets()
         self.create_layout()
 
@@ -138,47 +158,34 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.experiment_name.setEditable(True)
         self.experiment_name.addItems(QtCore.QStringList([]))
         self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
-        if self.extended:
-            self.start_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
         self.stop_experiment_button = QtGui.QPushButton('Stop',  self)
-        if self.extended:
-            self.stop_experiment_button.setStyleSheet(QtCore.QString(BUTTON_HIGHLIGHT))
-            self.next_depth_button = QtGui.QPushButton('Next',  self)
-            self.redo_depth_button = QtGui.QPushButton('Redo',  self)
-            self.previous_depth_button = QtGui.QPushButton('Prev',  self)
-            self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful\nstop',  self)
-            self.objective_positions_label = QtGui.QLabel('Objective range [um]\n start,end,step',  self)
-            self.objective_positions_combobox = QtGui.QComboBox(self)
-            self.objective_positions_combobox.setEditable(True)
-            self.laser_intensities_label = QtGui.QLabel('Laser intensity \n(min, max) [%]',  self)
-            self.laser_intensities_combobox = QtGui.QComboBox(self)
-            self.laser_intensities_combobox.setEditable(True)
-            self.scan_mode = QtGui.QComboBox(self)
-            self.scan_mode.addItems(QtCore.QStringList(['xy', 'xz']))
-            self.enable_intrinsic = gui.LabeledCheckBox(self, 'Enable instrinsic imaging')
+        self.browse_experiment_file_button = QtGui.QPushButton('Browse',  self)
         self.experiment_progress = QtGui.QProgressBar(self)
-        
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.experiment_name, 0, 0, 1, 2)
-        self.layout.addWidget(self.start_experiment_button, 0, 2, 1, 2)
-        self.layout.addWidget(self.stop_experiment_button, 0, 4)
-        if self.extended:
-            self.layout.addWidget(self.graceful_stop_experiment_button, 1, 4)
-            self.layout.addWidget(self.previous_depth_button, 1, 1, 1, 1)
-            self.layout.addWidget(self.next_depth_button, 1, 3, 1, 1)
-            self.layout.addWidget(self.redo_depth_button, 1, 2, 1, 1)
-            self.layout.addWidget(self.scan_mode, 1, 0)
-            self.layout.addWidget(self.objective_positions_label, 2, 0)
-            self.layout.addWidget(self.objective_positions_combobox, 2, 1, 1, 2)
-            self.layout.addWidget(self.laser_intensities_label, 2, 3, 1, 1)
-            self.layout.addWidget(self.laser_intensities_combobox, 2, 4, 1, 1)
-            self.layout.addWidget(self.enable_intrinsic, 3, 2, 1, 2)
-            self.layout.addWidget(self.experiment_progress, 3, 0, 1, 2)
-        else:
-            self.layout.addWidget(self.experiment_progress, 3, 0, 1, 4)
+        self.layout.addWidget(self.experiment_name, 0, 1, 1, 2)
+        self.layout.addWidget(self.browse_experiment_file_button, 0, 0, 1, 1)
+        self.layout.addWidget(self.start_experiment_button, 0, 3, 1, 2)
+        self.layout.addWidget(self.stop_experiment_button, 0, 5)
+        self.layout.addWidget(self.experiment_progress, 3, 0, 1, 4)
         self.setLayout(self.layout)        
+
+class ExperimentParametersGroupBox(QtGui.QGroupBox):
+    '''
+    Displays experiment config values and user can edit them
+    '''
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, 'Experiment parameters', parent)
+        self.create_widgets()
+        self.create_layout()
+
+    def create_widgets(self):
+        pass
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.setLayout(self.layout)
 
 class AnimalParametersWidget(QtGui.QWidget):
     def __init__(self, parent):
@@ -186,7 +193,7 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.config = parent.config
         self.create_widgets()
         self.create_layout()
-        if hasattr(self.config, 'TAB_SIZE'):
+        if hasattr(self.config, 'TAB_SIZE'):#TODO: remove
             self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
 
     def create_widgets(self):
@@ -258,6 +265,101 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
 
+############### Application specific widgets ###############
+class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
+    #TODO: add cell name
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, 'Experiment options', parent)
+        self.create_widgets()
+        self.create_layout()
+
+    def create_widgets(self):
+        self.enable_ca_recording = gui.LabeledCheckBox(self, 'Record Ca signal')
+        self.enable_elphys_recording = gui.LabeledCheckBox(self, 'Record electrophyisiology signal')
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.enable_ca_recording, 0, 0, 1, 2)
+        self.layout.addWidget(self.enable_elphys_recording, 0, 2, 1, 2)
+        self.setLayout(self.layout)
+
+class ExperimentLoopGroupBox(QtGui.QGroupBox):
+    '''
+    Support controlling a sequence of cortical experiments:
+    -objective position and laser intensity ranges
+    -enable/disable run all scheduled experiments/next/previous/redo/skip>>/skip<< experiments
+    -show list of scheduled experiments
+    '''
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, 'Experiment control', parent)
+        self.create_widgets()
+        self.create_layout()
+
+    def create_widgets(self):
+        #Stimulation/experiment control related
+        self.experiment_name = QtGui.QComboBox(self)
+        self.experiment_name.setEditable(True)
+        self.experiment_name.addItems(QtCore.QStringList([]))
+        self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
+        self.stop_experiment_button = QtGui.QPushButton('Stop',  self)
+        if self.extended:
+            
+            self.next_depth_button = QtGui.QPushButton('Next',  self)
+            self.redo_depth_button = QtGui.QPushButton('Redo',  self)
+            self.previous_depth_button = QtGui.QPushButton('Prev',  self)
+            self.graceful_stop_experiment_button = QtGui.QPushButton('Graceful\nstop',  self)
+            self.objective_positions_label = QtGui.QLabel('Objective range [um]\n start,end,step',  self)
+            self.objective_positions_combobox = QtGui.QComboBox(self)
+            self.objective_positions_combobox.setEditable(True)
+            self.laser_intensities_label = QtGui.QLabel('Laser intensity \n(min, max) [%]',  self)
+            self.laser_intensities_combobox = QtGui.QComboBox(self)
+            self.laser_intensities_combobox.setEditable(True)
+            self.scan_mode = QtGui.QComboBox(self)
+            self.scan_mode.addItems(QtCore.QStringList(['xy', 'xz']))
+            self.enable_intrinsic = gui.LabeledCheckBox(self, 'Enable instrinsic imaging')
+        self.experiment_progress = QtGui.QProgressBar(self)
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.experiment_name, 0, 0, 1, 2)
+        self.layout.addWidget(self.start_experiment_button, 0, 2, 1, 2)
+        self.layout.addWidget(self.stop_experiment_button, 0, 4)
+        if self.extended:
+            self.layout.addWidget(self.graceful_stop_experiment_button, 1, 4)
+            self.layout.addWidget(self.previous_depth_button, 1, 1, 1, 1)
+            self.layout.addWidget(self.next_depth_button, 1, 3, 1, 1)
+            self.layout.addWidget(self.redo_depth_button, 1, 2, 1, 1)
+            self.layout.addWidget(self.scan_mode, 1, 0)
+            self.layout.addWidget(self.objective_positions_label, 2, 0)
+            self.layout.addWidget(self.objective_positions_combobox, 2, 1, 1, 2)
+            self.layout.addWidget(self.laser_intensities_label, 2, 3, 1, 1)
+            self.layout.addWidget(self.laser_intensities_combobox, 2, 4, 1, 1)
+            self.layout.addWidget(self.enable_intrinsic, 3, 2, 1, 2)
+            self.layout.addWidget(self.experiment_progress, 3, 0, 1, 2)
+        else:
+            self.layout.addWidget(self.experiment_progress, 3, 0, 1, 4)
+        self.setLayout(self.layout)        
+
+class FlowmeterControl(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, 'Flowmeter control', parent)
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        self.start_button = QtGui.QPushButton('Start', self)
+        self.stop_button = QtGui.QPushButton('Stop', self)
+        self.reset_button = QtGui.QPushButton('Reset', self)
+        self.status_label = QtGui.QLabel('', self)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.start_button, 0, 0)
+        self.layout.addWidget(self.stop_button, 0, 1)
+        self.layout.addWidget(self.reset_button, 0, 2)
+        self.layout.addWidget(self.status_label, 0, 3)
+        self.setLayout(self.layout)
+
 class TileScanGroupBox(QtGui.QGroupBox):
     def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, 'Tile scan', parent)
@@ -307,55 +409,6 @@ class ZstackWidget(QtGui.QWidget):
         self.layout.addWidget(self.tile_scan_groupbox, 3, 0, 1, 8)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
-        self.setLayout(self.layout)
-        
-################### Image display #######################
-class ImagesWidget(QtGui.QWidget):
-    def __init__(self, parent):
-        QtGui.QWidget.__init__(self, parent)
-        self.config = parent.config
-        self.create_widgets()
-        self.create_layout()
-        self.resize(self.config.OVERVIEW_IMAGE_SIZE['col'], self.config.OVERVIEW_IMAGE_SIZE['row'])
-        
-    def create_widgets(self):
-        self.image_display = []
-        for i in range(4):
-            self.image_display.append(QtGui.QLabel())
-        self.blank_image = 128*numpy.ones((self.config.IMAGE_SIZE['col'], self.config.IMAGE_SIZE['row']), dtype = numpy.uint8)
-        for image in self.image_display:
-            image.setPixmap(imaged.array_to_qpixmap(self.blank_image))
-            
-    def clear_image_display(self, index):
-        self.image_display[index].setPixmap(imaged.array_to_qpixmap(self.blank_image))
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        for i in range(len(self.image_display)):
-            self.layout.addWidget(self.image_display[i], i/2, (i%2)*2, 1, 1)
-        
-        self.layout.setRowStretch(3, 3)
-        self.layout.setColumnStretch(3, 3)
-        self.setLayout(self.layout)
-        
-class OverviewWidget(QtGui.QWidget):
-    def __init__(self, parent):
-        QtGui.QWidget.__init__(self, parent)
-        self.config = parent.config
-        self.create_widgets()
-        self.create_layout()
-        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
-        
-    def create_widgets(self):
-        self.image_display = QtGui.QLabel()
-        blank_image = 128*numpy.ones((self.config.OVERVIEW_IMAGE_SIZE['col'], self.config.OVERVIEW_IMAGE_SIZE['row']), dtype = numpy.uint8)
-        self.image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.image_display, 0, 0, 1, 1)
-        self.layout.setRowStretch(3, 3)
-        self.layout.setColumnStretch(3, 3)
         self.setLayout(self.layout)
         
 class ScanRegionGroupBox(QtGui.QGroupBox):
@@ -535,6 +588,57 @@ class RoiWidget(QtGui.QWidget):
         self.layout.setColumnStretch(15, 15)
         self.setLayout(self.layout)
 
+################### Image display #######################
+class ImagesWidget(QtGui.QWidget):
+    def __init__(self, parent):
+        QtGui.QWidget.__init__(self, parent)
+        self.config = parent.config
+        self.create_widgets()
+        self.create_layout()
+        self.resize(self.config.OVERVIEW_IMAGE_SIZE['col'], self.config.OVERVIEW_IMAGE_SIZE['row'])
+        
+    def create_widgets(self):
+        self.image_display = []
+        for i in range(4):
+            self.image_display.append(QtGui.QLabel())
+        self.blank_image = 128*numpy.ones((self.config.IMAGE_SIZE['col'], self.config.IMAGE_SIZE['row']), dtype = numpy.uint8)
+        for image in self.image_display:
+            image.setPixmap(imaged.array_to_qpixmap(self.blank_image))
+            
+    def clear_image_display(self, index):
+        self.image_display[index].setPixmap(imaged.array_to_qpixmap(self.blank_image))
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        for i in range(len(self.image_display)):
+            self.layout.addWidget(self.image_display[i], i/2, (i%2)*2, 1, 1)
+        
+        self.layout.setRowStretch(3, 3)
+        self.layout.setColumnStretch(3, 3)
+        self.setLayout(self.layout)
+        
+class OverviewWidget(QtGui.QWidget):
+    def __init__(self, parent):
+        QtGui.QWidget.__init__(self, parent)
+        self.config = parent.config
+        self.create_widgets()
+        self.create_layout()
+        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
+        
+    def create_widgets(self):
+        self.image_display = QtGui.QLabel()
+        blank_image = 128*numpy.ones((self.config.OVERVIEW_IMAGE_SIZE['col'], self.config.OVERVIEW_IMAGE_SIZE['row']), dtype = numpy.uint8)
+        self.image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.image_display, 0, 0, 1, 1)
+        self.layout.setRowStretch(3, 3)
+        self.layout.setColumnStretch(3, 3)
+        self.setLayout(self.layout)
+        
+################### Application widgets #######################
+#TODO: needs to be moved elsewhere
 class MainWidget(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
@@ -557,58 +661,7 @@ class MainWidget(QtGui.QWidget):
         self.layout.setRowStretch(10, 10)
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
-
-################### Debug/helper widgets #######################
-class HelpersWidget(QtGui.QWidget):
-    def __init__(self, parent):
-        QtGui.QWidget.__init__(self, parent)
-        self.config = parent.config
-        #generate connection name list
-        self.connection_names = ['']
-        for k, v in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
-            if 'GUI' in k:
-                self.connection_names.append(k.replace('GUI', '').replace('_', '').lower())
-        self.create_widgets()
-        self.create_layout()
-        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
         
-    def create_widgets(self):
-        #Helpers
-        self.save_xy_scan_button = QtGui.QPushButton('Save xy image',  self)
-        self.help_button = QtGui.QPushButton('Help',  self)
-        self.override_enforcing_set_stage_origin_checkbox = QtGui.QCheckBox(self)
-        self.override_enforcing_set_stage_origin_checkbox.setToolTip('Do not check for set stage origin')
-        self.add_simulated_measurement_file_button = QtGui.QPushButton('Add simulated measurement file',  self)
-        self.rebuild_cell_database_button = QtGui.QPushButton('Rebuild cell database button',  self)
-        #Network related
-        self.show_connected_clients_button = QtGui.QPushButton('Show connected clients',  self)
-        self.show_network_messages_button = QtGui.QPushButton('Show network messages',  self)
-        self.select_connection_list = QtGui.QComboBox(self)
-        self.select_connection_list.addItems(QtCore.QStringList(self.connection_names))
-        self.send_command_button = QtGui.QPushButton('Send command',  self)
-        self.gui_test_button = QtGui.QPushButton('Gui test',  self)
-        self.camera_button = QtGui.QPushButton('Camera',  self)
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.show_connected_clients_button, 0, 0, 1, 1)
-        self.layout.addWidget(self.show_network_messages_button, 0, 1, 1, 1)
-        self.layout.addWidget(self.select_connection_list, 0, 2, 1, 1)
-        self.layout.addWidget(self.send_command_button, 0, 3, 1, 1)
-        
-        self.layout.addWidget(self.save_xy_scan_button, 1, 0, 1, 1)
-        self.layout.addWidget(self.help_button, 1, 1, 1, 1)
-        self.layout.addWidget(self.override_enforcing_set_stage_origin_checkbox, 1, 2, 1, 1)
-        self.layout.addWidget(self.add_simulated_measurement_file_button, 1, 3, 1, 1)
-        self.layout.addWidget(self.rebuild_cell_database_button, 1, 4, 1, 1)
-        
-        self.layout.addWidget(self.gui_test_button, 2, 0)
-        self.layout.addWidget(self.camera_button, 3, 0)
-        
-        self.layout.setRowStretch(10, 10)
-        self.layout.setColumnStretch(10, 10)
-        self.setLayout(self.layout)
-
 class CommonWidget(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
@@ -682,57 +735,55 @@ class CommonWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
 
-class StandardIOWidget(QtGui.QWidget):
+################### Debug/helper widgets #######################
+class HelpersWidget(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.config = parent.config
-        self.filter_names = ['',]
+        #generate connection name list
+        self.connection_names = ['']
         for k, v in self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].items():
             if 'GUI' in k:
-                self.filter_names.append(k.replace('GUI', '').replace('_', '').lower())
+                self.connection_names.append(k.replace('GUI', '').replace('_', '').lower())
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.STANDARDIO_WIDGET_TAB_SIZE['col'], self.config.STANDARDIO_WIDGET_TAB_SIZE['row'])
+        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
         
     def create_widgets(self):
-        self.text_out = QtGui.QTextEdit(self)
-        self.text_out.setPlainText('')
-        self.text_out.setReadOnly(True)
-        self.text_out.ensureCursorVisible()
-        self.text_out.setCursorWidth(5)
-        self.text_in = QtGui.QTextEdit(self)
-        self.text_in.setToolTip('self.printc()')
-        self.text_in.setFixedHeight(50)
-        self.execute_python_button = QtGui.QPushButton('Execute python code',  self)
-        self.clear_console_button = QtGui.QPushButton('Clear console',  self)
-        self.console_message_filter_combobox = QtGui.QComboBox(self)
-        self.console_message_filter_combobox.addItems(QtCore.QStringList(self.filter_names))
+        #Helpers
+        self.save_xy_scan_button = QtGui.QPushButton('Save xy image',  self)
+        self.help_button = QtGui.QPushButton('Help',  self)
+        self.override_enforcing_set_stage_origin_checkbox = QtGui.QCheckBox(self)
+        self.override_enforcing_set_stage_origin_checkbox.setToolTip('Do not check for set stage origin')
+        self.add_simulated_measurement_file_button = QtGui.QPushButton('Add simulated measurement file',  self)
+        self.rebuild_cell_database_button = QtGui.QPushButton('Rebuild cell database button',  self)
+        #Network related
+        self.show_connected_clients_button = QtGui.QPushButton('Show connected clients',  self)
+        self.show_network_messages_button = QtGui.QPushButton('Show network messages',  self)
+        self.select_connection_list = QtGui.QComboBox(self)
+        self.select_connection_list.addItems(QtCore.QStringList(self.connection_names))
+        self.send_command_button = QtGui.QPushButton('Send command',  self)
+        self.gui_test_button = QtGui.QPushButton('Gui test',  self)
+        self.camera_button = QtGui.QPushButton('Camera',  self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.text_out, 0, 0, 30, 3)
-        self.layout.addWidget(self.text_in, 1, 3, 1, 2)
-        self.layout.addWidget(self.execute_python_button, 0, 3, 1, 1)#, alignment = QtCore.Qt.AlignTop)
-        self.layout.addWidget(self.clear_console_button, 0, 4, 1, 1)#, alignment = QtCore.Qt.AlignTop)
-        self.layout.addWidget(self.console_message_filter_combobox, 2, 3, 1, 1)#, alignment = QtCore.Qt.AlignTop)
-        self.layout.setRowStretch(300, 300)
-        self.layout.setColumnStretch(0, 100)
-        self.setLayout(self.layout)
+        self.layout.addWidget(self.show_connected_clients_button, 0, 0, 1, 1)
+        self.layout.addWidget(self.show_network_messages_button, 0, 1, 1, 1)
+        self.layout.addWidget(self.select_connection_list, 0, 2, 1, 1)
+        self.layout.addWidget(self.send_command_button, 0, 3, 1, 1)
         
-class ExperimentOptionsGroupBox(QtGui.QGroupBox):
-    def __init__(self, parent):
-        QtGui.QGroupBox.__init__(self, 'Experiment options', parent)
-        self.create_widgets()
-        self.create_layout()
-
-    def create_widgets(self):
-        self.enable_ca_recording = gui.LabeledCheckBox(self, 'Record Ca signal')
-        self.enable_elphys_recording = gui.LabeledCheckBox(self, 'Record electrophyisiology signal')
-
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.enable_ca_recording, 0, 0, 1, 2)
-        self.layout.addWidget(self.enable_elphys_recording, 0, 2, 1, 2)
+        self.layout.addWidget(self.save_xy_scan_button, 1, 0, 1, 1)
+        self.layout.addWidget(self.help_button, 1, 1, 1, 1)
+        self.layout.addWidget(self.override_enforcing_set_stage_origin_checkbox, 1, 2, 1, 1)
+        self.layout.addWidget(self.add_simulated_measurement_file_button, 1, 3, 1, 1)
+        self.layout.addWidget(self.rebuild_cell_database_button, 1, 4, 1, 1)
+        
+        self.layout.addWidget(self.gui_test_button, 2, 0)
+        self.layout.addWidget(self.camera_button, 3, 0)
+        
+        self.layout.setRowStretch(10, 10)
+        self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
 
 if __name__ == '__main__':

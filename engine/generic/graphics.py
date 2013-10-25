@@ -176,7 +176,6 @@ class Screen(object):
                self.wait_time_left = self.frame_wait_time - self.elapsed_time
                if self.wait_time_left > 0.0:
                    time.sleep(self.wait_time_left)
-                    
         if not self.config.STIMULUS2MEMORY:
             if self.config.OS == 'linux':
                 self.clock.tick(self.config.SCREEN_EXPECTED_FRAME_RATE)
@@ -218,7 +217,6 @@ class Screen(object):
             if not hasattr(self, 'stimulus_bitmaps'):
                 self.stimulus_bitmaps = []
             self.stimulus_bitmaps.append(self.get_frame())
-        
         
     def scale_screen(self):
         '''

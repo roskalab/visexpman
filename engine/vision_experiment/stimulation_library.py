@@ -83,7 +83,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
     def _flip_and_block_trigger(self, frame_i, n_frames, frame_trigger, block_trigger):
         if block_trigger and frame_i==0:
             self._flip(trigger = frame_trigger)
-            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)            
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
         elif block_trigger and frame_i == n_frames -1:
             self._flip(trigger = frame_trigger)
             self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
@@ -107,7 +107,6 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         else:
             return False
         
-
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
         '''
         Saves:
@@ -144,6 +143,15 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
             time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
+            
+    def block_trigger_pulse(self, pulse_width=None):
+        if self.experiment_control_dependent and hasattr(self, 'parallel_port'):
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
+            if pulse_width is None:
+                time.sleep(self.config.BLOCK_TRIGGER_PULSE_WIDTH)
+            else:
+                time.sleep(pulse_width)
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
         
     def _show_text(self):
         '''
@@ -970,6 +978,35 @@ class StimulationSequences(Stimulations):
     '''
     Stimulation sequences, helpers
     '''
+    def _merge_identical_frames(self):
+        self.merged_bitmaps = [[self.screen.stimulus_bitmaps[0], 1]]
+        for frame_i in range(1, len(self.screen.stimulus_bitmaps)):
+            if abs(self.merged_bitmaps[-1][0] - self.screen.stimulus_bitmaps[frame_i]).sum()==0:
+                self.merged_bitmaps[-1][1] += 1
+            else:
+                self.merged_bitmaps.append([self.screen.stimulus_bitmaps[frame_i], 1])
+        
+    def stimulusbitmap2uled(self):
+        expected_configs = ['ULED_SERIAL_PORT', 'STIMULUS2MEMORY']
+        if all([hasattr(self.machine_config, expected_config) for expected_config in expected_configs]) and self.machine_config.STIMULUS2MEMORY:
+            self.config.STIMULUS2MEMORY = False
+            from visexpman.engine.hardware_interface import microled
+            self.microledarray = microled.MicroLEDArray(self.machine_config)
+            self._merge_identical_frames()
+            for frame_i in range(len(self.merged_bitmaps)):
+                t0=time.time()
+                self.microledarray.reset()
+                self._frame_trigger_pulse()
+                if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False) or self.check_abort_pressed():
+                    self.abort=True
+                    break
+                pixels = numpy.where(self.merged_bitmaps[frame_i][0].mean(axis=2) == 0, False, True)
+                self.microledarray.display_pixels(pixels, self.merged_bitmaps[frame_i][1]/self.machine_config.SCREEN_EXPECTED_FRAME_RATE-(time.time()-t0), clear=False)
+                
+            self.microledarray.release_instrument()
+        else:
+            raise RuntimeError('Micro LED array stimulation is not configured properly, make sure that {0} parameters have correct values'.format(expected_configs))
+        
     def export2video(self, filename, img_format='png'):
         videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         
@@ -1148,7 +1185,7 @@ class StimulationSequences(Stimulations):
             for c in intensities:
                 self.show_fullscreen(duration = time_per_point, color = c)
                 self.measure_light_power(c)
-                if self.abort:
+                if self.check_abort_pressed():
                     break
                     
     def measure_light_power(self, reference_intensity):

@@ -67,7 +67,7 @@ class MEASetup(HiMEAConfig):#Hierlemann machine config
   
 #######################################################################################################        
               
-class OldMeaSetup(MCMEAConfig): #David machine config
+class MultiChannel256MeaSetup(MCMEAConfig): #David machine config
     def _set_user_parameters(self):
         EXPERIMENT_FILE_FORMAT = 'mat'
         #=== paths/data handling ===

@@ -3,7 +3,7 @@ import os.path
 import shutil
 from visexpman.engine.generic import file
 from visexpman.engine.vision_experiment import experiment
-from visexpman.users.daniel import grating
+from visexpman.users.common import stimulations
 from visexpA.engine.datadisplay import videofile
 
 class MovingGratingConfig(experiment.ExperimentConfig):
@@ -23,7 +23,7 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingGrating1'
         self._create_parameters_from_locals(locals())
         
-class MovingGrating1(grating.MovingGrating):
+class MovingGrating1(stimulations.MovingGrating):
     def run(self, fragment_id=0):
         shutil.rmtree(self.machine_config.CAPTURE_PATH)
         os.mkdir(self.machine_config.CAPTURE_PATH)

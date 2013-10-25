@@ -29,6 +29,7 @@ class ExperimentConfig(Config):
             if experiment_class == None and source_code == None:
                 if not hasattr(self.machine_config, 'users'):
                     self.machine_config.users = [self.machine_config.user]
+                self.machine_config.users.append('common')
                 for u in self.machine_config.users:
                     try:
                         self.runnable = utils.fetch_classes('visexpman.users.'+ u, classname = self.runnable,  
@@ -41,10 +42,12 @@ class ExperimentConfig(Config):
             else:
                 self.runnable = experiment_class(self.machine_config, self, self.queues, self.connections, self.application_log, source_code, parameters = parameters)
             if hasattr(self, 'pre_runnable'):
-                for pre_experiment_class in  utils.fetch_classes('visexpman.users.'+ self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.PreExperiment, direct=False):
-                    if pre_experiment_class[1].__name__ == self.pre_runnable:
-                        self.pre_runnable = pre_experiment_class[1](self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the pre experiment code
-                        break
+                for u in self.machine_config.users:
+                    for pre_experiment_class in utils.fetch_classes('visexpman.users.'+ u, required_ancestors = visexpman.engine.vision_experiment.experiment.PreExperiment, direct=False):
+                        if pre_experiment_class[1].__name__ == self.pre_runnable:
+                            self.pre_runnable = pre_experiment_class[1](self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the pre experiment code
+                            break
+                        
         if hasattr(self, 'runnable') and source_code is not None:
             self.runnable.experiment_source_code = source_code
         else:
