@@ -783,7 +783,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                         expectedrows = 100* self.tp.frame_rate*n_columns_per_frame
                     else:
                         expectedrows = nframes*n_columns_per_frame
-                    raw_data = self.h.h5f.createEArray(self.h.h5f.root, 'raw_data', 
+                    raw_data = self.h.h5f.create_earray(self.h.h5f.root, 'raw_data', 
                                                                                 tables.Float64Atom(), 
                                                                                 (0, ), 
                                                                                 filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1), 

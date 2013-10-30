@@ -60,9 +60,9 @@ class OpenCVCamera(VideoCamera):
             rval, frame = grabber_handle.read()
         else:
             rval = False
-        with closing(tables.openFile(filename, 'w')) as h1:
-            h1.createEArray(h1.root, 'rawdata', tables.UInt8Atom((self.h, self.w)), (0, ), 'Intrinsic', filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1))
-            h1.createEArray(h1.root, 'timestamps', tables.Float64Atom((1, )), (0, ), 'Frame timestamps')
+        with closing(tables.open_file(filename, 'w')) as h1:
+            h1.create_earray(h1.root, 'rawdata', tables.UInt8Atom((self.h, self.w)), (0, ), 'Intrinsic', filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1))
+            h1.create_earray(h1.root, 'timestamps', tables.Float64Atom((1, )), (0, ), 'Frame timestamps')
             h1.root.timestamps.append(time.time())
             while rval and h1.root.timestamps[-1][0]-h1.root.timestamps[0][0]<recording_length_s:
                 if self.preview_window is not None:

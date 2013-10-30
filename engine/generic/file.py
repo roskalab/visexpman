@@ -550,7 +550,6 @@ class TestUtils(unittest.TestCase):
         
     def test_copier(self):
         from multiprocessing import Process,Manager
-        from visexpman.engine.hardware_interface.network_interface import ZeroMQPusher
         import threading
         def message_printer(message_list):
             while 1:

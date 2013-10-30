@@ -34,8 +34,8 @@ else:
         h=500
         w=540
         sh = h
-#        array_c = handle.h5f.createEArray(handle.h5f.root, 'array_c', tables.UInt8Atom(), (0,))#,  filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1))
-        array_c = handle.h5f.createEArray(handle.h5f.root, 'array_c', tables.UInt8Atom((h, w)), shape=(0, ), filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1), expectedrows=100)
+#        array_c = handle.h5f.create_earray(handle.h5f.root, 'array_c', tables.UInt8Atom(), (0,))#,  filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1))
+        array_c = handle.h5f.create_earray(handle.h5f.root, 'array_c', tables.UInt8Atom((h, w)), shape=(0, ), filters=tables.Filters(complevel=1, complib='lzo', shuffle = 1), expectedrows=100)
         array_c.append(numpy.cast['uint8'](256*numpy.random.random((1, h, w))))
         
         from visexpman.engine.generic.introspect import Timer
@@ -59,10 +59,10 @@ else:
 #    p='/mnt/datafast/debug/earray1.hdf5'
 #    if os.path.exists(p):
 #        os.remove(p)
-#    fileh = tables.openFile(p, mode='w')
+#    fileh = tables.open_file(p, mode='w')
 #    a = tables.Float64Atom()
 #    # Use ``a`` as the object type for the enlargeable array.
-#    array_c = fileh.createEArray(fileh.root, 'array_c', a, (0,))
+#    array_c = fileh.create_earray(fileh.root, 'array_c', a, (0,))
 #    array_c.append(numpy.ones((10,)))
 #    array_c.append(0*numpy.ones((10,)))
 #
