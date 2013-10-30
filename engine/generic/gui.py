@@ -102,9 +102,13 @@ def load_experiment_config_names(config, widget):
             pass
     return experiment_config_list
     
+class WidgetControl(object):
+    def __init__(self, poller, config, widget):
+        self.config = config
+        self.poller = poller
+        self.widget = widget
+        self.printc = self.poller.printc
+    
 def connect_and_map_signal(self, widget, mapped_signal_parameter, widget_signal_name = 'clicked'):
-        if hasattr(self.poller, mapped_signal_parameter):
-            self.signal_mapper.setMapping(widget, QtCore.QString(mapped_signal_parameter))
-            getattr(getattr(widget, widget_signal_name), 'connect')(self.signal_mapper.map)
-        else:
-            self.printc('{0} method does not exists'.format(mapped_signal_parameter))
+    self.signal_mapper.setMapping(widget, QtCore.QString(mapped_signal_parameter))
+    getattr(getattr(widget, widget_signal_name), 'connect')(self.signal_mapper.map)

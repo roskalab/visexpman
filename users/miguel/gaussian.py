@@ -47,13 +47,14 @@ class GaussContrastExperiment(experiment.Experiment):
             print self.intensities
             pylab.plot(self.intensities)
             pylab.show()
+        resample_factor = int(numpy.round(self.experiment_config.FLICKERING_TIME/1000.0*self.machine_config.SCREEN_EXPECTED_FRAME_RATE,0))
+        self.intensities = numpy.tile(numpy.array(self.intensities), (resample_factor,1)).flatten(1)
         self.intensities = numpy.array([self.intensities]).T
             
     def run(self):
-       
         for r in range(self.experiment_config.REPEATS):
             self.show_shape(shape = 'spot', 
-                            duration = self.experiment_config.FLICKERING_TIME/1000.0,
+                            duration = 0,
                             pos = utils.rc((0,0)), 
                             color = self.intensities, 
                             background_color = self.experiment_config.BACKGOUND_COLOR,

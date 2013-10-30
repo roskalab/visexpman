@@ -985,7 +985,7 @@ class MainWidget(QtGui.QWidget):
         self.experiment_control_groupbox = gui.ExperimentControlGroupBox(self)
         self.experiment_control_groupbox.setFixedWidth(350)
         self.experiment_control_groupbox.setFixedHeight(150)
-        self.experiment_options_groupbox = gui.ExperimentOptionsGroupBox(self)
+        self.experiment_options_groupbox = gui.RetinalExperimentOptionsGroupBox(self)
         self.experiment_options_groupbox.setFixedWidth(350)
         self.experiment_options_groupbox.setFixedHeight(100)
         self.network_status = QtGui.QLabel('', self)
@@ -1059,8 +1059,9 @@ class VisionExperimentGui(Qt.QMainWindow):
         
     def connect_signals(self):
         self.signal_mapper = QtCore.QSignalMapper(self)
-        widget2poller_function = [[self.central_widget.main_widget.experiment_control_groupbox.start_experiment_button, 'start_experiment'],
+        widget2poller_function = [[self.central_widget.main_widget.experiment_control_groupbox.start_experiment_button, 'experiment_control.start_experiment'],
                                   [self.central_widget.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment'],
+                                  [self.central_widget.main_widget.experiment_control_groupbox.browse_experiment_file_button, 'experiment_control.browse'],
                                   ]
         for item in widget2poller_function:
             gui_generic.connect_and_map_signal(self, item[0],item[1])
@@ -1081,6 +1082,20 @@ class VisionExperimentGui(Qt.QMainWindow):
         e.accept()
         self.poller.abort = True
         self.poller.wait()
+        
+    ################# Pop up dialoges ####################
+    def ask4confirmation(self, action2confirm):
+        utils.empty_queue(self.poller.gui_thread_queue)
+        reply = QtGui.QMessageBox.question(self, 'Confirm following action', action2confirm, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.No:
+            self.poller.gui_thread_queue.put(False)
+        else:
+            self.poller.gui_thread_queue.put(True)
+            
+    def ask4filename(self,directory):
+        utils.empty_queue(self.poller.gui_thread_queue)
+        fd = QtGui.QFileDialog(self,directory = directory)
+        self.poller.gui_thread_queue.put(fd.getOpenFileName())
         
 def run_cortical_gui():
     app = Qt.QApplication(sys.argv)

@@ -170,7 +170,7 @@ class KamillSetup(MVS):
     def _set_user_parameters(self): 
         MVS._set_user_parameters(self)
         SCREEN_UM_TO_PIXEL_SCALE = 0.5
-        SCREEN_EXPECTED_FRAME_RATE = 75.0
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
         SERIAL_DIO_PORT = 'COM3'
         ACQUISITION_TRIGGER_PIN = 1
         FRAME_TRIGGER_PIN = 0
@@ -184,6 +184,12 @@ class KamillSetup(MVS):
                                     'bytesize' : serial.EIGHTBITS,                                    
                                     }, 
                                     ]
+        self._create_parameters_from_locals(locals())
+        
+class KamillSetupKeisuke(KamillSetup):
+    def _set_user_parameters(self):
+        KamillSetup._set_user_parameters(self)
+        BACKGROUND_COLOR = [0.5]*3
         self._create_parameters_from_locals(locals())
         
 if __name__ == "__main__":    

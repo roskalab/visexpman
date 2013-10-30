@@ -154,22 +154,73 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
 
     def create_widgets(self):
         #Stimulation/experiment control related
+        self.browse_experiment_file_button = QtGui.QPushButton('Browse',  self)
         self.experiment_name = QtGui.QComboBox(self)
         self.experiment_name.setEditable(True)
         self.experiment_name.addItems(QtCore.QStringList([]))
+        self.experiment_name.setMinimumWidth(150)
         self.start_experiment_button = QtGui.QPushButton('Start experiment',  self)
         self.stop_experiment_button = QtGui.QPushButton('Stop',  self)
-        self.browse_experiment_file_button = QtGui.QPushButton('Browse',  self)
         self.experiment_progress = QtGui.QProgressBar(self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.experiment_name, 0, 1, 1, 2)
         self.layout.addWidget(self.browse_experiment_file_button, 0, 0, 1, 1)
-        self.layout.addWidget(self.start_experiment_button, 0, 3, 1, 2)
-        self.layout.addWidget(self.stop_experiment_button, 0, 5)
-        self.layout.addWidget(self.experiment_progress, 3, 0, 1, 4)
-        self.setLayout(self.layout)        
+        self.layout.addWidget(self.experiment_name, 0, 1, 1, 2)
+        self.layout.addWidget(self.start_experiment_button, 1, 0, 1, 2)
+        self.layout.addWidget(self.stop_experiment_button, 1, 2)
+        self.layout.addWidget(self.experiment_progress, 2, 0, 1, 3)
+        self.setLayout(self.layout)
+        
+class ExperimentControl(gui.WidgetControl):
+    def browse(self):
+        import sys
+        import os.path
+        user_folder = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', self.config.user)
+        self.printc(self.poller.ask4filename(user_folder))
+    
+    def start_experiment(self):
+        self.printc('test')
+#        self.printc('Starting experiment, please wait')
+#        self.experiment_parameters = {}
+#        self.experiment_parameters['experiment_config'] = str(self.widget.experiment_name.currentText())
+#        self.experiment_parameters['enable_ca_recording'] = (self.parent.central_widget.main_widget.experiment_options_groupbox.enable_ca_recording.input.checkState() == 2)
+#        self.experiment_parameters['enable_elphys_recording'] = (self.parent.central_widget.main_widget.experiment_options_groupbox.enable_elphys_recording.input.checkState() == 2)
+#        self.experiment_parameters['id'] = str(int(time.time()))
+#        #Find out experiment duration
+#        from visexpman.engine.vision_experiment import experiment
+#        fragment_durations = experiment.get_fragment_duration(self.experiment_parameters['experiment_config'], self.config)
+#        if fragment_durations is None:
+#            self.printc('Fragment duration is not calculated in experiment class')
+#            return
+#        elif len(fragment_durations) > 1:
+#            raise RuntimeError('Multiple fragment experiments not yet supported')
+#        self.measurement_duration = 1.1*fragment_durations[0]+self.config.CA_IMAGING_START_DELAY+self.config.GUI_DATA_SAVE_TIME
+#        self.experiment_parameters['measurement_duration'] = self.measurement_duration
+#        #Save parameters to hdf5 file
+#        parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
+#        if os.path.exists(parameter_file):
+#            self.printc('ID already exists: {0}'.format(self.experiment_parameters['id']))
+#        h = hdf5io.Hdf5io(parameter_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+#        fields_to_save = ['parameters']
+#        h.parameters = copy.deepcopy(self.experiment_parameters)
+#        if hasattr(self, 'animal_parameters'):
+#            h.animal_parameters = copy.deepcopy(self.animal_parameters)
+#            fields_to_save.append('animal_parameters')
+#        if hasattr(self, 'anesthesia_history'):
+#            h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
+#            fields_to_save.append('anesthesia_history')
+#        h.save(fields_to_save)
+#        h.close()
+#        self.printc('{0} parameter file generated'.format(self.experiment_parameters['id']))
+#        command = 'SOCstart_experimentEOCid={0}EOP' .format(self.experiment_parameters['id'])
+#        self.queues['stim']['out'].put(command)
+#        self._start_analog_recording()
+#        self.stimulation_finished = False
+#        self.imaging_finished = False
+#        self.printc('Experiment duration is {0} seconds, expected end at {1}'.format(int(self.measurement_duration), utils.time_stamp_to_hm(time.time() + self.measurement_duration)))
+#        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
+#        self.measurement_starttime=time.time()
 
 class ExperimentParametersGroupBox(QtGui.QGroupBox):
     '''
@@ -236,7 +287,7 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.comments.setEditable(True)
         self.comments.setToolTip('Add comment')
         self.new_mouse_file_button = QtGui.QPushButton('Create new mouse file',  self)
-        self.anesthesia_history_groupbox = AnesthesiaHistoryGroupbox(self)
+        self.anesthesia_history_groupbox = ExperimentLogGroupbox(self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()

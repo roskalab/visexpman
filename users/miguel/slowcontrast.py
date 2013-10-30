@@ -10,13 +10,13 @@ import pylab
 
 class SlowContrastAdaptationParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.REPEATS = 2
+        self.REPEATS =1
         self.SPOT_SIZE = 275.0 #um
-        self.FLICKERING_TIME = 33.3#14.2 # ms  = 60 Hz this depends on projector refresh rate
-        self.INTENSITY_AMPLITUDE = [0.1, 0.4]
+        self.FLICKERING_TIME = 33.34#14.2 # ms  = 60 Hz this depends on projector refresh rate
+        self.INTENSITY_AMPLITUDE = [0.1, 0.4, 0.1]
         self.INTENSITY_OFFSET = 0.5
         self.BACKGOUND_COLOR = 0.5
-        self.TIME_COURSE = 4*50000 #ms
+        self.TIME_COURSE = 50000 #ms
         self.WAVEFORM = 'flicker'
         self.SIN_FREQUENCY = 0.33 #Hz
         self.RANDOM_FLICKERING = True #False
@@ -24,7 +24,6 @@ class SlowContrastAdaptationParameters(experiment.ExperimentConfig):
         self.USER_FRAGMENT_NAME = 'FILENAME'
         self.runnable = 'SlowContrastAdaptationExperiment'
         self._create_parameters_from_locals(locals())
-        
         
 class SlowContrastAdaptationExperiment(experiment.Experiment):
     def prepare(self):
@@ -55,9 +54,8 @@ class SlowContrastAdaptationExperiment(experiment.Experiment):
         elif self.experiment_config.WAVEFORM == 'sin':
             number_of_points = self.experiment_config.TIME_COURSE/1000.0 * self.machine_config.SCREEN_EXPECTED_FRAME_RATE
             self.intensities = numpy.sin(numpy.arange(number_of_points)*2*numpy.pi*self.experiment_config.SIN_FREQUENCY/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
-            print self.intensities
-            #pylab.plot(self.intensities)
-            #pylab.show()
+        resample_factor = int(numpy.round(self.experiment_config.FLICKERING_TIME/1000.0*self.machine_config.SCREEN_EXPECTED_FRAME_RATE,0))
+        self.intensities = numpy.tile(numpy.array(self.intensities), (resample_factor,1)).flatten(1)
         self.intensities = numpy.array([self.intensities]).T
             
     def run(self):
@@ -65,7 +63,7 @@ class SlowContrastAdaptationExperiment(experiment.Experiment):
         self.show_fullscreen(duration = 1.0, color = 0.0)
         for r in range(self.experiment_config.REPEATS):
             self.show_shape(shape = 'spot', 
-                                duration = self.experiment_config.FLICKERING_TIME/1000.0,
+                                duration = 0,
                                 pos = utils.rc((0,0)), 
                                 color = self.intensities, 
                                 background_color = self.experiment_config.BACKGOUND_COLOR,
