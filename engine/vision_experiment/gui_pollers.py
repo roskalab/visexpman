@@ -2643,6 +2643,8 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
         self.connect(self, QtCore.SIGNAL('ask4confirmation'),  self.parent.ask4confirmation)
         self.connect(self, QtCore.SIGNAL('ask4filename'),  self.parent.ask4filename)
+        self.connect(self, QtCore.SIGNAL('set_experiment_progressbar'),  self.parent.set_experiment_progressbar)
+        self.connect(self, QtCore.SIGNAL('set_experiment_progressbar_range'),  self.parent.set_experiment_progressbar_range)
         
     def load_context(self):
         if os.path.exists(self.config.CONTEXT_FILE):
@@ -2703,9 +2705,9 @@ class VisexpGuiPoller(Poller):
             elapsed_time = int(time.time() - self.measurement_starttime)
             if elapsed_time > self.measurement_duration-1:
                 elapsed_time = self.measurement_duration-1
-            self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(elapsed_time)
+            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), elapsed_time)
         else:
-            self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
+            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
 
     def handle_commands(self):
         try:
@@ -2782,7 +2784,7 @@ class VisexpGuiPoller(Poller):
         self.stimulation_finished = False
         self.imaging_finished = False
         self.printc('Experiment duration is {0} seconds, expected end at {1}'.format(int(self.measurement_duration), utils.time_stamp_to_hm(time.time() + self.measurement_duration)))
-        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
+        self.emit(QtCore.SIGNAL('set_experiment_progressbar_range'), self.measurement_duration)
         self.measurement_starttime=time.time()
         
     def stop_experiment(self):
