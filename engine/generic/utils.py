@@ -14,6 +14,11 @@ import copy
 import select
 import subprocess
 import cPickle as pickle
+import zlib
+try:
+    import blosc as compressor
+except ImportError:
+    import zlib as compressor
 if os.name == 'nt':
     import win32process
     import win32api
@@ -648,6 +653,7 @@ version_paths = {
     'visexpA': 'version', 
     'sklearn':'__version__',
     'Polygon':'__version__',
+    'blosc': '__version__',
     #TODO:'zmq': 'pyzmq_version',
     }    
     
@@ -749,10 +755,10 @@ def list_stdlib():
 
 #object <-> numpy array
 def array2object(numpy_array):
-    return pickle.loads(numpy_array.tostring())
+    return pickle.loads(compressor.decompress(numpy_array.tostring()))
     
 def object2array(obj):
-    return numpy.fromstring(pickle.dumps(obj), numpy.uint8)
+    return numpy.fromstring(compressor.compress(pickle.dumps(obj, 2),6), numpy.uint8)
     
 def object2hdf5(h, vn):
     if hasattr(h, vn):
@@ -1248,13 +1254,23 @@ class TestUtils(unittest.TestCase):
         self.assertEqual((rc_value['row'], rc_value['col']), data)
          
             
-    def test_numpy_circles(self):
+    def test_16_numpy_circles(self):
         pars = [ [[10, 25], (rc((1, 1)), rc((25, 25))), (64, 64), 255],  #
                         [[10, 25],  (rc((64-1, 64-1)), rc((64-25, 64-25))), (64, 64), 255],   # odd radius, single center
                         ]
         for p in pars:
             img = numpy_circles(p[0], p[1], p[2], p[3])
             pass
+            
+    def test_17_object2array(self):
+        objects = [
+                   [1,2,3,'a'],
+                   {'d':range(10000000)},
+                   ]
+        res = []
+        for o in objects:
+            res.append(array2object(object2array(o)))
+        self.assertEqual(objects, res)
             
 if __name__ == "__main__":
     module_names, visexpman_module_paths = imported_modules()

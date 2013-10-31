@@ -7,8 +7,59 @@ import numpy
 import time
 from visexpman.engine.generic import utils
 
+class Cfg():
+    def __init__(self):
+        self.ENABLE_PARALLEL_PORT = True
+        self.d=range(1000000)
+        self.d1=range(-1000000,110000)
+        
+def fun():
+    cfg=Cfg()
+    import cPickle as pickle
+    import json
+    import simplejson
+    import blosc
+    from visexpman.engine.generic.introspect import Timer
+    o = [range(1000000),range(-1000000,0),cfg]
+    o=cfg
+    rep=3
+#    for i in range(rep):
+#        with Timer('json'):
+#            j = json.dumps(o)
+#        print len(j)
+#        
+#    for i in range(rep):
+#        with Timer('simplejson'):
+#            j = simplejson.dumps(o)
+#        print len(j)
+        
+    for i in range(rep):
+        with Timer('blosc'):
+            b = blosc.pack_array(numpy.array([o]))
+    print len(b)
+        
+    for i in range(rep):
+        with Timer('pickle'):
+            p = utils.object2array(o)
+    print p.shape[0]
+        
+        
+    for i in range(rep):
+        with Timer('blosc'):
+            b1 = blosc.unpack_array(b)[0]
+        
+    for i in range(rep):
+        with Timer('pickle'):
+            p1 = utils.array2object(p)
+    pass
+
 
 if True:
+    
+    pass
+    
+    
+elif not True:
     class Cfg():
         def __init__(self):
             self.ENABLE_PARALLEL_PORT = True
@@ -52,7 +103,9 @@ else:
         handle.close()
 
 #from multiprocessing import Queue, Process
-#if __name__ == '__main__':
+if __name__ == '__main__':
+    utils.array2object(utils.object2array([1,2,3,'a']))
+    fun()
 #    if False:
 #        append2hdf5()
 #        read_hdf5()
