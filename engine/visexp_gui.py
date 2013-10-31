@@ -1097,6 +1097,12 @@ class VisionExperimentGui(Qt.QMainWindow):
         fd = QtGui.QFileDialog(self,directory = directory)
         self.poller.gui_thread_queue.put(fd.getOpenFileName())
         
+    def set_experiment_progressbar(self, value, attribute='setValue'):
+        self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(value)
+        
+    def set_experiment_progressbar_range(self, max_value):
+        self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, max_value)
+        
 def run_cortical_gui():
     app = Qt.QApplication(sys.argv)
     gui = CorticalVisionExperimentGui(sys.argv[1], sys.argv[2])

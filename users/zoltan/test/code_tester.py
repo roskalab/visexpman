@@ -55,23 +55,19 @@ def fun():
 
 
 if True:
-    
     pass
-    
-    
-elif not True:
-    class Cfg():
-        def __init__(self):
-            self.ENABLE_PARALLEL_PORT = True
-    
-    parallel_port = instrument.ParallelPort(Cfg())
-    state=True
-    while True:
-        print  parallel_port.read_pin(11)
-        parallel_port.set_data_bit(1, state)
-        state = not state
-        time.sleep(0.1)
-    parallel_port.release_instrument()
+#    class Cfg():
+#        def __init__(self):
+#            self.ENABLE_PARALLEL_PORT = True
+#    
+#    parallel_port = instrument.ParallelPort(Cfg())
+#    state=True
+#    while True:
+#        print  parallel_port.read_pin(11)
+#        parallel_port.set_data_bit(1, state)
+#        state = not state
+#        time.sleep(0.1)
+#    parallel_port.release_instrument()
 #    import unit_test_runner
 #    unit_test_runner.run_test('visexpman.engine.visexp_runner.TestVisionExperimentRunner.test_11_microled')
     
@@ -104,8 +100,13 @@ else:
 
 #from multiprocessing import Queue, Process
 if __name__ == '__main__':
+<<<<<<< HEAD
     utils.array2object(utils.object2array([1,2,3,'a']))
     fun()
+=======
+    hdf5io.save_item('/mnt/datafast/debug/tmp3.hdf5',  'data',  range(1000), filelocking=False)
+    pass
+>>>>>>> d2926119e4468b93ff0a075c8b380e3577c7f852
 #    if False:
 #        append2hdf5()
 #        read_hdf5()

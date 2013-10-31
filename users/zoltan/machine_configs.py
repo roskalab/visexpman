@@ -136,7 +136,9 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
     
     def _set_user_parameters(self):
         #### paths/data handling ####
-        self.root_folder = '/mnt/datafast/debug/data'
+        self.root_folder = '/mnt/rzws/data1'
+        if not os.path.exists(self.root_folder):
+            self.root_folder = '/mnt/datafast/debug/data'
 #        self.root_folder = '/mnt/rznb/data'
         if not os.path.exists(self.root_folder) and os.name == 'nt':
             self.root_folder = 'v:\\debug\\data'
@@ -153,7 +155,10 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         #### Network ####
         ENABLE_UDP_TRIGGER= False
         UDP_PORT = 446
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.32'
+        if os.name != 'nt':
+            self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
+        else:
+            self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.32'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
         self.COMMAND_RELAY_SERVER['TIMEOUT'] = 10.0
