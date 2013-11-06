@@ -302,6 +302,18 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
                 all_keys.append(v['key'])
         return commands
         
+    def set_gamma_calibration(self,filename):
+        '''
+        Reads  gamma calibration values from filename
+        '''
+        if not os.path.exists(filename):
+            raise RuntimeError('Gamma calibration file does not exists: {0}'.format(filename))
+        if 'hdf5' not in os.path.split(filename)[1]:
+            raise RuntimeError('Gamma calibration file is expected in hdf5 format: {0}'.format(filename))
+        from visexpA.engine.datahandlers import hdf5io
+        import copy
+        self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
+        
 class RetinalCaImagingConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
