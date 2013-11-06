@@ -1094,8 +1094,9 @@ class VisionExperimentGui(Qt.QMainWindow):
             
     def ask4filename(self,directory):
         utils.empty_queue(self.poller.gui_thread_queue)
+        print directory
         fd = QtGui.QFileDialog(self,directory = directory)
-        self.poller.gui_thread_queue.put(fd.getOpenFileName())
+        self.poller.gui_thread_queue.put(str(fd.getOpenFileName()))
         
     def set_experiment_progressbar(self, value, attribute='setValue'):
         self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(value)
