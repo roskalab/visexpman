@@ -28,6 +28,7 @@ from visexpman.engine.hardware_interface import stage_control
 from visexpman.engine.hardware_interface import scanner_control
 from visexpman.engine.hardware_interface import flowmeter
 from visexpman.engine.hardware_interface import daq_instrument
+from visexpman.engine.vision_experiment import gui
 from visexpman.engine import generic
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
@@ -104,7 +105,15 @@ class Poller(QtCore.QThread):
         '''
         if not self.signal_id_queue.empty():
             function_call = self.signal_id_queue.get()
-            if hasattr(self, function_call):
+            if '.' in function_call:
+                function_call = function_call.split('.')
+                if len(function_call) != 2:
+                    raise RuntimerError('Expected format: <attribute name>.<method name>')
+                try:
+                    getattr(getattr(self, function_call[0]),function_call[1])()
+                except:
+                    self.printc(traceback.format_exc())
+            elif hasattr(self, function_call):
                 try:
                     getattr(self, function_call)()
                 except:
@@ -114,6 +123,20 @@ class Poller(QtCore.QThread):
 
     def pass_signal(self, signal_id):
         self.signal_id_queue.put(str(signal_id))
+        
+    ####### Popup dialog boxes #####
+    
+    def ask4confirmation(self, action2confirm):
+        self.emit(QtCore.SIGNAL('ask4confirmation'), action2confirm)
+        while self.gui_thread_queue.empty() :
+            time.sleep(0.1) 
+        return self.gui_thread_queue.get()
+        
+    def ask4filename(self, directory):
+        self.emit(QtCore.SIGNAL('ask4filename'),directory)
+        while self.gui_thread_queue.empty() :
+            time.sleep(0.1) 
+        return self.gui_thread_queue.get()
 
 parameter_extract = re.compile('EOC(.+)EOP')
 command_extract = re.compile('SOC(.+)EOC')
@@ -2609,12 +2632,19 @@ class VisexpGuiPoller(Poller):
         
     def init_variables(self):
         self.queues = {}
+        self.gui_thread_queue = Queue.Queue()
         self.stimulation_finished = False
         self.imaging_finished = False
         self.analog_recording_started=False
+        #Widget related classes
+        self.experiment_control = gui.ExperimentControl(self, self.config, self.parent.central_widget.main_widget.experiment_control_groupbox)
         
     def connect_signals(self):
         self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
+        self.connect(self, QtCore.SIGNAL('ask4confirmation'),  self.parent.ask4confirmation)
+        self.connect(self, QtCore.SIGNAL('ask4filename'),  self.parent.ask4filename)
+        self.connect(self, QtCore.SIGNAL('set_experiment_progressbar'),  self.parent.set_experiment_progressbar)
+        self.connect(self, QtCore.SIGNAL('set_experiment_progressbar_range'),  self.parent.set_experiment_progressbar_range)
         
     def load_context(self):
         if os.path.exists(self.config.CONTEXT_FILE):
@@ -2675,9 +2705,9 @@ class VisexpGuiPoller(Poller):
             elapsed_time = int(time.time() - self.measurement_starttime)
             if elapsed_time > self.measurement_duration-1:
                 elapsed_time = self.measurement_duration-1
-            self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(elapsed_time)
+            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), elapsed_time)
         else:
-            self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
+            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
 
     def handle_commands(self):
         try:
@@ -2754,7 +2784,7 @@ class VisexpGuiPoller(Poller):
         self.stimulation_finished = False
         self.imaging_finished = False
         self.printc('Experiment duration is {0} seconds, expected end at {1}'.format(int(self.measurement_duration), utils.time_stamp_to_hm(time.time() + self.measurement_duration)))
-        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
+        self.emit(QtCore.SIGNAL('set_experiment_progressbar_range'), self.measurement_duration)
         self.measurement_starttime=time.time()
         
     def stop_experiment(self):

@@ -17,7 +17,6 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 from visexpman.engine import generic
 from visexpA.engine.datahandlers import hdf5io
-from visexpA.engine.dataprocessors import generic as gen
 
 import unittest
 

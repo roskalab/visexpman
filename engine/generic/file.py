@@ -1,3 +1,4 @@
+#TODO: rename to file_utils
 import os, re
 import os.path
 import shutil
@@ -131,6 +132,9 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                 self.logfile.close()
 
     return BackgroundCopierClass(command_queue,postpone_seconds, thread,debug)
+
+def file_extension(filename):
+    return os.path.split(filename)[1].split('.')[-1]
 
 def free_space(path):
     s=os.statvfs(path)
