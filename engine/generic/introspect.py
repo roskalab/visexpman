@@ -14,6 +14,19 @@ import weakref
 
 import subprocess, os, signal
 
+def import_non_local(name, custom_name=None, exclude_string=None):
+    import imp
+    custom_name = custom_name or name
+    if exclude_string is None:
+        paths = sys.path[1:]
+    else:
+        paths = [p1 for p1 in sys.path[1:] if exclude_string not in p1]
+    f, pathname, desc = imp.find_module(name, paths)
+    module = imp.load_module(custom_name, f, pathname, desc)
+    if hasattr(f,'close'):
+        f.close()
+    return module
+
 def kill_child_processes(parent_pid, sig='SIGTERM'):
         ps_command = subprocess.Popen("ps -o pid --ppid %d --noheaders" % parent_pid, shell=True, stdout=subprocess.PIPE)
         ps_output = ps_command.stdout.read()
