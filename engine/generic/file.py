@@ -1,4 +1,5 @@
 #TODO: rename to file_utils
+import sys
 import os, re
 import os.path
 import shutil
@@ -527,6 +528,8 @@ def parse_fragment_filename(path):
     fields['region_name'] = '_'.join(filename[2:-4])
     return fields
 
+def get_visexpman_module_path():
+    return os.path.split(sys.modules['visexpman'].__file__)[0]
 
 import unittest
 class TestUtils(unittest.TestCase):

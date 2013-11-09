@@ -1094,7 +1094,6 @@ class VisionExperimentGui(Qt.QMainWindow):
             
     def ask4filename(self,directory):
         utils.empty_queue(self.poller.gui_thread_queue)
-        print directory
         fd = QtGui.QFileDialog(self,directory = directory)
         self.poller.gui_thread_queue.put(str(fd.getOpenFileName()))
         
