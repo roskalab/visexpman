@@ -14,6 +14,10 @@ from visexpA.engine.datadisplay.imaged import imshow
 
 precision = 10
 
+def get_closest(rcref,rcothers):
+    distances = [numpy.abs(rcref['col']-c['col'])+numpy.abs(rcref['row']-c['row']) for c in rcothers]
+    return numpy.argmin(distances)
+
 def orientation(p,q,r):
     '''Return positive if p-q-r are clockwise, neg if ccw, zero if colinear.'''
     return (q[1]-p[1])*(r[0]-p[0]) - (q[0]-p[0])*(r[1]-p[1])
