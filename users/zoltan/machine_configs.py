@@ -136,12 +136,11 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
     
     def _set_user_parameters(self):
         #### paths/data handling ####
-        self.root_folder = '/mnt/rzws/data1'
-        if not os.path.exists(self.root_folder):
-            self.root_folder = '/mnt/datafast/debug/data'
-#        self.root_folder = '/mnt/rznb/data'
-        if not os.path.exists(self.root_folder) and os.name == 'nt':
-            self.root_folder = 'v:\\debug\\data'
+        paths = ['/home/zoltan/Downloads','/mnt/rznb/data', '/mnt/rzws/data1','/mnt/datafast/debug/data', 'v:\\debug\\data']
+        for path in paths:
+            if os.path.exists(path):
+                self.root_folder = path
+                break        
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder

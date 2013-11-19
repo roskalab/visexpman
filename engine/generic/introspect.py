@@ -13,6 +13,23 @@ import hashlib
 import weakref
 
 import subprocess, os, signal
+import copy
+
+def class_ancestors(obj):
+    ancestors = []
+    ancestor = [obj]
+    while True:
+        ancestor = map(getattr, list(ancestor), len(ancestor)*['__bases__'])
+        flattened_ancestors = []
+        for a in ancestor:
+            for ai in a:
+                flattened_ancestors.append(ai)
+        ancestor = flattened_ancestors
+        ancestors.extend(map(getattr, list(flattened_ancestors), len(flattened_ancestors)*['__name__']))
+        if 'object' in ancestors:
+            break
+    return ancestors
+    
 
 def import_non_local(name, custom_name=None, exclude_string=None):
     import imp

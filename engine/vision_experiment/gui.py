@@ -178,19 +178,9 @@ class ExperimentControl(gui.WidgetControl):
         import os.path
         user_folder = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', self.config.user)
         self.user_selected_stimulation_module = self.poller.ask4filename(user_folder)
-        from visexpman.engine.generic import introspect
-        from visexpman.engine.generic import file
-        import inspect
-        if file.file_extension(self.user_selected_stimulation_module) != 'py':
-            self.printc('Warning: files only with py extension can be selected')
-            return
-        source_code = file.read_text_file(self.user_selected_stimulation_module)
-        introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
-        experiment_module = __import__('experiment_module')
-        print inspect.getmembers(experiment_module)
+        from visexpman.engine.vision_experiment import experiment
+        self.printc(experiment.parse_stimulation_file(self.user_selected_stimulation_module))
         
-        
-        self.printc(self.user_selected_stimulation_module)
     
     def start_experiment(self):
         '''
