@@ -9,6 +9,7 @@ import os.path
 import webbrowser
 import copy
 import traceback
+import tempfile
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -801,7 +802,6 @@ class MainPoller(Poller):
         self.command_relay_server.shutdown_servers()
         #Delete MES tmp files
         try:
-            import tempfile
             for f in os.listdir(tempfile.gettempdir()):
                 fullpath = os.path.join(tempfile.gettempdir(), f)
                 print fullpath
@@ -900,7 +900,7 @@ class MainPoller(Poller):
                                 tag = 'jobhandler'
                             else:
                                 tag = parameter
-                            if self.backup_mouse_file(tag = tag):
+                            if self.mouse_file2jobhandler(tag = tag):
                                 self.queues['analysis']['out'].put('SOCmouse_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_jobhandler.hdf5')))
                         else:
                             self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
@@ -911,6 +911,7 @@ class MainPoller(Poller):
         self.wait_mouse_file_save()
         self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
         self.load_mouse_file()
+        self.backup_mousefile()
         self.reset_jobhandler()
         self.emit(QtCore.SIGNAL('update_widgets_when_mouse_file_changed'))
         
@@ -941,12 +942,17 @@ class MainPoller(Poller):
         Loads scan region, cell and meanimage data from mouse file
         '''
         if os.path.isfile(self.mouse_file):
+            #Make a local copy
+            self.local_mouse_file = os.path.join(tempfile.gettempdir(), os.path.split(self.mouse_file)[1])
+            if os.path.exists(self.local_mouse_file):
+                os.remove(self.local_mouse_file)
+            shutil.copy(self.mouse_file, self.local_mouse_file)
             #clean out attributes
             attributes = ['scan_regions', 'cells', 'images', 'animal_parameters']
             for attribute in attributes:
                 if hasattr(self, attribute):
                     setattr(self, attribute,  {})
-            h = hdf5io.Hdf5io(self.mouse_file)
+            h = hdf5io.Hdf5io(self.local_mouse_file)
             varname = h.find_variable_in_h5f('animal_parameters', regexp=True)[0]
             h.load(varname)
             self.animal_parameters = getattr(h, varname)
@@ -1117,6 +1123,7 @@ class MainPoller(Poller):
         
     def read_scan_regions(self, id):
         #read call parameters
+        time.sleep(1.0)#Make sure that measurement file is not accessed any more
         measurement_file_path = file.get_measurement_file_path_from_id(id, self.config)
         if measurement_file_path is None or not os.path.exists(measurement_file_path):
             self.printc('Measurement file not found: {0}, {1}' .format(measurement_file_path,  id))
@@ -1720,6 +1727,7 @@ class MainPoller(Poller):
         #Save new scan region to hdf5 file
         self.scan_regions[region_name] = scan_region
         self.save2mouse_file('scan_regions')
+        self.backup_mousefile()
         self.parent.update_region_names_combobox(region_name)
         self.update_scan_regions()#This is probably redundant
         self.printc('{0} scan region saved'.format(region_name))
@@ -1954,8 +1962,7 @@ class MainPoller(Poller):
                 for laser_intensity in calibration_parameters[i1]['laser_intensity']:
                     if self.abort_calib:
                         break
-                    #Adjust laser
-                    result, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(laser_intensity)
+                    #Adjust laserresult, adjusted_laser_intensity = self.mes_interface.set_laser_intensity(laser_intensity)
                     if not result:
                         self.printc('Setting laser intensity did not succeed')
                         return
@@ -2206,7 +2213,7 @@ class MainPoller(Poller):
         hdf5_handler.close()
             
     ############# Helpers #############
-    def backup_mouse_file(self, mouse_file = None, tag = None):
+    def mouse_file2jobhandler(self, mouse_file = None, tag = None):
         result = False
         if not hasattr(self, 'mouse_file'):
             return result
@@ -2405,8 +2412,10 @@ class MainPoller(Poller):
                 
     def mouse_file_saver(self):
         if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file) and utils.safe_has_key(self.queues, 'mouse_file_handler') and not self.queues['mouse_file_handler'].empty():
+            if not hasattr(self, 'local_mouse_file'):
+               self.local_mouse_file = os.path.join(tempfile.gettempdir(), os.path.split(self.mouse_file)[1])
             self.running = True
-            h = hdf5io.Hdf5io(self.mouse_file)
+            h = hdf5io.Hdf5io(self.local_mouse_file)
             field_names_to_save = []
             while not self.queues['mouse_file_handler'].empty():
                 field_name, field_value = self.queues['mouse_file_handler'].get()
@@ -2417,8 +2426,26 @@ class MainPoller(Poller):
                     field_names_to_save.append(field_name)
             h.save(field_names_to_save, overwrite = True)
             h.close()
+            if os.path.exists(self.mouse_file):
+                os.remove(self.mouse_file)
+            shutil.copy(self.local_mouse_file, self.mouse_file)
             self.running = False
             self.printc('{0} saved to mouse file'.format(', '.join(field_names_to_save)))
+            
+    def backup_mousefile(self):
+        if hasattr(self, 'animal_parameters') and hasattr(self, 'mouse_file'):
+            self.printc('Backing up mouse file')
+            dir = os.path.join(self.config.DATABIG_PATH,  utils.date_string().replace('-',''), self.animal_parameters['id'])
+            if not os.path.exists(dir):
+                os.makedirs(dir)
+            databig_path = os.path.join(dir, os.path.split(self.mouse_file)[1])
+            if os.path.exists(databig_path):
+                os.remove(databig_path)
+            try:
+                shutil.copy(self.mouse_file, databig_path)
+            except:
+                self.printc(traceback.format_exc())
+                self.printc('Problem with copying mousefile to databig.')
 
     def cells2pickled_ready(self, cells):
         '''

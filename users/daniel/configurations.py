@@ -498,6 +498,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         if os.name != 'nt':
             DATABIG_PATH = '/mnt/databig/data'
             self.TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
+        else:
+            DATABIG_PATH = 'u:\\data'
         #CAPTURE_PATH = os.path.join(v_drive_folder, 'captured')
 
         #=== screen ===
