@@ -5,12 +5,16 @@ import visexpman
 
 from visexpman.engine.generic.configuration import Config
 from visexpman.engine.generic import utils
+from visexpman.engine.generic import file
+from visexpman.engine.generic import introspect
 import stimulation_library
 
 import inspect
 from visexpA.engine.datahandlers import hdf5io
 from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
+
+import unittest
 
 class ExperimentConfig(Config):
     def __init__(self, machine_config, queues, connections, application_log, experiment_class = None, source_code = None, parameters = {}):
@@ -183,3 +187,32 @@ def get_fragment_duration(experiment_config_class, config):
     if hasattr(experiment_class_object, 'fragment_durations'):
         return experiment_class_object.fragment_durations
         
+def parse_stimulation_file(filename):
+    '''
+    From a stimulation file get the names of experiment classes and the parameter values for each
+    Only the values defined in the class itself are fetched, parameters from ancestors are ignored
+    '''
+    if file.file_extension(filename) != 'py':
+        raise RuntimeError('Warning: files only with py extension can be selected')
+    source_code = file.read_text_file(filename)
+    introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
+    experiment_module = __import__('experiment_module')
+    experiment_config_classes = {}
+    for c in inspect.getmembers(experiment_module,inspect.isclass):
+        if 'ExperimentConfig' in introspect.class_ancestors(c[1]):
+            try:
+                expconfig_lines = source_code.split('class '+c[0])[1].split('def _create_parameters')[1].split('def')[0].split('\n')
+                experiment_config_classes[c[0]] = \
+                    [expconfig_line.replace(' ','').split('#')[0] for expconfig_line in expconfig_lines \
+                        if '=' in expconfig_line and expconfig_line.split('=')[0].replace('self.','').isupper()]
+            except:
+                continue
+    return experiment_config_classes
+    
+    
+class testExperimentHelpers(unittest.TestCase):
+    def test_01_parse_stim_file(self):
+        parse_stimulation_file(os.path.join(file.get_visexpman_module_path(), 'users','daniel','grating.py'))
+    
+if __name__ == "__main__":
+    unittest.main()

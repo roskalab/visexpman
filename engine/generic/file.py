@@ -1,3 +1,5 @@
+#TODO: rename to file_utils
+import sys
 import os, re
 import os.path
 import shutil
@@ -131,6 +133,9 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                 self.logfile.close()
 
     return BackgroundCopierClass(command_queue,postpone_seconds, thread,debug)
+
+def file_extension(filename):
+    return os.path.split(filename)[1].split('.')[-1]
 
 def free_space(path):
     s=os.statvfs(path)
@@ -523,6 +528,8 @@ def parse_fragment_filename(path):
     fields['region_name'] = '_'.join(filename[2:-4])
     return fields
 
+def get_visexpman_module_path():
+    return os.path.split(sys.modules['visexpman'].__file__)[0]
 
 import unittest
 class TestUtils(unittest.TestCase):

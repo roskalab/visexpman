@@ -177,9 +177,15 @@ class ExperimentControl(gui.WidgetControl):
         import sys
         import os.path
         user_folder = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', self.config.user)
-        self.printc(self.poller.ask4filename(user_folder))
+        self.user_selected_stimulation_module = self.poller.ask4filename(user_folder)
+        from visexpman.engine.vision_experiment import experiment
+        self.printc(experiment.parse_stimulation_file(self.user_selected_stimulation_module))
+        
     
     def start_experiment(self):
+        '''
+        
+        '''
         self.printc('test')
 #        self.printc('Starting experiment, please wait')
 #        self.experiment_parameters = {}
