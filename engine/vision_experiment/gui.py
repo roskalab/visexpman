@@ -1590,6 +1590,8 @@ class MainPoller(Poller):
         else:
             variable_name = 'animal_parameters_{0}'.format(int(time.time()))
             hdf5io.save_item(self.mouse_file, variable_name, self.animal_parameters)
+            self.local_mouse_file = os.path.join(tempfile.gettempdir(), os.path.split(self.mouse_file)[1])
+            hdf5io.save_item(self.local_mouse_file, variable_name, self.animal_parameters)
             are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
             time.sleep(0.1)#Wait till file is created
             #set selected mouse file to this one
