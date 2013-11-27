@@ -86,14 +86,14 @@ class MultiChannel256MeaSetup(MCMEAConfig): #David machine config
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0        
-        SCREEN_UM_TO_PIXEL_SCALE = 1.0 # 1 micron is 1 pixel, TO USE PIXELS
+        SCREEN_UM_TO_PIXEL_SCALE = 0.384 #how much u is one px; if 1 micron is 1 pixel, TO USE PIXELS
         
         #=== hardware === SETTING TTL 
         ENABLE_PARALLEL_PORT =  False
         SERIAL_DIO_PORT = ['COM5','COM4']
-        ACQUISITION_START_PIN = [1, [0,8]]
+        ACQUISITION_START_PIN = [0, [0,8]]
         # ACQUISITION_TRIGGER_PIN = 5 # THIS IS FOR STARTING RECORDING; not physical pin but data port # not used: we have to start recordings by hand
-        ACQUISITION_STOP_PIN = 0 # THIS IS FOR STOP THE RECORDING; not physical pin but data port
+        ACQUISITION_STOP_PIN = 1 # THIS IS FOR STOP THE RECORDING; not physical pin but data port
         FRAME_TRIGGER_PIN = 3 # THIS IS IMPORTANT FOR STIM OPTICS; not physical pin but data port
         USER_PIN = [2, [0,8]]
         # valt user pin 5 frame trigger 6 aztan vissza
