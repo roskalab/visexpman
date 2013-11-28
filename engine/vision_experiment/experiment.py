@@ -129,6 +129,17 @@ class Experiment(stimulation_library.StimulationSequences):
         pass
         
     ################# helpers ############################
+    def set_default_experiment_parameter_values(self, parameter_default_values):
+        '''
+        parameter values in parameter_default_values are copied to self.parametername variable if these values are defined in experiment config. 
+        Otherwise the default values provided in parameter_default_values are copied.
+        '''
+        for k, v in parameter_default_values.items():
+            if hasattr(self.experiment_config, k):
+                setattr(self, k.lower(), getattr(self.experiment_config, k))
+            else:
+                setattr(self, k.lower(), v)
+                
 #     def printl(self, message):
 #         '''
 #         Helper function that can be called during experiment. The message is sent to:

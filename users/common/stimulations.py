@@ -29,6 +29,27 @@ class SpotWaveform(experiment.Experiment):
                 self.show_fullscreen(color=self.experiment_config.BACKGROUND, duration = 0.5*self.experiment_config.PAUSE)
                 self.show_shape(color = intensities, background_color = self.experiment_config.BACKGROUND, shape = 'spot', size = spot_diameter, block_trigger=True)
                 self.show_fullscreen(color=self.experiment_config.BACKGROUND, duration = 0.5*self.experiment_config.PAUSE)
+                
+class MovingShapeExperiment(experiment.Experiment):
+    def prepare(self):
+        parameter_default_values = {
+        'REPETITIONS': 1, 
+        'SHAPE': 'rect', 
+        'SHAPE_CONTRAST' : 1.0, 
+        'SHAPE_BACKGROUND': 0.5, 
+        'PAUSE_BETWEEN_DIRECTIONS' : 0.0, 
+        }
+        self.set_default_experiment_parameter_values(parameter_default_values)        
+
+    def run(self):
+        for repetition in range(self.repetitions):
+            self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
+                          speeds = self.experiment_config.SPEEDS,
+                          directions = self.experiment_config.DIRECTIONS,
+                          shape = self.shape,
+                          color = self.shape_contrast,
+                          background_color = self.shape_background,
+                          pause = self.pause_between_directions)
 
 class IncreasingSpotExperiment(experiment.Experiment):
     def prepare(self):

@@ -1088,20 +1088,27 @@ class StimulationSequences(Stimulations):
     def moving_grating_stimulus(self):
         pass
         
-    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0,block_trigger = False):
+    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0,block_trigger = False, shape_starts_from_edge=False):
+        '''
+        shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
+        '''
+        
         #TODO:
 #        if hasattr(self, 'screen_center'):
 #            pos_with_offset = utils.rc_add(pos, self.screen_center)
 #        else:
 #            pos_with_offset = pos
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')')
+        if not (isinstance(speeds, list) or hasattr(speeds,'dtype')):
+            speeds = [speeds]
         if hasattr(size, 'dtype'):
             shape_size = max(size['row'], size['col'])
         else:
             shape_size = size
-        if not (isinstance(speeds, list) or hasattr(speeds,'dtype')):
-            speeds = [speeds]
-        self.movement = min(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
+        if shape_starts_from_edge:
+            self.movement = max(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) + shape_size
+        else:
+            self.movement = min(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
         self._save_stimulus_frame_info(inspect.currentframe())
         #Calculate axis factors
         if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
