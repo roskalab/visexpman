@@ -517,7 +517,9 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
                     class_list.append((m, attr[1]))
                     # here we also could execute some test on the experiment which lasts very short time but ensures stimulus will run  
         except ImportError:
-            pass
+            print modname
+            import traceback
+            traceback.format_exc()
     #Filter experiment config list. In test mode, experiment configs are loaded only from automated_test_data. In application run mode
     #this module is omitted
     filtered_class_list = []

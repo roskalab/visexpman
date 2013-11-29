@@ -123,9 +123,9 @@ class Debug(experiment.Experiment):
             
 if __name__ == "__main__":
     if True:
-        v = visexp_runner.VisionExperimentRunner('adrian', 'StimulusDevelopment')
+        v = visexp_runner.VisionExperimentRunner('peter', 'StimulusDevelopment')
 #        v.run_experiment(user_experiment_config = 'MovingGratingTuning')
-        v.run_experiment(user_experiment_config = 'MyGrating')
+        v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')
     elif not True:
         v = visexp_runner.VisionExperimentRunner(['zoltan', 'chi'], 'SwDebugConfig')
         v.run_experiment(user_experiment_config = 'FullfieldSinewave')

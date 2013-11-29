@@ -1,10 +1,13 @@
 from visexpman.engine.generic import utils
-import visexpman.engine.vision_experiment.experiment as experiment
+from visexpman.engine.vision_experiment import experiment
 import time
 import numpy
 import os.path
 import os
-import winsound
+try:
+    import winsound
+except ImportError:
+    pass
 import shutil
 import random
                                      
@@ -238,9 +241,9 @@ class SpotFullExperiment(experiment.Experiment):
 
 class WhiteNoiseParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.DURATION = 2*60.0
+        self.DURATION = 3*60.0
         self.PIXEL_SIZE =100.0#Min 100 um
-        self.FLICKERING_FREQUENCY = 10.0#Max 10 Hz
+        self.FLICKERING_FREQUENCY = 15.0#Max 10 Hz
         self.N_WHITE_PIXELS = None
         self.COLORS = [0.0, 1.0]
         self.runnable = 'WhiteNoiseExperiment'
