@@ -229,7 +229,39 @@ class KamillFastMovingGratingWithFlashConfig(KamillFastMovingGratingMarchingConf
         self.BLACK = 0.0
         self.WHITE = 1.0
         self.PAUSE_BEFORE_AFTER = 1.0            
+        
+class MovingGratingSpeed100ums(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.VELOCITIES = [100.0]
+        self.WHITE_BAR_WIDTHS = [200.0]
+        self.DUTY_CYCLES = [1.0]
+        self.REPEATS = 1
                 
+class MovingGratingSpeed300ums(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.VELOCITIES = [300.0]
+        self.WHITE_BAR_WIDTHS = [200.0]
+        self.DUTY_CYCLES = [1.0]
+        self.REPEATS = 1
+        
+class MovingGratingSpeed800ums(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.VELOCITIES = [800.0]
+        self.WHITE_BAR_WIDTHS = [200.0]
+        self.DUTY_CYCLES = [1.0]
+        self.REPEATS = 1
+        
+class MovingGratingSpeed1200ums(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.VELOCITIES = [1200.0]
+        self.WHITE_BAR_WIDTHS = [200.0]
+        self.DUTY_CYCLES = [1.0]
+        self.REPEATS = 1
+
 class BlackPre(experiment.PreExperiment):    
     def run(self):
         self.show_fullscreen(color = 0.0, duration = 0,flip=False)
@@ -316,7 +348,7 @@ class MovingGrating(experiment.Experiment):
                             orientation = orientation, 
                             velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],
-                            starting_phase = 1/(1+stimulus_unit['duty_cycle'])*360
+                            starting_phase = self.marching_phases[-1]#1/(1+stimulus_unit['duty_cycle'])*360
                             )
                 #Show static grating
                 if self.experiment_config.GRATING_STAND_TIME>0:

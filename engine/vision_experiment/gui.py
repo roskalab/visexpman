@@ -908,6 +908,7 @@ class MainPoller(Poller):
             self.printc(traceback.format_exc())
                 
     def mouse_file_changed(self):
+        self.printc('Mouse file has changed')#Only for debug purposes bacuase this seems to happen randomly
         self.wait_mouse_file_save()
         self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
         self.load_mouse_file()
@@ -2513,7 +2514,10 @@ class MouseFileHandler(Poller):
 def update_mouse_files_list(config, current_mouse_files = []):
     new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')
     new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_jobhandler' not in mouse_file and '_stim' not in mouse_file and '_copy' not in mouse_file and os.path.isfile(os.path.join(config.EXPERIMENT_DATA_PATH,mouse_file))]
-    if current_mouse_files != new_mouse_files:
+    new_mouse_files.sort()
+    current_mouse_files1= current_mouse_files
+    current_mouse_files1.sort()
+    if current_mouse_files1 != new_mouse_files:
         are_new_files = True
     else:
         are_new_files = False
