@@ -244,7 +244,7 @@ class MovingGratingSpeed300ums(MovingGratingNoMarchingConfig):
         self.VELOCITIES = [300.0]
         self.WHITE_BAR_WIDTHS = [200.0]
         self.DUTY_CYCLES = [1.0]
-        self.REPEATS = 1
+        self.REPEATS = 2
         
 class MovingGratingSpeed800ums(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
@@ -252,7 +252,7 @@ class MovingGratingSpeed800ums(MovingGratingNoMarchingConfig):
         self.VELOCITIES = [800.0]
         self.WHITE_BAR_WIDTHS = [200.0]
         self.DUTY_CYCLES = [1.0]
-        self.REPEATS = 1
+        self.REPEATS = 2
         
 class MovingGratingSpeed1200ums(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
@@ -260,7 +260,7 @@ class MovingGratingSpeed1200ums(MovingGratingNoMarchingConfig):
         self.VELOCITIES = [1200.0]
         self.WHITE_BAR_WIDTHS = [200.0]
         self.DUTY_CYCLES = [1.0]
-        self.REPEATS = 1
+        self.REPEATS = 2
 
 class BlackPre(experiment.PreExperiment):    
     def run(self):

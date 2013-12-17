@@ -1993,6 +1993,10 @@ class MainPoller(Poller):
         command = 'SOCabort_experimentEOCguiEOP'
         self.queues['stim']['out'].put(command)
         self.printc('Stopping experiment requested, please wait')
+        for id in self.issued_ids:
+            p = os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
+            if os.path.exists(p):
+                os.remove(p)
 
     def graceful_stop_experiment(self):
         command = 'SOCgraceful_stop_experimentEOCguiEOP'
@@ -2049,6 +2053,10 @@ class MainPoller(Poller):
         self.experiment_parameters['experiment_config'] = str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
         self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
         self.experiment_parameters['id'] = str(int(time.time()))
+        if not hasattr(self, 'issued_ids'):
+            self.issued_ids = []
+        else:
+            self.issued_ids.append(self.experiment_parameters['id'])
         if self.experiment_parameters.has_key('current_objective_position_index') and self.experiment_parameters.has_key('objective_positions'):
             self.experiment_parameters['objective_position'] = self.experiment_parameters['objective_positions'][self.experiment_parameters['current_objective_position_index']]
             objective_position = self.experiment_parameters['objective_position']

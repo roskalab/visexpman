@@ -10,15 +10,15 @@ import random
 class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'
-        self.COLORS = [0.0, 1.0]
-        self.BACKGROUND_COLOR = 0.5
+        self.COLORS = [1.0]
+        self.BACKGROUND_COLOR = 0
         self.SHAPE_SIZE = 200.0
-        self.MESH_XY = utils.rc((3,4))
-        self.ON_TIME = 0.5*3
-        self.OFF_TIME = 1.5*0
+        self.MESH_XY = utils.rc((6,8))
+        self.ON_TIME = 0.5*2
+        self.OFF_TIME = 0.5*2
         self.PAUSE_BEFORE_AFTER = 2.0
         self.REPEATS = 1
-        self.ENABLE_ZOOM = True
+        self.ENABLE_ZOOM = False 
         self.SELECTED_POSITION = 1
         self.ZOOM_MESH_XY = utils.rc((3,3))
         self.ENABLE_RANDOM_ORDER =not False

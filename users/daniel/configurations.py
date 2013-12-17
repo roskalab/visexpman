@@ -513,7 +513,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             SCREEN_MAX_FRAME_RATE = 1/50e-3
             ULED_SERIAL_PORT = 'COM4'
         else:
-            SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm
+            SCREEN_DISTANCE_FROM_MOUSE_EYE = [320.0, [0, 300]] #mm
             SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
             SCREEN_RESOLUTION = utils.cr([800, 600])
             FULLSCREEN = True
@@ -638,8 +638,8 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             from visexpA.engine.datahandlers import hdf5io
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction'))
-        self._create_parameters_from_locals(locals())        
-        
+        self._create_parameters_from_locals(locals())
+      
         
 class VS3DUS(RcMicroscopeSetup):
     pass
