@@ -1653,19 +1653,37 @@ class TestScannerControl(unittest.TestCase):
         spatial_resolution = 2
         spatial_resolution = 1.0/spatial_resolution
         position = utils.rc((0, 0))
-        size = utils.rc((1, 10))
+        size = utils.rc((20, 20))
         setting_time = [3e-4, 1e-3]
         frames_to_scan = 1
         pos_x, pos_y, scan_mask, speed_and_accel, result = generate_rectangular_scan(size,  position,  spatial_resolution, frames_to_scan, setting_time, config)
         spectrum = abs(scipy.fft(pos_x))
         fs = 400000.0
         t = numpy.arange(0, scan_mask.shape[0])/fs*1e6
+        #calculate duty cycle, line frequency, flash duration
+        times = numpy.diff(numpy.nonzero(numpy.diff(scan_mask))[0])
+        fline = fs/times[0:2].sum()
+        tline = 1/fline
+        tflash = times[1]/fs
+        duty_cycle = tflash/tline
+        frame_rate = fs/scan_mask.shape[0]
+        print size['row'],  1/spatial_resolution, round(fline), round(tline*1e6), round(tflash*1e6), round(duty_cycle*100), round(frame_rate, 1)        
+        #Generate screen sync signal
+        frq = 200
+        duty_cycle = 0.3
+        screen_sync_signal = numpy.zeros_like(scan_mask)
+        nflashpoints = (1.0/frq*duty_cycle)*fs
+        for phase in range(int(nflashpoints)):
+            screen_sync_signal[phase::fs/frq]=1
         if plot_enable:
             from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title, xlabel
             figure(2)
             plot(t, pos_x)
+            plot(t, pos_y)
+#            plot(t, scan_mask)
             plot(t, scan_mask)
-            legend(['scanner position',  'valid data'])
+            plot(t, screen_sync_signal)
+#            legend(['scanner position',  'valid data'])
             xlabel('t [us]')
             show()
 

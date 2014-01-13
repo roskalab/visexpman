@@ -108,7 +108,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
             while self.loop_state == 'running':
                 self.clear_screen_to_background()
                 self.refresh_non_experiment_screen(flip = False)
-                if hasattr(self.experiment_config, 'pre_runnable') and self.experiment_config.pre_runnable is not None:
+                if hasattr(self.experiment_config, 'pre_runnable') and self.experiment_config.pre_runnable is not None and not isinstance(self.experiment_config.pre_runnable,str):
                     self.experiment_config.pre_runnable.run()
                 self.user_interface_handler()
                 result = self.parse()
