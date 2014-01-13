@@ -45,7 +45,7 @@ class RibbonScanScene(visexpman.engine.generic.graphics.Screen):
         self.heading = -10.0
         self.roll = -20.0
         self.pitch = -50.0
-        self.scale = 1.7
+        self.scale = 1.4
         h = hdf5io.Hdf5io(self.filename, filelocking= False)
         scanner_trajectory = h.findvar('scanner_trajectory')
         g = h.findvar('pre_scan')
@@ -59,7 +59,7 @@ class RibbonScanScene(visexpman.engine.generic.graphics.Screen):
         h.close()
         #Draw 2d image
         n = scanner_trajectory.shape[0]
-        resample_rate = 10.0
+        resample_rate = 0.1
         resampled_scanner_trajectory_r = numpy.interp(numpy.arange(n*resample_rate)/(n*resample_rate), numpy.arange(n)/float(n), scanner_trajectory['row'])
         resampled_scanner_trajectory_c = numpy.interp(numpy.arange(n*resample_rate)/(n*resample_rate), numpy.arange(n)/float(n), scanner_trajectory['col'])
         resampled_scanner_trajectory = utils.cr(numpy.array([resampled_scanner_trajectory_c, resampled_scanner_trajectory_r]))
@@ -148,16 +148,17 @@ def visualize_xz_scan(filename):
     g.close_screen()
 
 if __name__=='__main__':
-    f = '/home/rz/Downloads/fragment_xz_north_170812_31_-138_-140.0_MovingGratingNoMarching_1345193761_0.hdf5'
-    basepath = "/mnt/databig/data/"
-    dirs,  files = file.find_files_and_folders(basepath,  extension = 'hdf5', filter = 'fragmeent_xz')
+    files = ['/mnt/databu0/20121031/fragment_xz_maste_middle_310112_-9_0_-130.0_MovingGratingNoMarching_1351702018_0.hdf5']
+    #basepath = "/mnt/databig/data/"
+    #dirs,  files = file.find_files_and_folders(basepath,  extension = 'hdf5', filter = 'fragmeent_xz')
     for f in files:
         if "fragment_xz" in f:
             try:
                 print f
                 visualize_xz_scan(f)
                 break
-            except:
-                print "error " + f
+            except Exception as e:
+                print  f
+                print e
                 pass
 #            break

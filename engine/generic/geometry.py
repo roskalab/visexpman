@@ -116,8 +116,6 @@ def Haffine_from_points(fp,tp):
     
 def procrustes(X, Y, scaling=True, reflection='best'):
     """
-    A port of MATLAB's `procrustes` function to Numpy.
-
     Procrustes analysis determines a linear transformation (translation,
     reflection, orthogonal rotation and scaling) of the points in Y to best
     conform them to the points in matrix X, using the sum of squared errors
@@ -636,15 +634,16 @@ def rotate_vector(vector, angle):
     vector_matrix = vector_matrix.transpose()
     return numpy.squeeze(numpy.asarray((rotation_matrix_x * rotation_matrix_y * rotation_matrix_z * vector_matrix).transpose()))
 
-def rotate_around_center(inarray, angle, center=None,  reshape=False):
+def rotate_around_center(inarray, angle, center=None, reshape=False):
     '''Extends rotate function of scipy with user definable center. Uses larger image with NaN values
     to prevent data loss. NaNs are converted to a mask at the end'''
     if angle > numpy.pi*2:
         print('Warning:angle is greater than 2*Pi, angle should be supplied as radians')
     if hasattr(inarray, 'size') and inarray.size>2:
+        origin = numpy.array(inarray.shape)/2
         if center is not None:
             i_dbg=inarray.copy()
-            cshift = numpy.array(inarray.shape)/2-nd(center)
+            cshift = origin-nd(center)
             if numpy.any(cshift!=0):
                 bord = numpy.ceil(numpy.abs(cshift))
                 ext_im = numpy.nan*numpy.ones(inarray.shape+bord*2) #larger image in all directions, shift will not loose data and center remains
@@ -728,6 +727,7 @@ def centered_rigid_transform2d(data,  **kwargs):
     debug = kwargs.get('debug', 0)
     origin = kwargs.get('origin', None)
     center = kwargs.get('center', None)
+    reshape = kwargs.get('reshape',False)
     adata = numpy.array(data)
     if adata.size==2: # single point
         if origin is None:
@@ -752,7 +752,7 @@ def centered_rigid_transform2d(data,  **kwargs):
         if center is None:
             center = origin
         if 1:
-            res = rotate_around_center(adata, angle, origin,  reshape=kwargs.get('reshape', False))
+            res = rotate_around_center(adata, angle, center, reshape=reshape)
             offset = calc_offset(angle, center, translation, origin)
             if debug:
                 from visexpA.engine.datadisplay.imaged import imshow
