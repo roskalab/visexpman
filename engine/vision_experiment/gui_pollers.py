@@ -2074,12 +2074,38 @@ class BehavioralTesterPoller(Poller):
             self.pi.start()
         except:
             pass
+        if hasattr(self.config, 'VALVE_COMPORT'):
+            import serial
+            self.valve_serialport = serial.Serial(self.config.VALVE_COMPORT)
+            self.close_valve()
 
     def periodic(self):
         if hasattr(self, 'pi') and not self.pi.queues['0'].empty():
             self.printc('{0}'.format(self.pi.queues['0'].get()))
+    
+    def open_valve_for_a_time(self):
+        try:
+            open_time = float(self.parent.open_valve_for_a_time.input.input.text())
+            self.open_valve()
+            time.sleep(1e-3*open_time)
+            self.close_valve()
+            self.printc('Valve opened for {} ms'.format(open_time))
+        except ValueError:
+            self.printc('Provide numeric value as value open time')
+        
+        
+            
+    def open_valve(self):
+        self.valve_serialport.setRTS(True)
+        self.printc('Valve opened')
+        
+    def close_valve(self):
+        self.valve_serialport.setRTS(False)
+        self.printc('Valve closed')
 
     def close(self):
+        if hasattr(self, 'valve_serialport'):
+            self.valve_serialport.close()
         if hasattr(self, 'pi'):
             self.pi.command_queue.put('TERMINATE')
             self.pi.join()

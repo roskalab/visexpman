@@ -81,6 +81,8 @@ class Photointerrrupter(threading.Thread):
                     self.queues[id].put((now, self.state[id]))
             time.sleep(5e-3)
             
+
+            
 class TestConfig(object):
     def __init__(self):
         self.SERIAL_DIO_PORT = 'COM3'

@@ -82,6 +82,28 @@ class LabeledComboBox(QtGui.QWidget):
         self.layout.addWidget(self.labelw, 0, 0)
         self.layout.addWidget(self.input, 0, 1)
         self.setLayout(self.layout)
+        
+class PushButtonWithParameter(QtGui.QWidget):
+    '''
+    Default value in input field:
+        self.input.setText(TEXT)
+    '''
+    def __init__(self, parent, buttonname, parametername):
+        QtGui.QWidget.__init__(self, parent)
+        self.parametername = parametername
+        self.buttonname = buttonname
+        self.create_widgets()
+        self.create_layout()
+
+    def create_widgets(self):
+        self.input = LabeledInput(self, self.parametername)
+        self.button = QtGui.QPushButton(self.buttonname, self)
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.input, 0, 1, 1, 2)
+        self.layout.addWidget(self.button, 0, 0)
+        self.setLayout(self.layout)
 
 def load_experiment_config_names(config, widget):
     '''

@@ -17,6 +17,7 @@ from visexpman.engine.generic import file
 from visexpman.engine.generic import log
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.vision_experiment import gui
+from visexpman.engine.generic import gui as gui_generic
 from visexpman.engine.vision_experiment import gui_pollers
 from visexpman.engine.hardware_interface import digital_io
 
@@ -174,17 +175,23 @@ class SerialportPulseGenerator(SmallApp):
             
 class BehavioralTester(SmallApp):
     def create_gui(self):
-        pass
+        self.open_valve_for_a_time = gui_generic.PushButtonWithParameter(self, 'Open valve', 'Open time [ms]')
+        self.open_valve = QtGui.QPushButton('Open valve',  self)
+        self.close_valve = QtGui.QPushButton('Close valve',  self)
         
     def create_layout(self):
-        pass
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.text_out, 0, 0, 1, 10)
+        self.layout.addWidget(self.open_valve_for_a_time, 0, 0, 1, 7)
+        self.layout.addWidget(self.open_valve, 1, 0, 1, 1)
+        self.layout.addWidget(self.close_valve, 1, 1, 1, 1)
+        self.layout.addWidget(self.text_out, 2, 0, 1, 10)
         self.setLayout(self.layout)
         
     def connect_signals(self):
         self.signal_mapper = QtCore.QSignalMapper(self)
-#        self.connect_and_map_signal(self.flowmeter.stop_button, 'stop_measurement')
+        self.connect_and_map_signal(self.open_valve_for_a_time.button, 'open_valve_for_a_time')
+        self.connect_and_map_signal(self.open_valve, 'open_valve')
+        self.connect_and_map_signal(self.close_valve, 'close_valve')
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
 
 def run_gui():
