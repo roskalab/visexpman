@@ -49,7 +49,8 @@ class Poller(QtCore.QThread):
     Generic poller thread that receives commands via queues and executes them. Additionally can access gui
     '''
     #Initializing, loader methods
-    def __init__(self, parent):
+    def __init__(self, parent, testmode=False):
+        self.testmode=testmode
         self.signal_id_queue = Queue.Queue() #signal parameter is passed to handler
         self.parent = parent
         self.config = self.parent.config
@@ -132,8 +133,14 @@ class Poller(QtCore.QThread):
             time.sleep(0.1) 
         return self.gui_thread_queue.get()
         
-    def ask4filename(self, directory):
-        self.emit(QtCore.SIGNAL('ask4filename'),directory)
+    def ask4filename(self, title, directory, filter):
+        self.emit(QtCore.SIGNAL('ask4filename'),title, directory, filter)
+        while self.gui_thread_queue.empty() :
+            time.sleep(0.1) 
+        return self.gui_thread_queue.get()
+    
+    def notify_user(self, message):
+        self.emit(QtCore.SIGNAL('notify_user'), message)
         while self.gui_thread_queue.empty() :
             time.sleep(0.1) 
         return self.gui_thread_queue.get()
@@ -2649,8 +2656,8 @@ class CaImagingPoller(Poller):
         return ai_channel, enabled_channels
         
 class VisexpGuiPoller(Poller):
-    def __init__(self, parent):
-        Poller.__init__(self, parent)
+    def __init__(self, parent, testmode=None):
+        Poller.__init__(self, parent, testmode=testmode)
         self.config = parent.config
         self.init_variables()
         self.load_context()
@@ -2669,8 +2676,10 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
         self.connect(self, QtCore.SIGNAL('ask4confirmation'),  self.parent.ask4confirmation)
         self.connect(self, QtCore.SIGNAL('ask4filename'),  self.parent.ask4filename)
+        self.connect(self, QtCore.SIGNAL('notify_user'),  self.parent.notify_user)
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar'),  self.parent.set_experiment_progressbar)
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar_range'),  self.parent.set_experiment_progressbar_range)
+        self.connect(self, QtCore.SIGNAL('set_experiment_names'),  self.parent.set_experiment_names)
         
     def load_context(self):
         if os.path.exists(self.config.CONTEXT_FILE):
@@ -2734,6 +2743,8 @@ class VisexpGuiPoller(Poller):
             self.emit(QtCore.SIGNAL('set_experiment_progressbar'), elapsed_time)
         else:
             self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
+        #Call test helper
+        self.test()            
 
     def handle_commands(self):
         try:
@@ -2875,6 +2886,18 @@ class VisexpGuiPoller(Poller):
         time.sleep(0.5)                
         self.command_relay_server.shutdown_servers()
         self.save_context()
+        
+    def test(self):
+        if hasattr(self, 'test_run'):
+            return
+        self.test_run=True
+        if self.testmode==1:
+            self.notify_user('Select test_stimulus.py module.\nClose window to proceed to next test.')
+            self.signal_id_queue.put('experiment_control.browse')
+            
+    ##### Relaying signals #####
+    def set_experiment_names(self, experiment_names):
+        self.emit(QtCore.SIGNAL('set_experiment_names'),experiment_names)
 
 if __name__ == '__main__':
     pass

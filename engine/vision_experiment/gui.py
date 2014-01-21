@@ -2,6 +2,8 @@
 vision_experiment.gui implements widgets that build up the user interface of vision experiment manager applciations. Some widgets are used in multiple applications.
 '''
 
+import os
+import os.path
 import numpy
 import datetime
 
@@ -11,7 +13,9 @@ import PyQt4.QtCore as QtCore
 
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
+from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import gui
+from visexpman.engine.generic import file
 
 BUTTON_HIGHLIGHT = 'color: red'#TODO: this has to be eliminated
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -173,15 +177,31 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.setLayout(self.layout)
         
 class ExperimentControl(gui.WidgetControl):
-    def browse(self):
-        import sys
-        import os.path
-        user_folder = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', self.config.user)
-        self.user_selected_stimulation_module = self.poller.ask4filename(user_folder)
-        from visexpman.engine.vision_experiment import experiment
-        self.printc(experiment.parse_stimulation_file(self.user_selected_stimulation_module))
-        
+    '''
+    This class handles all experiment configuration/control related operation and stores related data.
+    Experiment configuration/parameter handling:
+        At software start all the python modules in user folder parsed (subfolders not). 
+        A database is built containing parameter names and values for each experiment configuration class. This data
+        is displayed on the experiment control widget (experiment names) and experiment parameters groupbox where
+        user can edit the values.
+    '''
+    def __init__(self, poller, config, widget):
+        gui.WidgetControl.__init__(self, poller, config, widget)
+        #find all python module in user folder and load users's all experiment configs and parameters
+        self.experiment_config_classes = {}
+        user_folder = file.get_user_folder(self.config)
+        for python_module in [os.path.join(user_folder, fn) for fn in os.listdir(user_folder) if fn.split('.')[-1] == 'py']:
+            self.experiment_config_classes.update(experiment.parse_stimulation_file(python_module))
+        self.poller.set_experiment_names(self.experiment_config_classes.keys())
     
+    def browse(self):
+        user_folder = file.get_user_folder(self.config)
+        self.user_selected_stimulation_module = self.poller.ask4filename('Select stimulation file', user_folder,  '*.py')
+        if os.path.exists(self.user_selected_stimulation_module):#Parses files unless cancel pressed on file dialog box
+            self.experiment_config_classes = experiment.parse_stimulation_file(self.user_selected_stimulation_module)
+            #Update list of experiment names with the experiment config names in selected module in filename/experiment_config_name format
+            self.poller.set_experiment_names([os.path.join(os.path.split(self.user_selected_stimulation_module)[1], experiment_config_name) for experiment_config_name in self.experiment_config_classes.keys()])
+
     def start_experiment(self):
         '''
         
@@ -238,10 +258,16 @@ class ExperimentParametersGroupBox(QtGui.QGroupBox):
         self.create_layout()
 
     def create_widgets(self):
-        pass
+        self.button_names = ['Reload from file',  'Save current values']
+        for button_name in self.button_names:
+            setattr(self, button_name, QtGui.QPushButton(button_name,  self))
+        self.values = gui.ParameterTable(self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
+        for i in range(len(self.button_names)):
+            self.layout.addWidget(getattr(self, self.button_names[i]), 0, i)
+        self.layout.addWidget(self.values, 1, 0, 1, len(self.button_names))
         self.setLayout(self.layout)
 
 class AnimalParametersWidget(QtGui.QWidget):

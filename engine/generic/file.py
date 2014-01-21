@@ -530,6 +530,9 @@ def parse_fragment_filename(path):
 
 def get_visexpman_module_path():
     return os.path.split(sys.modules['visexpman'].__file__)[0]
+    
+def get_user_folder(config):
+    return os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', config.user)
 
 import unittest
 class TestUtils(unittest.TestCase):

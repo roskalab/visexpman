@@ -104,6 +104,20 @@ class PushButtonWithParameter(QtGui.QWidget):
         self.layout.addWidget(self.input, 0, 1, 1, 2)
         self.layout.addWidget(self.button, 0, 0)
         self.setLayout(self.layout)
+        
+class ParameterTable(QtGui.QTableWidget):
+    def __init__(self, parent):
+        QtGui.QTableWidget.__init__(self, parent)
+        self.setColumnCount(2)
+        self.setHorizontalHeaderLabels(QtCore.QStringList(['Parameter name', 'value']))
+        self.verticalHeader().setDefaultSectionSize(20)
+        
+    def set_values(self, parameters):
+        self.setRowCount(len(parameters))
+        self.setVerticalHeaderLabels(QtCore.QStringList(len(parameters.keys())*['']))
+        for row in range(len(parameters.keys())):
+            self.setItem(row, 0, QtGui.QTableWidgetItem(str(parameters.keys()[row])))
+            self.setItem(row, 1, QtGui.QTableWidgetItem(str(parameters[parameters.keys()[row]])))
 
 def load_experiment_config_names(config, widget):
     '''

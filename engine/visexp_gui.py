@@ -988,12 +988,17 @@ class MainWidget(QtGui.QWidget):
         self.experiment_options_groupbox = gui.RetinalExperimentOptionsGroupBox(self)
         self.experiment_options_groupbox.setFixedWidth(350)
         self.experiment_options_groupbox.setFixedHeight(100)
+        self.experiment_parameters = gui.ExperimentParametersGroupBox(self)
+        self.experiment_parameters.setFixedWidth(350)
+        self.experiment_parameters.setFixedHeight(400)
+        self.experiment_parameters.values.setColumnWidth(0, 200)
         self.network_status = QtGui.QLabel('', self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
         self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 1, 1)
+        self.layout.addWidget(self.experiment_parameters, 0, 1, 3, 1)
         self.layout.addWidget(self.network_status, 2, 0, 1, 1)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
@@ -1027,7 +1032,7 @@ class CentralWidget(QtGui.QWidget):
         self.setLayout(self.layout)
         
 class VisionExperimentGui(Qt.QMainWindow):
-    def __init__(self, user, config_class, appname):
+    def __init__(self, user, config_class, appname, testmode=None):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = configuration.VisionExperimentConfig,direct = False)[0][1]()
@@ -1039,12 +1044,14 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.setWindowTitle('{0} - {1} - {2}' .format(appname, user, config_class))
         self.create_widgets()
         self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
-        self.poller = gui_pollers.VisexpGuiPoller(self)
+        self.poller = gui_pollers.VisexpGuiPoller(self, testmode=testmode)
+        self.block_widgets(True)
         self.init_variables()
         self.connect_signals()
         self.poller.start()
         self.show()
         self.init_widget_content()
+        self.block_widgets(False)
         if qt_app is not None: qt_app.exec_()
         
     def create_widgets(self):
@@ -1055,9 +1062,12 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.console_text = ''
         
     def init_widget_content(self):
-        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
+        pass
+#        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
+        self.connect(self.central_widget.main_widget.experiment_control_groupbox.experiment_name, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.experiment_name_changed)
+        #Signals mapped to poller functions
         self.signal_mapper = QtCore.QSignalMapper(self)
         widget2poller_function = [[self.central_widget.main_widget.experiment_control_groupbox.start_experiment_button, 'experiment_control.start_experiment'],
                                   [self.central_widget.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment'],
@@ -1066,6 +1076,12 @@ class VisionExperimentGui(Qt.QMainWindow):
         for item in widget2poller_function:
             gui_generic.connect_and_map_signal(self, item[0],item[1])
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
+        
+    def block_widgets(self,  block):
+        if not hasattr(self, 'blocked_widgets'):
+            self.blocked_widgets =  [self.central_widget.main_widget.experiment_control_groupbox.experiment_name, 
+                                     ]
+        [w.blockSignals(block) for w in self.blocked_widgets]
         
     def printc(self, text):
         if not isinstance(text, str):
@@ -1082,6 +1098,14 @@ class VisionExperimentGui(Qt.QMainWindow):
         e.accept()
         self.poller.abort = True
         self.poller.wait()
+    ################# GUI events ####################
+    def experiment_name_changed(self):
+        experiment_config_name = os.path.split(str(self.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText()))[-1]
+        pars = {}
+        for par in self.poller.experiment_control.experiment_config_classes[experiment_config_name]:
+            parname = (par.split('='))[0]
+            pars[parname]= (par.split('='))[1]
+        self.central_widget.main_widget.experiment_parameters.values.set_values(pars)
         
     ################# Pop up dialoges ####################
     def ask4confirmation(self, action2confirm):
@@ -1092,10 +1116,15 @@ class VisionExperimentGui(Qt.QMainWindow):
         else:
             self.poller.gui_thread_queue.put(True)
             
-    def ask4filename(self,directory):
+    def ask4filename(self,title, directory, filter):
         utils.empty_queue(self.poller.gui_thread_queue)
-        fd = QtGui.QFileDialog(self,directory = directory)
-        self.poller.gui_thread_queue.put(str(fd.getOpenFileName()))
+        filename = QtGui.QFileDialog.getOpenFileName(self, title, directory, filter)
+        self.poller.gui_thread_queue.put(str(filename))
+        
+    def notify_user(self, message):
+        utils.empty_queue(self.poller.gui_thread_queue)
+        QtGui.QMessageBox.question(self, 'Confirm following action', message, QtGui.QMessageBox.Ok)
+        self.poller.gui_thread_queue.put(True)
         
     def set_experiment_progressbar(self, value, attribute='setValue'):
         self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(value)
@@ -1103,13 +1132,26 @@ class VisionExperimentGui(Qt.QMainWindow):
     def set_experiment_progressbar_range(self, max_value):
         self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, max_value)
         
+    def set_experiment_names(self, experiment_names):
+        self.central_widget.main_widget.experiment_control_groupbox.experiment_name.blockSignals(True)
+        self.central_widget.main_widget.experiment_control_groupbox.experiment_name.clear()
+        self.central_widget.main_widget.experiment_control_groupbox.experiment_name.blockSignals(False)
+        self.central_widget.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_names))
+        
 def run_cortical_gui():
     app = Qt.QApplication(sys.argv)
     gui = CorticalVisionExperimentGui(sys.argv[1], sys.argv[2])
     app.exec_()
     
+import unittest
+class testVisionExperimentGui(unittest.TestCase):
+    def test_01_select_stimfile(self):
+        gui =  VisionExperimentGui('zoltan', 'CaImagingTestConfig', 'elphys', testmode=None)
+    
 if __name__ == '__main__':
-    if True:
+    if len(sys.argv) ==1:
+        unittest.main()
+    elif True:
         if len(sys.argv) == 2:
             gui =  VisionExperimentGui('zoltan', 'CaImagingTestConfig', sys.argv[1])
     else:

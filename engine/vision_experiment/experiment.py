@@ -204,7 +204,7 @@ def parse_stimulation_file(filename):
     Only the values defined in the class itself are fetched, parameters from ancestors are ignored
     '''
     if file.file_extension(filename) != 'py':
-        raise RuntimeError('Warning: files only with py extension can be selected')
+        raise RuntimeError('Files only with py extension can be selected')
     source_code = file.read_text_file(filename)
     introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
     experiment_module = __import__('experiment_module')
