@@ -74,6 +74,16 @@ class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
 #        self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())
         
+class MovingGratingAdrian(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.GRATING_STAND_TIME = 0.5#after
+        self.MARCH_TIME = 3.0#before
+        self.PAUSE_BEFORE_AFTER = 1.0
+        self.REPEATS = 5
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+        
+        
 class MovingGratingNoMarchingBlackPreConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing

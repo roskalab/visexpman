@@ -329,9 +329,16 @@ class VisionExperimentGui(QtGui.QWidget):
     def update_animal_parameter_display(self):
         if hasattr(self.poller, 'animal_parameters'):
             animal_parameters = self.poller.animal_parameters
-            self.animal_parameters_str = '{6}, {2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}'\
+            if not animal_parameters.has_key('both_channels'):
+                channel = ''
+            elif animal_parameters['both_channels']:
+                channel = 'both'
+            else:
+                channel = 'green'
+            self.animal_parameters_str = '{6}, {2}, birth date: {0}, injection date: {1}, punch lr: {3},{4}, {5}, {7}'\
             .format(animal_parameters['mouse_birth_date'], animal_parameters['gcamp_injection_date'], animal_parameters['strain'], 
-                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'], animal_parameters['id'])
+                    animal_parameters['ear_punch_l'], animal_parameters['ear_punch_r'], animal_parameters['gender'], animal_parameters['id'],
+                    channel)
             self.main_widget.scan_region_groupbox.animal_parameters_label.setText(self.animal_parameters_str)
             
     def update_region_names_combobox(self, selected_region = None):

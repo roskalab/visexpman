@@ -17,11 +17,11 @@ class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
         self.ON_TIME = 0.5*2
         self.OFF_TIME = 0.5*2
         self.PAUSE_BEFORE_AFTER = 2.0
-        self.REPEATS = 1
+        self.REPEATS = 3
         self.ENABLE_ZOOM = False 
         self.SELECTED_POSITION = 1
         self.ZOOM_MESH_XY = utils.rc((3,3))
-        self.ENABLE_RANDOM_ORDER =not False
+        self.ENABLE_RANDOM_ORDER = True
         self.runnable='ReceptiveFieldExplore'
         self.pre_runnable='BlackPre'
         self._create_parameters_from_locals(locals())

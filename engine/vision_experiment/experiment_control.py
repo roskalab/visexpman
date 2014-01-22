@@ -241,7 +241,12 @@ class ExperimentControl(object):
         if self.config.PLATFORM == 'mes':
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
-            if self.config.IMAGING_CHANNELS == 'both':
+            if self.config.IMAGING_CHANNELS == 'from_animal_parameter':
+                if self.animal_parameters['both_channels']:
+                    channels = 'both'
+                else:
+                    channels = None
+            elif self.config.IMAGING_CHANNELS == 'both':
                 channels = 'both'
             else :
                 channels = None
@@ -262,7 +267,7 @@ class ExperimentControl(object):
                     if hasattr(self, 'scan_region'):
                         self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
                 scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
-                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)               
+                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
             if scan_start_success:
                 time.sleep(1.0)
             else:

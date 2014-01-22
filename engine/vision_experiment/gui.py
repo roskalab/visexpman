@@ -284,6 +284,8 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.comments = QtGui.QComboBox(self)
         self.comments.setEditable(True)
         self.comments.setToolTip('Add comment')
+        self.imaging_channel_label = QtGui.QLabel('Record red and green channels?',  self)
+        self.imaging_channel_checkbox = QtGui.QCheckBox(self)
         self.new_mouse_file_button = QtGui.QPushButton('Create new mouse file',  self)
         self.anesthesia_history_groupbox = AnesthesiaHistoryGroupbox(self)
         
@@ -307,9 +309,11 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.layout.addWidget(self.green_labeling, 5, 1)
         self.layout.addWidget(self.red_labeling_label, 5, 2)
         self.layout.addWidget(self.red_labeling, 5, 3)
-        self.layout.addWidget(self.comments, 6, 0, 1, 3)
-        self.layout.addWidget(self.new_mouse_file_button, 7, 0, 1, 2)
-        self.layout.addWidget(self.anesthesia_history_groupbox, 8, 0, 2, 4)
+        self.layout.addWidget(self.imaging_channel_label, 6, 0, 1, 2)
+        self.layout.addWidget(self.imaging_channel_checkbox, 6, 2, 1, 1)
+        self.layout.addWidget(self.comments, 7, 0, 1, 3)
+        self.layout.addWidget(self.new_mouse_file_button, 8, 0, 1, 2)
+        self.layout.addWidget(self.anesthesia_history_groupbox, 9, 0, 2, 4)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
@@ -1579,7 +1583,8 @@ class MainPoller(Poller):
             'green_labeling' : str(self.parent.animal_parameters_widget.green_labeling.currentText()),
             'red_labeling' : str(self.parent.animal_parameters_widget.red_labeling.currentText()),
             'comments' : str(self.parent.animal_parameters_widget.comments.currentText()),
-            'add_date' : utils.datetime_string().replace('_', ' ')
+            'add_date' : utils.datetime_string().replace('_', ' '),
+            'both_channels': (self.parent.animal_parameters_widget.imaging_channel_checkbox.checkState() == 2)
         }        
         name = '{0}_{1}_{2}_{3}_{4}_{5}' .format(self.animal_parameters['id'], self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
                                          self.animal_parameters['ear_punch_l'], self.animal_parameters['ear_punch_r'])

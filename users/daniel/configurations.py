@@ -513,7 +513,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             SCREEN_MAX_FRAME_RATE = 1/50e-3
             ULED_SERIAL_PORT = 'COM4'
         else:
-            SCREEN_DISTANCE_FROM_MOUSE_EYE = [320.0, [0, 300]] #mm
+            SCREEN_DISTANCE_FROM_MOUSE_EYE = [150.0, [0, 300]] #mm
             SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
             SCREEN_RESOLUTION = utils.cr([800, 600])
             FULLSCREEN = True
@@ -630,7 +630,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             'transfermode': 'file'
                                      }
         GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
-        IMAGING_CHANNELS = 'default'#'both'
+        IMAGING_CHANNELS = 'from_animal_parameter'#'default'#'both', 'from_animal_parameter'
         BLACK_SCREEN_DURING_PRE_SCAN = True
         TEXT_COLOR = [0.3,0.0,0.0]
         gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical.hdf5')
