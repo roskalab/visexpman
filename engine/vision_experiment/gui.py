@@ -16,6 +16,8 @@ from visexpA.engine.datadisplay.plot import Qt4Plot
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import gui
 from visexpman.engine.generic import file
+from visexpman.engine.generic import stringop
+from visexpman.engine.generic import introspect
 
 BUTTON_HIGHLIGHT = 'color: red'#TODO: this has to be eliminated
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -185,23 +187,101 @@ class ExperimentControl(gui.WidgetControl):
         is displayed on the experiment control widget (experiment names) and experiment parameters groupbox where
         user can edit the values.
     '''
-    def __init__(self, poller, config, widget):
+    def __init__(self, poller, config, widget, paramwidget):
+        self.paramwidget = paramwidget
         gui.WidgetControl.__init__(self, poller, config, widget)
         #find all python module in user folder and load users's all experiment configs and parameters
         self.experiment_config_classes = {}
-        user_folder = file.get_user_folder(self.config)
-        for python_module in [os.path.join(user_folder, fn) for fn in os.listdir(user_folder) if fn.split('.')[-1] == 'py']:
-            self.experiment_config_classes.update(experiment.parse_stimulation_file(python_module))
-        self.poller.set_experiment_names(self.experiment_config_classes.keys())
-    
+        self._load_experiment_config_parameters(file.get_user_folder(self.config))
+        
+    ################# Experiment config parameters ####################
     def browse(self):
         user_folder = file.get_user_folder(self.config)
         self.user_selected_stimulation_module = self.poller.ask4filename('Select stimulation file', user_folder,  '*.py')
         if os.path.exists(self.user_selected_stimulation_module):#Parses files unless cancel pressed on file dialog box
-            self.experiment_config_classes = experiment.parse_stimulation_file(self.user_selected_stimulation_module)
-            #Update list of experiment names with the experiment config names in selected module in filename/experiment_config_name format
-            self.poller.set_experiment_names([os.path.join(os.path.split(self.user_selected_stimulation_module)[1], experiment_config_name) for experiment_config_name in self.experiment_config_classes.keys()])
+            self._load_experiment_config_parameters(self.user_selected_stimulation_module)
 
+    def _load_experiment_config_parameters(self, filename):
+        '''
+        If filename is a directory, all py files are with experiment config are loaded and the config names are put to experiment names dropdown box
+        Otherwise the experiment configurations within the provided py file are put to experiment names dropdown box in the following format:
+        filename/experiment config name
+        '''
+        if os.path.isdir(filename):
+            self.experiment_config_classes = {}
+            for python_module in [os.path.join(filename, fn) for fn in os.listdir(filename) if fn.split('.')[-1] == 'py']:
+                new_expconf_classes = experiment.parse_stimulation_file(python_module)
+                if any([origexpconfs in new_expconf_classes.keys() for origexpconfs in self.experiment_config_classes.keys()]):
+                    raise RuntimeError('Redundant experiment config class name. Check {0}.' .format(python_module))
+                else:                    
+                    self.experiment_config_classes.update(experiment.parse_stimulation_file(python_module))
+            self.poller.set_experiment_names(self.experiment_config_classes.keys())
+        else:
+            self.experiment_config_classes = experiment.parse_stimulation_file(filename)
+            #Update list of experiment names with the experiment config names in selected module in filename/experiment_config_name format
+            self.poller.set_experiment_names([os.path.join(filename, experiment_config_name) for experiment_config_name in self.experiment_config_classes.keys()])
+
+    def reload_experiment_parameters(self):
+        '''
+        Reload experiment configuration parameters with their values from corresponding file
+        '''
+        if hasattr(self, 'user_selected_stimulation_module'):
+            filename = self.user_selected_stimulation_module
+        else:
+            filename = file.get_user_folder(self.config)
+        self._load_experiment_config_parameters(filename)
+
+    def save_experiment_parameters(self):
+        #Find out filename and config class name
+        configname = str(self.widget.experiment_name.currentText())
+        if len(os.path.split(configname)[0]) > 0:#configname string is in this format: file path/experiment config name
+            filename = os.path.split(configname)[0]
+            configname = os.path.split(configname)[1]
+        else:
+            filename = file.find_content_in_folder('class '+configname, file.get_user_folder(self.config), '.py')
+            if len(filename)>1:
+                raise RuntimeError('{0} experiment config found in more than one files'.format(configname))
+            else:
+                filename = filename[0]
+        if not self.poller.ask4confirmation('Do you really want to overwrite {0} file with modified parameters?'.format(filename)):
+            return
+        #Generate source code lines from table parameter values
+        new_section = []
+        from_table = self.paramwidget.values.get_values().items()
+        for k, v in from_table:
+            new_section.append(k+'='+v)
+        #Find lines corresponding to modifed parameters
+        with open(filename) as f:
+            content = f.readlines()
+        lines_to_modify = []
+        for i in range(len(content)):
+            for par in from_table:
+                if par[0] in content[i] and par[1] != content[i].replace(' ', ''):#parameter name matches but value does not
+                    lines_to_modify.append(i+1)#line number is used instead of index to help debug
+            if 'class ' + configname in content[i]:
+                header = i+1
+            elif ('class ' == content[i][:6] or 'def ' == content[i][:4]) and 'header' in locals() and 'footer' not in locals():#Find next class or def declaration after exp config class
+                footer = i+1
+        if 'footer' not in locals():
+            footer = i+1
+        #Replaceble line numbers shall be between header and footer line numbers
+        lines_to_modify = [line for line in lines_to_modify if header < line and footer > line]
+        if len(lines_to_modify) != len(new_section):
+            self.printc(from_table)
+            self.printc(lines_to_modify)
+            self.printc(new_section)
+            raise RuntimeError('Modifiable parameters cannot be found in {0} experiment config declaration. Number of parameters in original experiment config does not match with the number of paramaters to be saved.'.format(configname))
+        #Modify content by replacing lines where parameters are.
+        for i in range(len(lines_to_modify)):
+            content[lines_to_modify[i]-1] = 8*' '+new_section[i]+content[0][-1]#Adding 8 spaces before line (2 levels of indentation), using original file's end of line character
+        content= ''.join(content)
+        #Check for syntax errors
+        introspect.import_code(content,'module_under_test', add_to_sys_modules=0)
+        file.write_text_file(filename, content)
+        #Parse modified file to make parameter table's data consistent
+        self.printc('{1} parameters saved to {0}' .format(filename, configname))
+
+    ################# Experiment execution ####################
     def start_experiment(self):
         '''
         
@@ -258,15 +338,16 @@ class ExperimentParametersGroupBox(QtGui.QGroupBox):
         self.create_layout()
 
     def create_widgets(self):
-        self.button_names = ['Reload from file',  'Save current values']
+        self.button_names = ['Reload',  'Save']
         for button_name in self.button_names:
-            setattr(self, button_name, QtGui.QPushButton(button_name,  self))
+            setattr(self, stringop.to_variable_name(button_name), QtGui.QPushButton(button_name,  self))
         self.values = gui.ParameterTable(self)
+        self.values.setToolTip('Parameter values shall be python syntax compatible:text like values shall be embedded into quotes, use references only to valid variable names')
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         for i in range(len(self.button_names)):
-            self.layout.addWidget(getattr(self, self.button_names[i]), 0, i)
+            self.layout.addWidget(getattr(self, stringop.to_variable_name(self.button_names[i])), 0, i)
         self.layout.addWidget(self.values, 1, 0, 1, len(self.button_names))
         self.setLayout(self.layout)
 

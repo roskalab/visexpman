@@ -2670,7 +2670,9 @@ class VisexpGuiPoller(Poller):
         self.imaging_finished = False
         self.analog_recording_started=False
         #Widget related classes
-        self.experiment_control = gui.ExperimentControl(self, self.config, self.parent.central_widget.main_widget.experiment_control_groupbox)
+        self.experiment_control = gui.ExperimentControl(self, self.config, 
+                                                        self.parent.central_widget.main_widget.experiment_control_groupbox, 
+                                                        self.parent.central_widget.main_widget.experiment_parameters)
         
     def connect_signals(self):
         self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
@@ -2680,6 +2682,7 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar'),  self.parent.set_experiment_progressbar)
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar_range'),  self.parent.set_experiment_progressbar_range)
         self.connect(self, QtCore.SIGNAL('set_experiment_names'),  self.parent.set_experiment_names)
+        self.connect(self, QtCore.SIGNAL('update_experiment_parameter_list'),  self.parent.update_experiment_parameter_list)
         
     def load_context(self):
         if os.path.exists(self.config.CONTEXT_FILE):
@@ -2899,5 +2902,8 @@ class VisexpGuiPoller(Poller):
     def set_experiment_names(self, experiment_names):
         self.emit(QtCore.SIGNAL('set_experiment_names'),experiment_names)
 
+    def update_experiment_parameter_list(self):
+        self.emit(QtCore.SIGNAL('update_experiment_parameter_list'))
+        
 if __name__ == '__main__':
     pass

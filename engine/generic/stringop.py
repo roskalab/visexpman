@@ -88,6 +88,9 @@ def get_recent_file(flist, ref_date = None, mode = 'earlier', interval=numpy.Inf
     elif len(lm)==1: 
         lm=lm[0]
     return numpy.array(flist)[lm], numpy.array(lastmod_date)[lm]
+    
+def to_variable_name(s):
+    return s.lower().replace(' ', '_')
 
 class TestUtils(unittest.TestCase):
     def setUp(self):

@@ -340,6 +340,11 @@ def read_text_file(path):
     txt =  f.read(os.path.getsize(path))
     f.close()
     return txt
+    
+def write_text_file(filename, content):
+    f = open(filename,  'wt')
+    f.write(content)
+    f.close()
 
 def listdir_fullpath(folder):
     files = os.listdir(folder)

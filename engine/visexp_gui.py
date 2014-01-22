@@ -1052,6 +1052,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.show()
         self.init_widget_content()
         self.block_widgets(False)
+        self.printc('start')
         if qt_app is not None: qt_app.exec_()
         
     def create_widgets(self):
@@ -1062,7 +1063,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.console_text = ''
         
     def init_widget_content(self):
-        pass
+        self.update_experiment_parameter_list()
 #        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
@@ -1072,6 +1073,8 @@ class VisionExperimentGui(Qt.QMainWindow):
         widget2poller_function = [[self.central_widget.main_widget.experiment_control_groupbox.start_experiment_button, 'experiment_control.start_experiment'],
                                   [self.central_widget.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment'],
                                   [self.central_widget.main_widget.experiment_control_groupbox.browse_experiment_file_button, 'experiment_control.browse'],
+                                  [self.central_widget.main_widget.experiment_parameters.reload, 'experiment_control.reload_experiment_parameters'],
+                                  [self.central_widget.main_widget.experiment_parameters.save, 'experiment_control.save_experiment_parameters'],
                                   ]
         for item in widget2poller_function:
             gui_generic.connect_and_map_signal(self, item[0],item[1])
@@ -1100,6 +1103,9 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.poller.wait()
     ################# GUI events ####################
     def experiment_name_changed(self):
+        self.update_experiment_parameter_list()
+        
+    def update_experiment_parameter_list(self):
         experiment_config_name = os.path.split(str(self.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText()))[-1]
         pars = {}
         for par in self.poller.experiment_control.experiment_config_classes[experiment_config_name]:
@@ -1133,10 +1139,18 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, max_value)
         
     def set_experiment_names(self, experiment_names):
+        current_experiment_config_name = str(self.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText())
         self.central_widget.main_widget.experiment_control_groupbox.experiment_name.blockSignals(True)
         self.central_widget.main_widget.experiment_control_groupbox.experiment_name.clear()
         self.central_widget.main_widget.experiment_control_groupbox.experiment_name.blockSignals(False)
+        experiment_names.sort()
         self.central_widget.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_names))
+        if current_experiment_config_name in experiment_names:#Retain experiment name in combobox if possible
+            self.central_widget.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_names.index(current_experiment_config_name))
+        if len(experiment_names) == 0:#If no experiment configs found in selected file, erase items from parameter table
+            self.central_widget.main_widget.experiment_parameters.values.set_values({})
+            
+
         
 def run_cortical_gui():
     app = Qt.QApplication(sys.argv)
@@ -1146,7 +1160,14 @@ def run_cortical_gui():
 import unittest
 class testVisionExperimentGui(unittest.TestCase):
     def test_01_select_stimfile(self):
-        gui =  VisionExperimentGui('zoltan', 'CaImagingTestConfig', 'elphys', testmode=None)
+        '''
+        Tests if py module can be opened as a stimfile and experiment configuration parameters can be parsed and displayed
+        '''
+        gui =  VisionExperimentGui('zoltan', 'CaImagingTestConfig', 'elphys', testmode=1)
+        self.assertEqual(('DebugExperimentConfig' in gui.poller.experiment_control.experiment_config_classes.keys(), 
+                          gui.central_widget.main_widget.experiment_parameters.values.rowCount(), 
+                          'test_stimulus.py' in gui.poller.experiment_control.user_selected_stimulation_module), 
+                          (True, 1, True))
     
 if __name__ == '__main__':
     if len(sys.argv) ==1:

@@ -106,6 +106,9 @@ class PushButtonWithParameter(QtGui.QWidget):
         self.setLayout(self.layout)
         
 class ParameterTable(QtGui.QTableWidget):
+    '''
+    A special QTable with two columns: first holds the parameter names, the second holds the corresponding parameter values
+    '''
     def __init__(self, parent):
         QtGui.QTableWidget.__init__(self, parent)
         self.setColumnCount(2)
@@ -113,15 +116,30 @@ class ParameterTable(QtGui.QTableWidget):
         self.verticalHeader().setDefaultSectionSize(20)
         
     def set_values(self, parameters):
+        '''
+        Sets the content of the table.
+        parameters: dictionary: keys: parameter names, values: parameter values.
+        '''
+        self.parameters = parameters
         self.setRowCount(len(parameters))
         self.setVerticalHeaderLabels(QtCore.QStringList(len(parameters.keys())*['']))
         for row in range(len(parameters.keys())):
             self.setItem(row, 0, QtGui.QTableWidgetItem(str(parameters.keys()[row])))
             self.setItem(row, 1, QtGui.QTableWidgetItem(str(parameters[parameters.keys()[row]])))
+            
+    def get_values(self):
+        '''
+        Return values of table in a dictionary format
+        '''
+        current_values = {}
+        for row in range(self.rowCount()):
+            current_values[str(self.item(row,0).text())] = str(self.item(row,1).text())
+        return current_values
 
 def load_experiment_config_names(config, widget):
     '''
     Loads all experiment config names and adds them to a dropdown widget
+    OBSOLETE
     '''
     if hasattr(config, 'user'):
         import visexpman

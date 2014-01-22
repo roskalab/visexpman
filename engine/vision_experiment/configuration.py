@@ -49,7 +49,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             self.PAR_p =   
             
             parameters that the user need to define: (This is a way to force users to create their configs carefully
-            EXPERIMENT_CONFIG = 'TestExperimentConfig'
+            EXPERIMENT_CONFIG = 'TestExperimentConfig' - OBSOLETE
             LOG_PATH = '/media/Common/visexpman_data'
             EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
             EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
@@ -577,8 +577,7 @@ class testApplicationConfiguration(unittest.TestCase):
         
     def test_06_check_default_visexp_config(self):
         t = VisionExperimentConfig()
-        self.assertEqual((hasattr(t, 'EXPERIMENT_CONFIG'),
-                          hasattr(t, 'LOG_PATH'),
+        self.assertEqual((hasattr(t, 'LOG_PATH'),
                           hasattr(t, 'EXPERIMENT_LOG_PATH'),
                           hasattr(t, 'EXPERIMENT_DATA_PATH'),
                           hasattr(t, 'CAPTURE_PATH'),
@@ -594,7 +593,7 @@ class testApplicationConfiguration(unittest.TestCase):
                           t.ENABLE_FILTERWHEEL, 
                           t.ENABLE_SHUTTER, 
                           ),
-                         (False, False, False, False, False, False, False, utils.rc((numpy.inf, numpy.inf)), 'undefined', 'undefined', 'undefined', False, False, False, False, False))
+                         (False, False, False, False, False, False, utils.rc((numpy.inf, numpy.inf)), 'undefined', 'undefined', 'undefined', False, False, False, False, False))
         
 
 
