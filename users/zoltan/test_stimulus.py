@@ -61,13 +61,20 @@ class WhiteNoiseExperiment(experiment.Experiment):
             n_on_pixels = self.experiment_config.N_WHITE_PIXELS)
         self.show_fullscreen()
 
+class GUITestExperimentConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'Debug'
+        self.PAR2=2.0
+        self.PAR1=1.0
+        self.editable=True
+        self._create_parameters_from_locals(locals())
         
 class DebugExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'Debug'
         self.DURATION=10.0
 #        self.pre_runnable = 'TestPre'
-        self._create_parameters_from_locals(locals())          
+        self._create_parameters_from_locals(locals())
         
 class Debug(experiment.Experiment):
     def prepare(self):

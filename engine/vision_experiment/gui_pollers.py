@@ -2895,7 +2895,8 @@ class VisexpGuiPoller(Poller):
             return
         self.test_run=True
         if self.testmode==1:
-            self.notify_user('Select test_stimulus.py module.\nClose window to proceed to next test.')
+            self.printc('1. Select test_stimulus.py module.\n2. Then select GUITestExperimentConfig\n3. Set PAR1 value to 10\n4. Press Save button\n5. Set back PAR1 to 1.0\n6. Close window to proceed to next test.')
+            self.notify_user('Check console for test instructions')
             self.signal_id_queue.put('experiment_control.browse')
             
     ##### Relaying signals #####

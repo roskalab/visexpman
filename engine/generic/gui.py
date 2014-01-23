@@ -121,12 +121,28 @@ class ParameterTable(QtGui.QTableWidget):
         parameters: dictionary: keys: parameter names, values: parameter values.
         '''
         self.parameters = parameters
-        self.setRowCount(len(parameters))
-        self.setVerticalHeaderLabels(QtCore.QStringList(len(parameters.keys())*['']))
-        for row in range(len(parameters.keys())):
-            self.setItem(row, 0, QtGui.QTableWidgetItem(str(parameters.keys()[row])))
-            self.setItem(row, 1, QtGui.QTableWidgetItem(str(parameters[parameters.keys()[row]])))
-            
+        if parameters.has_key('self.editable') and parameters['self.editable'] == 'False':
+            lock=True
+        else:
+            lock=False
+        if parameters.has_key('self.editable'):
+            del parameters['self.editable']
+        if parameters.has_key('self.editable'):
+            nrows = len(parameters)-1
+        else:
+            nrows = len(parameters)
+        self.setRowCount(nrows)
+        self.setVerticalHeaderLabels(QtCore.QStringList(nrows*['']))
+        for row in range(nrows):
+            parname = str(parameters.keys()[row])
+            item = QtGui.QTableWidgetItem(parname)
+            item.setFlags(QtCore.Qt.ItemIsSelectable| QtCore.Qt.ItemIsEnabled)
+            self.setItem(row, 0, item)
+            item=QtGui.QTableWidgetItem(str(parameters[parameters.keys()[row]]))
+            if lock:
+                item.setFlags(QtCore.Qt.ItemIsSelectable| QtCore.Qt.ItemIsEnabled)
+            self.setItem(row, 1, item)
+
     def get_values(self):
         '''
         Return values of table in a dictionary format

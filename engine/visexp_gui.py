@@ -1052,7 +1052,6 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.show()
         self.init_widget_content()
         self.block_widgets(False)
-        self.printc('start')
         if qt_app is not None: qt_app.exec_()
         
     def create_widgets(self):
@@ -1161,10 +1160,12 @@ import unittest
 class testVisionExperimentGui(unittest.TestCase):
     def test_01_select_stimfile(self):
         '''
-        Tests if py module can be opened as a stimfile and experiment configuration parameters can be parsed and displayed
+        Tests if py module can be opened as a stimfile and experiment configuration parameters can be parsed and displayed.
+        
+        Also tests if the loaded 
         '''
         gui =  VisionExperimentGui('zoltan', 'CaImagingTestConfig', 'elphys', testmode=1)
-        self.assertEqual(('DebugExperimentConfig' in gui.poller.experiment_control.experiment_config_classes.keys(), 
+        self.assertEqual(('GUITestExperimentConfig' in gui.poller.experiment_control.experiment_config_classes.keys(), 
                           gui.central_widget.main_widget.experiment_parameters.values.rowCount(), 
                           'test_stimulus.py' in gui.poller.experiment_control.user_selected_stimulation_module), 
                           (True, 1, True))

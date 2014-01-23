@@ -23,6 +23,7 @@ class ExperimentConfig(Config):
         self.connections = connections
         self.application_log = application_log
         Config.__init__(self, machine_config)
+        self.editable=True#If false, experiment config parameters cannot be edited from GUI
         if machine_config != None:
             self.create_runnable(experiment_class, source_code, parameters) # needs to be called so that runnable is instantiated and other checks are done        
 
@@ -215,7 +216,7 @@ def parse_stimulation_file(filename):
                 expconfig_lines = source_code.split('class '+c[0])[1].split('def _create_parameters')[1].split('def')[0].split('\n')
                 experiment_config_classes[c[0]] = \
                     [expconfig_line.replace(' ','').split('#')[0] for expconfig_line in expconfig_lines \
-                        if '=' in expconfig_line and expconfig_line.split('=')[0].replace('self.','').isupper()]
+                        if '=' in expconfig_line and (expconfig_line.split('=')[0].replace('self.','').isupper() or 'self.editable' in expconfig_line.split('=')[0])]
             except:
                 continue
     return experiment_config_classes
