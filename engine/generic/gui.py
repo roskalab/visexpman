@@ -67,11 +67,14 @@ class LabeledComboBox(QtGui.QWidget):
     Default value in input field:
         self.input.setText(TEXT)
     '''
-    def __init__(self, parent, label):
+    def __init__(self, parent, label,items=None):
         QtGui.QWidget.__init__(self, parent)
         self.label = label
         self.create_widgets()
         self.create_layout()
+        if items is not None:
+            self.input.addItems(QtCore.QStringList(items))
+            
 
     def create_widgets(self):
         self.labelw = QtGui.QLabel(self.label, self)

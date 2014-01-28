@@ -1016,7 +1016,7 @@ class CentralWidget(QtGui.QWidget):
         self.animal_parameters_widget = gui.AnimalParametersWidget(self)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Main')
-        self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
+        self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters/Experiment log')
         self.main_tab.setCurrentIndex(0)
         
         self.text_out = QtGui.QTextEdit(self)
