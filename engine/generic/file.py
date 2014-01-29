@@ -537,7 +537,22 @@ def get_visexpman_module_path():
     return os.path.split(sys.modules['visexpman'].__file__)[0]
     
 def get_user_folder(config):
+    '''
+    Returns folder path where user's stimulation files or other source files reside
+    '''
     return os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', config.user)
+    
+def get_user_experiment_data_folder(config):
+    '''
+    Returns path to folder where user's experiment data can be saved
+    '''
+    for parname in ['user', 'EXPERIMENT_DATA_PATH']:
+        if not hasattr(config, parname):
+            raise RuntimeError('{0} parameter is not available'.format(parname))
+    user_experiment_data_folder = os.path.join(config.EXPERIMENT_DATA_PATH, config.user)
+    if not os.path.exists(user_experiment_data_folder):
+        os.makedirs(user_experiment_data_folder)
+    return user_experiment_data_folder
 
 import unittest
 class TestUtils(unittest.TestCase):

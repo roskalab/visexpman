@@ -7,6 +7,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
 from visexpman.engine.generic import utils
+from visexpman.engine.generic import stringop
 
 class GroupBox(QtGui.QGroupBox):
     def __init__(self, parent, name):
@@ -118,7 +119,7 @@ class ParameterTable(QtGui.QTableWidget):
         self.setHorizontalHeaderLabels(QtCore.QStringList(['Parameter name', 'value']))
         self.verticalHeader().setDefaultSectionSize(20)
         
-    def set_values(self, parameters):
+    def set_values(self, parameters, parname_order=None):
         '''
         Sets the content of the table.
         parameters: dictionary: keys: parameter names, values: parameter values.
@@ -137,13 +138,16 @@ class ParameterTable(QtGui.QTableWidget):
         self.setRowCount(nrows)
         self.setVerticalHeaderLabels(QtCore.QStringList(nrows*['']))
         for row in range(nrows):
-            parname = str(parameters.keys()[row])
+            if parname_order is None:
+                parname = str(parameters.keys()[row])
+            else:
+                parname = parname_order[row]
             item = QtGui.QTableWidgetItem(parname)
             item.setFlags(QtCore.Qt.ItemIsSelectable| QtCore.Qt.ItemIsEnabled)
             self.setItem(row, 0, item)
-            item=QtGui.QTableWidgetItem(str(parameters[parameters.keys()[row]]))
+            item=QtGui.QTableWidgetItem(str(parameters[parname]))
             if lock:
-                item.setFlags(QtCore.Qt.ItemIsSelectable| QtCore.Qt.ItemIsEnabled)
+                item.setFlags(QtCore.Qt.ItemIsSelectable|QtCore.Qt.ItemIsEnabled)
             self.setItem(row, 1, item)
 
     def get_values(self):
@@ -152,7 +156,18 @@ class ParameterTable(QtGui.QTableWidget):
         '''
         current_values = {}
         for row in range(self.rowCount()):
-            current_values[str(self.item(row,0).text())] = str(self.item(row,1).text())
+            parname = str(self.item(row,0).text())
+            if hasattr(self.item(row,1), 'text'):
+                current_values[parname] = str(self.item(row,1).text())
+            elif hasattr(self.cellWidget(row,1), 'date'):
+                date = self.cellWidget(row,1).date()
+                current_values[parname] = '{0}-{1}-{2}'.format(date.day(), date.month(), date.year())
+            elif hasattr(self.cellWidget(row,1), 'currentText'):
+                current_values[parname] = str(self.cellWidget(row,1).currentText())
+            elif self.item(row,1) is None:
+                current_values[parname] = ''
+            else:
+                raise NotImplementedError('Reader for this type of widget is not implemented {0}. Parameter name: {1}'.format(self.item(row,1), parname))
         return current_values
 
 def load_experiment_config_names(config, widget):

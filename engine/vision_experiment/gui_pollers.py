@@ -43,7 +43,6 @@ except:
     pass
 
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
-
 class Poller(QtCore.QThread):
     '''
     Generic poller thread that receives commands via queues and executes them. Additionally can access gui
@@ -59,9 +58,8 @@ class Poller(QtCore.QThread):
         self.connect_signals()
 
     def connect_signals(self):
-#        self.parent.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
-        self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
-
+        pass
+        
     def init_run(self):
         pass
 
@@ -139,8 +137,8 @@ class Poller(QtCore.QThread):
             time.sleep(0.1) 
         return self.gui_thread_queue.get()
     
-    def notify_user(self, message):
-        self.emit(QtCore.SIGNAL('notify_user'), message)
+    def notify_user(self, title, message):
+        self.emit(QtCore.SIGNAL('notify_user'), title, message)
         while self.gui_thread_queue.empty() :
             time.sleep(0.1) 
         return self.gui_thread_queue.get()
@@ -2673,6 +2671,7 @@ class VisexpGuiPoller(Poller):
         self.experiment_control = gui.ExperimentControl(self, self.config, 
                                                         self.parent.central_widget.main_widget.experiment_control_groupbox, 
                                                         self.parent.central_widget.main_widget.experiment_parameters)
+        self.animal_parameters = gui.AnimalParameters(self, self.config, self.parent.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox)
         
     def connect_signals(self):
         self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
@@ -2682,7 +2681,9 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar'),  self.parent.set_experiment_progressbar)
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar_range'),  self.parent.set_experiment_progressbar_range)
         self.connect(self, QtCore.SIGNAL('set_experiment_names'),  self.parent.set_experiment_names)
-        self.connect(self, QtCore.SIGNAL('update_experiment_parameter_list'),  self.parent.update_experiment_parameter_list)
+        self.connect(self, QtCore.SIGNAL('update_experiment_parameter_table'),  self.parent.update_experiment_parameter_table)
+        self.connect(self, QtCore.SIGNAL('update_animal_parameters_table'),  self.parent.update_animal_parameters_table)
+        self.connect(self, QtCore.SIGNAL('update_animal_file_list'),  self.parent.update_animal_file_list)
         
     def load_context(self):
         if os.path.exists(self.config.CONTEXT_FILE):
@@ -2896,15 +2897,21 @@ class VisexpGuiPoller(Poller):
         self.test_run=True
         if self.testmode==1:
             self.printc('1. Select test_stimulus.py module.\n2. Then select GUITestExperimentConfig\n3. Set PAR1 value to 10\n4. Press Save button\n5. Set back PAR1 to 1.0\n6. Close window to proceed to next test.')
-            self.notify_user('Check console for test instructions')
+            self.notify_user('', 'Check console for test instructions')
             self.signal_id_queue.put('experiment_control.browse')
             
     ##### Relaying signals #####
     def set_experiment_names(self, experiment_names):
         self.emit(QtCore.SIGNAL('set_experiment_names'),experiment_names)
 
-    def update_experiment_parameter_list(self):
-        self.emit(QtCore.SIGNAL('update_experiment_parameter_list'))
+    def update_experiment_parameter_table(self):
+        self.emit(QtCore.SIGNAL('update_experiment_parameter_table'))
+        
+    def update_animal_parameters_table(self):
+        self.emit(QtCore.SIGNAL('update_animal_parameters_table'))
+        
+    def update_animal_file_list(self):
+        self.emit(QtCore.SIGNAL('update_animal_file_list'))
         
 if __name__ == '__main__':
     pass

@@ -32,6 +32,7 @@ from visexpman.engine.vision_experiment import gui_pollers
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
+from visexpman.engine.generic import stringop
 from visexpman.engine import generic
 from visexpman.engine.generic import log
 from visexpman.users.zoltan.test import unit_test_runner
@@ -1013,10 +1014,10 @@ class CentralWidget(QtGui.QWidget):
         
     def create_widgets(self):
         self.main_widget = MainWidget(self)
-        self.animal_parameters_widget = gui.AnimalParametersWidget(self)
+        self.animal_parameters_and_experiment_log_widget = gui.AnimalParametersAndExperimentLogWidget(self)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Main')
-        self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters/Experiment log')
+        self.main_tab.addTab(self.animal_parameters_and_experiment_log_widget, 'Animal parameters/Experiment log')
         self.main_tab.setCurrentIndex(0)
         
         self.text_out = QtGui.QTextEdit(self)
@@ -1062,11 +1063,14 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.console_text = ''
         
     def init_widget_content(self):
-        self.update_experiment_parameter_list()
+        self.update_experiment_parameter_table()
+        self.update_animal_file_list()
 #        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
         self.connect(self.central_widget.main_widget.experiment_control_groupbox.experiment_name, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.experiment_name_changed)
+        self.connect(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.animal_filename_changed)
+#        self.connect(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
         #Signals mapped to poller functions
         self.signal_mapper = QtCore.QSignalMapper(self)
         widget2poller_function = [[self.central_widget.main_widget.experiment_control_groupbox.start_experiment_button, 'experiment_control.start_experiment'],
@@ -1074,6 +1078,10 @@ class VisionExperimentGui(Qt.QMainWindow):
                                   [self.central_widget.main_widget.experiment_control_groupbox.browse_experiment_file_button, 'experiment_control.browse'],
                                   [self.central_widget.main_widget.experiment_parameters.reload, 'experiment_control.reload_experiment_parameters'],
                                   [self.central_widget.main_widget.experiment_parameters.save, 'experiment_control.save_experiment_parameters'],
+                                  [self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.new_animal_file_button, 'animal_parameters.save'],
+                                  [self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.update_animal_file_button, 'animal_parameters.update'],
+                                  [self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.reload_animal_parameters_button, 'animal_parameters.reload'],
+                                  [self.central_widget.animal_parameters_and_experiment_log_widget.animal_files_from_data_storage, 'animal_parameters.search_data_storage'],
                                   ]
         for item in widget2poller_function:
             gui_generic.connect_and_map_signal(self, item[0],item[1])
@@ -1082,6 +1090,7 @@ class VisionExperimentGui(Qt.QMainWindow):
     def block_widgets(self,  block):
         if not hasattr(self, 'blocked_widgets'):
             self.blocked_widgets =  [self.central_widget.main_widget.experiment_control_groupbox.experiment_name, 
+                                     self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input, 
                                      ]
         [w.blockSignals(block) for w in self.blocked_widgets]
         
@@ -1102,9 +1111,15 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.poller.wait()
     ################# GUI events ####################
     def experiment_name_changed(self):
-        self.update_experiment_parameter_list()
+        self.update_experiment_parameter_table()
         
-    def update_experiment_parameter_list(self):
+    def animal_filename_changed(self):
+        #Continue HERE!!!!!!!!!!!
+        #poller/animal parameters class needs to load animal parameters from selected file
+        self.printc('ok')
+    
+    ################# Update widgets ####################    
+    def update_experiment_parameter_table(self):
         experiment_config_name = os.path.split(str(self.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText()))[-1]
         pars = {}
         for par in self.poller.experiment_control.experiment_config_classes[experiment_config_name]:
@@ -1112,6 +1127,23 @@ class VisionExperimentGui(Qt.QMainWindow):
             pars[parname]= (par.split('='))[1]
         self.central_widget.main_widget.experiment_parameters.values.set_values(pars)
         
+    def update_animal_parameters_table(self):
+        #Convert animal parameter names to title format
+        animal_params = {}
+        for k, v in self.poller.animal_parameters.animal_parameters.items():
+            animal_params[stringop.to_title(k)]=v
+        parnames = [stringop.to_title(pn) for pn in self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.parameter_names]
+        self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.table.set_values(\
+                                                                                                                    animal_params, parname_order = parnames)
+
+    def update_animal_file_list(self):
+        animal_filenames = self.poller.animal_parameters.animal_files.keys()
+        animal_filenames.sort()
+        self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.blockSignals(True)
+        self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.clear()
+        self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.blockSignals(False)
+        self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.addItems(QtCore.QStringList(animal_filenames))
+
     ################# Pop up dialoges ####################
     def ask4confirmation(self, action2confirm):
         utils.empty_queue(self.poller.gui_thread_queue)
@@ -1126,9 +1158,9 @@ class VisionExperimentGui(Qt.QMainWindow):
         filename = QtGui.QFileDialog.getOpenFileName(self, title, directory, filter)
         self.poller.gui_thread_queue.put(str(filename))
         
-    def notify_user(self, message):
+    def notify_user(self, title, message):
         utils.empty_queue(self.poller.gui_thread_queue)
-        QtGui.QMessageBox.question(self, 'Confirm following action', message, QtGui.QMessageBox.Ok)
+        QtGui.QMessageBox.question(self, title, message, QtGui.QMessageBox.Ok)
         self.poller.gui_thread_queue.put(True)
         
     def set_experiment_progressbar(self, value, attribute='setValue'):

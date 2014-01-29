@@ -5,6 +5,9 @@ import os
 import unittest
 
 def str2params(par_str):
+    '''
+    String containing comma separated numbers is converted to a list if floats
+    '''
     try:
         return map(float, str(par_str).split(','))
     except ValueError:
@@ -91,6 +94,9 @@ def get_recent_file(flist, ref_date = None, mode = 'earlier', interval=numpy.Inf
     
 def to_variable_name(s):
     return s.lower().replace(' ', '_')
+    
+def to_title(s):
+    return s.replace('_', ' ').title()
 
 class TestUtils(unittest.TestCase):
     def setUp(self):
