@@ -126,10 +126,13 @@ class Poller(QtCore.QThread):
     ####### Popup dialog boxes #####
     
     def ask4confirmation(self, action2confirm):
-        self.emit(QtCore.SIGNAL('ask4confirmation'), action2confirm)
-        while self.gui_thread_queue.empty() :
-            time.sleep(0.1) 
-        return self.gui_thread_queue.get()
+        if introspect.is_test_running():
+            return True
+        else:
+            self.emit(QtCore.SIGNAL('ask4confirmation'), action2confirm)
+            while self.gui_thread_queue.empty() :
+                time.sleep(0.1) 
+            return self.gui_thread_queue.get()
         
     def ask4filename(self, title, directory, filter):
         self.emit(QtCore.SIGNAL('ask4filename'),title, directory, filter)
@@ -138,10 +141,13 @@ class Poller(QtCore.QThread):
         return self.gui_thread_queue.get()
     
     def notify_user(self, title, message):
-        self.emit(QtCore.SIGNAL('notify_user'), title, message)
-        while self.gui_thread_queue.empty() :
-            time.sleep(0.1) 
-        return self.gui_thread_queue.get()
+        if introspect.is_test_running():
+            self.printc(message)
+        else:
+            self.emit(QtCore.SIGNAL('notify_user'), title, message)
+            while self.gui_thread_queue.empty() :
+                time.sleep(0.1) 
+            return self.gui_thread_queue.get()
 
 parameter_extract = re.compile('EOC(.+)EOP')
 command_extract = re.compile('SOC(.+)EOC')
@@ -2672,6 +2678,16 @@ class VisexpGuiPoller(Poller):
                                                         self.parent.central_widget.main_widget.experiment_control_groupbox, 
                                                         self.parent.central_widget.main_widget.experiment_parameters)
         self.animal_parameters = gui.AnimalParameters(self, self.config, self.parent.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox)
+        self.context_paths = {}
+        self.context_paths['variables'] = ['self.experiment_control.experiment_config_classes.keys', 
+                                     'self.parent.central_widget.main_widget.experiment_parameters.values.rowCount', 
+                                     'self.experiment_control.user_selected_stimulation_module', 
+                                     'self.animal_parameters.animal_file', 
+                                     'self.animal_parameters.animal_files.keys', 
+                                     ]
+        self.context_paths['widgdets'] = []
+                                     
+                                  
         
     def connect_signals(self):
         self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
@@ -2684,14 +2700,29 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('update_experiment_parameter_table'),  self.parent.update_experiment_parameter_table)
         self.connect(self, QtCore.SIGNAL('update_animal_parameters_table'),  self.parent.update_animal_parameters_table)
         self.connect(self, QtCore.SIGNAL('update_animal_file_list'),  self.parent.update_animal_file_list)
+        self.connect(self, QtCore.SIGNAL('close_app'),  self.parent.close_app)
         
     def load_context(self):
+
+        return
         if os.path.exists(self.config.CONTEXT_FILE):
             context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
             context_hdf5.close()
 
     def save_context(self):
-        pass
+        h=hdf5io.Hdf5io(file.get_context_filename(self.config), self.config)
+        context = {}
+        context['variables'] = {}
+        for varname in self.context_paths['variables']:
+            try:
+                context['variables'][varname] = introspect.string2objectreference(self,varname)
+            except AttributeError:#Continue if variable name does not exists
+                continue
+            if hasattr(context['variables'][varname], '__call__'):
+                context['variables'][varname] = context['variables'][varname]()
+        h.context = utils.object2array(context)
+        h.save('context')
+        h.close()
 
     def init_network(self):
         self.connections = {}
@@ -2895,10 +2926,76 @@ class VisexpGuiPoller(Poller):
         if hasattr(self, 'test_run'):
             return
         self.test_run=True
+        animal_param_table = self.parent.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.table
+        import PyQt4.QtGui as QtGui
         if self.testmode==1:
-            self.printc('1. Select test_stimulus.py module.\n2. Then select GUITestExperimentConfig\n3. Set PAR1 value to 10\n4. Press Save button\n5. Set back PAR1 to 1.0\n6. Close window to proceed to next test.')
+            self.printc('1. Select test_stimulus.py module.\n2. Then select GUITestExperimentConfig\n3. Set PAR1 value to 10 and press Save button\n4. Set back PAR1 to 1.0 and press Save button\n5. Close window to proceed to next test.')
             self.notify_user('', 'Check console for test instructions')
             self.signal_id_queue.put('experiment_control.browse')
+        elif self.testmode==2 or self.testmode==3:
+            self.parent.central_widget.main_tab.setCurrentIndex(1)
+            animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('test'))
+            animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2013, 1, 1))
+            animal_param_table.cellWidget(2, 1).setDate(QtCore.QDate(2013, 5, 1))
+            animal_param_table.cellWidget(3, 1).setCurrentIndex(1)
+            animal_param_table.cellWidget(4, 1).setCurrentIndex(2)
+            animal_param_table.cellWidget(5, 1).setCurrentIndex(1)
+            animal_param_table.cellWidget(6, 1).setEditText('strain')
+            if self.testmode==2:
+                animal_param_table.cellWidget(7, 1).setEditText('label')
+            self.animal_parameters.save()
+            self.emit(QtCore.SIGNAL('close_app'))
+        elif self.testmode ==4 or self.testmode ==5:
+            for fn in os.listdir(tempfile.gettempdir()):
+                if 'animal_' in fn and '.hdf5' in fn:
+                    shutil.move(os.path.join(tempfile.gettempdir(), fn), self.config.DATA_STORAGE_PATH)
+            self.parent.central_widget.main_tab.setCurrentIndex(1)
+            self.animal_parameters.search_data_storage()
+            time.sleep(1)
+            self.parent.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.setCurrentIndex(1)
+            time.sleep(1)
+            if self.testmode ==5:
+                self.animal_parameters.copy()
+                time.sleep(1)
+                self.parent.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.setCurrentIndex(2)
+                time.sleep(1)
+            animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2015, 1, 1))
+            time.sleep(1)
+            self.animal_parameters.reload()
+            time.sleep(1)
+            animal_param_table.cellWidget(7, 1).setEditText('modified_label')
+            animal_param_table.cellWidget(8, 1).setEditText('yes')
+            time.sleep(1)
+            self.animal_parameters.update()
+            time.sleep(1)
+            if self.testmode ==5:
+                animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('second_one'))
+                animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2012, 1, 1))
+                animal_param_table.cellWidget(2, 1).setDate(QtCore.QDate(2012, 1, 1))
+                animal_param_table.cellWidget(6, 1).setEditText('secondstrain')
+                self.animal_parameters.save()
+            self.emit(QtCore.SIGNAL('close_app'))
+        elif self.testmode == 6:
+            self.parent.central_widget.main_tab.setCurrentIndex(1)
+            animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('test'))
+            animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2010, 1, 1))
+            animal_param_table.cellWidget(2, 1).setDate(QtCore.QDate(2010, 1, 1))
+            animal_param_table.cellWidget(3, 1).setCurrentIndex(1)
+            animal_param_table.cellWidget(4, 1).setCurrentIndex(1)
+            animal_param_table.cellWidget(5, 1).setCurrentIndex(1)
+            animal_param_table.cellWidget(6, 1).setEditText('strain')
+            animal_param_table.cellWidget(7, 1).setEditText('label')
+            self.animal_parameters.save()
+            time.sleep(1)
+            animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('test1'))
+            animal_param_table.cellWidget(7, 1).setEditText('label1')
+            self.animal_parameters.update()
+            self.emit(QtCore.SIGNAL('close_app'))
+            
+#            time.sleep(10.0)
+#            self.notify_user('', 'Close main window')
+#            self.parent.emit(QtCore.SIGNAL('close'))
+            
             
     ##### Relaying signals #####
     def set_experiment_names(self, experiment_names):

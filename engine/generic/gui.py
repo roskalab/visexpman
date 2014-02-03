@@ -144,11 +144,24 @@ class ParameterTable(QtGui.QTableWidget):
                 parname = parname_order[row]
             item = QtGui.QTableWidgetItem(parname)
             item.setFlags(QtCore.Qt.ItemIsSelectable| QtCore.Qt.ItemIsEnabled)
-            self.setItem(row, 0, item)
-            item=QtGui.QTableWidgetItem(str(parameters[parname]))
-            if lock:
-                item.setFlags(QtCore.Qt.ItemIsSelectable|QtCore.Qt.ItemIsEnabled)
-            self.setItem(row, 1, item)
+            self.setItem(row, 0, item)#Set parameter name
+            #Setting value of table element depends on the widget type
+            if self.cellWidget(row,1) is None:
+                item=QtGui.QTableWidgetItem(str(parameters[parname]))
+                if lock:
+                    item.setFlags(QtCore.Qt.ItemIsSelectable|QtCore.Qt.ItemIsEnabled)
+                self.setItem(row, 1, item)
+            elif hasattr(self.cellWidget(row,1), 'date'):
+                d, m, y=map(int, str(parameters[parname]).split('-'))
+                self.cellWidget(row,1).setDate(QtCore.QDate(y, m, d))
+            elif hasattr(self.cellWidget(row,1), 'currentText'):
+                #Find out index
+                items = [str(self.cellWidget(row,1).itemText(i)) for i in range(self.cellWidget(row,1).count())]
+                if str(parameters[parname]) in items:
+                    index = items.index(str(parameters[parname]))
+                    self.cellWidget(row,1).setCurrentIndex(index)
+                elif self.cellWidget(row,1).isEditable():
+                    self.cellWidget(row,1).setEditText(str(parameters[parname]))
 
     def get_values(self):
         '''
@@ -157,7 +170,7 @@ class ParameterTable(QtGui.QTableWidget):
         current_values = {}
         for row in range(self.rowCount()):
             parname = str(self.item(row,0).text())
-            if hasattr(self.item(row,1), 'text'):
+            if hasattr(self.item(row,1), 'text') and self.cellWidget(row,1) is None:
                 current_values[parname] = str(self.item(row,1).text())
             elif hasattr(self.cellWidget(row,1), 'date'):
                 date = self.cellWidget(row,1).date()
@@ -169,6 +182,27 @@ class ParameterTable(QtGui.QTableWidget):
             else:
                 raise NotImplementedError('Reader for this type of widget is not implemented {0}. Parameter name: {1}'.format(self.item(row,1), parname))
         return current_values
+        
+def update_combo_box_list(self, widget, new_list,  selected_item = None):
+    current_value = widget.currentText()
+    try:
+        if current_value in new_list:
+            current_index = new_list.index(current_value)
+        else:
+            current_index = 0
+    except:
+        current_index = 0
+        self.printc((current_value, new_list))
+        self.printc(traceback.format_exc())
+    items_list = QtCore.QStringList(new_list)
+    widget.blockSignals(True)
+    widget.clear()
+    widget.addItems(QtCore.QStringList(new_list))
+    widget.blockSignals(False)
+    if selected_item != None and selected_item in new_list:
+        widget.setCurrentIndex(new_list.index(selected_item))
+    else:
+        widget.setCurrentIndex(current_index)
 
 def load_experiment_config_names(config, widget):
     '''

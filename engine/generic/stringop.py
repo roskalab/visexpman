@@ -12,7 +12,6 @@ def str2params(par_str):
         return map(float, str(par_str).split(','))
     except ValueError:
         return []
-        
 
 def long_substr(data):
     '''extracts longest common substring from a list of strings'''
@@ -97,6 +96,15 @@ def to_variable_name(s):
     
 def to_title(s):
     return s.replace('_', ' ').title()
+    
+def string_in_list(list_of_string, keyword, return_match=False):
+    '''
+    Checks if keyword is in any items of list
+    '''
+    if return_match:
+        return [item for item in list_of_string if keyword in item][0]
+    else:
+        return len([item for item in list_of_string if keyword in item]) > 0
 
 class TestUtils(unittest.TestCase):
     def setUp(self):

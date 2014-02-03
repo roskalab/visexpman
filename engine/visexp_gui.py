@@ -1031,7 +1031,7 @@ class CentralWidget(QtGui.QWidget):
         self.layout.addWidget(self.main_tab, 0, 0, 1, 1)
         self.layout.addWidget(self.text_out, 1, 0, 1, 1)
         self.setLayout(self.layout)
-        
+
 class VisionExperimentGui(Qt.QMainWindow):
     def __init__(self, user, config_class, appname, testmode=None):
         if QtCore.QCoreApplication.instance() is None:
@@ -1053,23 +1053,29 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.show()
         self.init_widget_content()
         self.block_widgets(False)
-        if qt_app is not None: qt_app.exec_()
+        if QtCore.QCoreApplication.instance() is not None:
+            QtCore.QCoreApplication.instance().exec_()
         
     def create_widgets(self):
         self.central_widget = CentralWidget(self, self.config)
-        self.setCentralWidget(self.central_widget) 
+        self.setCentralWidget(self.central_widget)
         
     def init_variables(self):
         self.console_text = ''
         
     def init_widget_content(self):
+        '''
+        Load widget values if previous context is saved. Otherwise ...
+        '''
         self.update_experiment_parameter_table()
         self.update_animal_file_list()
+        self.update_animal_parameters_table()
 #        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
         self.connect(self.central_widget.main_widget.experiment_control_groupbox.experiment_name, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.experiment_name_changed)
         self.connect(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.animal_filename_changed)
+        self.connect(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
 #        self.connect(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
         #Signals mapped to poller functions
         self.signal_mapper = QtCore.QSignalMapper(self)
@@ -1082,6 +1088,7 @@ class VisionExperimentGui(Qt.QMainWindow):
                                   [self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.update_animal_file_button, 'animal_parameters.update'],
                                   [self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.reload_animal_parameters_button, 'animal_parameters.reload'],
                                   [self.central_widget.animal_parameters_and_experiment_log_widget.animal_files_from_data_storage, 'animal_parameters.search_data_storage'],
+                                  [self.central_widget.animal_parameters_and_experiment_log_widget.copy_animal_files_from_data_storage, 'animal_parameters.copy'],
                                   ]
         for item in widget2poller_function:
             gui_generic.connect_and_map_signal(self, item[0],item[1])
@@ -1105,18 +1112,23 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.central_widget.text_out.moveCursor(QtGui.QTextCursor.End)
         
     def closeEvent(self, e):
-        self.printc('Please wait till gui closes')
         e.accept()
+        self.close_app()
+        
+    def close_app(self):
+        self.printc('Please wait till gui closes')
         self.poller.abort = True
         self.poller.wait()
+        self.close()
+        
     ################# GUI events ####################
     def experiment_name_changed(self):
         self.update_experiment_parameter_table()
         
     def animal_filename_changed(self):
-        #Continue HERE!!!!!!!!!!!
+        self.poller.animal_parameters.animal_file = str(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.currentText())
         #poller/animal parameters class needs to load animal parameters from selected file
-        self.printc('ok')
+        self.poller.animal_parameters.load()
     
     ################# Update widgets ####################    
     def update_experiment_parameter_table(self):
@@ -1128,6 +1140,8 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.central_widget.main_widget.experiment_parameters.values.set_values(pars)
         
     def update_animal_parameters_table(self):
+        if not hasattr(self.poller.animal_parameters, 'animal_parameters'):
+            return
         #Convert animal parameter names to title format
         animal_params = {}
         for k, v in self.poller.animal_parameters.animal_parameters.items():
@@ -1137,12 +1151,18 @@ class VisionExperimentGui(Qt.QMainWindow):
                                                                                                                     animal_params, parname_order = parnames)
 
     def update_animal_file_list(self):
+        text_before_list_update = str(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.currentText())
         animal_filenames = self.poller.animal_parameters.animal_files.keys()
         animal_filenames.sort()
-        self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.blockSignals(True)
-        self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.clear()
-        self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.blockSignals(False)
-        self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.addItems(QtCore.QStringList(animal_filenames))
+        widget = self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input
+        if hasattr(self.poller.animal_parameters, 'animal_file'):
+            selected_item = self.poller.animal_parameters.animal_file
+        else:
+            selected_item = None
+        gui_generic.update_combo_box_list(self, widget, animal_filenames, selected_item)
+        if text_before_list_update == '' and animal_filenames != []:#If selected animal filename was an empty string, set item pointed by current index and load its content
+            self.poller.animal_parameters.animal_file = animal_filenames[widget.currentIndex()]
+            self.poller.animal_parameters.load()
 
     ################# Pop up dialoges ####################
     def ask4confirmation(self, action2confirm):
@@ -1180,28 +1200,148 @@ class VisionExperimentGui(Qt.QMainWindow):
             self.central_widget.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_names.index(current_experiment_config_name))
         if len(experiment_names) == 0:#If no experiment configs found in selected file, erase items from parameter table
             self.central_widget.main_widget.experiment_parameters.values.set_values({})
-            
 
         
 def run_cortical_gui():
     app = Qt.QApplication(sys.argv)
     gui = CorticalVisionExperimentGui(sys.argv[1], sys.argv[2])
-    app.exec_()
+    app.exec_()   
     
 import unittest
 class testVisionExperimentGui(unittest.TestCase):
+    
+    def setUp(self):
+        self.machine_config = utils.fetch_classes('visexpman.users.zoltan', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+        self.machine_config.appname='elphys'
+        self.machine_config.user = 'zoltan'
+        #Clean up files
+        [shutil.rmtree(fn) for fn in [self.machine_config.DATA_STORAGE_PATH, self.machine_config.EXPERIMENT_DATA_PATH] if os.path.exists(fn)]
+        if os.path.exists(file.get_context_filename(self.machine_config)):
+            os.remove(file.get_context_filename(self.machine_config))
+        
+    def _call_gui(self, testmode):
+        import subprocess
+        app_exec = 'gui =  VisionExperimentGui(\'zoltan\', \'GUITestConfig\', \'elphys\', testmode={0})'.format(testmode)
+        import_code = 'from visexpman.engine.visexp_gui import VisionExperimentGui;'
+        code = 'python -c \"{0}{1}\" --unittest' .format(import_code, app_exec)
+        subprocess.call(code, shell=True)
+        
+    def _read_context(self):
+        return utils.array2object(hdf5io.read_item(file.get_context_filename(self.machine_config), 'context', self.machine_config))
+    
+    def _create_animal_parameter_file(self, id):
+        '''
+        Creates animal parameter file in tmp folder with the given id
+        '''
+        self.machine_config.printc = ''
+        ap = gui.AnimalParameters(self.machine_config, self.machine_config, None)
+        animal_parameters = {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label '+id , 'injection_target': '', 'ear_punch_left': '2', 'comments': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': id}
+        animal_file = ap._get_animal_filename(animal_parameters)
+        hdf5io.save_item(animal_file, 'animal_parameters', animal_parameters, config=self.machine_config, overwrite = True)
+        file.remove_if_exists(os.path.join(tempfile.gettempdir(), os.path.split(animal_file)[1]))
+        shutil.move(animal_file, tempfile.gettempdir())
+        
+#    @unittest.skip('')
     def test_01_select_stimfile(self):
         '''
         Tests if py module can be opened as a stimfile and experiment configuration parameters can be parsed and displayed.
-        
-        Also tests if the loaded 
         '''
-        gui =  VisionExperimentGui('zoltan', 'CaImagingTestConfig', 'elphys', testmode=1)
-        self.assertEqual(('GUITestExperimentConfig' in gui.poller.experiment_control.experiment_config_classes.keys(), 
-                          gui.central_widget.main_widget.experiment_parameters.values.rowCount(), 
-                          'test_stimulus.py' in gui.poller.experiment_control.user_selected_stimulation_module), 
-                          (True, 1, True))
+        self._call_gui(1)
+        context = self._read_context()
+        
+        self.assertEqual(('GUITestExperimentConfig' in context['variables']['self.experiment_control.experiment_config_classes.keys'], 
+                          context['variables']['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount'], 
+                          'test_stimulus.py' in context['variables']['self.experiment_control.user_selected_stimulation_module']), 
+                          (True, 2, True))
+                          
+#    @unittest.skip('')
+    def test_02_create_animal_file(self):
+        '''
+        Creating animal file is tested
+        '''
+        self._call_gui(2)
+#        from visexpA.engine.datahandlers import hdf5io
+        context = self._read_context()
+        
+        self.assertEqual((
+                          os.path.exists(context['variables']['self.animal_parameters.animal_file']), 
+                    os.path.split(context['variables']['self.animal_parameters.animal_file'])[1], 
+                    hdf5io.read_item(context['variables']['self.animal_parameters.animal_file'], 'animal_parameters', self.machine_config), 
+                    ), 
+                    (True, 'animal_test_strain_1-1-2013_1-5-2013_L2R1.hdf5', 
+                    {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label', 'injection_target': '', 'ear_punch_left': '2', 'comments': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'test'}
+                    ))
+
+#    @unittest.skip('')
+    def test_03_animal_file_parameter_not_provided(self):
+        self._call_gui(3)
+        context = self._read_context()
+        self.assertEqual((os.path.exists(context['variables']['self.animal_parameters.animal_file']), 
+                                                              ), 
+                                                              (False, 
+                                                              ))
     
+#    @unittest.skip('') 
+    def test_04_load_animal_files_from_data_storage_and_switch(self):
+        '''
+        Load animal parameter files from data storage and select the second one. Then modify date of birth, reload original values, finally modify labeling and save changes to file, which sould not happen because it is on data storage
+        '''
+        #Create animal file in tmp
+        self._create_animal_parameter_file('data_storage1')
+        self._create_animal_parameter_file('data_storage2')
+        #Run gui
+        self._call_gui(4)
+        context = self._read_context()
+        self.assertEqual((
+            stringop.string_in_list(context['variables']['self.animal_parameters.animal_files.keys'], 'data_storage1'), 
+            stringop.string_in_list(context['variables']['self.animal_parameters.animal_files.keys'], 'data_storage2'), 
+            hdf5io.read_item(context['variables']['self.animal_parameters.animal_file'], 'animal_parameters', self.machine_config), 
+            ), (True, True, 
+            {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label data_storage2', 'injection_target': '', 'ear_punch_left': '2', 'comments': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'data_storage2'}
+                                                                          ))
+    
+#    @unittest.skip('') 
+    def test_05_load_animal_files_from_data_storage_and_modify(self):
+        '''
+        Load animal parameter files from data storage, copy second to experiment data, then modify it.
+        Finally create a new animal file
+        '''
+        #Create animal file in tmp
+        self._create_animal_parameter_file('data_storage1')
+        self._create_animal_parameter_file('data_storage2')
+        #Run gui
+        self._call_gui(5)
+        context = self._read_context()
+        for fn in context['variables']['self.animal_parameters.animal_files.keys']:
+            if 'data_storage2' in fn and  file.get_user_experiment_data_folder(self.machine_config) in fn:
+                copied_animal_file = fn
+                break
+        self.assertEqual((
+            stringop.string_in_list(context['variables']['self.animal_parameters.animal_files.keys'], 'data_storage1'), 
+            stringop.string_in_list(context['variables']['self.animal_parameters.animal_files.keys'], 'data_storage2'), 
+            stringop.string_in_list(context['variables']['self.animal_parameters.animal_files.keys'], file.get_user_experiment_data_folder(self.machine_config)), 
+            len(context['variables']['self.animal_parameters.animal_files.keys']), 
+            hdf5io.read_item(context['variables']['self.animal_parameters.animal_file'], 'animal_parameters', self.machine_config), 
+            hdf5io.read_item(copied_animal_file, 'animal_parameters', self.machine_config),
+            ), (True, True, True, 4, 
+            {'imaging_channels': 'green', 'red_labeling': 'yes', 'green_labeling': 'modified_label', 'injection_target': '', 'ear_punch_left': '2', 'comments': '', 'strain': 'secondstrain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2012', 'injection_date': '1-1-2012', 'id': 'second_one'}, 
+            {'imaging_channels': 'green', 'red_labeling': 'yes', 'green_labeling': 'modified_label', 'injection_target': '', 'ear_punch_left': '2', 'comments': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'data_storage2'}
+                                                                          ))
+        
+#    @unittest.skip('') 
+    def test_06_modify_animal_parameter_name(self):
+        '''
+        Modify animal strain to trigger animal file renaming
+        '''
+        self._call_gui(6)
+        context = self._read_context()
+        self.assertEqual((os.path.exists(context['variables']['self.animal_parameters.animal_file']), 
+                                                              os.path.exists(context['variables']['self.animal_parameters.animal_file'].replace('test1', 'test')), 
+                                                              hdf5io.read_item(context['variables']['self.animal_parameters.animal_file'], 'animal_parameters', self.machine_config)), (
+                                                              True, False, 
+                                                              {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label1', 'injection_target': '', 'ear_punch_left': '1', 'comments': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2010', 'injection_date': '1-1-2010', 'id': 'test1'}
+                                                              ))
+                                                              
 if __name__ == '__main__':
     if len(sys.argv) ==1:
         unittest.main()

@@ -7,6 +7,7 @@ import os.path
 import numpy
 import datetime
 import copy
+import shutil
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -135,13 +136,17 @@ class AnimalParametersGroupbox(QtGui.QGroupBox):
         birth_date = QtGui.QDateEdit(self)
         birth_date.setDisplayFormat(date_format)
         birth_date.setDate(default_date)
+        birth_date.setToolTip('Animal birth date, compulsory')
         injection_date = QtGui.QDateEdit(self)
         injection_date.setDisplayFormat(date_format)
         injection_date.setDate(default_date)
+        injection_date.setToolTip('Injection date of (green) labeling substance, compulsory')
         ear_punch_left = QtGui.QComboBox(self)
         ear_punch_left.addItems(ear_punch_items)
+        ear_punch_left.setToolTip('Number of punches in animal\'s ears')
         ear_punch_right = QtGui.QComboBox(self)
         ear_punch_right.addItems(ear_punch_items)
+        ear_punch_right.setToolTip('Number of punches in animal\'s ears')
         gender = QtGui.QComboBox(self)
         gender.addItems(QtCore.QStringList(['female', 'male']))
         strain = QtGui.QComboBox(self)
@@ -150,6 +155,7 @@ class AnimalParametersGroupbox(QtGui.QGroupBox):
         green_labeling = QtGui.QComboBox(self)
         green_labeling.setEditable(True)
         green_labeling.addItems(QtCore.QStringList(self.config.GREEN_LABELING_SUGGESTIONS))
+        green_labeling.setToolTip('Green labeling substance, compulsory')
         red_labeling = QtGui.QComboBox(self)
         red_labeling.setEditable(True)
         red_labeling.addItems(QtCore.QStringList(self.config.RED_LABELING_SUGGESTIONS))
@@ -159,7 +165,6 @@ class AnimalParametersGroupbox(QtGui.QGroupBox):
         injection_target.setEditable(True)
         injection_target.addItems(QtCore.QStringList(self.config.INJECTION_TARGET_SUGGESTIONS))
         self.table = gui.ParameterTable(self)
-        self.table.setToolTip(self.__doc__)
         self.parameter_names = ['id', 'birth_date', 'injection_date', 
                             'gender', 'ear_punch_left', 'ear_punch_right', 'strain', 
                             'green_labeling', 'red_labeling', 'injection_target', 'imaging_channels', 
@@ -200,6 +205,12 @@ class AnimalParameters(gui.WidgetControl):
     def __init__(self, poller, config, widget):
         gui.WidgetControl.__init__(self, poller, config, widget)
         self.animal_files = self._get_animal_file_list(file.get_user_experiment_data_folder(self.config))
+        #Most recently modified file is selected
+        timestamps = self.animal_files.values()
+        if len(timestamps)>0:
+            timestamp = max(timestamps)
+            self.animal_file = [k for k, v in self.animal_files.items() if v == timestamp][0]
+            self.load(update_gui=False)
         
     def _get_animal_file_list(self, folder, animal_files = {}):
         '''
@@ -278,11 +289,14 @@ class AnimalParameters(gui.WidgetControl):
         if not hasattr(self, 'animal_file'):
             self.printc('No animal file, nothing is updated')
             return
+        if os.path.split(self.animal_file)[0] != file.get_user_experiment_data_folder(self.config):
+            self.poller.notify_user('WARNING', 'Files not in experiment data folder cannot be modified. Animal files from datastorage shall be first copied to experiment data folder')
+            return
         if self.animal_file != current_animal_file:#Rename animal file if necessary
             if not self.poller.ask4confirmation('Renaming animal file from {0} to {1}'.format(os.path.split(self.animal_file)[1], os.path.split(current_animal_file)[1])):
                 return
-            self.printc('Animal file renamed from {0} to {1}'.format(self.animal_file, current_animal_file))
             os.rename(self.animal_file, current_animal_file)
+            self.printc('Animal file renamed from {0} to {1}'.format(self.animal_file, current_animal_file))
         #Update animal parameters and animal file name
         self.animal_file = current_animal_file
         self.animal_parameters = current_animal_parameters
@@ -292,7 +306,7 @@ class AnimalParameters(gui.WidgetControl):
         self._save_animal_parameters()
         self.printc('{0} file updated. Following parameters were modified: {1}'.format(self.animal_file, modified_parameters))
 
-    def load(self):
+    def load(self, update_gui=True):
         '''
         Reloads animal parameters from animal file to gui. User modifications since last update are overwritten
         '''
@@ -308,12 +322,12 @@ class AnimalParameters(gui.WidgetControl):
             return
         self.animal_parameters = copy.deepcopy(h.animal_parameters)
         h.close()
-        #Update to user interface
-        self.poller.update_animal_parameters_table()
+        if update_gui:#Update to user interface
+            self.poller.update_animal_parameters_table()
 
     def reload(self):
         self.load()
-        
+
     def search_data_storage(self):
         if not hasattr(self.config, 'DATA_STORAGE_PATH'):
             self.printc('machine_config.DATA_STORAGE_PATH parameter needs to be defined')
@@ -324,6 +338,21 @@ class AnimalParameters(gui.WidgetControl):
         self.animal_files = self._get_animal_file_list(self.config.DATA_STORAGE_PATH, self.animal_files)
         self.poller.update_animal_file_list()
         self.printc('Done, animal file list updated')
+        
+    def copy(self):
+        '''
+        Copy animal parameter file from data storage to experiment data folder
+        '''
+        if os.path.exists(os.path.join(file.get_user_experiment_data_folder(self.config), os.path.split(self.animal_file)[1])):
+            message = 'Copy of this file already exists in experiment data folder. Do you want to overwrite it?'
+            if not self.poller.ask4confirmation(message):
+                return
+        self.printc('Copying file, please wait!')
+        shutil.copy(self.animal_file, file.get_user_experiment_data_folder(self.config))
+        self.printc('Animal file copied.')
+        new_animal_filename = os.path.join(file.get_user_experiment_data_folder(self.config), os.path.split(self.animal_file)[1])
+        self.animal_files[new_animal_filename] = os.path.getctime(new_animal_filename)
+        self.poller.update_animal_file_list()
 
 class AnalysisStatusGroupbox(QtGui.QGroupBox):
     def __init__(self, parent):
@@ -580,6 +609,9 @@ class AnimalParametersAndExperimentLogWidget(QtGui.QWidget):
         self.animal_files_from_data_storage = QtGui.QPushButton('Search data storage for animal files',  self)
         self.animal_files_from_data_storage.setToolTip('Search for valid animal files in folder pointed by machine_config.DATA_STORAGE_PATH.\nItems found are added to current animal file list. Might take some time to complete.')
         self.animal_files_from_data_storage.setEnabled(hasattr(self.config, 'DATA_STORAGE_PATH'))
+        self.copy_animal_files_from_data_storage = QtGui.QPushButton('Copy animal file from data storage',  self)
+        self.copy_animal_files_from_data_storage.setEnabled(hasattr(self.config, 'DATA_STORAGE_PATH'))
+        self.copy_animal_files_from_data_storage.setToolTip('Copies selected animal file from data storage to experiment data folder')
         self.animal_parameters_groupbox = AnimalParametersGroupbox(self, self.config)
         self.log_groupbox = ExperimentLogGroupbox(self)
         
@@ -587,6 +619,7 @@ class AnimalParametersAndExperimentLogWidget(QtGui.QWidget):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.animal_filename, 0, 0)
         self.layout.addWidget(self.animal_files_from_data_storage, 0, 1)
+        self.layout.addWidget(self.copy_animal_files_from_data_storage, 0, 2)
         self.layout.addWidget(self.animal_parameters_groupbox, 1, 0)
         self.layout.addWidget(self.log_groupbox, 1, 1, 1, 3)
         self.layout.setRowStretch(10, 5)

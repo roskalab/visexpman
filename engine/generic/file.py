@@ -183,8 +183,7 @@ def get_measurement_file_path_from_id(id, config, filename_only = False, extensi
             
 def get_tmp_file(suffix, delay = 0.0):
     path = os.path.join(tempfile.gettempdir(), 'tmp.' + suffix)
-    if os.path.exists(path):
-        os.remove(path)
+    remove_if_exists(path)
     time.sleep(delay)
     return path
 
@@ -203,10 +202,23 @@ def set_file_dates(path, file_info):
         os.utime(path, (file_info.st_atime, file_info.st_mtime))
     except:
         pass
+        
+def remove_if_exists(filename):
+    if os.path.exists(filename):
+        os.remove(filename)
 
-def mkdir_notexists(folder):
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+def mkdir_notexists(folder, remove_if_exists=False):
+    '''
+    Create folder(s) if they do not exist. 
+    remove_if_exists: remove folders if folders exists
+    '''
+    if not isinstance(folder, list):
+        folder = [folder]
+    for f in folder:
+        if remove_if_exists and os.path.exists(f):
+            shutil.rmtree(f)
+        if not os.path.exists(f):
+            os.makedirs(f)
         
 def recreate_dir(folder):
     if os.path.exists(folder):
@@ -535,6 +547,15 @@ def parse_fragment_filename(path):
 
 def get_visexpman_module_path():
     return os.path.split(sys.modules['visexpman'].__file__)[0]
+    
+def get_context_filename(config):
+    '''
+    Generate context filename from CONTEXT_PATH, username and application name
+    '''
+    if not hasattr(config, 'CONTEXT_PATH'):
+        raise RuntimeError('CONTEXT_PATH is not defined in machine config')
+    filename = 'context_{0}_{1}.hdf5'.format(config.appname, config.user)
+    return os.path.join(config.CONTEXT_PATH, filename)
     
 def get_user_folder(config):
     '''
