@@ -1246,9 +1246,9 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         Tests if py module can be opened as a stimfile and experiment configuration parameters can be parsed and displayed.total
         '''
-        self._call_gui(1)
         sourcefile_path = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', 'zoltan', 'test_stimulus.py')
         source_before = fileop.read_text_file(sourcefile_path)
+        self._call_gui(1)
         context = self._read_context()
         
         self.assertEqual(('GUITestExperimentConfig' in context['variables']['self.experiment_control.experiment_config_classes.keys'], 

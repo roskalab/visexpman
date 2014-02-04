@@ -2924,7 +2924,8 @@ class VisexpGuiPoller(Poller):
         self.save_context()
         
     def test(self):
-        if hasattr(self, 'test_run') and self.testmode!=1:
+        if (hasattr(self, 'test_run') and self.testmode!=1)\
+                    or self.testmode is None:
             return
         self.test_run=True
         animal_param_table = self.parent.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.table

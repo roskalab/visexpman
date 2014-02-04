@@ -242,15 +242,9 @@ class AnimalParameters(gui.WidgetControl):
         
     def _get_animal_filename(self, animal_parameters):
         '''
-        Generate animal file name from animal parameters.
+        Generate animal file name from animal parameters and user experiment data path.
         '''
-        filename = 'animal_{0}_{1}_{2}_{3}_L{4}R{5}.hdf5'.format(animal_parameters['id'], 
-                                                                                                animal_parameters['strain'], 
-                                                                                                animal_parameters['birth_date'] , 
-                                                                                                animal_parameters['injection_date'],
-                                                                                                animal_parameters['ear_punch_left'], 
-                                                                                                animal_parameters['ear_punch_right'])
-        return os.path.join(fileop.get_user_experiment_data_folder(self.config), filename)
+        return os.path.join(fileop.get_user_experiment_data_folder(self.config), fileop.generate_animal_filename(animal_parameters))
         
     def _save_animal_parameters(self):
         h=hdf5io.Hdf5io(self.animal_file,self.config)
@@ -273,6 +267,15 @@ class AnimalParameters(gui.WidgetControl):
         if os.path.exists(self.animal_file):
             self.poller.notify_user('WARNING', '{0} animal file alread exists. New animal file not created.'.format(self.animal_file))
             return
+        #check if animal file withthe same animal id exists
+        for fn in os.listdir(os.path.split(self.animal_file)[0]):
+            if fileop.is_animal_file(fn):
+                id = fileop.parse_animal_filename(fn)['id']
+                if id == self.animal_parameters['id']:
+                    if self.poller.ask4confirmation('Animal ID ({0}) already exists.\nAre you sure you want to create this file?'.format(id)):
+                        break
+                    else:
+                        return
         self._save_animal_parameters()
         self.animal_files = self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config), self.animal_files)
         self.poller.update_animal_file_list()

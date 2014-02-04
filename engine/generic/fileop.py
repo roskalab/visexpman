@@ -322,7 +322,6 @@ def write_text_file(filename, content):
     f.write(content)
     f.close()
 
-
 ################# Vision experiment manager related ####################
 
 def get_visexpman_module_path():
@@ -346,7 +345,6 @@ def get_user_experiment_data_folder(config):
         os.makedirs(user_experiment_data_folder)
     return user_experiment_data_folder
 
-
 def get_context_filename(config):
     '''
     Generate context filename from CONTEXT_PATH, username and application name
@@ -355,8 +353,44 @@ def get_context_filename(config):
         raise RuntimeError('CONTEXT_PATH is not defined in machine config')
     filename = 'context_{0}_{1}.hdf5'.format(config.appname, config.user)
     return os.path.join(config.CONTEXT_PATH, filename)
+    
 ################# Experiment file related ####################
 
+def generate_animal_filename(animal_parameters):
+    '''
+    Generate animal file name from animal parameters.
+    '''
+    if '_' in animal_parameters['strain']:
+        raise RuntimeError('Strain name cannot contain \"_\": {0}'.format(animal_parameters['strain']))
+    filename = 'animal_{0}_{1}_{2}_{3}_L{4}R{5}.hdf5'.format(animal_parameters['id'], 
+                                                                                            animal_parameters['strain'], 
+                                                                                            animal_parameters['birth_date'] , 
+                                                                                            animal_parameters['injection_date'],
+                                                                                            animal_parameters['ear_punch_left'], 
+                                                                                            animal_parameters['ear_punch_right'])
+    return filename
+    
+def parse_animal_filename(filename):
+    '''
+    Parses animal parameters from animal filename
+    '''
+    parts = filename[:-4].split('_')
+    animal_parameters={}
+    animal_parameters['injection_date'] = parts[-2]
+    animal_parameters['birth_date'] = parts[-3]
+    animal_parameters['strain'] = parts[-4]
+    animal_parameters['id'] = '_'.join(parts[1:-4])
+    animal_parameters['ear_punch_left'] = parts[-1][1]
+    animal_parameters['ear_punch_right'] = parts[-1][3]
+    return animal_parameters
+    
+def is_animal_file(filename):
+    fn = os.path.split(filename)[1]
+    if fn[:7] =='animal_' and file_extension(fn) == 'hdf5':
+        return True
+    else:
+        return False
+    
 def copy_reference_fragment_files(reference_folder, target_folder):
     if os.path.exists(target_folder):
         shutil.rmtree(target_folder)
@@ -599,7 +633,7 @@ def pngsave(im, file):
 ################# End of functions ####################  
 
 import unittest
-class TestUtils(unittest.TestCase):
+class TestFileops(unittest.TestCase):
     def setUp(self):
         import tempfile,os
         f,self.filename = tempfile.mkstemp(suffix='.png')
@@ -608,8 +642,9 @@ class TestUtils(unittest.TestCase):
     def tearDown(self):
         os.remove(self.filename)
         pass
-    @unittest.skip('')
-    def test_pngsave(self):
+        
+#    @unittest.skip('')
+    def test_01_pngsave(self):
         import numpy, Image
         from visexpman.engine.generic.introspect import hash_variables
         pic = numpy.zeros((233,234),numpy.uint8)
@@ -622,7 +657,8 @@ class TestUtils(unittest.TestCase):
         self.assertTrue((pilconfirm.info['mycomment']==pilpic.info['mycomment']) and (pilconfirm.info['myhash']==pilpic.info['myhash']))
         pass
         
-    def test_copier(self):
+    @unittest.skip('')
+    def test_02_copier(self):
         from multiprocessing import Process,Manager
         import threading
         def message_printer(message_list):
@@ -665,14 +701,23 @@ class TestUtils(unittest.TestCase):
         lister.join()
         pass
         
+    def test_03_parse_animal_filename(self):
+        ap = {'imaging_channels': 'green', 'red_labeling': 'no', 'green_labeling': 'label', 
+        'injection_target': '', 'ear_punch_left': '2', 'comment': 'tbd', 'strain': 'strain1', 
+        'ear_punch_right': '1', 'gender': 'male', 
+        'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'test_ID'}
+        ap_parsed = parse_animal_filename(generate_animal_filename(ap))
+        for k in ['imaging_channels', 'red_labeling', 'green_labeling', 'injection_target', 'comment', 'gender']:
+            del ap[k]
+        self.assertEqual(ap, ap_parsed)
         
 if __name__=='__main__':
-    import sys
-    print sys.argv
-    if len(sys.argv)==3 and sys.argv[1] == 'total_size':
-        print 'Total size:'+str(total_size(sys.argv[2]))
-    elif len(sys.argv)==4 and sys.argv[1] == 'dirListing':
-        print 'dirListing:'
-        print  dirListing(sys.argv[2], sys.argv[3], sys.argv[2])
-    else:
+#    import sys
+#    print sys.argv
+#    if len(sys.argv)==3 and sys.argv[1] == 'total_size':
+#        print 'Total size:'+str(total_size(sys.argv[2]))
+#    elif len(sys.argv)==4 and sys.argv[1] == 'dirListing':
+#        print 'dirListing:'
+#        print  dirListing(sys.argv[2], sys.argv[3], sys.argv[2])
+#    else:
         unittest.main()
