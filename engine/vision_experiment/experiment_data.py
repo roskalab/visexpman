@@ -14,7 +14,7 @@ import tempfile
 import StringIO
 
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine import generic
 from visexpA.engine.datahandlers import hdf5io
 

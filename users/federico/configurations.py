@@ -7,7 +7,7 @@ import time
 from visexpman.engine.generic.parameter import Parameter
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig, AoCorticalCaImagingConfig
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 
 class ProtocolDevelopment(VisionExperimentConfig):
     '''
@@ -28,7 +28,7 @@ class ProtocolDevelopment(VisionExperimentConfig):
         EXPERIMENT_FILE_FORMAT = 'mat'
         #Create folders that does not exists
         for folder in [LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, CONTEXT_PATH]:
-            file.mkdir_notexists(folder)
+            fileop.mkdir_notexists(folder)
         
         #=== screen ===
         FULLSCREEN = not False

@@ -8,7 +8,7 @@ import unittest
 import threading
 from visexpman.users.zoltan.test import unit_test_runner
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 
 class Log(object):
     def __init__(self, name,  path, write_mode = 'automatic', timestamp = 'date_time', local_saving = False, format_string = '%(message)s'):
@@ -116,7 +116,7 @@ class LoggerThread(threading.Thread, Log):
                  
 class TestLog(unittest.TestCase):
     def setUp(self):
-        self.path = file.generate_filename(os.path.join(unit_test_runner.TEST_working_folder, 'log_unit_test.txt'))
+        self.path = fileop.generate_filename(os.path.join(unit_test_runner.TEST_working_folder, 'log_unit_test.txt'))
 
     def test_01_automatic_saving_with_timestamps(self):
         while True:
@@ -127,7 +127,7 @@ class TestLog(unittest.TestCase):
         log.info('logged1')
         log.info('logged2')
         log.handler.flush()
-        log_file_content = file.read_text_file(self.path)
+        log_file_content = fileop.read_text_file(self.path)
         self.assertEqual((os.path.exists(self.path), 
                           log_file_content.find('logged1') != -1, 
                           log_file_content.find('logged2') != -1, 
@@ -142,9 +142,9 @@ class TestLog(unittest.TestCase):
         log = Log(self.path, self.path, write_mode = 'user control')
         log.info('logged1')
         log.info('logged2')        
-        log_file_content_pre_flush = file.read_text_file(self.path)
+        log_file_content_pre_flush = fileop.read_text_file(self.path)
         log.flush()
-        log_file_content = file.read_text_file(self.path)
+        log_file_content = fileop.read_text_file(self.path)
         self.assertEqual((os.path.exists(self.path), 
                           log_file_content.find('logged1') != -1, 
                           log_file_content.find('logged2') != -1, 
@@ -161,7 +161,7 @@ class TestLog(unittest.TestCase):
         log.info('logged1')
         log.info('logged2')
         log.handler.flush()
-        log_file_content = file.read_text_file(self.path)
+        log_file_content = fileop.read_text_file(self.path)
         time_stamps = []
         for line in log_file_content.split('\n'):
             if len(line) > 0:
@@ -182,9 +182,9 @@ class TestLog(unittest.TestCase):
         log = Log(self.path, self.path, write_mode = 'user control', timestamp = 'elapsed_time')
         log.info('logged1')
         log.info('logged2')
-        log_file_content_pre_flush = file.read_text_file(self.path)
+        log_file_content_pre_flush = fileop.read_text_file(self.path)
         log.flush()
-        log_file_content = file.read_text_file(self.path)
+        log_file_content = fileop.read_text_file(self.path)
         time_stamps = []
         for line in log_file_content.split('\n'):
             if len(line) > 0:

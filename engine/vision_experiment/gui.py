@@ -18,7 +18,7 @@ from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import gui
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.generic import stringop
 from visexpman.engine.generic import introspect
 
@@ -204,7 +204,7 @@ class AnimalParameters(gui.WidgetControl):
     '''
     def __init__(self, poller, config, widget):
         gui.WidgetControl.__init__(self, poller, config, widget)
-        self.animal_files = self._get_animal_file_list(file.get_user_experiment_data_folder(self.config))
+        self.animal_files = self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config))
         #Most recently modified file is selected
         timestamps = self.animal_files.values()
         if len(timestamps)>0:
@@ -218,7 +218,7 @@ class AnimalParameters(gui.WidgetControl):
         
         In case of overlapping items in the two lists, the later modified will be used.
         '''
-        directories, all_files = file.find_files_and_folders(folder, extension = 'hdf5')
+        directories, all_files = fileop.find_files_and_folders(folder, extension = 'hdf5')
         for fn in all_files:
             if os.path.split(fn)[1][:7] == 'animal_':
                 ctime = os.path.getctime(fn)
@@ -250,7 +250,7 @@ class AnimalParameters(gui.WidgetControl):
                                                                                                 animal_parameters['injection_date'],
                                                                                                 animal_parameters['ear_punch_left'], 
                                                                                                 animal_parameters['ear_punch_right'])
-        return os.path.join(file.get_user_experiment_data_folder(self.config), filename)
+        return os.path.join(fileop.get_user_experiment_data_folder(self.config), filename)
         
     def _save_animal_parameters(self):
         h=hdf5io.Hdf5io(self.animal_file,self.config)
@@ -260,7 +260,7 @@ class AnimalParameters(gui.WidgetControl):
         
     def save(self):
         '''
-        Saves current animal parameters to animal file. Animal file is created if file does not exists.
+        Saves current animal parameters to animal fileop. Animal file is created if file does not exists.
         '''
         self.animal_parameters = self._get_animal_parameters()
         #Generate animal file filename:
@@ -274,13 +274,13 @@ class AnimalParameters(gui.WidgetControl):
             self.poller.notify_user('WARNING', '{0} animal file alread exists. New animal file not created.'.format(self.animal_file))
             return
         self._save_animal_parameters()
-        self.animal_files = self._get_animal_file_list(file.get_user_experiment_data_folder(self.config), self.animal_files)
+        self.animal_files = self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config), self.animal_files)
         self.poller.update_animal_file_list()
         self.printc('{0} file created'.format(self.animal_file))
         
     def update(self):
         '''
-        Current values of animal parameters table are written into animal file. If any ID, birthdate, gcamp injection date or ear punch is changed, animal file is renamed.
+        Current values of animal parameters table are written into animal fileop. If any ID, birthdate, gcamp injection date or ear punch is changed, animal file is renamed.
         '''
         current_animal_parameters = self._get_animal_parameters()
         current_animal_file = self._get_animal_filename(current_animal_parameters)
@@ -292,7 +292,7 @@ class AnimalParameters(gui.WidgetControl):
         if not hasattr(self, 'animal_file'):
             self.printc('No animal file, nothing is updated')
             return
-        if os.path.split(self.animal_file)[0] != file.get_user_experiment_data_folder(self.config):
+        if os.path.split(self.animal_file)[0] != fileop.get_user_experiment_data_folder(self.config):
             self.poller.notify_user('WARNING', 'Files not in experiment data folder cannot be modified. Animal files from datastorage shall be first copied to experiment data folder')
             return
         if self.animal_file != current_animal_file:#Rename animal file if necessary
@@ -349,14 +349,14 @@ class AnimalParameters(gui.WidgetControl):
         '''
         Copy animal parameter file from data storage to experiment data folder
         '''
-        if os.path.exists(os.path.join(file.get_user_experiment_data_folder(self.config), os.path.split(self.animal_file)[1])):
+        if os.path.exists(os.path.join(fileop.get_user_experiment_data_folder(self.config), os.path.split(self.animal_file)[1])):
             message = 'Copy of this file already exists in experiment data folder. Do you want to overwrite it?'
             if not self.poller.ask4confirmation(message):
                 return
         self.printc('Copying file, please wait!')
-        shutil.copy(self.animal_file, file.get_user_experiment_data_folder(self.config))
+        shutil.copy(self.animal_file, fileop.get_user_experiment_data_folder(self.config))
         self.printc('Animal file copied.')
-        new_animal_filename = os.path.join(file.get_user_experiment_data_folder(self.config), os.path.split(self.animal_file)[1])
+        new_animal_filename = os.path.join(fileop.get_user_experiment_data_folder(self.config), os.path.split(self.animal_file)[1])
         self.animal_files[new_animal_filename] = os.path.getctime(new_animal_filename)
         self.poller.update_animal_file_list()
 
@@ -443,11 +443,11 @@ class ExperimentControl(gui.WidgetControl):
         gui.WidgetControl.__init__(self, poller, config, widget)
         #find all python module in user folder and load users's all experiment configs and parameters
         self.experiment_config_classes = {}
-        self._load_experiment_config_parameters(file.get_user_folder(self.config))
+        self._load_experiment_config_parameters(fileop.get_user_folder(self.config))
         
     ################# Experiment config parameters ####################
     def browse(self):
-        user_folder = file.get_user_folder(self.config)
+        user_folder = fileop.get_user_folder(self.config)
         self.user_selected_stimulation_module = self.poller.ask4filename('Select stimulation file', user_folder,  '*.py')
         if os.path.exists(self.user_selected_stimulation_module):#Parses files unless cancel pressed on file dialog box
             self._load_experiment_config_parameters(self.user_selected_stimulation_module)
@@ -480,7 +480,7 @@ class ExperimentControl(gui.WidgetControl):
         if hasattr(self, 'user_selected_stimulation_module'):
             filename = self.user_selected_stimulation_module
         else:
-            filename = file.get_user_folder(self.config)
+            filename = fileop.get_user_folder(self.config)
         self._load_experiment_config_parameters(filename)
 
     def save_experiment_parameters(self):
@@ -490,7 +490,7 @@ class ExperimentControl(gui.WidgetControl):
             filename = os.path.split(configname)[0]
             configname = os.path.split(configname)[1]
         else:
-            filename = file.find_content_in_folder('class '+configname, file.get_user_folder(self.config), '.py')
+            filename = fileop.find_content_in_folder('class '+configname, fileop.get_user_folder(self.config), '.py')
             if len(filename)>1:
                 raise RuntimeError('{0} experiment config found in more than one files'.format(configname))
             else:
@@ -532,7 +532,7 @@ class ExperimentControl(gui.WidgetControl):
         content= ''.join(content)
         #Check for syntax errors
         introspect.import_code(content,'module_under_test', add_to_sys_modules=0)
-        file.write_text_file(filename, content)
+        fileop.write_text_file(filename, content)
         #Parse modified file to make parameter table's data consistent
         self.printc('{1} parameters saved to {0}' .format(filename, configname))
 

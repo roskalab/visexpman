@@ -31,7 +31,7 @@ from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.vision_experiment import gui
 from visexpman.engine import generic
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.generic import stringop
 from visexpman.engine.generic import introspect
 from visexpman.engine.generic import gui as gui_generic
@@ -655,7 +655,7 @@ class CorticalGUIPoller(Poller):
 
     def read_scan_regions(self, id):
         #read call parameters
-        measurement_file_path = file.get_measurement_file_path_from_id(id, self.config)
+        measurement_file_path = fileop.get_measurement_file_path_from_id(id, self.config)
         if measurement_file_path is None or not os.path.exists(measurement_file_path):
             self.printc('Measurement file not found: {0}, {1}' .format(measurement_file_path,  id))
             return 3*[None]
@@ -684,9 +684,9 @@ class CorticalGUIPoller(Poller):
 
     def rebuild_cell_database(self):
         self.clear_analysis_status()
-        measurement_file_paths = file.filtered_file_list(self.config.EXPERIMENT_DATA_PATH, ['fragment','hdf5'], fullpath = True,filter_condition='and')
+        measurement_file_paths = fileop.filtered_file_list(self.config.EXPERIMENT_DATA_PATH, ['fragment','hdf5'], fullpath = True,filter_condition='and')
         for measurement_path in measurement_file_paths:
-            id = file.parse_fragment_filename(measurement_path)['id']
+            id = fileop.parse_fragment_filename(measurement_path)['id']
             flags = ['fragment_check_ready', 'mesextractor_ready']
             self.add_measurement_id(id)
             self.set_analysis_status_flag(id, flags)
@@ -1651,7 +1651,7 @@ class CorticalGUIPoller(Poller):
             if os.path.exists(parameter_file):
                 self.printc('Experiment ID already exists')
                 return
-        tmp_path = file.get_tmp_file('hdf5', 0.3)
+        tmp_path = fileop.get_tmp_file('hdf5', 0.3)
         h = hdf5io.Hdf5io(tmp_path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         fields_to_save = ['parameters']
         h.parameters = copy.deepcopy(self.experiment_parameters)
@@ -1777,7 +1777,7 @@ class CorticalGUIPoller(Poller):
     def add_simulated_measurement_file(self):
         self.clear_analysis_status()
         commands = []
-        for path in file.listdir_fullpath(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'simulated_data')):
+        for path in fileop.listdir_fullpath(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'simulated_data')):
             if '.hdf5' in path:
                 h = hdf5io.Hdf5io(path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
                 h.load('call_parameters')
@@ -1789,7 +1789,7 @@ class CorticalGUIPoller(Poller):
                 os.remove(target_path)
             shutil.copyfile(path, target_path)
             if '.hdf5' in path:
-                commands.append('SOCmeasurement_readyEOC{0}EOP'.format(file.parse_fragment_filename(path)['id']))
+                commands.append('SOCmeasurement_readyEOC{0}EOP'.format(fileop.parse_fragment_filename(path)['id']))
                 self.printc('Simulated file copied: {0}'.format(path))
         time.sleep(1.0)
         for command in commands:
@@ -1798,7 +1798,7 @@ class CorticalGUIPoller(Poller):
         self.printc('Done')
 
     def save_xy_scan_to_file(self):
-        hdf5_handler = hdf5io.Hdf5io(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xy_scan.hdf5')), filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+        hdf5_handler = hdf5io.Hdf5io(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xy_scan.hdf5')), filelocking=self.config.ENABLE_HDF5_FILELOCKING)
         hdf5_handler.xy_scan = self.xy_scan
         hdf5_handler.stage_position = self.stage_position
         hdf5_handler.save(['xy_scan', 'stage_position'])
@@ -1889,8 +1889,8 @@ class CorticalGUIPoller(Poller):
             if False:
                 import Image
                 from visexpA.engine.dataprocessors import generic
-                Image.fromarray(generic.normalize(f1,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f1.png')))
-                Image.fromarray(generic.normalize(f2,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f2.png')))
+                Image.fromarray(generic.normalize(f1,  numpy.uint8)).save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f1.png')))
+                Image.fromarray(generic.normalize(f2,  numpy.uint8)).save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f2.png')))
         self.create_image_registration_data_file(f1, f2)
         utils.empty_queue(self.queues['analysis']['in'])
         arguments = ''
@@ -2066,7 +2066,7 @@ class MouseFileHandler(Poller):
         return cells
 
 def update_mouse_files_list(config, current_mouse_files = []):
-    new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')
+    new_mouse_files = fileop.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')
     new_mouse_files = [mouse_file for mouse_file in new_mouse_files if '_jobhandler' not in mouse_file and '_stim' not in mouse_file and '_copy' not in mouse_file and os.path.isfile(os.path.join(config.EXPERIMENT_DATA_PATH,mouse_file))]
     if current_mouse_files != new_mouse_files:
         are_new_files = True
@@ -2080,7 +2080,7 @@ class BehavioralTesterPoller(Poller):
         Poller.__init__(self, parent)
         self.recording = []
         self.timeseries = []
-        self.path = file.generate_filename(os.path.join(self.config.LOG_PATH, 'recording.txt'))
+        self.path = fileop.generate_filename(os.path.join(self.config.LOG_PATH, 'recording.txt'))
         try:
             self.pi = digital_io.Photointerrrupter(config)
             self.pi.start()
@@ -2128,7 +2128,7 @@ class FlowmeterPoller(flowmeter.Flowmeter, Poller):
         flowmeter.Flowmeter.__init__(self, config)
         self.recording = []
         self.timeseries = []
-        self.path = file.generate_filename(os.path.join(self.config.LOG_PATH, 'recording.txt'))
+        self.path = fileop.generate_filename(os.path.join(self.config.LOG_PATH, 'recording.txt'))
         self.file = open(self.path, 'at')
         self.file.write('time[s]\tflow rate[ul/min\n')
         self.last_file_write = time.time()
@@ -2325,7 +2325,7 @@ class CaImagingPoller(Poller):
         if os.name != 'nt' and not hasattr(self, 'main_image'):
             return
             from visexpman.users.zoltan.test import unit_test_runner
-            h = hdf5io.Hdf5io(file.filtered_file_list(unit_test_runner.prepare_test_data('caimaging'), 'hdf5', fullpath = True)[0], filelocking=False)
+            h = hdf5io.Hdf5io(fileop.filtered_file_list(unit_test_runner.prepare_test_data('caimaging'), 'hdf5', fullpath = True)[0], filelocking=False)
             img = h.findvar('data')
             img = img.mean(axis=0)
             scan_parameters = h.findvar('scan_parameters')
@@ -2462,7 +2462,7 @@ class CaImagingPoller(Poller):
             #generate filename/create dirs
             if False:
                 folder = os.path.join(self.config.EXPERIMENT_DATA_PATH,  utils.date_string())
-                file.mkdir_notexists(folder)
+                fileop.mkdir_notexists(folder)
             else:
                 folder = self.config.EXPERIMENT_DATA_PATH
             if id == None:
@@ -2711,7 +2711,7 @@ class VisexpGuiPoller(Poller):
             context_hdf5.close()
 
     def save_context(self):
-        h=hdf5io.Hdf5io(file.get_context_filename(self.config), self.config)
+        h=hdf5io.Hdf5io(fileop.get_context_filename(self.config), self.config)
         context = {}
         context['variables'] = {}
         for varname in self.context_paths['variables']:

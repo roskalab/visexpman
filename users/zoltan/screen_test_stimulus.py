@@ -5,7 +5,7 @@ import shutil
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine import visexp_runner
 
 class ScreenTestSetup(VisionExperimentConfig):
@@ -98,7 +98,7 @@ class ScreenTest(experiment.Experiment):
                 color_index+=1
         import Image
         #Find out file index
-        captured_files = file.listdir_fullpath(self.machine_config.CAPTURE_PATH)
+        captured_files = fileop.listdir_fullpath(self.machine_config.CAPTURE_PATH)
         captured_files.sort()
         start_index = int(os.path.split(captured_files[-1])[-1].split('.')[0].split('_')[1]) + 1
         for i in range(start_index,  int(start_index + self.experiment_config.COLOR_SCALE_DURATION * self.machine_config.SCREEN_EXPECTED_FRAME_RATE)):

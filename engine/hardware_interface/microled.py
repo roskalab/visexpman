@@ -161,9 +161,9 @@ class Testuled(unittest.TestCase):
                 self.data.append(self.queues['data'].get())
             self.data=numpy.array(self.data)
             from visexpA.engine.datahandlers import hdf5io
-            from visexpman.engine.generic import file
+            from visexpman.engine.generic import fileop
             from visexpman.engine.generic import utils
-            h=hdf5io.Hdf5io(file.generate_filename('v:\\debug\\uled\\timing.hdf5'), filelocking=False)
+            h=hdf5io.Hdf5io(fileop.generate_filename('v:\\debug\\uled\\timing.hdf5'), filelocking=False)
             self.sent_packets = utils.object2array(s.sent_packets)
             vns=['pause', 'timing', 'repeats', 'blocktimes', 'data', 'sent_packets']
             for vn in vns:

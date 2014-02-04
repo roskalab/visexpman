@@ -23,7 +23,7 @@ if os.name == 'nt':
     import win32process
     import win32api
 
-import file
+import fileop
 import introspect
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
@@ -1304,7 +1304,7 @@ if __name__ == "__main__":
 #                            'Comments':['^M\d+(\S+)\(',str],
 #                            'Anesthesia':['ND\d\d*\ (\S+\ *\S*)\ \S+\)$',str],
 #                                          }
-#            stimpar = file.parsefilename(filename, commonpars)
+#            stimpar = fileop.parsefilename(filename, commonpars)
 #            result = {'AnimalStrain':['Bl6'], # Match M???(... at the beginning of the line
 #                            'AnimalBirthDay_YMD':[4, 9, 10],
 #                            'Injected_YMD':[1, 11, 10],

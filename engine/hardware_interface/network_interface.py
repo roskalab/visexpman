@@ -20,7 +20,7 @@ import SocketServer
 import random
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import log
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 import traceback
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 from visexpman.engine.generic.introspect import list_type
@@ -401,7 +401,7 @@ class CommandRelayServer(object):
         self.config = config        
         if self.config.COMMAND_RELAY_SERVER['ENABLE']:
             self._generate_queues()
-            self.log = log.LoggerThread(self.command_queue, self.log_queue, 'server log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'server_log.txt')), timestamp = 'no', local_saving = True) 
+            self.log = log.LoggerThread(self.command_queue, self.log_queue, 'server log', fileop.generate_filename(os.path.join(self.config.LOG_PATH, 'server_log.txt')), timestamp = 'no', local_saving = True) 
             self.log.start()
             self._create_servers()
             self._start_servers()

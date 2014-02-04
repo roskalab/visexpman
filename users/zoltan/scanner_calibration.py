@@ -11,7 +11,7 @@ import numpy
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.hardware_interface import camera_interface
 from visexpman.engine.generic import configuration
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 
 class TestConfig(configuration.Config):
     def _create_application_parameters(self):
@@ -93,8 +93,8 @@ class ScannerCalibration(camera_interface.ImagingSourceCamera, daq_instrument.An
         
     def process_data(self):
         import tiffile
-        tiffile.imsave(file.generate_filename('v:\\debug\\20130503\\camcalibs\\calib.tiff'), self.video, software = 'visexpman')
-        p = file.generate_filename('v:\\debug\\20130503\\camcalibs\\calib.hdf5')
+        tiffile.imsave(fileop.generate_filename('v:\\debug\\20130503\\camcalibs\\calib.tiff'), self.video, software = 'visexpman')
+        p = fileop.generate_filename('v:\\debug\\20130503\\camcalibs\\calib.hdf5')
         hdf5io.save_item(p, 'video', self.video, filelocking = False)
         hdf5io.save_item(p, 'config', self.config.get_all_parameters(), filelocking = False)
         
@@ -206,7 +206,7 @@ def evaluate_video(p, axis):
     Image.fromarray(normalize(curves,outtype=numpy.uint8)).show()
 #    mean_images = normalize(mean_images,outtype=numpy.uint8)
     import tiffile
-    tiffile.imsave(file.generate_filename('/mnt/rznb/1.tiff'), numpy.cast['uint8'](mean_images), software = 'visexpman')
+    tiffile.imsave(fileop.generate_filename('/mnt/rznb/1.tiff'), numpy.cast['uint8'](mean_images), software = 'visexpman')
     pass
     return
 
@@ -291,7 +291,7 @@ def generate_delay_curve():
         os.remove(fn)
         Image.fromarray(ima).save(fn)
         pass
-    fn = file.generate_filename(os.path.join(output_folder, 'ca_image_offset_calibration.hdf5'))
+    fn = fileop.generate_filename(os.path.join(output_folder, 'ca_image_offset_calibration.hdf5'))
     for vn in ['offsets',  'bead_sizes']:
         hdf5io.save_item(fn, vn, utils.object2array(locals()[vn]), filelocking=False)
     return fn
@@ -320,7 +320,7 @@ def plot_delay_curve(fn):
     legend(map(str, srs))
     xlabel('resolution [pixel/um]')
     ylabel('bead size [um]')
-    savefig(file.generate_filename(fn))
+    savefig(fileop.generate_filename(fn))
     #Plot bead position over resolution
     figure(201)
     for scan_range in srs:
@@ -329,7 +329,7 @@ def plot_delay_curve(fn):
     legend(map(str, srs))
     xlabel('resolution [pixel/um]')
     ylabel('bead position [PU]')
-    savefig(file.generate_filename(fn))
+    savefig(fileop.generate_filename(fn))
     #Plot bead position over scan range
     figure(202)
     resolutions = set(alldata[:,1])
@@ -342,7 +342,7 @@ def plot_delay_curve(fn):
     legend(map(str, resolutions))
     xlabel('scan range [um]')
     ylabel('bead position [PU]')
-    savefig(file.generate_filename(fn))
+    savefig(fileop.generate_filename(fn))
     resolutions.reverse()
     resolution_axis, scan_range_axis = numpy.meshgrid(resolutions, srs)
     offset = []
@@ -455,7 +455,7 @@ def recordings2calibdata(datafolder,  output_folder, enable_plot=False):
     from scipy import interpolate
     f = interpolate.interp2d(scan_ranges, resolutions, offsets_mg, kind='linear')
     
-    fn = file.generate_filename(os.path.join(output_folder, 'image_offset_calibration.hdf5'))
+    fn = fileop.generate_filename(os.path.join(output_folder, 'image_offset_calibration.hdf5'))
     hdf5io.save_item(fn, 'offsets', offsets, filelocking=False)
     hdf5io.save_item(fn, 'scan_ranges', scan_ranges, filelocking=False)
     hdf5io.save_item(fn, 'resolutions', resolutions, filelocking=False)

@@ -15,7 +15,7 @@ argparser.add_argument('--find_linear_range', help='Runs calibration with differ
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine import visexp_runner
 from visexpman.engine.hardware_interface import lightmeter
 from visexpA.engine.datahandlers import hdf5io

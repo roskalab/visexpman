@@ -31,7 +31,7 @@ from visexpman.engine.generic import gui as gui_generic
 from visexpman.engine.vision_experiment import gui_pollers
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.generic import stringop
 from visexpman.engine import generic
 from visexpman.engine.generic import log
@@ -54,7 +54,7 @@ class CorticalVisionExperimentGui(QtGui.QWidget):
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         self.config.user = user
         self.console_text = ''
-        self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True)
+        self.log = log.Log('gui log', fileop.generate_filename(os.path.join(self.config.LOG_PATH, 'gui_log.txt')), local_saving = True)
         self.poller = gui_pollers.CorticalGUIPoller(self)
         self.queues = self.poller.queues
         if ENABLE_MOUSE_FILE_HANDLER:
@@ -1040,7 +1040,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.config.user = user
         self.config.appname = appname
         self.console_text = ''
-        self.log = log.Log(appname, file.generate_filename(os.path.join(self.config.LOG_PATH, appname+'_log.txt')), local_saving = True)
+        self.log = log.Log(appname, fileop.generate_filename(os.path.join(self.config.LOG_PATH, appname+'_log.txt')), local_saving = True)
         Qt.QMainWindow.__init__(self)
         self.setWindowTitle('{0} - {1} - {2}' .format(appname, user, config_class))
         self.create_widgets()
@@ -1216,8 +1216,8 @@ class testVisionExperimentGui(unittest.TestCase):
         self.machine_config.user = 'zoltan'
         #Clean up files
         [shutil.rmtree(fn) for fn in [self.machine_config.DATA_STORAGE_PATH, self.machine_config.EXPERIMENT_DATA_PATH] if os.path.exists(fn)]
-        if os.path.exists(file.get_context_filename(self.machine_config)):
-            os.remove(file.get_context_filename(self.machine_config))
+        if os.path.exists(fileop.get_context_filename(self.machine_config)):
+            os.remove(fileop.get_context_filename(self.machine_config))
         
     def _call_gui(self, testmode):
         import subprocess
@@ -1227,7 +1227,7 @@ class testVisionExperimentGui(unittest.TestCase):
         subprocess.call(code, shell=True)
         
     def _read_context(self):
-        return utils.array2object(hdf5io.read_item(file.get_context_filename(self.machine_config), 'context', self.machine_config))
+        return utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.machine_config), 'context', self.machine_config))
     
     def _create_animal_parameter_file(self, id):
         '''
@@ -1238,7 +1238,7 @@ class testVisionExperimentGui(unittest.TestCase):
         animal_parameters = {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label '+id , 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': id}
         animal_file = ap._get_animal_filename(animal_parameters)
         hdf5io.save_item(animal_file, 'animal_parameters', animal_parameters, config=self.machine_config, overwrite = True)
-        file.remove_if_exists(os.path.join(tempfile.gettempdir(), os.path.split(animal_file)[1]))
+        fileop.remove_if_exists(os.path.join(tempfile.gettempdir(), os.path.split(animal_file)[1]))
         shutil.move(animal_file, tempfile.gettempdir())
         
 #    @unittest.skip('')
@@ -1248,14 +1248,14 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         self._call_gui(1)
         sourcefile_path = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', 'zoltan', 'test_stimulus.py')
-        source_before = file.read_text_file(sourcefile_path)
+        source_before = fileop.read_text_file(sourcefile_path)
         context = self._read_context()
         
         self.assertEqual(('GUITestExperimentConfig' in context['variables']['self.experiment_control.experiment_config_classes.keys'], 
                           context['variables']['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount'], 
                           'test_stimulus.py' in context['variables']['self.experiment_control.user_selected_stimulation_module'], 
                           source_before), 
-                          (True, 2, True, file.read_text_file(sourcefile_path)))
+                          (True, 2, True, fileop.read_text_file(sourcefile_path)))
                           
 #    @unittest.skip('')
     def test_02_create_animal_file(self):
@@ -1316,13 +1316,13 @@ class testVisionExperimentGui(unittest.TestCase):
         self._call_gui(5)
         context = self._read_context()
         for fn in context['variables']['self.animal_parameters.animal_files.keys']:
-            if 'data_storage2' in fn and  file.get_user_experiment_data_folder(self.machine_config) in fn:
+            if 'data_storage2' in fn and  fileop.get_user_experiment_data_folder(self.machine_config) in fn:
                 copied_animal_file = fn
                 break
         self.assertEqual((
             stringop.string_in_list(context['variables']['self.animal_parameters.animal_files.keys'], 'data_storage1'), 
             stringop.string_in_list(context['variables']['self.animal_parameters.animal_files.keys'], 'data_storage2'), 
-            stringop.string_in_list(context['variables']['self.animal_parameters.animal_files.keys'], file.get_user_experiment_data_folder(self.machine_config)), 
+            stringop.string_in_list(context['variables']['self.animal_parameters.animal_files.keys'], fileop.get_user_experiment_data_folder(self.machine_config)), 
             len(context['variables']['self.animal_parameters.animal_files.keys']), 
             hdf5io.read_item(context['variables']['self.animal_parameters.animal_file'], 'animal_parameters', self.machine_config), 
             hdf5io.read_item(copied_animal_file, 'animal_parameters', self.machine_config),

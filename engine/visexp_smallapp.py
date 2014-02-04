@@ -13,7 +13,7 @@ import PyQt4.QtCore as QtCore
 
 import visexpman
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.generic import log
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.vision_experiment import gui
@@ -36,7 +36,7 @@ class SmallApp(QtGui.QWidget):
         if not hasattr(self.config, 'SMALLAPP'):
             raise RuntimeError('No small application configuration is provided, check machine config')
         if hasattr(self.config, 'LOG_PATH'):
-            self.log = log.Log('gui log', file.generate_filename(os.path.join(self.config.LOG_PATH, self.config.SMALLAPP['NAME'].replace(' ', '_') +'.txt')), local_saving = True)
+            self.log = log.Log('gui log', fileop.generate_filename(os.path.join(self.config.LOG_PATH, self.config.SMALLAPP['NAME'].replace(' ', '_') +'.txt')), local_saving = True)
         self.console_text = ''
         if self.config.SMALLAPP.has_key('POLLER'):
             if hasattr(gui_pollers, self.config.SMALLAPP['POLLER']):

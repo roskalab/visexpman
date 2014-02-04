@@ -19,7 +19,7 @@ import PyQt4.QtCore as QtCore
 import visexpman.engine.generic.configuration
 from visexpA.engine.datahandlers import matlabfile
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 
 from visexpman.users.zoltan.test import unit_test_runner
 parameter_extract = re.compile('EOC(.+)EOP')
@@ -266,7 +266,7 @@ class MesInterface(object):
                 parameter_file.tofile(two_photon_image_path)
         else:
             two_photon_image_path = parameter_file
-            two_photon_image_path_on_mes = file.convert_path_to_remote_machine_path(two_photon_image_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS != 'win'))
+            two_photon_image_path_on_mes = fileop.convert_path_to_remote_machine_path(two_photon_image_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS != 'win'))
         utils.empty_queue(self.queues['mes']['in'])
         result = False
         image = numpy.zeros((2, 2))
@@ -402,12 +402,12 @@ class MesInterface(object):
             self._log_info('Runnability test did not succeed')
             return False, ''
         if parameter_file == '':
-            rc_scan_path = file.generate_filename(os.path.join(self.config.MES_DATA_FOLDER, 'line_scan.mat'))
-            rc_scan_path_on_mes =  file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
+            rc_scan_path = fileop.generate_filename(os.path.join(self.config.MES_DATA_FOLDER, 'line_scan.mat'))
+            rc_scan_path_on_mes =  fileop.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
             result = True
         elif os.path.exists(parameter_file):
             rc_scan_path = parameter_file
-            rc_scan_path_on_mes = file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
+            rc_scan_path_on_mes = fileop.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
             result = True
         else:
             result, rc_scan_path, rc_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
@@ -530,7 +530,7 @@ class MesInterface(object):
             line_scan_path, line_scan_path_on_mes = self._generate_mes_file_paths('line_scan_parameters.mat')
         else:
             line_scan_path = parameter_file
-            line_scan_path_on_mes = file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS != 'win'))
+            line_scan_path_on_mes = fileop.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS != 'win'))
         utils.empty_queue(self.queues['mes']['in'])
         #Acquire line scan if MES is connected
         if self.connection.connected_to_remote_client():
@@ -555,12 +555,12 @@ class MesInterface(object):
         if autozigzag is None:
             autozigzag = self.config.ENABLE_ZIGZAG_CORRECTION
         if parameter_file == '':
-            line_scan_path = file.generate_filename(os.path.join(self.config.MES_DATA_FOLDER, 'line_scan.mat'))
-            line_scan_path_on_mes =  file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
+            line_scan_path = fileop.generate_filename(os.path.join(self.config.MES_DATA_FOLDER, 'line_scan.mat'))
+            line_scan_path_on_mes =  fileop.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = line_scan_path, timeout = timeout)
         elif os.path.exists(parameter_file):
             line_scan_path = parameter_file
-            line_scan_path_on_mes = file.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
+            line_scan_path_on_mes = fileop.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
             result = True
         else:
             result, line_scan_path, line_scan_path_on_mes =  self.get_line_scan_parameters(parameter_file = parameter_file, timeout = timeout)
@@ -598,7 +598,7 @@ class MesInterface(object):
         d['duration'] = int(duration)
         d['frame_rate'] = int(frame_rate)
         if parameter_file is None:
-            fn = file.generate_filename(os.path.join(self.config.MES_DATA_FOLDER, 'camparams.mat'))
+            fn = fileop.generate_filename(os.path.join(self.config.MES_DATA_FOLDER, 'camparams.mat'))
         else:
             fn = parameter_file
         scipy.io.savemat(fn, d, oned_as = 'column')
@@ -627,8 +627,8 @@ class MesInterface(object):
             self.log.info(message)
 
     def _generate_mes_file_paths(self, filename):
-        path = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename))
-        path_on_mes = file.convert_path_to_remote_machine_path(path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
+        path = fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename))
+        path_on_mes = fileop.convert_path_to_remote_machine_path(path, self.config.MES_DATA_FOLDER,  remote_win_path = True)
         return path, path_on_mes
 
 ############# Unit tests ##########################
@@ -684,7 +684,7 @@ class MESTestConfig(visexpman.engine.generic.configuration.Config):
             }
         }
         if self.mes_data_to_new_folder:
-            EXPERIMENT_DATA_PATH = file.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'mes_test'))
+            EXPERIMENT_DATA_PATH = fileop.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'mes_test'))
             if not os.path.exists(EXPERIMENT_DATA_PATH):
                 os.mkdir(EXPERIMENT_DATA_PATH)
         else:
@@ -779,7 +779,7 @@ class TestMesInterface(unittest.TestCase):
 
         line_scan_complete_success = False
         line_scan_data_save_success = False
-        user_line_scan_file = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'user_line_scan.mat'))
+        user_line_scan_file = fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'user_line_scan.mat'))
         line_scan_start_success, line_scan_path = self.mes_interface.start_line_scan(parameter_file = user_line_scan_file, scan_time = scan_time_reference1, timeout = 2 * scan_time_reference1)
         if line_scan_start_success:
             line_scan_complete_success =  self.mes_interface.wait_for_line_scan_complete(2 * scan_time_reference1)
@@ -803,7 +803,7 @@ if __name__ == "__main__":
     
     #TEST 0X
 #    import shutil
-#    path = file.generate_filename('/home/zoltan/visexp/unit_test_output/scanparams.mat')
+#    path = fileop.generate_filename('/home/zoltan/visexp/unit_test_output/scanparams.mat')
 #    shutil.copy('/home/zoltan/visexp/data/test/scanparams.mat', path)
 #    set_scan_parameter_file(10.0, path,  path, scan_mode = 'xyz')
   #TEST )X+1

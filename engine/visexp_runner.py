@@ -20,7 +20,7 @@ import visexpman
 from visexpman.engine.vision_experiment import command_handler
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.vision_experiment import experiment
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import log
 from visexpman.engine.hardware_interface import network_interface
@@ -97,7 +97,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         #If udp enabled (= presentinator interface enabled), check for *presentinator*.py files in current user folder and delete them
         if self.config.ENABLE_UDP:
             user_folder = os.path.join(self.config.PACKAGE_PATH, 'users', self.config.user)
-            for filename in file.filtered_file_list(user_folder,  'presentinator_experiment', fullpath = True):
+            for filename in fileop.filtered_file_list(user_folder,  'presentinator_experiment', fullpath = True):
                 os.remove(filename)
         self.loop_state = 'running' #This state variable is necessary to end the main loop of the program from the command handler
         self.log.info('Visexpman initialized')
@@ -199,7 +199,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
 
     def _init_logging(self):
         #set up logging
-        self.logfile_path = file.generate_filename(self.config.LOG_PATH + os.sep + 'log_' + self.config.__class__.__name__ + '_'+  utils.date_string() + '.txt')
+        self.logfile_path = fileop.generate_filename(self.config.LOG_PATH + os.sep + 'log_' + self.config.__class__.__name__ + '_'+  utils.date_string() + '.txt')
         self.log = log.Log('visexpman log ' +  str(time.time()), self.logfile_path, write_mode = 'user control')
 
 def find_out_config():
@@ -334,8 +334,8 @@ class TestVisionExperimentRunner(unittest.TestCase):
         v.run_loop()
         cs.close()
        #Read logs
-        log = file.read_text_file(v.logfile_path)
-        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
+        log = fileop.read_text_file(v.logfile_path)
+        experiment_log = fileop.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
         frame_rate = v.experiment_config.runnable.frame_rate
         expected_frame_rate = v.experiment_config.runnable.machine_config.SCREEN_EXPECTED_FRAME_RATE
         if unit_test_runner.TEST_os == 'posix':
@@ -380,8 +380,8 @@ class TestVisionExperimentRunner(unittest.TestCase):
         v.run_loop()
         cs.close()
         #Read logs
-        log = file.read_text_file(v.logfile_path)
-        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
+        log = fileop.read_text_file(v.logfile_path)
+        experiment_log = fileop.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
         self.assertEqual(
                         (self.check_application_log(v), 
                         self.check_experiment_log(v),
@@ -412,8 +412,8 @@ class TestVisionExperimentRunner(unittest.TestCase):
         v.run_loop()
         cs.close()
         #Read logs
-        log = file.read_text_file(v.logfile_path)
-        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
+        log = fileop.read_text_file(v.logfile_path)
+        experiment_log = fileop.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
         self.assertEqual(
                         (self.check_application_log(v), 
                         self.check_experiment_log(v),
@@ -444,8 +444,8 @@ class TestVisionExperimentRunner(unittest.TestCase):
         v.run_loop()
         cs.close()
         #Read logs
-        log = file.read_text_file(v.logfile_path)
-        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
+        log = fileop.read_text_file(v.logfile_path)
+        experiment_log = fileop.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])        
         self.assertEqual(
                         (self.check_application_log(v), 
                         self.check_experiment_log(v),
@@ -491,8 +491,8 @@ class TestVisionExperimentRunner(unittest.TestCase):
         v.run_loop()
         cs.close()
        #Read logs
-        log = file.read_text_file(v.logfile_path)
-        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
+        log = fileop.read_text_file(v.logfile_path)
+        experiment_log = fileop.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
         self.assertEqual(
                         (self.check_application_log(v), 
                         self.check_experiment_log(v), 
@@ -518,7 +518,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
         
         unit test runner command line switches: pp, daq
         '''
-        experiment_source = file.read_text_file(os.path.join(os.path.split(visexpman.__file__)[0], 'users', 'zoltan', 'test', 'elphys_test_experiment.py'))
+        experiment_source = fileop.read_text_file(os.path.join(os.path.split(visexpman.__file__)[0], 'users', 'zoltan', 'test', 'elphys_test_experiment.py'))
         experiment_source = experiment_source.replace('\n', '<newline>')
         experiment_source = experiment_source.replace(',', '<comma>')
         experiment_source = experiment_source.replace('=', '<equal>')
@@ -534,8 +534,8 @@ class TestVisionExperimentRunner(unittest.TestCase):
         v.run_loop()
         cs.close()
        #Read logs
-        log = file.read_text_file(v.logfile_path)
-        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
+        log = fileop.read_text_file(v.logfile_path)
+        experiment_log = fileop.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
         self.assertEqual(
                         (self.check_application_log(v), 
                         self.check_experiment_log(v), 
@@ -582,8 +582,8 @@ class TestVisionExperimentRunner(unittest.TestCase):
         except:
             pass
         #Read logs
-        log = file.read_text_file(v.logfile_path)
-        experiment_log = file.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
+        log = fileop.read_text_file(v.logfile_path)
+        experiment_log = fileop.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
         self.assertEqual(
                         (self.check_application_log(v), 
                         self.check_experiment_log(v), 
@@ -605,7 +605,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
                         
     ############## Helpers #################
     def check_application_log(self, vision_experiment_runner, experiment_run = True):
-        log = file.read_text_file(vision_experiment_runner.logfile_path)
+        log = fileop.read_text_file(vision_experiment_runner.logfile_path)
         if 'Visexpman started' in log and 'Visexpman initialized' in log and 'Visexpman quit' in log:
             result = True
         else:
@@ -616,7 +616,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
         return result
             
     def check_experiment_log(self, vision_experiment_runner):
-        log = file.read_text_file(vision_experiment_runner.experiment_config.runnable.filenames['experiment_log'])
+        log = fileop.read_text_file(vision_experiment_runner.experiment_config.runnable.filenames['experiment_log'])
         if vision_experiment_runner.experiment_config.runnable.experiment_name in log and 'started at' in log and 'Experiment finished at ' in log:
             result = True
         else:
@@ -627,7 +627,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
         
     def check_captured_frames(self, capture_folder, reference_folder):
         result = True
-        frame_files = file.listdir_fullpath(reference_folder)
+        frame_files = fileop.listdir_fullpath(reference_folder)
         frame_files.sort()
         for reference_file_path in frame_files:
             reference_file = open(reference_file_path, 'rb')

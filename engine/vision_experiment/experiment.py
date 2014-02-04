@@ -5,7 +5,7 @@ import visexpman
 
 from visexpman.engine.generic.configuration import Config
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.generic import introspect
 import stimulation_library
 
@@ -204,9 +204,9 @@ def parse_stimulation_file(filename):
     From a stimulation file get the names of experiment classes and the parameter values for each
     Only the values defined in the class itself are fetched, parameters from ancestors are ignored
     '''
-    if file.file_extension(filename) != 'py':
+    if fileop.file_extension(filename) != 'py':
         raise RuntimeError('Files only with py extension can be selected: {0}'.format(filename))
-    source_code = file.read_text_file(filename)
+    source_code = fileop.read_text_file(filename)
     introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
     experiment_module = __import__('experiment_module')
     experiment_config_classes = {}
@@ -224,7 +224,7 @@ def parse_stimulation_file(filename):
     
 class testExperimentHelpers(unittest.TestCase):
     def test_01_parse_stim_file(self):
-        parse_stimulation_file(os.path.join(file.get_visexpman_module_path(), 'users','daniel','grating.py'))
+        parse_stimulation_file(os.path.join(fileop.get_visexpman_module_path(), 'users','daniel','grating.py'))
     
 if __name__ == "__main__":
     unittest.main()

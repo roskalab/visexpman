@@ -10,7 +10,7 @@ import os.path
 import unittest
 import cv2
 from visexpman.engine.generic import configuration
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 import tables
 
 class VideoCamera(instrument.Instrument):
@@ -172,8 +172,8 @@ class ImagingSourceCamera(VideoCamera):
 #                self.video[i, :, :] = numpy.reshape(numpy.array(self.framep[i][0:frame_size])[::3], frame_shape)
             return
             import tiffile
-            from visexpman.engine.generic import file
-            tiffile.imsave(file.generate_filename('c:\\_del\\calib.tiff'), self.video, software = 'visexpman')
+            from visexpman.engine.generic import fileop
+            tiffile.imsave(fileop.generate_filename('c:\\_del\\calib.tiff'), self.video, software = 'visexpman')
             import Image
             Image.fromarray(numpy.cast['uint8'](self.video.mean(axis=0))).show()
             

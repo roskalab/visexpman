@@ -14,7 +14,7 @@ from visexpman.engine import visexp_runner
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine import jobhandler
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import command_parser
 from visexpA.engine.datahandlers import matlabfile
@@ -121,7 +121,7 @@ class MESCommandParser(command_parser.CommandParser):
         time.sleep(duration)
         self.qout.put('SOCacquire_line_scanEOCOKEOP')
         #find a file in test data folder with the same duration
-        for f in file.filtered_file_list(os.path.join(self.config.TESTDATA_PATH, 'mes_simulator'), ['fragment', 'mat'], fullpath = True,filter_condition = 'and'):
+        for f in fileop.filtered_file_list(os.path.join(self.config.TESTDATA_PATH, 'mes_simulator'), ['fragment', 'mat'], fullpath = True,filter_condition = 'and'):
             m = matlabfile.MatData(f)
             tduration = m.get_field(m.name2path('ts'))[0][0][0][0][-1]
             if tduration == duration:

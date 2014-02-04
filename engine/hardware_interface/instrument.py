@@ -9,7 +9,7 @@ import time
 
 import visexpman.engine.generic.configuration
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 import logging
 import visexpman
 from visexpman.users.zoltan.test import unit_test_runner
@@ -336,7 +336,7 @@ class testConfig(visexpman.engine.generic.configuration.Config):
         
 class testLogClass():
     def __init__(self, config):
-        self.logfile_path = file.generate_filename(config.TEST_DATA_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')        
+        self.logfile_path = fileop.generate_filename(config.TEST_DATA_PATH + os.sep + 'log_' +  utils.date_string() + '.txt')        
         self.log = logging.getLogger(self.logfile_path)
         self.handler = logging.FileHandler(self.logfile_path)
         formatter = logging.Formatter('%(message)s')

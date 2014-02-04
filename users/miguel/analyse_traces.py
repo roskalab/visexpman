@@ -1,5 +1,5 @@
 from visexpman.engine.vision_experiment import experiment_data
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.generic import utils
 import scipy.signal
 import scipy.io
@@ -67,7 +67,7 @@ class EplhysProcessor(object):
                 plot(stats[:, 1, 0])
                 show()
             self.intensity = all_intensities[0]
-            for f in file.find_files_and_folders(self.folder, extension = 'phys')[1]:
+            for f in fileop.find_files_and_folders(self.folder, extension = 'phys')[1]:
 #                if 'PV2/20130305C4/C1/20130305_C1#002Miguelgaussian_Ch2!spike0' in f:
                     threshold = [cell_thresholds[cell_name] for cell_name in cell_thresholds.keys() if cell_name.lower() in f.lower()]
                     if len(threshold)==1:
@@ -81,7 +81,7 @@ class EplhysProcessor(object):
         '''
         matfiles = []
         intensities = []
-        for matfile in file.find_files_and_folders(self.folder, extension = 'mat')[1]:
+        for matfile in fileop.find_files_and_folders(self.folder, extension = 'mat')[1]:
             try:
                 t, intensity = self.read_spot_intensity(matfile)
                 intensities.append(intensity)

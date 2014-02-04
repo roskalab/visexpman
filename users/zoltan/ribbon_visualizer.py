@@ -8,7 +8,7 @@ import Image
 
 import visexpman.engine.generic.graphics
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpA.engine.datahandlers import hdf5io
 import visexpman.engine.generic.configuration
 from visexpman.engine import generic
@@ -150,7 +150,7 @@ def visualize_xz_scan(filename):
 if __name__=='__main__':
     files = ['/mnt/databu0/20121031/fragment_xz_maste_middle_310112_-9_0_-130.0_MovingGratingNoMarching_1351702018_0.hdf5']
     #basepath = "/mnt/databig/data/"
-    #dirs,  files = file.find_files_and_folders(basepath,  extension = 'hdf5', filter = 'fragmeent_xz')
+    #dirs,  files = fileop.find_files_and_folders(basepath,  extension = 'hdf5', filter = 'fragmeent_xz')
     for f in files:
         if "fragment_xz" in f:
             try:

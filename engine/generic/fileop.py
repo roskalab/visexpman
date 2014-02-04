@@ -337,7 +337,7 @@ def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter =
     return filtered_files
 
 def find_file_from_timestamp(dir, timestamp):
-    #from visexpman.engine.generic.file import dirListing
+    #from visexpman.engine.generic.fileop import dirListing
     from visexpA.engine.component_guesser import get_mes_name_timestamp
     files = dirListing(dir, ['.hdf5'], dir)
     matching = [f for f in files if str(int(timestamp)) in f]
@@ -431,7 +431,7 @@ def find_latest(path):
     latest_date = 0
     latest_file = ''
     for file in listdir_fullpath(os.path.split(path)[0]):
-        if file.find(os.path.split(path)[-1].split('.')[0][:-number_of_digits]) != -1:
+        if fileop.find(os.path.split(path)[-1].split('.')[0][:-number_of_digits]) != -1:
             file_date = os.path.getmtime(file)
             if latest_date < file_date:
                 latest_date = file_date

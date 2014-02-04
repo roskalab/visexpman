@@ -18,7 +18,7 @@ import copy
 import experiment_data
 from visexpman.engine.generic import log
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.hardware_interface import instrument
 from visexpman.engine.hardware_interface import daq_instrument
@@ -518,7 +518,7 @@ class ExperimentControl(object):
                     fragment_filename = fragment_filename.replace(' ', '0')
                 self.filenames['mes_fragments'].append(fragment_filename.replace('hdf5', 'mat'))
             elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
-                fragment_filename = file.generate_filename(fragment_filename, last_tag = str(fragment_id))
+                fragment_filename = fileop.generate_filename(fragment_filename, last_tag = str(fragment_id))
             local_folder = 'd:\\tmp'
             if not os.path.exists(local_folder):
                 local_folder = tempfile.mkdtemp()
@@ -539,7 +539,7 @@ class ExperimentControl(object):
     def _initialize_experiment_log(self):
         date = utils.date_string()
         self.filenames['experiment_log'] = \
-            file.generate_filename(os.path.join(self.config.EXPERIMENT_LOG_PATH, 'log_{0}_{1}.txt' .format(self.name_tag, date)))
+            fileop.generate_filename(os.path.join(self.config.EXPERIMENT_LOG_PATH, 'log_{0}_{1}.txt' .format(self.name_tag, date)))
         self.log = log.Log('experiment log' + uuid.uuid4().hex, self.filenames['experiment_log'], write_mode = 'user control', timestamp = 'elapsed_time')
         
     def _wait_experiment_start_trigger(self):
@@ -582,7 +582,7 @@ class ExperimentControl(object):
         elif hasattr(self.config, 'SYSTEM_TEST') and self.config.SYSTEM_TEST:
             from visexpA.engine.datahandlers import matlabfile
             #Simulate analog data
-            for f in file.filtered_file_list(os.path.join(self.config.TESTDATA_PATH, 'mes_simulator'), ['fragment', 'mat'], fullpath = True,filter_condition = 'and'):
+            for f in fileop.filtered_file_list(os.path.join(self.config.TESTDATA_PATH, 'mes_simulator'), ['fragment', 'mat'], fullpath = True,filter_condition = 'and'):
                 m = matlabfile.MatData(f)
                 tduration = m.get_field(m.name2path('ts'))[0][0][0][0][-1]
                 if tduration == self.mes_record_time:
@@ -690,9 +690,9 @@ class ExperimentControl(object):
         '''
         Performs a short scans before and after experiment to save scanner signals and/or red channel static image
         '''
-        initial_mes_line_scan_settings_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'initial_mes_line_scan_settings.mat'))
-        xy_static_scan_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_red_green_channel_xy.mat'))
-        scanner_trajectory_filename = file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_scanner_signals.mat'))
+        initial_mes_line_scan_settings_filename = fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'initial_mes_line_scan_settings.mat'))
+        xy_static_scan_filename = fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_red_green_channel_xy.mat'))
+        scanner_trajectory_filename = fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'measure_scanner_signals.mat'))
         #Save initial line scan settings
         if hasattr(self, 'animal_parameters') and self.parameters.has_key('scan_mode') and self.parameters['scan_mode'] == 'xy':
             if (utils.safe_has_key(self.animal_parameters, 'red_labeling') and self.animal_parameters['red_labeling'] == 'no') or not utils.safe_has_key(self.animal_parameters, 'red_labeling'):

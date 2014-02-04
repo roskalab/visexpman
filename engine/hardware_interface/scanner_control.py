@@ -41,7 +41,7 @@ if os.name=='nt':
     except ImportError:
         pass
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.generic import log
 from visexpman.engine.generic import configuration
 from visexpman.engine.generic import command_parser
@@ -726,7 +726,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
     def __init__(self, config, queues):
         self.config = config
         self.queues = queues
-        self.log = log.Log('2p log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'twophotonloop_log.txt')), local_saving = False)
+        self.log = log.Log('2p log', fileop.generate_filename(os.path.join(self.config.LOG_PATH, 'twophotonloop_log.txt')), local_saving = False)
         command_parser.CommandParser.__init__(self, queues['out'], queues['in'], log = self.log, failsafe = True)
         self.run = True
         self.daq_parameter_names = ['AO_SAMPLE_RATE', 'AI_SAMPLE_RATE', 'AO_CHANNEL',  'AI_CHANNEL']
@@ -953,7 +953,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
                     calibdata['line_profiles'] = line_profiles
                 elif parameters['pattern']  == 'Sine':
                     calibdata['bode'] = scanner_bode_diagram(calibdata['pmt'], calibdata['mask'], calibdata['parameters']['scanner_speed'], self.config.SINUS_CALIBRATION_MAX_LINEARITY_ERROR)
-                hdf5io.save_item(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5')), 'calibdata', calibdata, overwrite=True, filelocking=False)
+                hdf5io.save_item(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH,  'calib.hdf5')), 'calibdata', calibdata, overwrite=True, filelocking=False)
                 self.queues['data'].put(calibdata)
             self.printc('calib_ready')
     

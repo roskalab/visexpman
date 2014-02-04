@@ -4,7 +4,7 @@ import tempfile
 from visexpman.engine import visexp_runner
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.vision_experiment import experiment
 
 class FlickerExperimentConfig(experiment.ExperimentConfig):
@@ -48,7 +48,7 @@ class Config(configuration.VisionExperimentConfig):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         #Create folders that does not exists
         for folder in [drive_data_folder, LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, CONTEXT_PATH, CAPTURE_PATH]:
-            file.mkdir_notexists(folder)
+            fileop.mkdir_notexists(folder)
         FULLSCREEN = not True
         SCREEN_RESOLUTION = utils.cr([800, 600])
         COORDINATE_SYSTEM='center'

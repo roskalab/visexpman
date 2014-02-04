@@ -9,7 +9,7 @@ import shutil
 from visexpman.engine.generic.parameter import Parameter
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig,RcCorticalCaImagingConfig
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 
 class PPRLConfig(VisionExperimentConfig):
     
@@ -371,7 +371,7 @@ class DebugOnLaptop(RcMicroscopeSetup):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         #Create folders that does not exists
         for folder in [LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, MES_DATA_FOLDER, CONTEXT_PATH, CAPTURE_PATH]:
-            file.mkdir_notexists(folder)
+            fileop.mkdir_notexists(folder)
         
         #=== screen ===
         FULLSCREEN = True
@@ -559,7 +559,7 @@ class Rznb(RcMicroscopeSetup):
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         #Create folders that does not exists
         for folder in [LOG_PATH, EXPERIMENT_DATA_PATH, EXPERIMENT_LOG_PATH, CONTEXT_PATH]:
-            file.mkdir_notexists(folder)
+            fileop.mkdir_notexists(folder)
         
         #=== screen ===
         FULLSCREEN = not True

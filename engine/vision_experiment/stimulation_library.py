@@ -393,7 +393,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 #                    
 #    def show_movie(self,  video_file_path,  position = (0, 0)):
 #        '''
-#        Plays a movie file. Pressing 'a' aborts the playback. The video is positioned according to the value of position parameter
+#        Plays a movie fileop. Pressing 'a' aborts the playback. The video is positioned according to the value of position parameter
 #        Parametric control of position is no possible. Some frames are always dropped.
 #        '''        
 #        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])

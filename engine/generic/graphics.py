@@ -8,7 +8,7 @@ import pygame
 
 import Image
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 
 DISPLAY_FRAME_RATE = False
 DISPLAY_FRAME_DELAY = False
@@ -212,7 +212,7 @@ class Screen(object):
                 fileformat = self.config.CAPTURE_FORMAT
             else:
                 fileformat = 'png'
-            self.save_frame(file.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.{0}'.format(fileformat))))
+            self.save_frame(fileop.generate_filename(os.path.join(self.config.CAPTURE_PATH,  'captured.{0}'.format(fileformat))))
         if self.config.STIMULUS2MEMORY:
             if not hasattr(self, 'stimulus_bitmaps'):
                 self.stimulus_bitmaps = []
@@ -442,7 +442,7 @@ class Screen(object):
         elif key_pressed == '2':
             self.scale = self.scale + self.scale_step
         elif key_pressed == '3':
-            self.save_frame(file.generate_filename(self.config.CAPTURE_PATH + os.sep + 'capture.bmp'))
+            self.save_frame(fileop.generate_filename(self.config.CAPTURE_PATH + os.sep + 'capture.bmp'))
             print 'frame saved'
         self.user_keyboard_handler(key_pressed)
         

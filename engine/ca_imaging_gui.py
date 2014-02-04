@@ -23,7 +23,7 @@ from visexpman.engine.vision_experiment import gui_pollers
 from visexpman.engine.generic import introspect
 from visexpman.engine.generic import gui
 from visexpman.engine.generic import utils
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 from visexpman.engine.generic import log
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
@@ -398,7 +398,7 @@ class CaImagingGui(Qt.QMainWindow):
         self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = configuration.VisionExperimentConfig,direct = False)[0][1]()
         self.config.user = user
         self.console_text = ''
-        self.log = log.Log('caimaging log', file.generate_filename(os.path.join(self.config.LOG_PATH, 'caimaging_log.txt')), local_saving = True)
+        self.log = log.Log('caimaging log', fileop.generate_filename(os.path.join(self.config.LOG_PATH, 'caimaging_log.txt')), local_saving = True)
         Qt.QMainWindow.__init__(self)
         self.setWindowTitle('Calcium Imaging Experiment GUI - {0} - {1}' .format(user,  config_class))
         if STYLE != '':

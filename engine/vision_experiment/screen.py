@@ -6,7 +6,7 @@ import time
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import colors
 from visexpman.engine.generic import graphics
-from visexpman.engine.generic import file
+from visexpman.engine.generic import fileop
 import Image
 
 from OpenGL.GL import *#TODO: perhaps this is not necessary
@@ -52,7 +52,7 @@ class VisionExperimentScreen(graphics.Screen):
                 bullseye_path = os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp')
             else:
                 self.bullseye_size_in_pixel = int(float(self.bullseye_size) * self.config.SCREEN_UM_TO_PIXEL_SCALE)
-                bullseye_path = file.get_tmp_file('bmp')
+                bullseye_path = fileop.get_tmp_file('bmp')
                 im = Image.open(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'))
                 im = im.resize((self.bullseye_size_in_pixel, self.bullseye_size_in_pixel))
                 try:
