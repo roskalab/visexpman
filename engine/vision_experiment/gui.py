@@ -443,11 +443,11 @@ class ExperimentControl(gui.WidgetControl):
         gui.WidgetControl.__init__(self, poller, config, widget)
         #find all python module in user folder and load users's all experiment configs and parameters
         self.experiment_config_classes = {}
-        self._load_experiment_config_parameters(fileop.get_user_folder(self.config))
+        self._load_experiment_config_parameters(fileop.get_user_module_folder(self.config))
         
     ################# Experiment config parameters ####################
     def browse(self):
-        user_folder = fileop.get_user_folder(self.config)
+        user_folder = fileop.get_user_module_folder(self.config)
         self.user_selected_stimulation_module = self.poller.ask4filename('Select stimulation file', user_folder,  '*.py')
         if os.path.exists(self.user_selected_stimulation_module):#Parses files unless cancel pressed on file dialog box
             self._load_experiment_config_parameters(self.user_selected_stimulation_module)
@@ -480,7 +480,7 @@ class ExperimentControl(gui.WidgetControl):
         if hasattr(self, 'user_selected_stimulation_module'):
             filename = self.user_selected_stimulation_module
         else:
-            filename = fileop.get_user_folder(self.config)
+            filename = fileop.get_user_module_folder(self.config)
         self._load_experiment_config_parameters(filename)
 
     def save_experiment_parameters(self):
@@ -490,7 +490,7 @@ class ExperimentControl(gui.WidgetControl):
             filename = os.path.split(configname)[0]
             configname = os.path.split(configname)[1]
         else:
-            filename = fileop.find_content_in_folder('class '+configname, fileop.get_user_folder(self.config), '.py')
+            filename = fileop.find_content_in_folder('class '+configname, fileop.get_user_module_folder(self.config), '.py')
             if len(filename)>1:
                 raise RuntimeError('{0} experiment config found in more than one files'.format(configname))
             else:
