@@ -34,6 +34,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 from visexpman.engine.generic import stringop
 from visexpman.engine.generic import introspect
+from visexpman.engine.generic import gui as gui_generic
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
@@ -2923,15 +2924,42 @@ class VisexpGuiPoller(Poller):
         self.save_context()
         
     def test(self):
-        if hasattr(self, 'test_run'):
+        if hasattr(self, 'test_run') and self.testmode!=1:
             return
         self.test_run=True
         animal_param_table = self.parent.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.table
         import PyQt4.QtGui as QtGui
+        self.printc('Test {0}'.format(self.testmode))
         if self.testmode==1:
-            self.printc('1. Select test_stimulus.py module.\n2. Then select GUITestExperimentConfig\n3. Set PAR1 value to 10 and press Save button\n4. Set back PAR1 to 1.0 and press Save button\n5. Close window to proceed to next test.')
-            self.notify_user('', 'Check console for test instructions')
-            self.signal_id_queue.put('experiment_control.browse')
+            if not hasattr(self, 'test_phase'):
+                self.test_phase = 1
+                self.printc('Select test_stimulus.py module.')
+                self.signal_id_queue.put('experiment_control.browse')
+            elif self.test_phase == 1:
+                self.test_phase = 2
+                widget = self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name
+                items = gui_generic.get_combobox_items(widget)
+                widget.setCurrentIndex(items.index(stringop.string_in_list(items, 'GUITestExperimentConfig', return_match=True)))
+                time.sleep(1)
+                expparam_table = self.parent.central_widget.main_widget.experiment_parameters.values
+                for i in range(expparam_table.rowCount()):
+                    if 'PAR1' in str(expparam_table.item(i, 0).text()):
+                        comment = expparam_table.item(i, 1).toolTip()
+                        item = QtGui.QTableWidgetItem('100')
+                        item.setToolTip(comment)
+                        expparam_table.setItem(i, 1, item)
+                time.sleep(1.0)
+                self.experiment_control.save_experiment_parameters()
+                for i in range(expparam_table.rowCount()):
+                    if 'PAR1' in str(expparam_table.item(i, 0).text()):
+                        comment = expparam_table.item(i, 1).toolTip()
+                        item = QtGui.QTableWidgetItem('1.0')
+                        item.setToolTip(comment)
+                        expparam_table.setItem(i, 1, item)
+                time.sleep(1.0)
+                self.experiment_control.save_experiment_parameters()
+                self.emit(QtCore.SIGNAL('close_app'))
+                
         elif self.testmode==2 or self.testmode==3:
             self.parent.central_widget.main_tab.setCurrentIndex(1)
             animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('test'))

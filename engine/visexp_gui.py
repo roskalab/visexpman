@@ -1235,7 +1235,7 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         self.machine_config.printc = ''
         ap = gui.AnimalParameters(self.machine_config, self.machine_config, None)
-        animal_parameters = {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label '+id , 'injection_target': '', 'ear_punch_left': '2', 'comments': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': id}
+        animal_parameters = {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label '+id , 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': id}
         animal_file = ap._get_animal_filename(animal_parameters)
         hdf5io.save_item(animal_file, 'animal_parameters', animal_parameters, config=self.machine_config, overwrite = True)
         file.remove_if_exists(os.path.join(tempfile.gettempdir(), os.path.split(animal_file)[1]))
@@ -1244,15 +1244,18 @@ class testVisionExperimentGui(unittest.TestCase):
 #    @unittest.skip('')
     def test_01_select_stimfile(self):
         '''
-        Tests if py module can be opened as a stimfile and experiment configuration parameters can be parsed and displayed.
+        Tests if py module can be opened as a stimfile and experiment configuration parameters can be parsed and displayed.total
         '''
         self._call_gui(1)
+        sourcefile_path = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', 'zoltan', 'test_stimulus.py')
+        source_before = file.read_text_file(sourcefile_path)
         context = self._read_context()
         
         self.assertEqual(('GUITestExperimentConfig' in context['variables']['self.experiment_control.experiment_config_classes.keys'], 
                           context['variables']['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount'], 
-                          'test_stimulus.py' in context['variables']['self.experiment_control.user_selected_stimulation_module']), 
-                          (True, 2, True))
+                          'test_stimulus.py' in context['variables']['self.experiment_control.user_selected_stimulation_module'], 
+                          source_before), 
+                          (True, 2, True, file.read_text_file(sourcefile_path)))
                           
 #    @unittest.skip('')
     def test_02_create_animal_file(self):
@@ -1269,7 +1272,7 @@ class testVisionExperimentGui(unittest.TestCase):
                     hdf5io.read_item(context['variables']['self.animal_parameters.animal_file'], 'animal_parameters', self.machine_config), 
                     ), 
                     (True, 'animal_test_strain_1-1-2013_1-5-2013_L2R1.hdf5', 
-                    {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label', 'injection_target': '', 'ear_punch_left': '2', 'comments': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'test'}
+                    {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label', 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'test'}
                     ))
 
 #    @unittest.skip('')
@@ -1297,7 +1300,7 @@ class testVisionExperimentGui(unittest.TestCase):
             stringop.string_in_list(context['variables']['self.animal_parameters.animal_files.keys'], 'data_storage2'), 
             hdf5io.read_item(context['variables']['self.animal_parameters.animal_file'], 'animal_parameters', self.machine_config), 
             ), (True, True, 
-            {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label data_storage2', 'injection_target': '', 'ear_punch_left': '2', 'comments': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'data_storage2'}
+            {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label data_storage2', 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'data_storage2'}
                                                                           ))
     
 #    @unittest.skip('') 
@@ -1324,8 +1327,8 @@ class testVisionExperimentGui(unittest.TestCase):
             hdf5io.read_item(context['variables']['self.animal_parameters.animal_file'], 'animal_parameters', self.machine_config), 
             hdf5io.read_item(copied_animal_file, 'animal_parameters', self.machine_config),
             ), (True, True, True, 4, 
-            {'imaging_channels': 'green', 'red_labeling': 'yes', 'green_labeling': 'modified_label', 'injection_target': '', 'ear_punch_left': '2', 'comments': '', 'strain': 'secondstrain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2012', 'injection_date': '1-1-2012', 'id': 'second_one'}, 
-            {'imaging_channels': 'green', 'red_labeling': 'yes', 'green_labeling': 'modified_label', 'injection_target': '', 'ear_punch_left': '2', 'comments': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'data_storage2'}
+            {'imaging_channels': 'green', 'red_labeling': 'yes', 'green_labeling': 'modified_label', 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'secondstrain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2012', 'injection_date': '1-1-2012', 'id': 'second_one'}, 
+            {'imaging_channels': 'green', 'red_labeling': 'yes', 'green_labeling': 'modified_label', 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'data_storage2'}
                                                                           ))
         
 #    @unittest.skip('') 
@@ -1339,7 +1342,7 @@ class testVisionExperimentGui(unittest.TestCase):
                                                               os.path.exists(context['variables']['self.animal_parameters.animal_file'].replace('test1', 'test')), 
                                                               hdf5io.read_item(context['variables']['self.animal_parameters.animal_file'], 'animal_parameters', self.machine_config)), (
                                                               True, False, 
-                                                              {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label1', 'injection_target': '', 'ear_punch_left': '1', 'comments': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2010', 'injection_date': '1-1-2010', 'id': 'test1'}
+                                                              {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label1', 'injection_target': '', 'ear_punch_left': '1', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2010', 'injection_date': '1-1-2010', 'id': 'test1'}
                                                               ))
                                                               
 if __name__ == '__main__':

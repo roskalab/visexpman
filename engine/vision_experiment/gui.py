@@ -168,7 +168,7 @@ class AnimalParametersGroupbox(QtGui.QGroupBox):
         self.parameter_names = ['id', 'birth_date', 'injection_date', 
                             'gender', 'ear_punch_left', 'ear_punch_right', 'strain', 
                             'green_labeling', 'red_labeling', 'injection_target', 'imaging_channels', 
-                            'comments']
+                            'comment']
         self.table.setRowCount(len(self.parameter_names))
         for row in range(len(self.parameter_names)):
             item = QtGui.QTableWidgetItem(stringop.to_title(self.parameter_names[row]))
@@ -234,7 +234,10 @@ class AnimalParameters(gui.WidgetControl):
         '''
         animal_parameters = {}
         for k, v in self.widget.table.get_values().items():
-            animal_parameters[stringop.to_variable_name(k)] = v
+            if isinstance(v, list):
+                animal_parameters[stringop.to_variable_name(k)] = v[0]
+            else:
+                animal_parameters[stringop.to_variable_name(k)] = v
         return animal_parameters
         
     def _get_animal_filename(self, animal_parameters):
@@ -312,6 +315,9 @@ class AnimalParameters(gui.WidgetControl):
         '''
         if not hasattr(self, 'animal_file'):
             self.printc('No animal file, nothing is updated')
+            return
+        if not os.path.exists(self.animal_file):
+            self.printc('Animal file does not exists: {0} '.format(self.animal_file))
             return
         #Get it from file
         h=hdf5io.Hdf5io(self.animal_file,self.config)
@@ -495,7 +501,10 @@ class ExperimentControl(gui.WidgetControl):
         new_section = []
         from_table = self.paramwidget.values.get_values().items()
         for k, v in from_table:
-            new_section.append(k+'='+v)
+            if isinstance(v, list):
+                new_section.append(k+' = '+v[0] + '#'+v[1])
+            else:
+                new_section.append(k+' = '+v)
         #Find lines corresponding to modifed parameters
         with open(filename) as f:
             content = f.readlines()

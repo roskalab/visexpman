@@ -215,7 +215,7 @@ def parse_stimulation_file(filename):
             try:
                 expconfig_lines = source_code.split('class '+c[0])[1].split('def _create_parameters')[1].split('def')[0].split('\n')
                 experiment_config_classes[c[0]] = \
-                    [expconfig_line.replace(' ','').split('#')[0] for expconfig_line in expconfig_lines \
+                    [expconfig_line.replace(' ','') for expconfig_line in expconfig_lines \
                         if '=' in expconfig_line and (expconfig_line.split('=')[0].replace('self.','').isupper() or 'self.editable' in expconfig_line.split('=')[0])]
             except:
                 continue

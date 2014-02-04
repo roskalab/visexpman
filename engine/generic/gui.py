@@ -147,7 +147,13 @@ class ParameterTable(QtGui.QTableWidget):
             self.setItem(row, 0, item)#Set parameter name
             #Setting value of table element depends on the widget type
             if self.cellWidget(row,1) is None:
-                item=QtGui.QTableWidgetItem(str(parameters[parname]))
+                value = str(parameters[parname]).split('#')
+                if len(value) == 2:
+                    comment = value[1]
+                value = value[0]
+                item=QtGui.QTableWidgetItem(value)
+                if 'comment' in locals():
+                    item.setToolTip(comment)
                 if lock:
                     item.setFlags(QtCore.Qt.ItemIsSelectable|QtCore.Qt.ItemIsEnabled)
                 self.setItem(row, 1, item)
@@ -156,7 +162,7 @@ class ParameterTable(QtGui.QTableWidget):
                 self.cellWidget(row,1).setDate(QtCore.QDate(y, m, d))
             elif hasattr(self.cellWidget(row,1), 'currentText'):
                 #Find out index
-                items = [str(self.cellWidget(row,1).itemText(i)) for i in range(self.cellWidget(row,1).count())]
+                items = get_combobox_items(self.cellWidget(row,1))
                 if str(parameters[parname]) in items:
                     index = items.index(str(parameters[parname]))
                     self.cellWidget(row,1).setCurrentIndex(index)
@@ -171,7 +177,10 @@ class ParameterTable(QtGui.QTableWidget):
         for row in range(self.rowCount()):
             parname = str(self.item(row,0).text())
             if hasattr(self.item(row,1), 'text') and self.cellWidget(row,1) is None:
-                current_values[parname] = str(self.item(row,1).text())
+                if hasattr(self.item(row,1), 'toolTip'):
+                    current_values[parname] = [str(self.item(row,1).text()), str(self.item(row,1).toolTip())]
+                else:
+                    current_values[parname] = str(self.item(row,1).text())
             elif hasattr(self.cellWidget(row,1), 'date'):
                 date = self.cellWidget(row,1).date()
                 current_values[parname] = '{0}-{1}-{2}'.format(date.day(), date.month(), date.year())
@@ -234,3 +243,6 @@ class WidgetControl(object):
 def connect_and_map_signal(self, widget, mapped_signal_parameter, widget_signal_name = 'clicked'):
     self.signal_mapper.setMapping(widget, QtCore.QString(mapped_signal_parameter))
     getattr(getattr(widget, widget_signal_name), 'connect')(self.signal_mapper.map)
+
+def get_combobox_items(combobox):
+    return [str(combobox.itemText(i)) for i in range(combobox.count())]
