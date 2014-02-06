@@ -18,7 +18,7 @@ ElphysConfig:
         Platform name: elphys
 ElectroporationConfig:
         inherits VisionExperimentConfig and expands it with electroporation setup specific parameters that are not used on other platforms
-        Platfrom name: elpol
+        Platfrom name: epos
 BehavioralConfig:
         inherits VisionExperimentConfig and expands it with behavioral setup specific parameters that are not used on other platforms
         Platfrom name: behav
@@ -68,8 +68,12 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         PIN_RANGE = [0,  7]        
-        PLATFORM = ['undefined', ['retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'elphys', 'mea', 'elpol','behav','standalone', 'smallapp', 'undefined']]
+        PLATFORM = ['undefined', ['retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'elphys', 'mea', 'epos','behav','standalone', 'smallapp', 'undefined']]
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
+        
+        
+        FREE_SPACE_WARNING_THRESHOLD = [2**30, [1, 2**40]]
+        FREE_SPACE_ERROR_THRESHOLD = [2**30, [1, 2**40]]
         ENABLE_HDF5_FILELOCKING = False
         
         ############# Network #####################      
@@ -478,7 +482,7 @@ class ElphysConfig(VisionExperimentConfig):
 class ElectroporationConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
-        PLATFORM = 'elpol'
+        PLATFORM = 'epos'
         EXPERIMENT_FILE_FORMAT = 'mat'
         EXPERIMENT_START_TRIGGER = [10, [10, 15]]
         STIM_RECORDS_ANALOG_SIGNALS = False

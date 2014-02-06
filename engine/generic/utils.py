@@ -15,6 +15,7 @@ import select
 import subprocess
 import cPickle as pickle
 import zlib
+import urllib2
 try:
     import blosc as compressor
 except ImportError:
@@ -27,6 +28,13 @@ import fileop
 import introspect
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
+def is_network_available():
+    try:
+        response=urllib2.urlopen('http://gnu.org',timeout=1)
+        return True
+    except :
+        return False
+        
 def resample_array(array, factor):
     '''
     Increases sampling rate of array with factor
@@ -834,9 +842,9 @@ def um2degrees(umonretina):
     return 10.0*numpy.array(umonretina, numpy.float)/300
     
 #== Time /Date ==
-def datetime_string():
+def datetime_string(separator = '-', datetime_separator='_'):
     now = time.localtime()
-    return ('%4i-%2i-%2i_%2i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec)).replace(' ', '0')
+    return ('{1}{0}{2:2}{0}{3:2}{7}{4:2}{0}{5:2}{0}{6:2}'.format(separator, now.tm_year,  now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, datetime_separator)).replace(' ', '0')
 
 def date_string():
     now = time.localtime()

@@ -1033,16 +1033,14 @@ class CentralWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
-    def __init__(self, user, config_class, appname, testmode=None):
+    def __init__(self, user, config_class, application_name, testmode=None):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
-        self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = configuration.VisionExperimentConfig,direct = False)[0][1]()
-        self.config.user = user
-        self.config.appname = appname
+        import visexpman.engine
+        self.config, self.log = visexpman.engine.application_init(user=user, config=config_class, application_name = application_name)
         self.console_text = ''
-        self.log = log.Log(appname, fileop.generate_filename(os.path.join(self.config.LOG_PATH, appname+'_log.txt')), local_saving = True)
         Qt.QMainWindow.__init__(self)
-        self.setWindowTitle('{0} - {1} - {2}' .format(appname, user, config_class))
+        self.setWindowTitle('{0} - {1} - {2}' .format(application_name, user, config_class))
         self.create_widgets()
         self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
         self.poller = gui_pollers.VisexpGuiPoller(self, testmode=testmode)
@@ -1117,6 +1115,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         
     def close_app(self):
         self.printc('Please wait till gui closes')
+        self.log.terminate()
         self.poller.abort = True
         self.poller.wait()
         self.close()
@@ -1212,7 +1211,7 @@ class testVisionExperimentGui(unittest.TestCase):
     
     def setUp(self):
         self.machine_config = utils.fetch_classes('visexpman.users.zoltan', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
-        self.machine_config.appname='elphys'
+        self.machine_config.application_name='elphys'
         self.machine_config.user = 'zoltan'
         #Clean up files
         [shutil.rmtree(fn) for fn in [self.machine_config.DATA_STORAGE_PATH, self.machine_config.EXPERIMENT_DATA_PATH] if os.path.exists(fn)]

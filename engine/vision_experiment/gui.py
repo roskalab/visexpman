@@ -17,6 +17,7 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
 from visexpman.engine.vision_experiment import experiment
+from visexpman.engine import ExperimentConfigError
 from visexpman.engine.generic import gui
 from visexpman.engine.generic import fileop
 from visexpman.engine.generic import stringop
@@ -220,7 +221,7 @@ class AnimalParameters(gui.WidgetControl):
         '''
         directories, all_files = fileop.find_files_and_folders(folder, extension = 'hdf5')
         for fn in all_files:
-            if os.path.split(fn)[1][:7] == 'animal_':
+            if fileop.is_animal_file(fn):
                 ctime = os.path.getctime(fn)
                 if animal_files.has_key(fn) and animal_files[fn]>ctime:
                     pass#Do not add file to list
@@ -431,7 +432,7 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.stop_experiment_button, 1, 2)
         self.layout.addWidget(self.experiment_progress, 2, 0, 1, 3)
         self.setLayout(self.layout)
-        
+
 class ExperimentControl(gui.WidgetControl):
     '''
     This class handles all experiment configuration/control related operation and stores related data.
@@ -466,7 +467,7 @@ class ExperimentControl(gui.WidgetControl):
             for python_module in [os.path.join(filename, fn) for fn in os.listdir(filename) if fn.split('.')[-1] == 'py']:
                 new_expconf_classes = experiment.parse_stimulation_file(python_module)
                 if any([origexpconfs in new_expconf_classes.keys() for origexpconfs in self.experiment_config_classes.keys()]):
-                    raise RuntimeError('Redundant experiment config class name. Check {0}.' .format(python_module))
+                    raise ExperimentConfigError('Redundant experiment config class name. Check {0}.' .format(python_module))
                 else:                    
                     self.experiment_config_classes.update(experiment.parse_stimulation_file(python_module))
             self.poller.set_experiment_names(self.experiment_config_classes.keys())
@@ -495,7 +496,7 @@ class ExperimentControl(gui.WidgetControl):
         else:
             filename = fileop.find_content_in_folder('class '+configname, fileop.get_user_module_folder(self.config), '.py')
             if len(filename)>1:
-                raise RuntimeError('{0} experiment config found in more than one files'.format(configname))
+                raise ExperimentConfigError('{0} experiment config found in more than one files'.format(configname))
             else:
                 filename = filename[0]
         if not self.poller.ask4confirmation('Do you really want to overwrite {0} file with modified parameters?'.format(filename)):
@@ -528,7 +529,7 @@ class ExperimentControl(gui.WidgetControl):
             self.printc(from_table)
             self.printc(lines_to_modify)
             self.printc(new_section)
-            raise RuntimeError('Modifiable parameters cannot be found in {0} experiment config declaration. Number of parameters in original experiment config does not match with the number of paramaters to be saved.'.format(configname))
+            raise ExperimentConfigError('Modifiable parameters cannot be found in {0} experiment config declaration. Number of parameters in original experiment config does not match with the number of paramaters to be saved.'.format(configname))
         #Modify content by replacing lines where parameters are.
         for i in range(len(lines_to_modify)):
             content[lines_to_modify[i]-1] = 8*' '+new_section[i]+content[0][-1]#Adding 8 spaces before line (2 levels of indentation), using original file's end of line character

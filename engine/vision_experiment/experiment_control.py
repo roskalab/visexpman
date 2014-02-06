@@ -305,7 +305,7 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
             return True
-        elif self.config.PLATFORM == 'elpol':
+        elif self.config.PLATFORM == 'epos':
             if self._wait_experiment_start_trigger():
                 self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
                 return True
@@ -340,7 +340,7 @@ class ExperimentControl(object):
             #Clear acquisition trigger pin
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             data_acquisition_stop_success = True
-        elif self.config.PLATFORM == 'elpol':
+        elif self.config.PLATFORM == 'epos':
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             data_acquisition_stop_success = True
         elif self.config.PLATFORM == 'mc_mea':

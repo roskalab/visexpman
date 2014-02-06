@@ -14,12 +14,16 @@ try:
     import psutil
 except ImportError:
     pass
+import utils
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
 ################# File name related ####################
 
 def file_extension(filename):
     return os.path.split(filename)[1].split('.')[-1]
+    
+def is_first_tag(fn, tag):
+    return tag == os.path.split(fn)[1][:len(tag)]
 
 def generate_filename(path, insert_timestamp = False, last_tag = ''):
     '''
@@ -246,8 +250,6 @@ def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter =
                     filtered_files.append(file)
     return filtered_files
 
-
-
 def dirListing2(rootdir, pattern='*', excludenames=[]):
     import fnmatch
     matches = []
@@ -351,8 +353,24 @@ def get_context_filename(config):
     '''
     if not hasattr(config, 'CONTEXT_PATH'):
         raise RuntimeError('CONTEXT_PATH is not defined in machine config')
-    filename = 'context_{0}_{1}.hdf5'.format(config.appname, config.user)
+    filename = 'context_{0}_{1}.hdf5'.format(config.application_name, config.user)
     return os.path.join(config.CONTEXT_PATH, filename)
+    
+def get_logfilename(config):
+    '''
+    filename format: log_<machine config name>_<username>_<application_name>_yy-mm-dd-hhmm.txt
+    '''
+    expected_attributes = ['user', 'application_name', 'LOG_PATH']
+    if not all([hasattr(config, expected_attribute) for expected_attribute in expected_attributes]):
+        from visexpman.engine import MachineConfigError
+        raise MachineConfigError('LOG_PATH, user and application_name shall be an attribute in machine config')
+    while True:
+        filename =  os.path.join(config.LOG_PATH, 'log_{0}_{1}_{2}_{3}.txt'.format(config.__class__.__name__, config.user, config.application_name, utils.datetime_string()))
+        if not os.path.exists(filename):
+            break
+        time.sleep(1.0)
+    return filename
+        
     
 ################# Experiment file related ####################
 
@@ -386,7 +404,7 @@ def parse_animal_filename(filename):
     
 def is_animal_file(filename):
     fn = os.path.split(filename)[1]
-    if fn[:7] =='animal_' and file_extension(fn) == 'hdf5':
+    if is_first_tag(fn, 'animal_') and file_extension(fn) == 'hdf5':
         return True
     else:
         return False

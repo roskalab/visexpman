@@ -493,13 +493,24 @@ class GUITestConfig(configuration.RetinalCaImagingConfig):
             if os.path.exists(path):
                 self.root_folder = path
                 break        
-        LOG_PATH = self.root_folder
+        LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = os.path.join(self.root_folder, 'experiment_data')
         DATA_STORAGE_PATH = os.path.join(self.root_folder, 'data_storage')
         CONTEXT_PATH = self.root_folder
-        folders = [EXPERIMENT_DATA_PATH, DATA_STORAGE_PATH]
+        REMOTE_LOG_PATH = os.path.join(self.root_folder, 'remote_log')
+        folders = [EXPERIMENT_DATA_PATH, DATA_STORAGE_PATH, LOG_PATH, REMOTE_LOG_PATH]
         fileop.mkdir_notexists(folders, remove_if_exists=True)
         COORDINATE_SYSTEM='center'
         GUI_SIZE =  utils.cr((1280,1024))
         self._create_parameters_from_locals(locals())
+
+class AppInitTest4Config(GUITestConfig):
+    def _set_user_parameters(self):
+        GUITestConfig._set_user_parameters(self)
+        self.FREE_SPACE_WARNING_THRESHOLD = 2**40
+        
+class AppInitTest5Config(GUITestConfig):
+    def _set_user_parameters(self):
+        GUITestConfig._set_user_parameters(self)
+        self.FREE_SPACE_ERROR_THRESHOLD = 2**40
