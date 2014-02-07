@@ -1210,9 +1210,9 @@ import unittest
 class testVisionExperimentGui(unittest.TestCase):
     
     def setUp(self):
-        self.machine_config = utils.fetch_classes('visexpman.users.zoltan', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         self.machine_config.application_name='elphys'
-        self.machine_config.user = 'zoltan'
+        self.machine_config.user = 'test'
         #Clean up files
         [shutil.rmtree(fn) for fn in [self.machine_config.DATA_STORAGE_PATH, self.machine_config.EXPERIMENT_DATA_PATH] if os.path.exists(fn)]
         if os.path.exists(fileop.get_context_filename(self.machine_config)):
@@ -1220,7 +1220,7 @@ class testVisionExperimentGui(unittest.TestCase):
         
     def _call_gui(self, testmode):
         import subprocess
-        app_exec = 'gui =  VisionExperimentGui(\'zoltan\', \'GUITestConfig\', \'elphys\', testmode={0})'.format(testmode)
+        app_exec = 'gui =  VisionExperimentGui(\'test\', \'GUITestConfig\', \'elphys\', testmode={0})'.format(testmode)
         import_code = 'from visexpman.engine.visexp_gui import VisionExperimentGui;'
         code = 'python -c \"{0}{1}\" --unittest' .format(import_code, app_exec)
         subprocess.call(code, shell=True)
@@ -1245,8 +1245,9 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         Tests if py module can be opened as a stimfile and experiment configuration parameters can be parsed and displayed.total
         '''
-        sourcefile_path = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', 'zoltan', 'test_stimulus.py')
+        sourcefile_path = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', 'test', 'test_stimulus.py')
         source_before = fileop.read_text_file(sourcefile_path)
+#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'elphys', testmode=1)
         self._call_gui(1)
         context = self._read_context()
         

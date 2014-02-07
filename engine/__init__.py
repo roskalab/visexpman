@@ -85,20 +85,20 @@ class TestApplicationInit(unittest.TestCase):
         
 #    @unittest.skip('')        
     def test_02_no_command_line_args(self):
-        mc, self.log = application_init(user='zoltan', config='GUITestConfig', application_name='elphys')
+        mc, self.log = application_init(user='test', config='GUITestConfig', application_name='elphys')
         
     def test_03_invalid_config(self):
-        self.assertRaises(RuntimeError,  application_init, user='zoltan', config='GUITestConfig1', application_name='elphys')
+        self.assertRaises(RuntimeError,  application_init, user='test', config='GUITestConfig1', application_name='elphys')
         
     def test_04_freespace_warning(self):
         import warnings
         warnings.simplefilter("always")
         with warnings.catch_warnings(record=True) as w:
-            mc, self.log = application_init(user='zoltan', config='AppInitTest4Config', application_name='elphys')
+            mc, self.log = application_init(user='test', config='AppInitTest4Config', application_name='elphys')
             self.assertEqual('Running out of free space on' in str(w[-1].message), True)
         
     def test_05_freespace_error(self):
-        self.assertRaises(FreeSpaceError, application_init, user='zoltan', config='AppInitTest5Config', application_name='elphys')
+        self.assertRaises(FreeSpaceError, application_init, user='test', config='AppInitTest5Config', application_name='elphys')
     
 if __name__=='__main__':
     unittest.main()
