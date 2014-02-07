@@ -1,9 +1,10 @@
-[u'/mnt/rzws/codes/zdev/visexpman/users/test/unittest_aggregator.py', u'--delete_files']
+[u'/mnt/rzws/codes/zdev/visexpman/users/test/unittest_aggregator.py']
 
 ################# Test parameters ####################
 TEST_consider_frame_rate = False
 TEST_daq = False
-TEST_delete_files = True
+TEST_daq_device = Dev1
+TEST_delete_files = False
 TEST_filterwheel = False
 TEST_goniometer = False
 TEST_invalid_file = /home
@@ -81,6 +82,6 @@ test_31_list_of_dict_parameter (visexpman.engine.generic.parameter.testParameter
 test_36_set_invalid_type_value_1 (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 55 tests in 53.063s
+Ran 55 tests in 53.607s
 
 OK (skipped=1)

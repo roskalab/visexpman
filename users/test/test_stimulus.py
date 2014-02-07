@@ -11,7 +11,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.users.test import unittest_aggregator
-from visexpman.users.common import stimulations
+from visexpman.users.common import stimuli
 from visexpA.engine.datadisplay import videofile
 
 class MovingGratingConfig(experiment.ExperimentConfig):
@@ -31,7 +31,7 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingGrating1'
         self._create_parameters_from_locals(locals())
         
-class MovingGrating1(stimulations.MovingGrating):
+class MovingGrating1(stimuli.MovingGrating):
     def run(self, fragment_id=0):
         shutil.rmtree(self.machine_config.CAPTURE_PATH)
         os.mkdir(self.machine_config.CAPTURE_PATH)

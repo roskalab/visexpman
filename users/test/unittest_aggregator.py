@@ -117,7 +117,7 @@ TEST_invalid_file = '/home'
 
 #== Hardware config during test ==
 #TEST_filterwheel_enable  = True #If set to False, many tests fail.
-#TEST_daq_device = 'Dev1'
+TEST_daq_device = 'Dev1'
 
 ################# Enable unit tests  ####################
 

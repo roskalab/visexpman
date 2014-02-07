@@ -469,7 +469,7 @@ class ExperimentControl(gui.WidgetControl):
                 if any([origexpconfs in new_expconf_classes.keys() for origexpconfs in self.experiment_config_classes.keys()]):
                     raise ExperimentConfigError('Redundant experiment config class name. Check {0}.' .format(python_module))
                 else:                    
-                    self.experiment_config_classes.update(experiment.parse_stimulation_file(python_module))
+                    self.experiment_config_classes.update(new_expconf_classes)
             self.poller.set_experiment_names(self.experiment_config_classes.keys())
         else:
             self.experiment_config_classes = experiment.parse_stimulation_file(filename)
