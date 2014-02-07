@@ -26,7 +26,7 @@ if os.name == 'nt':
 
 import fileop
 import introspect
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+from visexpman.users.test import unittest_aggregator
 
 def is_network_available():
     try:
@@ -534,7 +534,7 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
     filtered_class_list = []
     test_running = introspect.is_test_running()
     for class_item in class_list:
-        #If unit test or batch of unit tests (unit_test_runner) is run, add fetch all machine configs, otherwise omit automated_test_data module.
+        #If unit test or batch of unit tests (unittest_aggregator) is run, add fetch all machine configs, otherwise omit automated_test_data module.
         if test_running:
             filtered_class_list.append(class_item)
         elif not 'automated_test_data' in class_item[0].__name__:

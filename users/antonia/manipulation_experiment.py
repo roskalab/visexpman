@@ -8,7 +8,7 @@ import visexpman
 import os.path
 import os
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+import visexpman.users.test.unittest_aggregator as unittest_aggregator
 import shutil
 import random
             

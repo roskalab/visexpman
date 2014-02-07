@@ -88,6 +88,11 @@ def parsefilename(filename, regexdict):
             regexdict[k] = None # this pattern was not found
     return regexdict
     
+def select_folder_exists(folders):
+    for folder in folders:
+        if os.path.exists(folder) and os.path.isdir(folder):
+            return folder
+    
 ################# File system ####################
 
 def free_space(path):
@@ -675,7 +680,7 @@ class TestFileops(unittest.TestCase):
         self.assertTrue((pilconfirm.info['mycomment']==pilpic.info['mycomment']) and (pilconfirm.info['myhash']==pilpic.info['myhash']))
         pass
         
-    @unittest.skip('')
+    @unittest.skip('Starts a process and blocks other tests, needs to be fixed')
     def test_02_copier(self):
         from multiprocessing import Process,Manager
         import threading

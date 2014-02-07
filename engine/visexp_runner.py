@@ -27,7 +27,7 @@ from visexpman.engine.hardware_interface import network_interface
 from visexpA.engine.datahandlers import hdf5io
 #Unit test
 import unittest
-from visexpman.users.zoltan.test import unit_test_runner
+from visexpman.users.test import unittest_aggregator
 
 class VisionExperimentRunner(command_handler.CommandHandler):
     '''
@@ -165,7 +165,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         pass
         
     def _stop_network(self):
-        if unit_test_runner.TEST_enable_network:
+        if unittest_aggregator.TEST_enable_network:
             self.queues['mes']['out'].put('SOCclose_connectionEOCstop_clientEOP')
             self.queues['gui']['out'].put('SOCclose_connectionEOCstop_clientEOP')
             self.queues['imaging']['out'].put('SOCclose_connectionEOCstop_clientEOP')
@@ -282,13 +282,13 @@ class TestFindoutConfig(unittest.TestCase):
 class TestVisionExperimentRunner(unittest.TestCase):
 
     def setUp(self):
-        if '_09_' in self._testMethodName and unit_test_runner.TEST_mes:
+        if '_09_' in self._testMethodName and unittest_aggregator.TEST_mes:
             from visexpman.users.zoltan.automated_test_data import TestMesPlatformConfig
             self.server_config = TestMesPlatformConfig()
             self.server = network_interface.CommandRelayServer(self.server_config)
 
     def tearDown(self):
-        if '_09_' in self._testMethodName and unit_test_runner.TEST_mes:
+        if '_09_' in self._testMethodName and unittest_aggregator.TEST_mes:
             raw_input('1. In MES software close connections\n\
                  2. Press ENTER')
             if hasattr(self, 'server'):
@@ -338,7 +338,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
         experiment_log = fileop.read_text_file(v.experiment_config.runnable.filenames['experiment_log'])
         frame_rate = v.experiment_config.runnable.frame_rate
         expected_frame_rate = v.experiment_config.runnable.machine_config.SCREEN_EXPECTED_FRAME_RATE
-        if unit_test_runner.TEST_os == 'posix':
+        if unittest_aggregator.TEST_os == 'posix':
             frame_rate_tolerance = 30.0
         else:
             frame_rate_tolerance = 0.2
@@ -358,16 +358,16 @@ class TestVisionExperimentRunner(unittest.TestCase):
                         v.config.__class__, 
                         v.config.user,
                         v.experiment_config.__class__, 
-                        (frame_rate < expected_frame_rate + frame_rate_tolerance and frame_rate > expected_frame_rate - frame_rate_tolerance) and unit_test_runner.TEST_consider_frame_rate
+                        (frame_rate < expected_frame_rate + frame_rate_tolerance and frame_rate > expected_frame_rate - frame_rate_tolerance) and unittest_aggregator.TEST_consider_frame_rate
                         ),
-                        (True, True, True, True, True, True, True, unit_test_runner.TEST_daq, unit_test_runner.TEST_daq, True, 
+                        (True, True, True, True, True, True, True, unittest_aggregator.TEST_daq, unittest_aggregator.TEST_daq, True, 
                         visexpman.users.zoltan.automated_test_data.StandaloneConfig,
                        'zoltan',
                        visexpman.users.zoltan.automated_test_data.StandaloneExperimentConfig, 
-                       unit_test_runner.TEST_consider_frame_rate
+                       unittest_aggregator.TEST_consider_frame_rate
                         ))
                         
-    @unittest.skipIf(not unit_test_runner.TEST_stim,  'Stimulation pattern tests disabled')
+    @unittest.skipIf(not unittest_aggregator.TEST_stim,  'Stimulation pattern tests disabled')
     def test_06_visual_stimulations_centered(self):
         config_name = 'VisualStimulationsTestConfig'
         v = VisionExperimentRunner('zoltan', config_name)        
@@ -388,7 +388,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
                         v.config.__class__, 
                         v.config.user,
                         v.experiment_config.__class__, 
-                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_06')), 
+                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unittest_aggregator.TEST_reference_frames_folder, 'test_06')), 
                         self.check_experiment_log_for_visual_stimuli(experiment_log), 
                         ),
                         (True, True,
@@ -399,7 +399,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
                        True, 
                         ))
                       
-    @unittest.skipIf(not unit_test_runner.TEST_stim,  'Stimulation pattern tests disabled')
+    @unittest.skipIf(not unittest_aggregator.TEST_stim,  'Stimulation pattern tests disabled')
     def test_07_visual_stimulations_ul_corner(self):
         config_name = 'VisualStimulationsUlCornerTestConfig'
         v = VisionExperimentRunner('zoltan', config_name)        
@@ -420,7 +420,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
                         v.config.__class__, 
                         v.config.user,
                         v.experiment_config.__class__, 
-                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_07')), 
+                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unittest_aggregator.TEST_reference_frames_folder, 'test_07')), 
                         self.check_experiment_log_for_visual_stimuli(experiment_log), 
                         ),
                         (True, True,
@@ -431,7 +431,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
                        True, 
                         ))
                         
-    @unittest.skipIf(not unit_test_runner.TEST_stim,  'Stimulation pattern tests disabled')
+    @unittest.skipIf(not unittest_aggregator.TEST_stim,  'Stimulation pattern tests disabled')
     def test_08_visual_stimulations_scaled(self):
         config_name = 'VisualStimulationsScaledTestConfig'
         v = VisionExperimentRunner('zoltan', config_name)        
@@ -452,7 +452,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
                         v.config.__class__, 
                         v.config.user,
                         v.experiment_config.__class__, 
-                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unit_test_runner.TEST_reference_frames_folder, 'test_08')), 
+                        self.check_captured_frames(v.config.CAPTURE_PATH, os.path.join(unittest_aggregator.TEST_reference_frames_folder, 'test_08')), 
                         self.check_experiment_log_for_visual_stimuli(experiment_log), 
                         ),
                         (True, True,
@@ -463,7 +463,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
                        True, 
                         ))
                             
-    @unittest.skipIf(not unit_test_runner.TEST_mes,  'MES tests disabled')
+    @unittest.skipIf(not unittest_aggregator.TEST_mes,  'MES tests disabled')
     def test_09_mes_platform(self):
         '''
         Tested features:
@@ -552,7 +552,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
                        int(v.experiment_config.runnable.fragment_durations[0] * v.config.SCREEN_EXPECTED_FRAME_RATE), 
                         ))
         
-    @unittest.skipIf(not unit_test_runner.TEST_uled,  'Microled tests disabled')
+    @unittest.skipIf(not unittest_aggregator.TEST_uled,  'Microled tests disabled')
     def test_11_microled(self):
         raw_input('This test expects that microled array is powered and connected \n\
                 HV: 3-4 V, 500 mA, VDD: 3V, Peltier: 6 V, 1.5A, fan: 12V\n\
@@ -639,7 +639,7 @@ class TestVisionExperimentRunner(unittest.TestCase):
             captured_file.close()
             number_of_differing_pixels = (utils.string_to_array(reference_data) != utils.string_to_array(captured_data)).sum()/3.0                        
             if reference_data != captured_data:                                                            
-                if number_of_differing_pixels >= unit_test_runner.TEST_pixel_difference_threshold:
+                if number_of_differing_pixels >= unittest_aggregator.TEST_pixel_difference_threshold:
                     print reference_file_path, number_of_differing_pixels
                     result = False
         return result

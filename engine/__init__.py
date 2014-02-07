@@ -4,6 +4,7 @@ import warnings
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 from visexpman.engine.generic import log
+from visexpman.engine.generic import introspect
 
 class FreeSpaceError(Exception):
     pass
@@ -28,7 +29,13 @@ def application_init(**kwargs):
     parnames = ['user', 'config', 'application_name']
     args = {}
     if len(kwargs) < 3:#Find user, machine config and application name from command line parameters
-        argparser = argparse.ArgumentParser()
+        import sys
+        if 'unittest_aggregator' not in sys.argv[0]:#Unit
+            global argparser
+            argparser = argparse.ArgumentParser()
+        else:
+            from visexpman.users.test import unittest_aggregator
+            argparser= unittest_aggregator.argparser
         argparser.add_argument('-u', '--user', help = 'User of the application. A subfolder with this name shall exists visexpman.engine.users folder.')
         argparser.add_argument('-c', '--config', help = 'Machine config that reside in either user\'s folder or in visexpman.users.common')
         argparser.add_argument('-a', '--application_name', help = 'Application to be started: TBD')#TODO: possible application names shall be listed
@@ -64,6 +71,7 @@ def application_init(**kwargs):
         warnings.warn('Check network connection')
     #Set up application logging
     logger = log.Logger(machine_config)
+    logger.start()
     return machine_config, logger
     
 import unittest
@@ -78,7 +86,7 @@ class TestApplicationInit(unittest.TestCase):
         
     def test_01_command_line_args(self):
         import sys
-        sys.argv.append('-u zoltan')
+        sys.argv.append('-u test')
         sys.argv.append('-c GUITestConfig')
         sys.argv.append('-a elphys')
         mc, self.log = application_init()

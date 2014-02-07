@@ -2324,8 +2324,8 @@ class CaImagingPoller(Poller):
         #Load data from test file
         if os.name != 'nt' and not hasattr(self, 'main_image'):
             return
-            from visexpman.users.zoltan.test import unit_test_runner
-            h = hdf5io.Hdf5io(fileop.filtered_file_list(unit_test_runner.prepare_test_data('caimaging'), 'hdf5', fullpath = True)[0], filelocking=False)
+            from visexpman.users.test import unittest_aggregator
+            h = hdf5io.Hdf5io(fileop.filtered_file_list(unittest_aggregator.prepare_test_data('caimaging'), 'hdf5', fullpath = True)[0], filelocking=False)
             img = h.findvar('data')
             img = img.mean(axis=0)
             scan_parameters = h.findvar('scan_parameters')

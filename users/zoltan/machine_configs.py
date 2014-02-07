@@ -15,7 +15,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.users.zoltan.test import unit_test_runner
+from visexpman.users.test import unittest_aggregator
 from visexpman.users.daniel import grating
 from visexpman.users.peter import mea_configurations as peter_configurations
 
@@ -201,7 +201,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         },
         {
         'DAQ_TIMEOUT' : 1.0, 
-        'DO_CHANNEL' : unit_test_runner.TEST_daq_device + '/port0/line0',
+        'DO_CHANNEL' : unittest_aggregator.TEST_daq_device + '/port0/line0',
         'ENABLE' : True
         }, 
         {#Ca sync, stim sync, elphys
@@ -230,7 +230,7 @@ class JobhandlerTestConfig(configuration.VisionExperimentConfig):
         self.root_folder = '/mnt/datafast/'
         LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unittest_aggregator.TEST_working_folder
         CONTEXT_PATH = os.path.join(self.root_folder, 'context')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         self.CONTEXT_NAME = 'gui_dev.hdf5'

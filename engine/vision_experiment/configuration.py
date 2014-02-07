@@ -40,7 +40,7 @@ import unittest
 
 import PyQt4.QtGui as QtGui
 
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+from visexpman.users.test import unittest_aggregator
 
 class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
@@ -196,8 +196,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         'DAQ_TIMEOUT' : 1.0, 
 #         'AO_SAMPLE_RATE' : 100,
 #         'AI_SAMPLE_RATE' : 1000,
-#         'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
-#         'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',        
+#         'AO_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ao0:1',
+#         'AI_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ai9:0',        
 #         'MAX_VOLTAGE' : 5.0,
 #         'MIN_VOLTAGE' : 0.0,
 #         'DURATION_OF_AI_READ' : 1.0,
@@ -208,8 +208,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         'DAQ_TIMEOUT' : 0.0, 
 #         'AO_SAMPLE_RATE' : 100,
 #         'AI_SAMPLE_RATE' : 1000,
-#         'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
-#         'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai9:0',
+#         'AO_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ao0:1',
+#         'AI_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ai9:0',
 #         'MAX_VOLTAGE' : 5.0,
 #         'MIN_VOLTAGE' : 0.0,
 #         'DURATION_OF_AI_READ' : 1.0,
@@ -278,7 +278,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ######################### Coordinate system #########################
         if self.COORDINATE_SYSTEM != 'undefined':
             self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
-        elif unit_test_runner.TEST_test:
+        elif unittest_aggregator.TEST_test:
             #In test mode we do not check for raised exception but test for the existence of certain variables
             pass
         elif self.PLATFORM != 'smallapp':
@@ -520,7 +520,7 @@ class TestConfig(visexpman.engine.generic.configuration.Config):
 class RedundantCommandConfig1(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'
-        path = unit_test_runner.TEST_working_folder
+        path = unittest_aggregator.TEST_working_folder
         LOG_PATH = path
         EXPERIMENT_LOG_PATH = path
         EXPERIMENT_DATA_PATH = path
@@ -532,7 +532,7 @@ class RedundantCommandConfig1(VisionExperimentConfig):
 class RedundantCommandConfig2(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'
-        path = unit_test_runner.TEST_working_folder
+        path = unittest_aggregator.TEST_working_folder
         LOG_PATH = path
         EXPERIMENT_LOG_PATH = path
         EXPERIMENT_DATA_PATH = path
@@ -544,7 +544,7 @@ class RedundantCommandConfig2(VisionExperimentConfig):
 class RedundantCommandConfig3(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'
-        path = unit_test_runner.TEST_working_folder
+        path = unittest_aggregator.TEST_working_folder
         LOG_PATH = path
         EXPERIMENT_LOG_PATH = path
         EXPERIMENT_DATA_PATH = path
@@ -556,7 +556,7 @@ class RedundantCommandConfig3(VisionExperimentConfig):
 class NonRedundantCommandConfig(VisionExperimentConfig):
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'VerySimpleExperimentConfig'        
-        path = unit_test_runner.TEST_working_folder
+        path = unittest_aggregator.TEST_working_folder
         LOG_PATH = path
         EXPERIMENT_LOG_PATH = path
         EXPERIMENT_DATA_PATH = path

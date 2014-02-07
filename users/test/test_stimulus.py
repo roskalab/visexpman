@@ -10,7 +10,7 @@ from visexpman.engine.vision_experiment.configuration import VisionExperimentCon
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.users.zoltan.test import unit_test_runner
+from visexpman.users.test import unittest_aggregator
 from visexpman.users.common import stimulations
 from visexpA.engine.datadisplay import videofile
 

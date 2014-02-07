@@ -21,7 +21,7 @@ from visexpA.engine.datahandlers import matlabfile
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 
-from visexpman.users.zoltan.test import unit_test_runner
+from visexpman.users.test import unittest_aggregator
 parameter_extract = re.compile('EOC(.+)EOP')
 
 def generate_scan_points_mat(points, mat_file):
@@ -684,15 +684,15 @@ class MESTestConfig(visexpman.engine.generic.configuration.Config):
             }
         }
         if self.mes_data_to_new_folder:
-            EXPERIMENT_DATA_PATH = fileop.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'mes_test'))
+            EXPERIMENT_DATA_PATH = fileop.generate_foldername(os.path.join(unittest_aggregator.TEST_working_folder, 'mes_test'))
             if not os.path.exists(EXPERIMENT_DATA_PATH):
                 os.mkdir(EXPERIMENT_DATA_PATH)
         else:
-            EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+            EXPERIMENT_DATA_PATH = unittest_aggregator.TEST_working_folder
 
         MES_DATA_FOLDER = EXPERIMENT_DATA_PATH.replace('/home/zoltan/visexp', 'V:').replace('/', '\\')
         self.MES_TIMEOUT = 10.0
-        LOG_PATH = unit_test_runner.TEST_working_folder
+        LOG_PATH = unittest_aggregator.TEST_working_folder
         self._create_parameters_from_locals(locals())
 
 class TestMesInterfaceEmulated(unittest.TestCase):
@@ -706,7 +706,7 @@ class TestMesInterfaceEmulated(unittest.TestCase):
         time.sleep(1.0)
 
     def setUp(self):
-        self.parameter_path = os.path.join(unit_test_runner.TEST_working_folder, 'test.mat')
+        self.parameter_path = os.path.join(unittest_aggregator.TEST_working_folder, 'test.mat')
         self.config = MESTestConfig()       
         self.user_to_client = Queue.Queue()
         self.client_to_user = Queue.Queue()
@@ -764,7 +764,7 @@ class TestMesInterface(unittest.TestCase):
         self.mes_interface = MesInterface(self.config, queues = queues, connections = {'mes' : self.user_client})
         self.server = network_interface.CommandRelayServer(self.config)
 
-    @unittest.skipIf(not unit_test_runner.TEST_mes,  'MES tests disabled')
+    @unittest.skipIf(not unittest_aggregator.TEST_mes,  'MES tests disabled')
     def test_all_functions(self):
         '''
         1. line scan with mes settings

@@ -299,8 +299,8 @@ class TestExperimentData(unittest.TestCase):
         pass
         
     def test_02_elphys(self):
-        from visexpman.users.zoltan.test import unit_test_runner
-        working_folder = unit_test_runner.prepare_test_data('elphys')
+        from visexpman.users.test import unittest_aggregator
+        working_folder = unittest_aggregator.prepare_test_data('elphys')
         convert_phys(os.path.join(working_folder,os.listdir(working_folder)[0]))
         
 if __name__=='__main__':

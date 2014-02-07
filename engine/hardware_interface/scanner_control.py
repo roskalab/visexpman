@@ -46,7 +46,7 @@ from visexpman.engine.generic import log
 from visexpman.engine.generic import configuration
 from visexpman.engine.generic import command_parser
 from visexpman.engine.vision_experiment import experiment_data
-from visexpman.users.zoltan.test import unit_test_runner
+from visexpman.users.test import unittest_aggregator
 from visexpA.engine.datahandlers import hdf5io
 import unittest
 
@@ -70,8 +70,8 @@ class ScannerTestConfig(configuration.Config):
         'DAQ_TIMEOUT' : 2.0, 
         'AO_SAMPLE_RATE' : 400000,
         'AI_SAMPLE_RATE' : 800000,
-        'AO_CHANNEL' : unit_test_runner.TEST_daq_device + '/ao0:1',
-        'AI_CHANNEL' : unit_test_runner.TEST_daq_device + '/ai0:2',
+        'AO_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ao0:1',
+        'AI_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ai0:2',
         'MAX_VOLTAGE' : 3.0,
         'MIN_VOLTAGE' : -3.0,
         'DURATION_OF_AI_READ' : 2.0,
@@ -79,7 +79,7 @@ class ScannerTestConfig(configuration.Config):
         },
         {
         'DAQ_TIMEOUT' : 1.0, 
-        'DO_CHANNEL' : unit_test_runner.TEST_daq_device + '/port0/line0',
+        'DO_CHANNEL' : unittest_aggregator.TEST_daq_device + '/port0/line0',
         'ENABLE' : True
         }
         ]
@@ -1338,8 +1338,8 @@ class TestScannerControl(unittest.TestCase):
         config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
         config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 400000
         config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 400000
-        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
-        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
+        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unittest_aggregator.TEST_daq_device + '/ao0:1'
+        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unittest_aggregator.TEST_daq_device + '/ai0:1'
         config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
         config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
         lines = [
@@ -1378,8 +1378,8 @@ class TestScannerControl(unittest.TestCase):
         config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
         config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 250000
         config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 500000
-        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
-        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
+        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unittest_aggregator.TEST_daq_device + '/ao0:1'
+        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unittest_aggregator.TEST_daq_device + '/ai0:1'
         config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
         config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
         lines = generate_test_lines(100, 1, [300])
@@ -1430,8 +1430,8 @@ class TestScannerControl(unittest.TestCase):
         config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
         config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 250000
         config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 500000
-        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
-        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
+        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unittest_aggregator.TEST_daq_device + '/ao0:1'
+        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unittest_aggregator.TEST_daq_device + '/ai0:1'
         config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
         config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
         scan_size = utils.rc((100, 100))
@@ -1565,8 +1565,8 @@ class TestScannerControl(unittest.TestCase):
         config.DAQ_CONFIG[0]['DAQ_TIMEOUT'] = 10.0
         config.DAQ_CONFIG[0]['AO_SAMPLE_RATE'] = 200000
         config.DAQ_CONFIG[0]['AI_SAMPLE_RATE'] = 200000
-        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ao0:1'
-        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unit_test_runner.TEST_daq_device + '/ai0:1'
+        config.DAQ_CONFIG[0]['AO_CHANNEL'] = unittest_aggregator.TEST_daq_device + '/ao0:1'
+        config.DAQ_CONFIG[0]['AI_CHANNEL'] = unittest_aggregator.TEST_daq_device + '/ai0:1'
         config.DAQ_CONFIG[0]['AO_SAMPLING_MODE'] = 'cont'
         config.SCANNER_SIGNAL_SAMPLING_RATE = config.DAQ_CONFIG[0]['AO_SAMPLE_RATE']
         spatial_resolution = 2

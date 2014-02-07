@@ -35,7 +35,7 @@ from visexpman.engine.generic import fileop
 from visexpman.engine.generic import stringop
 from visexpman.engine import generic
 from visexpman.engine.generic import log
-from visexpman.users.zoltan.test import unit_test_runner
+from visexpman.users.test import unittest_aggregator
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.dataprocessors import generic as generic_visexpA
 
@@ -1241,6 +1241,8 @@ class testVisionExperimentGui(unittest.TestCase):
         shutil.move(animal_file, tempfile.gettempdir())
         
 #    @unittest.skip('')
+
+    @unittest.skipIf(unittest_aggregator.TEST_no_user_action,  'Requires user action')        
     def test_01_select_stimfile(self):
         '''
         Tests if py module can be opened as a stimfile and experiment configuration parameters can be parsed and displayed.total

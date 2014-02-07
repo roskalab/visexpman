@@ -5,7 +5,7 @@ import visexpman.engine.hardware_interface.network_interface as network_interfac
 import visexpman.engine.hardware_interface.mes_interface as mes_interface
 import visexpman.engine.generic.utils as utils
 import visexpman.engine.generic.geometry as geometry
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+import visexpman.users.zoltan.test.unittest_aggregator as unittest_aggregator
 import Queue
 import os.path
 import visexpA.engine.datahandlers.hdf5io as hdf5io

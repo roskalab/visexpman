@@ -68,8 +68,8 @@ if True:
 #        state = not state
 #        time.sleep(0.1)
 #    parallel_port.release_instrument()
-#    import unit_test_runner
-#    unit_test_runner.run_test('visexpman.engine.visexp_runner.TestVisionExperimentRunner.test_11_microled')
+#    import unittest_aggregator
+#    unittest_aggregator.run_test('visexpman.engine.visexp_runner.TestVisionExperimentRunner.test_11_microled')
     
 else:
     def append2hdf5():

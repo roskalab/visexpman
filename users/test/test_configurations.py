@@ -1,5 +1,5 @@
 '''
-Configurations in this module are omitted by fetch_class unless unit test runner is the main caller (unit_test_runner.TEST == True )
+Configurations in this module are omitted by fetch_class unless unit test runner is the main caller (unittest_aggregator.TEST == True )
 '''
 
 ####### Configurations, experiment configurations and experiments for automated tests #######
@@ -17,16 +17,16 @@ from visexpman.engine.generic import fileop
 from visexpman.engine.vision_experiment import experiment
 from visexpman.users.peter import mea_configurations as peter_configurations
 
-from visexpman.users.zoltan.test import unit_test_runner
+from visexpman.users.test import unittest_aggregator
 
 class StandaloneConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
         PLATFORM = 'standalone'
         EXPERIMENT_CONFIG = 'StandaloneExperimentConfig'
         #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unittest_aggregator.TEST_working_folder
         
         #screen
         FULLSCREEN = False
@@ -78,14 +78,14 @@ class StandaloneExperiment(experiment.Experiment):
         self.parallel_port.set_data_bit(1, 0)
         filter = int(5 * random.Random().random()) + 1
         time.sleep(0.2)
-        if unit_test_runner.TEST_filterwheel:
+        if unittest_aggregator.TEST_filterwheel:
             self.filterwheels[0].set(filter)
         #generate pulses        
         offsets = [0, 0.2, 0.5]
         pulse_widths = [0.1,  0.1,  0.1]
         amplitudes = [2.0, 2.0, 2.0]
         duration = 1.0
-        if unit_test_runner.TEST_daq:
+        if unittest_aggregator.TEST_daq:
             self.led_controller.set([[offsets, pulse_widths, amplitudes], [offsets, pulse_widths, amplitudes]], duration)
             self.led_controller.start()
             self.led_controller.release_instrument()
@@ -106,9 +106,9 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'MesPlatformExperimentC'
         PLATFORM = 'mes'
         #=== paths/data handling ===
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder        
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unittest_aggregator.TEST_working_folder        
+        EXPERIMENT_DATA_PATH = unittest_aggregator.TEST_working_folder
         MES_DATA_FOLDER = EXPERIMENT_DATA_PATH.replace('/home/zoltan/visexp', 'V:').replace('/', '\\')
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         #=== screen ===
@@ -202,9 +202,9 @@ class TestElphysPlatformConfig(configuration.VisionExperimentConfig):
         EXPERIMENT_CONFIG = 'ElphysPlatformExperimentCDummy'
         PLATFORM = 'elphys'
         #=== paths/data handling ===
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder        
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unittest_aggregator.TEST_working_folder        
+        EXPERIMENT_DATA_PATH = unittest_aggregator.TEST_working_folder
         EXPERIMENT_FILE_FORMAT = 'mat'
         #=== screen ===
         FULLSCREEN = False
@@ -266,10 +266,10 @@ class VisualStimulationsTestConfig(configuration.VisionExperimentConfig):
         PLATFORM = 'standalone'
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
         #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
-        CAPTURE_PATH = fileop.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
+        LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unittest_aggregator.TEST_working_folder
+        CAPTURE_PATH = fileop.generate_foldername(os.path.join(unittest_aggregator.TEST_working_folder, 'capture'))
         os.mkdir(CAPTURE_PATH)
         
         #screen
@@ -287,10 +287,10 @@ class VisualStimulationsUlCornerTestConfig(configuration.VisionExperimentConfig)
         PLATFORM = 'standalone'
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
         #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder       
-        CAPTURE_PATH = fileop.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
+        LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unittest_aggregator.TEST_working_folder       
+        CAPTURE_PATH = fileop.generate_foldername(os.path.join(unittest_aggregator.TEST_working_folder, 'capture'))
         os.mkdir(CAPTURE_PATH)
         
         #screen
@@ -308,10 +308,10 @@ class VisualStimulationsScaledTestConfig(configuration.VisionExperimentConfig):
         PLATFORM = 'standalone'
         EXPERIMENT_CONFIG = 'VisualStimulationsExperimentConfig'
         #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder       
-        CAPTURE_PATH = fileop.generate_foldername(os.path.join(unit_test_runner.TEST_working_folder, 'capture'))
+        LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unittest_aggregator.TEST_working_folder       
+        CAPTURE_PATH = fileop.generate_foldername(os.path.join(unittest_aggregator.TEST_working_folder, 'capture'))
         os.mkdir(CAPTURE_PATH)
         
         #screen
@@ -410,16 +410,16 @@ class StageExperimentTestConfig(configuration.VisionExperimentConfig):
         MEASUREMENT_PLATFORM = 'elphys'
         EXPERIMENT_CONFIG = 'StageExperimentConfig'        
         #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unittest_aggregator.TEST_working_folder
         
         #screen
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.cr([800, 600])
         
         motor_serial_port = {
-                                    'port' :  unit_test_runner.TEST_stage_com_port,
+                                    'port' :  unittest_aggregator.TEST_stage_com_port,
                                     'baudrate' : 19200,
                                     'parity' : serial.PARITY_NONE,
                                     'stopbits' : serial.STOPBITS_ONE,
@@ -456,9 +456,9 @@ class MicroLEDArrayTestConfig(configuration.VisionExperimentConfig):
         PLATFORM = 'standalone'
         EXPERIMENT_CONFIG = 'MicroLEDArrayExperimentConfig'
         #paths
-        LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_LOG_PATH = unit_test_runner.TEST_working_folder
-        EXPERIMENT_DATA_PATH = unit_test_runner.TEST_working_folder
+        LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_LOG_PATH = unittest_aggregator.TEST_working_folder
+        EXPERIMENT_DATA_PATH = unittest_aggregator.TEST_working_folder
         #screen
         FULLSCREEN = False
         SCREEN_RESOLUTION = utils.cr([16, 16])
@@ -488,11 +488,8 @@ class MicroLEDArrayExperiment(experiment.Experiment):
         
 class GUITestConfig(configuration.RetinalCaImagingConfig):
     def _set_user_parameters(self):
-        paths = ['/mnt/rzws/share/work', 'r:\\work']
-        for path in paths:
-            if os.path.exists(path):
-                self.root_folder = path
-                break        
+        from visexpman.users.test import unittest_aggregator
+        self.root_folder = fileop.select_folder_exists(unittest_aggregator.TEST_working_folder)
         LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = os.path.join(self.root_folder, 'experiment_data')

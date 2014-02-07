@@ -2,7 +2,7 @@ import os.path
 import numpy
 import unittest
 import os
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+from visexpman.users.test import unittest_aggregator
 
 class InvalidParameterValue(Exception):
     pass
@@ -197,11 +197,11 @@ class testParameter(unittest.TestCase):
         self.assertRaises(IOError,  Parameter,  value,  is_path = True)
         
     def test_03_valid_file_parameter(self):     
-        p = Parameter(unit_test_runner.TEST_valid_file,  is_file = True)
-        self.assertEqual((p._type,  p.v),  ('file', unit_test_runner.TEST_valid_file))
+        p = Parameter(unittest_aggregator.TEST_valid_file,  is_file = True)
+        self.assertEqual((p._type,  p.v),  ('file', unittest_aggregator.TEST_valid_file))
         
     def test_04_invalid_file_parameter(self):
-        self.assertRaises(IOError,  Parameter, unit_test_runner.TEST_invalid_file,  is_file = True)
+        self.assertRaises(IOError,  Parameter, unittest_aggregator.TEST_invalid_file,  is_file = True)
         
     def test_05_invalid_file_parameter(self):
         value = '/home/test.txt'

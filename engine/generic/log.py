@@ -8,7 +8,7 @@ import tempfile
 import shutil
 import unittest
 import threading
-from visexpman.users.zoltan.test import unit_test_runner
+from visexpman.users.test import unittest_aggregator
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 
@@ -227,9 +227,9 @@ class LoggerThread(threading.Thread, Log):
 class TestLog(unittest.TestCase):
     def setUp(self):
         import visexpman.engine.vision_experiment.configuration
-        self.machine_config = utils.fetch_classes('visexpman.users.zoltan', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         self.machine_config.application_name='elphys'
-        self.machine_config.user = 'zoltan'
+        self.machine_config.user = 'test'
 
 #    def test_01_automatic_saving_with_timestamps(self):
 #        while True:

@@ -22,7 +22,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import log
 from visexpman.engine.generic import fileop
 import traceback
-import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
+from visexpman.users.test import unittest_aggregator
 from visexpman.engine.generic.introspect import list_type
 import multiprocessing
 try:
@@ -717,7 +717,7 @@ class QueuedServerTestConfig(visexpman.engine.generic.configuration.Config):
             '6_7'  : {'6' : {'IP': 'localhost', 'PORT': self.BASE_PORT+2}, '7' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 3}},
             }
         }
-        LOG_PATH = unit_test_runner.TEST_working_folder
+        LOG_PATH = unittest_aggregator.TEST_working_folder
         self._create_parameters_from_locals(locals())
 
 class TestQueuedServer(unittest.TestCase):
