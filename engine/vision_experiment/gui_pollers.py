@@ -410,9 +410,9 @@ class CorticalGUIPoller(Poller):
                                         'self.parent.roi_widget.cell_merge_distance_combobox',
                                         'self.parent.roi_widget.cell_group_combobox',
                                         'self.parent.common_widget.registration_subimage_combobox',
-                                        'self.parent.animal_parameters_widget.anesthesia_history_groupbox.substance_combobox',
-                                        'self.parent.animal_parameters_widget.anesthesia_history_groupbox.amount_combobox',
-                                        'self.parent.animal_parameters_widget.anesthesia_history_groupbox.comment_combobox']
+                                        'self.parent.animal_parameters_groupbox.anesthesia_history_groupbox.substance_combobox',
+                                        'self.parent.animal_parameters_groupbox.anesthesia_history_groupbox.amount_combobox',
+                                        'self.parent.animal_parameters_groupbox.anesthesia_history_groupbox.comment_combobox']
         self.measurement_running = False
 
     def initialize_mouse_file(self):
@@ -1135,12 +1135,12 @@ class CorticalGUIPoller(Poller):
 
         The hdf5 file is closed.
         '''
-        mouse_birth_date = self.parent.animal_parameters_widget.mouse_birth_date.date()
+        mouse_birth_date = self.parent.animal_parameters_groupbox.mouse_birth_date.date()
         mouse_birth_date = '{0}-{1}-{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
-        gcamp_injection_date = self.parent.animal_parameters_widget.gcamp_injection_date.date()
+        gcamp_injection_date = self.parent.animal_parameters_groupbox.gcamp_injection_date.date()
         gcamp_injection_date = '{0}-{1}-{2}'.format(gcamp_injection_date.day(),  gcamp_injection_date.month(),  gcamp_injection_date.year())                
 
-        id_text = str(self.parent.animal_parameters_widget.id.currentText())
+        id_text = str(self.parent.animal_parameters_groupbox.id.currentText())
         if id_text == '':
             self.printc('Providing ID is mandatory')
             return
@@ -1148,13 +1148,13 @@ class CorticalGUIPoller(Poller):
             'mouse_birth_date' : mouse_birth_date,
             'gcamp_injection_date' : gcamp_injection_date,
             'id' : id_text,
-            'gender' : str(self.parent.animal_parameters_widget.gender.currentText()),
-            'ear_punch_l' : str(self.parent.animal_parameters_widget.ear_punch_l.currentText()), 
-            'ear_punch_r' : str(self.parent.animal_parameters_widget.ear_punch_r.currentText()),
-            'strain' : str(self.parent.animal_parameters_widget.mouse_strain.currentText()),
-            'green_labeling' : str(self.parent.animal_parameters_widget.green_labeling.currentText()),
-            'red_labeling' : str(self.parent.animal_parameters_widget.red_labeling.currentText()),
-            'comments' : str(self.parent.animal_parameters_widget.comments.currentText()),
+            'gender' : str(self.parent.animal_parameters_groupbox.gender.currentText()),
+            'ear_punch_l' : str(self.parent.animal_parameters_groupbox.ear_punch_l.currentText()), 
+            'ear_punch_r' : str(self.parent.animal_parameters_groupbox.ear_punch_r.currentText()),
+            'strain' : str(self.parent.animal_parameters_groupbox.mouse_strain.currentText()),
+            'green_labeling' : str(self.parent.animal_parameters_groupbox.green_labeling.currentText()),
+            'red_labeling' : str(self.parent.animal_parameters_groupbox.red_labeling.currentText()),
+            'comments' : str(self.parent.animal_parameters_groupbox.comments.currentText()),
             'add_date' : utils.datetime_string().replace('_', ' ')
         }        
         name = '{0}_{1}_{2}_{3}_{4}_{5}' .format(self.animal_parameters['id'], self.animal_parameters['strain'], self.animal_parameters['mouse_birth_date'] , self.animal_parameters['gcamp_injection_date'], \
@@ -1187,14 +1187,14 @@ class CorticalGUIPoller(Poller):
             if not hasattr(self, 'anesthesia_history'):
                 self.anesthesia_history = []
             entry = {}
-            date = self.parent.animal_parameters_widget.anesthesia_history_groupbox.date.date()
-            tme = self.parent.animal_parameters_widget.anesthesia_history_groupbox.date.time()
+            date = self.parent.animal_parameters_groupbox.anesthesia_history_groupbox.date.date()
+            tme = self.parent.animal_parameters_groupbox.anesthesia_history_groupbox.date.time()
             timestamp = time.mktime(time.struct_time((date.year(),date.month(),date.day(),tme.hour(),tme.minute(),0,0,0,-1)))
 #        mouse_birth_date = '{0}-{1}-{2}'.format(mouse_birth_date.day(),  mouse_birth_date.month(),  mouse_birth_date.year())
             entry['timestamp'] = timestamp
-            entry['substance'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.substance_combobox.currentText())
-            entry['amount'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.amount_combobox.currentText())
-            entry['comment'] = str(self.parent.animal_parameters_widget.anesthesia_history_groupbox.comment_combobox.currentText())
+            entry['substance'] = str(self.parent.animal_parameters_groupbox.anesthesia_history_groupbox.substance_combobox.currentText())
+            entry['amount'] = str(self.parent.animal_parameters_groupbox.anesthesia_history_groupbox.amount_combobox.currentText())
+            entry['comment'] = str(self.parent.animal_parameters_groupbox.anesthesia_history_groupbox.comment_combobox.currentText())
             self.anesthesia_history.append(entry)
             import operator
             self.anesthesia_history.sort(key = operator.itemgetter('timestamp'))
@@ -2678,7 +2678,8 @@ class VisexpGuiPoller(Poller):
         self.experiment_control = gui.ExperimentControl(self, self.config, 
                                                         self.parent.central_widget.main_widget.experiment_control_groupbox, 
                                                         self.parent.central_widget.main_widget.experiment_parameters)
-        self.animal_parameters = gui.AnimalParameters(self, self.config, self.parent.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox)
+        self.experiment_log = gui.ExperimentLog(self, self.config, self.parent.central_widget.experiment_log_groupbox)
+        self.animal_parameters = gui.AnimalParameters(self, self.config, self.parent.central_widget.animal_parameters_groupbox)
         self.context_paths = {}
         self.context_paths['variables'] = ['self.experiment_control.experiment_config_classes.keys', 
                                      'self.parent.central_widget.main_widget.experiment_parameters.values.rowCount', 
@@ -2701,6 +2702,7 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('update_experiment_parameter_table'),  self.parent.update_experiment_parameter_table)
         self.connect(self, QtCore.SIGNAL('update_animal_parameters_table'),  self.parent.update_animal_parameters_table)
         self.connect(self, QtCore.SIGNAL('update_animal_file_list'),  self.parent.update_animal_file_list)
+        self.connect(self, QtCore.SIGNAL('update_experiment_log_suggested_date'),  self.parent.update_experiment_log_suggested_date)
         self.connect(self, QtCore.SIGNAL('close_app'),  self.parent.close_app)
         
     def load_context(self):
@@ -2779,6 +2781,7 @@ class VisexpGuiPoller(Poller):
             self.emit(QtCore.SIGNAL('set_experiment_progressbar'), elapsed_time)
         else:
             self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
+        self.experiment_log.update_suggested_date()
         #Call test helper
         self.test()            
 
@@ -2928,7 +2931,7 @@ class VisexpGuiPoller(Poller):
                     or self.testmode is None:
             return
         self.test_run=True
-        animal_param_table = self.parent.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.table
+        animal_param_table = self.parent.central_widget.animal_parameters_groupbox.table
         import PyQt4.QtGui as QtGui
         self.printc('Test {0}'.format(self.testmode))
         if self.testmode==1:
@@ -2962,7 +2965,7 @@ class VisexpGuiPoller(Poller):
                 self.emit(QtCore.SIGNAL('close_app'))
                 
         elif self.testmode==2 or self.testmode==3:
-            self.parent.central_widget.main_tab.setCurrentIndex(1)
+            self.parent.central_widget.main_tab.setCurrentIndex(2)
             animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('test'))
             animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2013, 1, 1))
             animal_param_table.cellWidget(2, 1).setDate(QtCore.QDate(2013, 5, 1))
@@ -2978,15 +2981,15 @@ class VisexpGuiPoller(Poller):
             for fn in os.listdir(tempfile.gettempdir()):
                 if 'animal_' in fn and '.hdf5' in fn:
                     shutil.move(os.path.join(tempfile.gettempdir(), fn), self.config.DATA_STORAGE_PATH)
-            self.parent.central_widget.main_tab.setCurrentIndex(1)
+            self.parent.central_widget.main_tab.setCurrentIndex(2)
             self.animal_parameters.search_data_storage()
             time.sleep(1)
-            self.parent.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.setCurrentIndex(1)
+            self.parent.central_widget.animal_parameters_groupbox.animal_filename.input.setCurrentIndex(1)
             time.sleep(1)
             if self.testmode ==5:
                 self.animal_parameters.copy()
                 time.sleep(1)
-                self.parent.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.setCurrentIndex(2)
+                self.parent.central_widget.animal_parameters_groupbox.animal_filename.input.setCurrentIndex(2)
                 time.sleep(1)
             animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2015, 1, 1))
             time.sleep(1)
@@ -3005,7 +3008,7 @@ class VisexpGuiPoller(Poller):
                 self.animal_parameters.save()
             self.emit(QtCore.SIGNAL('close_app'))
         elif self.testmode == 6:
-            self.parent.central_widget.main_tab.setCurrentIndex(1)
+            self.parent.central_widget.main_tab.setCurrentIndex(2)
             animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('test'))
             animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2010, 1, 1))
             animal_param_table.cellWidget(2, 1).setDate(QtCore.QDate(2010, 1, 1))
@@ -3019,6 +3022,10 @@ class VisexpGuiPoller(Poller):
             animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('test1'))
             animal_param_table.cellWidget(7, 1).setEditText('label1')
             self.animal_parameters.update()
+            self.emit(QtCore.SIGNAL('close_app'))
+        elif self.testmode == 7:
+            self.parent.central_widget.main_tab.setCurrentIndex(1)
+            self.experiment_log.add()
             self.emit(QtCore.SIGNAL('close_app'))
             
 #            time.sleep(10.0)
@@ -3038,6 +3045,9 @@ class VisexpGuiPoller(Poller):
         
     def update_animal_file_list(self):
         self.emit(QtCore.SIGNAL('update_animal_file_list'))
+        
+    def update_experiment_log_suggested_date(self):
+        self.emit(QtCore.SIGNAL('update_experiment_log_suggested_date'))
         
 if __name__ == '__main__':
     pass

@@ -216,6 +216,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         'ENABLE' : True
 #         }
 #         ]]
+        GUI = {}
         GREEN_LABELING_SUGGESTIONS = ['',
         'scaav 2/1 hsyn gcamp3', 
         'aav 2/1 ef1a gcamp6s', 'gc6', 
@@ -235,6 +236,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         MOUSE_STRAIN_SUGGESTIONS = ['', 'chatdtr', 'chattomato', 'rd1', 'bl6', 'chat', 'SCN1cre', 'chat tomato', 'c3h', 'grik4']
         MOUSE_STRAIN_SUGGESTIONS.sort()
         GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
+        GUI['EXPERIMENT_LOG_UPDATE_PERIOD'] = 60.0
         
         STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]

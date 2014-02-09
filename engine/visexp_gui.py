@@ -81,7 +81,7 @@ class CorticalVisionExperimentGui(QtGui.QWidget):
         
     def create_gui(self):
         self.main_widget = gui.MainWidget(self)
-        self.animal_parameters_widget = gui.AnimalParametersWidget(self)
+        self.animal_parameters_groupbox = gui.AnimalParametersWidget(self)
         self.images_widget = gui.ImagesWidget(self)
         self.overview_widget = gui.OverviewWidget(self)
         self.roi_widget = gui.RoiWidget(self)
@@ -91,7 +91,7 @@ class CorticalVisionExperimentGui(QtGui.QWidget):
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Main')
         self.main_tab.addTab(self.roi_widget, 'ROI')
-        self.main_tab.addTab(self.animal_parameters_widget, 'Animal parameters')
+        self.main_tab.addTab(self.animal_parameters_groupbox, 'Animal parameters')
         self.main_tab.addTab(self.zstack_widget, 'Z stack')
         self.main_tab.addTab(self.helpers_widget, 'Helpers')
         self.main_tab.setCurrentIndex(0)
@@ -138,7 +138,7 @@ class CorticalVisionExperimentGui(QtGui.QWidget):
     def block_widgets(self,  block):
         if not hasattr(self, 'blocked_widgets'):
             self.blocked_widgets =  [self.main_widget.scan_region_groupbox.select_mouse_file, self.main_tab, 
-                  self.main_widget.scan_region_groupbox.scan_regions_combobox, self.animal_parameters_widget.new_mouse_file_button, 
+                  self.main_widget.scan_region_groupbox.scan_regions_combobox, self.animal_parameters_groupbox.new_mouse_file_button, 
                   self.roi_widget.select_cell_combobox, self.roi_widget.cell_filter_name_combobox,  self.roi_widget.cell_filter_combobox, 
                     self.roi_widget.show_selected_soma_rois_checkbox, self.roi_widget.show_current_soma_roi_checkbox, 
                     self.roi_widget.show_selected_roi_centers_checkbox, self.roi_widget.cell_group_combobox]
@@ -157,11 +157,11 @@ class CorticalVisionExperimentGui(QtGui.QWidget):
         
         self.connect_and_map_signal(self.main_widget.scan_region_groupbox.select_mouse_file, 'mouse_file_changed', 'currentIndexChanged')
         self.connect(self.main_widget.scan_region_groupbox.scan_regions_combobox, QtCore.SIGNAL('currentIndexChanged(int)'),  self.region_name_changed)
-        self.connect(self.animal_parameters_widget.anesthesia_history_groupbox.show_experiments_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.update_anesthesia_history)
+        self.connect(self.animal_parameters_groupbox.anesthesia_history_groupbox.show_experiments_checkbox, QtCore.SIGNAL('stateChanged(int)'),  self.update_anesthesia_history)
 
-        self.connect_and_map_signal(self.animal_parameters_widget.new_mouse_file_button, 'save_animal_parameters')
-        self.connect_and_map_signal(self.animal_parameters_widget.anesthesia_history_groupbox.add_button, 'add_to_anesthesia_history')
-        self.connect_and_map_signal(self.animal_parameters_widget.anesthesia_history_groupbox.remove_button, 'remove_last_from_anesthesia_history')
+        self.connect_and_map_signal(self.animal_parameters_groupbox.new_mouse_file_button, 'save_animal_parameters')
+        self.connect_and_map_signal(self.animal_parameters_groupbox.anesthesia_history_groupbox.add_button, 'add_to_anesthesia_history')
+        self.connect_and_map_signal(self.animal_parameters_groupbox.anesthesia_history_groupbox.remove_button, 'remove_last_from_anesthesia_history')
         #Experiment control
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment')
         self.connect_and_map_signal(self.main_widget.experiment_control_groupbox.graceful_stop_experiment_button, 'graceful_stop_experiment')
@@ -322,7 +322,7 @@ class CorticalVisionExperimentGui(QtGui.QWidget):
         text = 'Time\t\tsubstance\tamount\tcomment\n'
         if hasattr(self.poller, 'anesthesia_history'):
             entries = copy.deepcopy(self.poller.anesthesia_history)#[-MAX_ANESTHESIA_ENTRIES:]
-            if self.animal_parameters_widget.anesthesia_history_groupbox.show_experiments_checkbox.checkState() != 0:
+            if self.animal_parameters_groupbox.anesthesia_history_groupbox.show_experiments_checkbox.checkState() != 0:
                 for region_name, analysis_status_per_region in self.poller.analysis_status.items():
                     for id in analysis_status_per_region.keys():
                         stimulus_entry = self.poller.analysis_status[region_name][id]['info']
@@ -338,19 +338,19 @@ class CorticalVisionExperimentGui(QtGui.QWidget):
                 entries = [[e for e in entries if e['timestamp'] == id][0] for id in ids]
             
             number_of_rows = len(entries)
-            self.animal_parameters_widget.anesthesia_history_groupbox.history.setRowCount(number_of_rows)
-            self.animal_parameters_widget.anesthesia_history_groupbox.history.setVerticalHeaderLabels(QtCore.QStringList(number_of_rows * ['']))
+            self.animal_parameters_groupbox.anesthesia_history_groupbox.history.setRowCount(number_of_rows)
+            self.animal_parameters_groupbox.anesthesia_history_groupbox.history.setVerticalHeaderLabels(QtCore.QStringList(number_of_rows * ['']))
             for row in range(number_of_rows):
                 entry = entries[row]
-                self.animal_parameters_widget.anesthesia_history_groupbox.history.setItem(row, 0, QtGui.QTableWidgetItem(utils.timestamp2ymdhm(entry['timestamp'])))
-                self.animal_parameters_widget.anesthesia_history_groupbox.history.setItem(row, 1, QtGui.QTableWidgetItem(entry['substance']))
-                self.animal_parameters_widget.anesthesia_history_groupbox.history.setItem(row, 2, QtGui.QTableWidgetItem(entry['amount']))
-                self.animal_parameters_widget.anesthesia_history_groupbox.history.setItem(row, 3, QtGui.QTableWidgetItem(entry['comment']))
-            self.animal_parameters_widget.anesthesia_history_groupbox.history.scrollToBottom()
+                self.animal_parameters_groupbox.anesthesia_history_groupbox.history.setItem(row, 0, QtGui.QTableWidgetItem(utils.timestamp2ymdhm(entry['timestamp'])))
+                self.animal_parameters_groupbox.anesthesia_history_groupbox.history.setItem(row, 1, QtGui.QTableWidgetItem(entry['substance']))
+                self.animal_parameters_groupbox.anesthesia_history_groupbox.history.setItem(row, 2, QtGui.QTableWidgetItem(entry['amount']))
+                self.animal_parameters_groupbox.anesthesia_history_groupbox.history.setItem(row, 3, QtGui.QTableWidgetItem(entry['comment']))
+            self.animal_parameters_groupbox.anesthesia_history_groupbox.history.scrollToBottom()
         
     def update_anesthesia_history_date_widget(self):
         now = time.localtime()
-        self.animal_parameters_widget.anesthesia_history_groupbox.date.setDateTime(QtCore.QDateTime(QtCore.QDate(now.tm_year, now.tm_mon, now.tm_mday), QtCore.QTime(now.tm_hour, now.tm_min)))
+        self.animal_parameters_groupbox.anesthesia_history_groupbox.date.setDateTime(QtCore.QDateTime(QtCore.QDate(now.tm_year, now.tm_mon, now.tm_mday), QtCore.QTime(now.tm_hour, now.tm_min)))
         
     def update_widgets_when_mouse_file_changed(self, selected_region=None):
         self.update_animal_parameter_display()
@@ -937,7 +937,7 @@ class GuiTest(QtCore.QThread):
         self.parent.main_tab.setCurrentIndex(2)
         #setting mouse strain to a random id
         id = 'test_{0}' .format(int(time.time()))
-        self.parent.animal_parameters_widget.mouse_strain.setEditText(id)
+        self.parent.animal_parameters_groupbox.mouse_strain.setEditText(id)
         self.printc('TEST: Creating animal parameter file')
         self.parent.poller.signal_id_queue.put('save_animal_parameters')
         t = utils.Timeout(5.0)
@@ -1014,11 +1014,13 @@ class CentralWidget(QtGui.QWidget):
         
     def create_widgets(self):
         self.main_widget = MainWidget(self)
-        self.animal_parameters_and_experiment_log_widget = gui.AnimalParametersAndExperimentLogWidget(self)
+        self.animal_parameters_groupbox = gui.AnimalParametersGroupbox(self, self.config)
+        self.experiment_log_groupbox = gui.ExperimentLogGroupbox(self)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Main')
-        self.main_tab.addTab(self.animal_parameters_and_experiment_log_widget, 'Animal parameters/Experiment log')
-        self.main_tab.setCurrentIndex(0)
+        self.main_tab.addTab(self.experiment_log_groupbox, 'Experiment log')
+        self.main_tab.addTab(self.animal_parameters_groupbox, 'Animal parameters')
+        self.main_tab.setCurrentIndex(1)
         
         self.text_out = QtGui.QTextEdit(self)
         self.text_out.setPlainText('')
@@ -1068,13 +1070,14 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.update_experiment_parameter_table()
         self.update_animal_file_list()
         self.update_animal_parameters_table()
+        self.update_experiment_log_suggested_date()
 #        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
         self.connect(self.central_widget.main_widget.experiment_control_groupbox.experiment_name, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.experiment_name_changed)
-        self.connect(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.animal_filename_changed)
-        self.connect(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
-#        self.connect(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
+        self.connect(self.central_widget.animal_parameters_groupbox.animal_filename.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.animal_filename_changed)
+        self.connect(self.central_widget.animal_parameters_groupbox.animal_filename.input, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
+#        self.connect(self.central_widget.animal_parameters_groupbox.animal_filename, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
         #Signals mapped to poller functions
         self.signal_mapper = QtCore.QSignalMapper(self)
         widget2poller_function = [[self.central_widget.main_widget.experiment_control_groupbox.start_experiment_button, 'experiment_control.start_experiment'],
@@ -1082,11 +1085,12 @@ class VisionExperimentGui(Qt.QMainWindow):
                                   [self.central_widget.main_widget.experiment_control_groupbox.browse_experiment_file_button, 'experiment_control.browse'],
                                   [self.central_widget.main_widget.experiment_parameters.reload, 'experiment_control.reload_experiment_parameters'],
                                   [self.central_widget.main_widget.experiment_parameters.save, 'experiment_control.save_experiment_parameters'],
-                                  [self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.new_animal_file_button, 'animal_parameters.save'],
-                                  [self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.update_animal_file_button, 'animal_parameters.update'],
-                                  [self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.reload_animal_parameters_button, 'animal_parameters.reload'],
-                                  [self.central_widget.animal_parameters_and_experiment_log_widget.animal_files_from_data_storage, 'animal_parameters.search_data_storage'],
-                                  [self.central_widget.animal_parameters_and_experiment_log_widget.copy_animal_files_from_data_storage, 'animal_parameters.copy'],
+                                  [self.central_widget.animal_parameters_groupbox.new_animal_file_button, 'animal_parameters.save'],
+                                  [self.central_widget.animal_parameters_groupbox.update_animal_file_button, 'animal_parameters.update'],
+                                  [self.central_widget.animal_parameters_groupbox.reload_animal_parameters_button, 'animal_parameters.reload'],
+                                  [self.central_widget.animal_parameters_groupbox.animal_files_from_data_storage, 'animal_parameters.search_data_storage'],
+                                  [self.central_widget.animal_parameters_groupbox.copy_animal_files_from_data_storage, 'animal_parameters.copy'],
+                                  [self.central_widget.experiment_log_groupbox.new_entry.add_button, 'experiment_log.add'],
                                   ]
         for item in widget2poller_function:
             gui_generic.connect_and_map_signal(self, item[0],item[1])
@@ -1095,7 +1099,7 @@ class VisionExperimentGui(Qt.QMainWindow):
     def block_widgets(self,  block):
         if not hasattr(self, 'blocked_widgets'):
             self.blocked_widgets =  [self.central_widget.main_widget.experiment_control_groupbox.experiment_name, 
-                                     self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input, 
+                                     self.central_widget.animal_parameters_groupbox.animal_filename.input, 
                                      ]
         [w.blockSignals(block) for w in self.blocked_widgets]
         
@@ -1125,11 +1129,15 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.update_experiment_parameter_table()
         
     def animal_filename_changed(self):
-        self.poller.animal_parameters.animal_file = str(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.currentText())
+        self.poller.animal_parameters.animal_file = str(self.central_widget.animal_parameters_groupbox.animal_filename.input.currentText())
         #poller/animal parameters class needs to load animal parameters from selected file
         self.poller.animal_parameters.load()
     
-    ################# Update widgets ####################    
+    ################# Update widgets #################### 
+    def update_experiment_log_suggested_date(self):
+        now = time.localtime()
+        self.central_widget.experiment_log_groupbox.new_entry.date.setDateTime(QtCore.QDateTime(QtCore.QDate(now.tm_year, now.tm_mon, now.tm_mday), QtCore.QTime(now.tm_hour, now.tm_min)))
+
     def update_experiment_parameter_table(self):
         experiment_config_name = os.path.split(str(self.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText()))[-1]
         pars = {}
@@ -1145,15 +1153,15 @@ class VisionExperimentGui(Qt.QMainWindow):
         animal_params = {}
         for k, v in self.poller.animal_parameters.animal_parameters.items():
             animal_params[stringop.to_title(k)]=v
-        parnames = [stringop.to_title(pn) for pn in self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.parameter_names]
-        self.central_widget.animal_parameters_and_experiment_log_widget.animal_parameters_groupbox.table.set_values(\
+        parnames = [stringop.to_title(pn) for pn in self.central_widget.animal_parameters_groupbox.parameter_names]
+        self.central_widget.animal_parameters_groupbox.table.set_values(\
                                                                                                                     animal_params, parname_order = parnames)
 
     def update_animal_file_list(self):
-        text_before_list_update = str(self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input.currentText())
+        text_before_list_update = str(self.central_widget.animal_parameters_groupbox.animal_filename.input.currentText())
         animal_filenames = self.poller.animal_parameters.animal_files.keys()
         animal_filenames.sort()
-        widget = self.central_widget.animal_parameters_and_experiment_log_widget.animal_filename.input
+        widget = self.central_widget.animal_parameters_groupbox.animal_filename.input
         if hasattr(self.poller.animal_parameters, 'animal_file'):
             selected_item = self.poller.animal_parameters.animal_file
         else:
@@ -1294,6 +1302,7 @@ class testVisionExperimentGui(unittest.TestCase):
         #Create animal file in tmp
         self._create_animal_parameter_file('data_storage1')
         self._create_animal_parameter_file('data_storage2')
+#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'elphys', testmode=4)
         #Run gui
         self._call_gui(4)
         context = self._read_context()
@@ -1305,7 +1314,7 @@ class testVisionExperimentGui(unittest.TestCase):
             {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label data_storage2', 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'data_storage2'}
                                                                           ))
     
-#    @unittest.skip('') 
+    @unittest.skip('') 
     def test_05_load_animal_files_from_data_storage_and_modify(self):
         '''
         Load animal parameter files from data storage, copy second to experiment data, then modify it.
@@ -1347,6 +1356,13 @@ class testVisionExperimentGui(unittest.TestCase):
                                                               {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label1', 'injection_target': '', 'ear_punch_left': '1', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2010', 'injection_date': '1-1-2010', 'id': 'test1'}
                                                               ))
                                                               
+    def test_07_add_experiment_log_entry(self):
+        '''
+        Idea: start before minute digit change, add entry and check if add date is correct
+        '''
+        self._call_gui(7)
+        context = self._read_context()
+
 if __name__ == '__main__':
     if len(sys.argv) ==1:
         unittest.main()

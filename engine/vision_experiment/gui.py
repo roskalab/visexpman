@@ -6,6 +6,7 @@ import os
 import os.path
 import numpy
 import datetime
+import time
 import copy
 import shutil
 
@@ -68,7 +69,7 @@ class StandardIOWidget(QtGui.QWidget):
 
 class ExperimentLogGroupbox(QtGui.QGroupBox):
     def __init__(self, parent):
-        QtGui.QGroupBox.__init__(self, 'Experiment log', parent)
+        QtGui.QGroupBox.__init__(self, '', parent)
         self.create_widgets()
         self.create_layout()
         
@@ -76,33 +77,81 @@ class ExperimentLogGroupbox(QtGui.QGroupBox):
         self.log = QtGui.QTableWidget(self)
         self.log.setColumnCount(2)
         self.log.setHorizontalHeaderLabels(QtCore.QStringList(['Time', 'Log']))
-        date_format = QtCore.QString('yyyy-MM-dd hh:mm')
-        self.date = QtGui.QDateTimeEdit(self)
-        self.date.setDisplayFormat(date_format)
-        self.substance = gui.LabeledComboBox(self, 'Substance',['', 'chlorprothixene', 'isofluorane'])#TODO: to config
-        self.substance.input.setEditable(True)
-        self.amount_input = gui.LabeledInput(self, 'Amount')
-        self.comment_input = gui.LabeledInput(self, 'Comment')
-        self.add_button = QtGui.QPushButton('Add',  self)
-        self.remove_button = QtGui.QPushButton('Remove last', self)
+        self.new_entry = AddExperimentLogEntryGroupbox(self)
+        self.remove_button = QtGui.QPushButton('Remove selected', self)
         self.show_experiments = gui.LabeledCheckBox(self, 'Show experiments')
         self.show_experiments.setToolTip('If checked, recordings are displayed with experiment logs')
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.log, 0, 0, 6, 3)
-        self.log.setColumnWidth(0, 100)
-        self.log.setColumnWidth(1, 400)
-        self.log.setFixedWidth(510)
+        self.layout.addWidget(self.log, 0, 0, 4, 4)
+        self.log.setColumnWidth(0, 140)
+        self.log.setColumnWidth(1, 450)
+        self.log.setFixedWidth(600)
         self.log.verticalHeader().setDefaultSectionSize(15)
-        self.layout.addWidget(self.show_experiments, 0, 3)
-        self.layout.addWidget(self.date, 7, 0)
-        self.layout.addWidget(self.substance, 7, 1)
-        self.layout.addWidget(self.amount_input, 7, 2, 1, 2)
-        self.layout.addWidget(self.comment_input, 8, 0, 1, 2)
-        self.layout.addWidget(self.add_button, 8, 2)
-        self.layout.addWidget(self.remove_button, 8, 3)
+        self.layout.addWidget(self.new_entry, 4, 0, 2, 4)
+        self.new_entry.setFixedWidth(600)
+        self.layout.addWidget(self.remove_button, 6, 0)
+        self.layout.addWidget(self.show_experiments, 6, 1)
         self.setLayout(self.layout)
+        
+class AddExperimentLogEntryGroupbox(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, '', parent)
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        date_format = QtCore.QString('yyyy-MM-dd hh:mm')
+        self.date = QtGui.QDateTimeEdit(self)
+        self.date.setDisplayFormat(date_format)
+        self.substance = gui.LabeledComboBox(self, 'Substance',['', 'chlorprothixene', 'isofluorane'])#TODO: to config
+        self.substance.input.setEditable(True)
+        self.amount = gui.LabeledInput(self, 'Amount')
+        self.comment = gui.LabeledInput(self, 'Comment')
+        self.add_button = QtGui.QPushButton('Add',  self)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.date, 0, 0)
+#        self.date.setFixedWidth(150)
+        self.layout.addWidget(self.substance, 0, 1)
+        self.substance.input.setMinimumWidth(150)
+#        self.substance.labelw.setFixedWidth(70)
+        self.layout.addWidget(self.amount, 0, 2)
+        self.layout.addWidget(self.comment, 1, 0, 1, 2)
+        self.layout.addWidget(self.add_button, 1, 2)
+        self.setLayout(self.layout)
+        
+class ExperimentLog(gui.WidgetControl):
+    '''
+        
+    '''
+    def __init__(self, poller, config, widget):
+        gui.WidgetControl.__init__(self, poller, config, widget)
+        self.suggested_date_last_update = time.time()
+        
+    def update_suggested_date(self):
+        now = time.time()
+        if now-self.suggested_date_last_update>self.config.GUI['EXPERIMENT_LOG_UPDATE_PERIOD']:
+            self.poller.update_experiment_log_suggested_date()
+            self.suggested_date_last_update = now
+            
+    def _get_new_entry_data(self):
+        entry = {}
+        date= self.widget.new_entry.date.date()
+        tme= self.widget.new_entry.date.time()
+        entry['date'] = time.mktime(time.struct_time((date.year(),date.month(),date.day(),tme.hour(),tme.minute(),0,0,0,-1)))
+        entry['substance'] = str(self.widget.new_entry.substance.input.currentText())
+        entry['amount'] = str(self.widget.new_entry.amount.input.text())
+        entry['comment'] = str(self.widget.new_entry.comment.input.text())
+        return entry
+        
+    def add(self):
+        self.printc(self._get_new_entry_data())
+        #CONTINUE HERE
+        
+        
         
 class AnimalParametersGroupbox(QtGui.QGroupBox):
     '''
@@ -126,7 +175,7 @@ class AnimalParametersGroupbox(QtGui.QGroupBox):
     '''
     def __init__(self, parent, config):
         self.config=config
-        QtGui.QGroupBox.__init__(self, 'Animal parameters', parent)
+        QtGui.QGroupBox.__init__(self, '', parent)
         self.create_widgets()
         self.create_layout()
         
@@ -183,18 +232,31 @@ class AnimalParametersGroupbox(QtGui.QGroupBox):
         self.reload_animal_parameters_button = QtGui.QPushButton('Reload',  self)
         self.reload_animal_parameters_button.setToolTip('Reload animal parameters from file')
         
+        self.animal_filename = gui.LabeledComboBox(self, 'Animal file')
+        self.animal_files_from_data_storage = QtGui.QPushButton('Search data storage',  self)
+        self.animal_files_from_data_storage.setToolTip('Search for valid animal files in folder pointed by machine_config.DATA_STORAGE_PATH.\nItems found are added to current animal file list. Might take some time to complete.')
+        self.animal_files_from_data_storage.setEnabled(hasattr(self.config, 'DATA_STORAGE_PATH'))
+        self.copy_animal_files_from_data_storage = QtGui.QPushButton('Copy animal file',  self)
+        self.copy_animal_files_from_data_storage.setEnabled(hasattr(self.config, 'DATA_STORAGE_PATH'))
+        self.copy_animal_files_from_data_storage.setToolTip('Copies selected animal file from data storage to experiment data folder')
+        
     def create_layout(self):
         row_height = 25
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.table, 0, 0, 1, 3)
-        self.table.setFixedWidth(435)
+        self.layout.addWidget(self.animal_filename, 0, 0, 1, 3)
+        self.animal_filename.labelw.setFixedWidth(100)
+        self.animal_filename.input.setFixedWidth(300)
+        self.layout.addWidget(self.animal_files_from_data_storage, 1, 0)
+        self.layout.addWidget(self.copy_animal_files_from_data_storage, 1, 1)
+        self.layout.addWidget(self.table, 2, 0, 1, 3)
+        self.table.setFixedWidth(425)
         self.table.setFixedHeight(len(self.parameter_names) * row_height+30)
         self.table.setColumnWidth(0, 155)
         self.table.setColumnWidth(1, 240)
         self.table.verticalHeader().setDefaultSectionSize(row_height)
-        self.layout.addWidget(self.new_animal_file_button, 1, 0)
-        self.layout.addWidget(self.update_animal_file_button, 1, 1)
-        self.layout.addWidget(self.reload_animal_parameters_button, 1, 2)
+        self.layout.addWidget(self.new_animal_file_button, 3, 0)
+        self.layout.addWidget(self.update_animal_file_button, 3, 1)
+        self.layout.addWidget(self.reload_animal_parameters_button, 3, 2)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
@@ -297,7 +359,7 @@ class AnimalParameters(gui.WidgetControl):
             self.printc('No animal file, nothing is updated')
             return
         if os.path.split(self.animal_file)[0] != fileop.get_user_experiment_data_folder(self.config):
-            self.poller.notify_user('WARNING', 'Files not in experiment data folder cannot be modified. Animal files from datastorage shall be first copied to experiment data folder')
+            self.poller.notify_user('WARNING', 'Only files experiment data folder can be modified. Animal files from datastorage shall be first copied to experiment data folder')
             return
         if self.animal_file != current_animal_file:#Rename animal file if necessary
             if not self.poller.ask4confirmation('Renaming animal file from {0} to {1}'.format(os.path.split(self.animal_file)[1], os.path.split(current_animal_file)[1])):
@@ -353,6 +415,10 @@ class AnimalParameters(gui.WidgetControl):
         '''
         Copy animal parameter file from data storage to experiment data folder
         '''
+        if fileop.get_user_experiment_data_folder(self.config) in self.animal_file:
+            self.poller.notify_user('', 'This animal file is already in experiment data folder')
+            return
+            
         if os.path.exists(os.path.join(fileop.get_user_experiment_data_folder(self.config), os.path.split(self.animal_file)[1])):
             message = 'Copy of this file already exists in experiment data folder. Do you want to overwrite it?'
             if not self.poller.ask4confirmation(message):
@@ -618,13 +684,6 @@ class AnimalParametersAndExperimentLogWidget(QtGui.QWidget):
         self.create_layout()
 
     def create_widgets(self):
-        self.animal_filename = gui.LabeledComboBox(self, 'Animal file')
-        self.animal_files_from_data_storage = QtGui.QPushButton('Search data storage for animal files',  self)
-        self.animal_files_from_data_storage.setToolTip('Search for valid animal files in folder pointed by machine_config.DATA_STORAGE_PATH.\nItems found are added to current animal file list. Might take some time to complete.')
-        self.animal_files_from_data_storage.setEnabled(hasattr(self.config, 'DATA_STORAGE_PATH'))
-        self.copy_animal_files_from_data_storage = QtGui.QPushButton('Copy animal file from data storage',  self)
-        self.copy_animal_files_from_data_storage.setEnabled(hasattr(self.config, 'DATA_STORAGE_PATH'))
-        self.copy_animal_files_from_data_storage.setToolTip('Copies selected animal file from data storage to experiment data folder')
         self.animal_parameters_groupbox = AnimalParametersGroupbox(self, self.config)
         self.log_groupbox = ExperimentLogGroupbox(self)
         

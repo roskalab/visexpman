@@ -500,6 +500,7 @@ class GUITestConfig(configuration.RetinalCaImagingConfig):
         fileop.mkdir_notexists(folders, remove_if_exists=True)
         COORDINATE_SYSTEM='center'
         GUI_SIZE =  utils.cr((1280,1024))
+        self.GUI['EXPERIMENT_LOG_UPDATE_PERIOD']=10.0
         self._create_parameters_from_locals(locals())
 
 class AppInitTest4Config(GUITestConfig):
