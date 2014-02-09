@@ -241,7 +241,7 @@ class ExperimentControl(object):
         if self.config.PLATFORM == 'mes':
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
-            if self.config.IMAGING_CHANNELS == 'from_animal_parameter':
+            if self.config.IMAGING_CHANNELS == 'from_animal_parameter' and self.animal_parameters.has_key('both_channels'):
                 if self.animal_parameters['both_channels']:
                     channels = 'both'
                 else:

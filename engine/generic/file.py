@@ -40,7 +40,8 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
             self.timeout=0.5 #sec
             
         def run(self):
-            self.logfile=open('/tmp/log.txt','w+')
+            fn = generate_filename('/tmp/log.txt')
+            self.logfile=open(fn,'w+')
             try:
                 if self.isthread:
                     self.postponed_list = [] #collects items that could not be copied for any reason

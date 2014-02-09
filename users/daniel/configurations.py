@@ -506,7 +506,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         import sys
         if '--MICROLED'in sys.argv:
             SCREEN_RESOLUTION = utils.cr([16, 16])
-            SCREEN_DISTANCE_FROM_MOUSE_EYE = [15.0, [0, 300]] #mm
+            SCREEN_DISTANCE_FROM_MOUSE_EYE = [32.0, [0, 300]] #mm
             SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, 
             FULLSCREEN = False
             SCREEN_EXPECTED_FRAME_RATE = 1/50e-3
