@@ -18,7 +18,7 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
 from visexpman.engine.vision_experiment import experiment
-from visexpman.engine import ExperimentConfigError
+from visexpman.engine import ExperimentConfigError, AnimalFileError
 from visexpman.engine.generic import gui
 from visexpman.engine.generic import fileop
 from visexpman.engine.generic import stringop
@@ -78,7 +78,8 @@ class ExperimentLogGroupbox(QtGui.QGroupBox):
         self.log.setColumnCount(2)
         self.log.setHorizontalHeaderLabels(QtCore.QStringList(['Time', 'Log']))
         self.new_entry = AddExperimentLogEntryGroupbox(self)
-        self.remove_button = QtGui.QPushButton('Remove selected', self)
+        self.remove_button = QtGui.QPushButton('Remove entry', self)
+        self.remove_button.setToolTip('Before pressing this button, select removeable item(s).')
         self.show_experiments = gui.LabeledCheckBox(self, 'Show experiments')
         self.show_experiments.setToolTip('If checked, recordings are displayed with experiment logs')
         
@@ -86,9 +87,9 @@ class ExperimentLogGroupbox(QtGui.QGroupBox):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.log, 0, 0, 4, 4)
         self.log.setColumnWidth(0, 140)
-        self.log.setColumnWidth(1, 450)
+        self.log.setColumnWidth(1, 430)
         self.log.setFixedWidth(600)
-        self.log.verticalHeader().setDefaultSectionSize(15)
+        self.log.verticalHeader().setDefaultSectionSize(17)
         self.layout.addWidget(self.new_entry, 4, 0, 2, 4)
         self.new_entry.setFixedWidth(600)
         self.layout.addWidget(self.remove_button, 6, 0)
@@ -131,6 +132,7 @@ class ExperimentLog(gui.WidgetControl):
         gui.WidgetControl.__init__(self, poller, config, widget)
         self.suggested_date_last_update = time.time()
         
+        
     def update_suggested_date(self):
         now = time.time()
         if now-self.suggested_date_last_update>self.config.GUI['EXPERIMENT_LOG_UPDATE_PERIOD']:
@@ -141,15 +143,53 @@ class ExperimentLog(gui.WidgetControl):
         entry = {}
         date= self.widget.new_entry.date.date()
         tme= self.widget.new_entry.date.time()
-        entry['date'] = time.mktime(time.struct_time((date.year(),date.month(),date.day(),tme.hour(),tme.minute(),0,0,0,-1)))
+        entry['date'] = time.mktime(time.struct_time((date.year(),date.month(),date.day(),tme.hour(),tme.minute(),tme.second(),0,0,-1)))
         entry['substance'] = str(self.widget.new_entry.substance.input.currentText())
         entry['amount'] = str(self.widget.new_entry.amount.input.text())
         entry['comment'] = str(self.widget.new_entry.comment.input.text())
         return entry
         
+    def _is_timestamp_in_log(self, timestamp):
+        for entry in self.poller.animal_file.log:
+            if entry['date'] == timestamp:
+                return True
+        return False
+        
     def add(self):
-        self.printc(self._get_new_entry_data())
-        #CONTINUE HERE
+        if not hasattr(self.poller.animal_file, 'filename'):
+            self.printc('No animal file created yet')
+            return
+        new_entry = self._get_new_entry_data()
+        if new_entry in self.poller.animal_file.log:
+            self.printc('Entry already added')
+            return
+        if len([v for v in ['substance', 'amount', 'comment'] if new_entry[v] == '']) == 3:
+            self.printc('Please provide log data')
+            return
+        self.poller.animal_file.log.append(new_entry)
+        hdf5io.save_item(self.poller.animal_file.filename, 'log', self.poller.animal_file.log, self.config, overwrite = True)
+        self.poller.update_experiment_log()
+        self.printc('Log entry saved')
+        
+    def remove(self):
+        selection = self.widget.log.selectedItems()
+        if len(selection)==0:
+            self.printc('Nothing is selected for removal')
+            return
+        if not self.poller.ask4confirmation('Are you sure you want to remove selected entries?'):
+            return
+            
+        removable_rows = [item.row() for item in self.widget.log.selectedItems()]
+        for removable_row in removable_rows:
+            for log_entry in self.log:
+                if self.widget.log.#CONTINUE HERE
+            
+        removable_rows = [
+        
+        for item in self.widget.log.selectedItems():
+            self.widget.log.removeRow(item.row())
+        hdf5io.save_item(self.poller.animal_file.filename, 'log', self.poller.animal_file.log, self.config, overwrite = True)
+        self.printc('Selected log entry removed')
         
         
         
@@ -261,19 +301,22 @@ class AnimalParametersGroupbox(QtGui.QGroupBox):
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
         
-class AnimalParameters(gui.WidgetControl):
+class AnimalFile(gui.WidgetControl):
     '''
-        
+        Handles animal file and animal parameters
     '''
-    def __init__(self, poller, config, widget):
+    def __init__(self, poller, config, widget, context_animal_file=None):
         gui.WidgetControl.__init__(self, poller, config, widget)
         self.animal_files = self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config))
         #Most recently modified file is selected
-        timestamps = self.animal_files.values()
-        if len(timestamps)>0:
-            timestamp = max(timestamps)
-            self.animal_file = [k for k, v in self.animal_files.items() if v == timestamp][0]
-            self.load(update_gui=False)
+        if not context_animal_file is None:
+            self.filename = context_animal_file
+        else:
+            timestamps = self.animal_files.values()
+            if len(timestamps)>0:
+                timestamp = max(timestamps)
+                self.filename = [k for k, v in self.animal_files.items() if v == timestamp][0]
+        self.load(update_gui=False)
         
     def _get_animal_file_list(self, folder, animal_files = {}):
         '''
@@ -309,29 +352,29 @@ class AnimalParameters(gui.WidgetControl):
         '''
         return os.path.join(fileop.get_user_experiment_data_folder(self.config), fileop.generate_animal_filename(animal_parameters))
         
-    def _save_animal_parameters(self):
-        h=hdf5io.Hdf5io(self.animal_file,self.config)
+    def _animal_parameters2file(self):
+        h=hdf5io.Hdf5io(self.filename,self.config)
         h.animal_parameters = copy.deepcopy(self.animal_parameters)
         h.save('animal_parameters')
         h.close()
         
-    def save(self):
+    def save_animal_parameters(self):
         '''
         Saves current animal parameters to animal fileop. Animal file is created if file does not exists.
         '''
         self.animal_parameters = self._get_animal_parameters()
         #Generate animal file filename:
-        self.animal_file = self._get_animal_filename(self.animal_parameters)
+        self.filename = self._get_animal_filename(self.animal_parameters)
         check_parameters = ['id', 'strain', 'green_labeling']
         for parname in check_parameters:
             if self.animal_parameters[parname] == '':#Do not create animal file if parameter is not provided
                 self.poller.notify_user('WARNING', '{0} must be provided. Animal file not created.'.format(parname))
                 return
-        if os.path.exists(self.animal_file):
-            self.poller.notify_user('WARNING', '{0} animal file alread exists. New animal file not created.'.format(self.animal_file))
+        if os.path.exists(self.filename):
+            self.poller.notify_user('WARNING', '{0} animal file alread exists. New animal file not created.'.format(self.filename))
             return
         #check if animal file withthe same animal id exists
-        for fn in os.listdir(os.path.split(self.animal_file)[0]):
+        for fn in os.listdir(os.path.split(self.filename)[0]):
             if fileop.is_animal_file(fn):
                 id = fileop.parse_animal_filename(fn)['id']
                 if id == self.animal_parameters['id']:
@@ -339,10 +382,13 @@ class AnimalParameters(gui.WidgetControl):
                         break
                     else:
                         return
-        self._save_animal_parameters()
+        self._animal_parameters2file()
+        self.log = []#Create log variable
+        self.scan_regions = {}
         self.animal_files = self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config), self.animal_files)
         self.poller.update_animal_file_list()
-        self.printc('{0} file created'.format(self.animal_file))
+        self.poller.update_experiment_log()
+        self.printc('{0} file created'.format(self.filename))
         
     def update(self):
         '''
@@ -355,38 +401,60 @@ class AnimalParameters(gui.WidgetControl):
         if len(modified_parameters) == 0:
             self.printc('No parameter modified, nothing is updated')
             return
-        if not hasattr(self, 'animal_file'):
+        if not hasattr(self, 'filename'):
             self.printc('No animal file, nothing is updated')
             return
-        if os.path.split(self.animal_file)[0] != fileop.get_user_experiment_data_folder(self.config):
+        if os.path.split(self.filename)[0] != fileop.get_user_experiment_data_folder(self.config):
             self.poller.notify_user('WARNING', 'Only files experiment data folder can be modified. Animal files from datastorage shall be first copied to experiment data folder')
             return
-        if self.animal_file != current_animal_file:#Rename animal file if necessary
-            if not self.poller.ask4confirmation('Renaming animal file from {0} to {1}'.format(os.path.split(self.animal_file)[1], os.path.split(current_animal_file)[1])):
+        if self.filename != current_animal_file:#Rename animal file if necessary
+            if not self.poller.ask4confirmation('Renaming animal file from {0} to {1}'.format(os.path.split(self.filename)[1], os.path.split(current_animal_file)[1])):
                 return
-            os.rename(self.animal_file, current_animal_file)
-            self.printc('Animal file renamed from {0} to {1}'.format(self.animal_file, current_animal_file))
+            os.rename(self.filename, current_animal_file)
+            self.printc('Animal file renamed from {0} to {1}'.format(self.filename, current_animal_file))
         #Update animal parameters and animal file name
-        self.animal_file = current_animal_file
+        self.filename = current_animal_file
         self.animal_parameters = current_animal_parameters
-        if not self.poller.ask4confirmation('Do you want to update the following parameters in {1}?\n{0}'.format(modified_parameters, os.path.split(self.animal_file)[1])):
+        if not self.poller.ask4confirmation('Do you want to update the following parameters in {1}?\n{0}'.format(modified_parameters, os.path.split(self.filename)[1])):
             return
         #Rewrite file with modified data
-        self._save_animal_parameters()
-        self.printc('{0} file updated. Following parameters were modified: {1}'.format(self.animal_file, modified_parameters))
+        self._animal_parameters2file()
+        self.printc('{0} file updated. Following parameters were modified: {1}'.format(self.filename, modified_parameters))
 
     def load(self, update_gui=True):
+        variable_names = ['animal_parameters', 'log', 'scan_regions']
+        if not hasattr(self, 'filename'):
+            return
+        h=hdf5io.Hdf5io(self.filename,self.config)
+        for variable_name in variable_names:
+            h.load(variable_name)
+            if hasattr(h, variable_name):
+                setattr(self, variable_name, copy.deepcopy(getattr(h, variable_name)))#TODO: later perhaps object serialization&compression is needed
+            elif variable_name == 'animal_parameters':
+                raise AnimalFileError('animal_parameters node is missing, {0} animal file is invalid'.format(self.filename))
+            elif variable_name == 'log':
+                setattr(self, variable_name, [])
+            else:
+                setattr(self, variable_name, {})
+        h.close()
+        if update_gui:
+            self.poller.update_animal_parameters_table()
+            self.poller.update_experiment_log()
+       
+    def load_animal_parameters(self, update_gui=True):
         '''
         Reloads animal parameters from animal file to gui. User modifications since last update are overwritten
         '''
-        if not hasattr(self, 'animal_file'):
+        if not hasattr(self.printc,'__call__'):
+            return#Called as standalone without GUI
+        if not hasattr(self, 'filename'):
             self.printc('No animal file, nothing is updated')
             return
-        if not os.path.exists(self.animal_file):
-            self.printc('Animal file does not exists: {0} '.format(self.animal_file))
+        if not os.path.exists(self.filename):
+            self.printc('Animal file does not exists: {0} '.format(self.filename))
             return
         #Get it from file
-        h=hdf5io.Hdf5io(self.animal_file,self.config)
+        h=hdf5io.Hdf5io(self.filename,self.config)
         h.load('animal_parameters')
         if not hasattr(h, 'animal_parameters'):
             self.printc('Animal file does not contain animal parameters.')
@@ -396,9 +464,9 @@ class AnimalParameters(gui.WidgetControl):
         h.close()
         if update_gui:#Update to user interface
             self.poller.update_animal_parameters_table()
-
-    def reload(self):
-        self.load()
+        
+    def reload_animal_parameters(self):
+        self.load_animal_parameters()
 
     def search_data_storage(self):
         if not hasattr(self.config, 'DATA_STORAGE_PATH'):
@@ -415,18 +483,18 @@ class AnimalParameters(gui.WidgetControl):
         '''
         Copy animal parameter file from data storage to experiment data folder
         '''
-        if fileop.get_user_experiment_data_folder(self.config) in self.animal_file:
+        if fileop.get_user_experiment_data_folder(self.config) in self.filename:
             self.poller.notify_user('', 'This animal file is already in experiment data folder')
             return
             
-        if os.path.exists(os.path.join(fileop.get_user_experiment_data_folder(self.config), os.path.split(self.animal_file)[1])):
+        if os.path.exists(os.path.join(fileop.get_user_experiment_data_folder(self.config), os.path.split(self.filename)[1])):
             message = 'Copy of this file already exists in experiment data folder. Do you want to overwrite it?'
             if not self.poller.ask4confirmation(message):
                 return
         self.printc('Copying file, please wait!')
-        shutil.copy(self.animal_file, fileop.get_user_experiment_data_folder(self.config))
+        shutil.copy(self.filename, fileop.get_user_experiment_data_folder(self.config))
         self.printc('Animal file copied.')
-        new_animal_filename = os.path.join(fileop.get_user_experiment_data_folder(self.config), os.path.split(self.animal_file)[1])
+        new_animal_filename = os.path.join(fileop.get_user_experiment_data_folder(self.config), os.path.split(self.filename)[1])
         self.animal_files[new_animal_filename] = os.path.getctime(new_animal_filename)
         self.poller.update_animal_file_list()
 
@@ -508,12 +576,14 @@ class ExperimentControl(gui.WidgetControl):
         is displayed on the experiment control widget (experiment names) and experiment parameters groupbox where
         user can edit the values.
     '''
-    def __init__(self, poller, config, widget, paramwidget):
+    def __init__(self, poller, config, widget, paramwidget, context_experiment_config_file=None):
         self.paramwidget = paramwidget
         gui.WidgetControl.__init__(self, poller, config, widget)
         #find all python module in user folder and load users's all experiment configs and parameters
         self.experiment_config_classes = {}
-        self._load_experiment_config_parameters(fileop.get_user_module_folder(self.config))
+        if context_experiment_config_file is None:
+            context_experiment_config_file = fileop.get_user_module_folder(self.config)
+        self._load_experiment_config_parameters(context_experiment_config_file)
         
     ################# Experiment config parameters ####################
     def browse(self):
@@ -674,28 +744,6 @@ class ExperimentParametersGroupBox(QtGui.QGroupBox):
         for i in range(len(self.button_names)):
             self.layout.addWidget(getattr(self, stringop.to_variable_name(self.button_names[i])), 0, i)
         self.layout.addWidget(self.values, 1, 0, 1, len(self.button_names))
-        self.setLayout(self.layout)
-
-class AnimalParametersAndExperimentLogWidget(QtGui.QWidget):
-    def __init__(self, parent):
-        QtGui.QWidget.__init__(self, parent)
-        self.config = parent.config
-        self.create_widgets()
-        self.create_layout()
-
-    def create_widgets(self):
-        self.animal_parameters_groupbox = AnimalParametersGroupbox(self, self.config)
-        self.log_groupbox = ExperimentLogGroupbox(self)
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.animal_filename, 0, 0)
-        self.layout.addWidget(self.animal_files_from_data_storage, 0, 1)
-        self.layout.addWidget(self.copy_animal_files_from_data_storage, 0, 2)
-        self.layout.addWidget(self.animal_parameters_groupbox, 1, 0)
-        self.layout.addWidget(self.log_groupbox, 1, 1, 1, 3)
-        self.layout.setRowStretch(10, 5)
-        self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
 
 ############### Application specific widgets ###############

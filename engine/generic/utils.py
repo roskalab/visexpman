@@ -1157,6 +1157,32 @@ def safe_has_key(var, key):
             result = True
     return result
     
+def get_key(var, key):
+    '''
+    Returns None when dict does not have specified key
+    '''
+    if safe_has_key(var, key):
+        return var[key]
+    else:
+        return None
+        
+def sort_dict(list_of_dict, key):
+    '''
+    Sorts a list of dictionaries by values in key. Values in key shall be unique
+    '''
+    sortable_values = [item[key] for item in list_of_dict]
+    sortable_values.sort()
+    sorted_list = []
+    for val in sortable_values:
+        for item in list_of_dict:
+            if item[key] == val:
+                if item in sorted_list:
+                    continue
+                sorted_list.append(item)
+                break
+    return sorted_list
+    
+    
 def item2list(item):
     '''
     Checks if item is a list or not. If not, makes a 1 item list of it

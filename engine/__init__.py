@@ -14,7 +14,10 @@ class FreeSpaceWarning(Warning):
     
 class ExperimentConfigError(Exception):
     pass
-    
+
+class AnimalFileError(Exception):
+    pass
+
 class MachineConfigError(Exception):
     pass
     

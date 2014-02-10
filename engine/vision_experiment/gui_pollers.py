@@ -2666,6 +2666,7 @@ class VisexpGuiPoller(Poller):
         self.config = parent.config
         self.init_variables()
         self.load_context()
+        self.init_widget_handlers()#Depends on context values
         self.init_network()
         
     def init_variables(self):
@@ -2674,22 +2675,37 @@ class VisexpGuiPoller(Poller):
         self.stimulation_finished = False
         self.imaging_finished = False
         self.analog_recording_started=False
-        #Widget related classes
-        self.experiment_control = gui.ExperimentControl(self, self.config, 
-                                                        self.parent.central_widget.main_widget.experiment_control_groupbox, 
-                                                        self.parent.central_widget.main_widget.experiment_parameters)
-        self.experiment_log = gui.ExperimentLog(self, self.config, self.parent.central_widget.experiment_log_groupbox)
-        self.animal_parameters = gui.AnimalParameters(self, self.config, self.parent.central_widget.animal_parameters_groupbox)
         self.context_paths = {}
         self.context_paths['variables'] = ['self.experiment_control.experiment_config_classes.keys', 
                                      'self.parent.central_widget.main_widget.experiment_parameters.values.rowCount', 
                                      'self.experiment_control.user_selected_stimulation_module', 
-                                     'self.animal_parameters.animal_file', 
-                                     'self.animal_parameters.animal_files.keys', 
+                                     'self.animal_file.filename', 
+                                     'self.animal_file.animal_files.keys', 
                                      ]
-        self.context_paths['widgdets'] = []
+        self.context_paths['widgets'] = [
+                                          'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name', 
+                                          ]
+        self.context = {}
+        for k in self.context_paths.keys():
+            self.context[k] = {}
                                      
-                                  
+    def init_widget_handlers(self):
+        '''
+        Widget related classes
+        '''
+        context_experiment_config_file = None
+        if self.context['widgets'].has_key('self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'):
+            expname = self.context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name']
+            if os.path.exists(expname):
+                context_experiment_config_file = os.path.split(context_experiment_config_file)[0]
+        self.experiment_control = gui.ExperimentControl(self, self.config, 
+                                                        self.parent.central_widget.main_widget.experiment_control_groupbox, 
+                                                        self.parent.central_widget.main_widget.experiment_parameters, 
+                                                        context_experiment_config_file = context_experiment_config_file)
+        self.animal_file = gui.AnimalFile(self, self.config, self.parent.central_widget.animal_parameters_groupbox, 
+                                                      context_animal_file = utils.get_key( self.context['variables'], 'self.animal_file.filename'))
+        self.experiment_log = gui.ExperimentLog(self, self.config, self.parent.central_widget.experiment_log_groupbox)
+        
         
     def connect_signals(self):
         self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
@@ -2703,17 +2719,15 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('update_animal_parameters_table'),  self.parent.update_animal_parameters_table)
         self.connect(self, QtCore.SIGNAL('update_animal_file_list'),  self.parent.update_animal_file_list)
         self.connect(self, QtCore.SIGNAL('update_experiment_log_suggested_date'),  self.parent.update_experiment_log_suggested_date)
+        self.connect(self, QtCore.SIGNAL('update_experiment_log'),  self.parent.update_experiment_log)
         self.connect(self, QtCore.SIGNAL('close_app'),  self.parent.close_app)
         
     def load_context(self):
-
-        return
-        if os.path.exists(self.config.CONTEXT_FILE):
-            context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-            context_hdf5.close()
+        if not os.path.exists(fileop.get_context_filename(self.config)):
+            return
+        self.context = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.config), 'context', self.config))
 
     def save_context(self):
-        h=hdf5io.Hdf5io(fileop.get_context_filename(self.config), self.config)
         context = {}
         context['variables'] = {}
         for varname in self.context_paths['variables']:
@@ -2723,9 +2737,12 @@ class VisexpGuiPoller(Poller):
                 continue
             if hasattr(context['variables'][varname], '__call__'):
                 context['variables'][varname] = context['variables'][varname]()
-        h.context = utils.object2array(context)
-        h.save('context')
-        h.close()
+        context['widgets'] = {}
+        for varname in self.context_paths['widgets']:
+            ref = introspect.string2objectreference(self,varname)
+            if hasattr(ref, 'currentText'):
+                context['widgets'][varname] = str(getattr(ref, 'currentText')())
+        hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(context), self.config,  overwrite = True)
 
     def init_network(self):
         self.connections = {}
@@ -2934,7 +2951,10 @@ class VisexpGuiPoller(Poller):
         animal_param_table = self.parent.central_widget.animal_parameters_groupbox.table
         import PyQt4.QtGui as QtGui
         self.printc('Test {0}'.format(self.testmode))
-        if self.testmode==1:
+        if self.testmode==0:#Just for creating context file/quickly starting up the gui
+            self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(2)
+            self.emit(QtCore.SIGNAL('close_app'))
+        elif self.testmode==1:
             if not hasattr(self, 'test_phase'):
                 self.test_phase = 1
                 self.printc('Select test_stimulus.py module.')
@@ -2963,7 +2983,6 @@ class VisexpGuiPoller(Poller):
                 time.sleep(1.0)
                 self.experiment_control.save_experiment_parameters()
                 self.emit(QtCore.SIGNAL('close_app'))
-                
         elif self.testmode==2 or self.testmode==3:
             self.parent.central_widget.main_tab.setCurrentIndex(2)
             animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('test'))
@@ -2975,37 +2994,37 @@ class VisexpGuiPoller(Poller):
             animal_param_table.cellWidget(6, 1).setEditText('strain')
             if self.testmode==2:
                 animal_param_table.cellWidget(7, 1).setEditText('label')
-            self.animal_parameters.save()
+            self.animal_file.save_animal_parameters()
             self.emit(QtCore.SIGNAL('close_app'))
         elif self.testmode ==4 or self.testmode ==5:
             for fn in os.listdir(tempfile.gettempdir()):
                 if 'animal_' in fn and '.hdf5' in fn:
                     shutil.move(os.path.join(tempfile.gettempdir(), fn), self.config.DATA_STORAGE_PATH)
             self.parent.central_widget.main_tab.setCurrentIndex(2)
-            self.animal_parameters.search_data_storage()
+            self.animal_file.search_data_storage()
             time.sleep(1)
             self.parent.central_widget.animal_parameters_groupbox.animal_filename.input.setCurrentIndex(1)
             time.sleep(1)
             if self.testmode ==5:
-                self.animal_parameters.copy()
+                self.animal_file.copy()
                 time.sleep(1)
                 self.parent.central_widget.animal_parameters_groupbox.animal_filename.input.setCurrentIndex(2)
                 time.sleep(1)
             animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2015, 1, 1))
             time.sleep(1)
-            self.animal_parameters.reload()
+            self.animal_file.reload_animal_parameters()
             time.sleep(1)
             animal_param_table.cellWidget(7, 1).setEditText('modified_label')
             animal_param_table.cellWidget(8, 1).setEditText('yes')
             time.sleep(1)
-            self.animal_parameters.update()
+            self.animal_file.update()
             time.sleep(1)
             if self.testmode ==5:
                 animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('second_one'))
                 animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2012, 1, 1))
                 animal_param_table.cellWidget(2, 1).setDate(QtCore.QDate(2012, 1, 1))
                 animal_param_table.cellWidget(6, 1).setEditText('secondstrain')
-                self.animal_parameters.save()
+                self.animal_file.save_animal_parameters()
             self.emit(QtCore.SIGNAL('close_app'))
         elif self.testmode == 6:
             self.parent.central_widget.main_tab.setCurrentIndex(2)
@@ -3017,17 +3036,72 @@ class VisexpGuiPoller(Poller):
             animal_param_table.cellWidget(5, 1).setCurrentIndex(1)
             animal_param_table.cellWidget(6, 1).setEditText('strain')
             animal_param_table.cellWidget(7, 1).setEditText('label')
-            self.animal_parameters.save()
+            self.animal_file.save_animal_parameters()
             time.sleep(1)
             animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('test1'))
             animal_param_table.cellWidget(7, 1).setEditText('label1')
-            self.animal_parameters.update()
+            self.animal_file.update()
             self.emit(QtCore.SIGNAL('close_app'))
-        elif self.testmode == 7:
+        elif self.testmode == 7 or self.testmode == 8 or self.testmode ==  9 or self.testmode ==  10:
+            if self.testmode == 9 or self.testmode ==  10:
+                self.parent.central_widget.main_tab.setCurrentIndex(2)
+                animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('addlog1'))
+                animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2009, 1, 1))
+                animal_param_table.cellWidget(2, 1).setDate(QtCore.QDate(2009, 1, 1))
+                animal_param_table.cellWidget(6, 1).setEditText('1')
+                animal_param_table.cellWidget(7, 1).setEditText('xy')
+                self.animal_file.save_animal_parameters()
+                time.sleep(1)
             self.parent.central_widget.main_tab.setCurrentIndex(1)
+            self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('comment1')
             self.experiment_log.add()
+            time.sleep(1)
+            if  self.testmode ==  10:
+                self.parent.central_widget.main_tab.setCurrentIndex(2)
+                animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('addlog2'))
+                animal_param_table.cellWidget(6, 1).setEditText('2')
+                self.animal_file.save_animal_parameters()
+                time.sleep(1)
+                self.parent.central_widget.main_tab.setCurrentIndex(1)
+            self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setEditText('isofl2')
+            self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('1 ul')
+            self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('comment')
+            self.experiment_log.add()
+            time.sleep(1)
+            self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setEditText('isofl2')
+            self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('2 ul')
+            self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('')
+            self.experiment_log.add()
+            time.sleep(0.5)
+            if  self.testmode ==  10:
+                self.parent.central_widget.animal_parameters_groupbox.animal_filename.input.setCurrentIndex(0)
+                time.sleep(0.5)
+                self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setEditText('isofl2')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('1 %')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('x')
+                self.experiment_log.add()
+                time.sleep(0.5)
+                self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setCurrentIndex(1)
+                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('2 %')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('')
+                self.experiment_log.add()
+                time.sleep(0.5)
+                self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setCurrentIndex(1)#Testing if duplicates can be added
+                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('2 %')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('')
+                self.experiment_log.add()
+                time.sleep(0.5)
+                self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setCurrentIndex(1)#Testing if duplicates can be added
+                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('2 %')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('2')
+                self.experiment_log.add()
+                time.sleep(0.5)
+                self.printc('Select any experiment log item')
+                while len(self.parent.central_widget.experiment_log_groupbox.log.selectedItems()) == 0:
+                    time.sleep(0.1)
+                self.experiment_log.remove()
+                time.sleep(1.0)
             self.emit(QtCore.SIGNAL('close_app'))
-            
 #            time.sleep(10.0)
 #            self.notify_user('', 'Close main window')
 #            self.parent.emit(QtCore.SIGNAL('close'))
@@ -3048,6 +3122,9 @@ class VisexpGuiPoller(Poller):
         
     def update_experiment_log_suggested_date(self):
         self.emit(QtCore.SIGNAL('update_experiment_log_suggested_date'))
+        
+    def update_experiment_log(self):
+        self.emit(QtCore.SIGNAL('update_experiment_log'))
         
 if __name__ == '__main__':
     pass
