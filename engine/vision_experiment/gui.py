@@ -147,6 +147,7 @@ class ExperimentLog(gui.WidgetControl):
         entry['substance'] = str(self.widget.new_entry.substance.input.currentText())
         entry['amount'] = str(self.widget.new_entry.amount.input.text())
         entry['comment'] = str(self.widget.new_entry.comment.input.text())
+        entry['timestamp'] = time.time()
         return entry
         
     def _is_timestamp_in_log(self, timestamp):
@@ -160,9 +161,6 @@ class ExperimentLog(gui.WidgetControl):
             self.printc('No animal file created yet')
             return
         new_entry = self._get_new_entry_data()
-        if new_entry in self.poller.animal_file.log:
-            self.printc('Entry already added')
-            return
         if len([v for v in ['substance', 'amount', 'comment'] if new_entry[v] == '']) == 3:
             self.printc('Please provide log data')
             return
@@ -178,14 +176,15 @@ class ExperimentLog(gui.WidgetControl):
             return
         if not self.poller.ask4confirmation('Are you sure you want to remove selected entries?'):
             return
-            
+
+        #Find removable items by timestamp in log using removable row indexes and table widget items
         removable_rows = [item.row() for item in self.widget.log.selectedItems()]
         for removable_row in removable_rows:
-            for log_entry in self.log:
-                if self.widget.log.#CONTINUE HERE
-            
-        removable_rows = [
-        
+            for log_entry in self.poller.animal_file.log:
+                if log_entry['timestamp'] == self.widget.log.item(removable_row, 1).timestamp:
+                    self.poller.animal_file.log.remove(log_entry)
+                    break
+        #Remove item(s) from table widget
         for item in self.widget.log.selectedItems():
             self.widget.log.removeRow(item.row())
         hdf5io.save_item(self.poller.animal_file.filename, 'log', self.poller.animal_file.log, self.config, overwrite = True)
@@ -424,6 +423,8 @@ class AnimalFile(gui.WidgetControl):
     def load(self, update_gui=True):
         variable_names = ['animal_parameters', 'log', 'scan_regions']
         if not hasattr(self, 'filename'):
+            return
+        if not os.path.exists(self.filename):
             return
         h=hdf5io.Hdf5io(self.filename,self.config)
         for variable_name in variable_names:

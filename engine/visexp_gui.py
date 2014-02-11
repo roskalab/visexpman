@@ -1076,6 +1076,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.update_animal_file_list()
         self.update_animal_parameters_table()
         self.update_experiment_log_suggested_date()
+        self.update_experiment_log()
 #        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
@@ -1141,6 +1142,8 @@ class VisionExperimentGui(Qt.QMainWindow):
     
     ################# Update widgets #################### 
     def update_experiment_log(self):
+        if not hasattr(self.poller.animal_file, 'log'):
+            return
         log = copy.deepcopy(self.poller.animal_file.log)
         log = utils.sort_dict(log, 'date')
         widget = self.central_widget.experiment_log_groupbox.log
@@ -1159,6 +1162,7 @@ class VisionExperimentGui(Qt.QMainWindow):
                 if log[row]['comment'] != '':
                     log_text += ', ' + log[row]['comment']
             item = QtGui.QTableWidgetItem(log_text)
+            item.timestamp = log[row]['timestamp']
             item.setFlags(flags)
             widget.setItem(row, 1, item)
         widget.scrollToBottom()
@@ -1277,7 +1281,7 @@ class testVisionExperimentGui(unittest.TestCase):
         fileop.remove_if_exists(os.path.join(tempfile.gettempdir(), os.path.split(animal_file)[1]))
         shutil.move(animal_file, tempfile.gettempdir())
         
-    @unittest.skip('')
+#    @unittest.skip('')
 
     @unittest.skipIf(unittest_aggregator.TEST_no_user_action,  'Requires user action')        
     def test_01_select_stimfile(self):
@@ -1385,7 +1389,7 @@ class testVisionExperimentGui(unittest.TestCase):
                                                               {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label1', 'injection_target': '', 'ear_punch_left': '1', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2010', 'injection_date': '1-1-2010', 'id': 'test1'}
                                                               ))
 
-    @unittest.skip('') 
+#    @unittest.skip('') 
     def test_07_add_experiment_log_entry(self):
         '''
         Adding an experiment log netry when neither context nor animal file is available. No error should occur
@@ -1398,7 +1402,7 @@ class testVisionExperimentGui(unittest.TestCase):
                           'DebugExperimentConfig', False
                           ))
                           
-    @unittest.skip('') 
+#    @unittest.skip('') 
     def test_08_context_file_no_animal_file_add_log_entry(self):
         '''
         Adding an experiment log entry when context file is available but animal file not. No error should occur. Also checking if experiment name is loaded from context file
@@ -1412,7 +1416,7 @@ class testVisionExperimentGui(unittest.TestCase):
                           'GUITestExperimentConfig', False
                           ))
         
-    @unittest.skip('') 
+#    @unittest.skip('') 
     def test_09_no_context_file_but_animal_file_add_log_entry(self):
         '''
         Starting up the gui with animal file but without context file and trying to add a log entry
@@ -1427,7 +1431,7 @@ class testVisionExperimentGui(unittest.TestCase):
                           os.path.split(context['variables']['self.animal_file.filename'])[1], 
                           len(explog)
                           ), (
-                          'DebugExperimentConfig', True, 'animal_addlog_1_1-1-2009_1-1-2009_L0R0.hdf5', 3
+                          'DebugExperimentConfig', True, 'animal_addlog1_1_1-1-2009_1-1-2009_L0R0.hdf5', 3
                           ))
     
     @unittest.skipIf(unittest_aggregator.TEST_no_user_action,  'Requires user action')            
@@ -1436,8 +1440,8 @@ class testVisionExperimentGui(unittest.TestCase):
         Context file is available, two animal files are created, experiment log added to one. Experiment log entry remove also tested
         '''
         self._call_gui(0)
-#        self._call_gui(10)
-        gui =  VisionExperimentGui('test', 'GUITestConfig', 'elphys', testmode=10)
+        self._call_gui(10)
+#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'elphys', testmode=10)
         context = self._read_context()
         explog = hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config)
         explog2 = hdf5io.read_item(context['variables']['self.animal_file.animal_files.keys'][1], 'log', self.machine_config)
@@ -1450,8 +1454,6 @@ class testVisionExperimentGui(unittest.TestCase):
                           ), (
                           'GUITestExperimentConfig', True, 'animal_addlog1_1_1-1-2009_1-1-2009_L0R0.hdf5', 3, 2, 2
                           ))
-        pass
-
 
 if __name__ == '__main__':
     if len(sys.argv) ==1:

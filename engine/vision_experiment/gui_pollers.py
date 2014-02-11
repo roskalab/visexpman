@@ -2702,8 +2702,11 @@ class VisexpGuiPoller(Poller):
                                                         self.parent.central_widget.main_widget.experiment_control_groupbox, 
                                                         self.parent.central_widget.main_widget.experiment_parameters, 
                                                         context_experiment_config_file = context_experiment_config_file)
+        context_animal_file = utils.get_key( self.context['variables'], 'self.animal_file.filename')
+        if context_animal_file is not None and not os.path.exists(context_animal_file):
+            context_animal_file = None
         self.animal_file = gui.AnimalFile(self, self.config, self.parent.central_widget.animal_parameters_groupbox, 
-                                                      context_animal_file = utils.get_key( self.context['variables'], 'self.animal_file.filename'))
+                                                      context_animal_file = context_animal_file)
         self.experiment_log = gui.ExperimentLog(self, self.config, self.parent.central_widget.experiment_log_groupbox)
         
         
@@ -3053,7 +3056,7 @@ class VisexpGuiPoller(Poller):
                 self.animal_file.save_animal_parameters()
                 time.sleep(1)
             self.parent.central_widget.main_tab.setCurrentIndex(1)
-            self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('comment1')
+            self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('1/1')
             self.experiment_log.add()
             time.sleep(1)
             if  self.testmode ==  10:
@@ -3064,40 +3067,40 @@ class VisexpGuiPoller(Poller):
                 time.sleep(1)
                 self.parent.central_widget.main_tab.setCurrentIndex(1)
             self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setEditText('isofl2')
-            self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('1 ul')
-            self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('comment')
+            self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('22 ul')
+            self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('2/1')
             self.experiment_log.add()
             time.sleep(1)
             self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setEditText('isofl2')
             self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('2 ul')
-            self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('')
+            self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('2/2')
             self.experiment_log.add()
-            time.sleep(0.5)
+            time.sleep(1.5)
             if  self.testmode ==  10:
                 self.parent.central_widget.animal_parameters_groupbox.animal_filename.input.setCurrentIndex(0)
                 time.sleep(0.5)
-                self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setEditText('isofl2')
-                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('1 %')
-                self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('x')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setEditText('isofl1')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('0 %')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('1/2')
                 self.experiment_log.add()
                 time.sleep(0.5)
                 self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setCurrentIndex(1)
-                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('2 %')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('1 % 1/3')
                 self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('')
                 self.experiment_log.add()
                 time.sleep(0.5)
                 self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setCurrentIndex(1)#Testing if duplicates can be added
-                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('2 %')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('1 % 1/3')
                 self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('')
                 self.experiment_log.add()
                 time.sleep(0.5)
                 self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setCurrentIndex(1)#Testing if duplicates can be added
-                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('2 %')
-                self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('2')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('1 %')
+                self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('1/4')
                 self.experiment_log.add()
                 time.sleep(0.5)
-                self.printc('Select any experiment log item')
-                while len(self.parent.central_widget.experiment_log_groupbox.log.selectedItems()) == 0:
+                self.printc('Select two experiment log item')
+                while len(self.parent.central_widget.experiment_log_groupbox.log.selectedItems()) != 2:
                     time.sleep(0.1)
                 self.experiment_log.remove()
                 time.sleep(1.0)

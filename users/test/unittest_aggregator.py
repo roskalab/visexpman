@@ -130,7 +130,8 @@ TEST_unittests = [
                 ]
                 
 TEST_priority_unittests = [
-                       'testVisionExperimentGui.test_01_select_stimfile', 
+                    'testVisionExperimentGui.test_10_remove_experiment_log_entry', 
+                    'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
 def generate_filename(path):
