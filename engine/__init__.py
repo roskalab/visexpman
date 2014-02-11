@@ -74,6 +74,9 @@ def application_init(**kwargs):
         warnings.warn('Check network connection')
     #Set up application logging
     logger = log.Logger(machine_config)
+    log_sources = utils.get_key(kwargs, 'log_sources') 
+    if log_sources is not None:
+        map(logger.add_source, log_sources)
     logger.start()
     return machine_config, logger
     

@@ -153,8 +153,8 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         
         #### Network ####
-        ENABLE_UDP_TRIGGER= False
-        UDP_PORT = 446
+#        ENABLE_UDP_TRIGGER= False
+#        UDP_PORT = 446
         if os.name != 'nt':
             self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         else:
@@ -219,7 +219,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         self.CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
         self.CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = True
         MAIN_IMAGE_SIZE = utils.rc((500,500))
-        GUI_SIZE =  utils.cr((1280,1024))
+        self.GUI['GUI_SIZE'] =  utils.cr((1280,1024))
 #        if os.name == 'nt':
 #            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
         self._create_parameters_from_locals(locals())

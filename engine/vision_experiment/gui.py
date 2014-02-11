@@ -239,20 +239,20 @@ class AnimalParametersGroupbox(QtGui.QGroupBox):
         gender = QtGui.QComboBox(self)
         gender.addItems(QtCore.QStringList(['female', 'male']))
         strain = QtGui.QComboBox(self)
-        strain.addItems(QtCore.QStringList(self.config.MOUSE_STRAIN_SUGGESTIONS))
+        strain.addItems(QtCore.QStringList(self.config.GUI['MOUSE_STRAIN_SUGGESTIONS']))
         strain.setEditable(True)
         green_labeling = QtGui.QComboBox(self)
         green_labeling.setEditable(True)
-        green_labeling.addItems(QtCore.QStringList(self.config.GREEN_LABELING_SUGGESTIONS))
+        green_labeling.addItems(QtCore.QStringList(self.config.GUI['GREEN_LABELING_SUGGESTIONS']))
         green_labeling.setToolTip('Green labeling substance, compulsory')
         red_labeling = QtGui.QComboBox(self)
         red_labeling.setEditable(True)
-        red_labeling.addItems(QtCore.QStringList(self.config.RED_LABELING_SUGGESTIONS))
+        red_labeling.addItems(QtCore.QStringList(self.config.GUI['RED_LABELING_SUGGESTIONS']))
         imaging_channels = QtGui.QComboBox(self)
         imaging_channels.addItems(QtCore.QStringList(['green',  'red',  'both']))
         injection_target = QtGui.QComboBox(self)
         injection_target.setEditable(True)
-        injection_target.addItems(QtCore.QStringList(self.config.INJECTION_TARGET_SUGGESTIONS))
+        injection_target.addItems(QtCore.QStringList(self.config.GUI['INJECTION_TARGET_SUGGESTIONS']))
         self.table = gui.ParameterTable(self)
         self.parameter_names = ['id', 'birth_date', 'injection_date', 
                             'gender', 'ear_punch_left', 'ear_punch_right', 'strain', 
@@ -307,6 +307,7 @@ class AnimalFile(gui.WidgetControl):
     def __init__(self, poller, config, widget, context_animal_file=None):
         gui.WidgetControl.__init__(self, poller, config, widget)
         self.animal_files = self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config))
+        self.check4animal_files_last_update = time.time()
         #Most recently modified file is selected
         if not context_animal_file is None:
             self.filename = context_animal_file
@@ -487,7 +488,6 @@ class AnimalFile(gui.WidgetControl):
         if fileop.get_user_experiment_data_folder(self.config) in self.filename:
             self.poller.notify_user('', 'This animal file is already in experiment data folder')
             return
-            
         if os.path.exists(os.path.join(fileop.get_user_experiment_data_folder(self.config), os.path.split(self.filename)[1])):
             message = 'Copy of this file already exists in experiment data folder. Do you want to overwrite it?'
             if not self.poller.ask4confirmation(message):
@@ -498,6 +498,20 @@ class AnimalFile(gui.WidgetControl):
         new_animal_filename = os.path.join(fileop.get_user_experiment_data_folder(self.config), os.path.split(self.filename)[1])
         self.animal_files[new_animal_filename] = os.path.getctime(new_animal_filename)
         self.poller.update_animal_file_list()
+        
+    def chec4new_animal_file(self):
+        now = time.time()
+        if introspect.is_test_running():
+            check_time = 3.0
+        else:
+            check_time = 10.0
+        if now-self.check4animal_files_last_update>check_time:
+             new_animal_files= self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config), {})
+             if new_animal_files != self.animal_files:
+                self.animal_files = new_animal_files
+                self.poller.update_animal_file_list()
+                self.check4animal_files_last_update = now
+                self.printc('Animal file list updated')
 
 class AnalysisStatusGroupbox(QtGui.QGroupBox):
     def __init__(self, parent):

@@ -54,6 +54,7 @@ class Logger(multiprocessing.Process):
                     str2file += self._entry2text(entry)
                     break
         self.file.write(str2file)
+        self.file.flush()
                 
     def _entry2text(self, entry):
         return '{0} {1}/{2}\t{3}\n'.format(utils.timestamp2ymdhms(entry[0]), entry[1], entry[2], entry[3])

@@ -74,14 +74,14 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         FREE_SPACE_WARNING_THRESHOLD = [2**30, [1, 2**40]]
         FREE_SPACE_ERROR_THRESHOLD = [2**30, [1, 2**40]]
-        ENABLE_HDF5_FILELOCKING = False
+        #OBSOLETE   ENABLE_HDF5_FILELOCKING = False#OBSOLETE   
         
         ############# Network #####################      
-        WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]
-        CLIENT_UDP_IP = ''
-        ENABLE_UDP = False
-        UDP_PORT =[446,  [200,  65000]] #RZ Why dont you like 446  Since this is used only in Presentinator setups and there the 446 port is used, this can be 446 instead of 9999
-        UDP_BUFFER_SIZE = [65536,  [1,  100000000]]        
+        #OBSOLETE   WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]#OBSOLETE   
+        #OBSOLETE   CLIENT_UDP_IP = ''#OBSOLETE   
+        #OBSOLETE   ENABLE_UDP = False#OBSOLETE   
+        #OBSOLETE   UDP_PORT =[446,  [200,  65000]] #OBSOLETE   
+        #OBSOLETE   UDP_BUFFER_SIZE = [65536,  [1,  100000000]]        #OBSOLETE   
         #naming: server - client
         self.BASE_PORT = 10000
         COMMAND_RELAY_SERVER  = {
@@ -109,14 +109,14 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_RESOLUTION = utils.rc([600, 800])        
         FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
-        SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]
+        #OBSOLETE   SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]#OBSOLETE   
         FRAME_DELAY_TOLERANCE = [2.0,  [1e-2,  10.0]] #in Hz
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
-        GAMMA = [1.0,  [1e-2,  10]]
+        #OBSOLETE   GAMMA = [1.0,  [1e-2,  10]]#OBSOLETE   
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
         FLIP_EXECUTION_TIME = [0*1e-3, [-1.0, 1.0]]
         ENABLE_FRAME_CAPTURE = False
-        MAX_LOG_COLORS = [3,  [0,  100000]]
+        #OBSOLETE   MAX_LOG_COLORS = [3,  [0,  100000]]#OBSOLETE   
         STIMULUS2MEMORY = False
         
         ########  Coordinate system selection ########
@@ -217,7 +217,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         }
 #         ]]
         GUI = {}
-        GREEN_LABELING_SUGGESTIONS = ['',
+        GUI['GREEN_LABELING_SUGGESTIONS'] = ['',
         'scaav 2/1 hsyn gcamp3', 
         'aav 2/1 ef1a gcamp6s', 'gc6', 
         'aav 2/1 ef1a mruby 2a gcamp6s', 
@@ -230,19 +230,19 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         'aav 2/9  hsyn gcamp3', 
         'aav 2/7 ef1a gcamp6s', 
         'gcamp6']
-        GREEN_LABELING_SUGGESTIONS.sort()
-        RED_LABELING_SUGGESTIONS = ['','no', 'yes']
-        INJECTION_TARGET_SUGGESTIONS = ['', 'V1', 'LGN', 'left retina', 'right retina']
-        MOUSE_STRAIN_SUGGESTIONS = ['', 'chatdtr', 'chattomato', 'rd1', 'bl6', 'chat', 'SCN1cre', 'chat tomato', 'c3h', 'grik4']
-        MOUSE_STRAIN_SUGGESTIONS.sort()
-        GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
+        GUI['GREEN_LABELING_SUGGESTIONS'].sort()
+        GUI['RED_LABELING_SUGGESTIONS'] = ['','no', 'yes']
+        GUI['INJECTION_TARGET_SUGGESTIONS'] = ['', 'V1', 'LGN', 'left retina', 'right retina']
+        GUI['MOUSE_STRAIN_SUGGESTIONS'] = ['', 'chatdtr', 'chattomato', 'rd1', 'bl6', 'chat', 'SCN1cre', 'chat tomato', 'c3h', 'grik4']
+        GUI['MOUSE_STRAIN_SUGGESTIONS'].sort()
+        GUI['GUI_REFRESH_PERIOD'] = 2.0
         GUI['EXPERIMENT_LOG_UPDATE_PERIOD'] = 60.0
         
         STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
         
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
-        GUI_DATA_SAVE_TIME = [10.0,  [0, 100]]
+        #OBSOLETE   GUI_DATA_SAVE_TIME = [10.0,  [0, 100]]#OBSOLETE   
         #this function call is compulsory
         self._create_parameters_from_locals(locals())
 

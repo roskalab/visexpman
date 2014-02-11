@@ -1020,7 +1020,7 @@ class CentralWidget(QtGui.QWidget):
         self.main_tab.addTab(self.main_widget, 'Main')
         self.main_tab.addTab(self.experiment_log_groupbox, 'Experiment log')
         self.main_tab.addTab(self.animal_parameters_groupbox, 'Animal parameters')
-        self.main_tab.setCurrentIndex(1)
+        self.main_tab.setCurrentIndex(0)
         
         self.text_out = QtGui.QTextEdit(self)
         self.text_out.setPlainText('')
@@ -1039,12 +1039,13 @@ class VisionExperimentGui(Qt.QMainWindow):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
         import visexpman.engine
-        self.config, self.log = visexpman.engine.application_init(user=user, config=config_class, application_name = application_name)
+        self.source_name = 'gui-{0}' .format(application_name)
+        self.config, self.log = visexpman.engine.application_init(user=user, config=config_class, application_name = application_name, log_sources = [self.source_name])
         self.console_text = ''
         Qt.QMainWindow.__init__(self)
-        self.setWindowTitle('{0} - {1} - {2}' .format(application_name, user, config_class))
+        self._set_window_title()
         self.create_widgets()
-        self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
+        self.resize(self.config.GUI['GUI_SIZE']['col'], self.config.GUI['GUI_SIZE']['row'])
         self.poller = gui_pollers.VisexpGuiPoller(self, testmode=testmode)
         self.block_widgets(True)
         self.init_variables()
@@ -1115,6 +1116,7 @@ class VisionExperimentGui(Qt.QMainWindow):
             text = str(text)
         self.console_text  += utils.time_stamp_to_hms(time.time()) + ' '  + text + '\n'
         self.update_console()
+        self.log.info(text, self.source_name)
         
     def update_console(self):
         self.central_widget.text_out.setPlainText(self.console_text)
@@ -1182,6 +1184,7 @@ class VisionExperimentGui(Qt.QMainWindow):
     def update_animal_parameters_table(self):
         if not hasattr(self.poller.animal_file, 'filename'):
             return
+        self._set_window_title(animal_file = self.poller.animal_file.filename)
         #Convert animal parameter names to title format
         animal_params = {}
         for k, v in self.poller.animal_file.animal_parameters.items():
@@ -1241,6 +1244,9 @@ class VisionExperimentGui(Qt.QMainWindow):
         if len(experiment_names) == 0:#If no experiment configs found in selected file, erase items from parameter table
             self.central_widget.main_widget.experiment_parameters.values.set_values({})
 
+    ################# Helper functions ####################
+    def _set_window_title(self, animal_file=''):
+        self.setWindowTitle('{0} - {1} - {2} - {3}' .format(self.config.application_name, self.config.user, self.config.__class__.__name__, animal_file) )
         
 def run_cortical_gui():
     app = Qt.QApplication(sys.argv)
@@ -1293,7 +1299,6 @@ class testVisionExperimentGui(unittest.TestCase):
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'elphys', testmode=1)
         self._call_gui(1)
         context = self._read_context()
-        
         self.assertEqual(('GUITestExperimentConfig' in context['variables']['self.experiment_control.experiment_config_classes.keys'], 
                           context['variables']['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount'], 
                           'test_stimulus.py' in context['variables']['self.experiment_control.user_selected_stimulation_module'], 
@@ -1347,7 +1352,7 @@ class testVisionExperimentGui(unittest.TestCase):
             {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label data_storage2', 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'data_storage2'}
                                                                           ))
     
-    @unittest.skip('') 
+#    @unittest.skip('') 
     def test_05_load_animal_files_from_data_storage_and_modify(self):
         '''
         Load animal parameter files from data storage, copy second to experiment data, then modify it.
@@ -1433,7 +1438,8 @@ class testVisionExperimentGui(unittest.TestCase):
                           ), (
                           'DebugExperimentConfig', True, 'animal_addlog1_1_1-1-2009_1-1-2009_L0R0.hdf5', 3
                           ))
-    
+
+#    @unittest.skip('') 
     @unittest.skipIf(unittest_aggregator.TEST_no_user_action,  'Requires user action')            
     def test_10_remove_experiment_log_entry(self):
         '''
@@ -1454,6 +1460,20 @@ class testVisionExperimentGui(unittest.TestCase):
                           ), (
                           'GUITestExperimentConfig', True, 'animal_addlog1_1_1-1-2009_1-1-2009_L0R0.hdf5', 3, 2, 2
                           ))
+
+#    @unittest.skip('') 
+    def test_11_copy_animal_file_after_gui_start(self):
+        '''
+        Animal files are copied to user's expeeriment data folder and these should be detected
+        '''
+        self._create_animal_parameter_file('copied1')
+        self._create_animal_parameter_file('copied2')
+        self._call_gui(11)
+#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'elphys', testmode=11)
+        context = self._read_context()
+        self.assertEqual(len(context['variables']['self.animal_file.animal_files.keys']), 2)
+        pass
+        
 
 if __name__ == '__main__':
     if len(sys.argv) ==1:

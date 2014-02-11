@@ -74,7 +74,7 @@ class Poller(QtCore.QThread):
         while not self.abort:
             now = time.time()
             elapsed_time = now - last_time
-            if elapsed_time > self.config.GUI_REFRESH_PERIOD:
+            if elapsed_time > self.config.GUI['GUI_REFRESH_PERIOD']:
                 last_time = now
                 self.periodic()
             self.run_in_all_iterations()
@@ -2142,7 +2142,7 @@ class FlowmeterPoller(flowmeter.Flowmeter, Poller):
             status = 'initialized'
         else:
             status = 'not initialized' 
-        data = self.read(self.config.GUI_REFRESH_PERIOD * 7)
+        data = self.read(self.config.GUI['GUI_REFRESH_PERIOD'] * 7)
         if not data[0]:
             self.parent.update_status(status)
         else:
@@ -2681,6 +2681,7 @@ class VisexpGuiPoller(Poller):
                                      'self.experiment_control.user_selected_stimulation_module', 
                                      'self.animal_file.filename', 
                                      'self.animal_file.animal_files.keys', 
+                                     'self.parent.log.filename', 
                                      ]
         self.context_paths['widgets'] = [
                                           'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name', 
@@ -2802,8 +2803,9 @@ class VisexpGuiPoller(Poller):
         else:
             self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
         self.experiment_log.update_suggested_date()
-        #Call test helper
-        self.test()            
+        self.animal_file.chec4new_animal_file()
+        #Call tester
+        self.test()
 
     def handle_commands(self):
         try:
@@ -2947,7 +2949,7 @@ class VisexpGuiPoller(Poller):
         self.save_context()
         
     def test(self):
-        if (hasattr(self, 'test_run') and self.testmode!=1)\
+        if (hasattr(self, 'test_run') and self.testmode!=1 and self.testmode != 11)\
                     or self.testmode is None:
             return
         self.test_run=True
@@ -3105,6 +3107,19 @@ class VisexpGuiPoller(Poller):
                 self.experiment_log.remove()
                 time.sleep(1.0)
             self.emit(QtCore.SIGNAL('close_app'))
+        elif self.testmode == 11:
+            self.parent.central_widget.main_tab.setCurrentIndex(2)
+            if not hasattr(self, 'test_phase'):
+                self.test_phase = 1
+                for fn in os.listdir(tempfile.gettempdir()):
+                    if 'animal_' in fn and '.hdf5' in fn:
+                        self.printc('{0} moved'.format(os.path.join(tempfile.gettempdir(), fn)))
+                        shutil.move(os.path.join(tempfile.gettempdir(), fn), fileop.get_user_experiment_data_folder(self.config))
+                self.filemovetime = time.time()
+            elif self.test_phase == 1:
+                if time.time()-self.filemovetime>5:
+                    self.emit(QtCore.SIGNAL('close_app'))
+            
 #            time.sleep(10.0)
 #            self.notify_user('', 'Close main window')
 #            self.parent.emit(QtCore.SIGNAL('close'))
