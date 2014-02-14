@@ -1,9 +1,9 @@
 '''
 VisionExperimentConfig: 
         contains common parameters, that are used on all experiment platforms. These are visual stimulation, networking, paths
-RetinalCaImagingConfig: 
-        inherits VisionExperimentConfig and expands it with retinal ca imaging specific parameters that are not used on other platforms.
-        Platform name: retinal_ca
+RetinalCaImagingElphysConfig: 
+        inherits VisionExperimentConfig and expands it with retinal ca imaging  and electrophisiology specific parameters that are not used on other platforms.
+        Platform name: elphys_retinal_ca
 RcCorticalCaImagingConfig, AoCorticalCaImagingConfig: 
         inherits VisionExperimentConfig and expands it with cortical ca imaging specific parameters that are not used on other platforms
         Platform name: rc_cortical or ao_cortical
@@ -13,9 +13,6 @@ MCMEAConfig:
 HiMEAConfig:
         inherits VisionExperimentConfig and expands it with Hierleman multi electrode array specific parameters that are not used on other platforms
         Platfrom name: hi_mea
-ElphysConfig:
-        inherits VisionExperimentConfig and expands it with electrophisiology setup specific parameters that are not used on other platforms
-        Platform name: elphys
 ElectroporationConfig:
         inherits VisionExperimentConfig and expands it with electroporation setup specific parameters that are not used on other platforms
         Platfrom name: epos
@@ -68,7 +65,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
         PIN_RANGE = [0,  7]        
-        PLATFORM = ['undefined', ['retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'elphys', 'mea', 'epos','behav','standalone', 'smallapp', 'undefined']]
+        PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','standalone', 'smallapp', 'undefined']]
+        APPLICATION_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation'}
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         
         
@@ -338,12 +336,13 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
         
-class RetinalCaImagingConfig(VisionExperimentConfig):
+class RetinalCaImagingElphysConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
         ################ Ca imaging GUI #######################
-        PLATFORM = 'retinal_ca'
+        PLATFORM = 'elphys_retinal_ca'
         STIM_RECORDS_ANALOG_SIGNALS = False
+        ELPHYS_SIGNAL_CHANNEL_INDEX = [0, [0, 10]]
         MAX_PMT_VOLTAGE = [8.0,[0.0,15.0]]
         SCANNER_MAX_SPEED = utils.rc((1e7, 1e7))#um/s
         SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
@@ -469,15 +468,6 @@ class HiMEAConfig(VisionExperimentConfig):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'hi_mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
-        STIM_RECORDS_ANALOG_SIGNALS = False
-        self._create_parameters_from_locals(locals())
-        
-class ElphysConfig(VisionExperimentConfig):
-    def _create_application_parameters(self):
-        VisionExperimentConfig._create_application_parameters(self)
-        PLATFORM = 'elphys'
-        EXPERIMENT_FILE_FORMAT = 'mat'
-        ELPHYS_SIGNAL_CHANNEL_INDEX = [0, [0, 10]]
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
         

@@ -2,15 +2,15 @@ import os
 import os.path
 import serial
 from visexpman.engine.generic import utils
-from visexpman.engine.vision_experiment.configuration import ElphysConfig
+from visexpman.engine.vision_experiment.configuration import RetinalCaImagingElphysConfig
 
-class InsermSetupConfig(ElphysConfig):
+class InsermSetupConfig(RetinalCaImagingElphysConfig):
     '''
     '''
     def _set_user_parameters(self):
         EXPERIMENT_FILE_FORMAT = 'mat'
         if self.OS == 'win':
-            PLATFORM = 'elphys'
+            PLATFORM = 'elphys_retinal_ca'
         else:
             PLATFORM = 'standalone'
         if self.OS == 'win':

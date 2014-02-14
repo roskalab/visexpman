@@ -33,7 +33,7 @@ from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 from visexpman.engine.generic import stringop
-from visexpman.engine import generic
+from visexpman.engine import generic, MachineConfigError
 from visexpman.engine.generic import log
 from visexpman.users.test import unittest_aggregator
 from visexpA.engine.datahandlers import hdf5io
@@ -1246,7 +1246,9 @@ class VisionExperimentGui(Qt.QMainWindow):
 
     ################# Helper functions ####################
     def _set_window_title(self, animal_file=''):
-        self.setWindowTitle('{0} - {1} - {2} - {3}' .format(self.config.application_name, self.config.user, self.config.__class__.__name__, animal_file) )
+        if not self.config.APPLICATION_NAMES.has_key(self.config.application_name):
+            raise MachineConfigError('Unknown application name: {0}' .format(self.config.application_name))
+        self.setWindowTitle('{0} - {1} - {2} - {3}' .format(self.config.APPLICATION_NAMES[self.config.application_name], self.config.user, self.config.__class__.__name__, animal_file) )
         
 def run_cortical_gui():
     app = Qt.QApplication(sys.argv)
@@ -1258,7 +1260,7 @@ class testVisionExperimentGui(unittest.TestCase):
     
     def setUp(self):
         self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
-        self.machine_config.application_name='elphys'
+        self.machine_config.application_name='main_ui'
         self.machine_config.user = 'test'
         #Clean up files
         [shutil.rmtree(fn) for fn in [self.machine_config.DATA_STORAGE_PATH, self.machine_config.EXPERIMENT_DATA_PATH] if os.path.exists(fn)]
@@ -1267,7 +1269,7 @@ class testVisionExperimentGui(unittest.TestCase):
         
     def _call_gui(self, testmode):
         import subprocess
-        app_exec = 'gui =  VisionExperimentGui(\'test\', \'GUITestConfig\', \'elphys\', testmode={0})'.format(testmode)
+        app_exec = 'gui =  VisionExperimentGui(\'test\', \'GUITestConfig\', \'main_ui\', testmode={0})'.format(testmode)
         import_code = 'from visexpman.engine.visexp_gui import VisionExperimentGui;'
         code = 'python -c \"{0}{1}\" --unittest' .format(import_code, app_exec)
         subprocess.call(code, shell=True)
@@ -1296,7 +1298,7 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         sourcefile_path = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', 'test', 'test_stimulus.py')
         source_before = fileop.read_text_file(sourcefile_path)
-#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'elphys', testmode=1)
+#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=1)
         self._call_gui(1)
         context = self._read_context()
         self.assertEqual(('GUITestExperimentConfig' in context['variables']['self.experiment_control.experiment_config_classes.keys'], 
@@ -1340,7 +1342,7 @@ class testVisionExperimentGui(unittest.TestCase):
         #Create animal file in tmp
         self._create_animal_parameter_file('data_storage1')
         self._create_animal_parameter_file('data_storage2')
-#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'elphys', testmode=4)
+#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=4)
         #Run gui
         self._call_gui(4)
         context = self._read_context()
@@ -1428,7 +1430,7 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         
         self._call_gui(9)
-#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'elphys', testmode=9)
+#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=9)
         context = self._read_context()
         explog = hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config)
         self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'], 
@@ -1447,7 +1449,7 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         self._call_gui(0)
         self._call_gui(10)
-#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'elphys', testmode=10)
+#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=10)
         context = self._read_context()
         explog = hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config)
         explog2 = hdf5io.read_item(context['variables']['self.animal_file.animal_files.keys'][1], 'log', self.machine_config)
@@ -1469,7 +1471,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self._create_animal_parameter_file('copied1')
         self._create_animal_parameter_file('copied2')
         self._call_gui(11)
-#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'elphys', testmode=11)
+#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=11)
         context = self._read_context()
         self.assertEqual(len(context['variables']['self.animal_file.animal_files.keys']), 2)
         pass

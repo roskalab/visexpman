@@ -200,7 +200,7 @@ class TestElphysPlatformConfig(configuration.VisionExperimentConfig):
     '''
     def _set_user_parameters(self):        
         EXPERIMENT_CONFIG = 'ElphysPlatformExperimentCDummy'
-        PLATFORM = 'elphys'
+        PLATFORM = 'elphys_retinal_ca'
         #=== paths/data handling ===
         LOG_PATH = unittest_aggregator.TEST_working_folder
         EXPERIMENT_LOG_PATH = unittest_aggregator.TEST_working_folder        
@@ -407,7 +407,7 @@ class VisualStimulationsExperiment(experiment.Experiment):
 #== Stage test experiment ==
 class StageExperimentTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
-        MEASUREMENT_PLATFORM = 'elphys'
+        MEASUREMENT_PLATFORM = 'elphys_retinal_ca'
         EXPERIMENT_CONFIG = 'StageExperimentConfig'        
         #paths
         LOG_PATH = unittest_aggregator.TEST_working_folder
@@ -486,7 +486,7 @@ class MicroLEDArrayExperiment(experiment.Experiment):
             self.show_shape(shape='o', size = s, duration=duration/10, color=1.0)
         self.stimulusbitmap2uled()
         
-class GUITestConfig(configuration.RetinalCaImagingConfig):
+class GUITestConfig(configuration.RetinalCaImagingElphysConfig):
     def _set_user_parameters(self):
         from visexpman.users.test import unittest_aggregator
         self.root_folder = fileop.select_folder_exists(unittest_aggregator.TEST_working_folder)

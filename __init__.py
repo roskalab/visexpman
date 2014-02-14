@@ -66,12 +66,11 @@
             The machine configuration class shall inherit from a platform specific class.
             class MyMachineConfig(<Platform specific machine config template>):
                 <Platform specific machine config template> can be 
-                    configuration.RetinalCaImagingConfig
+                    configuration.RetinalCaImagingElphysConfig
                     configuration.RcCorticalCaImagingConfig
                     configuration.AoCorticalCaImagingConfig
                     configuration.MCMEAConfig (Multi channel systems multi electrode array setup)
                     configuration.HiMEAConfig (Hierleman Multi electrode array setup)
-                    configuration.ElphysConfig
                     configuration.VisionExperimentConfig: Shall be used for stimulation development only
                 
                 def _set_user_parameters(self):

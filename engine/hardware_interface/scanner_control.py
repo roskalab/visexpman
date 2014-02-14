@@ -869,7 +869,7 @@ class TwoPhotonScannerLoop(command_parser.CommandParser):
 #            shutil.move(self.filenames['local_datafile'][0], self.filenames['datafile'][0])
         self.printc('Data saved to {0}'.format(self.filenames['datafile'][0]))
         return
-        if self.filenames.has_key('other_files') and 'tiff' in self.filenames['other_files'][0]:#Converting datafile to tiff shall take place in elphys/main gui
+        if self.filenames.has_key('other_files') and 'tiff' in self.filenames['other_files'][0]:#Converting datafile to tiff shall take place in main_ui/main gui
             import tiffile
             from visexpA.engine.dataprocessors import generic
             tiff_description = 'Roskalab'

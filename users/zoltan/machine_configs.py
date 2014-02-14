@@ -132,7 +132,7 @@ class SwDebugConfig(configuration.VisionExperimentConfig):
         
         self._create_parameters_from_locals(locals())
 
-class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
+class CaImagingTestConfig(configuration.RetinalCaImagingElphysConfig):
     
     def _set_user_parameters(self):
         #### paths/data handling ####

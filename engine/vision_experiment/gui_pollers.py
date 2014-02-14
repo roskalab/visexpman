@@ -2987,6 +2987,7 @@ class VisexpGuiPoller(Poller):
                         expparam_table.setItem(i, 1, item)
                 time.sleep(1.0)
                 self.experiment_control.save_experiment_parameters()
+                time.sleep(1.0)
                 self.emit(QtCore.SIGNAL('close_app'))
         elif self.testmode==2 or self.testmode==3:
             self.parent.central_widget.main_tab.setCurrentIndex(2)

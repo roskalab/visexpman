@@ -300,7 +300,7 @@ class ExperimentControl(object):
             else:
                 self.printl('Scan start ERROR')
             return (scan_start_success2 or scan_start_success)
-        elif self.config.PLATFORM == 'elphys':
+        elif self.config.PLATFORM == 'elphys_retinal_ca':
             #Set acquisition trigger pin to high
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
@@ -313,7 +313,7 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_START_PIN, 1)
             self.start_of_acquisition = self._get_elapsed_time()
             return True
-        elif self.config.PLATFORM == 'retinal_ca':
+        elif self.config.PLATFORM == 'elphys_retinal_ca':
             if self.parameters.has_key('enable_ca_recording') and self.parameters['enable_ca_recording']:
                 command = 'SOCstart_experimentEOCid={0}EOP' .format(self.id)
                 self.queues['imaging']['out'].put(command)
@@ -336,7 +336,7 @@ class ExperimentControl(object):
         -waits for mes data acquisition complete
         '''
         #Stop external measurements
-        if self.config.PLATFORM == 'elphys':
+        if self.config.PLATFORM == 'elphys_retinal_ca':
             #Clear acquisition trigger pin
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 0)
             data_acquisition_stop_success = True
@@ -432,7 +432,7 @@ class ExperimentControl(object):
         else:
             #If filterwheels neither configured, nor enabled, two virtual ones are created, so that experiments calling filterwheel functions could be called
             self.number_of_filterwheels = 2
-        if self.config.PLATFORM != 'retinal_ca':
+        if self.config.PLATFORM != 'elphys_retinal_ca':
             self.led_controller = daq_instrument.AnalogPulse(self.config, self.log, self.start_time, id = 1)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
         self.analog_input = None #This is instantiated at the beginning of each fragment
         self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
@@ -491,7 +491,7 @@ class ExperimentControl(object):
 
         Fragment file name formats:
         1) mes/hdf5: experiment_name_id_fragment_id
-        2) elphys/mat: experiment_name_fragment_id_index
+        2) elphys_retinal_ca/mat: experiment_name_fragment_id_index
 
         fragment file(s): measurement results, stimulus info, configs, zip
         '''
@@ -590,14 +590,14 @@ class ExperimentControl(object):
             analog_input_data = hdf5io.read_item(f.replace('.mat', '.hdf5'), '_'.join(os.path.split(f.replace('.mat', ''))[1].split('_')[-3:]), filelocking=False)['sync_data']
         else:
             analog_input_data = numpy.zeros((2, 2))
-            if self.config.PLATFORM != 'retinal_ca':
+            if self.config.PLATFORM != 'elphys_retinal_ca':
                 self.printl('Analog input data is NOT available')
         stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected =\
                             experiment_data.preprocess_stimulus_sync(\
                             analog_input_data[:, self.config.STIM_SYNC_CHANNEL_INDEX], 
                             stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:], 
                             sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)
-        if not pulses_detected and self.config.PLATFORM != 'retinal_ca':
+        if not pulses_detected and self.config.PLATFORM != 'elphys_retinal_ca':
             self.printl('Stimulus sync signal is NOT detected')
         if self.config.PLATFORM == 'rc_cortical' and not self.parameters['enable_intrinsic']:
             a, b, pulses_detected =\
@@ -645,7 +645,7 @@ class ExperimentControl(object):
         elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
             stimulus_frame_info = stimulus_frame_info_with_data_series_index
             data_to_file['config'] = experiment_data.save_config(None, self.config, self.experiment_config)
-            if self.config.PLATFORM == 'elphys':
+            if self.config.PLATFORM == 'elphys_retinal_ca':
                 data_to_file['start_of_acquisition'] = self.start_of_acquisition
         data_to_file['stimulus_frame_info'] = stimulus_frame_info
         self.stimulus_frame_info_pointer = len(self.stimulus_frame_info)
