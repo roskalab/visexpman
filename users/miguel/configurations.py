@@ -2,13 +2,13 @@ import numpy
 import os
 import serial
 from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.vision_experiment.configuration import RetinalCaImagingElphysConfig
+from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImagingConfig
 import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 from visexpman.engine.generic import utils
 import scipy.interpolate
 
-class MVSSA(RetinalCaImagingElphysConfig):
+class MVSSA(ElphysRetinalCaImagingConfig):
     '''
     Miguel's Electrophisology visual stimulation, standalone
     '''
@@ -79,7 +79,7 @@ class MVSSA(RetinalCaImagingElphysConfig):
 
         self._create_parameters_from_locals(locals())
 
-class MVS(RetinalCaImagingElphysConfig):
+class MVS(ElphysRetinalCaImagingConfig):
     '''
     Miguel's Electrophisology visual stimulation
     '''

@@ -247,7 +247,7 @@ class Shutter(Instrument):
                 except AttributeError:
                     pass
 
-class Filterwheel(Instrument):
+class Filterwheel(Instrument):#TODO: all parameters need to be collected to one dictionary
     def init_communication_interface(self):
         self.position = -1        
         if self.config.ENABLE_FILTERWHEEL:

@@ -763,23 +763,43 @@ class ExperimentParametersGroupBox(QtGui.QGroupBox):
 
 ############### Application specific widgets ###############
 class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
-    #TODO: add cell name
     def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, 'Experiment options', parent)
         self.create_widgets()
         self.create_layout()
 
     def create_widgets(self):
-        self.enable_ca_recording = gui.LabeledCheckBox(self, 'Record Ca signal')
-        self.enable_elphys_recording = gui.LabeledCheckBox(self, 'Record electrophyisiology signal')
+        self.cell_name = gui.LabeledInput(self, 'Cell name')
+        self.cell_name.setToolTip('Providing cell name is not mandatory')
+        stim_devices_list = copy.deepcopy(self.parent().config.PREFERRED_STIMULATION_DEVICES)
+        stim_devices_list.extend([item for item in self.parent().config.STIMULATION_DEVICES if item not in stim_devices_list])
+        stim_devices_list.insert(0, '')
+        self.stimulation_device = gui.LabeledComboBox(self, 'Stimulation device',items = stim_devices_list)
+        self.stimulation_device.setToolTip('''Empty: the experiment and experiment class will be executed as it is\n
+Any stimulation device: stimulation will be presented by the selected device,\n
+but any of {0}:\n Selected Experiment config is ignored, parameters are taken from user interface'''.format(self.parent().config.GUI_CONFIGURABLE_STIMULATION_DEVICES))
+        self.enable_scanner_synchronization = gui.LabeledCheckBox(self, 'Scanner-stimulus synchronization')
+        self.enable_scanner_synchronization.setToolTip('Synchronize stimulation with two photon scanning')
+        rec_channels = ['Electrophysiology signal']
+        rec_channels.extend(['Calcium fluorescence, ' + item+' PMT' for item in self.parent().config.PMTS.keys()])
+        self.recording_channel = gui.LabeledListWidget(self, 'Recording channels', items = rec_channels)
+        self.recording_channel.setFixedHeight(100)
+        self.recording_channel.setToolTip('Selection of any channels enables calcium or electrophysiology signal recording.\nSelect none of the PMTs for disabling calcium imaging.\nMultiple channels can be also selected.' )
+        self.scanning_range = gui.LabeledInput(self, 'Scan range (height, width) [um]')
+        self.pixel_size = gui.LabeledInput(self, 'Pixel size [um/pixel]')
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.enable_ca_recording, 0, 0, 1, 2)
-        self.layout.addWidget(self.enable_elphys_recording, 0, 2, 1, 2)
+        self.layout.addWidget(self.cell_name, 0, 0, 1, 2)
+        self.layout.addWidget(self.stimulation_device, 1, 0, 1, 2)
+        self.layout.addWidget(self.recording_channel, 2, 0, 1, 2)
+        self.layout.addWidget(self.enable_scanner_synchronization, 3, 0, 1, 2)
+        self.layout.addWidget(self.scanning_range, 4, 0, 1, 2)
+        self.layout.addWidget(self.pixel_size, 5, 0, 1, 2)
+        
         self.setLayout(self.layout)
 
-class ExperimentLoopGroupBox(QtGui.QGroupBox):
+class CorticalExperimentOptionsGroupBox(QtGui.QGroupBox):
     '''
     Support controlling a sequence of cortical experiments:
     -objective position and laser intensity ranges

@@ -2697,8 +2697,10 @@ class VisexpGuiPoller(Poller):
         context_experiment_config_file = None
         if self.context['widgets'].has_key('self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'):
             expname = self.context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name']
-            if os.path.exists(expname):
-                context_experiment_config_file = os.path.split(context_experiment_config_file)[0]
+#            if os.path.exists(expname):
+#                context_experiment_config_file = os.path.split(context_experiment_config_file)[0]
+            if os.path.exists(os.path.split(expname)[0]):
+                context_experiment_config_file = os.path.split(expname)[0]
         self.experiment_control = gui.ExperimentControl(self, self.config, 
                                                         self.parent.central_widget.main_widget.experiment_control_groupbox, 
                                                         self.parent.central_widget.main_widget.experiment_parameters, 

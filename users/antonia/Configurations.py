@@ -2,7 +2,7 @@ import numpy
 import os
 import serial
 from visexpman.engine.generic.parameter import Parameter
-from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig, RetinalCaImagingElphysConfig
+from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig, ElphysRetinalCaImagingConfig
 import visexpman.engine.vision_experiment.experiment as experiment
 import visexpman.engine.hardware_interface.daq_instrument as daq_instrument
 from visexpman.engine.generic import utils
@@ -28,7 +28,7 @@ class SPC(VisionExperimentConfig):
         self.PULSE_OVERHEAD = 10.0e-3 #in seconds
         self._create_parameters_from_locals(locals())
         
-class AEPHVS(RetinalCaImagingElphysConfig):
+class AEPHVS(ElphysRetinalCaImagingConfig):
     '''
     Antona's Electrophisology visual stimulation
     '''

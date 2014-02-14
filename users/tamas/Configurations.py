@@ -2,9 +2,9 @@ import os
 import os.path
 import serial
 from visexpman.engine.generic import utils
-from visexpman.engine.vision_experiment.configuration import RetinalCaImagingElphysConfig
+from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImagingConfig
 
-class InsermSetupConfig(RetinalCaImagingElphysConfig):
+class InsermSetupConfig(ElphysRetinalCaImagingConfig):
     '''
     '''
     def _set_user_parameters(self):

@@ -986,11 +986,14 @@ class MainWidget(QtGui.QWidget):
         self.experiment_control_groupbox = gui.ExperimentControlGroupBox(self)
         self.experiment_control_groupbox.setFixedWidth(350)
         self.experiment_control_groupbox.setFixedHeight(150)
-        self.experiment_options_groupbox = gui.RetinalExperimentOptionsGroupBox(self)
+        if self.config.PLATFORM == 'elphys_retinal_ca':
+            self.experiment_options_groupbox = gui.RetinalExperimentOptionsGroupBox(self)
+        elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
+            self.experiment_options_groupbox = gui.CorticalExperimentOptionsGroupBox(self)
         self.experiment_options_groupbox.setFixedWidth(350)
-        self.experiment_options_groupbox.setFixedHeight(100)
+        self.experiment_options_groupbox.setFixedHeight(400)
         self.experiment_parameters = gui.ExperimentParametersGroupBox(self)
-        self.experiment_parameters.setFixedWidth(350)
+        self.experiment_parameters.setFixedWidth(400)
         self.experiment_parameters.setFixedHeight(400)
         self.experiment_parameters.values.setColumnWidth(0, 200)
         self.network_status = QtGui.QLabel('', self)
@@ -998,9 +1001,9 @@ class MainWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
-        self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 1, 1)
-        self.layout.addWidget(self.experiment_parameters, 0, 1, 3, 1)
-        self.layout.addWidget(self.network_status, 2, 0, 1, 1)
+        self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 2, 1)
+        self.layout.addWidget(self.experiment_parameters, 0, 1, 2, 1)
+        self.layout.addWidget(self.network_status, 3, 0, 1, 1)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
@@ -1021,6 +1024,7 @@ class CentralWidget(QtGui.QWidget):
         self.main_tab.addTab(self.experiment_log_groupbox, 'Experiment log')
         self.main_tab.addTab(self.animal_parameters_groupbox, 'Animal parameters')
         self.main_tab.setCurrentIndex(0)
+        self.main_tab.setFixedHeight(self.config.GUI['GUI_SIZE']['row']*0.7)
         
         self.text_out = QtGui.QTextEdit(self)
         self.text_out.setPlainText('')
@@ -1031,7 +1035,7 @@ class CentralWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.main_tab, 0, 0, 1, 1)
-        self.layout.addWidget(self.text_out, 1, 0, 1, 1)
+        self.layout.addWidget(self.text_out, 1,  0, 1, 1)
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):

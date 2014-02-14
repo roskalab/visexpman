@@ -87,6 +87,31 @@ class LabeledComboBox(QtGui.QWidget):
         self.layout.addWidget(self.input, 0, 1)
         self.setLayout(self.layout)
         
+class LabeledListWidget(QtGui.QWidget):
+    '''
+    Default value in input field:
+        self.input.setText(TEXT)
+    '''
+    def __init__(self, parent, label,items=None):
+        QtGui.QWidget.__init__(self, parent)
+        self.label = label
+        self.create_widgets()
+        self.create_layout()
+        if items is not None:
+            self.list.addItems(QtCore.QStringList(items))
+            
+
+    def create_widgets(self):
+        self.labelw = QtGui.QLabel(self.label, self)
+        self.list = QtGui.QListWidget(self)
+        self.list.setSelectionMode(self.list.MultiSelection)
+
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.labelw, 0, 0)
+        self.layout.addWidget(self.list, 1, 0)
+        self.setLayout(self.layout)
+        
 class PushButtonWithParameter(QtGui.QWidget):
     '''
     Default value in input field:

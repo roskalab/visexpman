@@ -66,7 +66,7 @@
             The machine configuration class shall inherit from a platform specific class.
             class MyMachineConfig(<Platform specific machine config template>):
                 <Platform specific machine config template> can be 
-                    configuration.RetinalCaImagingElphysConfig
+                    configuration.ElphysRetinalCaImagingConfig
                     configuration.RcCorticalCaImagingConfig
                     configuration.AoCorticalCaImagingConfig
                     configuration.MCMEAConfig (Multi channel systems multi electrode array setup)

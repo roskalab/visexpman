@@ -486,7 +486,7 @@ class MicroLEDArrayExperiment(experiment.Experiment):
             self.show_shape(shape='o', size = s, duration=duration/10, color=1.0)
         self.stimulusbitmap2uled()
         
-class GUITestConfig(configuration.RetinalCaImagingElphysConfig):
+class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):
         from visexpman.users.test import unittest_aggregator
         self.root_folder = fileop.select_folder_exists(unittest_aggregator.TEST_working_folder)

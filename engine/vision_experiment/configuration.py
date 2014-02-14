@@ -1,7 +1,7 @@
 '''
 VisionExperimentConfig: 
         contains common parameters, that are used on all experiment platforms. These are visual stimulation, networking, paths
-RetinalCaImagingElphysConfig: 
+ElphysRetinalCaImagingConfig: 
         inherits VisionExperimentConfig and expands it with retinal ca imaging  and electrophisiology specific parameters that are not used on other platforms.
         Platform name: elphys_retinal_ca
 RcCorticalCaImagingConfig, AoCorticalCaImagingConfig: 
@@ -23,6 +23,7 @@ BehavioralConfig:
 import os
 import sys
 import numpy
+import copy
 import scipy.interpolate
 import visexpman
 from visexpman.engine.generic import utils
@@ -36,6 +37,7 @@ import tempfile
 import unittest
 
 import PyQt4.QtGui as QtGui
+import PyQt4.QtCore as QtCore
 
 from visexpman.users.test import unittest_aggregator
 
@@ -51,11 +53,46 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
             EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
             CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
-           
+            
+        GUI_CONFIGURABLE_STIMULATION_DEVICES: generating stimulation on these devices can be done without an existing experiment config. The (timing) parameters are taken from the user interface.
+        
+        FILTERWHEEL_SERIAL_PORT = [{
+                                    'port' :  port,
+                                    'baudrate' : 115200,
+                                    'parity' : serial.PARITY_NONE,
+                                    'stopbits' : serial.STOPBITS_ONE,
+                                    'bytesize' : serial.EIGHTBITS,                                    
+                                    }]
+                                    
+        FILTERWHEEL_FILTERS = [{
+                                                'ND0': 1, 
+                                                'ND10': 2, 
+                                                'ND20': 3, 
+                                                'ND30': 4, 
+                                                'ND40': 5, 
+                                                'ND50': 6, 
+                                                }]
+                                                
+        DAQ_CONFIG = [
+             {
+             'ANALOG_CONFIG' : 'aio', #'ai', 'ao', 'aio', 'undefined'
+             'DAQ_TIMEOUT' : 1.0, 
+             'AO_SAMPLE_RATE' : 100,
+             'AI_SAMPLE_RATE' : 1000,
+             'AO_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ao0:1',
+             'AI_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ai9:0',        
+             'MAX_VOLTAGE' : 5.0,
+             'MIN_VOLTAGE' : 0.0,
+             'DURATION_OF_AI_READ' : 1.0,
+             'ENABLE' : True
+             },
+         ]
+
+
         '''        
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
         
-        self.enable_celery = True
+#        self.enable_celery = True
         self.temppath = tempfile.gettempdir()
         
         #parameter with range: list[0] - value, list[1] - range
@@ -64,23 +101,18 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ############## Ranges ###############
         FPS_RANGE = (1.0,  200.0) 
         COLOR_RANGE = [[0.0, 0.0,  0.0],  [1.0, 1.0,  1.0]]
-        PIN_RANGE = [0,  7]        
+        PARALLEL_PORT_PIN_RANGE = [0, 7]
+        
+        ############## General platform parameters ###############
         PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','standalone', 'smallapp', 'undefined']]
         APPLICATION_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation'}
-        EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         
-        
+        ############## File/Filesystem related ###############
         FREE_SPACE_WARNING_THRESHOLD = [2**30, [1, 2**40]]
         FREE_SPACE_ERROR_THRESHOLD = [2**30, [1, 2**40]]
-        #OBSOLETE   ENABLE_HDF5_FILELOCKING = False#OBSOLETE   
+        EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         
         ############# Network #####################      
-        #OBSOLETE   WAIT_BETWEEN_UDP_SENDS = [0.05,  [0.0,  1.0]]#OBSOLETE   
-        #OBSOLETE   CLIENT_UDP_IP = ''#OBSOLETE   
-        #OBSOLETE   ENABLE_UDP = False#OBSOLETE   
-        #OBSOLETE   UDP_PORT =[446,  [200,  65000]] #OBSOLETE   
-        #OBSOLETE   UDP_BUFFER_SIZE = [65536,  [1,  100000000]]        #OBSOLETE   
-        #naming: server - client
         self.BASE_PORT = 10000
         COMMAND_RELAY_SERVER  = {
         'RELAY_SERVER_IP' : '',
@@ -107,14 +139,11 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_RESOLUTION = utils.rc([600, 800])        
         FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
-        #OBSOLETE   SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]#OBSOLETE   
         FRAME_DELAY_TOLERANCE = [2.0,  [1e-2,  10.0]] #in Hz
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
-        #OBSOLETE   GAMMA = [1.0,  [1e-2,  10]]#OBSOLETE   
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
         FLIP_EXECUTION_TIME = [0*1e-3, [-1.0, 1.0]]
         ENABLE_FRAME_CAPTURE = False
-        #OBSOLETE   MAX_LOG_COLORS = [3,  [0,  100000]]#OBSOLETE   
         STIMULUS2MEMORY = False
         
         ########  Coordinate system selection ########
@@ -150,7 +179,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         #By overriding this parameter, the user can define additional keyboard commands that are handled during experiment
         USER_EXPERIMENT_COMMANDS = {}
         
-        ############## Vision experiment maganer user interface ##########
+        ############## Stimulation software graphic menu related OBSOLETE ##########
         ENABLE_TEXT = True
         TEXT_COLOR = [[1.0,  0.0,  0.0] ,  [[0.0, 0.0, 0.0],  [1.0,  1.0,  1.0]]]
         MENU_POSITION = utils.cr((-0.48, 0.45))
@@ -159,61 +188,22 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         MAX_MESSAGE_LENGTH = [180,  [10,  1000]] #length of message displayed on screen
 
         ############# External hardware ######################
-        #parallel port
         ENABLE_PARALLEL_PORT = False
-        ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
-        ACQUISITION_STOP_PIN = [1,  PIN_RANGE]
-        FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
-        BLOCK_TRIGGER_PIN = [3,  PIN_RANGE]
+        ACQUISITION_TRIGGER_PIN = [0,  PARALLEL_PORT_PIN_RANGE]
+        ACQUISITION_STOP_PIN = [1,  PARALLEL_PORT_PIN_RANGE]
+        FRAME_TRIGGER_PIN = [2,  PARALLEL_PORT_PIN_RANGE]
+        BLOCK_TRIGGER_PIN = [3,  PARALLEL_PORT_PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         BLOCK_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
-        #filterwheel settings
-        ENABLE_FILTERWHEEL = False
-        FILTERWHEEL_SETTLING_TIME = [0.4,  [0,  20]]
-        FILTERWHEEL_VALID_POSITIONS = [[1, 6],  [[0, 0],  [100, 100]]]        
-#        FILTERWHEEL_SERIAL_PORT = [[{
-#                                    'port' :  port,
-#                                    'baudrate' : 115200,
-#                                    'parity' : serial.PARITY_NONE,
-#                                    'stopbits' : serial.STOPBITS_ONE,
-#                                    'bytesize' : serial.EIGHTBITS,                                    
-#                                    }]]        
-#        FILTERWHEEL_FILTERS = [[{
-#                                                'ND0': 1, 
-#                                                'ND10': 2, 
-#                                                'ND20': 3, 
-#                                                'ND30': 4, 
-#                                                'ND40': 5, 
-#                                                'ND50': 6, 
-#                                                }]]
+        FILTERWHEEL = {}
+        FILTERWHEEL['ENABLE'] = False
+        FILTERWHEEL['SETTLING_TIME'] = [0.4,  [0,  20]]
+        FILTERWHEEL['VALID_POSITIONS'] = [[1, 6],  [[0, 0],  [100, 100]]]
+        FILTERWHEEL['SERIAL_PORTS'] = []
+        FILTERWHEEL['FILTERS'] = []
         ENABLE_SHUTTER = False
         
-#                 DAQ_CONFIG = [[
-#         {
-#         'ANALOG_CONFIG' : 'aio', #'ai', 'ao', 'aio', 'undefined'
-#         'DAQ_TIMEOUT' : 1.0, 
-#         'AO_SAMPLE_RATE' : 100,
-#         'AI_SAMPLE_RATE' : 1000,
-#         'AO_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ao0:1',
-#         'AI_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ai9:0',        
-#         'MAX_VOLTAGE' : 5.0,
-#         'MIN_VOLTAGE' : 0.0,
-#         'DURATION_OF_AI_READ' : 1.0,
-#         'ENABLE' : True
-#         },
-#         {
-#         'ANALOG_CONFIG' : 'undefined',
-#         'DAQ_TIMEOUT' : 0.0, 
-#         'AO_SAMPLE_RATE' : 100,
-#         'AI_SAMPLE_RATE' : 1000,
-#         'AO_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ao0:1',
-#         'AI_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ai9:0',
-#         'MAX_VOLTAGE' : 5.0,
-#         'MIN_VOLTAGE' : 0.0,
-#         'DURATION_OF_AI_READ' : 1.0,
-#         'ENABLE' : True
-#         }
-#         ]]
+        ############# Graphical User Interface related ######################
         GUI = {}
         GUI['GREEN_LABELING_SUGGESTIONS'] = ['',
         'scaav 2/1 hsyn gcamp3', 
@@ -236,13 +226,15 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         GUI['GUI_REFRESH_PERIOD'] = 2.0
         GUI['EXPERIMENT_LOG_UPDATE_PERIOD'] = 60.0
         
+        ############# Experiment configuration/ experiment protocol related ######################
+        GUI_CONFIGURABLE_STIMULATION_DEVICES = ['led', 'two photon laser', 'polychrome', 'electrode']
+        STIMULATION_DEVICES = ['projector', 'display', 'microled']#If empy, experiment config is not overridden
+        STIMULATION_DEVICES.extend(GUI_CONFIGURABLE_STIMULATION_DEVICES)
+        PREFERRED_STIMULATION_DEVICES = ['led', 'two photon laser']
         STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
-        
-        MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
-        #OBSOLETE   GUI_DATA_SAVE_TIME = [10.0,  [0, 100]]#OBSOLETE   
-        #this function call is compulsory
-        self._create_parameters_from_locals(locals())
+        MAXIMUM_RECORDING_DURATION = [900, [0, 10000]]
+        self._create_parameters_from_locals(locals())#this function call is compulsory
 
     def _calculate_parameters(self):
         '''
@@ -336,11 +328,11 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
         
-class RetinalCaImagingElphysConfig(VisionExperimentConfig):
+class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
         ################ Ca imaging GUI #######################
-        PLATFORM = 'elphys_retinal_ca'
+        PLATFORM = 'elphys_retinal_ca'        
         STIM_RECORDS_ANALOG_SIGNALS = False
         ELPHYS_SIGNAL_CHANNEL_INDEX = [0, [0, 10]]
         MAX_PMT_VOLTAGE = [8.0,[0.0,15.0]]
@@ -357,8 +349,8 @@ class RetinalCaImagingElphysConfig(VisionExperimentConfig):
         SCANNER_TRIGGER_CONFIG = {'offset': 0.0, 'pulse_width': 20.0e-6, 'amplitude':5.0, 'enable':False}
         SINUS_CALIBRATION_MAX_LINEARITY_ERROR = [10e-2,[1e-5,50e-2]]
         CA_FRAME_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
-        PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
-                            'SIDE': {'AI' : 0,'COLOR': 'RED', 'ENABLE': False}}
+        PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
+                            'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
         DAQ_CONFIG = [
         {
         'ANALOG_CONFIG' : 'aio',
@@ -382,6 +374,13 @@ class RetinalCaImagingElphysConfig(VisionExperimentConfig):
         CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
         CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = False
         STIMULATION_FILE_READY_TIMEOUT = [10.0,  [0.0, 100.0]]
+        if 'gui' in sys.argv[0] and QtCore.QCoreApplication.instance() is not None: #if gui is the main module
+            screen_size = QtGui.QDesktopWidget().screenGeometry()
+            self.GUI['GUI_SIZE'] = utils.rc((screen_size.height(), screen_size.width()))
+        else:
+            self.GUI['GUI_SIZE'] = utils.rc((1024, 1280))
+                
+        
         self._create_parameters_from_locals(locals())
         
 class CorticalCaImagingConfig(VisionExperimentConfig):
@@ -408,7 +407,9 @@ class CorticalCaImagingConfig(VisionExperimentConfig):
                 screen_size = utils.cr((0.75*screen_size.width(), 0.9*screen_size.height()))
         MAX_REGISTRATION_TIME = [30.0, [0.5, 600.0]]
         GUI_STAGE_TIMEOUT = [30.0, [0.5, 60.0]]
-        DEFAULT_PMT_CHANNEL = ['pmtUGraw',  ['pmtUGraw', 'pmtURraw',  'undefined']]
+        IMAGING_CHANNELS = ['pmtUGraw', 'pmtURraw',  'undefined']
+        PMTS = {'TBD1': {'CHANNEL': 'pmtUGraw',  'COLOR': 'GREEN', 'ENABLE': True}, 
+                            'TBD2': {'CHANNEL' : 'pmtURraw','COLOR': 'RED', 'ENABLE': True}}
         GUI_POSITION = utils.cr((5, 5))
         GUI_SIZE = screen_size
         TAB_SIZE = utils.cr((0.27 * screen_size['col'], 0.6 * screen_size['row']))
