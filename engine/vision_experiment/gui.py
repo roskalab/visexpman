@@ -308,6 +308,7 @@ class AnimalFile(gui.WidgetControl):
         gui.WidgetControl.__init__(self, poller, config, widget)
         self.animal_files = self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config))
         self.check4animal_files_last_update = time.time()
+        self.enable_check4animal_files = True
         #Most recently modified file is selected
         if not context_animal_file is None:
             self.filename = context_animal_file
@@ -478,6 +479,7 @@ class AnimalFile(gui.WidgetControl):
             return
         self.printc('Searching for animal parameter files, please wait!')
         self.animal_files = self._get_animal_file_list(self.config.DATA_STORAGE_PATH, self.animal_files)
+        self.enable_check4animal_files=False
         self.poller.update_animal_file_list()
         self.printc('Done, animal file list updated')
         
@@ -500,6 +502,12 @@ class AnimalFile(gui.WidgetControl):
         self.poller.update_animal_file_list()
         
     def chec4new_animal_file(self):
+        '''
+        Disabled when files data strorage is searched. Reenabling is only possible when application restarts
+        The idea is that no periodic checking is necessary when user looks for animal file in data storage
+        '''
+        if not self.enable_check4animal_files:
+            return
         now = time.time()
         if introspect.is_test_running():
             check_time = 3.0

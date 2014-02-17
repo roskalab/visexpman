@@ -37,6 +37,7 @@ def is_network_available():
         return True
     except :
         return False
+    
         
 def resample_array(array, factor):
     '''

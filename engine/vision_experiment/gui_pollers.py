@@ -3013,6 +3013,7 @@ class VisexpGuiPoller(Poller):
         elif self.testmode ==4 or self.testmode ==5:
             for fn in os.listdir(tempfile.gettempdir()):
                 if 'animal_' in fn and '.hdf5' in fn:
+                    self.printc(fn)
                     shutil.move(os.path.join(tempfile.gettempdir(), fn), self.config.DATA_STORAGE_PATH)
             self.parent.central_widget.main_tab.setCurrentIndex(2)
             self.animal_file.search_data_storage()

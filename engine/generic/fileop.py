@@ -2,6 +2,9 @@
 import sys
 import os, re
 import os.path
+import ctypes
+import platform
+import sys
 import shutil
 import numpy
 import tempfile
@@ -96,8 +99,13 @@ def select_folder_exists(folders):
 ################# File system ####################
 
 def free_space(path):
-    s=os.statvfs(path)
-    return (s.f_bavail * s.f_frsize)
+    if platform.system() == 'Windows':
+        free_bytes = ctypes.c_ulonglong(0)
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(path), None, None, ctypes.pointer(free_bytes))
+        return free_bytes.value
+    elif platform.system() == 'Linux':
+        s=os.statvfs(path)
+        return (s.f_bavail * s.f_frsize)
     
 def set_file_dates(path, file_info):
     try:
@@ -671,7 +679,11 @@ class TestFileops(unittest.TestCase):
         
 #    @unittest.skip('')
     def test_01_pngsave(self):
-        import numpy, Image
+        import numpy
+        try:
+            import Image
+        except ImportError:
+            from PIL import Image
         from visexpman.engine.generic.introspect import hash_variables
         pic = numpy.zeros((233,234),numpy.uint8)
         pic[0,233]=255

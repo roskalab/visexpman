@@ -8,9 +8,11 @@ TEST_delete_files = False
 TEST_filterwheel = False
 TEST_goniometer = False
 TEST_invalid_file = /home
+TEST_machine_info = ('Linux', 'rzws1', '3.5.0-41-generic', '#64~precise1-Ubuntu SMP Thu Sep 12 16:50:04 UTC 2013', 'x86_64', 'x86_64')
 TEST_mes = False
 TEST_no_user_action = False
-TEST_os = posix
+TEST_os = Linux
+TEST_osuser = rz
 TEST_parallel_port = False
 TEST_priority_unittests = ['testVisionExperimentGui.test_10_remove_experiment_log_entry', 'testVisionExperimentGui.test_01_select_stimfile']
 TEST_remote_focus = False
@@ -87,6 +89,6 @@ test_30_invalid_dict_parameter (visexpman.engine.generic.parameter.testParameter
 test_35_set_out_of_range_value (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 60 tests in 119.678s
+Ran 60 tests in 125.240s
 
 OK (skipped=1)

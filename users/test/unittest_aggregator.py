@@ -8,6 +8,8 @@ import tempfile
 import time
 import shutil
 import argparse
+import platform
+import getpass
 TEST_test = 'unittest_aggregator' in sys.argv[0] or 'code_tester' in sys.argv[0]
 
 if TEST_test:
@@ -55,10 +57,11 @@ else:
     TEST_short = False
     TEST_delete_files = False
 
-TEST_os = os.name
-if hasattr(os,  'uname'):
-    if os.uname()[0] != 'Linux':
-        TEST_os = 'osx'
+TEST_os = platform.system()
+TEST_machine_info = platform.uname()
+TEST_osuser = getpass.getuser()
+if TEST_os == 'Darwin':
+    TEST_os = 'OSX'
 ################# Test parameters ####################
 #For running automated tests, network operations have to be disabled for visexp_runner
 #TEST_enable_network = not TEST_test
@@ -67,7 +70,10 @@ if hasattr(os,  'uname'):
 
 TEST_working_folder = ['/mnt/rzws/share/work', 'r:\\work']
 TEST_results_folder = ['/mnt/rzws/share/test_results', 'r:\\test_results']
-TEST_valid_file =  '/mnt/datafast/context/image.hdf5'
+if TEST_os == 'Linux':
+    TEST_valid_file =  '/mnt/datafast/context/image.hdf5'
+elif TEST_os == 'Windows':
+    TEST_valid_file =  'v:\\context\\image.hdf5'
 TEST_invalid_file = '/home'
 
 #if TEST_os == 'nt':
@@ -355,7 +361,7 @@ class UnitTestRunner(object):
         source_zip.write(self.test_log,  'test_results.txt')
         source_zip.close()
         #Copy testt log to visexpman/data
-        shutil.copy(self.test_log, os.path.join(package_path,'visexpman','data','unit_test_results.txt'))
+        shutil.copy(self.test_log, os.path.join(package_path,'visexpman','data','unit_test_results_{0}.txt'.format(TEST_machine_info[1])))
         
         
 

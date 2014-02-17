@@ -1182,6 +1182,8 @@ class VisionExperimentGui(Qt.QMainWindow):
 
     def update_experiment_parameter_table(self):
         experiment_config_name = os.path.split(str(self.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText()))[-1]
+        if not self.poller.experiment_control.experiment_config_classes.has_key(experiment_config_name):
+            return
         pars = {}
         for par in self.poller.experiment_control.experiment_config_classes[experiment_config_name]:
             parname = (par.split('='))[0]

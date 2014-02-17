@@ -30,7 +30,7 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.PAUSE_BEFORE_AFTER = 0.0
         self.runnable = 'MovingGrating1'
         self._create_parameters_from_locals(locals())
-        
+
 class MovingGrating1(stimuli.MovingGrating):
     def run(self, fragment_id=0):
         shutil.rmtree(self.machine_config.CAPTURE_PATH)
