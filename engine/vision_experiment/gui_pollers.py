@@ -11,7 +11,10 @@ import webbrowser
 import copy
 import tempfile
 import scipy.io
-import Image
+try:
+    import Image
+except ImportError:
+    from PIL import Image
 
 if os.name == 'nt':
     import winsound
@@ -1887,7 +1890,10 @@ class CorticalGUIPoller(Poller):
             f1 = self.cutout_subimage(f1, box, scale, origin)
             f2 = self.cutout_subimage(f2, box, scale, origin)
             if False:
-                import Image
+                try:
+                    import Image
+                except ImportError:
+                    from PIL import Image
                 from visexpA.engine.dataprocessors import generic
                 Image.fromarray(generic.normalize(f1,  numpy.uint8)).save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f1.png')))
                 Image.fromarray(generic.normalize(f2,  numpy.uint8)).save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f2.png')))

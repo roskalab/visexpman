@@ -1,5 +1,7 @@
-import Image
-import ImageDraw
+try:
+    import Image, ImageDraw
+except ImportError:
+    from PIL import Image, ImageDraw
 import numpy
 
 class ToroidScreen(object):

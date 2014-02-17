@@ -3,7 +3,10 @@ import os
 import numpy
 import math
 import time
-import Image
+try:
+    import Image
+except ImportError:
+    from PIL import Image
 import inspect
 import re
 

@@ -21,8 +21,11 @@ try:
 except ImportError:
     import zlib as compressor
 if os.name == 'nt':
-    import win32process
-    import win32api
+    try:
+        import win32process
+        import win32api
+    except ImportError:
+        pass
 
 import fileop
 import introspect
@@ -151,7 +154,11 @@ def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  col
     pos : x, y position in pixels, center is 0, 0
     '''
     vertices = calculate_circle_vertices([diameter,  diameter],  resolution)
-    import Image,  ImageDraw,  numpy
+    try:
+        import Image, ImageDraw
+    except ImportError:
+        from PIL import Image, ImageDraw
+    import numpy
     image = Image.new('L',  image_size,  0)
     draw = ImageDraw.Draw(image)
     

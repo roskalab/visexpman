@@ -4,7 +4,10 @@ import sys
 import os
 import random
 import numpy
-import Image
+try:
+    import Image
+except ImportError:
+    from PIL import Image
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *

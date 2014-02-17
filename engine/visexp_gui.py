@@ -13,9 +13,12 @@ import re
 import copy
 import cPickle as pickle
 import scipy.ndimage
-import Image
-import ImageDraw
-import ImageFont
+try:
+    import Image
+    import ImageDraw
+    import ImageFont
+except ImportError:
+    from PIL import Image, ImageDraw, ImageFont
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui

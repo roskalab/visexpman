@@ -619,7 +619,10 @@ def getziphandler(zipstream):
 
 def check_png_hashes(fname,function,*args,**kwargs):
         '''Checks whether the function code and argument hashes exist in the png file and updates them if necessary'''
-        import Image 
+        try:
+            import Image
+        except ImportError:
+            from PIL import Image 
         from visexpA.engine.dataprocessors.generic import check_before_long_calculation
         fh=None;ah=None
         if os.path.exists(fname):

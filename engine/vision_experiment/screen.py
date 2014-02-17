@@ -7,7 +7,10 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import colors
 from visexpman.engine.generic import graphics
 from visexpman.engine.generic import fileop
-import Image
+try:
+    import Image
+except ImportError:
+    from PIL import Image
 
 from OpenGL.GL import *#TODO: perhaps this is not necessary
 from OpenGL.GLUT import *
