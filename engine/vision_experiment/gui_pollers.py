@@ -2690,7 +2690,13 @@ class VisexpGuiPoller(Poller):
                                      'self.parent.log.filename', 
                                      ]
         self.context_paths['widgets'] = [
-                                          'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name', 
+                                          'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText',
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.currentIndex', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.recording_channel.list.selectedIndexes', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.enable_scanner_synchronization.checkState', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.input.text', 
                                           ]
         self.context = {}
         for k in self.context_paths.keys():
@@ -2751,9 +2757,13 @@ class VisexpGuiPoller(Poller):
                 context['variables'][varname] = context['variables'][varname]()
         context['widgets'] = {}
         for varname in self.context_paths['widgets']:
-            ref = introspect.string2objectreference(self,varname)
-            if hasattr(ref, 'currentText'):
-                context['widgets'][varname] = str(getattr(ref, 'currentText')())
+            context['widgets'][varname] = introspect.string2objectreference(self,varname)
+            if hasattr(context['widgets'][varname], '__call__'):
+                context['widgets'][varname] = context['widgets'][varname]()
+                if hasattr(context['widgets'][varname], 'isSimpleText'):
+                    context['widgets'][varname] = str(context['widgets'][varname])
+                elif isinstance(context['widgets'][varname], list):#Qlistwidget selected rows
+                    context['widgets'][varname] = [s.row() for s in context['widgets'][varname]]
         hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(context), self.config,  overwrite = True)
 
     def init_network(self):

@@ -1,4 +1,4 @@
-[u'/mnt/rzws/codes/zdev/visexpman/users/test/unittest_aggregator.py']
+['/mnt/rzws/codes/zdev/visexpman/users/test/unittest_aggregator.py']
 
 ################# Test parameters ####################
 TEST_consider_frame_rate = False
@@ -89,6 +89,6 @@ test_30_invalid_dict_parameter (visexpman.engine.generic.parameter.testParameter
 test_35_set_out_of_range_value (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 60 tests in 125.240s
+Ran 60 tests in 128.365s
 
 OK (skipped=1)

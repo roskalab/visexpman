@@ -978,39 +978,6 @@ class GuiTest(QtCore.QThread):
     def printc(self, text):
         self.emit(QtCore.SIGNAL('printc'), text)
         
-class MainWidget(QtGui.QWidget):
-    def __init__(self, parent):
-        QtGui.QWidget.__init__(self, parent)
-        self.config = parent.config
-        self.create_widgets()
-        self.create_layout()
-        
-    def create_widgets(self):
-        self.experiment_control_groupbox = gui.ExperimentControlGroupBox(self)
-        self.experiment_control_groupbox.setFixedWidth(350)
-        self.experiment_control_groupbox.setFixedHeight(150)
-        if self.config.PLATFORM == 'elphys_retinal_ca':
-            self.experiment_options_groupbox = gui.RetinalExperimentOptionsGroupBox(self)
-        elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
-            self.experiment_options_groupbox = gui.CorticalExperimentOptionsGroupBox(self)
-        self.experiment_options_groupbox.setFixedWidth(350)
-        self.experiment_options_groupbox.setFixedHeight(400)
-        self.experiment_parameters = gui.ExperimentParametersGroupBox(self)
-        self.experiment_parameters.setFixedWidth(400)
-        self.experiment_parameters.setFixedHeight(400)
-        self.experiment_parameters.values.setColumnWidth(0, 200)
-        self.network_status = QtGui.QLabel('', self)
-
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
-        self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 2, 1)
-        self.layout.addWidget(self.experiment_parameters, 0, 1, 2, 1)
-        self.layout.addWidget(self.network_status, 3, 0, 1, 1)
-        self.layout.setRowStretch(10, 5)
-        self.layout.setColumnStretch(5,10)
-        self.setLayout(self.layout)
-        
 class CentralWidget(QtGui.QWidget):
     def __init__(self, parent, config):
         QtGui.QWidget.__init__(self, parent)
@@ -1019,7 +986,7 @@ class CentralWidget(QtGui.QWidget):
         self.create_layout()
         
     def create_widgets(self):
-        self.main_widget = MainWidget(self)
+        self.main_widget = gui.MainWidget(self)
         self.animal_parameters_groupbox = gui.AnimalParametersGroupbox(self, self.config)
         self.experiment_log_groupbox = gui.ExperimentLogGroupbox(self)
         self.main_tab = QtGui.QTabWidget(self)
@@ -1077,9 +1044,17 @@ class VisionExperimentGui(Qt.QMainWindow):
         '''
         #Set widget values from context
         for widget_path in self.poller.context['widgets']:
-            ref = introspect.string2objectreference(self,widget_path.replace('.parent', ''))
-            if hasattr(ref, 'setEditText'):
+            ref = introspect.string2objectreference(self,'.'.join(widget_path.replace('.parent', '').split('.')[:-1]))
+            if hasattr(ref, 'setCheckState'):
+                getattr(ref, 'setCheckState')(self.poller.context['widgets'][widget_path])
+            elif hasattr(ref, 'setText'):
+                getattr(ref, 'setText')(self.poller.context['widgets'][widget_path])
+            elif isinstance(self.poller.context['widgets'][widget_path], int) and hasattr(ref, 'setCurrentIndex'):
+                getattr(ref, 'setCurrentIndex')(self.poller.context['widgets'][widget_path])
+            elif isinstance(self.poller.context['widgets'][widget_path], str) and hasattr(ref, 'setEditText'):
                 getattr(ref, 'setEditText')(self.poller.context['widgets'][widget_path])
+            elif isinstance(self.poller.context['widgets'][widget_path], list):
+                [getattr(ref,'item')(index).setSelected(True) for index in self.poller.context['widgets'][widget_path]]
         self.update_experiment_parameter_table()
         self.update_animal_file_list()
         self.update_animal_parameters_table()
@@ -1412,7 +1387,7 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         self._call_gui(7)
         context = self._read_context()
-        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'], 
+        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename')
                           ), (
                           'DebugExperimentConfig', False
@@ -1426,7 +1401,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self._call_gui(0)
         self._call_gui(8)
         context = self._read_context()
-        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'], 
+        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename')
                           ), (
                           'GUITestExperimentConfig', False
@@ -1442,7 +1417,7 @@ class testVisionExperimentGui(unittest.TestCase):
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=9)
         context = self._read_context()
         explog = hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config)
-        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'], 
+        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename'), 
                           os.path.split(context['variables']['self.animal_file.filename'])[1], 
                           len(explog)
@@ -1462,7 +1437,7 @@ class testVisionExperimentGui(unittest.TestCase):
         context = self._read_context()
         explog = hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config)
         explog2 = hdf5io.read_item(context['variables']['self.animal_file.animal_files.keys'][1], 'log', self.machine_config)
-        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'], 
+        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename'), 
                           os.path.split(context['variables']['self.animal_file.filename'])[1], 
                           len(explog), 

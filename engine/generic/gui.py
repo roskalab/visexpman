@@ -42,27 +42,6 @@ class LabeledInput(QtGui.QWidget):
         self.layout.addWidget(self.input, 0, 1)
         self.setLayout(self.layout)
 
-class LabeledCheckBox(QtGui.QWidget):
-    '''
-    Default value in input field:
-        self.input.setText(TEXT)
-    '''
-    def __init__(self, parent, label):
-        QtGui.QWidget.__init__(self, parent)
-        self.label = label
-        self.create_widgets()
-        self.create_layout()
-
-    def create_widgets(self):
-        self.labelw = QtGui.QLabel(self.label, self)
-        self.input = QtGui.QCheckBox(self)
-
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.labelw, 0, 0)
-        self.layout.addWidget(self.input, 0, 1)
-        self.setLayout(self.layout)
-
 class LabeledComboBox(QtGui.QWidget):
     '''
     Default value in input field:

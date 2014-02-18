@@ -366,7 +366,8 @@ def get_context_filename(config):
     '''
     if not hasattr(config, 'CONTEXT_PATH'):
         raise RuntimeError('CONTEXT_PATH is not defined in machine config')
-    filename = 'context_{0}_{1}.hdf5'.format(config.application_name, config.user)
+    import platform
+    filename = 'context_{0}_{1}_{2}.hdf5'.format(config.application_name, config.user, platform.uname()[1])
     return os.path.join(config.CONTEXT_PATH, filename)
     
 def get_logfilename(config):

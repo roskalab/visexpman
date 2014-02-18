@@ -66,7 +66,7 @@ class StandardIOWidget(QtGui.QWidget):
         self.layout.setRowStretch(300, 300)
         self.layout.setColumnStretch(0, 100)
         self.setLayout(self.layout)
-
+        
 class ExperimentLogGroupbox(QtGui.QGroupBox):
     def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, '', parent)
@@ -80,7 +80,8 @@ class ExperimentLogGroupbox(QtGui.QGroupBox):
         self.new_entry = AddExperimentLogEntryGroupbox(self)
         self.remove_button = QtGui.QPushButton('Remove entry', self)
         self.remove_button.setToolTip('Before pressing this button, select removeable item(s).')
-        self.show_experiments = gui.LabeledCheckBox(self, 'Show experiments')
+        self.show_experiments = QtGui.QCheckBox(self)
+        self.show_experiments.setText('Show experiments')
         self.show_experiments.setToolTip('If checked, recordings are displayed with experiment logs')
         
     def create_layout(self):
@@ -786,7 +787,8 @@ class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
         self.stimulation_device.setToolTip('''Empty: the experiment and experiment class will be executed as it is\n
 Any stimulation device: stimulation will be presented by the selected device,\n
 but any of {0}:\n Selected Experiment config is ignored, parameters are taken from user interface'''.format(self.parent().config.GUI_CONFIGURABLE_STIMULATION_DEVICES))
-        self.enable_scanner_synchronization = gui.LabeledCheckBox(self, 'Scanner-stimulus synchronization')
+        self.enable_scanner_synchronization = QtGui.QCheckBox(self)
+        self.enable_scanner_synchronization.setText('Scanner-stimulus synchronization')
         self.enable_scanner_synchronization.setToolTip('Synchronize stimulation with two photon scanning')
         rec_channels = ['Electrophysiology signal']
         rec_channels.extend(['Calcium fluorescence, ' + item+' PMT' for item in self.parent().config.PMTS.keys()])
@@ -1162,30 +1164,39 @@ class OverviewWidget(QtGui.QWidget):
         self.setLayout(self.layout)
         
 ################### Application widgets #######################
-#TODO: needs to be moved elsewhere
 class MainWidget(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.config = parent.config
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
         
     def create_widgets(self):
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
-        self.scan_region_groupbox = ScanRegionGroupBox(self)
-        self.measurement_datafile_status_groupbox = AnalysisStatusGroupbox(self)
+        self.experiment_control_groupbox.setFixedWidth(350)
+        self.experiment_control_groupbox.setFixedHeight(150)
+        if self.config.PLATFORM == 'elphys_retinal_ca':
+            self.experiment_options_groupbox = RetinalExperimentOptionsGroupBox(self)
+        elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
+            self.experiment_options_groupbox = CorticalExperimentOptionsGroupBox(self)
+        self.experiment_options_groupbox.setFixedWidth(350)
+        self.experiment_options_groupbox.setFixedHeight(400)
+        self.experiment_parameters = ExperimentParametersGroupBox(self)
+        self.experiment_parameters.setFixedWidth(400)
+        self.experiment_parameters.setFixedHeight(400)
+        self.experiment_parameters.values.setColumnWidth(0, 200)
+        self.network_status = QtGui.QLabel('', self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 2, 4)
-#        self.layout.addWidget(self.set_objective_value_button, 2, 8, 1, 1)
-        self.layout.addWidget(self.scan_region_groupbox, 2, 0, 2, 4)
-        self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 10, 4)
-        self.layout.setRowStretch(10, 10)
-        self.layout.setColumnStretch(10, 10)
+        self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
+        self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 2, 1)
+        self.layout.addWidget(self.experiment_parameters, 0, 1, 2, 1)
+        self.layout.addWidget(self.network_status, 3, 0, 1, 1)
+        self.layout.setRowStretch(10, 5)
+        self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
-        
+
 class CommonWidget(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
