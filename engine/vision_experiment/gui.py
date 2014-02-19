@@ -1170,25 +1170,55 @@ class ImagesWidget(QtGui.QWidget):
         
     def create_widgets(self):
 #        return        
-        import pyqtgraph as pg
+#        import pyqtgraph as pg
 
 
-        self.select_cell_label = QtGui.QLabel('Select cell',  self)
-        self.v = pg.GraphicsView()
-        self.vb = pg.ViewBox(enableMouse=not False)
-        s = self.vb.getState()
-        s['autoRange'] = [False, False]
-        self.vb.setState(s)
-        self.vb.setAspectLocked()
-        self.v.setCentralItem(self.vb)
-        self.img = pg.ImageItem(numpy.random.random((300,300, 3)))
+        self.snap = QtGui.QPushButton('Snap', self)
+        self.imagefilter = gui.LabeledComboBox(self, 'Filter', items = ['median_filter'])
+        self.imagechannel = gui.LabeledComboBox(self, 'Channel', items = self.config.PMTS.keys())
+        
+        self.v=QtGui.QGraphicsView(self)
+        scene = QtGui.QGraphicsScene(self.v)
+        self.v.setScene(scene)
+        
+        img = numpy.random.random((200,100, 3))
+        scene.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage(img, img.shape[1], img.shape[0], 3*img.shape[1], QtGui.QImage.Format_RGB888)))
+        self.v.scale(1, 1)
+        
+#        scene.addLine(0, 0, 1000, 1000)
+
+
+
+
+        import PyQt4.Qwt5 as Qwt5
+        self.plot = Qwt5.QwtPlot(self)
+        
+        self.max = QtGui.QSlider(QtCore.Qt.Horizontal, self)
+        self.min = QtGui.QSlider(QtCore.Qt.Horizontal, self)
+        
+        
+#        self.v = pg.GraphicsView(background = pg.mkColor(150,150,150))
+#        self.vb = pg.ViewBox(enableMouse=not False)
+##        s = self.vb.getState()
+##        s['autoRange'] = [False, False]
+##        self.vb.setState(s)
+#        self.vb.setAspectLocked()
+#        self.v.setCentralItem(self.vb)
+#        self.img = pg.ImageItem()
 #        self.img.scale(0.1, 0.1)
-        self.vb.addItem(self.img)
+#        self.vb.addItem(self.img)
+#        g=pg.GridItem()
+#        self.vb.addItem(g)
+#        self.lut = pg.HistogramLUTItem(self.img)
+#        self.vb.addItem(self.lut)
+        
+        
+        
 #        self.vb.menu.ctrl[0].mouseCheck.setChecked(0)
 #        self.vb.menu.ctrl[1].mouseCheck.setChecked(0)
-        scale = pg.ScaleBar(size=100)
-        scale.setParentItem(self.vb)
-        scale.anchor((1, 1), (1, 1), offset=(-40, -40))
+#        scale = pg.ScaleBar(size=100, width=10,  brush=pg.mkBrush(color=[255,255,255]))
+#        scale.setParentItem(self.vb)
+#        scale.anchor((1, 1), (1, 1), offset=(-40, -40))
 #        self.img.setImage(numpy.random.random((300,300,3)))
         
 #        self.img= CImage(numpy.zeros((self.meanimg_size,self.meanimg_size,3),dtype = numpy.uint8), self)
@@ -1210,8 +1240,13 @@ class ImagesWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         
-        self.layout.addWidget(self.select_cell_label, 0, 0)
-        self.layout.addWidget(self.v, 1, 0)
+        self.layout.addWidget(self.snap, 0, 0)
+        self.layout.addWidget(self.imagechannel, 0, 1)
+        self.layout.addWidget(self.imagefilter, 0, 2)
+        self.layout.addWidget(self.v, 1, 0, 1, 3)
+        self.layout.addWidget(self.plot, 2, 0, 1, 3)
+        self.layout.addWidget(self.max, 3, 0, 1, 1)
+        self.layout.addWidget(self.min, 3, 1, 1, 1)
         
         self.setLayout(self.layout)
         
