@@ -180,11 +180,10 @@ class ParameterTable(QtGui.QTableWidget):
         current_values = {}
         for row in range(self.rowCount()):
             parname = str(self.item(row,0).text())
-            if hasattr(self.item(row,1), 'text') and self.cellWidget(row,1) is None:
-                if hasattr(self.item(row,1), 'toolTip'):
+            if hasattr(self.item(row,1), 'text') and self.cellWidget(row,1) is None and hasattr(self.item(row,1), 'toolTip'):
                     current_values[parname] = [str(self.item(row,1).text()), str(self.item(row,1).toolTip())]
-                else:
-                    current_values[parname] = str(self.item(row,1).text())
+            elif hasattr(self.item(row,1), 'text'):
+                current_values[parname] = str(self.item(row,1).text())
             elif hasattr(self.cellWidget(row,1), 'date'):
                 date = self.cellWidget(row,1).date()
                 current_values[parname] = '{0}-{1}-{2}'.format(date.day(), date.month(), date.year())

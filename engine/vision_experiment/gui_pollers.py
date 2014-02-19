@@ -2683,11 +2683,12 @@ class VisexpGuiPoller(Poller):
         self.analog_recording_started=False
         self.context_paths = {}
         self.context_paths['variables'] = ['self.experiment_control.experiment_config_classes.keys', 
-                                     'self.parent.central_widget.main_widget.experiment_parameters.values.rowCount', 
-                                     'self.experiment_control.user_selected_stimulation_module', 
+                                     'self.parent.central_widget.main_widget.experiment_parameters.values.rowCount',#only used by unittest
+                                     'self.experiment_control.user_selected_stimulation_module', #only used by unittest
                                      'self.animal_file.filename', 
-                                     'self.animal_file.animal_files.keys', 
-                                     'self.parent.log.filename', 
+                                     'self.animal_file.animal_files.keys', #only used by unittest
+                                     'self.parent.log.filename', #only used by unittest
+                                     'self.parent.central_widget.parameters_groupbox.machine_parameters', 
                                      ]
         self.context_paths['widgets'] = [
                                           'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText',
@@ -2709,8 +2710,6 @@ class VisexpGuiPoller(Poller):
         context_experiment_config_file = None
         if self.context['widgets'].has_key('self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'):
             expname = self.context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name']
-#            if os.path.exists(expname):
-#                context_experiment_config_file = os.path.split(context_experiment_config_file)[0]
             if os.path.exists(os.path.split(expname)[0]):
                 context_experiment_config_file = os.path.split(expname)[0]
         self.experiment_control = gui.ExperimentControl(self, self.config, 
@@ -2723,8 +2722,10 @@ class VisexpGuiPoller(Poller):
         self.animal_file = gui.AnimalFile(self, self.config, self.parent.central_widget.animal_parameters_groupbox, 
                                                       context_animal_file = context_animal_file)
         self.experiment_log = gui.ExperimentLog(self, self.config, self.parent.central_widget.experiment_log_groupbox)
-        
-        
+        #Init machine parameters
+        if self.context['variables'].has_key('self.parent.central_widget.parameters_groupbox.machine_parameters'):
+            self.parent.central_widget.parameters_groupbox.machine_parameters = self.context['variables']['self.parent.central_widget.parameters_groupbox.machine_parameters']
+
     def connect_signals(self):
         self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
         self.connect(self, QtCore.SIGNAL('ask4confirmation'),  self.parent.ask4confirmation)

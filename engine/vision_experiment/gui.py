@@ -23,6 +23,7 @@ from visexpman.engine.generic import gui
 from visexpman.engine.generic import fileop
 from visexpman.engine.generic import stringop
 from visexpman.engine.generic import introspect
+from visexpman.engine.generic import utils
 
 BUTTON_HIGHLIGHT = 'color: red'#TODO: this has to be eliminated
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -864,7 +865,48 @@ class CorticalExperimentOptionsGroupBox(QtGui.QGroupBox):
             self.layout.addWidget(self.experiment_progress, 3, 0, 1, 2)
         else:
             self.layout.addWidget(self.experiment_progress, 3, 0, 1, 4)
-        self.setLayout(self.layout)        
+        self.setLayout(self.layout)
+
+class CalibrationGroupbox(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, '', parent)
+        self.config=self.parent().config
+        self.create_widgets()
+        self.create_layout()
+    
+    def create_widgets(self):
+        pass
+        
+    def create_layout(self):
+        pass
+        
+class MachineParametersGroupbox(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, '', parent)
+        self.config=self.parent().config
+        self.create_widgets()
+        self.create_layout()
+        self.machine_parameters = {}
+        self.machine_parameters['scanner'] = {'Image center':  '0, 0#Center of scanning, format: (row, col) [um]', 
+                                                                        'Trigger width': '0#Length of trigger pulse that switches on the stimulation device in us', 
+                                                                        'Trigger delay': '0#[us]'}
+                                                                        
+        self.machine_parameter_order = {}
+        self.machine_parameter_order['scanner'] = ['Image center', 'Trigger width', 'Trigger delay']
+
+    def create_widgets(self):
+        self.table = {}
+        self.scanner_section_title = QtGui.QLabel('Scanner parameters', self)
+        self.table['scanner'] = gui.ParameterTable(self)
+        self.table['scanner'].setFixedWidth(450)
+        self.table['scanner'].setFixedHeight(550)
+        self.table['scanner'].setColumnWidth(0, 250)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.scanner_section_title, 0, 0, 1, 1)
+        self.layout.addWidget(self.table['scanner'], 1, 0, 1, 1)
+        self.setLayout(self.layout)
 
 class FlowmeterControl(QtGui.QGroupBox):
     def __init__(self, parent):
@@ -1116,31 +1158,61 @@ class RoiWidget(QtGui.QWidget):
 
 ################### Image display #######################
 class ImagesWidget(QtGui.QWidget):
+    '''
+    Depends on platform
+    '''
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.config = parent.config
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.OVERVIEW_IMAGE_SIZE['col'], self.config.OVERVIEW_IMAGE_SIZE['row'])
+        
         
     def create_widgets(self):
-        self.image_display = []
-        for i in range(4):
-            self.image_display.append(QtGui.QLabel())
-        self.blank_image = 128*numpy.ones((self.config.IMAGE_SIZE['col'], self.config.IMAGE_SIZE['row']), dtype = numpy.uint8)
-        for image in self.image_display:
-            image.setPixmap(imaged.array_to_qpixmap(self.blank_image))
+#        return        
+        import pyqtgraph as pg
+
+
+        self.select_cell_label = QtGui.QLabel('Select cell',  self)
+        self.v = pg.GraphicsView()
+        self.vb = pg.ViewBox(enableMouse=not False)
+        s = self.vb.getState()
+        s['autoRange'] = [False, False]
+        self.vb.setState(s)
+        self.vb.setAspectLocked()
+        self.v.setCentralItem(self.vb)
+        self.img = pg.ImageItem(numpy.random.random((300,300, 3)))
+#        self.img.scale(0.1, 0.1)
+        self.vb.addItem(self.img)
+#        self.vb.menu.ctrl[0].mouseCheck.setChecked(0)
+#        self.vb.menu.ctrl[1].mouseCheck.setChecked(0)
+        scale = pg.ScaleBar(size=100)
+        scale.setParentItem(self.vb)
+        scale.anchor((1, 1), (1, 1), offset=(-40, -40))
+#        self.img.setImage(numpy.random.random((300,300,3)))
+        
+#        self.img= CImage(numpy.zeros((self.meanimg_size,self.meanimg_size,3),dtype = numpy.uint8), self)
+#        self.img_view=QtGui.QGraphicsView(self)
+#        self.img_scene=QtGui.QGraphicsScene(self.img_view)
+#        self.img_view.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform | QtGui.QPainter.TextAntialiasing)
+#        self.img_scene.addWidget(self.img)
+#        self.img_view.setScene(self.img_scene)
+#        return
+#        self.image_display = []
+#        for i in range(4):
+#            self.image_display.append(QtGui.QLabel())
+#        self.blank_image = 128*numpy.ones((100, 100), dtype = numpy.uint8)
+#        for image in self.image_display:
+#            image.setPixmap(imaged.array_to_qpixmap(self.blank_image))
             
-    def clear_image_display(self, index):
-        self.image_display[index].setPixmap(imaged.array_to_qpixmap(self.blank_image))
+    
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        for i in range(len(self.image_display)):
-            self.layout.addWidget(self.image_display[i], i/2, (i%2)*2, 1, 1)
         
-        self.layout.setRowStretch(3, 3)
-        self.layout.setColumnStretch(3, 3)
+        self.layout.addWidget(self.select_cell_label, 0, 0)
+        self.layout.addWidget(self.v, 1, 0)
+        
         self.setLayout(self.layout)
         
 class OverviewWidget(QtGui.QWidget):

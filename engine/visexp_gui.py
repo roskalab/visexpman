@@ -989,12 +989,19 @@ class CentralWidget(QtGui.QWidget):
         self.main_widget = gui.MainWidget(self)
         self.animal_parameters_groupbox = gui.AnimalParametersGroupbox(self, self.config)
         self.experiment_log_groupbox = gui.ExperimentLogGroupbox(self)
+        self.calibration_groupbox = gui.CalibrationGroupbox(self)
+        self.parameters_groupbox = gui.MachineParametersGroupbox(self)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Main')
         self.main_tab.addTab(self.experiment_log_groupbox, 'Experiment log')
         self.main_tab.addTab(self.animal_parameters_groupbox, 'Animal parameters')
+        self.main_tab.addTab(self.parameters_groupbox, 'Parameters')
+        self.main_tab.addTab(self.calibration_groupbox, 'Calibration')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setFixedHeight(self.config.GUI['GUI_SIZE']['row']*0.7)
+        self.main_tab.setMaximumWidth(self.config.GUI['GUI_SIZE']['col']*0.6)
+        self.images = gui.ImagesWidget(self)
+        
         
         self.text_out = QtGui.QTextEdit(self)
         self.text_out.setPlainText('')
@@ -1005,13 +1012,17 @@ class CentralWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.main_tab, 0, 0, 1, 1)
-        self.layout.addWidget(self.text_out, 1,  0, 1, 1)
+        self.layout.addWidget(self.images, 0, 1, 1, 1)
+        self.layout.addWidget(self.text_out, 1,  0, 1, 2)
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
     def __init__(self, user, config_class, application_name, testmode=None):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
+#            qt_app.setStyleSheet(fileop.read_text_file('/home/rz/Downloads/QTDark.stylesheet'))
+#            qt_app.setStyle('windows')
+            
         import visexpman.engine
         self.source_name = 'gui-{0}' .format(application_name)
         self.config, self.log = visexpman.engine.application_init(user=user, config=config_class, application_name = application_name, log_sources = [self.source_name])
@@ -1060,12 +1071,14 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.update_animal_parameters_table()
         self.update_experiment_log_suggested_date()
         self.update_experiment_log()
+        self.update_machine_parameters()
 #        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
         self.connect(self.central_widget.main_widget.experiment_control_groupbox.experiment_name, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.experiment_name_changed)
         self.connect(self.central_widget.animal_parameters_groupbox.animal_filename.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.animal_filename_changed)
         self.connect(self.central_widget.animal_parameters_groupbox.animal_filename.input, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
+        self.connect(self.central_widget.parameters_groupbox.table['scanner'], QtCore.SIGNAL('cellChanged(int,int)'),  self.machine_parameter_table_content_changed)
 #        self.connect(self.central_widget.animal_parameters_groupbox.animal_filename, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
         #Signals mapped to poller functions
         self.signal_mapper = QtCore.QSignalMapper(self)
@@ -1123,8 +1136,17 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.poller.animal_file.filename = str(self.central_widget.animal_parameters_groupbox.animal_filename.input.currentText())
         #poller/animal parameters class needs to load animal parameters from selected file
         self.poller.animal_file.load()
+        
+    def machine_parameter_table_content_changed(self):
+        self.central_widget.parameters_groupbox.machine_parameters['scanner'] = self.central_widget.parameters_groupbox.table['scanner'].get_values()
     
     ################# Update widgets #################### 
+    def update_machine_parameters(self):
+        self.central_widget.parameters_groupbox.table['scanner'].blockSignals(True)
+        self.central_widget.parameters_groupbox.table['scanner'].set_values(self.central_widget.parameters_groupbox.machine_parameters['scanner'], 
+                                                                            self.central_widget.parameters_groupbox.machine_parameter_order['scanner'])
+        self.central_widget.parameters_groupbox.table['scanner'].blockSignals(False)
+        
     def update_experiment_log(self):
         if not hasattr(self.poller.animal_file, 'log'):
             return
