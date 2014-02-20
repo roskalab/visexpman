@@ -148,17 +148,13 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
-        DATA_STORAGE_PATH = fileop.select_folder_exists(['/mnt/datafast/debug/animalfiles','v:\\debug\\animalfiles'])
+        DATA_STORAGE_PATH = fileop.select_folder_exists(['/mnt/datafast/debug/animalfiles','v:\\debug\\animalfiles', '/home/zoltan/Downloads'])
         CONTEXT_PATH = self.root_folder
-        self.CONTEXT_NAME = '2pdev1.hdf5'
         EXPERIMENT_FILE_FORMAT = 'hdf5'
-#        EXPERIMENT_FILE_FORMAT = 'mat'
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         
         #### Network ####
-#        ENABLE_UDP_TRIGGER= False
-#        UDP_PORT = 446
         if os.name != 'nt':
             self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
         else:
@@ -224,6 +220,7 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         self.CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = True
         MAIN_IMAGE_SIZE = utils.rc((500,500))
         self.GUI['GUI_SIZE'] =  utils.cr((1280,1024))
+#        self.GUI['GUI_SIZE'] =  utils.cr((1024,700))
 #        if os.name == 'nt':
 #            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
         self._create_parameters_from_locals(locals())

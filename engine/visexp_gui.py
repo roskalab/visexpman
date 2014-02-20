@@ -1055,6 +1055,8 @@ class VisionExperimentGui(Qt.QMainWindow):
         '''
         #Set widget values from context
         for widget_path in self.poller.context['widgets']:
+            if self.poller.context['widgets'][widget_path] is None:#None if widget path not found in context file. Then corresponding widget is not updated
+                continue
             ref = introspect.string2objectreference(self,'.'.join(widget_path.replace('.parent', '').split('.')[:-1]))
             if hasattr(ref, 'setCheckState'):
                 getattr(ref, 'setCheckState')(self.poller.context['widgets'][widget_path])
@@ -1111,7 +1113,10 @@ class VisionExperimentGui(Qt.QMainWindow):
             text = str(text)
         self.console_text  += utils.time_stamp_to_hms(time.time()) + ' '  + text + '\n'
         self.update_console()
-        self.log.info(text, self.source_name)
+        if 'warning' in text.lower():
+            self.log.warning(text.replace('WARNING: ',''), self.source_name)
+        else:
+            self.log.info(text, self.source_name)
         
     def update_console(self):
         self.central_widget.text_out.setPlainText(self.console_text)
@@ -1458,7 +1463,8 @@ class testVisionExperimentGui(unittest.TestCase):
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=10)
         context = self._read_context()
         explog = hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config)
-        explog2 = hdf5io.read_item(context['variables']['self.animal_file.animal_files.keys'][1], 'log', self.machine_config)
+        other_animal_filename = [fn for fn in context['variables']['self.animal_file.animal_files.keys'] if fn != context['variables']['self.animal_file.filename']][0]
+        explog2 = hdf5io.read_item(other_animal_filename, 'log', self.machine_config)
         self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename'), 
                           os.path.split(context['variables']['self.animal_file.filename'])[1], 

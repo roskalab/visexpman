@@ -9,26 +9,40 @@ from visexpman.engine.generic import log
 from visexpman.engine.generic import introspect
 
 class FreeSpaceError(Exception):
-    pass
-    
-class FreeSpaceWarning(Warning):
-    pass
-    
+    '''
+    Not enough freespace on volume where path parameter in machine config points
+    '''
+        
 class ExperimentConfigError(Exception):
-    pass
+    '''
+    Experiment config related errors: redundant declaration 
+    '''
 
 class AnimalFileError(Exception):
-    pass
+    '''
+    Problem with animal file or with the data stored in
+    '''
 
 class MachineConfigError(Exception):
-    pass
+    '''
+    Machine config related error. A machine config parameter determined function causes error
+    '''
     
 class LoggingError(Exception):
-    pass
+    '''
+    Logger process related error
+    '''
+    
+class ApplicationError(Exception):
+    '''
+    TBD
+    '''
 
 def application_init(**kwargs):
     '''
-        
+    All vision experiment manager application starts with calling this function.
+    Parses command line parameters, instantiates corresponding machine config, checks if data storage places have enough free space.
+    Logger process started.
 
     '''
     parnames = ['user', 'config', 'application_name']

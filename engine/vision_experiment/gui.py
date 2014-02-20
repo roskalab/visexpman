@@ -797,16 +797,21 @@ but any of {0}:\n Selected Experiment config is ignored, parameters are taken fr
         self.recording_channel.setFixedHeight(100)
         self.recording_channel.setToolTip('Selection of any channels enables calcium or electrophysiology signal recording.\nSelect none of the PMTs for disabling calcium imaging.\nMultiple channels can be also selected.' )
         self.scanning_range = gui.LabeledInput(self, 'Scan range (height, width) [um]')
-        self.pixel_size = gui.LabeledInput(self, 'Pixel size [um/pixel]')
+        self.resolution_label = QtGui.QLabel('Pixel size', self)
+        self.resolution_unit = QtGui.QComboBox(self)
+        self.resolution_unit.addItems(QtCore.QStringList(['um/pixel', 'pixel/um', 'us']))
+        self.pixel_size = QtGui.QLineEdit(self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.cell_name, 0, 0, 1, 2)
-        self.layout.addWidget(self.stimulation_device, 1, 0, 1, 2)
-        self.layout.addWidget(self.recording_channel, 2, 0, 1, 2)
-        self.layout.addWidget(self.enable_scanner_synchronization, 3, 0, 1, 2)
-        self.layout.addWidget(self.scanning_range, 4, 0, 1, 2)
-        self.layout.addWidget(self.pixel_size, 5, 0, 1, 2)
+        self.layout.addWidget(self.cell_name, 0, 0, 1, 3)
+        self.layout.addWidget(self.stimulation_device, 1, 0, 1, 3)
+        self.layout.addWidget(self.recording_channel, 2, 0, 1, 3)
+        self.layout.addWidget(self.enable_scanner_synchronization, 3, 0, 1, 3)
+        self.layout.addWidget(self.scanning_range, 4, 0, 1, 3)
+        self.layout.addWidget(self.resolution_label, 5, 0)
+        self.layout.addWidget(self.resolution_unit, 5, 1)
+        self.layout.addWidget(self.pixel_size, 5, 2)
         
         self.setLayout(self.layout)
 

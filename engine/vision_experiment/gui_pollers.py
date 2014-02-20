@@ -11,6 +11,7 @@ import webbrowser
 import copy
 import tempfile
 import scipy.io
+import warnings
 try:
     import Image
 except ImportError:
@@ -36,7 +37,7 @@ from visexpman.engine import generic
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 from visexpman.engine.generic import stringop
-from visexpman.engine.generic import introspect
+from visexpman.engine.generic import introspect 
 from visexpman.engine.generic import gui as gui_generic
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
@@ -2682,14 +2683,17 @@ class VisexpGuiPoller(Poller):
         self.imaging_finished = False
         self.analog_recording_started=False
         self.context_paths = {}
+        self.unittest_context_paths = ['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount',#only used by unittest
+                                     'self.experiment_control.user_selected_stimulation_module',
+                                     'self.animal_file.animal_files.keys',
+                                     'self.parent.log.filename']
         self.context_paths['variables'] = ['self.experiment_control.experiment_config_classes.keys', 
-                                     'self.parent.central_widget.main_widget.experiment_parameters.values.rowCount',#only used by unittest
-                                     'self.experiment_control.user_selected_stimulation_module', #only used by unittest
                                      'self.animal_file.filename', 
-                                     'self.animal_file.animal_files.keys', #only used by unittest
-                                     'self.parent.log.filename', #only used by unittest
                                      'self.parent.central_widget.parameters_groupbox.machine_parameters', 
                                      ]
+        self.context_paths['variables'].extend(self.unittest_context_paths)
+        self.optional_context_paths = ['self.animal_file.filename',]#If these items not found in context file, no warning is given
+        self.optional_context_paths.extend(self.unittest_context_paths)
         self.context_paths['widgets'] = [
                                           'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText',
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text', 
@@ -2697,12 +2701,48 @@ class VisexpGuiPoller(Poller):
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.recording_channel.list.selectedIndexes', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.enable_scanner_synchronization.checkState', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text', 
-                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.input.text', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentIndex', 
                                           ]
+                                          
+    def load_context(self):
         self.context = {}
         for k in self.context_paths.keys():
             self.context[k] = {}
-                                     
+        if not os.path.exists(fileop.get_context_filename(self.config)):
+            return
+        self.context = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.config), 'context', self.config))
+        #check if context has the expected keys.
+        for k in self.context_paths.keys():
+            for expected_key in self.context_paths[k]:
+                if expected_key not in self.context[k].keys() and expected_key not in self.optional_context_paths:
+                    self.context[k][expected_key] = None
+                    warning_msg = '{0}/{1} not found in context file.' .format(k, expected_key) 
+                    warnings.warn(warning_msg)
+                    self.printc('WARNING: '+warning_msg)
+                    break
+
+    def save_context(self):
+        context = {}
+        context['variables'] = {}
+        for varname in self.context_paths['variables']:
+            try:
+                context['variables'][varname] = introspect.string2objectreference(self,varname)
+            except AttributeError:#Continue if variable name does not exists
+                continue
+            if hasattr(context['variables'][varname], '__call__'):
+                context['variables'][varname] = context['variables'][varname]()
+        context['widgets'] = {}
+        for varname in self.context_paths['widgets']:
+            context['widgets'][varname] = introspect.string2objectreference(self,varname)
+            if hasattr(context['widgets'][varname], '__call__'):
+                context['widgets'][varname] = context['widgets'][varname]()
+                if hasattr(context['widgets'][varname], 'isSimpleText'):
+                    context['widgets'][varname] = str(context['widgets'][varname])
+                elif isinstance(context['widgets'][varname], list):#Qlistwidget selected rows
+                    context['widgets'][varname] = [s.row() for s in context['widgets'][varname]]
+        hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(context), self.config,  overwrite = True)
+                                 
     def init_widget_handlers(self):
         '''
         Widget related classes
@@ -2740,32 +2780,6 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('update_experiment_log_suggested_date'),  self.parent.update_experiment_log_suggested_date)
         self.connect(self, QtCore.SIGNAL('update_experiment_log'),  self.parent.update_experiment_log)
         self.connect(self, QtCore.SIGNAL('close_app'),  self.parent.close_app)
-        
-    def load_context(self):
-        if not os.path.exists(fileop.get_context_filename(self.config)):
-            return
-        self.context = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.config), 'context', self.config))
-
-    def save_context(self):
-        context = {}
-        context['variables'] = {}
-        for varname in self.context_paths['variables']:
-            try:
-                context['variables'][varname] = introspect.string2objectreference(self,varname)
-            except AttributeError:#Continue if variable name does not exists
-                continue
-            if hasattr(context['variables'][varname], '__call__'):
-                context['variables'][varname] = context['variables'][varname]()
-        context['widgets'] = {}
-        for varname in self.context_paths['widgets']:
-            context['widgets'][varname] = introspect.string2objectreference(self,varname)
-            if hasattr(context['widgets'][varname], '__call__'):
-                context['widgets'][varname] = context['widgets'][varname]()
-                if hasattr(context['widgets'][varname], 'isSimpleText'):
-                    context['widgets'][varname] = str(context['widgets'][varname])
-                elif isinstance(context['widgets'][varname], list):#Qlistwidget selected rows
-                    context['widgets'][varname] = [s.row() for s in context['widgets'][varname]]
-        hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(context), self.config,  overwrite = True)
 
     def init_network(self):
         self.connections = {}
@@ -3117,7 +3131,7 @@ class VisexpGuiPoller(Poller):
                 self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('')
                 self.experiment_log.add()
                 time.sleep(0.5)
-                self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setCurrentIndex(1)#Testing if duplicates can be added
+                self.parent.central_widget.experiment_log_groupbox.new_entry.substance.input.setCurrentIndex(1)
                 self.parent.central_widget.experiment_log_groupbox.new_entry.amount.input.setText('1 %')
                 self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('1/4')
                 self.experiment_log.add()

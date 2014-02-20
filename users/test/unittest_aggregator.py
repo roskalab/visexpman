@@ -68,13 +68,8 @@ if TEST_os == 'Darwin':
 #The maximal number of pixels that can differ from the reference frame at the testing the rendering of visual stimulation patterns
 #TEST_pixel_difference_threshold = 50.0
 
-TEST_working_folder = ['/mnt/rzws/share/work', 'r:\\work']
-TEST_results_folder = ['/mnt/rzws/share/test_results', 'r:\\test_results']
-if TEST_os == 'Linux':
-    TEST_valid_file =  '/mnt/datafast/context/image.hdf5'
-elif TEST_os == 'Windows':
-    TEST_valid_file =  'v:\\context\\image.hdf5'
-TEST_invalid_file = '/home'
+TEST_working_folder = ['/mnt/rzws/share/work', 'r:\\work', '/home/zoltan/Downloads/work']
+TEST_results_folder = ['/mnt/rzws/share/test_results', 'r:\\test_results', '/home/zoltan/Downloads']
 
 #if TEST_os == 'nt':
 #    TEST_test_data_folder = 'u:\\software_test\\ref_data'
@@ -140,6 +135,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
+TEST_single_unittest = ''#'testVisionExperimentGui.test_10_remove_experiment_log_entry'
 def generate_filename(path):
     '''
     Inserts index into filename resulting unique name.
@@ -155,10 +151,13 @@ def generate_filename(path):
             raise RuntimeError('Filename cannot be generated')
     return testable_path
     
-def select_folder_exists(folders):
-    for folder in folders:
-        if os.path.exists(folder) and os.path.isdir(folder):
-            return folder
+def select_path_exists(paths, dirs = True):
+    for path in paths:
+        if os.path.exists(path) and ((os.path.isdir(path) and dirs) or (not os.path.isdir(path) and not dirs)):
+            return path
+            
+TEST_valid_file = select_path_exists(['/mnt/datafast/context/image.hdf5', 'v:\\context\\image.hdf5','/etc/fstab'],dirs=False)
+TEST_invalid_file = '/home'
     
 def prepare_test_data(modulename, clean_working_dir = True, copy_only_first_file = False):
     ref_folder = os.path.join(TEST_test_data_folder, modulename)
@@ -294,7 +293,12 @@ class UnitTestRunner(object):
         for test_class_name in TEST_unittests:
             test_class = self._reference_to_test_class(test_class_name)
             test_methods = self._fetch_test_methods(test_class)
-            aggregated_test_methods.extend([[test_class.__name__ + '.' + test_method, test_method, test_class] for test_method in test_methods])
+            append = True
+            if TEST_single_unittest != '' and TEST_single_unittest.split('.')[0] == test_class.__name__ and TEST_single_unittest.split('.')[1] in test_methods:
+                test_method = TEST_single_unittest.split('.')[1]
+                aggregated_test_methods.append([test_class.__name__ + '.' + test_method, test_method, test_class])
+            elif TEST_single_unittest == '':
+                aggregated_test_methods.extend([[test_class.__name__ + '.' + test_method, test_method, test_class] for test_method in test_methods])
         #Split list to two: 1. put items in TEST_priority_unittests to the beginning of the list. 2. shuffle the rest
         priority_unittests = []
         other_unittests = []
@@ -349,7 +353,7 @@ class UnitTestRunner(object):
 #                            print path,  'Not removed'
 
     def save_source_and_results(self):
-        test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(select_folder_exists(TEST_results_folder), 'test_archive.zip'))
+        test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(select_path_exists(TEST_results_folder), 'test_archive.zip'))
         package_path = os.path.split(os.path.split(sys.modules['visexpman'].__file__)[0])[0]
         #generate list of archivable files and write them to zipfile        
         source_zip = zipfile.ZipFile(test_EXPERIMENT_DATA_PATH, "w")
