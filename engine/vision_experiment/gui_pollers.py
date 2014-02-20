@@ -3154,6 +3154,24 @@ class VisexpGuiPoller(Poller):
             elif self.test_phase == 1:
                 if time.time()-self.filemovetime>5:
                     self.emit(QtCore.SIGNAL('close_app'))
+        elif self.testmode == 12:
+            self.parent.central_widget.main_tab.setCurrentIndex(2)
+            for i in range(3):
+                animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('id{0}'.format(i)))
+                animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2012, 12, 12))
+                animal_param_table.cellWidget(2, 1).setDate(QtCore.QDate(2012, 12, 12))
+                animal_param_table.cellWidget(6, 1).setEditText('12')
+                animal_param_table.cellWidget(7, 1).setEditText('xy')
+                self.animal_file.save_animal_parameters()
+                time.sleep(1)
+            self.parent.central_widget.main_tab.setCurrentIndex(0)
+            self.parent.central_widget.animal_parameters_groupbox.animal_filename.input.setCurrentIndex(1)
+            self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.setText('cell')
+            self.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.setCurrentIndex(2)
+            self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.setText('100, 100')
+            time.sleep(0.4)
+            self.emit(QtCore.SIGNAL('close_app'))
+            
             
 #            time.sleep(10.0)
 #            self.notify_user('', 'Close main window')

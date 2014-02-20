@@ -1270,7 +1270,7 @@ import unittest
 class testVisionExperimentGui(unittest.TestCase):
     
     def setUp(self):
-        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1](clear_files=True)
         self.machine_config.application_name='main_ui'
         self.machine_config.user = 'test'
         #Clean up files
@@ -1486,8 +1486,29 @@ class testVisionExperimentGui(unittest.TestCase):
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=11)
         context = self._read_context()
         self.assertEqual(len(context['variables']['self.animal_file.animal_files.keys']), 2)
-        pass
         
+    def test_12_context_loading(self):
+        '''
+        Animal files are created and and one is selected. Widget content is modified. 
+        App is started again and animal file name shall remain the selected one.
+        Context file after the second and first run shall have the same content. 
+        '''
+        self._call_gui(12)
+        contexts = []
+        contexts.append(self._read_context())
+        self._call_gui(0)
+        contexts.append(self._read_context())
+        expected_values = ('animal_id1_12_12-12-2012_12-12-2012_L0R0.hdf5',
+        2,
+        'cell',
+        '100, 100')
+        for context in contexts:
+            self.assertEqual((
+                os.path.split(context['variables']['self.animal_file.filename'])[1],
+                context['widgets']['self.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.currentIndex'],
+                context['widgets']['self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text'],
+                context['widgets']['self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text'],
+                ),expected_values)
 
 if __name__ == '__main__':
     if len(sys.argv) ==1:

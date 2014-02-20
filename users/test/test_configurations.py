@@ -487,6 +487,10 @@ class MicroLEDArrayExperiment(experiment.Experiment):
         self.stimulusbitmap2uled()
         
 class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
+    def __init__(self, clear_files = False):
+        self.clear_files = clear_files
+        configuration.ElphysRetinalCaImagingConfig.__init__(self)
+        
     def _set_user_parameters(self):
         from visexpman.users.test import unittest_aggregator
         self.root_folder = fileop.select_folder_exists(unittest_aggregator.TEST_working_folder)
@@ -497,7 +501,7 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
         CONTEXT_PATH = self.root_folder
         REMOTE_LOG_PATH = os.path.join(self.root_folder, 'remote_log')
         folders = [EXPERIMENT_DATA_PATH, DATA_STORAGE_PATH, LOG_PATH, REMOTE_LOG_PATH]
-        fileop.mkdir_notexists(folders, remove_if_exists=True)
+        fileop.mkdir_notexists(folders, remove_if_exists=self.clear_files)
         COORDINATE_SYSTEM='center'
         self.GUI['GUI_SIZE'] =  utils.cr((1280,1024))
         self.GUI['EXPERIMENT_LOG_UPDATE_PERIOD']=10.0
