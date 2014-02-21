@@ -138,8 +138,17 @@ def file_extension(filename):
     return os.path.split(filename)[1].split('.')[-1]
 
 def free_space(path):
-    s=os.statvfs(path)
-    return (s.f_bavail * s.f_frsize)
+    """ Return folder/drive free space (in bytes)
+    """
+    import platform
+    if platform.system() == 'Windows':
+        import ctypes
+        free_bytes = ctypes.c_ulonglong(0)
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(folder), None, None, ctypes.pointer(free_bytes))
+        return free_bytes.value
+    else:
+        s=os.statvfs(path)
+        return (s.f_bavail * s.f_frsize)
 
 def file_open_by_other_process(filename):
     '''Checks whether the given file is open by any process'''
@@ -428,7 +437,13 @@ def find_content_in_folder(content, folder_name, file_filter):
             found_in_files.append(file)
     return found_in_files
     
-    
+
+import os
+import pwd
+
+def get_username():
+    return pwd.getpwuid( os.getuid() )[ 0 ]
+
 def generate_filename(path, insert_timestamp = False, last_tag = ''):
     '''
     Inserts index into filename resulting unique name.

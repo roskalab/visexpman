@@ -14,6 +14,24 @@ from visexpA.engine.datadisplay.imaged import imshow
 
 precision = 10
 
+import numpy as np
+
+def circmean(alpha,axis=None,weights=None):
+    mean_angle = numpy.arctan2(numpy.average(numpy.sin(alpha),axis,weights=weights),numpy.average(numpy.cos(alpha),axis,weights=weights))
+    return mean_angle
+    
+def circvar(alpha,axis=None):
+    if numpy.ma.isMaskedArray(alpha) and alpha.mask.shape!=():
+        N = numpy.sum(~alpha.mask,axis)
+    else:
+        if axis is None:
+            N = alpha.size
+        else:
+            N = alpha.shape[axis]
+    R = numpy.sqrt(numpy.sum(numpy.sin(alpha),axis)**2 + numpy.sum(numpy.cos(alpha),axis)**2)/N
+    V = 1-R
+    return V
+
 def get_closest(rcref,rcothers):
     distances = [numpy.abs(rcref['col']-c['col'])+numpy.abs(rcref['row']-c['row']) for c in rcothers]
     return numpy.argmin(distances)

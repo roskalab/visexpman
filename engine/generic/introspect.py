@@ -2711,7 +2711,23 @@ def full_exc_info():
     t, v, tb = sys.exc_info()
     full_tb = extend_traceback(tb, current_stack(1))
     return t, v, full_tb
-        
+    
+def qt_set_trace(frame=None):
+    '''
+Set a tracepoint in the Python debugger that works with Qt
+Taken from:
+http://stackoverflow.com/questions/1736015/debugging-a-pyqt4-app
+'''
+    from PyQt4.QtCore import pyqtRemoveInputHook
+    try:
+        from ipdb import set_trace
+    except ImportError:
+        from pdb import set_trace
+    pyqtRemoveInputHook()
+    if frame is None:
+        frame = sys._getframe().f_back
+    return set_trace(frame)
+
 class Finalizable(object):
     """
     Base class enabling the use a __finalize__ method without all the problems
