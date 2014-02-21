@@ -28,7 +28,7 @@ import sys
 import numpy
 import scipy.interpolate
 import visexpman
-import visexpman.engine.generic.utils as utils
+from visexpman.engine.generic import utils
 import visexpman.engine.generic.configuration
 try:
     import serial
@@ -49,7 +49,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             self.PAR_p =   
             
             parameters that the user need to define: (This is a way to force users to create their configs carefully
-            EXPERIMENT_CONFIG = 'TestExperimentConfig'
+            EXPERIMENT_CONFIG = 'TestExperimentConfig' - OBSOLETE
             LOG_PATH = '/media/Common/visexpman_data'
             EXPERIMENT_LOG_PATH = '/media/Common/visexpman_data'
             EXPERIMENT_DATA_PATH = '/media/Common/visexpman_data'
@@ -59,6 +59,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
         
         self.enable_celery = True
+        self.temppath = tempfile.gettempdir()
         
         #parameter with range: list[0] - value, list[1] - range
         #path parameter: parameter name contains '_PATH'
@@ -211,7 +212,24 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
 #         'ENABLE' : True
 #         }
 #         ]]
-        GREEN_LABELING = ['']
+        GREEN_LABELING_SUGGESTIONS = ['',
+        'scaav 2/1 hsyn gcamp3', 
+        'aav 2/1 ef1a gcamp6s', 'gc6', 
+        'aav 2/1 ef1a mruby 2a gcamp6s', 
+        'scaav-G6', 
+        'rabies-GCaMP6', 
+        'aav 2/1 ef1a gcamp5', 
+        'aav 2/1 ef1a DIO gcamp6s', 
+        'OGB', 
+        'aav 2/9 gcamp3 Penn', 
+        'aav 2/9  hsyn gcamp3', 
+        'aav 2/7 ef1a gcamp6s', 
+        'gcamp6']
+        GREEN_LABELING_SUGGESTIONS.sort()
+        RED_LABELING_SUGGESTIONS = ['','no', 'yes']
+        INJECTION_TARGET_SUGGESTIONS = ['', 'V1', 'LGN', 'left retina', 'right retina']
+        MOUSE_STRAIN_SUGGESTIONS = ['', 'chatdtr', 'chattomato', 'rd1', 'bl6', 'chat', 'SCN1cre', 'chat tomato', 'c3h', 'grik4']
+        MOUSE_STRAIN_SUGGESTIONS.sort()
         GUI_REFRESH_PERIOD = [2.0, [0.1, 10.0]]
         
         STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
@@ -284,7 +302,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         if hasattr(self, 'EXPERIMENT_DATA_PATH'):
             self.cachepath = self.EXPERIMENT_DATA_PATH#To ensure compatibility with analysis config class #TODO: visexpA and visexpman config classes shall be merged into one class
-            self.temppath = self.EXPERIMENT_DATA_PATH
+#            self.temppath = self.EXPERIMENT_DATA_PATH
         self.cacheext = 'hdf5'
         self.packagepath = 'visexpA.users.daniel'
 
@@ -577,8 +595,7 @@ class testApplicationConfiguration(unittest.TestCase):
         
     def test_06_check_default_visexp_config(self):
         t = VisionExperimentConfig()
-        self.assertEqual((hasattr(t, 'EXPERIMENT_CONFIG'),
-                          hasattr(t, 'LOG_PATH'),
+        self.assertEqual((hasattr(t, 'LOG_PATH'),
                           hasattr(t, 'EXPERIMENT_LOG_PATH'),
                           hasattr(t, 'EXPERIMENT_DATA_PATH'),
                           hasattr(t, 'CAPTURE_PATH'),
@@ -594,7 +611,7 @@ class testApplicationConfiguration(unittest.TestCase):
                           t.ENABLE_FILTERWHEEL, 
                           t.ENABLE_SHUTTER, 
                           ),
-                         (False, False, False, False, False, False, False, utils.rc((numpy.inf, numpy.inf)), 'undefined', 'undefined', 'undefined', False, False, False, False, False))
+                         (False, False, False, False, False, False, utils.rc((numpy.inf, numpy.inf)), 'undefined', 'undefined', 'undefined', False, False, False, False, False))
         
 
 

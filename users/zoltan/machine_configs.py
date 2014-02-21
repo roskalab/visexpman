@@ -136,7 +136,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
     
     def _set_user_parameters(self):
         #### paths/data handling ####
-        paths = ['/home/zoltan/Downloads','/mnt/rznb/data', '/mnt/rzws/data1','/mnt/datafast/debug/data', 'v:\\debug\\data']
+        paths = ['/home/zoltan/Downloads','/mnt/rznb/data', '/mnt/rzws/share/experiment_data','/mnt/datafast/debug/data', 'v:\\debug\\data']
         for path in paths:
             if os.path.exists(path):
                 self.root_folder = path
@@ -144,6 +144,7 @@ class CaImagingTestConfig(configuration.RetinalCaImagingConfig):
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
+        DATA_STORAGE_PATH = '/mnt/datafast/debug'
         CONTEXT_PATH = self.root_folder
         self.CONTEXT_NAME = '2pdev1.hdf5'
         EXPERIMENT_FILE_FORMAT = 'hdf5'

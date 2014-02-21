@@ -15,6 +15,20 @@ import weakref
 import subprocess, os, signal
 import copy
 
+def is_test_running():
+    '''
+    Finds out if test is being run: either unittest.main() or unit_test_runner module is in call stack
+    '''
+    import traceback
+    keywords = ['unittest.main()', 'unit_test_runner']
+    if '--unittest' in sys.argv and  '-c' in sys.argv:#When called as python -c code --unittest. This is used for testing qapps
+        return True
+    for item in traceback.format_stack():
+        for keyword in keywords:
+            if keyword in item:
+                return True
+    return False
+
 def class_ancestors(obj):
     ancestors = []
     ancestor = [obj]

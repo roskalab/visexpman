@@ -486,3 +486,20 @@ class MicroLEDArrayExperiment(experiment.Experiment):
             self.show_shape(shape='o', size = s, duration=duration/10, color=1.0)
         self.stimulusbitmap2uled()
         
+class GUITestConfig(configuration.RetinalCaImagingConfig):
+    def _set_user_parameters(self):
+        paths = ['/mnt/rzws/share/work', 'r:\\work']
+        for path in paths:
+            if os.path.exists(path):
+                self.root_folder = path
+                break        
+        LOG_PATH = self.root_folder
+        EXPERIMENT_LOG_PATH = LOG_PATH        
+        EXPERIMENT_DATA_PATH = os.path.join(self.root_folder, 'experiment_data')
+        DATA_STORAGE_PATH = os.path.join(self.root_folder, 'data_storage')
+        CONTEXT_PATH = self.root_folder
+        folders = [EXPERIMENT_DATA_PATH, DATA_STORAGE_PATH]
+        file.mkdir_notexists(folders, remove_if_exists=True)
+        COORDINATE_SYSTEM='center'
+        GUI_SIZE =  utils.cr((1280,1024))
+        self._create_parameters_from_locals(locals())

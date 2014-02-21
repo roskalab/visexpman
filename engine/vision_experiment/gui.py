@@ -2,16 +2,25 @@
 vision_experiment.gui implements widgets that build up the user interface of vision experiment manager applciations. Some widgets are used in multiple applications.
 '''
 
+import os
+import os.path
 import numpy
 import datetime
+import copy
+import shutil
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
+from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
+from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import gui
+from visexpman.engine.generic import file
+from visexpman.engine.generic import stringop
+from visexpman.engine.generic import introspect
 
 BUTTON_HIGHLIGHT = 'color: red'#TODO: this has to be eliminated
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -64,45 +73,287 @@ class ExperimentLogGroupbox(QtGui.QGroupBox):
         
     def create_widgets(self):
         self.log = QtGui.QTableWidget(self)
-        self.log.setColumnCount(3)
+        self.log.setColumnCount(2)
         self.log.setHorizontalHeaderLabels(QtCore.QStringList(['Time', 'Log']))
-        self.log.setColumnWidth(0, 100)
-        self.log.setColumnWidth(1, 400)
-        self.log.verticalHeader().setDefaultSectionSize(15)
         date_format = QtCore.QString('yyyy-MM-dd hh:mm')
         self.date = QtGui.QDateTimeEdit(self)
         self.date.setDisplayFormat(date_format)
-        self.substance_label = QtGui.QLabel('Substance', self)
-        self.substance_combobox = QtGui.QComboBox(self)
-        self.substance_combobox.setEditable(True)
-        self.substance_combobox.addItems(QtCore.QStringList(['', 'chlorprothixene', 'isofluorane']))#TODO: to config
-        self.amount_label = QtGui.QLabel('Amount', self)
-        self.amount_combobox = QtGui.QComboBox(self)
-        self.amount_combobox.setEditable(True)
-        self.comment_label = QtGui.QLabel('Comment', self)
-        self.comment_combobox = QtGui.QComboBox(self)
-        self.comment_combobox.setEditable(True)
+        self.substance = gui.LabeledComboBox(self, 'Substance',['', 'chlorprothixene', 'isofluorane'])#TODO: to config
+        self.substance.input.setEditable(True)
+        self.amount_input = gui.LabeledInput(self, 'Amount')
+        self.comment_input = gui.LabeledInput(self, 'Comment')
         self.add_button = QtGui.QPushButton('Add',  self)
         self.remove_button = QtGui.QPushButton('Remove last', self)
-        self.show_experiments_label = QtGui.QLabel('Show experiments', self)
-        self.show_experiments_checkbox = QtGui.QCheckBox(self)
+        self.show_experiments = gui.LabeledCheckBox(self, 'Show experiments')
+        self.show_experiments.setToolTip('If checked, recordings are displayed with experiment logs')
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.log, 0, 0, 6, 5)
-        self.layout.addWidget(self.date, 7, 0, 1, 1)
-        self.layout.addWidget(self.substance_label, 7, 1)
-        self.layout.addWidget(self.substance_combobox, 7, 2)
-        self.layout.addWidget(self.amount_label, 7, 3)
-        self.layout.addWidget(self.amount_combobox, 7, 4)
-        self.layout.addWidget(self.comment_label, 8, 0)
-        self.layout.addWidget(self.comment_combobox, 8, 1, 1, 2)
-        self.layout.addWidget(self.add_button, 8, 3)
-        self.layout.addWidget(self.remove_button, 8, 4)
-        self.layout.addWidget(self.show_experiments_label, 9, 0)
-        self.layout.addWidget(self.show_experiments_checkbox, 9, 1)
-        self.setLayout(self.layout)   
+        self.layout.addWidget(self.log, 0, 0, 6, 3)
+        self.log.setColumnWidth(0, 100)
+        self.log.setColumnWidth(1, 400)
+        self.log.setFixedWidth(510)
+        self.log.verticalHeader().setDefaultSectionSize(15)
+        self.layout.addWidget(self.show_experiments, 0, 3)
+        self.layout.addWidget(self.date, 7, 0)
+        self.layout.addWidget(self.substance, 7, 1)
+        self.layout.addWidget(self.amount_input, 7, 2, 1, 2)
+        self.layout.addWidget(self.comment_input, 8, 0, 1, 2)
+        self.layout.addWidget(self.add_button, 8, 2)
+        self.layout.addWidget(self.remove_button, 8, 3)
+        self.setLayout(self.layout)
+        
+class AnimalParametersGroupbox(QtGui.QGroupBox):
+    '''
+    Animal parameters:
+    ID: user defined identifier of animal
+    Birth date: animal birth date, compulsory
+    Injection date: injection date of (green) labeling substance, compulsory
+    Gender: -
+    Ear punch left, ear punch right: number of punches in animal ears
+    Strain: strain of animal, compulsory
+    Green labeling: green labeling substance, compulsory
+    Red labeling:
+    Injection target: where the green labeling substance was injected
+    Imaging channels:
     
+    == For developers ==
+    Adding new parameter:
+    1. add parameter name to self.parameter_names
+    2. create combobox widget if necessary
+    Renaming parameter: check _get_animal_filename method
+    '''
+    def __init__(self, parent, config):
+        self.config=config
+        QtGui.QGroupBox.__init__(self, 'Animal parameters', parent)
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        default_date = QtCore.QDate(datetime.datetime.now().year, 1, 1)
+        date_format = QtCore.QString('dd-MM-yyyy')
+        ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])
+        birth_date = QtGui.QDateEdit(self)
+        birth_date.setDisplayFormat(date_format)
+        birth_date.setDate(default_date)
+        birth_date.setToolTip('Animal birth date, compulsory')
+        injection_date = QtGui.QDateEdit(self)
+        injection_date.setDisplayFormat(date_format)
+        injection_date.setDate(default_date)
+        injection_date.setToolTip('Injection date of (green) labeling substance, compulsory')
+        ear_punch_left = QtGui.QComboBox(self)
+        ear_punch_left.addItems(ear_punch_items)
+        ear_punch_left.setToolTip('Number of punches in animal\'s ears')
+        ear_punch_right = QtGui.QComboBox(self)
+        ear_punch_right.addItems(ear_punch_items)
+        ear_punch_right.setToolTip('Number of punches in animal\'s ears')
+        gender = QtGui.QComboBox(self)
+        gender.addItems(QtCore.QStringList(['female', 'male']))
+        strain = QtGui.QComboBox(self)
+        strain.addItems(QtCore.QStringList(self.config.MOUSE_STRAIN_SUGGESTIONS))
+        strain.setEditable(True)
+        green_labeling = QtGui.QComboBox(self)
+        green_labeling.setEditable(True)
+        green_labeling.addItems(QtCore.QStringList(self.config.GREEN_LABELING_SUGGESTIONS))
+        green_labeling.setToolTip('Green labeling substance, compulsory')
+        red_labeling = QtGui.QComboBox(self)
+        red_labeling.setEditable(True)
+        red_labeling.addItems(QtCore.QStringList(self.config.RED_LABELING_SUGGESTIONS))
+        imaging_channels = QtGui.QComboBox(self)
+        imaging_channels.addItems(QtCore.QStringList(['green',  'red',  'both']))
+        injection_target = QtGui.QComboBox(self)
+        injection_target.setEditable(True)
+        injection_target.addItems(QtCore.QStringList(self.config.INJECTION_TARGET_SUGGESTIONS))
+        self.table = gui.ParameterTable(self)
+        self.parameter_names = ['id', 'birth_date', 'injection_date', 
+                            'gender', 'ear_punch_left', 'ear_punch_right', 'strain', 
+                            'green_labeling', 'red_labeling', 'injection_target', 'imaging_channels', 
+                            'comments']
+        self.table.setRowCount(len(self.parameter_names))
+        for row in range(len(self.parameter_names)):
+            item = QtGui.QTableWidgetItem(stringop.to_title(self.parameter_names[row]))
+            item.setFlags(QtCore.Qt.ItemIsSelectable| QtCore.Qt.ItemIsEnabled)
+            self.table.setItem(row, 0, item)
+            if self.parameter_names[row] in locals().keys():
+                self.table.setCellWidget(row, 1, locals()[self.parameter_names[row]])
+        self.new_animal_file_button = QtGui.QPushButton('Create new animal file',  self)
+        self.update_animal_file_button = QtGui.QPushButton('Update',  self)
+        self.update_animal_file_button.setToolTip('Current values of animal parameters are written into animal file')
+        self.reload_animal_parameters_button = QtGui.QPushButton('Reload',  self)
+        self.reload_animal_parameters_button.setToolTip('Reload animal parameters from file')
+        
+    def create_layout(self):
+        row_height = 25
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.table, 0, 0, 1, 3)
+        self.table.setFixedWidth(435)
+        self.table.setFixedHeight(len(self.parameter_names) * row_height+30)
+        self.table.setColumnWidth(0, 155)
+        self.table.setColumnWidth(1, 240)
+        self.table.verticalHeader().setDefaultSectionSize(row_height)
+        self.layout.addWidget(self.new_animal_file_button, 1, 0)
+        self.layout.addWidget(self.update_animal_file_button, 1, 1)
+        self.layout.addWidget(self.reload_animal_parameters_button, 1, 2)
+        self.layout.setRowStretch(10, 5)
+        self.layout.setColumnStretch(5,10)
+        self.setLayout(self.layout)
+        
+class AnimalParameters(gui.WidgetControl):
+    '''
+        
+    '''
+    def __init__(self, poller, config, widget):
+        gui.WidgetControl.__init__(self, poller, config, widget)
+        self.animal_files = self._get_animal_file_list(file.get_user_experiment_data_folder(self.config))
+        #Most recently modified file is selected
+        timestamps = self.animal_files.values()
+        if len(timestamps)>0:
+            timestamp = max(timestamps)
+            self.animal_file = [k for k, v in self.animal_files.items() if v == timestamp][0]
+            self.load(update_gui=False)
+        
+    def _get_animal_file_list(self, folder, animal_files = {}):
+        '''
+        Returns a list of animal files from user's experiment data folder and user's data storage folder.
+        
+        In case of overlapping items in the two lists, the later modified will be used.
+        '''
+        directories, all_files = file.find_files_and_folders(folder, extension = 'hdf5')
+        for fn in all_files:
+            if os.path.split(fn)[1][:7] == 'animal_':
+                ctime = os.path.getctime(fn)
+                if animal_files.has_key(fn) and animal_files[fn]>ctime:
+                    pass#Do not add file to list
+                else:
+                    animal_files[fn]=ctime
+        return animal_files
+        
+    def _get_animal_parameters(self):
+        '''
+        Get animal parameter values from user interface
+        '''
+        animal_parameters = {}
+        for k, v in self.widget.table.get_values().items():
+            animal_parameters[stringop.to_variable_name(k)] = v
+        return animal_parameters
+        
+    def _get_animal_filename(self, animal_parameters):
+        '''
+        Generate animal file name from animal parameters.
+        '''
+        filename = 'animal_{0}_{1}_{2}_{3}_L{4}R{5}.hdf5'.format(animal_parameters['id'], 
+                                                                                                animal_parameters['strain'], 
+                                                                                                animal_parameters['birth_date'] , 
+                                                                                                animal_parameters['injection_date'],
+                                                                                                animal_parameters['ear_punch_left'], 
+                                                                                                animal_parameters['ear_punch_right'])
+        return os.path.join(file.get_user_experiment_data_folder(self.config), filename)
+        
+    def _save_animal_parameters(self):
+        h=hdf5io.Hdf5io(self.animal_file,self.config)
+        h.animal_parameters = copy.deepcopy(self.animal_parameters)
+        h.save('animal_parameters')
+        h.close()
+        
+    def save(self):
+        '''
+        Saves current animal parameters to animal file. Animal file is created if file does not exists.
+        '''
+        self.animal_parameters = self._get_animal_parameters()
+        #Generate animal file filename:
+        self.animal_file = self._get_animal_filename(self.animal_parameters)
+        check_parameters = ['id', 'strain', 'green_labeling']
+        for parname in check_parameters:
+            if self.animal_parameters[parname] == '':#Do not create animal file if parameter is not provided
+                self.poller.notify_user('WARNING', '{0} must be provided. Animal file not created.'.format(parname))
+                return
+        if os.path.exists(self.animal_file):
+            self.poller.notify_user('WARNING', '{0} animal file alread exists. New animal file not created.'.format(self.animal_file))
+            return
+        self._save_animal_parameters()
+        self.animal_files = self._get_animal_file_list(file.get_user_experiment_data_folder(self.config), self.animal_files)
+        self.poller.update_animal_file_list()
+        self.printc('{0} file created'.format(self.animal_file))
+        
+    def update(self):
+        '''
+        Current values of animal parameters table are written into animal file. If any ID, birthdate, gcamp injection date or ear punch is changed, animal file is renamed.
+        '''
+        current_animal_parameters = self._get_animal_parameters()
+        current_animal_file = self._get_animal_filename(current_animal_parameters)
+        #Generate list of modified parameters
+        modified_parameters = ', '.join([stringop.to_title(parname) for parname in self.animal_parameters.keys() if current_animal_parameters[parname] != self.animal_parameters[parname]])
+        if len(modified_parameters) == 0:
+            self.printc('No parameter modified, nothing is updated')
+            return
+        if not hasattr(self, 'animal_file'):
+            self.printc('No animal file, nothing is updated')
+            return
+        if os.path.split(self.animal_file)[0] != file.get_user_experiment_data_folder(self.config):
+            self.poller.notify_user('WARNING', 'Files not in experiment data folder cannot be modified. Animal files from datastorage shall be first copied to experiment data folder')
+            return
+        if self.animal_file != current_animal_file:#Rename animal file if necessary
+            if not self.poller.ask4confirmation('Renaming animal file from {0} to {1}'.format(os.path.split(self.animal_file)[1], os.path.split(current_animal_file)[1])):
+                return
+            os.rename(self.animal_file, current_animal_file)
+            self.printc('Animal file renamed from {0} to {1}'.format(self.animal_file, current_animal_file))
+        #Update animal parameters and animal file name
+        self.animal_file = current_animal_file
+        self.animal_parameters = current_animal_parameters
+        if not self.poller.ask4confirmation('Do you want to update the following parameters in {1}?\n{0}'.format(modified_parameters, os.path.split(self.animal_file)[1])):
+            return
+        #Rewrite file with modified data
+        self._save_animal_parameters()
+        self.printc('{0} file updated. Following parameters were modified: {1}'.format(self.animal_file, modified_parameters))
+
+    def load(self, update_gui=True):
+        '''
+        Reloads animal parameters from animal file to gui. User modifications since last update are overwritten
+        '''
+        if not hasattr(self, 'animal_file'):
+            self.printc('No animal file, nothing is updated')
+            return
+        #Get it from file
+        h=hdf5io.Hdf5io(self.animal_file,self.config)
+        h.load('animal_parameters')
+        if not hasattr(h, 'animal_parameters'):
+            self.printc('Animal file does not contain animal parameters.')
+            h.close()
+            return
+        self.animal_parameters = copy.deepcopy(h.animal_parameters)
+        h.close()
+        if update_gui:#Update to user interface
+            self.poller.update_animal_parameters_table()
+
+    def reload(self):
+        self.load()
+
+    def search_data_storage(self):
+        if not hasattr(self.config, 'DATA_STORAGE_PATH'):
+            self.printc('machine_config.DATA_STORAGE_PATH parameter needs to be defined')
+            return
+        if not self.poller.ask4confirmation('Do you want to search {0} for animal files and will be added to current list. It can take some time.'.format(self.config.DATA_STORAGE_PATH)):
+            return
+        self.printc('Searching for animal parameter files, please wait!')
+        self.animal_files = self._get_animal_file_list(self.config.DATA_STORAGE_PATH, self.animal_files)
+        self.poller.update_animal_file_list()
+        self.printc('Done, animal file list updated')
+        
+    def copy(self):
+        '''
+        Copy animal parameter file from data storage to experiment data folder
+        '''
+        if os.path.exists(os.path.join(file.get_user_experiment_data_folder(self.config), os.path.split(self.animal_file)[1])):
+            message = 'Copy of this file already exists in experiment data folder. Do you want to overwrite it?'
+            if not self.poller.ask4confirmation(message):
+                return
+        self.printc('Copying file, please wait!')
+        shutil.copy(self.animal_file, file.get_user_experiment_data_folder(self.config))
+        self.printc('Animal file copied.')
+        new_animal_filename = os.path.join(file.get_user_experiment_data_folder(self.config), os.path.split(self.animal_file)[1])
+        self.animal_files[new_animal_filename] = os.path.getctime(new_animal_filename)
+        self.poller.update_animal_file_list()
+
 class AnalysisStatusGroupbox(QtGui.QGroupBox):
     def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, 'Analysis status', parent)
@@ -173,15 +424,110 @@ class ExperimentControlGroupBox(QtGui.QGroupBox):
         self.setLayout(self.layout)
         
 class ExperimentControl(gui.WidgetControl):
-    def browse(self):
-        import sys
-        import os.path
-        user_folder = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', self.config.user)
-        self.user_selected_stimulation_module = self.poller.ask4filename(user_folder)
-        from visexpman.engine.vision_experiment import experiment
-        self.printc(experiment.parse_stimulation_file(self.user_selected_stimulation_module))
+    '''
+    This class handles all experiment configuration/control related operation and stores related data.
+    Experiment configuration/parameter handling:
+        At software start all the python modules in user folder parsed (subfolders not). 
+        A database is built containing parameter names and values for each experiment configuration class. This data
+        is displayed on the experiment control widget (experiment names) and experiment parameters groupbox where
+        user can edit the values.
+    '''
+    def __init__(self, poller, config, widget, paramwidget):
+        self.paramwidget = paramwidget
+        gui.WidgetControl.__init__(self, poller, config, widget)
+        #find all python module in user folder and load users's all experiment configs and parameters
+        self.experiment_config_classes = {}
+        self._load_experiment_config_parameters(file.get_user_folder(self.config))
         
-    
+    ################# Experiment config parameters ####################
+    def browse(self):
+        user_folder = file.get_user_folder(self.config)
+        self.user_selected_stimulation_module = self.poller.ask4filename('Select stimulation file', user_folder,  '*.py')
+        if os.path.exists(self.user_selected_stimulation_module):#Parses files unless cancel pressed on file dialog box
+            self._load_experiment_config_parameters(self.user_selected_stimulation_module)
+
+    def _load_experiment_config_parameters(self, filename):
+        '''
+        If filename is a directory, all py files are with experiment config are loaded and the config names are put to experiment names dropdown box
+        Otherwise the experiment configurations within the provided py file are put to experiment names dropdown box in the following format:
+        filename/experiment config name
+        '''
+        if os.path.isdir(filename):
+            self.experiment_config_classes = {}
+            for python_module in [os.path.join(filename, fn) for fn in os.listdir(filename) if fn.split('.')[-1] == 'py']:
+                new_expconf_classes = experiment.parse_stimulation_file(python_module)
+                if any([origexpconfs in new_expconf_classes.keys() for origexpconfs in self.experiment_config_classes.keys()]):
+                    raise RuntimeError('Redundant experiment config class name. Check {0}.' .format(python_module))
+                else:                    
+                    self.experiment_config_classes.update(experiment.parse_stimulation_file(python_module))
+            self.poller.set_experiment_names(self.experiment_config_classes.keys())
+        else:
+            self.experiment_config_classes = experiment.parse_stimulation_file(filename)
+            #Update list of experiment names with the experiment config names in selected module in filename/experiment_config_name format
+            self.poller.set_experiment_names([os.path.join(filename, experiment_config_name) for experiment_config_name in self.experiment_config_classes.keys()])
+        pass
+
+    def reload_experiment_parameters(self):
+        '''
+        Reload experiment configuration parameters with their values from corresponding file
+        '''
+        if hasattr(self, 'user_selected_stimulation_module'):
+            filename = self.user_selected_stimulation_module
+        else:
+            filename = file.get_user_folder(self.config)
+        self._load_experiment_config_parameters(filename)
+
+    def save_experiment_parameters(self):
+        #Find out filename and config class name
+        configname = str(self.widget.experiment_name.currentText())
+        if len(os.path.split(configname)[0]) > 0:#configname string is in this format: file path/experiment config name
+            filename = os.path.split(configname)[0]
+            configname = os.path.split(configname)[1]
+        else:
+            filename = file.find_content_in_folder('class '+configname, file.get_user_folder(self.config), '.py')
+            if len(filename)>1:
+                raise RuntimeError('{0} experiment config found in more than one files'.format(configname))
+            else:
+                filename = filename[0]
+        if not self.poller.ask4confirmation('Do you really want to overwrite {0} file with modified parameters?'.format(filename)):
+            return
+        #Generate source code lines from table parameter values
+        new_section = []
+        from_table = self.paramwidget.values.get_values().items()
+        for k, v in from_table:
+            new_section.append(k+'='+v)
+        #Find lines corresponding to modifed parameters
+        with open(filename) as f:
+            content = f.readlines()
+        lines_to_modify = []
+        for i in range(len(content)):
+            for par in from_table:
+                if par[0] in content[i] and par[1] != content[i].replace(' ', ''):#parameter name matches but value does not
+                    lines_to_modify.append(i+1)#line number is used instead of index to help debug
+            if 'class ' + configname in content[i]:
+                header = i+1
+            elif ('class ' == content[i][:6] or 'def ' == content[i][:4]) and 'header' in locals() and 'footer' not in locals():#Find next class or def declaration after exp config class
+                footer = i+1
+        if 'footer' not in locals():
+            footer = i+1
+        #Replaceble line numbers shall be between header and footer line numbers
+        lines_to_modify = [line for line in lines_to_modify if header < line and footer > line]
+        if len(lines_to_modify) != len(new_section):
+            self.printc(from_table)
+            self.printc(lines_to_modify)
+            self.printc(new_section)
+            raise RuntimeError('Modifiable parameters cannot be found in {0} experiment config declaration. Number of parameters in original experiment config does not match with the number of paramaters to be saved.'.format(configname))
+        #Modify content by replacing lines where parameters are.
+        for i in range(len(lines_to_modify)):
+            content[lines_to_modify[i]-1] = 8*' '+new_section[i]+content[0][-1]#Adding 8 spaces before line (2 levels of indentation), using original file's end of line character
+        content= ''.join(content)
+        #Check for syntax errors
+        introspect.import_code(content,'module_under_test', add_to_sys_modules=0)
+        file.write_text_file(filename, content)
+        #Parse modified file to make parameter table's data consistent
+        self.printc('{1} parameters saved to {0}' .format(filename, configname))
+
+    ################# Experiment execution ####################
     def start_experiment(self):
         '''
         
@@ -238,86 +584,44 @@ class ExperimentParametersGroupBox(QtGui.QGroupBox):
         self.create_layout()
 
     def create_widgets(self):
-        pass
+        self.button_names = ['Reload',  'Save']
+        for button_name in self.button_names:
+            setattr(self, stringop.to_variable_name(button_name), QtGui.QPushButton(button_name,  self))
+        self.values = gui.ParameterTable(self)
+        self.values.setToolTip('Parameter values shall be python syntax compatible:text like values shall be embedded into quotes, use references only to valid variable names')
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
+        for i in range(len(self.button_names)):
+            self.layout.addWidget(getattr(self, stringop.to_variable_name(self.button_names[i])), 0, i)
+        self.layout.addWidget(self.values, 1, 0, 1, len(self.button_names))
         self.setLayout(self.layout)
 
-class AnimalParametersWidget(QtGui.QWidget):
+class AnimalParametersAndExperimentLogWidget(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.config = parent.config
         self.create_widgets()
         self.create_layout()
-        if hasattr(self.config, 'TAB_SIZE'):#TODO: remove
-            self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
 
     def create_widgets(self):
-        default_date = QtCore.QDate(datetime.datetime.now().year, 1, 1)
-        date_format = QtCore.QString('dd-MM-yyyy')
-        ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])                
-        self.mouse_birth_date_label = QtGui.QLabel('Mouse birth date',  self)        
-        self.mouse_birth_date = QtGui.QDateEdit(self)
-        self.mouse_birth_date.setDisplayFormat(date_format)
-        self.mouse_birth_date.setDate(default_date)
-        self.gcamp_injection_date_label = QtGui.QLabel('GCAMP injection date',  self)
-        self.gcamp_injection_date = QtGui.QDateEdit(self)
-        self.gcamp_injection_date.setDisplayFormat(date_format)
-        self.gcamp_injection_date.setDate(default_date)
-        self.ear_punch_l_label = QtGui.QLabel('Ear punch L',  self)
-        self.ear_punch_l = QtGui.QComboBox(self)
-        self.ear_punch_l.addItems(ear_punch_items)
-        self.ear_punch_r_label = QtGui.QLabel('Ear punch R',  self)
-        self.ear_punch_r = QtGui.QComboBox(self)                
-        self.ear_punch_r.addItems(ear_punch_items)
-        self.gender_label = QtGui.QLabel('Gender',  self)
-        self.gender = QtGui.QComboBox(self)        
-        self.gender.addItems(QtCore.QStringList(['female', 'male']))
-        self.id_label = QtGui.QLabel('ID',  self)
-        self.id = QtGui.QComboBox(self)
-        self.id.setEditable(True)
-        self.mouse_strain_label = QtGui.QLabel('Mouse strain',  self)
-        self.mouse_strain = QtGui.QComboBox(self)
-        self.mouse_strain.addItems(QtCore.QStringList(['chatdtr', 'chat', 'chattomato','bl6', 'grik4']))
-        self.mouse_strain.setEditable(True)
-        self.green_labeling_label = QtGui.QLabel('Green labeling',  self)
-        self.green_labeling = QtGui.QComboBox(self)
-        self.green_labeling.setEditable(True)
-        self.green_labeling.addItems(QtCore.QStringList(self.config.GREEN_LABELING))
-        self.red_labeling_label = QtGui.QLabel('Red labeling',  self)
-        self.red_labeling = QtGui.QComboBox(self)
-        self.red_labeling.setEditable(True)
-        self.red_labeling.addItems(QtCore.QStringList(['no','yes']))
-        self.comments = QtGui.QComboBox(self)
-        self.comments.setEditable(True)
-        self.comments.setToolTip('Add comment')
-        self.new_mouse_file_button = QtGui.QPushButton('Create new mouse file',  self)
-        self.anesthesia_history_groupbox = ExperimentLogGroupbox(self)
+        self.animal_filename = gui.LabeledComboBox(self, 'Animal file')
+        self.animal_files_from_data_storage = QtGui.QPushButton('Search data storage for animal files',  self)
+        self.animal_files_from_data_storage.setToolTip('Search for valid animal files in folder pointed by machine_config.DATA_STORAGE_PATH.\nItems found are added to current animal file list. Might take some time to complete.')
+        self.animal_files_from_data_storage.setEnabled(hasattr(self.config, 'DATA_STORAGE_PATH'))
+        self.copy_animal_files_from_data_storage = QtGui.QPushButton('Copy animal file from data storage',  self)
+        self.copy_animal_files_from_data_storage.setEnabled(hasattr(self.config, 'DATA_STORAGE_PATH'))
+        self.copy_animal_files_from_data_storage.setToolTip('Copies selected animal file from data storage to experiment data folder')
+        self.animal_parameters_groupbox = AnimalParametersGroupbox(self, self.config)
+        self.log_groupbox = ExperimentLogGroupbox(self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.id_label, 0, 0)
-        self.layout.addWidget(self.id, 0, 1)
-        self.layout.addWidget(self.green_labeling_label, 1, 3)
-        self.layout.addWidget(self.green_labeling, 2, 3)
-        self.layout.addWidget(self.red_labeling_label, 3, 3)
-        self.layout.addWidget(self.red_labeling, 4, 3)
-        self.layout.addWidget(self.mouse_birth_date_label, 1, 0)
-        self.layout.addWidget(self.mouse_birth_date, 2, 0)
-        self.layout.addWidget(self.gcamp_injection_date_label, 3, 0)
-        self.layout.addWidget(self.gcamp_injection_date, 4, 0)
-        self.layout.addWidget(self.ear_punch_l_label, 1, 1)
-        self.layout.addWidget(self.ear_punch_l, 2, 1)
-        self.layout.addWidget(self.ear_punch_r_label, 3, 1)
-        self.layout.addWidget(self.ear_punch_r, 4, 1)
-        self.layout.addWidget(self.gender_label, 1, 2)
-        self.layout.addWidget(self.gender, 2, 2)
-        self.layout.addWidget(self.mouse_strain_label, 3, 2)
-        self.layout.addWidget(self.mouse_strain, 4, 2)
-        self.layout.addWidget(self.comments, 5, 0, 1, 3)
-        self.layout.addWidget(self.new_mouse_file_button, 5, 3, 1, 1)
-        self.layout.addWidget(self.anesthesia_history_groupbox, 8, 0, 2, 5)
+        self.layout.addWidget(self.animal_filename, 0, 0)
+        self.layout.addWidget(self.animal_files_from_data_storage, 0, 1)
+        self.layout.addWidget(self.copy_animal_files_from_data_storage, 0, 2)
+        self.layout.addWidget(self.animal_parameters_groupbox, 1, 0)
+        self.layout.addWidget(self.log_groupbox, 1, 1, 1, 3)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)

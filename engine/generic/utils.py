@@ -24,6 +24,7 @@ if os.name == 'nt':
     import win32api
 
 import file
+import introspect
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 
 def resample_array(array, factor):
@@ -523,10 +524,12 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
     #Filter experiment config list. In test mode, experiment configs are loaded only from automated_test_data. In application run mode
     #this module is omitted
     filtered_class_list = []
+    test_running = introspect.is_test_running()
     for class_item in class_list:
-        if unit_test_runner.TEST_test:
+        #If unit test or batch of unit tests (unit_test_runner) is run, add fetch all machine configs, otherwise omit automated_test_data module.
+        if test_running:
             filtered_class_list.append(class_item)
-        elif not 'automated_test_data' in class_item[0].__name__ and not unit_test_runner.TEST_test:
+        elif not 'automated_test_data' in class_item[0].__name__:
             filtered_class_list.append(class_item)
     return filtered_class_list
     
@@ -1113,12 +1116,6 @@ def is_in_list(list, item_to_find):
     else:
         return False
         
-def is_substring_in_list(list, substring):
-    result = [item for item in list if substring in item]
-    if len(result) > 0:
-        return True
-    else:
-        return False
 def string_to_array(string):
     array = []
     for byte in list(string):

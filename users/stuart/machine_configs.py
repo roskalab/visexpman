@@ -23,7 +23,9 @@ class BehavioralTester(VisionExperimentConfig):
         GUI_REFRESH_PERIOD = 0.1
         if os.name == 'nt':
             comport = 'COM3'
+            self.VALVE_COMPORT = 'COM4'
         else:
             comport = '/dev/ttyUSB0'
+            self.VALVE_COMPORT = '/dev/ttyUSB0'
         self.PHOTOINTERRUPTER_SERIAL_DIO_PORT = {'0': comport}
         self._create_parameters_from_locals(locals())

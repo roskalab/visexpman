@@ -70,12 +70,12 @@ class ProjectorCalibrationParameters(experiment.ExperimentConfig):
         
 class FindLinearRangeParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.CALIBRATION_POINTS = 30
-        self.SETTLING_TIME = 1.0
-        self.REPEATS = 2
-        self.INTENSITY_RANGE = [0.0, 1.0]
-        self.MAX_INTENSITIES = [0.6, 0.8, 1.0]
-        self.SAMPLES_PER_STEP = 10
+        self.INTENSITY_RANGE=[0.0,1.0]
+        self.SAMPLES_PER_STEP=10
+        self.MAX_INTENSITIES=[0.6,0.8,1.0]
+        self.CALIBRATION_POINTS=30
+        self.SETTLING_TIME=1.0
+        self.REPEATS=2
         self.runnable = 'ProjectorCalibration'        
         self._create_parameters_from_locals(locals())
 
