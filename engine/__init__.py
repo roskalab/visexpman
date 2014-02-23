@@ -1,5 +1,7 @@
 import argparse
 import warnings
+import platform
+import sys
 
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
@@ -41,7 +43,7 @@ def application_init(**kwargs):
             argparser= unittest_aggregator.argparser
         argparser.add_argument('-u', '--user', help = 'User of the application. A subfolder with this name shall exists visexpman.engine.users folder.')
         argparser.add_argument('-c', '--config', help = 'Machine config that reside in either user\'s folder or in visexpman.users.common')
-        argparser.add_argument('-a', '--application_name', help = 'Application to be started: TBD')#TODO: possible application names shall be listed
+        argparser.add_argument('-a', '--application_name', help = 'Application to be started: main_ui, stim, ca_imaging')#TODO: possible application names shall be listed
         parsed_args = argparser.parse_args()
         for parname in parnames:
             args[parname] = getattr(parsed_args,parname).replace(' ', '')
@@ -90,20 +92,22 @@ class TestApplicationInit(unittest.TestCase):
             self.log.terminate()
             del self.log
         
+    @unittest.skipIf(platform.system()=='Windows' and 'unittest_aggregator' in sys.argv[0],  'Does not work on windows system')
     def test_01_command_line_args(self):
-        import sys
         sys.argv.append('-u test')
         sys.argv.append('-c GUITestConfig')
         sys.argv.append('-a main_ui')
         mc, self.log = application_init()
         
-#    @unittest.skip('')        
+#    @unittest.skip('')
     def test_02_no_command_line_args(self):
         mc, self.log = application_init(user='test', config='GUITestConfig', application_name='main_ui')
         
+#    @unittest.skip('')
     def test_03_invalid_config(self):
         self.assertRaises(RuntimeError,  application_init, user='test', config='GUITestConfig1', application_name='main_ui')
         
+#    @unittest.skip('')
     def test_04_freespace_warning(self):
         import warnings
         warnings.simplefilter("always")
@@ -111,6 +115,7 @@ class TestApplicationInit(unittest.TestCase):
             mc, self.log = application_init(user='test', config='AppInitTest4Config', application_name='main_ui')
             self.assertEqual('Running out of free space on' in str(w[-1].message), True)
         
+#    @unittest.skip('')
     def test_05_freespace_error(self):
         self.assertRaises(FreeSpaceError, application_init, user='test', config='AppInitTest5Config', application_name='main_ui')
     

@@ -174,7 +174,10 @@ class ImagingSourceCamera(VideoCamera):
             import tiffile
             from visexpman.engine.generic import fileop
             tiffile.imsave(fileop.generate_filename('c:\\_del\\calib.tiff'), self.video, software = 'visexpman')
-            import Image
+            try:
+                import Image
+            except ImportError:
+                from PIL import Image
             Image.fromarray(numpy.cast['uint8'](self.video.mean(axis=0))).show()
             
     def close(self):

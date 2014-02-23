@@ -11,7 +11,10 @@ import webbrowser
 import copy
 import tempfile
 import scipy.io
-import Image
+try:
+    import Image
+except ImportError:
+    from PIL import Image
 
 if os.name == 'nt':
     import winsound
@@ -1887,7 +1890,10 @@ class CorticalGUIPoller(Poller):
             f1 = self.cutout_subimage(f1, box, scale, origin)
             f2 = self.cutout_subimage(f2, box, scale, origin)
             if False:
-                import Image
+                try:
+                    import Image
+                except ImportError:
+                    from PIL import Image
                 from visexpA.engine.dataprocessors import generic
                 Image.fromarray(generic.normalize(f1,  numpy.uint8)).save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f1.png')))
                 Image.fromarray(generic.normalize(f2,  numpy.uint8)).save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f2.png')))
@@ -2677,14 +2683,21 @@ class VisexpGuiPoller(Poller):
         self.analog_recording_started=False
         self.context_paths = {}
         self.context_paths['variables'] = ['self.experiment_control.experiment_config_classes.keys', 
-                                     'self.parent.central_widget.main_widget.experiment_parameters.values.rowCount', 
-                                     'self.experiment_control.user_selected_stimulation_module', 
+                                     'self.parent.central_widget.main_widget.experiment_parameters.values.rowCount',#only used by unittest
+                                     'self.experiment_control.user_selected_stimulation_module', #only used by unittest
                                      'self.animal_file.filename', 
-                                     'self.animal_file.animal_files.keys', 
-                                     'self.parent.log.filename', 
+                                     'self.animal_file.animal_files.keys', #only used by unittest
+                                     'self.parent.log.filename', #only used by unittest
+                                     'self.parent.central_widget.parameters_groupbox.machine_parameters', 
                                      ]
         self.context_paths['widgets'] = [
-                                          'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name', 
+                                          'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText',
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.currentIndex', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.recording_channel.list.selectedIndexes', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.enable_scanner_synchronization.checkState', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text', 
+                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.input.text', 
                                           ]
         self.context = {}
         for k in self.context_paths.keys():
@@ -2697,8 +2710,6 @@ class VisexpGuiPoller(Poller):
         context_experiment_config_file = None
         if self.context['widgets'].has_key('self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'):
             expname = self.context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name']
-#            if os.path.exists(expname):
-#                context_experiment_config_file = os.path.split(context_experiment_config_file)[0]
             if os.path.exists(os.path.split(expname)[0]):
                 context_experiment_config_file = os.path.split(expname)[0]
         self.experiment_control = gui.ExperimentControl(self, self.config, 
@@ -2711,8 +2722,10 @@ class VisexpGuiPoller(Poller):
         self.animal_file = gui.AnimalFile(self, self.config, self.parent.central_widget.animal_parameters_groupbox, 
                                                       context_animal_file = context_animal_file)
         self.experiment_log = gui.ExperimentLog(self, self.config, self.parent.central_widget.experiment_log_groupbox)
-        
-        
+        #Init machine parameters
+        if self.context['variables'].has_key('self.parent.central_widget.parameters_groupbox.machine_parameters'):
+            self.parent.central_widget.parameters_groupbox.machine_parameters = self.context['variables']['self.parent.central_widget.parameters_groupbox.machine_parameters']
+
     def connect_signals(self):
         self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
         self.connect(self, QtCore.SIGNAL('ask4confirmation'),  self.parent.ask4confirmation)
@@ -2745,9 +2758,13 @@ class VisexpGuiPoller(Poller):
                 context['variables'][varname] = context['variables'][varname]()
         context['widgets'] = {}
         for varname in self.context_paths['widgets']:
-            ref = introspect.string2objectreference(self,varname)
-            if hasattr(ref, 'currentText'):
-                context['widgets'][varname] = str(getattr(ref, 'currentText')())
+            context['widgets'][varname] = introspect.string2objectreference(self,varname)
+            if hasattr(context['widgets'][varname], '__call__'):
+                context['widgets'][varname] = context['widgets'][varname]()
+                if hasattr(context['widgets'][varname], 'isSimpleText'):
+                    context['widgets'][varname] = str(context['widgets'][varname])
+                elif isinstance(context['widgets'][varname], list):#Qlistwidget selected rows
+                    context['widgets'][varname] = [s.row() for s in context['widgets'][varname]]
         hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(context), self.config,  overwrite = True)
 
     def init_network(self):
@@ -3007,6 +3024,7 @@ class VisexpGuiPoller(Poller):
         elif self.testmode ==4 or self.testmode ==5:
             for fn in os.listdir(tempfile.gettempdir()):
                 if 'animal_' in fn and '.hdf5' in fn:
+                    self.printc(fn)
                     shutil.move(os.path.join(tempfile.gettempdir(), fn), self.config.DATA_STORAGE_PATH)
             self.parent.central_widget.main_tab.setCurrentIndex(2)
             self.animal_file.search_data_storage()

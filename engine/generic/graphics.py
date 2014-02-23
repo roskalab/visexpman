@@ -6,7 +6,10 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 import pygame
 
-import Image
+try:
+    import Image
+except ImportError:
+    from PIL import Image
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 

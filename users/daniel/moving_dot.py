@@ -1,7 +1,10 @@
 '''calculates positions of n dots moving in 8 directions through the screen'''
 import visexpman
 import os.path
-import Image
+try:
+    import Image
+except ImportError:
+    from PIL import Image
 import numpy
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import utils

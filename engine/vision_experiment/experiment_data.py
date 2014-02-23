@@ -241,7 +241,10 @@ def add_auxiliary_rois(rois, roi_pattern_size, objective_position, objective_ori
         if debug:
             im[int(roi_center_in_pixels['row']), int(roi_center_in_pixels['col']), :] = 255
     if debug:
-        import Image
+        try:
+            import Image
+        except ImportError:
+            from PIL import Image
 #        im = im[100:, 100:, :]
         im = Image.fromarray(im)
         try:

@@ -23,6 +23,7 @@ from visexpman.engine.generic import gui
 from visexpman.engine.generic import fileop
 from visexpman.engine.generic import stringop
 from visexpman.engine.generic import introspect
+from visexpman.engine.generic import utils
 
 BUTTON_HIGHLIGHT = 'color: red'#TODO: this has to be eliminated
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -66,7 +67,7 @@ class StandardIOWidget(QtGui.QWidget):
         self.layout.setRowStretch(300, 300)
         self.layout.setColumnStretch(0, 100)
         self.setLayout(self.layout)
-
+        
 class ExperimentLogGroupbox(QtGui.QGroupBox):
     def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, '', parent)
@@ -80,7 +81,8 @@ class ExperimentLogGroupbox(QtGui.QGroupBox):
         self.new_entry = AddExperimentLogEntryGroupbox(self)
         self.remove_button = QtGui.QPushButton('Remove entry', self)
         self.remove_button.setToolTip('Before pressing this button, select removeable item(s).')
-        self.show_experiments = gui.LabeledCheckBox(self, 'Show experiments')
+        self.show_experiments = QtGui.QCheckBox(self)
+        self.show_experiments.setText('Show experiments')
         self.show_experiments.setToolTip('If checked, recordings are displayed with experiment logs')
         
     def create_layout(self):
@@ -308,6 +310,7 @@ class AnimalFile(gui.WidgetControl):
         gui.WidgetControl.__init__(self, poller, config, widget)
         self.animal_files = self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config))
         self.check4animal_files_last_update = time.time()
+        self.enable_check4animal_files = True
         #Most recently modified file is selected
         if not context_animal_file is None:
             self.filename = context_animal_file
@@ -478,6 +481,7 @@ class AnimalFile(gui.WidgetControl):
             return
         self.printc('Searching for animal parameter files, please wait!')
         self.animal_files = self._get_animal_file_list(self.config.DATA_STORAGE_PATH, self.animal_files)
+        self.enable_check4animal_files=False
         self.poller.update_animal_file_list()
         self.printc('Done, animal file list updated')
         
@@ -500,6 +504,12 @@ class AnimalFile(gui.WidgetControl):
         self.poller.update_animal_file_list()
         
     def chec4new_animal_file(self):
+        '''
+        Disabled when files data strorage is searched. Reenabling is only possible when application restarts
+        The idea is that no periodic checking is necessary when user looks for animal file in data storage
+        '''
+        if not self.enable_check4animal_files:
+            return
         now = time.time()
         if introspect.is_test_running():
             check_time = 3.0
@@ -778,7 +788,8 @@ class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
         self.stimulation_device.setToolTip('''Empty: the experiment and experiment class will be executed as it is\n
 Any stimulation device: stimulation will be presented by the selected device,\n
 but any of {0}:\n Selected Experiment config is ignored, parameters are taken from user interface'''.format(self.parent().config.GUI_CONFIGURABLE_STIMULATION_DEVICES))
-        self.enable_scanner_synchronization = gui.LabeledCheckBox(self, 'Scanner-stimulus synchronization')
+        self.enable_scanner_synchronization = QtGui.QCheckBox(self)
+        self.enable_scanner_synchronization.setText('Scanner-stimulus synchronization')
         self.enable_scanner_synchronization.setToolTip('Synchronize stimulation with two photon scanning')
         rec_channels = ['Electrophysiology signal']
         rec_channels.extend(['Calcium fluorescence, ' + item+' PMT' for item in self.parent().config.PMTS.keys()])
@@ -854,7 +865,48 @@ class CorticalExperimentOptionsGroupBox(QtGui.QGroupBox):
             self.layout.addWidget(self.experiment_progress, 3, 0, 1, 2)
         else:
             self.layout.addWidget(self.experiment_progress, 3, 0, 1, 4)
-        self.setLayout(self.layout)        
+        self.setLayout(self.layout)
+
+class CalibrationGroupbox(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, '', parent)
+        self.config=self.parent().config
+        self.create_widgets()
+        self.create_layout()
+    
+    def create_widgets(self):
+        pass
+        
+    def create_layout(self):
+        pass
+        
+class MachineParametersGroupbox(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, '', parent)
+        self.config=self.parent().config
+        self.create_widgets()
+        self.create_layout()
+        self.machine_parameters = {}
+        self.machine_parameters['scanner'] = {'Image center':  '0, 0#Center of scanning, format: (row, col) [um]', 
+                                                                        'Trigger width': '0#Length of trigger pulse that switches on the stimulation device in us', 
+                                                                        'Trigger delay': '0#[us]'}
+                                                                        
+        self.machine_parameter_order = {}
+        self.machine_parameter_order['scanner'] = ['Image center', 'Trigger width', 'Trigger delay']
+
+    def create_widgets(self):
+        self.table = {}
+        self.scanner_section_title = QtGui.QLabel('Scanner parameters', self)
+        self.table['scanner'] = gui.ParameterTable(self)
+        self.table['scanner'].setFixedWidth(450)
+        self.table['scanner'].setFixedHeight(550)
+        self.table['scanner'].setColumnWidth(0, 250)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.scanner_section_title, 0, 0, 1, 1)
+        self.layout.addWidget(self.table['scanner'], 1, 0, 1, 1)
+        self.setLayout(self.layout)
 
 class FlowmeterControl(QtGui.QGroupBox):
     def __init__(self, parent):
@@ -1106,31 +1158,96 @@ class RoiWidget(QtGui.QWidget):
 
 ################### Image display #######################
 class ImagesWidget(QtGui.QWidget):
+    '''
+    Depends on platform
+    '''
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.config = parent.config
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.OVERVIEW_IMAGE_SIZE['col'], self.config.OVERVIEW_IMAGE_SIZE['row'])
+        
         
     def create_widgets(self):
-        self.image_display = []
-        for i in range(4):
-            self.image_display.append(QtGui.QLabel())
-        self.blank_image = 128*numpy.ones((self.config.IMAGE_SIZE['col'], self.config.IMAGE_SIZE['row']), dtype = numpy.uint8)
-        for image in self.image_display:
-            image.setPixmap(imaged.array_to_qpixmap(self.blank_image))
+#        return        
+#        import pyqtgraph as pg
+
+
+        self.snap = QtGui.QPushButton('Snap', self)
+        self.imagefilter = gui.LabeledComboBox(self, 'Filter', items = ['median_filter'])
+        self.imagechannel = gui.LabeledComboBox(self, 'Channel', items = self.config.PMTS.keys())
+        
+        self.v=QtGui.QGraphicsView(self)
+        scene = QtGui.QGraphicsScene(self.v)
+        self.v.setScene(scene)
+        
+        img = numpy.random.random((200,100, 3))
+        scene.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage(img, img.shape[1], img.shape[0], 3*img.shape[1], QtGui.QImage.Format_RGB888)))
+        self.v.scale(1, 1)
+        
+#        scene.addLine(0, 0, 1000, 1000)
+
+
+
+
+        import PyQt4.Qwt5 as Qwt5
+        self.plot = Qwt5.QwtPlot(self)
+        
+        self.max = QtGui.QSlider(QtCore.Qt.Horizontal, self)
+        self.min = QtGui.QSlider(QtCore.Qt.Horizontal, self)
+        
+        
+#        self.v = pg.GraphicsView(background = pg.mkColor(150,150,150))
+#        self.vb = pg.ViewBox(enableMouse=not False)
+##        s = self.vb.getState()
+##        s['autoRange'] = [False, False]
+##        self.vb.setState(s)
+#        self.vb.setAspectLocked()
+#        self.v.setCentralItem(self.vb)
+#        self.img = pg.ImageItem()
+#        self.img.scale(0.1, 0.1)
+#        self.vb.addItem(self.img)
+#        g=pg.GridItem()
+#        self.vb.addItem(g)
+#        self.lut = pg.HistogramLUTItem(self.img)
+#        self.vb.addItem(self.lut)
+        
+        
+        
+#        self.vb.menu.ctrl[0].mouseCheck.setChecked(0)
+#        self.vb.menu.ctrl[1].mouseCheck.setChecked(0)
+#        scale = pg.ScaleBar(size=100, width=10,  brush=pg.mkBrush(color=[255,255,255]))
+#        scale.setParentItem(self.vb)
+#        scale.anchor((1, 1), (1, 1), offset=(-40, -40))
+#        self.img.setImage(numpy.random.random((300,300,3)))
+        
+#        self.img= CImage(numpy.zeros((self.meanimg_size,self.meanimg_size,3),dtype = numpy.uint8), self)
+#        self.img_view=QtGui.QGraphicsView(self)
+#        self.img_scene=QtGui.QGraphicsScene(self.img_view)
+#        self.img_view.setRenderHints(QtGui.QPainter.Antialiasing | QtGui.QPainter.SmoothPixmapTransform | QtGui.QPainter.TextAntialiasing)
+#        self.img_scene.addWidget(self.img)
+#        self.img_view.setScene(self.img_scene)
+#        return
+#        self.image_display = []
+#        for i in range(4):
+#            self.image_display.append(QtGui.QLabel())
+#        self.blank_image = 128*numpy.ones((100, 100), dtype = numpy.uint8)
+#        for image in self.image_display:
+#            image.setPixmap(imaged.array_to_qpixmap(self.blank_image))
             
-    def clear_image_display(self, index):
-        self.image_display[index].setPixmap(imaged.array_to_qpixmap(self.blank_image))
+    
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        for i in range(len(self.image_display)):
-            self.layout.addWidget(self.image_display[i], i/2, (i%2)*2, 1, 1)
         
-        self.layout.setRowStretch(3, 3)
-        self.layout.setColumnStretch(3, 3)
+        self.layout.addWidget(self.snap, 0, 0)
+        self.layout.addWidget(self.imagechannel, 0, 1)
+        self.layout.addWidget(self.imagefilter, 0, 2)
+        self.layout.addWidget(self.v, 1, 0, 1, 3)
+        self.layout.addWidget(self.plot, 2, 0, 1, 3)
+        self.layout.addWidget(self.max, 3, 0, 1, 1)
+        self.layout.addWidget(self.min, 3, 1, 1, 1)
+        
         self.setLayout(self.layout)
         
 class OverviewWidget(QtGui.QWidget):
@@ -1154,30 +1271,39 @@ class OverviewWidget(QtGui.QWidget):
         self.setLayout(self.layout)
         
 ################### Application widgets #######################
-#TODO: needs to be moved elsewhere
 class MainWidget(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.config = parent.config
         self.create_widgets()
         self.create_layout()
-        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
         
     def create_widgets(self):
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
-        self.scan_region_groupbox = ScanRegionGroupBox(self)
-        self.measurement_datafile_status_groupbox = AnalysisStatusGroupbox(self)
+        self.experiment_control_groupbox.setFixedWidth(350)
+        self.experiment_control_groupbox.setFixedHeight(150)
+        if self.config.PLATFORM == 'elphys_retinal_ca':
+            self.experiment_options_groupbox = RetinalExperimentOptionsGroupBox(self)
+        elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
+            self.experiment_options_groupbox = CorticalExperimentOptionsGroupBox(self)
+        self.experiment_options_groupbox.setFixedWidth(350)
+        self.experiment_options_groupbox.setFixedHeight(400)
+        self.experiment_parameters = ExperimentParametersGroupBox(self)
+        self.experiment_parameters.setFixedWidth(400)
+        self.experiment_parameters.setFixedHeight(400)
+        self.experiment_parameters.values.setColumnWidth(0, 200)
+        self.network_status = QtGui.QLabel('', self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 2, 4)
-#        self.layout.addWidget(self.set_objective_value_button, 2, 8, 1, 1)
-        self.layout.addWidget(self.scan_region_groupbox, 2, 0, 2, 4)
-        self.layout.addWidget(self.measurement_datafile_status_groupbox, 0, 4, 10, 4)
-        self.layout.setRowStretch(10, 10)
-        self.layout.setColumnStretch(10, 10)
+        self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
+        self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 2, 1)
+        self.layout.addWidget(self.experiment_parameters, 0, 1, 2, 1)
+        self.layout.addWidget(self.network_status, 3, 0, 1, 1)
+        self.layout.setRowStretch(10, 5)
+        self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
-        
+
 class CommonWidget(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)

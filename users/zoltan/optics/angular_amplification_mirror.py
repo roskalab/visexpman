@@ -1,7 +1,8 @@
 import numpy
-import Image
-import ImageDraw
-
+try:
+    import Image, ImageDraw
+except ImportError:
+    from PIL import Image, ImageDraw
 #class AngularAmplificationMirrror(object):
 #    """
 #    Performs calculations related to angular amplification mirror design

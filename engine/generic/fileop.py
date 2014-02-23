@@ -2,6 +2,9 @@
 import sys
 import os, re
 import os.path
+import ctypes
+import platform
+import sys
 import shutil
 import numpy
 import tempfile
@@ -96,8 +99,13 @@ def select_folder_exists(folders):
 ################# File system ####################
 
 def free_space(path):
-    s=os.statvfs(path)
-    return (s.f_bavail * s.f_frsize)
+    if platform.system() == 'Windows':
+        free_bytes = ctypes.c_ulonglong(0)
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(path), None, None, ctypes.pointer(free_bytes))
+        return free_bytes.value
+    elif platform.system() == 'Linux':
+        s=os.statvfs(path)
+        return (s.f_bavail * s.f_frsize)
     
 def set_file_dates(path, file_info):
     try:
@@ -358,7 +366,8 @@ def get_context_filename(config):
     '''
     if not hasattr(config, 'CONTEXT_PATH'):
         raise RuntimeError('CONTEXT_PATH is not defined in machine config')
-    filename = 'context_{0}_{1}.hdf5'.format(config.application_name, config.user)
+    import platform
+    filename = 'context_{0}_{1}_{2}.hdf5'.format(config.application_name, config.user, platform.uname()[1])
     return os.path.join(config.CONTEXT_PATH, filename)
     
 def get_logfilename(config):
@@ -619,7 +628,10 @@ def getziphandler(zipstream):
 
 def check_png_hashes(fname,function,*args,**kwargs):
         '''Checks whether the function code and argument hashes exist in the png file and updates them if necessary'''
-        import Image 
+        try:
+            import Image
+        except ImportError:
+            from PIL import Image 
         from visexpA.engine.dataprocessors.generic import check_before_long_calculation
         fh=None;ah=None
         if os.path.exists(fname):
@@ -668,7 +680,11 @@ class TestFileops(unittest.TestCase):
         
 #    @unittest.skip('')
     def test_01_pngsave(self):
-        import numpy, Image
+        import numpy
+        try:
+            import Image
+        except ImportError:
+            from PIL import Image
         from visexpman.engine.generic.introspect import hash_variables
         pic = numpy.zeros((233,234),numpy.uint8)
         pic[0,233]=255

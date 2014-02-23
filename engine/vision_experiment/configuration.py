@@ -105,11 +105,11 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         ############## General platform parameters ###############
         PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','standalone', 'smallapp', 'undefined']]
-        APPLICATION_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation'}
+        APPLICATION_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation'}#TODO: Jobhandler???? -find better name
         
         ############## File/Filesystem related ###############
-        FREE_SPACE_WARNING_THRESHOLD = [2**30, [1, 2**40]]
-        FREE_SPACE_ERROR_THRESHOLD = [2**30, [1, 2**40]]
+        FREE_SPACE_WARNING_THRESHOLD = [2.0**30, [1.0, 2.0**40]]
+        FREE_SPACE_ERROR_THRESHOLD = [2.0**30, [1.0, 2.0**40]]
         EXPERIMENT_FILE_FORMAT = ['undefined', ['hdf5', 'mat', 'undefined']]
         
         ############# Network #####################      

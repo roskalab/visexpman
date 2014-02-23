@@ -199,7 +199,10 @@ class AllegraStage(StageControl):
         
 def stage_calibration(side_usteps, folder):
     import visexpA.engine.dataprocessors.itk_versor_rigid_registration as itk_versor_rigid_registration
-    import Image
+    try:
+        import Image
+    except ImportError:
+        from PIL import Image
     import visexpA.engine.dataprocessors.signal as signal
     frames = utils.listdir_fullpath(folder)
     frames.sort()

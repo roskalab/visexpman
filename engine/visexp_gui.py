@@ -13,9 +13,12 @@ import re
 import copy
 import cPickle as pickle
 import scipy.ndimage
-import Image
-import ImageDraw
-import ImageFont
+try:
+    import Image
+    import ImageDraw
+    import ImageFont
+except ImportError:
+    from PIL import Image, ImageDraw, ImageFont
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -975,39 +978,6 @@ class GuiTest(QtCore.QThread):
     def printc(self, text):
         self.emit(QtCore.SIGNAL('printc'), text)
         
-class MainWidget(QtGui.QWidget):
-    def __init__(self, parent):
-        QtGui.QWidget.__init__(self, parent)
-        self.config = parent.config
-        self.create_widgets()
-        self.create_layout()
-        
-    def create_widgets(self):
-        self.experiment_control_groupbox = gui.ExperimentControlGroupBox(self)
-        self.experiment_control_groupbox.setFixedWidth(350)
-        self.experiment_control_groupbox.setFixedHeight(150)
-        if self.config.PLATFORM == 'elphys_retinal_ca':
-            self.experiment_options_groupbox = gui.RetinalExperimentOptionsGroupBox(self)
-        elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
-            self.experiment_options_groupbox = gui.CorticalExperimentOptionsGroupBox(self)
-        self.experiment_options_groupbox.setFixedWidth(350)
-        self.experiment_options_groupbox.setFixedHeight(400)
-        self.experiment_parameters = gui.ExperimentParametersGroupBox(self)
-        self.experiment_parameters.setFixedWidth(400)
-        self.experiment_parameters.setFixedHeight(400)
-        self.experiment_parameters.values.setColumnWidth(0, 200)
-        self.network_status = QtGui.QLabel('', self)
-
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
-        self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 2, 1)
-        self.layout.addWidget(self.experiment_parameters, 0, 1, 2, 1)
-        self.layout.addWidget(self.network_status, 3, 0, 1, 1)
-        self.layout.setRowStretch(10, 5)
-        self.layout.setColumnStretch(5,10)
-        self.setLayout(self.layout)
-        
 class CentralWidget(QtGui.QWidget):
     def __init__(self, parent, config):
         QtGui.QWidget.__init__(self, parent)
@@ -1016,15 +986,22 @@ class CentralWidget(QtGui.QWidget):
         self.create_layout()
         
     def create_widgets(self):
-        self.main_widget = MainWidget(self)
+        self.main_widget = gui.MainWidget(self)
         self.animal_parameters_groupbox = gui.AnimalParametersGroupbox(self, self.config)
         self.experiment_log_groupbox = gui.ExperimentLogGroupbox(self)
+        self.calibration_groupbox = gui.CalibrationGroupbox(self)
+        self.parameters_groupbox = gui.MachineParametersGroupbox(self)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Main')
         self.main_tab.addTab(self.experiment_log_groupbox, 'Experiment log')
         self.main_tab.addTab(self.animal_parameters_groupbox, 'Animal parameters')
+        self.main_tab.addTab(self.parameters_groupbox, 'Parameters')
+        self.main_tab.addTab(self.calibration_groupbox, 'Calibration')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setFixedHeight(self.config.GUI['GUI_SIZE']['row']*0.7)
+        self.main_tab.setMaximumWidth(self.config.GUI['GUI_SIZE']['col']*0.6)
+        self.images = gui.ImagesWidget(self)
+        
         
         self.text_out = QtGui.QTextEdit(self)
         self.text_out.setPlainText('')
@@ -1035,13 +1012,17 @@ class CentralWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.main_tab, 0, 0, 1, 1)
-        self.layout.addWidget(self.text_out, 1,  0, 1, 1)
+        self.layout.addWidget(self.images, 0, 1, 1, 1)
+        self.layout.addWidget(self.text_out, 1,  0, 1, 2)
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
     def __init__(self, user, config_class, application_name, testmode=None):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
+#            qt_app.setStyleSheet(fileop.read_text_file('/home/rz/Downloads/QTDark.stylesheet'))
+#            qt_app.setStyle('windows')
+            
         import visexpman.engine
         self.source_name = 'gui-{0}' .format(application_name)
         self.config, self.log = visexpman.engine.application_init(user=user, config=config_class, application_name = application_name, log_sources = [self.source_name])
@@ -1074,20 +1055,30 @@ class VisionExperimentGui(Qt.QMainWindow):
         '''
         #Set widget values from context
         for widget_path in self.poller.context['widgets']:
-            ref = introspect.string2objectreference(self,widget_path.replace('.parent', ''))
-            if hasattr(ref, 'setEditText'):
+            ref = introspect.string2objectreference(self,'.'.join(widget_path.replace('.parent', '').split('.')[:-1]))
+            if hasattr(ref, 'setCheckState'):
+                getattr(ref, 'setCheckState')(self.poller.context['widgets'][widget_path])
+            elif hasattr(ref, 'setText'):
+                getattr(ref, 'setText')(self.poller.context['widgets'][widget_path])
+            elif isinstance(self.poller.context['widgets'][widget_path], int) and hasattr(ref, 'setCurrentIndex'):
+                getattr(ref, 'setCurrentIndex')(self.poller.context['widgets'][widget_path])
+            elif isinstance(self.poller.context['widgets'][widget_path], str) and hasattr(ref, 'setEditText'):
                 getattr(ref, 'setEditText')(self.poller.context['widgets'][widget_path])
+            elif isinstance(self.poller.context['widgets'][widget_path], list):
+                [getattr(ref,'item')(index).setSelected(True) for index in self.poller.context['widgets'][widget_path]]
         self.update_experiment_parameter_table()
         self.update_animal_file_list()
         self.update_animal_parameters_table()
         self.update_experiment_log_suggested_date()
         self.update_experiment_log()
+        self.update_machine_parameters()
 #        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
         self.connect(self.central_widget.main_widget.experiment_control_groupbox.experiment_name, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.experiment_name_changed)
         self.connect(self.central_widget.animal_parameters_groupbox.animal_filename.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.animal_filename_changed)
         self.connect(self.central_widget.animal_parameters_groupbox.animal_filename.input, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
+        self.connect(self.central_widget.parameters_groupbox.table['scanner'], QtCore.SIGNAL('cellChanged(int,int)'),  self.machine_parameter_table_content_changed)
 #        self.connect(self.central_widget.animal_parameters_groupbox.animal_filename, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
         #Signals mapped to poller functions
         self.signal_mapper = QtCore.QSignalMapper(self)
@@ -1145,8 +1136,17 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.poller.animal_file.filename = str(self.central_widget.animal_parameters_groupbox.animal_filename.input.currentText())
         #poller/animal parameters class needs to load animal parameters from selected file
         self.poller.animal_file.load()
+        
+    def machine_parameter_table_content_changed(self):
+        self.central_widget.parameters_groupbox.machine_parameters['scanner'] = self.central_widget.parameters_groupbox.table['scanner'].get_values()
     
     ################# Update widgets #################### 
+    def update_machine_parameters(self):
+        self.central_widget.parameters_groupbox.table['scanner'].blockSignals(True)
+        self.central_widget.parameters_groupbox.table['scanner'].set_values(self.central_widget.parameters_groupbox.machine_parameters['scanner'], 
+                                                                            self.central_widget.parameters_groupbox.machine_parameter_order['scanner'])
+        self.central_widget.parameters_groupbox.table['scanner'].blockSignals(False)
+        
     def update_experiment_log(self):
         if not hasattr(self.poller.animal_file, 'log'):
             return
@@ -1179,6 +1179,8 @@ class VisionExperimentGui(Qt.QMainWindow):
 
     def update_experiment_parameter_table(self):
         experiment_config_name = os.path.split(str(self.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText()))[-1]
+        if not self.poller.experiment_control.experiment_config_classes.has_key(experiment_config_name):
+            return
         pars = {}
         for par in self.poller.experiment_control.experiment_config_classes[experiment_config_name]:
             parname = (par.split('='))[0]
@@ -1407,7 +1409,7 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         self._call_gui(7)
         context = self._read_context()
-        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'], 
+        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename')
                           ), (
                           'DebugExperimentConfig', False
@@ -1421,7 +1423,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self._call_gui(0)
         self._call_gui(8)
         context = self._read_context()
-        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'], 
+        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename')
                           ), (
                           'GUITestExperimentConfig', False
@@ -1437,7 +1439,7 @@ class testVisionExperimentGui(unittest.TestCase):
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=9)
         context = self._read_context()
         explog = hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config)
-        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'], 
+        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename'), 
                           os.path.split(context['variables']['self.animal_file.filename'])[1], 
                           len(explog)
@@ -1457,7 +1459,7 @@ class testVisionExperimentGui(unittest.TestCase):
         context = self._read_context()
         explog = hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config)
         explog2 = hdf5io.read_item(context['variables']['self.animal_file.animal_files.keys'][1], 'log', self.machine_config)
-        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'], 
+        self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename'), 
                           os.path.split(context['variables']['self.animal_file.filename'])[1], 
                           len(explog), 

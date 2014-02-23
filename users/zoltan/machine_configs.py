@@ -6,7 +6,10 @@ import os.path
 import os
 import tempfile
 if os.name == 'nt':
-    import PyDAQmx.DAQmxConstants as DAQmxConstants
+    try:
+        import PyDAQmx.DAQmxConstants as DAQmxConstants
+    except ImportError:
+        pass
 
 import visexpman
 from visexpman.engine.vision_experiment import configuration
@@ -18,6 +21,7 @@ from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.users.test import unittest_aggregator
 from visexpman.users.daniel import grating
 from visexpman.users.peter import mea_configurations as peter_configurations
+from visexpman.engine.generic import fileop
 
 GEOMETRY_PRECISION = 3
 
@@ -136,7 +140,7 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
     
     def _set_user_parameters(self):
         #### paths/data handling ####
-        paths = ['/home/zoltan/Downloads','/mnt/rznb/data', '/mnt/rzws/share/experiment_data','/mnt/datafast/debug/data', 'v:\\debug\\data']
+        paths = ['/home/zoltan/Downloads','/mnt/rznb/data', '/mnt/rzws/share/experiment_data','/mnt/datafast/debug/data', 'r:\\experiment_data', 'v:\\debug\\data']
         for path in paths:
             if os.path.exists(path):
                 self.root_folder = path
@@ -144,7 +148,7 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
-        DATA_STORAGE_PATH = '/mnt/datafast/debug'
+        DATA_STORAGE_PATH = fileop.select_folder_exists(['/mnt/datafast/debug/animalfiles','v:\\debug\\animalfiles'])
         CONTEXT_PATH = self.root_folder
         self.CONTEXT_NAME = '2pdev1.hdf5'
         EXPERIMENT_FILE_FORMAT = 'hdf5'

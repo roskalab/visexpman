@@ -42,27 +42,6 @@ class LabeledInput(QtGui.QWidget):
         self.layout.addWidget(self.input, 0, 1)
         self.setLayout(self.layout)
 
-class LabeledCheckBox(QtGui.QWidget):
-    '''
-    Default value in input field:
-        self.input.setText(TEXT)
-    '''
-    def __init__(self, parent, label):
-        QtGui.QWidget.__init__(self, parent)
-        self.label = label
-        self.create_widgets()
-        self.create_layout()
-
-    def create_widgets(self):
-        self.labelw = QtGui.QLabel(self.label, self)
-        self.input = QtGui.QCheckBox(self)
-
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.labelw, 0, 0)
-        self.layout.addWidget(self.input, 0, 1)
-        self.setLayout(self.layout)
-
 class LabeledComboBox(QtGui.QWidget):
     '''
     Default value in input field:
@@ -201,11 +180,10 @@ class ParameterTable(QtGui.QTableWidget):
         current_values = {}
         for row in range(self.rowCount()):
             parname = str(self.item(row,0).text())
-            if hasattr(self.item(row,1), 'text') and self.cellWidget(row,1) is None:
-                if hasattr(self.item(row,1), 'toolTip'):
+            if hasattr(self.item(row,1), 'text') and self.cellWidget(row,1) is None and hasattr(self.item(row,1), 'toolTip'):
                     current_values[parname] = [str(self.item(row,1).text()), str(self.item(row,1).toolTip())]
-                else:
-                    current_values[parname] = str(self.item(row,1).text())
+            elif hasattr(self.item(row,1), 'text'):
+                current_values[parname] = str(self.item(row,1).text())
             elif hasattr(self.cellWidget(row,1), 'date'):
                 date = self.cellWidget(row,1).date()
                 current_values[parname] = '{0}-{1}-{2}'.format(date.day(), date.month(), date.year())

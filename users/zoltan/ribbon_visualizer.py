@@ -4,7 +4,10 @@ import os.path
 import numpy
 import shutil
 from OpenGL.GL import *
-import Image
+try:
+    import Image
+except ImportError:
+    from PIL import Image
 
 import visexpman.engine.generic.graphics
 from visexpman.engine.generic import utils

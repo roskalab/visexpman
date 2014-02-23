@@ -27,9 +27,7 @@ class Logger(multiprocessing.Process):
         self.command = multiprocessing.Queue()
         self.sources = {}
         self.add_source('default')
-        #Create file
         self.saving2file_enable = True
-        self.file = open(self.filename, 'wt')
 
     def add_source(self, source_name):
         self.sources[source_name] = multiprocessing.Queue()
@@ -79,7 +77,7 @@ class Logger(multiprocessing.Process):
         '''
         Copies log files from LOG_PATH to REMOTE_LOG_PATH
         '''
-        if not os.path.exists(self.config.REMOTE_LOG_PATH):
+        if not hasattr(self.config, 'REMOTE_LOG_PATH') or not os.path.exists(self.config.REMOTE_LOG_PATH):
             return
         for fn in fileop.listdir_fullpath(self.config.LOG_PATH):
             if fileop.is_first_tag(fn, 'log_') and fileop.file_extension(fn) == 'txt':
@@ -106,6 +104,7 @@ class Logger(multiprocessing.Process):
         self.command.put('resume')
 
     def run(self):
+        self.file = open(self.filename, 'wt')#Create file
         while True:
             time.sleep(0.1)
             if not self.command.empty():
@@ -119,6 +118,7 @@ class Logger(multiprocessing.Process):
                 elif command == 'resume':
                     self.saving2file_enable = True
             self.flush()
+        self.file.close()
         self.upload_logfiles()
 
 class Log(object):
