@@ -78,7 +78,7 @@ class DebugExperimentConfig(experiment.ExperimentConfig):
         
 class Debug(experiment.Experiment):
     def prepare(self):
-        self.fragment_durations = [self.experiment_config.DURATION]
+        self.experiment_duration = [self.experiment_config.DURATION]
     
     def run(self):
         self.show_shape(duration=0,size=10, color=1.0, part_of_drawing_sequence=True, flip=False)

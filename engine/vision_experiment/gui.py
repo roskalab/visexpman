@@ -647,9 +647,11 @@ class ExperimentControl(gui.WidgetControl):
         else:
             filename = fileop.get_user_module_folder(self.config)
         self._load_experiment_config_parameters(filename)
-
-    def save_experiment_parameters(self):
-        #Find out filename and config class name
+        
+    def _find_out_experiment_config_filename(self):
+        '''
+            Find out filename and config class name
+        '''
         configname = str(self.widget.experiment_name.currentText())
         if len(os.path.split(configname)[0]) > 0:#configname string is in this format: file path/experiment config name
             filename = os.path.split(configname)[0]
@@ -660,8 +662,13 @@ class ExperimentControl(gui.WidgetControl):
                 raise ExperimentConfigError('{0} experiment config found in more than one files'.format(configname))
             else:
                 filename = filename[0]
-        if not self.poller.ask4confirmation('Do you really want to overwrite {0} file with modified parameters?'.format(filename)):
-            return
+        return filename, configname
+        
+    def _get_updated_experiment_config_file(self, filename,configname):
+        '''
+        Reads experiment configuration parameters from user interface and
+        returns modified source code.
+        '''
         #Generate source code lines from table parameter values
         new_section = []
         from_table = self.paramwidget.values.get_values().items()
@@ -695,18 +702,77 @@ class ExperimentControl(gui.WidgetControl):
         for i in range(len(lines_to_modify)):
             content[lines_to_modify[i]-1] = 8*' '+new_section[i]+content[0][-1]#Adding 8 spaces before line (2 levels of indentation), using original file's end of line character
         content= ''.join(content)
-        #Check for syntax errors
+        #Check for syntax errors, exception is raised if error found
         introspect.import_code(content,'module_under_test', add_to_sys_modules=0)
-        fileop.write_text_file(filename, content)
+        return content
+
+    def save_experiment_parameters(self):
+        filename,configname = self._find_out_experiment_config_filename()
+        if not self.poller.ask4confirmation('Do you really want to overwrite {0} file with modified parameters?'.format(filename)):
+            return
+        fileop.write_text_file(filename, self._get_updated_experiment_config_file(filename,configname))
         #Parse modified file to make parameter table's data consistent
         self.printc('{1} parameters saved to {0}' .format(filename, configname))
 
     ################# Experiment execution ####################
+    def _get_experiment_run_parameters(self):
+        self.optional_parameters = {
+            'animal_parameters': 'self.poller.animal_file.animal_parameters',
+            'experiment_log': 'self.poller.animal_file.log',
+            }
+        filename, configname = self._find_out_experiment_config_filename()
+        self.mandatory_parameters = {
+            'experiment_name': configname,
+            'experiment_config_source_code' : self._get_updated_experiment_config_file(filename,configname),
+            'cell_name': str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text()), 
+            'stimulation_device' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.currentText()), 
+            'recording_channels' : self.poller.parent.central_widget.main_widget.experiment_options_groupbox.recording_channel.get_selected_item_names(), 
+            'enable_scanner_synchronization' : self.poller.parent.central_widget.main_widget.experiment_options_groupbox.enable_scanner_synchronization.checkState() == 2, 
+            'scanning_range' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text()), 
+            'pixel_size' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text()), 
+            'resolution_unit' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentText()), 
+            'scan_center' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Scan center'],
+            'trigger_width' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Trigger width'],
+            'trigger_delay' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Trigger delay'],
+                           }
+        
+    def _parse_experiment_run_parameters(self):
+        for pn in self.optional_parameters.keys():
+            vn = self.optional_parameters[pn].split('.')[-1]
+            ref = introspect.string2objectreference(self, '.'.join(self.optional_parameters[pn].split('.')[:-1]))
+            if hasattr(ref, vn):
+                self.optional_parameters[pn] = getattr(ref,vn)
+            else:
+                del self.optional_parameters[pn]
+        for pn in ['scanning_range', 'scan_center'] :
+            self.mandatory_parameters[pn] = stringop.str2params(self.mandatory_parameters[pn].split('#')[0])
+            if len(self.mandatory_parameters[pn]) == 0:
+                self.poller.notify_user('WARNING', '{0} shall be provided in the following format: height, width'.format(stringop.to_title(pn)))
+                return False
+        for pn in ['pixel_size', 'trigger_width', 'trigger_delay']:
+            try:
+                self.mandatory_parameters[pn] = float(self.mandatory_parameters[pn].split('#')[0])
+            except ValueError:
+                self.poller.notify_user('WARNING', '{0} shall be provided in numeric format: {1}'.format(stringop.to_title(pn),self.mandatory_parameters[pn]))
+                return False
+        self.mandatory_parameters['duration'] = experiment.get_experiment_duration(
+                                                                                   self.mandatory_parameters['experiment_name'], 
+                                                                                   self.config, 
+                                                                                   source=self.mandatory_parameters['experiment_config_source_code']),
+        #Parse list item names to pmt names
+        #TODO:for channel_name in self.mandatory_parameters[recording_channels] if channel_name in 
+            
+        return True
+        
     def start_experiment(self):
         '''
         
         '''
-        self.printc('test')
+        self._get_experiment_run_parameters()
+        if not self._parse_experiment_run_parameters():
+            return
+        self.printc(self.optional_parameters)
+        self.printc(self.mandatory_parameters)
 #        self.printc('Starting experiment, please wait')
 #        self.experiment_parameters = {}
 #        self.experiment_parameters['experiment_config'] = str(self.widget.experiment_name.currentText())
@@ -715,7 +781,7 @@ class ExperimentControl(gui.WidgetControl):
 #        self.experiment_parameters['id'] = str(int(time.time()))
 #        #Find out experiment duration
 #        from visexpman.engine.vision_experiment import experiment
-#        fragment_durations = experiment.get_fragment_duration(self.experiment_parameters['experiment_config'], self.config)
+#        fragment_durations = experiment.get_experiment_duration(self.experiment_parameters['experiment_config'], self.config)
 #        if fragment_durations is None:
 #            self.printc('Fragment duration is not calculated in experiment class')
 #            return
@@ -892,12 +958,12 @@ class MachineParametersGroupbox(QtGui.QGroupBox):
         self.create_widgets()
         self.create_layout()
         self.machine_parameters = {}
-        self.machine_parameters['scanner'] = {'Image center':  '0, 0#Center of scanning, format: (row, col) [um]', 
+        self.machine_parameters['scanner'] = {'Scan center':  '0, 0#Center of scanning, format: (row, col) [um]', 
                                                                         'Trigger width': '0#Length of trigger pulse that switches on the stimulation device in us', 
                                                                         'Trigger delay': '0#[us]'}
                                                                         
         self.machine_parameter_order = {}
-        self.machine_parameter_order['scanner'] = ['Image center', 'Trigger width', 'Trigger delay']
+        self.machine_parameter_order['scanner'] = ['Scan center', 'Trigger width', 'Trigger delay']
 
     def create_widgets(self):
         self.table = {}

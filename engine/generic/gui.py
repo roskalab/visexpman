@@ -79,6 +79,8 @@ class LabeledListWidget(QtGui.QWidget):
         if items is not None:
             self.list.addItems(QtCore.QStringList(items))
             
+    def get_selected_item_names(self):
+        return [str(i.text()) for i in map(self.list.item, [s.row() for s in self.list.selectedIndexes()])]
 
     def create_widgets(self):
         self.labelw = QtGui.QLabel(self.label, self)

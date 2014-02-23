@@ -135,7 +135,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = ''#'testVisionExperimentGui.test_12_context_loading'
+TEST_single_unittest = ''#testVisionExperimentGui.test_01_select_stimfile'#'testVisionExperimentGui.test_12_context_loading'
 def generate_filename(path):
     '''
     Inserts index into filename resulting unique name.

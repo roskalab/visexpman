@@ -91,6 +91,6 @@ test_29_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
 test_35_set_out_of_range_value (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 61 tests in 179.833s
+Ran 61 tests in 183.225s
 
 OK (skipped=1)

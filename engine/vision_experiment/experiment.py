@@ -193,11 +193,17 @@ def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = No
     return experiment_config
     a = experiment_module.MovingDot(machine_config, None, experiment_config)
     
-def get_fragment_duration(experiment_config_class, config):
-    experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
-    experiment_class_object = experiment_class(config,None,None,None).runnable
-    if hasattr(experiment_class_object, 'fragment_durations'):
-        return experiment_class_object.fragment_durations
+def get_experiment_duration(experiment_config_class, config, source=None):
+    if source is None:
+        experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
+        experiment_class_object = experiment_class(config,None,None,None).runnable
+    else:
+        introspect.import_code(source,'experiment_config_module', add_to_sys_modules=1)
+        experiment_config_module = __import__('experiment_config_module')
+        experiment_class_object = getattr(experiment_config_module, experiment_config_class)(config,None,None,None).runnable
+        Continue here
+    if hasattr(experiment_class_object, 'experiment_duration'):
+        return experiment_class_object.experiment_duration
         
 def parse_stimulation_file(filename):
     '''

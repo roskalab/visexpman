@@ -2885,7 +2885,7 @@ class VisexpGuiPoller(Poller):
         self.experiment_parameters['id'] = str(int(time.time()))
         #Find out experiment duration
         from visexpman.engine.vision_experiment import experiment
-        fragment_durations = experiment.get_fragment_duration(self.experiment_parameters['experiment_config'], self.config)
+        fragment_durations = experiment.get_experiment_duration(self.experiment_parameters['experiment_config'], self.config)
         if fragment_durations is None:
             self.printc('Fragment duration is not calculated in experiment class')
             return
