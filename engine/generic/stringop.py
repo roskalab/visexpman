@@ -97,14 +97,16 @@ def to_variable_name(s):
 def to_title(s):
     return s.replace('_', ' ').title()
     
-def string_in_list(list_of_string, keyword, return_match=False):
+def string_in_list(list_of_string, keyword, return_match=False, any_match = False):
     '''
     Checks if keyword is in any items of list
     '''
     if return_match:
-        return [item for item in list_of_string if keyword in item][0]
+        result = [item for item in list_of_string if keyword in item or (any_match and item in keyword)]
+        if len(result) == 1:
+            return result[0]
     else:
-        return len([item for item in list_of_string if keyword in item]) > 0
+        return len([item for item in list_of_string if keyword in item or (any_match and item in keyword)]) > 0
 
 class TestUtils(unittest.TestCase):
     def setUp(self):
