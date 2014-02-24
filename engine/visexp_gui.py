@@ -1074,6 +1074,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.update_experiment_log_suggested_date()
         self.update_experiment_log()
         self.update_machine_parameters()
+        self.update_recording_status()
 #        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
@@ -1084,8 +1085,8 @@ class VisionExperimentGui(Qt.QMainWindow):
 #        self.connect(self.central_widget.animal_parameters_groupbox.animal_filename, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
         #Signals mapped to poller functions
         self.signal_mapper = QtCore.QSignalMapper(self)
-        widget2poller_function = [[self.central_widget.main_widget.experiment_control_groupbox.start_experiment_button, 'experiment_control.start_experiment'],
-                                  [self.central_widget.main_widget.experiment_control_groupbox.stop_experiment_button, 'stop_experiment'],
+        widget2poller_function = [[self.central_widget.main_widget.experiment_control_groupbox.start_experiment_button, 'experiment_control.add_experiment'],
+                                  [self.central_widget.main_widget.experiment_control_groupbox.stop_experiment_button, 'experiment_control.stop_experiment'],
                                   [self.central_widget.main_widget.experiment_control_groupbox.browse_experiment_file_button, 'experiment_control.browse'],
                                   [self.central_widget.main_widget.experiment_parameters.reload, 'experiment_control.reload_experiment_parameters'],
                                   [self.central_widget.main_widget.experiment_parameters.save, 'experiment_control.save_experiment_parameters'],
@@ -1146,6 +1147,9 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.central_widget.parameters_groupbox.machine_parameters['scanner'] = self.central_widget.parameters_groupbox.table['scanner'].get_values()
     
     ################# Update widgets #################### 
+    def update_recording_status(self):
+        pass
+        
     def update_machine_parameters(self):
         self.central_widget.parameters_groupbox.table['scanner'].blockSignals(True)
         self.central_widget.parameters_groupbox.table['scanner'].set_values(self.central_widget.parameters_groupbox.machine_parameters['scanner'], 
@@ -1296,7 +1300,7 @@ class testVisionExperimentGui(unittest.TestCase):
         ap = gui.AnimalFile(self.machine_config, self.machine_config, None)
         animal_parameters = {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label '+id , 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': id}
         animal_file = ap._get_animal_filename(animal_parameters)
-        hdf5io.save_item(animal_file, 'animal_parameters', animal_parameters, config=self.machine_config, overwrite = True)
+        hdf5io.save_item(animal_file, 'animal_parameters', utils.object2array(animal_parameters), config=self.machine_config, overwrite = True)
         fileop.remove_if_exists(os.path.join(tempfile.gettempdir(), os.path.split(animal_file)[1]))
         shutil.move(animal_file, tempfile.gettempdir())
         
@@ -1330,7 +1334,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self.assertEqual((
                           os.path.exists(context['variables']['self.animal_file.filename']), 
                     os.path.split(context['variables']['self.animal_file.filename'])[1], 
-                    hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config), 
+                    utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config)), 
                     ), 
                     (True, 'animal_test_strain_1-1-2013_1-5-2013_L2R1.hdf5', 
                     {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label', 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'test'}
@@ -1360,7 +1364,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self.assertEqual((
             stringop.string_in_list(context['variables']['self.animal_file.animal_files.keys'], 'data_storage1'), 
             stringop.string_in_list(context['variables']['self.animal_file.animal_files.keys'], 'data_storage2'), 
-            hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config), 
+            utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config)), 
             ), (True, True, 
             {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label data_storage2', 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'data_storage2'}
                                                                           ))
@@ -1386,8 +1390,8 @@ class testVisionExperimentGui(unittest.TestCase):
             stringop.string_in_list(context['variables']['self.animal_file.animal_files.keys'], 'data_storage2'), 
             stringop.string_in_list(context['variables']['self.animal_file.animal_files.keys'], fileop.get_user_experiment_data_folder(self.machine_config)), 
             len(context['variables']['self.animal_file.animal_files.keys']), 
-            hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config), 
-            hdf5io.read_item(copied_animal_file, 'animal_parameters', self.machine_config),
+            utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config)), 
+            utils.array2object(hdf5io.read_item(copied_animal_file, 'animal_parameters', self.machine_config)),
             ), (True, True, True, 4, 
             {'imaging_channels': 'green', 'red_labeling': 'yes', 'green_labeling': 'modified_label', 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'secondstrain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2012', 'injection_date': '1-1-2012', 'id': 'second_one'}, 
             {'imaging_channels': 'green', 'red_labeling': 'yes', 'green_labeling': 'modified_label', 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'data_storage2'}
@@ -1402,7 +1406,7 @@ class testVisionExperimentGui(unittest.TestCase):
         context = self._read_context()
         self.assertEqual((os.path.exists(context['variables']['self.animal_file.filename']), 
                                                               os.path.exists(context['variables']['self.animal_file.filename'].replace('test1', 'test')), 
-                                                              hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config)), (
+                                                              utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config))), (
                                                               True, False, 
                                                               {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label1', 'injection_target': '', 'ear_punch_left': '1', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2010', 'injection_date': '1-1-2010', 'id': 'test1'}
                                                               ))
@@ -1443,7 +1447,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self._call_gui(9)
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=9)
         context = self._read_context()
-        explog = hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config)
+        explog = utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config))
         self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename'), 
                           os.path.split(context['variables']['self.animal_file.filename'])[1], 
@@ -1462,9 +1466,9 @@ class testVisionExperimentGui(unittest.TestCase):
         self._call_gui(10)
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=10)
         context = self._read_context()
-        explog = hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config)
+        explog = utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config))
         other_animal_filename = [fn for fn in context['variables']['self.animal_file.animal_files.keys'] if fn != context['variables']['self.animal_file.filename']][0]
-        explog2 = hdf5io.read_item(other_animal_filename, 'log', self.machine_config)
+        explog2 = utils.array2object(hdf5io.read_item(other_animal_filename, 'log', self.machine_config))
         self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename'), 
                           os.path.split(context['variables']['self.animal_file.filename'])[1], 
@@ -1509,6 +1513,10 @@ class testVisionExperimentGui(unittest.TestCase):
                 context['widgets']['self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text'],
                 context['widgets']['self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text'],
                 ),expected_values)
+                
+    def test_13_start_experiment(self):
+        '''
+        '''
 
 if __name__ == '__main__':
     if len(sys.argv) ==1:

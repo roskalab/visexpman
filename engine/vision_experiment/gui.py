@@ -167,7 +167,7 @@ class ExperimentLog(gui.WidgetControl):
             self.printc('Please provide log data')
             return
         self.poller.animal_file.log.append(new_entry)
-        hdf5io.save_item(self.poller.animal_file.filename, 'log', self.poller.animal_file.log, self.config, overwrite = True)
+        hdf5io.save_item(self.poller.animal_file.filename, 'log', utils.object2array(self.poller.animal_file.log), self.config, overwrite = True)
         self.poller.update_experiment_log()
         self.printc('Log entry saved')
         
@@ -189,11 +189,9 @@ class ExperimentLog(gui.WidgetControl):
         #Remove item(s) from table widget
         for item in self.widget.log.selectedItems():
             self.widget.log.removeRow(item.row())
-        hdf5io.save_item(self.poller.animal_file.filename, 'log', self.poller.animal_file.log, self.config, overwrite = True)
+        hdf5io.save_item(self.poller.animal_file.filename, 'log', utils.object2array(self.poller.animal_file.log), self.config, overwrite = True)
         self.printc('Selected log entry removed')
-        
-        
-        
+
 class AnimalParametersGroupbox(QtGui.QGroupBox):
     '''
     Animal parameters:
@@ -357,7 +355,7 @@ class AnimalFile(gui.WidgetControl):
         
     def _animal_parameters2file(self):
         h=hdf5io.Hdf5io(self.filename,self.config)
-        h.animal_parameters = copy.deepcopy(self.animal_parameters)
+        h.animal_parameters = utils.object2array(copy.deepcopy(self.animal_parameters))
         h.save('animal_parameters')
         h.close()
         
@@ -425,7 +423,7 @@ class AnimalFile(gui.WidgetControl):
         self.printc('{0} file updated. Following parameters were modified: {1}'.format(self.filename, modified_parameters))
 
     def load(self, update_gui=True):
-        variable_names = ['animal_parameters', 'log', 'scan_regions']
+        variable_names = ['animal_parameters', 'log', 'scan_regions', 'recordings']
         if not hasattr(self, 'filename'):
             return
         if not os.path.exists(self.filename):
@@ -434,10 +432,10 @@ class AnimalFile(gui.WidgetControl):
         for variable_name in variable_names:
             h.load(variable_name)
             if hasattr(h, variable_name):
-                setattr(self, variable_name, copy.deepcopy(getattr(h, variable_name)))#TODO: later perhaps object serialization&compression is needed
+                setattr(self, variable_name, copy.deepcopy(utils.array2object(getattr(h, variable_name))))#TODO: later perhaps object serialization&compression is needed
             elif variable_name == 'animal_parameters':
                 raise AnimalFileError('animal_parameters node is missing, {0} animal file is invalid'.format(self.filename))
-            elif variable_name == 'log':
+            elif variable_name == 'log' or variable_name == 'recordings':
                 setattr(self, variable_name, [])
             else:
                 setattr(self, variable_name, {})
@@ -445,6 +443,7 @@ class AnimalFile(gui.WidgetControl):
         if update_gui:
             self.poller.update_animal_parameters_table()
             self.poller.update_experiment_log()
+        pass
        
     def load_animal_parameters(self, update_gui=True):
         '''
@@ -465,7 +464,7 @@ class AnimalFile(gui.WidgetControl):
             self.printc('Animal file does not contain animal parameters.')
             h.close()
             return
-        self.animal_parameters = copy.deepcopy(h.animal_parameters)
+        self.animal_parameters = copy.deepcopy(utils.array2object(h.animal_parameters))
         h.close()
         if update_gui:#Update to user interface
             self.poller.update_animal_parameters_table()
@@ -523,9 +522,10 @@ class AnimalFile(gui.WidgetControl):
                 self.check4animal_files_last_update = now
                 self.printc('Animal file list updated')
 
-class AnalysisStatusGroupbox(QtGui.QGroupBox):
+class RecordingStatusGroupbox(QtGui.QGroupBox):
     def __init__(self, parent):
-        QtGui.QGroupBox.__init__(self, 'Analysis status', parent)
+        QtGui.QGroupBox.__init__(self, 'Recording status', parent)
+#        return
         self.create_widgets()
         self.create_layout()
         
@@ -533,37 +533,20 @@ class AnalysisStatusGroupbox(QtGui.QGroupBox):
         self.analysis_status_table.setHorizontalHeaderLabels(QtCore.QStringList(['Scan\nmode', 'Depth\n[um]', 'Id', 'Laser\n[%]', 'Status', 'Stimulus']))
         
     def create_widgets(self):
-#        self.analysis_status_label = QtGui.QLabel('', self)
-        self.analysis_status_table = QtGui.QTableWidget(self)
-        self.analysis_status_table.setColumnCount(6)
-        self.set_headers()
-        
-        self.analysis_status_table.setColumnWidth(0, 35)
-        self.analysis_status_table.setColumnWidth(1, 35)
-        self.analysis_status_table.setColumnWidth(2, 30)
-        self.analysis_status_table.setColumnWidth(3, 35)
-        self.analysis_status_table.setColumnWidth(4, 35)
-        self.analysis_status_table.setColumnWidth(5, 115)
-        self.analysis_status_table.verticalHeader().setDefaultSectionSize(15)
-        
-        self.ids_combobox = QtGui.QComboBox(self)
-        self.ids_combobox.setEditable(True)
-        self.remove_measurement_button = QtGui.QPushButton('Remove measurement',  self)
-        self.set_state_to_button = QtGui.QPushButton('Set state to',  self)
-        self.set_to_state_combobox = QtGui.QComboBox(self)
-        self.set_to_state_combobox.addItems(QtCore.QStringList(['not processed', 'mesextractor_ready', 'find_cells_ready']))
-        self.reset_jobhandler_button = QtGui.QPushButton('Reset jobhandler',  self)
-        self.add_id_button = QtGui.QPushButton('Add id',  self)
+        self.table = gui.ParameterTable(self)
+        self.table.setColumnWidth(0, 250)
+        self.remove = QtGui.QPushButton('Remove',  self)
+        self.remove.setToolTip('Remove selected recording')
+        self.change_state = QtGui.QPushButton('Change state to',  self)
+        self.new_state = QtGui.QComboBox(self)
+        self.new_state.addItems(QtCore.QStringList(['', 'issued', 'running', 'done', 'analyzed']))
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.ids_combobox, 1, 0)
-        self.layout.addWidget(self.remove_measurement_button, 1, 1)
-        self.layout.addWidget(self.set_state_to_button, 2, 0)
-        self.layout.addWidget(self.set_to_state_combobox, 2, 1)
-        self.layout.addWidget(self.reset_jobhandler_button, 0, 1)
-        self.layout.addWidget(self.analysis_status_table, 3, 0, 4, 3)
-        self.layout.addWidget(self.add_id_button, 0, 0)
+        self.layout.addWidget(self.remove, 0, 0)
+        self.layout.addWidget(self.change_state, 0, 1)
+        self.layout.addWidget(self.new_state, 0, 2)
+        self.layout.addWidget(self.table, 1, 0, 1, 3)
         self.setLayout(self.layout)
 
 class ExperimentControlGroupBox(QtGui.QGroupBox):
@@ -734,6 +717,9 @@ class ExperimentControl(gui.WidgetControl):
             'scan_center' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Scan center'],
             'trigger_width' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Trigger width'],
             'trigger_delay' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Trigger delay'],
+            'issue_time': time.time(), 
+            'status' : 'issued', 
+            'id': None, #Will be assigned later
                            }
         
     def _parse_experiment_run_parameters(self):
@@ -758,61 +744,44 @@ class ExperimentControl(gui.WidgetControl):
         self.mandatory_parameters['duration'] = experiment.get_experiment_duration(
                                                                                    self.mandatory_parameters['experiment_name'], 
                                                                                    self.config, 
-                                                                                   source=self.mandatory_parameters['experiment_config_source_code']),
+                                                                                   source=self.mandatory_parameters['experiment_config_source_code'])
+        if len(self.mandatory_parameters['duration']) > 1:
+            self.poller.notify_user('WARNING', 'Multiple fragment experiments not yet supported')
+            return
         #Parse list item names to pmt names
-        #TODO:for channel_name in self.mandatory_parameters[recording_channels] if channel_name in 
-            
+        self.mandatory_parameters['recording_channels'] = [stringop.string_in_list(self.config.PMTS.keys(), channel_name, return_match = True, any_match = True) for channel_name in self.mandatory_parameters['recording_channels']]
+        self.mandatory_parameters['optional'] = self.optional_parameters
         return True
         
-    def start_experiment(self):
+    def add_recording(self):
         '''
         
         '''
         self._get_experiment_run_parameters()
         if not self._parse_experiment_run_parameters():
             return
-        self.printc(self.optional_parameters)
-        self.printc(self.mandatory_parameters)
-#        self.printc('Starting experiment, please wait')
-#        self.experiment_parameters = {}
-#        self.experiment_parameters['experiment_config'] = str(self.widget.experiment_name.currentText())
-#        self.experiment_parameters['enable_ca_recording'] = (self.parent.central_widget.main_widget.experiment_options_groupbox.enable_ca_recording.input.checkState() == 2)
-#        self.experiment_parameters['enable_elphys_recording'] = (self.parent.central_widget.main_widget.experiment_options_groupbox.enable_elphys_recording.input.checkState() == 2)
-#        self.experiment_parameters['id'] = str(int(time.time()))
-#        #Find out experiment duration
-#        from visexpman.engine.vision_experiment import experiment
-#        fragment_durations = experiment.get_experiment_duration(self.experiment_parameters['experiment_config'], self.config)
-#        if fragment_durations is None:
-#            self.printc('Fragment duration is not calculated in experiment class')
-#            return
-#        elif len(fragment_durations) > 1:
-#            raise RuntimeError('Multiple fragment experiments not yet supported')
-#        self.measurement_duration = 1.1*fragment_durations[0]+self.config.CA_IMAGING_START_DELAY+self.config.GUI_DATA_SAVE_TIME
-#        self.experiment_parameters['measurement_duration'] = self.measurement_duration
-#        #Save parameters to hdf5 file
-#        parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
-#        if os.path.exists(parameter_file):
-#            self.printc('ID already exists: {0}'.format(self.experiment_parameters['id']))
-#        h = hdf5io.Hdf5io(parameter_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-#        fields_to_save = ['parameters']
-#        h.parameters = copy.deepcopy(self.experiment_parameters)
-#        if hasattr(self, 'animal_parameters'):
-#            h.animal_parameters = copy.deepcopy(self.animal_parameters)
-#            fields_to_save.append('animal_parameters')
-#        if hasattr(self, 'anesthesia_history'):
-#            h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
-#            fields_to_save.append('anesthesia_history')
-#        h.save(fields_to_save)
-#        h.close()
-#        self.printc('{0} parameter file generated'.format(self.experiment_parameters['id']))
-#        command = 'SOCstart_experimentEOCid={0}EOP' .format(self.experiment_parameters['id'])
-#        self.queues['stim']['out'].put(command)
-#        self._start_analog_recording()
-#        self.stimulation_finished = False
-#        self.imaging_finished = False
-#        self.printc('Experiment duration is {0} seconds, expected end at {1}'.format(int(self.measurement_duration), utils.time_stamp_to_hm(time.time() + self.measurement_duration)))
-#        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setRange(0, self.measurement_duration)
-#        self.measurement_starttime=time.time()
+        self.poller.animal_file.recordings.append(self.mandatory_parameters)
+        self.printc('Added to experiment queue')
+        hdf5io.save_item(self.poller.animal_file.filename, 'recordings', utils.object2array(self.poller.animal_file.recordings), self.config, overwrite = True)
+        self.poller.update_recording_status()
+
+    def stop_recording(self):
+        '''
+        Stops currently running experiment and already issued experiment commands will be erased
+        '''
+        #TODO: check if experiment is running at all
+        #TODO: offer if currently running or all shall stop
+        if not self.poller.ask4confirmation('Stopping currently running experiment and queued commands are deleted. Are you sure?'):
+            return
+            
+    def check_recording_queue(self):
+        '''
+        Called by poller regularly, checks command queue and current experiment status and starts a new recording
+        '''
+        #TODO: runtime shall be very short when experiment not started to ensure poller remains responsive
+        
+    def start_recording(self, parameters):
+        self.printc('Recording/Experiment started. Duration is {0} seconds, expected to finish at {1}.'.format(parameters['duration'][0], utils.time_stamp_to_hm(time.time() + parameters['duration'][0])))
 
 class ExperimentParametersGroupBox(QtGui.QGroupBox):
     '''
@@ -857,8 +826,9 @@ but any of {0}:\n Selected Experiment config is ignored, parameters are taken fr
         self.enable_scanner_synchronization = QtGui.QCheckBox(self)
         self.enable_scanner_synchronization.setText('Scanner-stimulus synchronization')
         self.enable_scanner_synchronization.setToolTip('Synchronize stimulation with two photon scanning')
-        rec_channels = ['Electrophysiology signal']
+        rec_channels = []
         rec_channels.extend(['Calcium fluorescence, ' + item+' PMT' for item in self.parent().config.PMTS.keys()])
+        rec_channels.append('Electrophysiology signal')
         self.recording_channel = gui.LabeledListWidget(self, 'Recording channels', items = rec_channels)
         self.recording_channel.setFixedHeight(100)
         self.recording_channel.setToolTip('Selection of any channels enables calcium or electrophysiology signal recording.\nSelect none of the PMTs for disabling calcium imaging.\nMultiple channels can be also selected.' )
@@ -1245,7 +1215,7 @@ class ImagesWidget(QtGui.QWidget):
 
 
         self.snap = QtGui.QPushButton('Snap', self)
-        self.imagefilter = gui.LabeledComboBox(self, 'Filter', items = ['median_filter'])
+        self.imagefilter = gui.LabeledComboBox(self, 'Filter', items = ['median_filter', 'fft bandfilter'])
         self.imagechannel = gui.LabeledComboBox(self, 'Channel', items = self.config.PMTS.keys())
         
         self.v=QtGui.QGraphicsView(self)
@@ -1321,7 +1291,7 @@ class ImagesWidget(QtGui.QWidget):
         
         self.setLayout(self.layout)
         
-class OverviewWidget(QtGui.QWidget):
+class OverviewWidget(QtGui.QWidget):#OBSOLETE
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.config = parent.config
@@ -1359,9 +1329,12 @@ class MainWidget(QtGui.QWidget):
             self.experiment_options_groupbox = CorticalExperimentOptionsGroupBox(self)
         self.experiment_options_groupbox.setFixedWidth(350)
         self.experiment_options_groupbox.setFixedHeight(400)
+        self.recording_status = RecordingStatusGroupbox(self)
+        self.recording_status.setFixedWidth(400)
+        self.recording_status.setFixedHeight(300)
         self.experiment_parameters = ExperimentParametersGroupBox(self)
         self.experiment_parameters.setFixedWidth(400)
-        self.experiment_parameters.setFixedHeight(400)
+        self.experiment_parameters.setFixedHeight(250)
         self.experiment_parameters.values.setColumnWidth(0, 200)
         self.network_status = QtGui.QLabel('', self)
 
@@ -1369,7 +1342,8 @@ class MainWidget(QtGui.QWidget):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.experiment_control_groupbox, 0, 0, 1, 1)
         self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 2, 1)
-        self.layout.addWidget(self.experiment_parameters, 0, 1, 2, 1)
+        self.layout.addWidget(self.recording_status, 0, 1, 2, 1)
+        self.layout.addWidget(self.experiment_parameters, 2, 1, 1, 1)
         self.layout.addWidget(self.network_status, 3, 0, 1, 1)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)

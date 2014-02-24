@@ -346,7 +346,7 @@ def get_user_module_folder(config):
     '''
     Returns folder path where user's stimulation files or other source files reside
     '''
-    return os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', config.user)
+    return os.path.join(get_visexpman_module_path(), 'users', config.user)
     
 def get_user_experiment_data_folder(config):
     '''

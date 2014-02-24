@@ -2748,8 +2748,8 @@ class VisexpGuiPoller(Poller):
         Widget related classes
         '''
         context_experiment_config_file = None
-        if self.context['widgets'].has_key('self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name'):
-            expname = self.context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name']
+        if self.context['widgets'].has_key('self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'):
+            expname = self.context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText']
             if os.path.exists(os.path.split(expname)[0]):
                 context_experiment_config_file = os.path.split(expname)[0]
         self.experiment_control = gui.ExperimentControl(self, self.config, 
@@ -2779,6 +2779,7 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('update_animal_file_list'),  self.parent.update_animal_file_list)
         self.connect(self, QtCore.SIGNAL('update_experiment_log_suggested_date'),  self.parent.update_experiment_log_suggested_date)
         self.connect(self, QtCore.SIGNAL('update_experiment_log'),  self.parent.update_experiment_log)
+        self.connect(self, QtCore.SIGNAL('update_recording_status'),  self.parent.update_recording_status)
         self.connect(self, QtCore.SIGNAL('close_app'),  self.parent.close_app)
 
     def init_network(self):
@@ -2821,6 +2822,7 @@ class VisexpGuiPoller(Poller):
 
     def run_in_all_iterations(self):
         self.update_network_connection_status()
+        self.experiment_control.check_recording_queue()
         if hasattr(self, 'experiment_parameters') and ((self.imaging_finished ^ (not self.experiment_parameters['enable_ca_recording'])) and self.stimulation_finished):
             self._finish_analog_recording()
             self.imaging_finished = False
@@ -2877,44 +2879,6 @@ class VisexpGuiPoller(Poller):
             self.printc(traceback.format_exc())
         
     def start_experiment(self):
-        self.printc('Starting experiment, please wait')
-        self.experiment_parameters = {}
-        self.experiment_parameters['experiment_config'] = str(self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText())
-        self.experiment_parameters['enable_ca_recording'] = (self.parent.central_widget.main_widget.experiment_options_groupbox.enable_ca_recording.input.checkState() == 2)
-        self.experiment_parameters['enable_elphys_recording'] = (self.parent.central_widget.main_widget.experiment_options_groupbox.enable_elphys_recording.input.checkState() == 2)
-        self.experiment_parameters['id'] = str(int(time.time()))
-        #Find out experiment duration
-        from visexpman.engine.vision_experiment import experiment
-        fragment_durations = experiment.get_experiment_duration(self.experiment_parameters['experiment_config'], self.config)
-        if fragment_durations is None:
-            self.printc('Fragment duration is not calculated in experiment class')
-            return
-        elif len(fragment_durations) > 1:
-            raise RuntimeError('Multiple fragment experiments not yet supported')
-        self.measurement_duration = 1.1*fragment_durations[0]+self.config.CA_IMAGING_START_DELAY+self.config.GUI_DATA_SAVE_TIME
-        self.experiment_parameters['measurement_duration'] = self.measurement_duration
-        #Save parameters to hdf5 file
-        parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.experiment_parameters['id']+'.hdf5')
-        if os.path.exists(parameter_file):
-            self.printc('ID already exists: {0}'.format(self.experiment_parameters['id']))
-        h = hdf5io.Hdf5io(parameter_file, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-        fields_to_save = ['parameters']
-        h.parameters = copy.deepcopy(self.experiment_parameters)
-        if hasattr(self, 'animal_parameters'):
-            h.animal_parameters = copy.deepcopy(self.animal_parameters)
-            fields_to_save.append('animal_parameters')
-        if hasattr(self, 'anesthesia_history'):
-            h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
-            fields_to_save.append('anesthesia_history')
-        h.save(fields_to_save)
-        h.close()
-        self.printc('{0} parameter file generated'.format(self.experiment_parameters['id']))
-        command = 'SOCstart_experimentEOCid={0}EOP' .format(self.experiment_parameters['id'])
-        self.queues['stim']['out'].put(command)
-        self._start_analog_recording()
-        self.stimulation_finished = False
-        self.imaging_finished = False
-        self.printc('Experiment duration is {0} seconds, expected end at {1}'.format(int(self.measurement_duration), utils.time_stamp_to_hm(time.time() + self.measurement_duration)))
         self.emit(QtCore.SIGNAL('set_experiment_progressbar_range'), self.measurement_duration)
         self.measurement_starttime=time.time()
         
@@ -3196,6 +3160,9 @@ class VisexpGuiPoller(Poller):
         
     def update_experiment_log(self):
         self.emit(QtCore.SIGNAL('update_experiment_log'))
+        
+    def update_recording_status(self):
+        self.emit(QtCore.SIGNAL('update_recording_status'))
         
 if __name__ == '__main__':
     pass

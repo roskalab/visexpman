@@ -124,6 +124,7 @@ TEST_daq_device = 'Dev1'
 
 TEST_unittests = [
     'visexpman.engine.visexp_gui.testVisionExperimentGui',
+    'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 
     'visexpman.engine.TestApplicationInit',
     'visexpman.engine.generic.parameter.testParameter',
     'visexpman.engine.generic.fileop.TestFileops',

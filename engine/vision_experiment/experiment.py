@@ -200,8 +200,8 @@ def get_experiment_duration(experiment_config_class, config, source=None):
     else:
         introspect.import_code(source,'experiment_config_module', add_to_sys_modules=1)
         experiment_config_module = __import__('experiment_config_module')
-        experiment_class_object = getattr(experiment_config_module, experiment_config_class)(config,None,None,None).runnable
-        Continue here
+        experiment_config_class_object = getattr(experiment_config_module, experiment_config_class)(None,None,None,None)
+        experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object,None,None,None)
     if hasattr(experiment_class_object, 'experiment_duration'):
         return experiment_class_object.experiment_duration
         
@@ -230,7 +230,29 @@ def parse_stimulation_file(filename):
     
 class testExperimentHelpers(unittest.TestCase):
     def test_01_parse_stim_file(self):
-        parse_stimulation_file(os.path.join(fileop.get_visexpman_module_path(), 'users','daniel','grating.py'))
+        experiment_config_classes = parse_stimulation_file(os.path.join(fileop.get_visexpman_module_path(), 'users','test','test_stimulus.py'))
+        self.assertEqual((
+                          experiment_config_classes.has_key('GUITestExperimentConfig'), 
+                          experiment_config_classes.has_key('DebugExperimentConfig'), 
+                          ), 
+                          (True, True))
+    
+    def test_02_read_experiment_duration(self):
+        from visexpman.users.test.test_configurations import GUITestConfig
+        conf = GUITestConfig()
+        conf.user='test'
+        duration = get_experiment_duration('DebugExperimentConfig', conf, source=None)
+        self.assertEqual(duration, [10.0])
+        pass
+        
+    def test_03_read_experiment_duration_from_source(self):
+        from visexpman.users.test.test_configurations import GUITestConfig
+        conf = GUITestConfig()
+        conf.user='test'
+        source = fileop.read_text_file(os.path.join(fileop.get_user_module_folder(conf), 'test_stimulus.py'))
+        conf.user='zoltan'
+        duration = get_experiment_duration('DebugExperimentConfig', conf, source=source)
+        self.assertEqual(duration, [10.0])
     
 if __name__ == "__main__":
     unittest.main()
