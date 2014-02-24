@@ -86,7 +86,7 @@ class SmallApp(QtGui.QWidget):
         if not isinstance(text, str):
             text = str(text)
         if add_timestamp:
-            timestamp_string = utils.time_stamp_to_hm(time.time()) + ' '
+            timestamp_string = utils.timestamp2hm(time.time()) + ' '
         else:
             timestamp_string = ''
         self.console_text  += timestamp_string + text + '\n'

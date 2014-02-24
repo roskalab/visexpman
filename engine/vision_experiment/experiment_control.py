@@ -263,7 +263,7 @@ class ExperimentControl(object):
                 self.printl('Analog signal recording started')
         if (self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical'):
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
-            self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
+            self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.timestamp2hm(time.time() + self.mes_record_time)))
             if self.config.IMAGING_CHANNELS == 'both':
                 channels = 'both'
             else :

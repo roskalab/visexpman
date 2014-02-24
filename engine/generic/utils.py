@@ -867,11 +867,11 @@ def truncate_timestamps(list_of_timestamps,  at_position):
     truncated_timestamps= [time.mktime(tt[:at_position].tolist()+[0]*(9-at_position)) for tt in timetuples] #timestamps made from timetuples where only year month day differs, rest is 0
     return truncated_timestamps
 
-def time_stamp_to_hms(timestamp):
+def timestamp2hms(timestamp):
     time_struct = time.localtime(timestamp)
     return ('%2i:%2i:%2.1f'%(time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec + numpy.modf(timestamp)[0])).replace(' ', '0')
     
-def time_stamp_to_hm(timestamp):
+def timestamp2hm(timestamp):
     time_struct = time.localtime(timestamp)
     return ('%2i:%2i'%(time_struct.tm_hour, time_struct.tm_min)).replace(' ', '0')
     

@@ -25,6 +25,7 @@ def generate_filename(config, id, experiment_name = '',  cell_name = '', nfragme
     Format:
     scan_mode, region_name, cell_name, depth, experiment_name, id, fragment_id
     '''
+    #OBSOLETE
     filenames = {}
     filenames['names']= []
     filenames['datafile'] = []

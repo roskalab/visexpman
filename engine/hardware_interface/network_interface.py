@@ -475,7 +475,7 @@ class CommandRelayServer(object):
             while not self.log_queue.empty():
                 packet = self.log_queue.get()
                 if time_format:
-                    packet = [utils.time_stamp_to_hms(packet[0]), packet[1]]
+                    packet = [utils.timestamp2hms(packet[0]), packet[1]]
                 try:
                     self.log.info(packet)
                 except:

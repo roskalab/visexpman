@@ -385,7 +385,7 @@ class CorticalGUIPoller(Poller):
                             if self.generate_job_list(tag = tag):
                                 self.queues['analysis']['out'].put('SOCjob_list_file_copiedEOCfilename={0}EOP'.format(os.path.split(self.mouse_file)[1].replace('.hdf5', '_{0}.hdf5'.format(tag))))
                         else:
-                            self.printc(utils.time_stamp_to_hm(time.time()) + ' ' + k.upper() + ' '  +  message)
+                            self.printc(utils.timestamp2hm(time.time()) + ' ' + k.upper() + ' '  +  message)
         except:
             self.printc(traceback.format_exc())
 
@@ -2686,7 +2686,8 @@ class VisexpGuiPoller(Poller):
         self.unittest_context_paths = ['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount',#only used by unittest
                                      'self.experiment_control.user_selected_stimulation_module',
                                      'self.animal_file.animal_files.keys',
-                                     'self.parent.log.filename']
+                                     'self.parent.log.filename', 
+                                     'self.animal_file.recordings']
         self.context_paths['variables'] = ['self.experiment_control.experiment_config_classes.keys', 
                                      'self.animal_file.filename', 
                                      'self.parent.central_widget.parameters_groupbox.machine_parameters', 
@@ -2755,6 +2756,7 @@ class VisexpGuiPoller(Poller):
         self.experiment_control = gui.ExperimentControl(self, self.config, 
                                                         self.parent.central_widget.main_widget.experiment_control_groupbox, 
                                                         self.parent.central_widget.main_widget.experiment_parameters, 
+                                                        self.parent.central_widget.main_widget.recording_status, 
                                                         context_experiment_config_file = context_experiment_config_file)
         context_animal_file = utils.get_key( self.context['variables'], 'self.animal_file.filename')
         if context_animal_file is not None and not os.path.exists(context_animal_file):
@@ -2781,6 +2783,8 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('update_experiment_log'),  self.parent.update_experiment_log)
         self.connect(self, QtCore.SIGNAL('update_recording_status'),  self.parent.update_recording_status)
         self.connect(self, QtCore.SIGNAL('close_app'),  self.parent.close_app)
+        self.connect(self, QtCore.SIGNAL('select_recording_item'),  self.parent.select_recording_item)
+        self.connect(self, QtCore.SIGNAL('select_experiment_log_entry'),  self.parent.select_experiment_log_entry)
 
     def init_network(self):
         self.connections = {}
@@ -2822,7 +2826,7 @@ class VisexpGuiPoller(Poller):
 
     def run_in_all_iterations(self):
         self.update_network_connection_status()
-        self.experiment_control.check_recording_queue()
+        self.experiment_control.check_experiment_queue()
         if hasattr(self, 'experiment_parameters') and ((self.imaging_finished ^ (not self.experiment_parameters['enable_ca_recording'])) and self.stimulation_finished):
             self._finish_analog_recording()
             self.imaging_finished = False
@@ -3100,7 +3104,8 @@ class VisexpGuiPoller(Poller):
                 self.parent.central_widget.experiment_log_groupbox.new_entry.comment.input.setText('1/4')
                 self.experiment_log.add()
                 time.sleep(0.5)
-                self.printc('Select two experiment log item')
+                self.emit(QtCore.SIGNAL('select_experiment_log_entry'), 1)
+                self.emit(QtCore.SIGNAL('select_experiment_log_entry'), 2)
                 while len(self.parent.central_widget.experiment_log_groupbox.log.selectedItems()) != 2:
                     time.sleep(0.1)
                 self.experiment_log.remove()
@@ -3135,12 +3140,42 @@ class VisexpGuiPoller(Poller):
             self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.setText('100, 100')
             time.sleep(0.4)
             self.emit(QtCore.SIGNAL('close_app'))
+        elif self.testmode == 13 or self.testmode == 14:
+            if self.testmode == 14:
+                self.parent.central_widget.main_tab.setCurrentIndex(2)
+                animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('id0'))
+                animal_param_table.cellWidget(1, 1).setDate(QtCore.QDate(2012, 12, 12))
+                animal_param_table.cellWidget(2, 1).setDate(QtCore.QDate(2012, 12, 12))
+                animal_param_table.cellWidget(6, 1).setEditText('12')
+                animal_param_table.cellWidget(7, 1).setEditText('xy')
+                self.animal_file.save_animal_parameters()
+                time.sleep(1)
+            self.parent.central_widget.main_tab.setCurrentIndex(0)
+            self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.setText('C1')
+            self.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.setCurrentIndex(2)
+            self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.setText('200, 200')
+            self.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.setText('1')
+            self.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.setCurrentIndex(1)
+            self.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Scan center'] = '10,0#'
+            time.sleep(0.5)
+            self.experiment_control.add_experiment()
+            time.sleep(0.5)
+            self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.setText('C2')
+            self.experiment_control.add_experiment()
+            time.sleep(0.5)
+            self.parent.central_widget.main_widget.recording_status.new_state.setCurrentIndex(3)
+            self.experiment_control.set_experiment_state()
+            time.sleep(0.5)
+            self.emit(QtCore.SIGNAL('select_recording_item'), 0, True)
+            time.sleep(0.5)
+            self.experiment_control.set_experiment_state()
+            self.emit(QtCore.SIGNAL('select_recording_item'), 0, False)
+            self.emit(QtCore.SIGNAL('select_recording_item'), 1, True)
+            time.sleep(1)
+            self.experiment_control.remove_experiment()
+            self.emit(QtCore.SIGNAL('close_app'))
             
-            
-#            time.sleep(10.0)
-#            self.notify_user('', 'Close main window')
-#            self.parent.emit(QtCore.SIGNAL('close'))
-            
+                        
             
     ##### Relaying signals #####
     def set_experiment_names(self, experiment_names):
@@ -3163,6 +3198,7 @@ class VisexpGuiPoller(Poller):
         
     def update_recording_status(self):
         self.emit(QtCore.SIGNAL('update_recording_status'))
+        
         
 if __name__ == '__main__':
     pass

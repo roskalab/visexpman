@@ -178,7 +178,6 @@ class ExperimentLog(gui.WidgetControl):
             return
         if not self.poller.ask4confirmation('Are you sure you want to remove selected entries?'):
             return
-
         #Find removable items by timestamp in log using removable row indexes and table widget items
         removable_rows = [item.row() for item in self.widget.log.selectedItems()]
         for removable_row in removable_rows:
@@ -305,6 +304,7 @@ class AnimalFile(gui.WidgetControl):
         Handles animal file and animal parameters
     '''
     def __init__(self, poller, config, widget, context_animal_file=None):
+        self.variable_names = ['animal_parameters', 'log', 'scan_regions', 'recordings']
         gui.WidgetControl.__init__(self, poller, config, widget)
         self.animal_files = self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config))
         self.check4animal_files_last_update = time.time()
@@ -318,6 +318,15 @@ class AnimalFile(gui.WidgetControl):
                 timestamp = max(timestamps)
                 self.filename = [k for k, v in self.animal_files.items() if v == timestamp][0]
         self.load(update_gui=False)
+        if not hasattr(self, 'recordings'):
+            self.recordings = []
+        
+    def _init_variables(self):
+        for variable_name in self.variable_names:
+            if variable_name == 'log' or variable_name == 'recordings':
+                setattr(self, variable_name, [])
+            else:
+                setattr(self, variable_name, {})
         
     def _get_animal_file_list(self, folder, animal_files = {}):
         '''
@@ -363,6 +372,7 @@ class AnimalFile(gui.WidgetControl):
         '''
         Saves current animal parameters to animal fileop. Animal file is created if file does not exists.
         '''
+        self._init_variables()
         self.animal_parameters = self._get_animal_parameters()
         #Generate animal file filename:
         self.filename = self._get_animal_filename(self.animal_parameters)
@@ -384,8 +394,6 @@ class AnimalFile(gui.WidgetControl):
                     else:
                         return
         self._animal_parameters2file()
-        self.log = []#Create log variable
-        self.scan_regions = {}
         self.animal_files = self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config), self.animal_files)
         self.poller.update_animal_file_list()
         self.poller.update_experiment_log()
@@ -423,22 +431,18 @@ class AnimalFile(gui.WidgetControl):
         self.printc('{0} file updated. Following parameters were modified: {1}'.format(self.filename, modified_parameters))
 
     def load(self, update_gui=True):
-        variable_names = ['animal_parameters', 'log', 'scan_regions', 'recordings']
         if not hasattr(self, 'filename'):
             return
         if not os.path.exists(self.filename):
             return
         h=hdf5io.Hdf5io(self.filename,self.config)
-        for variable_name in variable_names:
+        self._init_variables()
+        for variable_name in self.variable_names:
             h.load(variable_name)
             if hasattr(h, variable_name):
                 setattr(self, variable_name, copy.deepcopy(utils.array2object(getattr(h, variable_name))))#TODO: later perhaps object serialization&compression is needed
             elif variable_name == 'animal_parameters':
                 raise AnimalFileError('animal_parameters node is missing, {0} animal file is invalid'.format(self.filename))
-            elif variable_name == 'log' or variable_name == 'recordings':
-                setattr(self, variable_name, [])
-            else:
-                setattr(self, variable_name, {})
         h.close()
         if update_gui:
             self.poller.update_animal_parameters_table()
@@ -516,36 +520,37 @@ class AnimalFile(gui.WidgetControl):
             check_time = 10.0
         if now-self.check4animal_files_last_update>check_time:
              new_animal_files= self._get_animal_file_list(fileop.get_user_experiment_data_folder(self.config), {})
-             if new_animal_files != self.animal_files:
+             if new_animal_files != self.animal_files:#TODO: content needs to be compared
                 self.animal_files = new_animal_files
                 self.poller.update_animal_file_list()
                 self.check4animal_files_last_update = now
                 self.printc('Animal file list updated')
 
 class RecordingStatusGroupbox(QtGui.QGroupBox):
+    '''
+    Displays recordings including planned ones - experiment start command issued but not yet executed
+    '''
     def __init__(self, parent):
         QtGui.QGroupBox.__init__(self, 'Recording status', parent)
-#        return
         self.create_widgets()
         self.create_layout()
-        
-    def set_headers(self):
-        self.analysis_status_table.setHorizontalHeaderLabels(QtCore.QStringList(['Scan\nmode', 'Depth\n[um]', 'Id', 'Laser\n[%]', 'Status', 'Stimulus']))
         
     def create_widgets(self):
         self.table = gui.ParameterTable(self)
         self.table.setColumnWidth(0, 250)
+        self.table.setColumnWidth(1, 80)
+        self.table.setHorizontalHeaderLabels(QtCore.QStringList(['', 'state']))
         self.remove = QtGui.QPushButton('Remove',  self)
         self.remove.setToolTip('Remove selected recording')
-        self.change_state = QtGui.QPushButton('Change state to',  self)
+        self.set_state = QtGui.QPushButton('Change state to',  self)
         self.new_state = QtGui.QComboBox(self)
         self.new_state.addItems(QtCore.QStringList(['', 'issued', 'running', 'done', 'analyzed']))
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.remove, 0, 0)
-        self.layout.addWidget(self.change_state, 0, 1)
-        self.layout.addWidget(self.new_state, 0, 2)
+        self.layout.addWidget(self.new_state, 0, 1)
+        self.layout.addWidget(self.set_state, 0, 2)
         self.layout.addWidget(self.table, 1, 0, 1, 3)
         self.setLayout(self.layout)
 
@@ -584,8 +589,9 @@ class ExperimentControl(gui.WidgetControl):
         is displayed on the experiment control widget (experiment names) and experiment parameters groupbox where
         user can edit the values.
     '''
-    def __init__(self, poller, config, widget, paramwidget, context_experiment_config_file=None):
+    def __init__(self, poller, config, widget, paramwidget, status_widget, context_experiment_config_file=None):
         self.paramwidget = paramwidget
+        self.status_widget = status_widget
         gui.WidgetControl.__init__(self, poller, config, widget)
         #find all python module in user folder and load users's all experiment configs and parameters
         self.experiment_config_classes = {}
@@ -717,9 +723,8 @@ class ExperimentControl(gui.WidgetControl):
             'scan_center' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Scan center'],
             'trigger_width' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Trigger width'],
             'trigger_delay' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Trigger delay'],
-            'issue_time': time.time(), 
             'status' : 'issued', 
-            'id': None, #Will be assigned later
+            'id':str(int(numpy.round(time.time(), 2)*100)), 
                            }
         
     def _parse_experiment_run_parameters(self):
@@ -747,13 +752,19 @@ class ExperimentControl(gui.WidgetControl):
                                                                                    source=self.mandatory_parameters['experiment_config_source_code'])
         if len(self.mandatory_parameters['duration']) > 1:
             self.poller.notify_user('WARNING', 'Multiple fragment experiments not yet supported')
-            return
+            return False
         #Parse list item names to pmt names
         self.mandatory_parameters['recording_channels'] = [stringop.string_in_list(self.config.PMTS.keys(), channel_name, return_match = True, any_match = True) for channel_name in self.mandatory_parameters['recording_channels']]
+        if len(self.mandatory_parameters['recording_channels'])==0:
+            self.poller.notify_user('WARNING', 'Recording channel must be selected')
+            return False
         self.mandatory_parameters['optional'] = self.optional_parameters
+        if self.optional_parameters.has_key('animal_parameters'):
+            self.mandatory_parameters['animal_id'] = self.optional_parameters['animal_parameters']['id']
+        self.mandatory_parameters['counter'] = '{0:3}'.format(len(self.poller.animal_file.recordings)).replace(' ', '0')
         return True
         
-    def add_recording(self):
+    def add_experiment(self):
         '''
         
         '''
@@ -761,11 +772,48 @@ class ExperimentControl(gui.WidgetControl):
         if not self._parse_experiment_run_parameters():
             return
         self.poller.animal_file.recordings.append(self.mandatory_parameters)
-        self.printc('Added to experiment queue')
-        hdf5io.save_item(self.poller.animal_file.filename, 'recordings', utils.object2array(self.poller.animal_file.recordings), self.config, overwrite = True)
+        if hasattr(self.poller.animal_file, 'filename'):
+            hdf5io.save_item(self.poller.animal_file.filename, 'recordings', utils.object2array(self.poller.animal_file.recordings), self.config, overwrite = True)
+        self.printc('{0} added to experiment queue'.format(self.mandatory_parameters['id']))
         self.poller.update_recording_status()
 
-    def stop_recording(self):
+    def _modify_experiment_item(self, function):
+        '''
+        Finds entry in recordings that is selected in table and calls function
+        function: callable called if selected 
+        '''
+        removable_rows = [item.row() for item in self.status_widget.table.selectedItems()]
+        if len(removable_rows) == 0:
+            return
+        for removable_row in removable_rows:
+            for entry in self.poller.animal_file.recordings:
+                if entry['id'] in str(self.status_widget.table.item(removable_row, 0).toolTip()) and entry['id'] in str(self.status_widget.table.item(removable_row, 1).toolTip()):
+                    function(entry)
+                    break
+        if hasattr(self.poller.animal_file, 'filename'):
+            hdf5io.save_item(self.poller.animal_file.filename, 'recordings', utils.object2array(self.poller.animal_file.recordings), self.config, overwrite = True)
+        self.poller.update_recording_status()
+        return entry['id']
+        
+    def _remove_experiment(self, entry):
+        if entry['status'] == 'issued' and not self.poller.ask4confirmation('Removing issued experiment command. Are you sure?'):
+            return
+        elif (entry['status'] == 'done' or entry['status'] == 'analyzed') and not self.poller.ask4confirmation('Deleting experiment recording file. Are you sure?'):
+            return
+        self.poller.animal_file.recordings.remove(entry)
+        if entry['status'] == 'done' or entry['status'] == 'analyzed':
+            raise NotImplementedError('Removing measurement file is not implemented')
+
+    def remove_experiment(self):
+        self.printc('{0} removed from experiment queue.'.format(self._modify_experiment_item(self._remove_experiment)))
+        
+    def _set_experiment_state(self, entry):
+        self.poller.animal_file.recordings[self.poller.animal_file.recordings.index(entry)]['status'] = str(self.status_widget.new_state.currentText())
+        
+    def set_experiment_state(self):
+        self.printc('{0}\'s state updated.'.format(self._modify_experiment_item(self._set_experiment_state)))
+
+    def stop_experiment(self):
         '''
         Stops currently running experiment and already issued experiment commands will be erased
         '''
@@ -774,14 +822,14 @@ class ExperimentControl(gui.WidgetControl):
         if not self.poller.ask4confirmation('Stopping currently running experiment and queued commands are deleted. Are you sure?'):
             return
             
-    def check_recording_queue(self):
+    def check_experiment_queue(self):
         '''
         Called by poller regularly, checks command queue and current experiment status and starts a new recording
         '''
         #TODO: runtime shall be very short when experiment not started to ensure poller remains responsive
         
-    def start_recording(self, parameters):
-        self.printc('Recording/Experiment started. Duration is {0} seconds, expected to finish at {1}.'.format(parameters['duration'][0], utils.time_stamp_to_hm(time.time() + parameters['duration'][0])))
+    def start_experiment(self, parameters):
+        self.printc('Experiment started. Duration is {0} seconds, expected to finish at {1}.'.format(parameters['duration'][0], utils.timestamp2hm(time.time() + parameters['duration'][0])))
 
 class ExperimentParametersGroupBox(QtGui.QGroupBox):
     '''

@@ -1001,8 +1001,6 @@ class CentralWidget(QtGui.QWidget):
         self.main_tab.setFixedHeight(self.config.GUI['GUI_SIZE']['row']*0.7)
         self.main_tab.setMaximumWidth(self.config.GUI['GUI_SIZE']['col']*0.6)
         self.images = gui.ImagesWidget(self)
-        
-        
         self.text_out = QtGui.QTextEdit(self)
         self.text_out.setPlainText('')
         self.text_out.setReadOnly(True)
@@ -1075,6 +1073,8 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.update_experiment_log()
         self.update_machine_parameters()
         self.update_recording_status()
+        if self.poller.testmode == 13 or self.poller.testmode == 14:
+            self.central_widget.main_widget.experiment_options_groupbox.recording_channel.list.item(1).setSelected(True)
 #        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
@@ -1097,6 +1097,8 @@ class VisionExperimentGui(Qt.QMainWindow):
                                   [self.central_widget.animal_parameters_groupbox.copy_animal_files_from_data_storage, 'animal_file.copy'],
                                   [self.central_widget.experiment_log_groupbox.new_entry.add_button, 'experiment_log.add'],
                                   [self.central_widget.experiment_log_groupbox.remove_button, 'experiment_log.remove'],
+                                  [self.central_widget.main_widget.recording_status.remove, 'experiment_control.remove_experiment'],
+                                  [self.central_widget.main_widget.recording_status.set_state, 'experiment_control.set_experiment_state'],
                                   ]
         for item in widget2poller_function:
             gui_generic.connect_and_map_signal(self, item[0],item[1])
@@ -1112,7 +1114,7 @@ class VisionExperimentGui(Qt.QMainWindow):
     def printc(self, text):
         if not isinstance(text, str):
             text = str(text)
-        self.console_text  += utils.time_stamp_to_hms(time.time()) + ' '  + text + '\n'
+        self.console_text  += utils.timestamp2hms(time.time()) + ' '  + text + '\n'
         self.update_console()
         if 'warning' in text.lower():
             self.log.warning(text.replace('WARNING: ',''), self.source_name)
@@ -1148,7 +1150,21 @@ class VisionExperimentGui(Qt.QMainWindow):
     
     ################# Update widgets #################### 
     def update_recording_status(self):
-        pass
+        if not hasattr(self.poller.animal_file, 'recordings'):
+            return
+        #Convert list of experiment commands to parameter table format
+        entry_order = []
+        status_data = {}
+        for recording in self.poller.animal_file.recordings:
+            name = fileop.get_recording_name(self.config, recording, ' ')
+            entry_order.append(name)
+            comment = 'Issue time: {0}, id: {6}, scanning range: {1}, resolution: {2} {3}, duration: {4} s, recording channel(s): {5}'\
+                    .format(utils.timestamp2hms(int(recording['id'])/100.0), recording['scanning_range'], 
+                                                          recording['pixel_size'], recording['resolution_unit'], 
+                                                          recording['duration'][0], recording['recording_channels'], recording['id'])
+            status_data[name] = recording['status']+'#'+comment
+        entry_order.reverse()
+        self.central_widget.main_widget.recording_status.table.set_values(status_data, entry_order)
         
     def update_machine_parameters(self):
         self.central_widget.parameters_groupbox.table['scanner'].blockSignals(True)
@@ -1161,6 +1177,7 @@ class VisionExperimentGui(Qt.QMainWindow):
             return
         log = copy.deepcopy(self.poller.animal_file.log)
         log = utils.sort_dict(log, 'date')
+        log.reverse()
         widget = self.central_widget.experiment_log_groupbox.log
         nrows = len(log)
         widget.setRowCount(nrows)
@@ -1180,7 +1197,7 @@ class VisionExperimentGui(Qt.QMainWindow):
             item.timestamp = log[row]['timestamp']
             item.setFlags(flags)
             widget.setItem(row, 1, item)
-        widget.scrollToBottom()
+        widget.scrollToTop()
     
     def update_experiment_log_suggested_date(self):
         now = time.localtime()
@@ -1265,6 +1282,12 @@ class VisionExperimentGui(Qt.QMainWindow):
             raise MachineConfigError('Unknown application name: {0}' .format(self.config.application_name))
         self.setWindowTitle('{0} - {1} - {2} - {3}' .format(self.config.APPLICATION_NAMES[self.config.application_name], self.config.user, self.config.__class__.__name__, animal_file) )
         
+    def select_recording_item(self, row, state):
+        self.central_widget.main_widget.recording_status.table.item(row,1).setSelected(state)
+        
+    def select_experiment_log_entry(self, row):
+        self.central_widget.experiment_log_groupbox.log.item(row,1).setSelected(True)
+        
 def run_cortical_gui():
     app = Qt.QApplication(sys.argv)
     gui = CorticalVisionExperimentGui(sys.argv[1], sys.argv[2])
@@ -1281,6 +1304,7 @@ class testVisionExperimentGui(unittest.TestCase):
         [shutil.rmtree(fn) for fn in [self.machine_config.DATA_STORAGE_PATH, self.machine_config.EXPERIMENT_DATA_PATH] if os.path.exists(fn)]
         if os.path.exists(fileop.get_context_filename(self.machine_config)):
             os.remove(fileop.get_context_filename(self.machine_config))
+        self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'two photon laser',  'pixel/um', [200.0, 200.0], 'DebugExperimentConfig', [10.0], ['SIDE'], [10.0, 0.0])
         
     def _call_gui(self, testmode):
         import subprocess
@@ -1311,16 +1335,19 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         Tests if py module can be opened as a stimfile and experiment configuration parameters can be parsed and displayed.total
         '''
+        time.sleep(1.0)
         sourcefile_path = os.path.join(os.path.split(sys.modules['visexpman'].__file__)[0], 'users', 'test', 'test_stimulus.py')
         source_before = fileop.read_text_file(sourcefile_path)
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=1)
         self._call_gui(1)
+        time.sleep(1.0)
         context = self._read_context()
+        time.sleep(1.0)
         self.assertEqual(('GUITestExperimentConfig' in context['variables']['self.experiment_control.experiment_config_classes.keys'], 
                           context['variables']['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount'], 
                           'test_stimulus.py' in context['variables']['self.experiment_control.user_selected_stimulation_module'], 
                           source_before), 
-                          (True, 2, True, fileop.read_text_file(sourcefile_path)))
+                          (True, 3, True, fileop.read_text_file(sourcefile_path)))
                           
 #    @unittest.skip('')
     def test_02_create_animal_file(self):
@@ -1514,9 +1541,43 @@ class testVisionExperimentGui(unittest.TestCase):
                 context['widgets']['self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text'],
                 ),expected_values)
                 
-    def test_13_start_experiment(self):
+    def test_13_add_remove_experiment_no_animal_file(self):
         '''
+        Add many experiment entries and modify their status, finally remove one
         '''
+        self._call_gui(13)
+#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=13)
+        context = self._read_context()
+        self.assertEqual((len(context['variables']['self.animal_file.recordings']), 
+                    context['variables']['self.animal_file.recordings'][0]['status'], 
+                    context['variables']['self.animal_file.recordings'][0]['cell_name'], 
+                    context['variables']['self.animal_file.recordings'][0]['pixel_size'], 
+                    context['variables']['self.animal_file.recordings'][0]['stimulation_device'], 
+                    context['variables']['self.animal_file.recordings'][0]['resolution_unit'], 
+                    context['variables']['self.animal_file.recordings'][0]['scanning_range'], 
+                    context['variables']['self.animal_file.recordings'][0]['experiment_name'], 
+                    context['variables']['self.animal_file.recordings'][0]['duration'], 
+                    context['variables']['self.animal_file.recordings'][0]['recording_channels'], 
+                    context['variables']['self.animal_file.recordings'][0]['scan_center'], 
+                    ), self.test_13_14_expected_values)
+        
+    def test_14_add_remove_experiment_animal_file(self):
+        self._call_gui(14)
+#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=14)
+        context = self._read_context()
+        recordings = utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'recordings', self.machine_config))
+        self.assertEqual((len(recordings), 
+                    recordings[0]['status'], 
+                    recordings[0]['cell_name'], 
+                    recordings[0]['pixel_size'], 
+                    recordings[0]['stimulation_device'], 
+                    recordings[0]['resolution_unit'], 
+                    recordings[0]['scanning_range'], 
+                    recordings[0]['experiment_name'], 
+                    recordings[0]['duration'], 
+                    recordings[0]['recording_channels'], 
+                    recordings[0]['scan_center'], 
+                    ), self.test_13_14_expected_values)
 
 if __name__ == '__main__':
     if len(sys.argv) ==1:

@@ -462,7 +462,7 @@ class CaImagingGui(Qt.QMainWindow):
     def printc(self, text):
         if not isinstance(text, str):
             text = str(text)
-        self.console_text  += utils.time_stamp_to_hms(time.time()) + ' '  + text + '\n'
+        self.console_text  += utils.timestamp2hms(time.time()) + ' '  + text + '\n'
         self.poller.queues['gui']['out'].put(text)
         self.update_console()
         

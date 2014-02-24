@@ -485,7 +485,22 @@ def parse_fragment_filename(path):
     fields['fragment_id'] = filename[-1]
     fields['region_name'] = '_'.join(filename[2:-4])
     return fields
+    
+def get_recording_name(config, parameters, separator):
+    name = ''
+    for k in ['animal_id', 'scan_mode', 'region_name', 'cell_name', 'depth', 'experiment_name', 'id', 'counter']:
+        if parameters.has_key(k) and parameters[k]!='':
+            name += str(parameters[k])+separator
+    return name[:-1]
+    
+def get_recording_filename(config, parameters, prefix):
+    if prefix != '':
+        prefix = prefix + '_'
+    return prefix + get_recording_name(config, parameters, '_')+'.'+config.EXPERIMENT_FILE_FORMAT
 
+def get_recording_path(parameters, config):
+    return os.path.join(get_user_experiment_data_folder(config), get_recording_filename(config, parameters))
+    
 ################# Not fileop related ####################
 
 def compare_timestamps(string1, string2):

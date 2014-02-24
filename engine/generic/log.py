@@ -199,7 +199,7 @@ class Log(object):
         if name != None:
             self.info(name, log_timestamp = False)
         for entry in utils.empty_queue(queue):
-            self.info([utils.time_stamp_to_hms(entry[0]), entry[1]], log_timestamp = False)
+            self.info([utils.timestamp2hms(entry[0]), entry[1]], log_timestamp = False)
             
     def copy(self):
         if self.local_saving:
@@ -221,7 +221,7 @@ class LoggerThread(threading.Thread, Log):
                     break
             else:
                 for entry in utils.empty_queue(self.log_queue):
-                    self.info('{0}: {1}' .format(utils.time_stamp_to_hms(entry[0]), entry[1]), log_timestamp = False)
+                    self.info('{0}: {1}' .format(utils.timestamp2hms(entry[0]), entry[1]), log_timestamp = False)
         self.copy()
                  
                  

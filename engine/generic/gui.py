@@ -149,6 +149,7 @@ class ParameterTable(QtGui.QTableWidget):
             else:
                 parname = parname_order[row]
             item = QtGui.QTableWidgetItem(parname)
+            item.setToolTip(parname)
             item.setFlags(QtCore.Qt.ItemIsSelectable| QtCore.Qt.ItemIsEnabled)
             self.setItem(row, 0, item)#Set parameter name
             #Setting value of table element depends on the widget type
