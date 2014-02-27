@@ -1465,10 +1465,7 @@ class MainPoller(Poller):
         The correct scan time needs to be defined by the user
         '''
         self.printc('Acquire vertical scan')
-        if self.animal_parameters['red_labeling'] == 'yes':
-            channels = 'red'
-        else:
-            channels = None
+        channels = 'both'
         if self.parent.main_widget.scan_region_groupbox.use_saved_scan_settings_settings_checkbox.checkState() != 0 or use_region_parameters:
             parameter_file_path = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'xz_scan_region_parameters.mat')
             if not self.create_parameterfile_from_region_info(parameter_file_path, 'xz'):
@@ -1489,7 +1486,7 @@ class MainPoller(Poller):
                                       0.04*self.xz_scan['scaled_image'].shape[0] * self.xz_scan['scaled_scale']['col'], self.objective_position]]
         
         self.parent.update_position_display()
-        if self.xz_scan.has_key('scaled_image_red'):
+        if self.config.DEFAULT_PMT_CHANNEL == 'pmtURraw' and self.xz_scan.has_key('scaled_image_red'):
             self.show_image(self.xz_scan['scaled_image_red'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])
         else:
             self.show_image(self.xz_scan['scaled_image'], 2, self.xz_scan['scaled_scale'], line = objective_position_marker, origin = self.xz_scan['origin'])

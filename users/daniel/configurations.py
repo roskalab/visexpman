@@ -506,7 +506,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         import sys
         if '--MICROLED'in sys.argv:
             SCREEN_RESOLUTION = utils.cr([16, 16])
-            SCREEN_DISTANCE_FROM_MOUSE_EYE = [32.0, [0, 300]] #mm
+            SCREEN_DISTANCE_FROM_MOUSE_EYE = [19.0, [0, 300]] #mm
             SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, 
             FULLSCREEN = False
             SCREEN_EXPECTED_FRAME_RATE = 1/50e-3
@@ -631,6 +631,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
                                      }
         GREEN_LABELING = ['','scaav 2/1 hsyn gcamp3', 'aav 2/1 ef1a gcamp5', 'scaav 2/1 gcamp3 only']
         IMAGING_CHANNELS = 'from_animal_parameter'#'default'#'both', 'from_animal_parameter'
+        DEFAULT_PMT_CHANNEL = 'pmtUGraw'#This needs to be set to pmtURraw if scan region xy and xz images are to be acquired using red pmt
         BLACK_SCREEN_DURING_PRE_SCAN = True
         TEXT_COLOR = [0.3,0.0,0.0]
         gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_rc_cortical.hdf5')
