@@ -29,14 +29,27 @@ if os.name == 'nt':
 
 import fileop
 import introspect
+import platform
 from visexpman.users.test import unittest_aggregator
 
 def is_network_available():
-    try:
-        response=urllib2.urlopen('http://gnu.org',timeout=1)
-        return True
-    except :
-        return False
+    if platform.system() == 'Windows':
+        try:
+            proxy = urllib2.ProxyHandler({'http': 'iproxy.fmi.ch:8080'})
+            opener = urllib2.build_opener(proxy)
+            urllib2.install_opener(opener)
+            urllib2.urlopen('http://www.google.com')
+            return True
+        except:
+            return False
+    elif platform.system() == 'Linux':
+        try:
+            response=urllib2.urlopen('http://gnu.org',timeout=1)
+            return True
+        except :
+            return False
+    else:
+        raise NotImplementedError('')
     
         
 def resample_array(array, factor):

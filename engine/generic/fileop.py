@@ -106,6 +106,8 @@ def free_space(path):
     elif platform.system() == 'Linux':
         s=os.statvfs(path)
         return (s.f_bavail * s.f_frsize)
+    else:
+        raise NotImplementedError('')
     
 def set_file_dates(path, file_info):
     try:
