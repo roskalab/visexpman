@@ -19,15 +19,19 @@ def is_test_running():
     '''
     Finds out if test is being run: either unittest.main() or unittest_aggregator module is in call stack
     '''
+    if hasattr(is_test_running,'isrunning'):
+        return is_test_running.isrunning
     import traceback
     keywords = ['unittest.main()', 'unittest_aggregator']
     if '--unittest' in sys.argv and  '-c' in sys.argv:#When called as python -c code --unittest. This is used for testing qapps
-        return True
+        isrunning = True
     for item in traceback.format_stack():
         for keyword in keywords:
             if keyword in item:
-                return True
-    return False
+                isrunning = True
+    isrunning = False
+    is_test_running.isrunning = isrunning
+    return isrunning
 
 def class_ancestors(obj):
     ancestors = []
