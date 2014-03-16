@@ -1509,7 +1509,8 @@ class testVisionExperimentGui(unittest.TestCase):
 #    @unittest.skip('') 
     def test_11_copy_animal_file_after_gui_start(self):
         '''
-        Animal files are copied to user's expeeriment data folder and these should be detected
+        Animal files are copied to user's experiment data folder and these should be detected
+        If fails APP_CLOSE_TIMEOUT shall be increased
         '''
         self._create_animal_parameter_file('copied1')
         self._create_animal_parameter_file('copied2')

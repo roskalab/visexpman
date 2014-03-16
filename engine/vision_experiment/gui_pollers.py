@@ -3121,7 +3121,8 @@ class VisexpGuiPoller(Poller):
                         shutil.move(os.path.join(tempfile.gettempdir(), fn), fileop.get_user_experiment_data_folder(self.config))
                 self.filemovetime = time.time()
             elif self.test_phase == 1:
-                if time.time()-self.filemovetime>5:
+                APP_CLOSE_TIMEOUT = 10.0
+                if time.time()-self.filemovetime>APP_CLOSE_TIMEOUT:
                     self.emit(QtCore.SIGNAL('close_app'))
         elif self.testmode == 12:
             self.parent.central_widget.main_tab.setCurrentIndex(2)

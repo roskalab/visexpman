@@ -1,4 +1,4 @@
-[u'/mnt/rzws/codes/zdev/visexpman/users/test/unittest_aggregator.py']
+[u'/home/rz/rzws/codes/visexpman/users/test/unittest_aggregator.py']
 
 ################# Test parameters ####################
 TEST_consider_frame_rate = False
@@ -8,7 +8,7 @@ TEST_delete_files = False
 TEST_filterwheel = False
 TEST_goniometer = False
 TEST_invalid_file = /home
-TEST_machine_info = ('Linux', 'rzws1', '3.5.0-41-generic', '#64~precise1-Ubuntu SMP Thu Sep 12 16:50:04 UTC 2013', 'x86_64', 'x86_64')
+TEST_machine_info = ('Linux', 'rzws1', '3.8.0-29-generic', '#42~precise1-Ubuntu SMP Wed Aug 14 16:19:23 UTC 2013', 'x86_64', 'x86_64')
 TEST_mes = False
 TEST_no_user_action = False
 TEST_os = Linux
@@ -16,7 +16,7 @@ TEST_osuser = rz
 TEST_parallel_port = False
 TEST_priority_unittests = ['testVisionExperimentGui.test_01_select_stimfile']
 TEST_remote_focus = False
-TEST_results_folder = ['/mnt/rzws/share/test_results', 'r:\\test_results', '/home/zoltan/Downloads']
+TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/home/zoltan/Downloads']
 TEST_short = False
 TEST_single_unittest = 
 TEST_stage = False
@@ -24,8 +24,8 @@ TEST_stim = False
 TEST_test = True
 TEST_uled = False
 TEST_unittests = ['visexpman.engine.visexp_gui.testVisionExperimentGui', 'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 'visexpman.engine.TestApplicationInit', 'visexpman.engine.generic.parameter.testParameter', 'visexpman.engine.generic.fileop.TestFileops', 'visexpman.engine.generic.log.TestLog']
-TEST_valid_file = /mnt/datafast/context/image.hdf5
-TEST_working_folder = ['/mnt/rzws/share/work', 'r:\\work', '/home/zoltan/Downloads/work']
+TEST_valid_file = /etc/fstab
+TEST_working_folder = ['/mnt/rzws/work', 'r:\\work', '/home/zoltan/Downloads/work']
 
 ################# Test results ####################
 test_01_select_stimfile (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
@@ -96,6 +96,6 @@ test_28_string_list_parameter_with_range (visexpman.engine.generic.parameter.tes
 test_34_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 66 tests in 155.455s
+Ran 66 tests in 148.510s
 
 OK (skipped=1)
