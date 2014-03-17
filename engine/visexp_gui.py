@@ -1288,6 +1288,9 @@ class VisionExperimentGui(Qt.QMainWindow):
     def select_experiment_log_entry(self, row):
         self.central_widget.experiment_log_groupbox.log.item(row,1).setSelected(True)
         
+    def __str__(self):
+        return introspect.object2str(self)
+        
 def run_cortical_gui():
     app = Qt.QApplication(sys.argv)
     gui = CorticalVisionExperimentGui(sys.argv[1], sys.argv[2])
@@ -1586,6 +1589,7 @@ if __name__ == '__main__':
     elif True:
         if len(sys.argv) == 2:
             gui =  VisionExperimentGui('zoltan', 'CaImagingTestConfig', sys.argv[1])
+#            introspect.dumpall('/tmp/d.txt')
     else:
         run_cortical_gui()
     

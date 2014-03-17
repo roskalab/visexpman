@@ -15,6 +15,36 @@ import weakref
 import subprocess, os, signal
 import copy
 
+def dumpall(fn):
+    '''
+    Can be used when exception occurs to save the whole context of the software
+    '''
+    f = open(fn,'wt')
+    import gc
+    errct = 0
+    for o in gc.get_objects():
+        try:
+            ignore_types = [int,float,tuple,list,dict]
+            ignore_classes = ['type', 'module', 'function']
+            if any(map(isinstance, len(ignore_types)*[o], ignore_types)) or o == [] or o == {}:
+                continue
+            if hasattr(o, '__class__') and hasattr(o.__class__, '__name__') and o.__class__.__name__ in ignore_classes:
+                continue
+            if 'visexp' in str(o):
+                f.write(object2str(o) + '\r\n\r\n=================================================\r\n')
+        except:
+            errct += 1
+    print errct
+    f.close()
+    
+
+def object2str(object):
+    object_variable_values = 'Classname: {0}, id: 0x{1:x}'.format(object.__class__.__name__, id(object))
+    for vn in dir(object):
+        if vn[:2] != '__' and vn[-2:] != '__':
+            object_variable_values = object_variable_values + '\r\n{0}={1}'.format(vn, getattr(object, vn))
+    return object_variable_values
+
 def is_test_running():
     '''
     Finds out if test is being run: either unittest.main() or unittest_aggregator module is in call stack
