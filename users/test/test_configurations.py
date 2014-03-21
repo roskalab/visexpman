@@ -505,6 +505,12 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
         COORDINATE_SYSTEM='center'
         self.GUI['GUI_SIZE'] =  utils.cr((1280,1024))
         self.GUI['EXPERIMENT_LOG_UPDATE_PERIOD']=10.0
+        self.CONNECTIONS['stim']['ip']['stim'] = '127.0.0.1'
+        self.CONNECTIONS['stim']['ip']['main_ui'] = '127.0.0.1'
+        self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = '127.0.0.1'
+        self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = '127.0.0.1'
+        self.CONNECTIONS['analysis']['ip']['analysis'] = '127.0.0.1'
+        self.CONNECTIONS['analysis']['ip']['main_ui'] = '127.0.0.1'
         self._create_parameters_from_locals(locals())
 
 class AppInitTest4Config(GUITestConfig):

@@ -1015,15 +1015,15 @@ class CentralWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
-    def __init__(self, config=None, application_name=None, log = None):
+    def __init__(self, config=None, application_name=None, log = None, sockets = None):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
 #            qt_app.setStyleSheet(fileop.read_text_file('/home/rz/Downloads/QTDark.stylesheet'))
 #            qt_app.setStyle('windows')
-            
         self.source_name = '{0}' .format(application_name)
         self.config = config
         self.log = log
+        self.sockets = sockets
         self.console_text = ''
         Qt.QMainWindow.__init__(self)
         self._set_window_title()
@@ -1132,7 +1132,6 @@ class VisionExperimentGui(Qt.QMainWindow):
     def close_app(self):
         self.printc('Please wait till gui closes')
         self.log.terminate()
-        self.log.join()
         self.poller.abort = True
         self.poller.wait()
         self.close()

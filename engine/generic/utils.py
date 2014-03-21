@@ -50,7 +50,18 @@ def is_network_available():
             return False
     else:
         raise NotImplementedError('')
-    
+        
+def get_ip():
+    '''
+    Assuming that internet connection is available
+    '''
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('rzws.fmi.ch', 0))#Assuming that we are inside FMI
+    except:
+        s.connect(('google.com', 0))
+    return s.getsockname()[0]
         
 def resample_array(array, factor):
     '''

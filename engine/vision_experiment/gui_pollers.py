@@ -2674,6 +2674,7 @@ class VisexpGuiPoller(Poller):
     def __init__(self, parent):
         Poller.__init__(self, parent)
         self.config = parent.config
+        self.sockets = parent.sockets
         self.init_variables()
         self.load_context()
         self.init_widget_handlers()#Depends on context values

@@ -7,6 +7,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 from visexpman.engine.generic import log
 from visexpman.engine.generic import introspect
+from visexpman.engine.hardware_interface import queued_socket
 
 class FreeSpaceError(Exception):
     '''
@@ -57,10 +58,12 @@ def application_init(**kwargs):
             argparser= unittest_aggregator.argparser
         argparser.add_argument('-u', '--user', help = 'User of the application. A subfolder with this name shall exists visexpman.engine.users folder.')
         argparser.add_argument('-c', '--config', help = 'Machine config that reside in either user\'s folder or in visexpman.users.common')
-        argparser.add_argument('-a', '--application_name', help = 'Application to be started: main_ui, stim, ca_imaging')#TODO: possible application names shall be listed
+        argparser.add_argument('-a', '--application_name', help = 'Application to be started: main_ui, stim, ca_imaging')
         argparser.add_argument('--testmode', help = 'Test mode')
         parsed_args = argparser.parse_args()
         for parname in parnames:
+            if getattr(parsed_args,parname) is None:
+                raise ApplicationError('{0} parameter not provided'.format(parname))
             args[parname] = getattr(parsed_args,parname).replace(' ', '')
     else:
         for parname in parnames:
@@ -101,9 +104,22 @@ def application_init(**kwargs):
         map(logger.add_source, log_sources)
     else:
         logger.add_source(machine_config.application_name)
+    #Set up network connections
+    sockets = queued_socket.start_sockets(machine_config.application_name, machine_config, logger)
     if utils.get_key(kwargs, 'log_start') :
         logger.start()
-    return machine_config, logger
+    context = {}
+    context['machine_config'] = machine_config
+    context['logger'] = logger
+    context['sockets'] = sockets
+    context['application_name'] = args['application_name']
+    return context
+    
+def stop_application(context):
+    #Terminate sockets
+    queued_socket.stop_sockets(context['sockets'])
+    #Terminate logger process
+    context['logger'].terminate()
     
 import unittest
 class TestApplicationInit(unittest.TestCase):
@@ -111,36 +127,35 @@ class TestApplicationInit(unittest.TestCase):
        pass
 
     def tearDown(self):
-        if hasattr(self, 'log'):
-            self.log.terminate()
-            del self.log
+        if hasattr(self, 'context'):
+            stop_application(self.context)
         
     @unittest.skipIf(platform.system()=='Windows' and 'unittest_aggregator' in sys.argv[0],  'Does not work on windows system')
     def test_01_command_line_args(self):
         sys.argv.append('-u test')
         sys.argv.append('-c GUITestConfig')
         sys.argv.append('-a main_ui')
-        mc, self.log = application_init()
+        self.context = application_init(log_start=True)
         
 #    @unittest.skip('')
     def test_02_no_command_line_args(self):
-        mc, self.log = application_init(user='test', config='GUITestConfig', application_name='main_ui')
+        self.context = application_init(user='test', config='GUITestConfig', application_name='main_ui',log_start=True)
         
 #    @unittest.skip('')
     def test_03_invalid_config(self):
-        self.assertRaises(RuntimeError,  application_init, user='test', config='GUITestConfig1', application_name='main_ui')
+        self.assertRaises(RuntimeError,  application_init, user='test', config='GUITestConfig1', application_name='main_ui',log_start = True)
         
 #    @unittest.skip('')
     def test_04_freespace_warning(self):
         import warnings
         warnings.simplefilter("always")
         with warnings.catch_warnings(record=True) as w:
-            mc, self.log = application_init(user='test', config='AppInitTest4Config', application_name='main_ui')
+            self.context = application_init(user='test', config='AppInitTest4Config', application_name='main_ui',log_start=True)
             self.assertEqual('Running out of free space on' in str(w[-1].message), True)
         
 #    @unittest.skip('')
     def test_05_freespace_error(self):
-        self.assertRaises(FreeSpaceError, application_init, user='test', config='AppInitTest5Config', application_name='main_ui')
+        self.assertRaises(FreeSpaceError, application_init, user='test', config='AppInitTest5Config', application_name='main_ui',log_start=True)
     
 if __name__=='__main__':
     unittest.main()

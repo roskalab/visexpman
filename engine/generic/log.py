@@ -69,7 +69,7 @@ class Logger(multiprocessing.Process):
         
     def add_entry(self, msg, source, loglevel):
         if self.sources.has_key(source):
-            self.sources[source].put([time.time(), loglevel, source, msg])
+            self.sources[source].put([time.time(), loglevel, source, msg])#Timestamp is not captured when the data saving takes place
         else:
             from visexpman.engine import LoggingError
             raise LoggingError('{0} logging source was not added to logger'.format(source))
@@ -91,6 +91,7 @@ class Logger(multiprocessing.Process):
     ########### Commands ###########
     def terminate(self):
         self.command.put('terminate')
+        self.join()
         
     def suspend(self):
         '''

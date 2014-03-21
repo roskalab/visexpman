@@ -114,6 +114,13 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         ############# Network #####################      
         self.BASE_PORT = 10000
+        CONNECTIONS = {
+        'stim': {'port': self.BASE_PORT, 'ip': {'stim': '', 'main_ui': ''}},
+        'ca_imaging': {'port': self.BASE_PORT+1, 'ip': {'ca_imaging': '', 'main_ui': ''}},
+        'analysis': {'port': self.BASE_PORT+2, 'ip': {'analysis': '', 'main_ui': ''}},
+        }
+        
+        #OBSOLETE
         COMMAND_RELAY_SERVER  = {
         'RELAY_SERVER_IP' : '',
         'RELAY_SERVER_IP_FROM_TABLE': False,
