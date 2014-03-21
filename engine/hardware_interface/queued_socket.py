@@ -199,7 +199,6 @@ class TestQueuedSocket(unittest.TestCase):
         time.sleep(1.0)
         for s in [client,server]:
             s.terminate()
-        logger.terminate()
         self.assertEqual(data1,server.recv())
         self.assertEqual(data2,client.recv())
         
