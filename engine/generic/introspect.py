@@ -54,7 +54,7 @@ def is_test_running():
     import traceback
     keywords = ['unittest.main()', 'unittest_aggregator']
     isrunning = False
-    if '--unittest' in sys.argv and  '-c' in sys.argv:#When called as python -c code --unittest. This is used for testing qapps
+    if '--unittest' in sys.argv and  '-c' in sys.argv or '--testmode' in sys.argv:#When called as python -c code --unittest. This is used for testing qapps
         isrunning = True
     for item in traceback.format_stack():
         for keyword in keywords:

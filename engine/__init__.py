@@ -58,6 +58,7 @@ def application_init(**kwargs):
         argparser.add_argument('-u', '--user', help = 'User of the application. A subfolder with this name shall exists visexpman.engine.users folder.')
         argparser.add_argument('-c', '--config', help = 'Machine config that reside in either user\'s folder or in visexpman.users.common')
         argparser.add_argument('-a', '--application_name', help = 'Application to be started: main_ui, stim, ca_imaging')#TODO: possible application names shall be listed
+        argparser.add_argument('--testmode', help = 'Test mode')
         parsed_args = argparser.parse_args()
         for parname in parnames:
             args[parname] = getattr(parsed_args,parname).replace(' ', '')
@@ -75,6 +76,11 @@ def application_init(**kwargs):
     #Add app name and user to machine config
     machine_config.user = args['user']
     machine_config.application_name = args['application_name']
+    #Add testmode
+    if 'parsed_args' in locals():
+        tm=getattr(parsed_args,'testmode')
+        if tm is not None:
+            machine_config.testmode = int(tm)
     #Check free space
     for parname in dir(machine_config):
         if '_PATH' == parname[-5:]:
@@ -93,7 +99,10 @@ def application_init(**kwargs):
     log_sources = utils.get_key(kwargs, 'log_sources') 
     if log_sources is not None:
         map(logger.add_source, log_sources)
-    logger.start()
+    else:
+        logger.add_source(machine_config.application_name)
+    if utils.get_key(kwargs, 'log_start') :
+        logger.start()
     return machine_config, logger
     
 import unittest

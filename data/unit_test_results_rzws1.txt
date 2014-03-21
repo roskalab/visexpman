@@ -99,6 +99,6 @@ test_30_invalid_dict_parameter (visexpman.engine.generic.parameter.testParameter
 test_37_set_invalid_type_value_2 (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 69 tests in 154.649s
+Ran 69 tests in 157.886s
 
 OK (skipped=1)

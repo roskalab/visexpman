@@ -53,11 +53,14 @@ class Poller(QtCore.QThread):
     Generic poller thread that receives commands via queues and executes them. Additionally can access gui
     '''
     #Initializing, loader methods
-    def __init__(self, parent, testmode=False):
-        self.testmode=testmode
+    def __init__(self, parent):
         self.signal_id_queue = Queue.Queue() #signal parameter is passed to handler
         self.parent = parent
         self.config = self.parent.config
+        if hasattr(self.config,'testmode'):
+            self.testmode=self.config.testmode
+        else:
+            self.testmode = None
         QtCore.QThread.__init__(self)
         self.abort = False
         self.connect_signals()
@@ -2668,8 +2671,8 @@ class CaImagingPoller(Poller):
         return ai_channel, enabled_channels
         
 class VisexpGuiPoller(Poller):
-    def __init__(self, parent, testmode=None):
-        Poller.__init__(self, parent, testmode=testmode)
+    def __init__(self, parent):
+        Poller.__init__(self, parent)
         self.config = parent.config
         self.init_variables()
         self.load_context()
@@ -3175,8 +3178,6 @@ class VisexpGuiPoller(Poller):
             time.sleep(1)
             self.experiment_control.remove_experiment()
             self.emit(QtCore.SIGNAL('close_app'))
-            
-                        
             
     ##### Relaying signals #####
     def set_experiment_names(self, experiment_names):

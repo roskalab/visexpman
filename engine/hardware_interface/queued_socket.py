@@ -21,6 +21,13 @@ class QueuedSocket(multiprocessing.Process):
         self.log=log
         if hasattr(self.log, 'add_source'):
             self.log.add_source(self.socket_name)
+            
+    def send(self,obj):
+        self.tosocket.put(obj)
+        
+    def recv(self):
+        if not self.fromsocket.empty():
+            return self.fromsocket.get()
         
     def terminate(self):
         self.command.put('terminate')
@@ -106,9 +113,26 @@ class TestQueuedSocket(unittest.TestCase):
         for c in server_names:
             gui[c].terminate()
             servers[c].terminate()
-        print gui['stim'].fromsocket.get()
-        print servers['stim'].fromsocket.get()
-        print servers['analysis'].fromsocket.get()
+        self.assertEqual('Done',gui['stim'].fromsocket.get())
+        self.assertEqual(range(10), servers['analysis'].fromsocket.get())
+        self.assertEqual({'start_experiment':True}, servers['stim'].fromsocket.get())
+        
+    def test_04_socket_helpers(self):
+        server = QueuedSocket('server', self.port, multiprocessing.Queue(), multiprocessing.Queue())
+        client = QueuedSocket('client', self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip='localhost')
+        client.start()
+        server.start()
+        data1 = range(10)
+        data2 = {'a':2}
+        client.send(data1)
+        server.send(data2)
+        time.sleep(1.0)
+        for s in [client,server]:
+            s.terminate()
+        for s in [client,server]:
+            s.join()
+        self.assertEqual(data1,server.recv())
+        self.assertEqual(data2,client.recv())
             
 if __name__ == "__main__":
     unittest.main()

@@ -1015,25 +1015,21 @@ class CentralWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
-    def __init__(self, user, config_class, application_name, testmode=None, config = None, log = None):
+    def __init__(self, config=None, application_name=None, log = None):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
 #            qt_app.setStyleSheet(fileop.read_text_file('/home/rz/Downloads/QTDark.stylesheet'))
 #            qt_app.setStyle('windows')
             
-        import visexpman.engine
         self.source_name = '{0}' .format(application_name)
-        if config is None and log is None:
-            self.config, self.log = visexpman.engine.application_init(user=user, config=config_class, application_name = application_name, log_sources = [self.source_name])
-        else:
-            self.config = config
-            self.log = log
+        self.config = config
+        self.log = log
         self.console_text = ''
         Qt.QMainWindow.__init__(self)
         self._set_window_title()
         self.create_widgets()
         self.resize(self.config.GUI['GUI_SIZE']['col'], self.config.GUI['GUI_SIZE']['row'])
-        self.poller = gui_pollers.VisexpGuiPoller(self, testmode=testmode)
+        self.poller = gui_pollers.VisexpGuiPoller(self)
         self.block_widgets(True)
         self.init_variables()
         self.connect_signals()
@@ -1136,6 +1132,7 @@ class VisionExperimentGui(Qt.QMainWindow):
     def close_app(self):
         self.printc('Please wait till gui closes')
         self.log.terminate()
+        self.log.join()
         self.poller.abort = True
         self.poller.wait()
         self.close()
@@ -1315,9 +1312,7 @@ class testVisionExperimentGui(unittest.TestCase):
         
     def _call_gui(self, testmode):
         import subprocess
-        app_exec = 'gui =  VisionExperimentGui(\'test\', \'GUITestConfig\', \'main_ui\', testmode={0})'.format(testmode)
-        import_code = 'from visexpman.engine.visexp_gui import VisionExperimentGui;'
-        code = 'python -c \"{0}{1}\" --unittest' .format(import_code, app_exec)
+        code = 'python {0} -u test -c GUITestConfig -a main_ui --testmode {1}'.format(os.path.join(fileop.get_visexpman_module_path(), 'engine', 'visexp_app.py'), testmode)
         subprocess.call(code, shell=True)
         
     def _read_context(self):
