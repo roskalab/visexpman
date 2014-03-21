@@ -787,12 +787,18 @@ def list_stdlib():
     return lib_members
 
 #object <-> numpy array
+def object2str(obj):
+    return compressor.compress(pickle.dumps(obj, 2),6)
+
+def str2object(string):
+    return pickle.loads(compressor.decompress(string))
+
 def array2object(numpy_array):
     return pickle.loads(compressor.decompress(numpy_array.tostring()))
     
 def object2array(obj):
-    return numpy.fromstring(compressor.compress(pickle.dumps(obj, 2),6), numpy.uint8)
-    
+    return numpy.fromstring(object2str(obj), numpy.uint8)
+        
 def object2hdf5(h, vn):
     if hasattr(h, vn):
         setattr(h, vn, object2array(getattr(h, vn)))
@@ -805,8 +811,6 @@ def hdf52object(h, vn, default_value = None):
         return copy.deepcopy(array2object(getattr(h, vn)))
     else:
         return default_value
-    
-
 
 #== Experiment specific ==
 def um_to_normalized_display(value, config):

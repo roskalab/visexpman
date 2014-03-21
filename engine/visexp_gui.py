@@ -1015,15 +1015,19 @@ class CentralWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
-    def __init__(self, user, config_class, application_name, testmode=None):
+    def __init__(self, user, config_class, application_name, testmode=None, config = None, log = None):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
 #            qt_app.setStyleSheet(fileop.read_text_file('/home/rz/Downloads/QTDark.stylesheet'))
 #            qt_app.setStyle('windows')
             
         import visexpman.engine
-        self.source_name = 'gui-{0}' .format(application_name)
-        self.config, self.log = visexpman.engine.application_init(user=user, config=config_class, application_name = application_name, log_sources = [self.source_name])
+        self.source_name = '{0}' .format(application_name)
+        if config is None and log is None:
+            self.config, self.log = visexpman.engine.application_init(user=user, config=config_class, application_name = application_name, log_sources = [self.source_name])
+        else:
+            self.config = config
+            self.log = log
         self.console_text = ''
         Qt.QMainWindow.__init__(self)
         self._set_window_title()

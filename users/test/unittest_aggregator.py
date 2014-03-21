@@ -129,6 +129,7 @@ TEST_unittests = [
     'visexpman.engine.generic.parameter.testParameter',
     'visexpman.engine.generic.fileop.TestFileops',
     'visexpman.engine.generic.log.TestLog',
+    'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket',
                 ]
                 
 TEST_priority_unittests = [
