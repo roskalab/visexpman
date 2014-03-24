@@ -33,7 +33,15 @@ class QueuedSocket(multiprocessing.Process):
         
     def terminate(self):
         self.command.put('terminate')
-        self.join()
+        if platform.system()=='Windows':
+            while True:
+                state = not self.command.empty()
+                if state:
+                    break
+                time.sleep(0.1)
+            multiprocessing.Process.terminate(self)
+        else:
+            self.join()
         
     def _connect(self):
         self.context = zmq.Context()
@@ -80,6 +88,7 @@ class QueuedSocket(multiprocessing.Process):
                 import traceback
                 if hasattr(self.log, 'info'):
                     self.log.error(traceback.format_exc(),self.socket_name)
+        self.command.put('Ended')
         if hasattr(self.log, 'info'):
             self.log.info('process ended', self.socket_name)
             
@@ -117,7 +126,12 @@ class TestQueuedSocket(unittest.TestCase):
         import random
         self.port = random.randrange(20000,20100)
         
-    @unittest.skipIf(platform.system()=='Windows',  'Does not work on windows system')
+    def _wait4queues(self,queues):
+        while True:
+            time.sleep(0.1)
+            if all([not q.empty() for q in queues]):
+                break
+        
     def test_01_simple_transfer(self):
         server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue())
         client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip='localhost')
@@ -125,13 +139,12 @@ class TestQueuedSocket(unittest.TestCase):
         server.start()
         client.tosocket.put(['request'])
         server.tosocket.put(['response'])
-        time.sleep(1.0)
-        for s in [client,server]:
-            s.terminate()
+        self._wait4queues([client.fromsocket,server.fromsocket])
         self.assertEqual(['request'],server.fromsocket.get(block=False))
         self.assertEqual(['response'],client.fromsocket.get(block=False))
+        for s in [client,server]:
+            s.terminate()
         
-    @unittest.skipIf(platform.system()=='Windows',  'Does not work on windows system')
     def test_02_big_data_transfer(self):
         server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue())
         client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip='localhost')
@@ -141,13 +154,12 @@ class TestQueuedSocket(unittest.TestCase):
         data = numpy.random.random(5000)
         client.tosocket.put(data)
         server.tosocket.put(data)
-        time.sleep(1.0)
-        for s in [client,server]:
-            s.terminate()
+        self._wait4queues([client.fromsocket,server.fromsocket])
         self.assertEqual(data.sum(),server.fromsocket.get(block=False).sum())
         self.assertEqual(data.sum(),client.fromsocket.get(block=False).sum())
+        for s in [client,server]:
+            s.terminate()
         
-    @unittest.skipIf(platform.system()=='Windows',  'Does not work on windows system')
     def test_03_multiple_servers(self):
         server_names = ['stim','analysis', 'ca_imaging']
         gui = {}
@@ -162,15 +174,14 @@ class TestQueuedSocket(unittest.TestCase):
         gui['stim'].tosocket.put({'start_experiment':True})
         gui['analysis'].tosocket.put(range(10))
         servers['stim'].tosocket.put('Done')
-        time.sleep(3.0)
-        for c in server_names:
-            gui[c].terminate()
-            servers[c].terminate()
+        self._wait4queues([gui['stim'].fromsocket, servers['analysis'].fromsocket, servers['stim'].fromsocket])
         self.assertEqual('Done',gui['stim'].fromsocket.get())
         self.assertEqual(range(10), servers['analysis'].fromsocket.get())
         self.assertEqual({'start_experiment':True}, servers['stim'].fromsocket.get())
+        for c in server_names:
+            gui[c].terminate()
+            servers[c].terminate()
         
-    @unittest.skipIf(platform.system()=='Windows',  'Does not work on windows system')
     def test_04_socket_helpers(self):
         server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue())
         client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip='localhost')
@@ -180,13 +191,12 @@ class TestQueuedSocket(unittest.TestCase):
         data2 = {'a':2}
         client.send(data1)
         server.send(data2)
-        time.sleep(1.0)
-        for s in [client,server]:
-            s.terminate()
+        self._wait4queues([client.fromsocket,server.fromsocket])
         self.assertEqual(data1,server.recv())
         self.assertEqual(data2,client.recv())
+        for s in [client,server]:
+            s.terminate()
         
-    @unittest.skipIf(platform.system()=='Windows',  'Does not work on windows system')
     def test_05_bind2ip(self):
         server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip = utils.get_ip())
         client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip= utils.get_ip())
@@ -196,11 +206,11 @@ class TestQueuedSocket(unittest.TestCase):
         data2 = {'a':2}
         client.send(data1)
         server.send(data2)
-        time.sleep(1.0)
-        for s in [client,server]:
-            s.terminate()
+        self._wait4queues([client.fromsocket,server.fromsocket])
         self.assertEqual(data1,server.recv())
         self.assertEqual(data2,client.recv())
+        for s in [client,server]:
+            s.terminate()
         
     def test_06_start_sockets_from_config(self):
         from visexpman.users.test.test_configurations import GUITestConfig
