@@ -1,4 +1,4 @@
-[u'/home/rz/rzws/codes/visexpman/users/test/unittest_aggregator.py']
+['rzws/codes/visexpman/users/test/unittest_aggregator.py']
 
 ################# Test parameters ####################
 TEST_consider_frame_rate = False
@@ -16,7 +16,7 @@ TEST_osuser = rz
 TEST_parallel_port = False
 TEST_priority_unittests = ['testVisionExperimentGui.test_01_select_stimfile']
 TEST_remote_focus = False
-TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/home/zoltan/Downloads']
+TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/home/zoltan/Downloads', 'c:\\temp']
 TEST_short = False
 TEST_single_unittest = 
 TEST_stage = False
@@ -25,7 +25,7 @@ TEST_test = True
 TEST_uled = False
 TEST_unittests = ['visexpman.engine.visexp_gui.testVisionExperimentGui', 'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 'visexpman.engine.TestApplicationInit', 'visexpman.engine.generic.parameter.testParameter', 'visexpman.engine.generic.fileop.TestFileops', 'visexpman.engine.generic.log.TestLog', 'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket']
 TEST_valid_file = /mnt/datafast/context/image.hdf5
-TEST_working_folder = ['/mnt/rzws/work', 'r:\\work', '/home/zoltan/Downloads/work']
+TEST_working_folder = ['/mnt/rzws/work', 'r:\\work', '/home/zoltan/Downloads/work', 'c:\\temp']
 
 ################# Test results ####################
 test_01_select_stimfile (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
@@ -102,6 +102,8 @@ test_33_array_parameter_with_range (visexpman.engine.generic.parameter.testParam
 test_39_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 72 tests in 176.571s
+Ran 72 tests in 179.841s
 
 OK (skipped=1)
+
+2014-03-24 13:23:20.812237

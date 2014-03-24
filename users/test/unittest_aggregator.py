@@ -10,6 +10,7 @@ import shutil
 import argparse
 import platform
 import getpass
+
 TEST_test = 'unittest_aggregator' in sys.argv[0] or 'code_tester' in sys.argv[0]
 
 if TEST_test:
@@ -189,6 +190,35 @@ def run_test(path):
     test_suite = unittest.TestSuite()
     test_suite.addTest(getattr(sys.modules[module_name],path.split('.')[-2])(path.split('.')[-1]))
     unittest.TextTestRunner(verbosity=2).run(test_suite)
+    
+import threading
+class ShowTestProgress(threading.Thread):
+    def __init__(self,filename,ntests):
+        threading.Thread.__init__(self)
+        self.filename = filename
+        self.ntests=ntests
+            
+    def run(self):
+        tests_finished = False
+        start_line = -1
+        prev_lines = -1
+        while True:
+            f = open(self.filename, 'rt')
+            txt = f.read()
+            f.close()
+            lines = txt.split('\n')
+            for line_index in range(len(lines)):
+                if 'Test results' in lines[line_index]:
+                    start_line = line_index
+                elif 'Ran' in lines[line_index] and 'tests' in lines[line_index]:
+                    tests_finished = True
+            if prev_lines != len(lines):
+                prev_lines = len(lines)
+                sys.stdout.write('\r=========== {0}/{1} ==========='.format(len(lines) - (start_line+1),self.ntests))
+                sys.stdout.flush()
+            if tests_finished:
+                break
+            time.sleep(1.0)
 
 class UnitTestRunner(object):
     '''
@@ -317,15 +347,16 @@ class UnitTestRunner(object):
         for test_method in reordered_unittests:
             test_suite.addTest(test_method[2](test_method[1]))
         #Run tests
+        stp = ShowTestProgress(self.test_log, len(reordered_unittests))
+        stp.start()
         unittest.TextTestRunner(f, verbosity=2).run(test_suite)
-        #Save tested source files
+        f.write('\n' + str(datetime.datetime.now())+'\n')
         f.close()
         f = open(self.test_log)
         print f.read()
         f.close()
-
+        #Save tested source files
         self.save_source_and_results()
-        print str(datetime.datetime.now())
         if TEST_delete_files:
             print TEST_working_folder
         directories = []
@@ -337,21 +368,6 @@ class UnitTestRunner(object):
             wfolder = select_folder_exists(TEST_working_folder)
             shutil.rmtree(wfolder)
             os.mkdir(wfolder)
-#            for root, dirs, files in os.walk(TEST_working_folder):
-#                for file in files:
-#                    path = root + os.sep + file
-#                    if os.stat(path).st_mtime > unit_test_start_time and not 'test_archive' in path:
-#                        try:
-#                            os.remove(path)
-#                        except:
-#                            print path,  'Not removed'
-#                for dir in dirs:
-#                    path = root + os.sep + dir
-#                    if os.stat(path).st_mtime > unit_test_start_time:
-#                        try:
-#                            shutil.rmtree(path)
-#                        except:
-#                            print path,  'Not removed'
 
     def save_source_and_results(self):
         test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(select_path_exists(TEST_results_folder), 'test_archive.zip'))
@@ -367,8 +383,6 @@ class UnitTestRunner(object):
         source_zip.close()
         #Copy testt log to visexpman/data
         shutil.copy(self.test_log, os.path.join(package_path,'visexpman','data','unit_test_results_{0}.txt'.format(TEST_machine_info[1])))
-        
-        
 
 if __name__ == "__main__":
     utr = UnitTestRunner()
