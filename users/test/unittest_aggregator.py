@@ -214,6 +214,8 @@ class ShowTestProgress(threading.Thread):
                     tests_finished = True
             if prev_lines != len(lines):
                 prev_lines = len(lines)
+                if len(lines) - (start_line+1)> self.ntests:
+                    break
                 sys.stdout.write('\r=========== {0}/{1} ==========='.format(len(lines) - (start_line+1),self.ntests))
                 sys.stdout.flush()
             if tests_finished:

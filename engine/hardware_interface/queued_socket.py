@@ -30,18 +30,29 @@ class QueuedSocket(multiprocessing.Process):
     def recv(self):
         if not self.fromsocket.empty():
             return self.fromsocket.get()
+            
+    def ping(self,timeout=1.0):
+        self.send('ping')
+        t0 = time.time()
+        while True:
+            resp = self.recv()
+            if resp == 'pong':
+                return True
+            if time.time()-t0>timeout:
+                return False
+            time.sleep(0.1)
         
     def terminate(self):
         self.command.put('terminate')
-        if platform.system()=='Windows':
+        if platform.system()=='Windows' or True:
             while True:
                 state = not self.command.empty()
                 if state:
                     break
                 time.sleep(0.1)
             multiprocessing.Process.terminate(self)
-        else:
-            self.join()
+#        else:
+#            self.join()
         
     def _connect(self):
         self.context = zmq.Context()
@@ -78,7 +89,10 @@ class QueuedSocket(multiprocessing.Process):
                     message = utils.str2object(message)
                     if hasattr(self.log, 'info'):
                         self.log.info('received: ' + str(message))
-                    self.fromsocket.put(message)
+                    if message == 'ping':
+                        self.tosocket.put('pong')
+                    else:
+                        self.fromsocket.put(message)
                 except zmq.ZMQError:
                     pass#Nothing has received
                 if not self.command.empty() and self.command.get()=='terminate':
@@ -213,6 +227,9 @@ class TestQueuedSocket(unittest.TestCase):
             s.terminate()
         
     def test_06_start_sockets_from_config(self):
+        '''
+        QueuedSockets are started from a machine config.
+        '''
         from visexpman.users.test.test_configurations import GUITestConfig
         from visexpman.engine.generic import log
         from visexpman.engine.generic import fileop
@@ -233,6 +250,17 @@ class TestQueuedSocket(unittest.TestCase):
             logfiles.append(logger.filename)
         self.assertNotEqual(map(os.path.getsize, logfiles), len(logfiles) * [0])
         self.assertEqual([True for logfile in logfiles if 'error' in fileop.read_text_file(logfile).lower()],[])#Check if there is any error in logfiles
+            
+    def test_07_ping_connections(self):
+        server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip = utils.get_ip())
+        client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip= utils.get_ip())
+        client.start()
+        server.start()
+        self.assertTrue(client.ping(2))
+        self.assertTrue(server.ping(2))
+        for s in [client,server]:
+            s.terminate()
+        
             
 if __name__ == "__main__":
     unittest.main()
