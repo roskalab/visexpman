@@ -297,6 +297,11 @@ class UnitTestRunner(object):
         __import__(module_path)
         return getattr(sys.modules[module_path], test_class_name)
         
+    def _save_computer_parameters(self,f):
+        f.write('\n################# Computer parameters ####################\n')
+        for vn in ['uname', 'architecture', 'python_build', 'python_version']:
+            f.write('{0}: {1}\r\n'.format(vn, getattr(platform,vn)()))
+        
     def _save_test_parameters(self, f):
         f.write('\n################# Test parameters ####################\n')
         for pn in dir(sys.modules[__name__]):
@@ -316,6 +321,7 @@ class UnitTestRunner(object):
         self.test_log = tempfile.mkstemp()[1]        
         f = open(self.test_log,  'w')
         f.write(str(sys.argv) + '\n')
+        self._save_computer_parameters(f)
         self._save_test_parameters(f)
         f.write('\n################# Test results ####################\n')
         test_suite = unittest.TestSuite()

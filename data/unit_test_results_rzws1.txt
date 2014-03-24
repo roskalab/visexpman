@@ -1,4 +1,10 @@
-['rzws/codes/visexpman/users/test/unittest_aggregator.py']
+[u'/home/rz/rzws/codes/visexpman/users/test/unittest_aggregator.py']
+
+################# Computer parameters ####################
+uname: ('Linux', 'rzws1', '3.8.0-29-generic', '#42~precise1-Ubuntu SMP Wed Aug 14 16:19:23 UTC 2013', 'x86_64', 'x86_64')
+architecture: ('64bit', 'ELF')
+python_build: ('default', 'Feb 27 2014 19:58:35')
+python_version: 2.7.3
 
 ################# Test parameters ####################
 TEST_consider_frame_rate = False
@@ -102,8 +108,8 @@ test_33_array_parameter_with_range (visexpman.engine.generic.parameter.testParam
 test_39_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 72 tests in 179.841s
+Ran 72 tests in 170.505s
 
 OK (skipped=1)
 
-2014-03-24 13:23:20.812237
+2014-03-24 13:52:36.584481
