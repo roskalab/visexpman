@@ -11,6 +11,11 @@ from visexpman.users.test import unittest_aggregator
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 
+class LoggingError(Exception):
+    '''
+    Logger process related error
+    '''
+
 class Logger(multiprocessing.Process):
     '''
     Logger process that receives log entries via queues and saves all to one file.

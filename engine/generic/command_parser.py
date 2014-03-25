@@ -2,8 +2,71 @@ import traceback
 import Queue
 import re
 import unittest
+import sys
+import time
+from visexpman.engine.generic import utils
 method_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
 parameter_extract = re.compile('EOC(.+)EOP') # an optional parameter string follows EOC terminated by EOP. In case of binary data EOC and EOP should be escaped.
+
+class ServerLoop(object):
+    '''
+    Overtakes CommandParser class.
+    Checks for function calls coming from a queued socket. Corresponding functions are called.
+    '''
+    def __init__(self, queued_socket, command, log = None):
+        self.socket = queued_socket
+        self.command = command
+        self.log = log
+            
+    def printl(self,message, loglevel='info', stdio = True):
+        '''
+        Message to logfile, queued socket and standard output
+        '''
+        funcs = [self.socket.send]
+        if stdio:
+            funcs.append(sys.stdout.write)
+        if hasattr(self.log, loglevel):
+            funcs.append(getattr(self.log, loglevel))
+        for fun in funcs:
+            fun(str(message))
+        
+    def fetch_next_call(self):
+        '''
+        Checks for incoming data from socket and if data contains valid data, corresponding function is called
+        '''
+        message = self.socket.recv()
+        if not utils.safe_has_key(message, 'function'):
+            return False
+        if not hasattr(self, message['function']):
+            return False
+        if message.has_key('args'):
+            args = message['args']
+        else:
+            args = []
+        if message.has_key('kwargs'):
+            kwargs = message['kwargs']
+        else:
+            kwargs = {}
+        try:
+            getattr(self, message['function'])(*args, **kwargs)
+            return True
+        except:
+            import traceback
+            self.printl(traceback.format_exc(), 'error')
+            
+    def terminate(self):
+        self.command.put('terminate')
+            
+    def run(self,timeout = None):
+        t0 = time.time()
+        while True:
+            self.fetch_next_call()
+            if not self.command.empty() and self.command.get() == 'terminate':
+                break
+            if timeout is not None and timeout < time.time()-t0:
+                break
+            time.sleep(0.1)
+        self.command.put('terminated')
 
 class CommandParser(object):
     '''

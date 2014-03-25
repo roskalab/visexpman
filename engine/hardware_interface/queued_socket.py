@@ -80,15 +80,15 @@ class QueuedSocket(multiprocessing.Process):
             try:
                 if not self.tosocket.empty():
                     message = self.tosocket.get()
-                    message = utils.object2str(message)
                     if hasattr(self.log, 'info'):
-                        self.log.info('sent: ' + str(message))
+                        self.log.info('sent: ' + str(message),self.socket_name)
+                    message = utils.object2str(message)
                     self.socket.send(message)
                 try:
                     message = self.socket.recv(flags=zmq.NOBLOCK)
                     message = utils.str2object(message)
                     if hasattr(self.log, 'info'):
-                        self.log.info('received: ' + str(message))
+                        self.log.info('received: ' + str(message),self.socket_name)
                     if message == 'ping':
                         self.tosocket.put('pong')
                     else:
@@ -102,7 +102,7 @@ class QueuedSocket(multiprocessing.Process):
                 import traceback
                 if hasattr(self.log, 'info'):
                     self.log.error(traceback.format_exc(),self.socket_name)
-        self.command.put('Ended')
+        self.command.put('terminated')
         if hasattr(self.log, 'info'):
             self.log.info('process ended', self.socket_name)
             

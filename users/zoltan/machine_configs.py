@@ -155,12 +155,12 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         
         #### Network ####
-        self.CONNECTIONS['stim']['ip']['stim'] = 'localhost'
-        self.CONNECTIONS['stim']['ip']['main_ui'] = 'localhost'
-        self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = 'localhost'
-        self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = 'localhost'
-        self.CONNECTIONS['analysis']['ip']['analysis'] = 'localhost'
-        self.CONNECTIONS['analysis']['ip']['main_ui'] = 'localhost'
+        self.CONNECTIONS['stim']['ip']['stim'] = '127.0.0.1'
+        self.CONNECTIONS['stim']['ip']['main_ui'] = '127.0.0.1'
+        self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = '127.0.0.1'
+        self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = '127.0.0.1'
+        self.CONNECTIONS['analysis']['ip']['analysis'] = '127.0.0.1'
+        self.CONNECTIONS['analysis']['ip']['main_ui'] = '127.0.0.1'
 
         if os.name != 'nt':
             self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'

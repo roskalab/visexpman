@@ -2,6 +2,7 @@ import argparse
 import warnings
 import platform
 import sys
+import multiprocessing
 
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
@@ -28,12 +29,7 @@ class MachineConfigError(Exception):
     '''
     Machine config related error. A machine config parameter determined function causes error
     '''
-    
-class LoggingError(Exception):
-    '''
-    Logger process related error
-    '''
-    
+
 class ApplicationError(Exception):
     '''
     TBD
@@ -113,6 +109,7 @@ def application_init(**kwargs):
     context['logger'] = logger
     context['sockets'] = sockets
     context['application_name'] = args['application_name']
+    context['command'] = multiprocessing.Queue()
     return context
     
 def stop_application(context):
