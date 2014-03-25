@@ -880,11 +880,11 @@ def um2degrees(umonretina):
 #== Time /Date ==
 def datetime_string(separator = '-', datetime_separator='_'):
     now = time.localtime()
-    return ('{1}{0}{2:2}{0}{3:2}{7}{4:2}{0}{5:2}{0}{6:2}'.format(separator, now.tm_year,  now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, datetime_separator)).replace(' ', '0')
+    return ('{1:0=4}{0}{2:0=2}{0}{3:0=2}{7}{4:0=2}{0}{5:0=2}{0}{6:0=2}'.format(separator, now.tm_year,  now.tm_mon, now.tm_mday, now.tm_hour, now.tm_min, now.tm_sec, datetime_separator))
 
 def date_string():
     now = time.localtime()
-    return ('%4i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday)).replace(' ', '0')
+    return ('{0:0=4}-{1:0=2}-{2:0=2}'.format(now.tm_year,  now.tm_mon, now.tm_mday))
 
 def truncate_timestamps(list_of_timestamps,  at_position):
     '''From a list of floats representing timestamps, we calculates timestamps 
@@ -897,23 +897,23 @@ def truncate_timestamps(list_of_timestamps,  at_position):
 
 def timestamp2hms(timestamp):
     time_struct = time.localtime(timestamp)
-    return ('%2i:%2i:%2.1f'%(time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec + numpy.modf(timestamp)[0])).replace(' ', '0')
+    return ('{0:0=2}:{1:0=2}:{2:0=2.1f}'.format(time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec + numpy.modf(timestamp)[0]))
     
 def timestamp2hm(timestamp):
     time_struct = time.localtime(timestamp)
-    return ('%2i:%2i'%(time_struct.tm_hour, time_struct.tm_min)).replace(' ', '0')
+    return ('{0:0=2}:{1:0=2}'.format(time_struct.tm_hour, time_struct.tm_min))
     
 def timestamp2ymdhms(timestamp):
     time_struct = time.localtime(timestamp)
-    return '{0}-{1}-{2}+{3:2}:{4:2}:{5:2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec).replace(' ','0').replace('+',' ')
+    return '{0:0=4}-{1:0=2}-{2:0=2}+{3:0=2}:{4:0=2}:{5:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec).replace('+',' ')
 
 def timestamp2ymdhm(timestamp):
     time_struct = time.localtime(timestamp)
-    return '{0}-{1}-{2}+{3:2}:{4:2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min).replace(' ','0').replace('+',' ')
+    return '{0:0=4}-{1:0=2}-{2:0=2}+{3:0=2}:{4:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday, time_struct.tm_hour, time_struct.tm_min).replace('+',' ')
 
 def timestamp2ymd(timestamp):
     time_struct = time.localtime(timestamp)
-    return '{0}-{1}-{2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday).replace(' ','0').replace('+',' ')
+    return '{0:0=4}-{1:0=2}-{2:0=2}'.format(time_struct.tm_year, time_struct.tm_mon, time_struct.tm_mday).replace('+',' ')
 
 
 class Timeout(object):

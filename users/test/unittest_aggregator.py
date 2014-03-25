@@ -145,7 +145,7 @@ def generate_filename(path):
     index = 0
     number_of_digits = 5
     while True:
-        testable_path = path.replace('.',  '_%5i.'%index).replace(' ', '0')
+        testable_path = path.replace('.',  '_{0:0=5}.'.format(index))
         if not os.path.isfile(testable_path):
             break
         index = index + 1

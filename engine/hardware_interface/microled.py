@@ -49,7 +49,7 @@ class MicroLEDArray(instrument.Instrument):
         else:
             trigger_value = 0
         if command =='0':
-            self.sent_packets.append('{0}{1:4x}{2}\n'.format(command, trigger_value, pixels).replace(' ', '0'))
+            self.sent_packets.append('{0}{1:0=4x}{2}\n'.format(command, trigger_value, pixels))
         elif command == '9':
             self.sent_packets.append('{0}\n'.format(command))
         self.s.write(self.sent_packets[-1])

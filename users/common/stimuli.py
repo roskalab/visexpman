@@ -189,8 +189,7 @@ class MovingGrating(experiment.Experiment):
                 segment_info['standing_start_frame'] = frame_counter
                 frame_counter += int(self.experiment_config.GRATING_STAND_TIME * self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
                 segment_info['standing_last_frame'] = frame_counter-1
-                segment_id = 'segment_{0:3.0f}' .format(segment_counter)
-                segment_id = segment_id.replace(' ', '0')
+                segment_id = 'segment_{0:0=3.0f}' .format(segment_counter)
                 self.experiment_specific_data['segment_info'][segment_id] = segment_info#TODO:redundant data, need to be removed
                 segment_counter += 1
         time.sleep(self.experiment_config.PAUSE_BEFORE_AFTER)

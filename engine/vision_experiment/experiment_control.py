@@ -514,8 +514,7 @@ class ExperimentControl(object):
                         'fragment_{2}_{0:4}_{1}_'.format(self.parameters['region_name'], self.objective_position, self.scan_mode))
                     elif hasattr(self, 'stage_position'):
                         fragment_filename = fragment_filename.replace('fragment_', 
-                        'fragment_{3}_{0:.1f}_{1:4.1f}_{2}_'.format(self.stage_position[0], self.stage_position[1], self.objective_position, self.scan_mode))
-                    fragment_filename = fragment_filename.replace(' ', '0')
+                        'fragment_{3}_{0:.1f}_{1:0=4.1f}_{2}_'.format(self.stage_position[0], self.stage_position[1], self.objective_position, self.scan_mode))
                 self.filenames['mes_fragments'].append(fragment_filename.replace('hdf5', 'mat'))
             elif self.config.EXPERIMENT_FILE_FORMAT == 'mat':
                 fragment_filename = fileop.generate_filename(fragment_filename, last_tag = str(fragment_id))

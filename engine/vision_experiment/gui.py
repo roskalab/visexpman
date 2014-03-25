@@ -761,7 +761,7 @@ class ExperimentControl(gui.WidgetControl):
         self.mandatory_parameters['optional'] = self.optional_parameters
         if self.optional_parameters.has_key('animal_parameters'):
             self.mandatory_parameters['animal_id'] = self.optional_parameters['animal_parameters']['id']
-        self.mandatory_parameters['counter'] = '{0:3}'.format(len(self.poller.animal_file.recordings)).replace(' ', '0')
+        self.mandatory_parameters['counter'] = '{0:0=3}'.format(len(self.poller.animal_file.recordings))
         return True
         
     def add_experiment(self):

@@ -36,16 +36,16 @@ def generate_filename(path, insert_timestamp = False, last_tag = ''):
     number_of_digits = 5
     while True:
         if last_tag != '':
-            testable_path = path.replace('.',  '_%5i_%s.'%(index, last_tag)).replace(' ', '0')
+            testable_path = path.replace('.',  '_{0:0=5}_{1}.'.format(index, last_tag))
         else:
-            testable_path = path.replace('.',  '_%5i.'%index).replace(' ', '0')
+            testable_path = path.replace('.',  '_{0:0=5}.'.format(index))
         if not os.path.isfile(testable_path):
             break
         index = index + 1
         if index >= 10 ** number_of_digits:
             raise RuntimeError('Filename cannot be generated')
     if insert_timestamp:
-        testable_path = path.replace('.',  '_%i_%5i.'%(int(time.time()), index)).replace(' ', '0')
+        testable_path = path.replace('.',  '_{0}_{1:0=5}.'.format(int(time.time()), index))
     return testable_path
     
 def generate_foldername(path):
@@ -55,7 +55,7 @@ def generate_foldername(path):
     number_of_digits = 5
     index = 0
     while True:
-        testable_path = (path + '_%5i'%index).replace(' ', '0')
+        testable_path = (path + '_{0:0=5}'.format(index))
         if not os.path.isdir(testable_path):
             break
         index = index + 1
