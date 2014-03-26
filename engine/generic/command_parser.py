@@ -13,10 +13,14 @@ class ServerLoop(object):
     Overtakes CommandParser class.
     Checks for function calls coming from a queued socket. Corresponding functions are called.
     '''
-    def __init__(self, queued_socket, command, log = None):
+    def __init__(self, machine_config, queued_socket, command, log = None):
+        self.machine_config = machine_config
         self.socket = queued_socket
         self.command = command
         self.log = log
+        self.log_source_name = self.machine_config.application_name
+        if hasattr(self.log, 'add_source'):
+            self.log.add_source(self.log_source_name)
             
     def printl(self,message, loglevel='info', stdio = True):
         '''
@@ -26,9 +30,12 @@ class ServerLoop(object):
         if stdio:
             funcs.append(sys.stdout.write)
         if hasattr(self.log, loglevel):
-            funcs.append(getattr(self.log, loglevel))
+            funcs.append([getattr(self.log, loglevel), self.log_source_name])
         for fun in funcs:
-            fun(str(message))
+            if isinstance(fun,list):
+                fun[0](str(message), fun[1])
+            else:
+                fun(str(message))
         
     def fetch_next_call(self):
         '''

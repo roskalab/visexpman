@@ -10,6 +10,7 @@ import shutil
 import argparse
 import platform
 import getpass
+import psutil
 
 TEST_test = 'unittest_aggregator' in sys.argv[0] or 'code_tester' in sys.argv[0]
 
@@ -125,6 +126,7 @@ TEST_daq_device = 'Dev1'
 
 TEST_unittests = [
     'visexpman.engine.visexp_gui.testVisionExperimentGui',
+    'visexpman.engine.visexp_app.TestStim',
     'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 
     'visexpman.engine.TestApplicationInit',
     'visexpman.engine.generic.parameter.testParameter',
@@ -138,6 +140,27 @@ TEST_priority_unittests = [
                        ]
 
 TEST_single_unittest = ''#testVisionExperimentGui.test_01_select_stimfile'
+
+def get_python_processes():
+    pids = []
+    for pid in psutil.get_pid_list():
+        try:
+            p = psutil.Process(pid)
+            if 'python' in p.name:
+                pids.append(pid)
+        except:
+            pass
+    return pids
+    
+def kill_python_processes(dont_kill_pids):
+    pids = get_python_processes()
+    for pid in pids:
+        if pid not in dont_kill_pids:
+            p = psutil.Process(pid)
+            name = p.name
+            p.kill()
+            print '{0}/{1} process killed'.format(name, pid)
+            
 def generate_filename(path):
     '''
     Inserts index into filename resulting unique name.
@@ -159,6 +182,8 @@ def select_path_exists(paths, dirs = True):
             return path
             
 TEST_valid_file = select_path_exists(['/mnt/datafast/context/image.hdf5', 'v:\\context\\image.hdf5','/etc/fstab'],dirs=False)
+if TEST_valid_file is None:
+    raise IOError('TEST_valid_file parameter incorrect')
 TEST_invalid_file = '/home'
     
 def prepare_test_data(modulename, clean_working_dir = True, copy_only_first_file = False):
@@ -227,58 +252,7 @@ class UnitTestRunner(object):
     This class is responsible for maintaining a list of implemented and ready to run unit tests. Test methods are aggregated and executed with unittest's TextTestRunner class.
     '''
     def __init__(self):        
-        self.test_configs = [
-#               {'test_class_path' : 'visexpman.engine.visexp_runner.TestVisionExperimentRunner',
-#               'enable' : True, 'run_only' : []},
-#               {'test_class_path' : 'visexpA.engine.analysis.TestAnalysis',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpA.engine.jobhandler.TestJobhandler',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpA.engine.datahandlers.importers.TestImporters',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.visexp_runner.TestFindoutConfig',
-#               'enable' : True, 'run_only' : []}, 
-#               {'test_class_path' : 'visexpman.engine.generic.configuration.testConfiguration',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.parameter.testParameter',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.utils.TestUtils',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.geometry.testGeometry',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.vision_experiment.configuration.testApplicationConfiguration',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestParallelPort',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.instrument.TestFilterwheel',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestNetworkInterface',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.network_interface.TestQueuedServer',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.stage_control.TestAllegraStage',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.stage_control.TestMotorizedGoniometer',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.log.TestLog',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.mes_interface.TestMesInterfaceEmulated',
-#               'enable' : True, 'run_only' : []},
-#               {'test_class_path' : 'visexpA.engine.datahandlers.matlabfile.TestMatData',
-#               'enable' : True}, 
-#               {'test_class_path' : 'visexpman.engine.generic.timing.TestTiming',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.generic.command_parser.TestCommandHandler',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpA.engine.datahandlers.hdf5io.TestUtils',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpA.engine.datadisplay.imaged.TestImaged',
-#               'enable' : True},
-#               {'test_class_path' : 'visexpman.engine.hardware_interface.scanner_control.TestScannerControl',
-#               'enable' : True, 'run_only' : []},
-               ]
+        self.dont_kill_processes = get_python_processes()
 
     def _fetch_test_methods(self, test_class):
         '''
@@ -367,15 +341,14 @@ class UnitTestRunner(object):
         self.save_source_and_results()
         if TEST_delete_files:
             print TEST_working_folder
-        directories = []
-        all_files  = []
-        directories = []
 
         if TEST_delete_files:
             time.sleep(2.0)
             wfolder = select_folder_exists(TEST_working_folder)
             shutil.rmtree(wfolder)
             os.mkdir(wfolder)
+        #Kill stuck processes
+        kill_python_processes(self.dont_kill_processes)
 
     def save_source_and_results(self):
         test_EXPERIMENT_DATA_PATH = generate_filename(os.path.join(select_path_exists(TEST_results_folder), 'test_archive.zip'))

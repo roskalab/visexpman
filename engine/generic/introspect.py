@@ -14,6 +14,25 @@ import weakref
 
 import subprocess, os, signal
 import copy
+import psutil
+
+def get_python_processes():
+    pids = []
+    for pid in psutil.get_pid_list():
+        p = psutil.Process(pid)
+        try:
+            if 'python' in p.name:
+                pids.append(pid)
+        except:
+            pass
+    return pids
+    
+def kill_python_processes(dont_kill_pids):
+    pids = get_python_processes()
+    for pid in pids:
+        if pid not in dont_kill_pids:
+            p = psutil.Process(pid)
+            p.kill()
 
 def dumpall(fn):
     '''

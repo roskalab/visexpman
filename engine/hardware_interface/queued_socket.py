@@ -2,8 +2,8 @@ import zmq
 import time
 import multiprocessing
 import platform
-from visexpman.engine.generic import utils
 import unittest
+from visexpman.engine.generic import utils
 
 class QueuedSocket(multiprocessing.Process):
     '''
@@ -256,11 +256,11 @@ class TestQueuedSocket(unittest.TestCase):
         client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip= utils.get_ip())
         client.start()
         server.start()
-        self.assertTrue(client.ping(2))
-        self.assertTrue(server.ping(2))
+        time.sleep(2)
+        self.assertTrue(client.ping(5))
+        self.assertTrue(server.ping(5))
         for s in [client,server]:
             s.terminate()
-        
             
 if __name__ == "__main__":
     unittest.main()

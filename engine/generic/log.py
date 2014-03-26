@@ -235,7 +235,7 @@ class LoggerThread(threading.Thread, Log):
 class TestLog(unittest.TestCase):
     def setUp(self):
         import visexpman.engine.vision_experiment.configuration
-        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1](clear_files=True)
         self.machine_config.application_name='main_ui'
         self.machine_config.user = 'test'
 
