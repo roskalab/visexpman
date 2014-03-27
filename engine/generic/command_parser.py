@@ -15,6 +15,7 @@ class ServerLoop(object):
     '''
     def __init__(self, machine_config, queued_socket, command, log = None):
         self.machine_config = machine_config
+        self.config = machine_config
         self.socket = queued_socket
         self.command = command
         self.log = log
@@ -22,20 +23,16 @@ class ServerLoop(object):
         if hasattr(self.log, 'add_source'):
             self.log.add_source(self.log_source_name)
             
-    def printl(self,message, loglevel='info', stdio = True):
+    def printl(self, message, loglevel='info', stdio = True):
         '''
         Message to logfile, queued socket and standard output
         '''
-        funcs = [self.socket.send]
+        message_string = str(message)
+        self.socket.send(message_string)
         if stdio:
-            funcs.append(sys.stdout.write)
+            sys.stdout.write(message_string+'\n')
         if hasattr(self.log, loglevel):
-            funcs.append([getattr(self.log, loglevel), self.log_source_name])
-        for fun in funcs:
-            if isinstance(fun,list):
-                fun[0](str(message), fun[1])
-            else:
-                fun(str(message))
+            getattr(self.log, loglevel)(message_string, self.log_source_name)
         
     def fetch_next_call(self):
         '''
@@ -63,6 +60,16 @@ class ServerLoop(object):
             
     def terminate(self):
         self.command.put('terminate')
+        
+    def application_callback(self):
+        '''
+        Application specific periodic function calls come here
+        '''
+        
+    def at_prcess_end(self):
+        '''
+        Called at end of process
+        '''
             
     def run(self,timeout = None):
         t0 = time.time()
@@ -72,7 +79,10 @@ class ServerLoop(object):
                 break
             if timeout is not None and timeout < time.time()-t0:
                 break
-            time.sleep(0.1)
+            if self.application_callback() == 'terminate':
+                break
+            time.sleep(0.2)
+        self.at_prcess_end()
         self.command.put('terminated')
 
 class CommandParser(object):

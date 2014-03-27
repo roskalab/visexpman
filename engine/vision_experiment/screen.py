@@ -30,23 +30,24 @@ class VisionExperimentScreen(graphics.Screen):
         self.clear_screen()
         #== Initialize displaying text ==
         self.text_style = GLUT_BITMAP_8_BY_13
-        self.menu_position = utils.cr(( int(self.config.MENU_POSITION['col'] * self.config.SCREEN_RESOLUTION['col']), int(self.config.MENU_POSITION['row'] * self.config.SCREEN_RESOLUTION['row'])))
-        self.message_position = utils.cr(( int(self.config.MESSAGE_POSITION['col'] * self.config.SCREEN_RESOLUTION['col']), int(self.config.MESSAGE_POSITION['row'] * self.config.SCREEN_RESOLUTION['row'])))
-        self.message_to_screen = ['no message']
+        self.max_lines = int(self.config.SCREEN_RESOLUTION['row']/13.0)
+        self.max_chars =  int(self.config.SCREEN_RESOLUTION['col']/(8+13.0))
+        self.max_print_lines = self.max_lines-4
+        self.menu_text = 'ESCAPE - Exit, b - Toggle bullseye, h - Hide text'
+        self.screen_text = ''
         self.hide_menu = False
         self.show_bullseye = False
         self.bullseye_size = None
         #== Update text to screen ==
 #        self.refresh_non_experiment_screen()
+
         
     def clear_screen_to_background(self):
-        color = self.config.BACKGROUND_COLOR
         if hasattr(self, 'user_background_color'):
-            color = colors.convert_color(self.user_background_color)
-        if hasattr(self.config, 'GAMMA_CORRECTION'):
-            color = self.config.GAMMA_CORRECTION(color)
-        if hasattr(self.config, 'COLOR_MASK'):
-            color *= self.config.COLOR_MASK
+            color = self.user_background_color
+        else:
+            color = self.config.BACKGROUND_COLOR
+        color = colors.convert_color(color, self.config)
         self.clear_screen(color = color)
         
     def _display_bullseye(self):
@@ -70,9 +71,11 @@ class VisionExperimentScreen(graphics.Screen):
          - possible keyboard commands
          - available experiment configurations
         '''
-        self.menu_text = self.config.MENU_TEXT + experiment_choices(self.experiment_config_list) + '\nSelected experiment config: '
-        if len(self.experiment_config_list) > 0:
-            self.menu_text += self.experiment_config_list[int(self.selected_experiment_config_index)][1].__name__
+        self.menu_text = self.config.MENU_TEXT
+        if hasattr(self, 'experiment_config_list'):
+            self.menu_text = self.menu_text+ experiment_choices(self.experiment_config_list) + '\nSelected experiment config: '
+            if len(self.experiment_config_list) > 0:
+                self.menu_text += self.experiment_config_list[int(self.selected_experiment_config_index)][1].__name__
         text_color = self.config.TEXT_COLOR
         if hasattr(self.config, 'GAMMA_CORRECTION'):
             text_color = self.config.GAMMA_CORRECTION(text_color)
@@ -109,6 +112,14 @@ class VisionExperimentScreen(graphics.Screen):
         '''
         Render menu and message texts to screen
         '''
+        self.clear_screen_to_background()
+        text_color = colors.convert_color(self.config.TEXT_COLOR, self.config)
+        text_position = copy.deepcopy(self.config.UPPER_LEFT_CORNER)
+        text_position['row'] -= 13
+        text_position['col'] += 13
+        self.render_text(self.menu_text +'\n\n\n' + self.screen_text, color = text_color, position = text_position, text_style = self.text_style)
+        self.flip()
+        return
         
         #TODO: when ENABLE_TEXT = False, screen has to be cleared to background color, self.clear_screen_to_background()
         self._display_bullseye()
@@ -126,6 +137,8 @@ class ScreenAndKeyboardHandler(VisionExperimentScreen):
     def __init__(self):
         VisionExperimentScreen.__init__(self)
         self.command_domain = 'keyboard'
+        import Queue
+        self.keyboard_command_queue = Queue.Queue()
         self.load_keyboard_commands()
             
     def load_keyboard_commands(self):        
@@ -178,11 +191,12 @@ def check_keyboard():
     '''
     Get pressed key
     '''        
+    keys_pressed = []
     for event in pygame.event.get():
         if event.type == pygame.KEYDOWN:
             key_pressed = pygame.key.name(event.key)                
-            return key_pressed
-    return
+            keys_pressed.append(key_pressed)
+    return keys_pressed
     
 if __name__ == "__main__":
     pass

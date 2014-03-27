@@ -276,7 +276,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         self.SCREEN_SIZE_UM_p = visexpman.engine.generic.parameter.Parameter(utils.cr((self.SCREEN_RESOLUTION['col'] / self.SCREEN_UM_TO_PIXEL_SCALE, self.SCREEN_RESOLUTION['row'] / self.SCREEN_UM_TO_PIXEL_SCALE)))
         ######################### Coordinate system #########################
         if self.COORDINATE_SYSTEM != 'undefined':
-            self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
+            self.ORIGO, self.HORIZONTAL_AXIS_POSITIVE_DIRECTION, self.VERTICAL_AXIS_POSITIVE_DIRECTION,self.UPPER_LEFT_CORNER= utils.coordinate_system(self.COORDINATE_SYSTEM, self.SCREEN_RESOLUTION)
         elif unittest_aggregator.TEST_test:
             #In test mode we do not check for raised exception but test for the existence of certain variables
             pass

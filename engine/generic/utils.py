@@ -258,13 +258,15 @@ def coordinate_system(type, SCREEN_RESOLUTION=None):
         ORIGO = cr((-0.5 * SCREEN_RESOLUTION['col'], 0.5 * SCREEN_RESOLUTION['row']))
         HORIZONTAL_AXIS_POSITIVE_DIRECTION = 'right'
         VERTICAL_AXIS_POSITIVE_DIRECTION = 'down'
+        UPPER_LEFT_CORNER = rc((0,0))
     elif type=='center':
         ORIGO = cr((0, 0))
         HORIZONTAL_AXIS_POSITIVE_DIRECTION = 'right'
         VERTICAL_AXIS_POSITIVE_DIRECTION = 'up'
+        UPPER_LEFT_CORNER = cr((-0.5 * SCREEN_RESOLUTION['col'], 0.5 * SCREEN_RESOLUTION['row']))
     else:
         raise ValueError('Coordinate system type '+type+' not recognized')
-    return ORIGO, HORIZONTAL_AXIS_POSITIVE_DIRECTION, VERTICAL_AXIS_POSITIVE_DIRECTION
+    return ORIGO, HORIZONTAL_AXIS_POSITIVE_DIRECTION, VERTICAL_AXIS_POSITIVE_DIRECTION, UPPER_LEFT_CORNER
     
 def centered_to_ulcorner_coordinate_system(coordinates, screen_size):
     cooridnates_ulcorner = coordinates

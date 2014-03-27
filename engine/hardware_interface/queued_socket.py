@@ -74,16 +74,17 @@ class QueuedSocket(multiprocessing.Process):
             self._connect()
         except:
             import traceback
-            if hasattr(self.log, 'info'):
+            if hasattr(self.log, 'error'):
                 self.log.error(traceback.format_exc(),self.socket_name)
+            return#In this case perhaps it is better to end the process
         while True:
             try:
                 if not self.tosocket.empty():
                     message = self.tosocket.get()
+                    message_str = utils.object2str(message)
+                    self.socket.send(message_str)#This blocks the process if remote peer is not connected. Receiving messages is blocked too which resumes only when remote peer is available.
                     if hasattr(self.log, 'info'):
                         self.log.info('sent: ' + str(message),self.socket_name)
-                    message = utils.object2str(message)
-                    self.socket.send(message)
                 try:
                     message = self.socket.recv(flags=zmq.NOBLOCK)
                     message = utils.str2object(message)
