@@ -82,7 +82,7 @@ class ServerLoop(object):
             if self.application_callback() == 'terminate':
                 break
             time.sleep(0.2)
-        self.at_prcess_end()
+        self.at_process_end()
         self.command.put('terminated')
 
 class CommandParser(object):

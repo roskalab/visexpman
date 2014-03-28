@@ -32,23 +32,34 @@ class VisionExperimentScreen(graphics.Screen):
         self.text_style = GLUT_BITMAP_8_BY_13
         self.max_lines = int(self.config.SCREEN_RESOLUTION['row']/13.0)
         self.max_chars =  int(self.config.SCREEN_RESOLUTION['col']/(8+13.0))
-        self.max_print_lines = self.max_lines-4
-        self.menu_text = 'ESCAPE - Exit, b - Toggle bullseye, h - Hide text'
+        self.menu_text = 'ESCAPE - exit, b - toggle bullseye, h - Hide text, w - white, d - black, g - mid grey, u - user defined color, cursors - adjust screen center'
+        #Split menu text to lines
+        parts = [[]]
+        self.menu_lines = 0
+        char_count = 0
+        for item in self.menu_text.split(','):
+            char_count += len(item)
+            if char_count > self.max_chars:
+                char_count = 0
+                self.menu_lines += 1
+                parts.append([])
+            parts[self.menu_lines].append(item)
+        self.menu_text = '\n'
+        for part in parts:
+            self.menu_text = self.menu_text + ', '.join(part) + '\n'
+        self.max_print_lines = self.max_lines-self.menu_lines-6
         self.screen_text = ''
-        self.hide_menu = False
+        self.show_text = True
         self.show_bullseye = False
         self.bullseye_size = None
-        #== Update text to screen ==
-#        self.refresh_non_experiment_screen()
-
+        self.text_color = colors.convert_color(self.config.TEXT_COLOR, self.config)
+        self.text_position = copy.deepcopy(self.config.UPPER_LEFT_CORNER)
+        self.text_position['row'] -= 13
+        self.text_position['col'] += 13
+        self.refresh_non_experiment_screen()
         
     def clear_screen_to_background(self):
-        if hasattr(self, 'user_background_color'):
-            color = self.user_background_color
-        else:
-            color = self.config.BACKGROUND_COLOR
-        color = colors.convert_color(color, self.config)
-        self.clear_screen(color = color)
+        self.clear_screen(color = colors.convert_color(self.stim_context['background_color'], self.config))
         
     def _display_bullseye(self):
         if self.show_bullseye:
@@ -59,73 +70,18 @@ class VisionExperimentScreen(graphics.Screen):
                 bullseye_path = fileop.get_tmp_file('bmp')
                 im = Image.open(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'))
                 im = im.resize((self.bullseye_size_in_pixel, self.bullseye_size_in_pixel))
-                try:
-                    im.save(bullseye_path)
-                    self.render_imagefile(bullseye_path, position = utils.rc_multiply_with_constant(self.screen_center, self.config.SCREEN_UM_TO_PIXEL_SCALE))
-                except:
-                    pass
-        
-    def _show_menu(self, flip = False):
-        '''
-        Show menu text on screen:
-         - possible keyboard commands
-         - available experiment configurations
-        '''
-        self.menu_text = self.config.MENU_TEXT
-        if hasattr(self, 'experiment_config_list'):
-            self.menu_text = self.menu_text+ experiment_choices(self.experiment_config_list) + '\nSelected experiment config: '
-            if len(self.experiment_config_list) > 0:
-                self.menu_text += self.experiment_config_list[int(self.selected_experiment_config_index)][1].__name__
-        text_color = self.config.TEXT_COLOR
-        if hasattr(self.config, 'GAMMA_CORRECTION'):
-            text_color = self.config.GAMMA_CORRECTION(text_color)
-        if hasattr(self.config, 'COLOR_MASK'):
-            text_color *= self.config.COLOR_MASK
-        self.render_text(self.menu_text, color = text_color, position = self.menu_position, text_style = self.text_style)
-        if flip:
-            self.flip()
-
-    def _show_message(self, message, flip = False):
-        '''
-        Display messages coming from command handler
-        '''
-        #count number of message rows and limit their number
-        lines = ''
-        for line in message:
-            if line is not None and len(line) > 0:
-                lines += line + '\n'
-        lines = lines.split('\n')
-        lines = lines[-self.config.NUMBER_OF_MESSAGE_ROWS:]
-        limited_message = ''
-        for line in lines:
-            limited_message += line + '\n'
-        text_color = self.config.TEXT_COLOR
-        if hasattr(self.config, 'GAMMA_CORRECTION'):
-            text_color = self.config.GAMMA_CORRECTION(text_color)
-        if hasattr(self.config, 'COLOR_MASK'):
-            text_color *= self.config.COLOR_MASK
-        self.render_text(limited_message, color = text_color, position = self.message_position, text_style = self.text_style)
-        if flip:
-            self.flip()
-
+                im.save(bullseye_path)
+            self.render_imagefile(bullseye_path, position = utils.rc_multiply_with_constant(self.stim_context['screen_center'], self.config.SCREEN_UM_TO_PIXEL_SCALE))
+            
     def refresh_non_experiment_screen(self, flip = True):
         '''
         Render menu and message texts to screen
         '''
         self.clear_screen_to_background()
-        text_color = colors.convert_color(self.config.TEXT_COLOR, self.config)
-        text_position = copy.deepcopy(self.config.UPPER_LEFT_CORNER)
-        text_position['row'] -= 13
-        text_position['col'] += 13
-        self.render_text(self.menu_text +'\n\n\n' + self.screen_text, color = text_color, position = text_position, text_style = self.text_style)
-        self.flip()
-        return
-        
-        #TODO: when ENABLE_TEXT = False, screen has to be cleared to background color, self.clear_screen_to_background()
         self._display_bullseye()
-        if self.config.ENABLE_TEXT:# and not self.hide_menu:#TODO: menu is not cleared - Seems like opengl does not clear 2d text with glclear command     
-            self._show_menu()
-            self._show_message(self.message_to_screen, flip = flip)
+        if self.show_text and self.config.ENABLE_TEXT:
+            self.render_text(self.menu_text +'\n\n\n' + self.screen_text, color = self.text_color, position = self.text_position, text_style = self.text_style)
+        self.flip()
 
     def run_preexperiment(self):
         pass

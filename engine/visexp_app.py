@@ -14,33 +14,90 @@ from visexpman.engine.visexp_gui import VisionExperimentGui
 from visexpman.engine.generic.command_parser import ServerLoop
 from visexpman.engine.vision_experiment.screen import VisionExperimentScreen, check_keyboard
 from visexpman.engine.generic import introspect
+from visexpman.engine.generic import utils
+from visexpman.engine.generic import fileop
+from visexpA.engine.datahandlers import hdf5io
 
 class StimulationLoop(ServerLoop, VisionExperimentScreen):
     def __init__(self, machine_config, queued_socket, command, log):
         ServerLoop.__init__(self, machine_config, queued_socket, command, log)
+        self.load_stim_context()
         VisionExperimentScreen.__init__(self)
+        self.exit=False
+
+    def load_stim_context(self):
+        '''
+        Loads stim application's context
+        '''
+        context_filename = fileop.get_context_filename(self.config)
+        if os.path.exists(context_filename):
+            self.stim_context = utils.array2object(hdf5io.read_item(context_filename, 'context', self.config))
+        else:
+            self.stim_context = {}
+        if not self.stim_context.has_key('screen_center'):
+            self.stim_context['screen_center'] = self.config.SCREEN_CENTER
+        if not self.stim_context.has_key('background_color'):
+            self.stim_context['background_color'] = self.config.BACKGROUND_COLOR
+        if not self.stim_context.has_key('user_background_color'):            
+            self.stim_context['user_background_color'] = 0.75
+
+    def save_stim_context(self):
+        hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(self.stim_context), self.config,  overwrite = True)
         
+    def _set_background_color(self,color):
+        self.stim_context['background_color'] = color
+        self.socket.send({'update': ['stim background color', color]})#Feedback to main_ui, this value show up in the box where user can adjust color,
+    
     def application_callback(self):
         '''
         Watching keyboard commands and refreshing screen come here
-        
         '''
+        if self.exit:
+            return 'terminate'
         #Check keyboard
         for key_pressed in check_keyboard():
-            if key_pressed == 'escape':
+            if key_pressed == 'escape':#Exit application
                 return 'terminate'
+            elif key_pressed == 'h':#show/hide text on screen
+                self.show_text = not self.show_text
+            elif key_pressed == 'b':#show/hide bullseye
+                self.show_bullseye = not self.show_bullseye
+            elif key_pressed == 'd':
+                self._set_background_color(0.0)
+            elif key_pressed == 'g':
+                self._set_background_color(0.5)
+            elif key_pressed == 'w':
+                self._set_background_color(1.0)
+            elif key_pressed == 'u':
+                self._set_background_color(self.stim_context['user_background_color'])
+            elif key_pressed == 'up':
+                if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
+                    self.stim_context['screen_center']['row'] -= self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
+                elif self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
+                    self.stim_context['screen_center']['row'] += self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
+            elif key_pressed == 'down':
+                if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
+                    self.stim_context['screen_center']['row'] += self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
+                elif self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
+                    self.stim_context['screen_center']['row'] -= self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
+            elif key_pressed == 'left':
+                if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
+                    self.stim_context['screen_center']['col'] -= self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
+                elif self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'left':
+                    self.stim_context['screen_center']['col'] += self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
+            elif key_pressed == 'right':
+                if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
+                    self.stim_context['screen_center']['col'] += self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
+                elif self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'left':
+                    self.stim_context['screen_center']['col'] -= self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
             else:
                 self.printl('Key pressed: {0}'.format(key_pressed))
         #Update screen
         self.refresh_non_experiment_screen()
         
-    def at_prcess_end(self):
+    def at_process_end(self):
+        self.save_stim_context()
         self.close_screen()
-        
-    def test(self):
-        self.printl('test OK 1')
-        time.sleep(0.1)
-        self.printl('test OK 2')
         
     def printl(self, message, loglevel='info', stdio = True):
         ServerLoop.printl(self, message, loglevel, stdio)
@@ -51,6 +108,36 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         if len(lines)> self.max_print_lines:
             lines = lines[-self.max_print_lines:]
         self.screen_text = '\n'.join(lines)
+    ########### Remotely callable functions ###########
+        
+    def test(self):
+        self.printl('test OK 1')
+        time.sleep(0.1)
+        self.printl('test OK 2')
+        
+    def exit_application(self):
+        self.exit=True
+        
+    def read(self,varname):
+        if hasattr(self, varname):
+            self.socket.send({'data': [varname,getattr(self,varname)]})
+        else:
+            self.socket.send('{0} variable does not exists'.format(varname))
+            
+    def set_context_variable(self, varname, value):
+        '''
+        Screen center, background color can be set with this function
+        '''
+        if not self.stim_context.has_key(varname):
+            self.socket.send('{0} variable does not exists'.format(varname))
+        else:
+            self.stim_context[varname] = value
+            
+    def set_variable(self,varname, value):
+        if not hasattr(self, varname):
+            self.socket.send('{0} variable does not exists'.format(varname))
+        else:
+            setattr(self, varname, value)
         
 def run_main_ui(context):
     context['logger'].start()#This needs to be started separately from application_init ensuring that other logger source can be added 
@@ -63,6 +150,7 @@ def run_stim(context, timeout = None):
     stim = StimulationLoop(context['machine_config'], context['sockets']['stim'], context['command'], context['logger'])
     context['logger'].start()
     stim.run(timeout=timeout)
+    pass
 
 def run_application():
     context = visexpman.engine.application_init()
@@ -73,6 +161,12 @@ class TestStim(unittest.TestCase):
     def setUp(self):
         self.context = visexpman.engine.application_init(user = 'test', config ='GUITestConfig', application_name = 'stim')
         self.dont_kill_processes = introspect.get_python_processes()
+        
+    def _prepare_capture_folder(self):
+        self.context['machine_config'].ENABLE_FRAME_CAPTURE = True
+        self.context['machine_config'].CAPTURE_PATH = os.path.join(self.context['machine_config'].root_folder, 'capture')
+        fileop.mkdir_notexists(self.context['machine_config'].CAPTURE_PATH, remove_if_exists=True)
+        return self.context['machine_config'].CAPTURE_PATH
         
     def tearDown(self):
         visexpman.engine.stop_application(self.context)
@@ -87,7 +181,6 @@ class TestStim(unittest.TestCase):
     def test_02_execute_command(self):
         from visexpman.engine.hardware_interface import queued_socket
         import multiprocessing
-        
         client = queued_socket.QueuedSocket('{0}-{1} socket'.format('main_ui', 'stim'), 
                                                                                     False, 
                                                                                     10000,
@@ -107,21 +200,30 @@ class TestStim(unittest.TestCase):
             self.assertIn(tag+'test OK 1', fileop.read_text_file(self.context['logger'].filename))
             self.assertIn(tag+'test OK 2', fileop.read_text_file(self.context['logger'].filename))
             
-    def test_03_pressbutton(self):
+    def test_03_presscommands(self):
         from visexpman.engine.hardware_interface import queued_socket
         import multiprocessing
-        
-#        client = queued_socket.QueuedSocket('{0}-{1} socket'.format('main_ui', 'stim'), 
-#                                                                                    False, 
-#                                                                                    10000,
-#                                                                                    multiprocessing.Queue(), 
-#                                                                                    multiprocessing.Queue(), 
-#                                                                                    ip= '127.0.0.1',
-#                                                                                    log=None)
-#        client.start()
-        run_stim(self.context)
-        pass
-#        client.terminate()
+        import numpy
+        capture_path = self._prepare_capture_folder()
+        self.context['machine_config'].COLOR_MASK = numpy.array([0.5, 0.5, 1.0])
+        client = queued_socket.QueuedSocket('{0}-{1} socket'.format('main_ui', 'stim'), 
+                                                                                    False, 
+                                                                                    10000,
+                                                                                    multiprocessing.Queue(), 
+                                                                                    multiprocessing.Queue(), 
+                                                                                    ip= '127.0.0.1',
+                                                                                    log=None)
+        client.start()
+        client.send({'function': 'set_context_variable', 'args': ['background_color', 0.5]})
+        client.send({'function': 'set_context_variable', 'args': ['screen_center', utils.rc((0,300))]})
+        client.send({'function': 'set_variable', 'args': ['show_text', False]})
+        client.send({'function': 'set_variable', 'args': ['bullseye_size', 200.0]})
+        client.send({'function': 'set_variable', 'args': ['show_bullseye', True]})
+        run_stim(self.context,timeout=5)
+        client.terminate()
+        #Check for context file, captured frame, logfile, check text color using histogram
+
+#TODO: tests: color mask, gamma curve, bullseye moved, resized, menu hidden, context file keeps settings
 
 if __name__=='__main__':
     if len(sys.argv)>1:

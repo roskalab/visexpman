@@ -487,11 +487,13 @@ class MicroLEDArrayExperiment(experiment.Experiment):
         self.stimulusbitmap2uled()
         
 class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
-    def __init__(self, clear_files = False):
+    def __init__(self, clear_files = False, capture_frames = False):
         self.clear_files = clear_files
+        self.capture_frames = capture_frames
         configuration.ElphysRetinalCaImagingConfig.__init__(self)
         
     def _set_user_parameters(self):
+        
         from visexpman.users.test import unittest_aggregator
         self.root_folder = fileop.select_folder_exists(unittest_aggregator.TEST_working_folder)
         LOG_PATH = os.path.join(self.root_folder, 'log')
@@ -511,6 +513,11 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
         self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = '127.0.0.1'
         self.CONNECTIONS['analysis']['ip']['analysis'] = '127.0.0.1'
         self.CONNECTIONS['analysis']['ip']['main_ui'] = '127.0.0.1'
+        SCREEN_UM_TO_PIXEL_SCALE = 0.5
+        self.GAMMA_CORRECTION = numpy.array([
+                                             [0.0, 0.0], 
+                                             [0.5, 25.0], 
+                                             [1.0, 100.0],])
         self._create_parameters_from_locals(locals())
 
 class AppInitTest4Config(GUITestConfig):

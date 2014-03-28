@@ -139,7 +139,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = ''#testVisionExperimentGui.test_01_select_stimfile'
+TEST_single_unittest = ''#TestStim.test_03_presscommands'#testVisionExperimentGui.test_01_select_stimfile'
 
 def get_python_processes():
     pids = []

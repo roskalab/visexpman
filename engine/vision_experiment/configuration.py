@@ -193,6 +193,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         MESSAGE_POSITION = utils.cr((-0.48,-0.15))
         NUMBER_OF_MESSAGE_ROWS = [15, [1, 40]]
         MAX_MESSAGE_LENGTH = [180,  [10,  1000]] #length of message displayed on screen
+        SCREEN_CENTER_ADJUST_STEP_SIZE = [1.0, [1.0, 100.0]]#um
 
         ############# External hardware ######################
         ENABLE_PARALLEL_PORT = False
@@ -286,9 +287,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         self.SCREEN_CENTER_p = visexpman.engine.generic.parameter.Parameter(utils.rc((0,0)))
         #== Cooridnate system type dependencies ==
         if self.COORDINATE_SYSTEM == 'ulcorner':
-            self.MENU_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MENU_POSITION_p.v, utils.cr((1.0, 1.0)))
-            self.MESSAGE_POSITION_p.v = utils.centered_to_ulcorner_coordinate_system(self.MESSAGE_POSITION_p.v, utils.cr((1.0, 1.0)))
-            self.SCREEN_CENTER_p.v = utils.rc((0.5 * self.SCREEN_RESOLUTION['row'], 0.5 * self.SCREEN_RESOLUTION['col']))
+            self.SCREEN_CENTER_p.v = utils.rc((0.5 * self.SCREEN_SIZE_UM_p.v['row'], 0.5 * self.SCREEN_SIZE_UM_p.v['col']))
             
         ########### Projector gamma correction ############
         if hasattr(self, 'GAMMA_CORRECTION'):

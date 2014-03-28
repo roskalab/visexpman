@@ -82,7 +82,10 @@ class QueuedSocket(multiprocessing.Process):
                 if not self.tosocket.empty():
                     message = self.tosocket.get()
                     message_str = utils.object2str(message)
-                    self.socket.send(message_str)#This blocks the process if remote peer is not connected. Receiving messages is blocked too which resumes only when remote peer is available.
+                    #This blocks the process if remote peer is not connected.
+                    #Receiving messages is blocked too which resumes only when remote peer is available.
+                    #If this does not happen, Process.terminate() terimates the process.
+                    self.socket.send(message_str)
                     if hasattr(self.log, 'info'):
                         self.log.info('sent: ' + str(message),self.socket_name)
                 try:
