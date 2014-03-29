@@ -32,7 +32,7 @@ class VisionExperimentScreen(graphics.Screen):
         self.text_style = GLUT_BITMAP_8_BY_13
         self.max_lines = int(self.config.SCREEN_RESOLUTION['row']/13.0)
         self.max_chars =  int(self.config.SCREEN_RESOLUTION['col']/(8+13.0))
-        self.menu_text = 'ESCAPE - exit, b - toggle bullseye, h - Hide text, w - white, d - black, g - mid grey, u - user defined color, cursors - adjust screen center'
+        self.menu_text = 'ESCAPE - exit, b - toggle bullseye, h - Hide text, w - white, d - black, g - mid grey, u - user defined color, cursors - adjust screen center, m - measure frame rate'
         #Split menu text to lines
         parts = [[]]
         self.menu_lines = 0

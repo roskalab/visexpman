@@ -59,6 +59,8 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         for key_pressed in check_keyboard():
             if key_pressed == 'escape':#Exit application
                 return 'terminate'
+            elif key_pressed == 'm':#measure frame rate
+                self.measure_frame_rate()
             elif key_pressed == 'h':#show/hide text on screen
                 self.show_text = not self.show_text
             elif key_pressed == 'b':#show/hide bullseye
@@ -109,12 +111,23 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         if len(lines)> self.max_print_lines:
             lines = lines[-self.max_print_lines:]
         self.screen_text = '\n'.join(lines)
-    ########### Remotely callable functions ###########
         
+    ########### Remotely callable functions ###########
     def test(self):
         self.printl('test OK 1')
         time.sleep(0.1)
         self.printl('test OK 2')
+        
+    def measure_frame_rate(self,duration=10.0):
+        from visexpman.engine.generic import colors
+        cols = numpy.cos(numpy.arange(0, 2*numpy.pi, 2*numpy.pi/(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)))+0.5
+        t0 = time.time()
+        for color in cols:
+            self.clear_screen(color = colors.convert_color(color, self.config))
+            self.flip()
+        runtime = time.time()-t0
+        frame_rate = (self.config.SCREEN_EXPECTED_FRAME_RATE*duration)/runtime
+        self.printl('Runtime: {0:.2f} s, measured frame rate: {1:.2f} Hz, expected frame rate: {2} Hz'.format(runtime, frame_rate, self.config.SCREEN_EXPECTED_FRAME_RATE))
         
     def exit_application(self):
         self.exit=True
@@ -151,7 +164,6 @@ def run_stim(context, timeout = None):
     stim = StimulationLoop(context['machine_config'], context['sockets']['stim'], context['command'], context['logger'])
     context['logger'].start()
     stim.run(timeout=timeout)
-    pass
 
 def run_application():
     context = visexpman.engine.application_init()
@@ -178,10 +190,9 @@ class TestStim(unittest.TestCase):
         fileop.mkdir_notexists(self.context['machine_config'].CAPTURE_PATH, remove_if_exists=True)
         return self.context['machine_config'].CAPTURE_PATH
         
-    def _send_commands_to_stim(self):
+    def _send_commands_to_stim(self, commands):
         from visexpman.engine.hardware_interface import queued_socket
         import multiprocessing
-        self.context['machine_config'].COLOR_MASK = numpy.array([0.5, 0.5, 1.0])
         client = queued_socket.QueuedSocket('{0}-{1} socket'.format('main_ui', 'stim'), 
                                                                                     False, 
                                                                                     10000,
@@ -190,12 +201,8 @@ class TestStim(unittest.TestCase):
                                                                                     ip= '127.0.0.1',
                                                                                     log=None)
         client.start()
-        client.send({'function': 'set_context_variable', 'args': ['background_color', 0.5]})
-        client.send({'function': 'set_context_variable', 'args': ['screen_center', utils.rc((200,300))]})
-        client.send({'function': 'set_variable', 'args': ['show_text', False]})
-        client.send({'function': 'set_variable', 'args': ['bullseye_size', 100.0]})
-        client.send({'function': 'set_variable', 'args': ['show_bullseye', True]})
-        client.send({'function': 'read', 'args': ['stim_context']})        
+        for command in commands:
+            client.send(command)
         return client
         
     def tearDown(self):
@@ -232,7 +239,13 @@ class TestStim(unittest.TestCase):
             
     def test_03_presscommands(self):
         capture_path = self._prepare_capture_folder()
-        client = self._send_commands_to_stim()
+        self.context['machine_config'].COLOR_MASK = numpy.array([0.5, 0.5, 1.0])
+        client = self._send_commands_to_stim([{'function': 'set_context_variable', 'args': ['background_color', 0.5]},
+            {'function': 'set_context_variable', 'args': ['screen_center', utils.rc((200,300))]},
+            {'function': 'set_variable', 'args': ['show_text', False]},
+            {'function': 'set_variable', 'args': ['bullseye_size', 100.0]},
+            {'function': 'set_variable', 'args': ['show_bullseye', True]},
+            {'function': 'read', 'args': ['stim_context']}])
         run_stim(self.context,timeout=5)
         time.sleep(5)
         context_sent = client.recv()['data']
@@ -274,7 +287,13 @@ class TestStim(unittest.TestCase):
         Checks if bullseye is put to the right place in ulcorner coordinate system
         '''
         capture_path = self._prepare_capture_folder()
-        client = self._send_commands_to_stim()
+        self.context['machine_config'].COLOR_MASK = numpy.array([0.5, 0.5, 1.0])
+        client = self._send_commands_to_stim([{'function': 'set_context_variable', 'args': ['background_color', 0.5]},
+            {'function': 'set_context_variable', 'args': ['screen_center', utils.rc((200,300))]},
+            {'function': 'set_variable', 'args': ['show_text', False]},
+            {'function': 'set_variable', 'args': ['bullseye_size', 100.0]},
+            {'function': 'set_variable', 'args': ['show_bullseye', True]},
+            {'function': 'read', 'args': ['stim_context']}])
         run_stim(self.context,timeout=5)
         client.terminate()
         captured_files = map(os.path.join, len(os.listdir(capture_path))*[capture_path], os.listdir(capture_path))
@@ -288,7 +307,12 @@ class TestStim(unittest.TestCase):
         '''
         Checks if context values are preserved between two sessions
         '''
-        client = self._send_commands_to_stim()
+        client = self._send_commands_to_stim([{'function': 'set_context_variable', 'args': ['background_color', 0.5]},
+            {'function': 'set_context_variable', 'args': ['screen_center', utils.rc((200,300))]},
+            {'function': 'set_variable', 'args': ['show_text', False]},
+            {'function': 'set_variable', 'args': ['bullseye_size', 100.0]},
+            {'function': 'set_variable', 'args': ['show_bullseye', True]},
+            {'function': 'read', 'args': ['stim_context']}])
         run_stim(self.context,timeout=5)
         client.terminate()
         saved_context1 = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']), 'context', self.context['machine_config']))
@@ -304,6 +328,14 @@ class TestStim(unittest.TestCase):
         self.assertEqual(saved_context2['background_color'], 0.5)
         self.assertEqual(saved_context2['user_background_color'], 0.75)
         self.assertEqual(saved_context2['screen_center'], utils.rc((200,300)))
+        
+    def test_06_measure_frame_rate(self):
+        client = self._send_commands_to_stim([{'function': 'measure_frame_rate'}])
+        run_stim(self.context,timeout=5)
+        time.sleep(2.0)
+        measured_framerate = float(client.recv().split('Hz')[0].split('measured frame rate: ')[1])
+        numpy.testing.assert_allclose(measured_framerate, self.context['machine_config'].SCREEN_EXPECTED_FRAME_RATE, 0, 3)
+        client.terminate()
 
 if __name__=='__main__':
     if len(sys.argv)>1:

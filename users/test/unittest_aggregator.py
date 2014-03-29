@@ -338,7 +338,7 @@ class UnitTestRunner(object):
         print f.read()
         f.close()
         #Save tested source files
-        if TEST_single_unittest != '':#Do not save source code and test log if single test is run. One test is only run for debug purposes
+        if TEST_single_unittest == '':#Do not save source code and test log if single test is run. One test is only run for debug purposes
             self.save_source_and_results()
         if TEST_delete_files:
             print TEST_working_folder

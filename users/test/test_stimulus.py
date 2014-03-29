@@ -3,8 +3,8 @@ import numpy
 import serial
 import os.path
 import os
-import visexpman
 
+import visexpman
 from visexpman.engine import visexp_runner
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
