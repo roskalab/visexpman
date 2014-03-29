@@ -684,7 +684,7 @@ def rotate_around_center_pil(data,  angle, center=None,  **kwargs):
             mask = Image.fromarray(0*data+1)
         data = Image.fromarray(data)
         if center is not None:
-            tr=utils.rc_add(utils.rc_multiply_with_constant(utils.cr(data.size), 0.5), utils.rc_multiply_with_constant(center, -1))
+            tr=utils.rc_add(utils.rc_x_const(utils.cr(data.size), 0.5), utils.rc_x_const(center, -1))
             data = data.transform(data.size, Image.AFFINE, (1, 0, tr['col'], 0, 1, tr['row']), Image.BICUBIC)
             if return_masked:
                 mask = mask.transform(mask.size, Image.AFFINE, (1, 0, tr['col'], 0, 1, tr['row']))

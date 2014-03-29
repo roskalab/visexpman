@@ -387,7 +387,10 @@ def get_logfilename(config):
         time.sleep(1.0)
     return filename
         
-    
+def cleanup_files(config):
+    [shutil.rmtree(getattr(config,pn)) for pn in ['DATA_STORAGE_PATH', 'EXPERIMENT_DATA_PATH', 'LOG_PATH', 'REMOTE_LOG_PATH', 'CAPTURE_PATH'] if hasattr(config, pn) and os.path.exists(getattr(config,pn))]
+    if os.path.exists(get_context_filename(config)):
+        os.remove(get_context_filename(config))
 ################# Experiment file related ####################
 
 def generate_animal_filename(animal_parameters):

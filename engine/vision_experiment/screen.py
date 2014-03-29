@@ -71,7 +71,7 @@ class VisionExperimentScreen(graphics.Screen):
                 im = Image.open(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'))
                 im = im.resize((self.bullseye_size_in_pixel, self.bullseye_size_in_pixel))
                 im.save(bullseye_path)
-            self.render_imagefile(bullseye_path, position = utils.rc_multiply_with_constant(self.stim_context['screen_center'], self.config.SCREEN_UM_TO_PIXEL_SCALE))
+            self.render_imagefile(bullseye_path, position = utils.rc_x_const(self.stim_context['screen_center'], self.config.SCREEN_UM_TO_PIXEL_SCALE))
             
     def refresh_non_experiment_screen(self, flip = True):
         '''

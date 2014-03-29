@@ -7,9 +7,10 @@ Starter module of all Vision Experiment Manager applications
 '''
 import sys
 import unittest
-import visexpman.engine
 import time
 import os.path
+import numpy
+import visexpman.engine
 from visexpman.engine.visexp_gui import VisionExperimentGui
 from visexpman.engine.generic.command_parser import ServerLoop
 from visexpman.engine.vision_experiment.screen import VisionExperimentScreen, check_keyboard
@@ -159,7 +160,16 @@ def run_application():
 
 class TestStim(unittest.TestCase):
     def setUp(self):
-        self.context = visexpman.engine.application_init(user = 'test', config ='GUITestConfig', application_name = 'stim')
+        if '_04_' in self._testMethodName:
+            self.configname = 'ULCornerTestConfig'
+        else:
+            self.configname = 'GUITestConfig'
+        #Erase work folder, including context files
+        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+        self.machine_config.application_name='stim'
+        self.machine_config.user = 'test'
+        fileop.cleanup_files(self.machine_config)
+        self.context = visexpman.engine.application_init(user = 'test', config = self.configname, application_name = 'stim')
         self.dont_kill_processes = introspect.get_python_processes()
         
     def _prepare_capture_folder(self):
@@ -167,6 +177,26 @@ class TestStim(unittest.TestCase):
         self.context['machine_config'].CAPTURE_PATH = os.path.join(self.context['machine_config'].root_folder, 'capture')
         fileop.mkdir_notexists(self.context['machine_config'].CAPTURE_PATH, remove_if_exists=True)
         return self.context['machine_config'].CAPTURE_PATH
+        
+    def _send_commands_to_stim(self):
+        from visexpman.engine.hardware_interface import queued_socket
+        import multiprocessing
+        self.context['machine_config'].COLOR_MASK = numpy.array([0.5, 0.5, 1.0])
+        client = queued_socket.QueuedSocket('{0}-{1} socket'.format('main_ui', 'stim'), 
+                                                                                    False, 
+                                                                                    10000,
+                                                                                    multiprocessing.Queue(), 
+                                                                                    multiprocessing.Queue(), 
+                                                                                    ip= '127.0.0.1',
+                                                                                    log=None)
+        client.start()
+        client.send({'function': 'set_context_variable', 'args': ['background_color', 0.5]})
+        client.send({'function': 'set_context_variable', 'args': ['screen_center', utils.rc((200,300))]})
+        client.send({'function': 'set_variable', 'args': ['show_text', False]})
+        client.send({'function': 'set_variable', 'args': ['bullseye_size', 100.0]})
+        client.send({'function': 'set_variable', 'args': ['show_bullseye', True]})
+        client.send({'function': 'read', 'args': ['stim_context']})        
+        return client
         
     def tearDown(self):
         visexpman.engine.stop_application(self.context)
@@ -201,29 +231,79 @@ class TestStim(unittest.TestCase):
             self.assertIn(tag+'test OK 2', fileop.read_text_file(self.context['logger'].filename))
             
     def test_03_presscommands(self):
-        from visexpman.engine.hardware_interface import queued_socket
-        import multiprocessing
-        import numpy
         capture_path = self._prepare_capture_folder()
-        self.context['machine_config'].COLOR_MASK = numpy.array([0.5, 0.5, 1.0])
-        client = queued_socket.QueuedSocket('{0}-{1} socket'.format('main_ui', 'stim'), 
-                                                                                    False, 
-                                                                                    10000,
-                                                                                    multiprocessing.Queue(), 
-                                                                                    multiprocessing.Queue(), 
-                                                                                    ip= '127.0.0.1',
-                                                                                    log=None)
-        client.start()
-        client.send({'function': 'set_context_variable', 'args': ['background_color', 0.5]})
-        client.send({'function': 'set_context_variable', 'args': ['screen_center', utils.rc((0,300))]})
-        client.send({'function': 'set_variable', 'args': ['show_text', False]})
-        client.send({'function': 'set_variable', 'args': ['bullseye_size', 200.0]})
-        client.send({'function': 'set_variable', 'args': ['show_bullseye', True]})
+        client = self._send_commands_to_stim()
+        run_stim(self.context,timeout=5)
+        time.sleep(5)
+        context_sent = client.recv()['data']
+        self.assertEqual(context_sent[0], 'stim_context')
+        self.assertEqual(context_sent[1]['background_color'], 0.5)
+        self.assertEqual(context_sent[1]['screen_center'], utils.rc((200,300)))
+        client.terminate()
+        saved_context = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']), 'context', self.context['machine_config']))
+        self.assertEqual(saved_context['background_color'], 0.5)
+        self.assertEqual(saved_context['user_background_color'], 0.75)
+        self.assertEqual(saved_context['screen_center'], utils.rc((200,300)))
+        expected_in_log = ['set_context_variable', 'received', 'set_variable', 'read', 'show_text', 'bullseye_size', 'show_bullseye']
+        map(self.assertIn, expected_in_log, [fileop.read_text_file(self.context['logger'].filename)]*len(expected_in_log))
+        captured_files = map(os.path.join, len(os.listdir(capture_path))*[capture_path], os.listdir(capture_path))
+        captured_files.sort()
+        from PIL import Image
+        first_frame = numpy.asarray(Image.open(captured_files[0]))
+        #Frame size is equal with screen resolution parameter
+        self.assertEqual(first_frame.shape, (int(self.context['machine_config'].SCREEN_RESOLUTION['row']),
+                                                            int(self.context['machine_config'].SCREEN_RESOLUTION['col']), 3))
+        self.assertEqual(numpy.asarray(Image.open(captured_files[1])).shape, numpy.asarray(Image.open(captured_files[2])).shape)#All frames have the same size
+        self.assertEqual(numpy.asarray(Image.open(captured_files[0])).shape, numpy.asarray(Image.open(captured_files[-1])).shape)
+        #Check screen color
+        expected_color = numpy.array([0.5, 0.5, 0.5+1/6.0])*255
+        for captured_file in captured_files[5:]:
+            numpy.testing.assert_allclose(numpy.asarray(Image.open(captured_file))[0,0], expected_color,0,1)
+            numpy.testing.assert_allclose(numpy.asarray(Image.open(captured_file))[1,0], expected_color,0,1)
+            numpy.testing.assert_allclose(numpy.asarray(Image.open(captured_file))[0,1], expected_color,0,1)
+            numpy.testing.assert_allclose(numpy.asarray(Image.open(captured_file))[0,-1], expected_color,0,1)
+            numpy.testing.assert_allclose(numpy.asarray(Image.open(captured_file))[-1,-1], expected_color,0,1)
+            numpy.testing.assert_allclose(numpy.asarray(Image.open(captured_file))[-1,-10], expected_color,0,1)
+        #Check bullseye position
+        last_frame = numpy.cast['float'](numpy.asarray(Image.open(captured_files[-1])))
+        ref_frame = numpy.cast['float'](numpy.asarray(Image.open(os.path.join(self.context['machine_config'].PACKAGE_PATH, 'data', 'images', 'visexp_app_test_03.png'))))
+        numpy.testing.assert_allclose(ref_frame, last_frame, 0, 1)
+        
+    def test_04_ulcorner_coordinate_system(self):
+        '''
+        Checks if bullseye is put to the right place in ulcorner coordinate system
+        '''
+        capture_path = self._prepare_capture_folder()
+        client = self._send_commands_to_stim()
         run_stim(self.context,timeout=5)
         client.terminate()
-        #Check for context file, captured frame, logfile, check text color using histogram
-
-#TODO: tests: color mask, gamma curve, bullseye moved, resized, menu hidden, context file keeps settings
+        captured_files = map(os.path.join, len(os.listdir(capture_path))*[capture_path], os.listdir(capture_path))
+        captured_files.sort()
+        from PIL import Image
+        last_frame = numpy.cast['float'](numpy.asarray(Image.open(captured_files[-1])))
+        ref_frame = numpy.cast['float'](numpy.asarray(Image.open(os.path.join(self.context['machine_config'].PACKAGE_PATH, 'data', 'images', 'visexp_app_test_04.png'))))
+        numpy.testing.assert_allclose(ref_frame, last_frame, 0, 1)
+    
+    def test_05_context_persistence(self):
+        '''
+        Checks if context values are preserved between two sessions
+        '''
+        client = self._send_commands_to_stim()
+        run_stim(self.context,timeout=5)
+        client.terminate()
+        saved_context1 = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']), 'context', self.context['machine_config']))
+        self.assertEqual(saved_context1['background_color'], 0.5)
+        self.assertEqual(saved_context1['user_background_color'], 0.75)
+        self.assertEqual(saved_context1['screen_center'], utils.rc((200,300)))
+        visexpman.engine.stop_application(self.context)
+        time.sleep(5.0)
+        #Start stim again
+        self.context = visexpman.engine.application_init(user = 'test', config =self.configname, application_name = 'stim')
+        run_stim(self.context,timeout=5)
+        saved_context2 = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']), 'context', self.context['machine_config']))
+        self.assertEqual(saved_context2['background_color'], 0.5)
+        self.assertEqual(saved_context2['user_background_color'], 0.75)
+        self.assertEqual(saved_context2['screen_center'], utils.rc((200,300)))
 
 if __name__=='__main__':
     if len(sys.argv)>1:

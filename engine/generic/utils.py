@@ -423,7 +423,7 @@ def rc_multiply(operand1, operand2):
 def rc_abs(value):
     return rc((abs(value['row']), abs(value['col'])))
 
-def rc_multiply_with_constant(rc_value, constant):
+def rc_x_const(rc_value, constant):
     if rc_value.shape == ():
             return rc((rc_value['row'] * constant, rc_value['col'] * constant))
     else:
@@ -504,7 +504,7 @@ def calculate_trajectory(start_point,  end_point,  spatial_resolution,  curve = 
         trajectory_row = []
         trajectory_col = []
         for step in range(number_of_steps):
-            p = rc_add(start_point, rc_multiply_with_constant(step_vector, step))
+            p = rc_add(start_point, rc_x_const(step_vector, step))
             trajectory_row.append(float(p['row']))
             trajectory_col.append(float(p['col']))
         trajectory = rc(numpy.array([trajectory_row,trajectory_col]))

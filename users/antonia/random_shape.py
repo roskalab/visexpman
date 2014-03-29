@@ -25,7 +25,7 @@ class RandomShapeExperiment(experiment.Experiment):
     def prepare(self):
         #calculate grid cooridnates
         self.positions = []
-        grid_size = utils.rc_multiply_with_constant(utils.rc_add(self.experiment_config.GRID_SIZE, utils.rc((1, 1)), '-'), 0.5 * self.experiment_config.GRID_STEP)
+        grid_size = utils.rc_x_const(utils.rc_add(self.experiment_config.GRID_SIZE, utils.rc((1, 1)), '-'), 0.5 * self.experiment_config.GRID_STEP)
         for row in range(self.experiment_config.GRID_SIZE['row']):
             for col in range(self.experiment_config.GRID_SIZE['col']):
                 self.positions.append(utils.rc((\

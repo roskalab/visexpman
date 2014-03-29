@@ -529,3 +529,9 @@ class AppInitTest5Config(GUITestConfig):
     def _set_user_parameters(self):
         GUITestConfig._set_user_parameters(self)
         self.FREE_SPACE_ERROR_THRESHOLD = 2**40
+        
+class ULCornerTestConfig(GUITestConfig):
+    def _set_user_parameters(self):
+        GUITestConfig._set_user_parameters(self)
+        COORDINATE_SYSTEM='ulcorner'
+        self._create_parameters_from_locals(locals())

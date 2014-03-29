@@ -854,7 +854,7 @@ def generate_gui_image(images, size, config, lines  = [], gridlines = False, sid
         image_with_line = rescaled_image
         image_with_line = numpy.rollaxis(image_with_line, 0, 2)
     #create sidebar
-    image_with_sidebar = draw_scalebar(image_with_line, merged_image['origin'], utils.rc_multiply_with_constant(merged_image['scale'], 1.0/rescale), frame_size = config.SIDEBAR_SIZE, fill = sidebar_fill, gridlines = gridlines)
+    image_with_sidebar = draw_scalebar(image_with_line, merged_image['origin'], utils.rc_x_const(merged_image['scale'], 1.0/rescale), frame_size = config.SIDEBAR_SIZE, fill = sidebar_fill, gridlines = gridlines)
     for line in lines:
         #Line: x1,y1,x2, y2 - x - col, y = row
         #Considering MES/Image origin
@@ -1300,13 +1300,10 @@ import unittest
 class testVisionExperimentGui(unittest.TestCase):
     
     def setUp(self):
-        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1](clear_files=True)
+        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
         self.machine_config.application_name='main_ui'
         self.machine_config.user = 'test'
-        #Clean up files
-        [shutil.rmtree(fn) for fn in [self.machine_config.DATA_STORAGE_PATH, self.machine_config.EXPERIMENT_DATA_PATH] if os.path.exists(fn)]
-        if os.path.exists(fileop.get_context_filename(self.machine_config)):
-            os.remove(fileop.get_context_filename(self.machine_config))
+        fileop.cleanup_files(self.machine_config)
         self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'two photon laser',  'pixel/um', [200.0, 200.0], 'DebugExperimentConfig', [10.0], ['SIDE'], [10.0, 0.0])
         
     def _call_gui(self, testmode):

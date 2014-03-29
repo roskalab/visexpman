@@ -19,8 +19,8 @@ import psutil
 def get_python_processes():
     pids = []
     for pid in psutil.get_pid_list():
-        p = psutil.Process(pid)
         try:
+            p = psutil.Process(pid)
             if 'python' in p.name:
                 pids.append(pid)
         except:

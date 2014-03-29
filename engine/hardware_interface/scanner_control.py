@@ -416,7 +416,7 @@ def calculate_scanner_speed(p0, p1, ds, dt):
     '''
     line_length = abs(utils.rc_distance(p0, p1))
     number_of_points = numpy.round((line_length / ds), 0)
-    scanner_speed = utils.rc_multiply_with_constant(utils.rc_add(p1, p0, '-'),  1.0/(number_of_points * dt))
+    scanner_speed = utils.rc_x_const(utils.rc_add(p1, p0, '-'),  1.0/(number_of_points * dt))
     return scanner_speed, number_of_points
     
 def generate_line_scan(p0, p1, ds, dt, vmax):

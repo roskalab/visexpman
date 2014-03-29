@@ -139,7 +139,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = ''#TestStim.test_03_presscommands'#testVisionExperimentGui.test_01_select_stimfile'
+TEST_single_unittest = ''#TestStim.test_05_context_persistence'#testVisionExperimentGui.test_01_select_stimfile'
 
 def get_python_processes():
     pids = []
@@ -338,7 +338,8 @@ class UnitTestRunner(object):
         print f.read()
         f.close()
         #Save tested source files
-        self.save_source_and_results()
+        if TEST_single_unittest != '':#Do not save source code and test log if single test is run. One test is only run for debug purposes
+            self.save_source_and_results()
         if TEST_delete_files:
             print TEST_working_folder
 
