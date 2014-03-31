@@ -1653,6 +1653,15 @@ class MainPoller(Poller):
         if not hasattr(self, 'xy_scan'):
             self.printc('No brain surface image is acquired')
             return
+        if not self.xy_scan.has_key('averaging'):
+            self.printc('Please send this to Zoltan:')
+            self.printc('=================================')
+            self.printc(type(self.xy_scan))
+            if hasattr(self.xy_scan, 'has_key'):
+                self.printc(self.xy_scan.keys())
+            self.printc(self.xy_scan)
+            self.printc('=================================')
+            
         if self.xy_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:
             self.printc('Brain surface image averaging is only {0}' .format(self.xy_scan['averaging'], self.config.MIN_SCAN_REGION_AVERAGING))
         if hasattr(self, 'xz_scan') and self.xz_scan['averaging'] < self.config.MIN_SCAN_REGION_AVERAGING:

@@ -95,6 +95,8 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             if 'read' in par or 'set' in par or 'origin' in par:
                 stage = stage_control.AllegraStage(self.config, log = self.log, queue = self.queues['gui']['in'])
                 position = stage.read_position()
+                if position == []:
+                    self.queues['gui']['out'].put('SOCstageEOCerrorEOP')
                 if 'set' not in par:
                     self.queues['gui']['out'].put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
                 if 'origin' in par:

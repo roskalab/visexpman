@@ -12,8 +12,8 @@ class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
         self.SHAPE = 'rect'
         self.COLORS = [1.0]
         self.BACKGROUND_COLOR = 0
-        self.SHAPE_SIZE = 200.0
-        self.MESH_XY = utils.rc((6,8))
+        self.SHAPE_SIZE = 400.0
+        self.MESH_XY = utils.rc((4,6))
         self.ON_TIME = 0.5*2
         self.OFF_TIME = 0.5*2
         self.PAUSE_BEFORE_AFTER = 2.0
