@@ -25,6 +25,9 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         self.load_stim_context()
         VisionExperimentScreen.__init__(self)
         self.exit=False
+        if abs(self.measure_frame_rate(duration=1.0, background_color =self.stim_context['background_color'])-self.config.SCREEN_EXPECTED_FRAME_RATE)>self.config.FRAME_RATE_TOLERANCE:
+            from visexpman.engine import HardwareError
+            raise HardwareError('Measured frame rate is out of acceptable range. Check projector\'s frame rate or graphics card settings.')
 
     def load_stim_context(self):
         '''
@@ -118,9 +121,12 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         time.sleep(0.1)
         self.printl('test OK 2')
         
-    def measure_frame_rate(self,duration=10.0):
+    def measure_frame_rate(self,duration=10.0, background_color=None ):
         from visexpman.engine.generic import colors
         cols = numpy.cos(numpy.arange(0, 2*numpy.pi, 2*numpy.pi/(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)))+0.5
+        cols = numpy.array(3*[cols]).T
+        if background_color is not None:
+            cols = numpy.ones_like(cols)*numpy.array(background_color)
         t0 = time.time()
         for color in cols:
             self.clear_screen(color = colors.convert_color(color, self.config))
@@ -128,6 +134,7 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         runtime = time.time()-t0
         frame_rate = (self.config.SCREEN_EXPECTED_FRAME_RATE*duration)/runtime
         self.printl('Runtime: {0:.2f} s, measured frame rate: {1:.2f} Hz, expected frame rate: {2} Hz'.format(runtime, frame_rate, self.config.SCREEN_EXPECTED_FRAME_RATE))
+        return frame_rate
         
     def exit_application(self):
         self.exit=True
@@ -334,7 +341,7 @@ class TestStim(unittest.TestCase):
         run_stim(self.context,timeout=5)
         time.sleep(2.0)
         measured_framerate = float(client.recv().split('Hz')[0].split('measured frame rate: ')[1])
-        numpy.testing.assert_allclose(measured_framerate, self.context['machine_config'].SCREEN_EXPECTED_FRAME_RATE, 0, 3)
+        numpy.testing.assert_allclose(measured_framerate, self.context['machine_config'].SCREEN_EXPECTED_FRAME_RATE, 0, self.context['machine_config'].FRAME_RATE_TOLERANCE)
         client.terminate()
 
 if __name__=='__main__':

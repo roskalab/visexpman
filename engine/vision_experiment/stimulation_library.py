@@ -69,7 +69,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if count and hasattr(self, 'frame_counter'):
             self.frame_counter += 1
         frame_rate_deviation = abs(self.screen.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
-        if frame_rate_deviation > self.config.FRAME_DELAY_TOLERANCE:
+        if frame_rate_deviation > self.config.FRAME_RATE_TOLERANCE:
             self.delayed_frame_counter += 1
             frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
         else:

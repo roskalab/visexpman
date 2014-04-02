@@ -146,7 +146,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_RESOLUTION = utils.rc([600, 800])        
         FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
-        FRAME_DELAY_TOLERANCE = [2.0,  [1e-2,  10.0]] #in Hz
+        FRAME_RATE_TOLERANCE = [3.0,  [1e-2,  10.0]] #in Hz
         BACKGROUND_COLOR = [[0.0, 0.0,  0.0],  COLOR_RANGE]
         FRAME_WAIT_FACTOR = [0.9,  [0.0,  1.0]]
         FLIP_EXECUTION_TIME = [0*1e-3, [-1.0, 1.0]]

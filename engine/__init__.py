@@ -34,6 +34,11 @@ class ApplicationError(Exception):
     '''
     TBD
     '''
+    
+class HardwareError(Exception):
+    '''
+    Raised when there is a problem with a hardware or a hardware setting might not be correct. E. g . screen frame rate is not correct
+    '''
 
 def application_init(**kwargs):
     '''
