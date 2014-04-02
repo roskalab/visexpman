@@ -700,7 +700,24 @@ version_paths = {
     'sklearn':'__version__',
     'Polygon':'__version__',
     'blosc': '__version__',
-    #TODO:'zmq': 'pyzmq_version',
+    'zmq': '__version__',
+    'psutil': '__version__',
+    'PIL': 'VERSION',
+    'argparse': '__version__',
+    'optparse': '__version__',
+    'matplotlib': '__version__',
+    'zlib': '__version__',
+    'json': '__version__',
+    'simplejson': '__version__',
+    'struct': 'standard',
+    'warnings': 'standard',
+    'glob': 'standard',
+    'pdb': 'standard',
+    'itertools': 'standard',
+    'functools': 'standard',
+    'platform': 'standard',
+    'getpass': 'standard',
+    'blosc': 'TBD',
     }    
     
 def imported_modules():
@@ -948,7 +965,7 @@ class Timeout(object):
             time.sleep(self.sleep_period)
         return result
         
-def periodic_caller(period, call, args = None, idle_time = 0.1):
+def periodic_caller(period, call, args = None, idle_time = 0.1):#OBSOLETE, not used by anyone
     last_run = time.time()
     while True:
         now = time.time()

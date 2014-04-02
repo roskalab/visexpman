@@ -15,6 +15,7 @@ TEST_filterwheel = False
 TEST_goniometer = False
 TEST_invalid_file = /home
 TEST_machine_info = ('Windows', 'F446L-FCC382', '7', '6.1.7601', 'AMD64', 'Intel64 Family 6 Model 37 Stepping 2, GenuineIntel')
+TEST_machine_name = F446L-FCC382
 TEST_mes = False
 TEST_no_user_action = False
 TEST_os = Windows
@@ -31,7 +32,7 @@ TEST_test = True
 TEST_uled = False
 TEST_unittests = ['visexpman.engine.visexp_gui.testVisionExperimentGui', 'visexpman.engine.visexp_app.TestStim', 'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 'visexpman.engine.TestApplicationInit', 'visexpman.engine.generic.parameter.testParameter', 'visexpman.engine.generic.fileop.TestFileops', 'visexpman.engine.generic.log.TestLog', 'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket']
 TEST_valid_file = v:\context\image.hdf5
-TEST_working_folder = ['/mnt/rzws/work', 'r:\\work', '/home/zoltan/Downloads/work', 'c:\\temp']
+TEST_working_folder = ['/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', '/home/zoltan/Downloads/work', 'c:\\temp']
 
 ################# Test results ####################
 test_01_select_stimfile (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
@@ -115,8 +116,8 @@ test_32_array_parameter (visexpman.engine.generic.parameter.testParameter) ... o
 test_39_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 79 tests in 870.961s
+Ran 79 tests in 821.592s
 
 OK (skipped=2)
 
-2014-03-29 18:50:16.175000
+2014-04-02 16:54:00.663000

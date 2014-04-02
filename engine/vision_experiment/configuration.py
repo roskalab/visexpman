@@ -105,7 +105,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         ############## General platform parameters ###############
         PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','standalone', 'smallapp', 'undefined']]
-        APPLICATION_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation'}#TODO: Jobhandler???? -find better name
+        APPLICATION_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
         FREE_SPACE_WARNING_THRESHOLD = [2.0**30, [1.0, 2.0**40]]
@@ -116,7 +116,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         self.BASE_PORT = 10000
         CONNECTIONS = {
         'stim': {'port': self.BASE_PORT, 'ip': {'stim': '', 'main_ui': ''}},
-        'ca_imaging': {'port': self.BASE_PORT+1, 'ip': {'ca_imaging': '', 'main_ui': ''}},
         'analysis': {'port': self.BASE_PORT+2, 'ip': {'analysis': '', 'main_ui': ''}},
         }
         
@@ -338,7 +337,9 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
         ################ Ca imaging GUI #######################
-        PLATFORM = 'elphys_retinal_ca'        
+        PLATFORM = 'elphys_retinal_ca'
+        self.CONNECTIONS['ca_imaging'] = {'port': self.BASE_PORT+1, 'ip': {'ca_imaging': '', 'main_ui': ''}}
+        
         STIM_RECORDS_ANALOG_SIGNALS = False
         ELPHYS_SIGNAL_CHANNEL_INDEX = [0, [0, 10]]
         MAX_PMT_VOLTAGE = [8.0,[0.0,15.0]]
@@ -392,6 +393,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
 class CorticalCaImagingConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
+        
         ################ Mes parameters #############
         STIM_RECORDS_ANALOG_SIGNALS = True
         MES_TIMEOUT = [10.0, [1.0, 100.0]]

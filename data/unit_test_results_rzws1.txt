@@ -15,6 +15,7 @@ TEST_filterwheel = False
 TEST_goniometer = False
 TEST_invalid_file = /home
 TEST_machine_info = ('Linux', 'rzws1', '3.8.0-29-generic', '#42~precise1-Ubuntu SMP Wed Aug 14 16:19:23 UTC 2013', 'x86_64', 'x86_64')
+TEST_machine_name = rzws1
 TEST_mes = False
 TEST_no_user_action = False
 TEST_os = Linux
@@ -31,7 +32,7 @@ TEST_test = True
 TEST_uled = False
 TEST_unittests = ['visexpman.engine.visexp_gui.testVisionExperimentGui', 'visexpman.engine.visexp_app.TestStim', 'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 'visexpman.engine.TestApplicationInit', 'visexpman.engine.generic.parameter.testParameter', 'visexpman.engine.generic.fileop.TestFileops', 'visexpman.engine.generic.log.TestLog', 'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket']
 TEST_valid_file = /mnt/datafast/context/image.hdf5
-TEST_working_folder = ['/mnt/rzws/work', 'r:\\work', '/home/zoltan/Downloads/work', 'c:\\temp']
+TEST_working_folder = ['/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', '/home/zoltan/Downloads/work', 'c:\\temp']
 
 ################# Test results ####################
 test_01_select_stimfile (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
@@ -115,8 +116,8 @@ test_32_array_parameter (visexpman.engine.generic.parameter.testParameter) ... o
 test_39_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 79 tests in 266.964s
+Ran 79 tests in 243.041s
 
 OK (skipped=1)
 
-2014-03-29 19:57:04.303049
+2014-04-02 16:46:43.857315

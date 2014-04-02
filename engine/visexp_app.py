@@ -25,9 +25,9 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         self.load_stim_context()
         VisionExperimentScreen.__init__(self)
         self.exit=False
-        if abs(self.measure_frame_rate(duration=1.0, background_color =self.stim_context['background_color'])-self.config.SCREEN_EXPECTED_FRAME_RATE)>self.config.FRAME_RATE_TOLERANCE:
-            from visexpman.engine import HardwareError
-            raise HardwareError('Measured frame rate is out of acceptable range. Check projector\'s frame rate or graphics card settings.')
+        if not introspect.is_test_running():
+            #Call measure framerate by putting a message into queue. 
+            self.socket.fromsocket.put({'function': 'measure_frame_rate', 'kwargs' :{'duration':1.0, 'background_color': self.stim_context['background_color']}})
 
     def load_stim_context(self):
         '''
@@ -108,7 +108,7 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
     def printl(self, message, loglevel='info', stdio = True):
         ServerLoop.printl(self, message, loglevel, stdio)
         #Show text on graphics screen.
-        self.screen_text = self.screen_text + '\n' + message
+        self.screen_text = self.screen_text + '\n' + str(message)
         #Limit number of lines. New lines are diplayed under the last line, When screen is full, uppermost line is discarded
         lines = self.screen_text.split('\n')
         if len(lines)> self.max_print_lines:
@@ -120,7 +120,7 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         self.printl('test OK 1')
         time.sleep(0.1)
         self.printl('test OK 2')
-        
+
     def measure_frame_rate(self,duration=10.0, background_color=None ):
         from visexpman.engine.generic import colors
         cols = numpy.cos(numpy.arange(0, 2*numpy.pi, 2*numpy.pi/(self.config.SCREEN_EXPECTED_FRAME_RATE*duration)))+0.5
@@ -134,6 +134,9 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         runtime = time.time()-t0
         frame_rate = (self.config.SCREEN_EXPECTED_FRAME_RATE*duration)/runtime
         self.printl('Runtime: {0:.2f} s, measured frame rate: {1:.2f} Hz, expected frame rate: {2} Hz'.format(runtime, frame_rate, self.config.SCREEN_EXPECTED_FRAME_RATE))
+        if abs(frame_rate-self.config.SCREEN_EXPECTED_FRAME_RATE)>self.config.FRAME_RATE_TOLERANCE:
+            from visexpman.engine import HardwareError
+            raise HardwareError('Measured frame rate is out of acceptable range. Check projector\'s frame rate or graphics card settings.')        
         return frame_rate
         
     def exit_application(self):
@@ -159,6 +162,12 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
             self.socket.send('{0} variable does not exists'.format(varname))
         else:
             setattr(self, varname, value)
+            
+    def set_filterwheel(self, channel, filter):
+        raise NotImplementedError('')
+        
+    def start_experiment(self,parameters):
+        self.printl(parameters)
         
 def run_main_ui(context):
     context['logger'].start()#This needs to be started separately from application_init ensuring that other logger source can be added 

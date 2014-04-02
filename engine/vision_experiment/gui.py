@@ -544,7 +544,7 @@ class RecordingStatusGroupbox(QtGui.QGroupBox):
         self.remove.setToolTip('Remove selected recording')
         self.set_state = QtGui.QPushButton('Change state to',  self)
         self.new_state = QtGui.QComboBox(self)
-        self.new_state.addItems(QtCore.QStringList(['', 'issued', 'running', 'done', 'analyzed']))
+        self.new_state.addItems(QtCore.QStringList(['', 'issued', 'preparing', 'running', 'done', 'analyzed']))
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -826,7 +826,22 @@ class ExperimentControl(gui.WidgetControl):
         '''
         Called by poller regularly, checks command queue and current experiment status and starts a new recording
         '''
-        #TODO: runtime shall be very short when experiment not started to ensure poller remains responsive
+        #Do nothing if one experiment is prepering to run
+        if  len([rec for rec in self.poller.animal_file.recordings if rec['status'] == 'preparing']) > 0:
+            return
+        #Take the oldest issued recording 
+        for i in range(len(self.poller.animal_file.recordings)):
+            if self.poller.animal_file.recordings[i]['status'] == 'issued':
+                function_call = {'function': 'start_experiment', 'args': [self.poller.animal_file.recordings[i]]}
+                self.poller.sockets['stim'].send(function_call)
+                if self.config.PLATFORM == 'elphys_retinal_ca':
+                    self.poller.sockets['ca_imaging'].send(function_call)
+                elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
+                    raise NotImplementedError('')
+                self.poller.animal_file.recordings[i]['status'] = 'preparing'
+                self.poller.update_recording_status()
+                self.printc('{0} is preparing'.format(self.poller.animal_file.recordings[i]['id']))
+                break
         
     def start_experiment(self, parameters):
         self.printc('Experiment started. Duration is {0} seconds, expected to finish at {1}.'.format(parameters['duration'][0], utils.timestamp2hm(time.time() + parameters['duration'][0])))

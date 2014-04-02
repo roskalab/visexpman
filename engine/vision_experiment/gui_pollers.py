@@ -63,6 +63,7 @@ class Poller(QtCore.QThread):
             self.testmode = None
         QtCore.QThread.__init__(self)
         self.abort = False
+        self.nperiods = 0
         self.connect_signals()
 
     def connect_signals(self):
@@ -2808,143 +2809,149 @@ class VisexpGuiPoller(Poller):
         
     def update_network_connection_status(self):
         #Check for network connection status
-        if hasattr(self.parent, 'central_widget') and hasattr(self.command_relay_server, 'servers'):
-            connection_status = self.command_relay_server.get_connection_status()
-            connected = ''
-            n_connected = 0
-            if connection_status['GUI_IMAGING/IMAGING'] and connection_status['GUI_IMAGING/GUI']:
-                connected += 'IMAGING  '
+        connected_nodes = ''
+        n_connected = 0
+        n_connections = len(self.sockets.keys())
+        for remote_node_name, socket in self.sockets.items():
+            if socket.ping(timeout=1.0):
+                connected_nodes += remote_node_name + ' '
                 n_connected += 1
-            if connection_status['GUI_STIM/STIM'] and connection_status['GUI_STIM/GUI']:
-                connected += 'STIM  '
-                n_connected += 1
-            if connection_status['GUI_ANALYSIS/ANALYSIS'] and connection_status['GUI_ANALYSIS/GUI']:
-                connected += 'ANALYSIS  '
-                n_connected += 1
-            if connection_status['STIM_IMAGING/IMAGING'] and connection_status['STIM_IMAGING/STIM']:
-                connected += 'STIM-IMAGING  '
-                n_connected += 1
-            n_connections = len(self.config.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'].keys())
-            connected = 'Alive connections ({0}/{1}): '.format(n_connected, n_connections) + connected
-            self.parent.central_widget.main_widget.network_status.setText(connected)
-
+        self.parent.central_widget.main_widget.network_status.setText('Network connections: {2} {0}/{1}'.format(n_connected, n_connections, connected_nodes))
+            
     def run_in_all_iterations(self):
-        self.update_network_connection_status()
+        #### Calling functions all the time #### 
         self.experiment_control.check_experiment_queue()
-        if hasattr(self, 'experiment_parameters') and ((self.imaging_finished ^ (not self.experiment_parameters['enable_ca_recording'])) and self.stimulation_finished):
-            self._finish_analog_recording()
-            self.imaging_finished = False
-            self.stimulation_finished = False
-            self._finish_experiment()
+        
+        #### Calling functions at lower repetition rate #### 
+        if not hasattr(self, 'phase'):
+            self.phase = 0
+        if not hasattr(self, 'last_second'):
+            self.last_second = 0
+        now = time.time()
+        if now - self.last_second>1.0:
+            self.last_second = now
+            if not self.phase%2:
+                self.test()#Call tester
+            if not self.phase%5:
+                self.animal_file.chec4new_animal_file()
+            if not self.phase%15:
+                self.experiment_log.update_suggested_date()
+            if not self.phase%9:
+                self.update_network_connection_status()
+            self.phase+= 1
+            
+#        if hasattr(self, 'experiment_parameters') and ((self.imaging_finished ^ (not self.experiment_parameters['enable_ca_recording'])) and self.stimulation_finished):
+#            self._finish_analog_recording()
+#            self.imaging_finished = False
+#            self.stimulation_finished = False
+#            self._finish_experiment()
             
     def periodic(self):
-        if self.analog_recording_started and hasattr(self, 'measurement_starttime') and hasattr(self, 'measurement_duration'):
-            elapsed_time = int(time.time() - self.measurement_starttime)
-            if elapsed_time > self.measurement_duration-1:
-                elapsed_time = self.measurement_duration-1
-            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), elapsed_time)
-        else:
-            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
-        self.experiment_log.update_suggested_date()
-        self.animal_file.chec4new_animal_file()
-        #Call tester
-        self.test()
+        pass
+#        if self.analog_recording_started and hasattr(self, 'measurement_starttime') and hasattr(self, 'measurement_duration'):
+#            elapsed_time = int(time.time() - self.measurement_starttime)
+#            if elapsed_time > self.measurement_duration-1:
+#                elapsed_time = self.measurement_duration-1
+#            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), elapsed_time)
+#        else:
+#            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
 
     def handle_commands(self):
-        try:
-            for k, queue in self.queues.items():                
-                if hasattr(queue, 'has_key') and queue.has_key('in') and not queue['in'].empty():
-                    messages = queue['in'].get()
-                    if 'EOPSOC' in messages:
-                        messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
-                    elif 'EOP' in messages:
-                        messages = messages.split('EOP')
-                        messages[0] += 'EOP'
-                    else:
-                        messages = [messages]
-                    for message in messages:
-                        if len(message)>0:
-                            command = command_extract.findall(message)
-                            if len(command) > 0:
-                                command = command[0]
-                            parameter = parameter_extract.findall(message)
-                            if len(parameter) > 0:
-                                parameter = parameter[0]
-                            if command == 'connection':
-                                message = command
-                            elif command == 'echo' and parameter == 'GUI':
-                                message = ''
-                            elif command == 'imaging_finished':
-                                self.imaging_finished = True
-                            elif command == 'stim_finished':
-                                self.stimulation_finished = True
-                            elif message == 'connected to server':
-                                #This is sent by the local queued client and its meaning can be confusing, therefore not shown
-                                message = ''
-                            else:
-                                self.printc(k.upper() + ' '  +  message)
-        except:
-            self.printc(traceback.format_exc())
+        pass
+#        try:
+#            for k, queue in self.queues.items():                
+#                if hasattr(queue, 'has_key') and queue.has_key('in') and not queue['in'].empty():
+#                    messages = queue['in'].get()
+#                    if 'EOPSOC' in messages:
+#                        messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
+#                    elif 'EOP' in messages:
+#                        messages = messages.split('EOP')
+#                        messages[0] += 'EOP'
+#                    else:
+#                        messages = [messages]
+#                    for message in messages:
+#                        if len(message)>0:
+#                            command = command_extract.findall(message)
+#                            if len(command) > 0:
+#                                command = command[0]
+#                            parameter = parameter_extract.findall(message)
+#                            if len(parameter) > 0:
+#                                parameter = parameter[0]
+#                            if command == 'connection':
+#                                message = command
+#                            elif command == 'echo' and parameter == 'GUI':
+#                                message = ''
+#                            elif command == 'imaging_finished':
+#                                self.imaging_finished = True
+#                            elif command == 'stim_finished':
+#                                self.stimulation_finished = True
+#                            elif message == 'connected to server':
+#                                #This is sent by the local queued client and its meaning can be confusing, therefore not shown
+#                                message = ''
+#                            else:
+#                                self.printc(k.upper() + ' '  +  message)
+#        except:
+#            self.printc(traceback.format_exc())
         
-    def start_experiment(self):
-        self.emit(QtCore.SIGNAL('set_experiment_progressbar_range'), self.measurement_duration)
-        self.measurement_starttime=time.time()
-        
-    def stop_experiment(self):
-        self.printc('Stopping experiment requested, please wait')
-        command = 'SOCabort_experimentEOCguiEOP'
-        for conn in ['imaging', 'stim']:
-            self.queues[conn]['out'].put(command)
-        self._finish_analog_recording()
-        self._finish_experiment(True)
-        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
-
-    def _start_analog_recording(self):
-        self.analog_input = daq_instrument.AnalogIO(self.config, id=2)
-        self.analog_input.start_daq_activity()
-        self.analog_recording_started=True
-        self.printc('Analog recording started')
-
-    def _finish_analog_recording(self, abort=False):
-        if self.analog_recording_started:
-            self.analog_input.finish_daq_activity(abort = abort)
-            self.analog_recording_started=False
-            self.printc('Analog recording finished')
-            
-    def _finish_experiment(self,  stopped=False):
-        self.printc('Saving datafiles, please wait...')
-        os.remove(os.path.join(self.config.EXPERIMENT_DATA_PATH,  self.experiment_parameters['id']+'.hdf5'))
-        if hasattr(self.analog_input, 'ai_data'):
-            analog_input_data = self.analog_input.ai_data
-        #Move data to one file
-        for fn in os.listdir(self.config.EXPERIMENT_DATA_PATH):
-            if self.experiment_parameters['id'] in fn:
-                path = os.path.join(self.config.EXPERIMENT_DATA_PATH, fn)
-                if fn.split('.')[0].split('_')[-1] == 'ca':
-                    h = hdf5io.Hdf5io(path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-                else:
-                    #Read in data generated by stimulus software
-                    node_name = os.path.split(path)[1].replace('.hdf5', '')
-                    stimulus_data = hdf5io.read_item(path, node_name, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-                    merged_filename = path
-                    
-        nodes2save = ['analog_inputs']
-        if 'h' in locals():
-            h.analog_inputs = analog_input_data
-            if 'stimulus_data' in locals():
-                print type(stimulus_data)
-                setattr(h, node_name, stimulus_data)
-                nodes2save.append(node_name)
-            h.save(nodes2save)
-            print nodes2save
-        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(self.measurement_duration)
-        if 'h' in locals():
-            h.close()
-            os.remove(merged_filename)
-            os.rename(h.filename, merged_filename)
-            self.printc('All data saved to {0}'.format(merged_filename))
-        else:
-            self.printc('Data is not saved')#Need to be refined
+#    def start_experiment(self):
+#        self.emit(QtCore.SIGNAL('set_experiment_progressbar_range'), self.measurement_duration)
+#        self.measurement_starttime=time.time()
+#        
+#    def stop_experiment(self):
+#        self.printc('Stopping experiment requested, please wait')
+#        command = 'SOCabort_experimentEOCguiEOP'
+#        for conn in ['imaging', 'stim']:
+#            self.queues[conn]['out'].put(command)
+#        self._finish_analog_recording()
+#        self._finish_experiment(True)
+#        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
+#
+#    def _start_analog_recording(self):
+#        self.analog_input = daq_instrument.AnalogIO(self.config, id=2)
+#        self.analog_input.start_daq_activity()
+#        self.analog_recording_started=True
+#        self.printc('Analog recording started')
+#
+#    def _finish_analog_recording(self, abort=False):
+#        if self.analog_recording_started:
+#            self.analog_input.finish_daq_activity(abort = abort)
+#            self.analog_recording_started=False
+#            self.printc('Analog recording finished')
+#            
+#    def _finish_experiment(self,  stopped=False):
+#        self.printc('Saving datafiles, please wait...')
+#        os.remove(os.path.join(self.config.EXPERIMENT_DATA_PATH,  self.experiment_parameters['id']+'.hdf5'))
+#        if hasattr(self.analog_input, 'ai_data'):
+#            analog_input_data = self.analog_input.ai_data
+#        #Move data to one file
+#        for fn in os.listdir(self.config.EXPERIMENT_DATA_PATH):
+#            if self.experiment_parameters['id'] in fn:
+#                path = os.path.join(self.config.EXPERIMENT_DATA_PATH, fn)
+#                if fn.split('.')[0].split('_')[-1] == 'ca':
+#                    h = hdf5io.Hdf5io(path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+#                else:
+#                    #Read in data generated by stimulus software
+#                    node_name = os.path.split(path)[1].replace('.hdf5', '')
+#                    stimulus_data = hdf5io.read_item(path, node_name, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
+#                    merged_filename = path
+#                    
+#        nodes2save = ['analog_inputs']
+#        if 'h' in locals():
+#            h.analog_inputs = analog_input_data
+#            if 'stimulus_data' in locals():
+#                print type(stimulus_data)
+#                setattr(h, node_name, stimulus_data)
+#                nodes2save.append(node_name)
+#            h.save(nodes2save)
+#            print nodes2save
+#        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(self.measurement_duration)
+#        if 'h' in locals():
+#            h.close()
+#            os.remove(merged_filename)
+#            os.rename(h.filename, merged_filename)
+#            self.printc('All data saved to {0}'.format(merged_filename))
+#        else:
+#            self.printc('Data is not saved')#Need to be refined
             
     def close(self):
         for conn_name in self.queues.keys():
@@ -3168,7 +3175,7 @@ class VisexpGuiPoller(Poller):
             self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.setText('C2')
             self.experiment_control.add_experiment()
             time.sleep(0.5)
-            self.parent.central_widget.main_widget.recording_status.new_state.setCurrentIndex(3)
+            self.parent.central_widget.main_widget.recording_status.new_state.setCurrentIndex(4)
             self.experiment_control.set_experiment_state()
             time.sleep(0.5)
             self.emit(QtCore.SIGNAL('select_recording_item'), 0, True)

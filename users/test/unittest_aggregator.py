@@ -61,6 +61,7 @@ else:
 
 TEST_os = platform.system()
 TEST_machine_info = platform.uname()
+TEST_machine_name = TEST_machine_info[1]
 TEST_osuser = getpass.getuser()
 if TEST_os == 'Darwin':
     TEST_os = 'OSX'
@@ -70,7 +71,7 @@ if TEST_os == 'Darwin':
 #The maximal number of pixels that can differ from the reference frame at the testing the rendering of visual stimulation patterns
 #TEST_pixel_difference_threshold = 50.0
 
-TEST_working_folder = ['/mnt/rzws/work', 'r:\\work', '/home/zoltan/Downloads/work', 'c:\\temp']
+TEST_working_folder = ['/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', '/home/zoltan/Downloads/work', 'c:\\temp']
 TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/home/zoltan/Downloads', 'c:\\temp']
 
 #if TEST_os == 'nt':
@@ -364,7 +365,7 @@ class UnitTestRunner(object):
         source_zip.write(self.test_log,  'test_results.txt')
         source_zip.close()
         #Copy testt log to visexpman/data
-        shutil.copy(self.test_log, os.path.join(package_path,'visexpman','data','unit_test_results_{0}.txt'.format(TEST_machine_info[1])))
+        shutil.copy(self.test_log, os.path.join(package_path,'visexpman','data','unit_test_results_{0}.txt'.format(TEST_machine_name)))
 
 if __name__ == "__main__":
     utr = UnitTestRunner()

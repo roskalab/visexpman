@@ -9,6 +9,13 @@ class QueuedSocket(multiprocessing.Process):
     '''
     Constructed with ip address: client, otherwise server. Non blocking reading of socket. Data is put to queue. 
     Received data is also saved to a queue
+    
+    Protocol: dictionary object are sent through with the following functionalities
+    function call: {'function': function name, 'args': list of arguments, 'kwargs': dictionary of keyword arguments}
+    data: {'data': list of data elements}
+    When string is sent, it is intended as a log/console/screen message
+    
+    For testing connection the QueuedSocket.ping method shall be used
     '''
     def __init__(self, socket_name, isserver, port, tosocket, fromsocket, ip = None, log = None):
         self.socket_name = socket_name

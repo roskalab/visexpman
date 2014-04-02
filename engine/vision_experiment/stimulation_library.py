@@ -3,10 +3,7 @@ import os
 import numpy
 import math
 import time
-try:
-    import Image
-except ImportError:
-    from PIL import Image
+from PIL import Image
 import inspect
 import re
 
@@ -573,7 +570,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     duration = duration, 
                     color = numpy.reshape(color_adjusted.flatten(), (color_adjusted.shape[0], color_adjusted.shape[1]*color_adjusted.shape[2],color_adjusted.shape[3])), 
                     background_color = background_color,
-                    block_trigger = block_trigger, colors_per_shape = False, save_frame_info = False)
+                    block_trigger = block_trigger, colors_per_shape = False, 
+                    are_same_shapes_over_frames = True, 
+                    save_frame_info = False)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
@@ -882,7 +881,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         '''
         self.show_shapes('o', dot_diameters, dot_positions, ndots, duration = duration,  color = color, block_trigger = block_trigger, colors_per_shape = False)
                     
-    def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  color = (1.0,  1.0,  1.0), background_color = None, block_trigger = False, colors_per_shape = True, save_frame_info = True):
+    def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  color = (1.0,  1.0,  1.0), background_color = None, block_trigger = False, are_same_shapes_over_frames = False, colors_per_shape = True, save_frame_info = True):
         '''
         Shows a huge number (up to several hunders) of shapes.
         Parameters:
@@ -892,6 +891,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             color: can be a single tuple of the rgb values that apply to each shapes over the whole stimulation. Both list and numpy formats are supported
                     Optionally a two dimensional list can be provided where the dimensions are organized as above controlling the color of each shape individually
             duration: duration of each frame in s. When 0, frame is shown for one frame time.
+            are_same_shapes_over_frames: if True, all frames show the same shapes with different colors
 
         The shape_sizes and shape_positions are expected to be in a linear list. Based on the nshapes, these will be segmented to frames assuming
         that on each frame the number of shapes are equal.
@@ -912,7 +912,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         n_frames = len(shape_positions) / nshapes
         self.log_on_flip_message_initial += ' n_frames = ' + str(n_frames)
         n_vertices = len(vertices)        
-        frames_vertices = numpy.zeros((n_frames * nshapes * n_vertices,  2))         
+        if are_same_shapes_over_frames:
+            frames_vertices = numpy.zeros(( nshapes * n_vertices,  2))         
+        else:
+            frames_vertices = numpy.zeros((n_frames * nshapes * n_vertices,  2))         
         index = 0
         for frame_i in range(n_frames):
             for shape_i in range(nshapes):
@@ -922,6 +925,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 shape_to_screen =  self.config.SCREEN_UM_TO_PIXEL_SCALE * (vertices * shape_size_i + shape_position)
                 frames_vertices[index: index + n_vertices] = shape_to_screen
                 index = index + n_vertices
+            if are_same_shapes_over_frames:
+                break
         if duration == 0:
             n_frames_per_pattern = 1
         else:
@@ -941,8 +946,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         for frame_i in range(n_frames):
             start_i = shape_pointer * n_vertices
             end_i = (shape_pointer + nshapes) * n_vertices
-            shape_pointer = shape_pointer + nshapes
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
+            if not are_same_shapes_over_frames:
+                shape_pointer = shape_pointer + nshapes
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
 #            self._show_text()
             glVertexPointerf(frames_vertices[start_i:end_i])
             for i in range(n_frames_per_pattern):
