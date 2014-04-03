@@ -20,14 +20,15 @@ class Logger(multiprocessing.Process):
     '''
     Logger process that receives log entries via queues and saves all to one file.
     File operations can be suspended to minimize timing jitters in visual stimulation or in other 'real time' activities.
+    
+    Machine config is not passed on purpose. 
+    Passing such items including big dinctionaries increase the runtime of the start() method of the process
     '''
     def __init__(self, *args, **kwargs):
         multiprocessing.Process.__init__(self)
-        self.config = args[0]
-        if kwargs.has_key('filename'):
-            self.filename = kwargs['filename']
-        else:
-            self.filename = fileop.get_logfilename(self.config)
+        self.filename = kwargs['filename']
+        self.logpath = kwargs['logpath']
+        self.remote_logpath = kwargs['remote_logpath']
         self.command = multiprocessing.Queue()
         self.sources = {}
         self.add_source('default')
@@ -83,11 +84,9 @@ class Logger(multiprocessing.Process):
         '''
         Copies log files from LOG_PATH to REMOTE_LOG_PATH
         '''
-        if not hasattr(self.config, 'REMOTE_LOG_PATH') or not os.path.exists(self.config.REMOTE_LOG_PATH):
-            return
-        for fn in fileop.listdir_fullpath(self.config.LOG_PATH):
+        for fn in fileop.listdir_fullpath(self.logpath):
             if fileop.is_first_tag(fn, 'log_') and fileop.file_extension(fn) == 'txt':
-                target_path = os.path.join(self.config.REMOTE_LOG_PATH, os.path.split(fn)[1])
+                target_path = os.path.join(self.remote_logpath, os.path.split(fn)[1])
                 if not os.path.exists(target_path):#Copy file if cannot be found in remote log folder
                     import shutil
                     shutil.copyfile(fn, target_path)
@@ -126,112 +125,9 @@ class Logger(multiprocessing.Process):
                     self.saving2file_enable = True
             self.flush()
         self.file.close()
-        self.upload_logfiles()
+        if os.path.exists(self.remote_logpath):#Do nothing when  remote log path not provided 
+            self.upload_logfiles()
 
-class Log(object):
-    def __init__(self, name,  path, write_mode = 'automatic', timestamp = 'date_time', local_saving = False, format_string = '%(message)s'):
-        '''
-        write_mode: 'automatic', 'user controlled' - way of saving data to disk
-        '''
-        self.path = path
-        self.local_saving = local_saving
-        if self.local_saving:
-            self.log_path = os.path.join(tempfile.gettempdir(), os.path.split(path)[1])
-        else:
-            self.log_path = path
-            
-        self.log = logging.getLogger(name)
-        self.handler = logging.FileHandler(self.log_path)
-        formatter = logging.Formatter(format_string)
-        self.handler.setFormatter(formatter)
-        self.log.addHandler(self.handler)
-        self.log.setLevel(logging.INFO)
-        self.write_mode = write_mode
-        self.timestamp = timestamp
-        self.log_messages = []
-        self.log_dict = {}#Not tested
-        self.start_time = time.time()
-        self.entry_count = 0
-        
-    def info(self, message, log_timestamp = True):
-        message = str(message)
-        message_to_log = message
-        if self.timestamp == 'date_time' and log_timestamp:
-            message_to_log = str(datetime.datetime.now()) + '\t' + message
-            key = utils.datetime_string()
-        elif self.timestamp == 'elapsed_time' and log_timestamp:
-            elapsed_time = round(time.time() - self.start_time, 3)
-            message_to_log = str(elapsed_time) + '\t' + message
-            key = elapsed_time
-        else:
-            message_to_log = message
-            key = 'entry_' + str(self.entry_count)
-        if self.write_mode == 'automatic':
-            self.log.info(message_to_log)
-            self.entry_count += 1
-        elif self.write_mode == 'user control':
-            self.log_messages.append(message_to_log)
-            self.log_dict['time_'+str(key).replace('.', 'p')] = message
-            self.entry_count += 1
-            
-    def error(self, message):
-        self.log.error(message)
-        
-    def warning(self, message):
-        self.log.warning(message)
-        
-    def debug(self, message):
-        self.log.debug(message)
-
-    def flush(self):
-        full_log = ''
-        for item in self.log_messages:
-            full_log += item + '\n'
-        self.log.info(full_log)
-        self.log_messages = []
-        time.sleep(0.1)
-        try:#Sometimes random errors occur at this point
-            self.handler.flush()
-        except:
-            time.sleep(2.0)
-            try:
-                self.handler.flush()
-            except:
-                print 'Flushing log file was not successful'
-        
-    def queue(self, queue, name = None):
-        '''
-        Assuming that each item in the queue is a list or tuple, where the first item is a timestamp
-        '''
-        if name != None:
-            self.info(name, log_timestamp = False)
-        for entry in utils.empty_queue(queue):
-            self.info([utils.timestamp2hms(entry[0]), entry[1]], log_timestamp = False)
-            
-    def copy(self):
-        if self.local_saving:
-            shutil.copyfile(self.log_path, self.path)
-            
-class LoggerThread(threading.Thread, Log):
-    def __init__(self, command_queue, log_queue, name,  path, write_mode = 'automatic', timestamp = 'date_time', local_saving = False, format_string = '%(message)s'):
-        Log.__init__(self, name,  path, write_mode, timestamp, local_saving, format_string)
-        threading.Thread.__init__(self)
-        self.command_queue = command_queue
-        self.log_queue = log_queue
-        
-    def run(self):
-        while True:
-            time.sleep(0.1)
-            if not self.command_queue.empty():
-                command = self.command_queue.get()
-                if command == 'TERMINATE':
-                    break
-            else:
-                for entry in utils.empty_queue(self.log_queue):
-                    self.info('{0}: {1}' .format(utils.timestamp2hms(entry[0]), entry[1]), log_timestamp = False)
-        self.copy()
-                 
-                 
 class TestLog(unittest.TestCase):
     def setUp(self):
         import visexpman.engine.vision_experiment.configuration
@@ -239,89 +135,8 @@ class TestLog(unittest.TestCase):
         self.machine_config.application_name='main_ui'
         self.machine_config.user = 'test'
 
-#    def test_01_automatic_saving_with_timestamps(self):
-#        while True:
-#            if int(time.time()*1000)%1000 < 500:
-#                break        
-#        reference_date = str(datetime.datetime.now()).split('.')[0]        
-#        log = Log(self.path, self.path)
-#        log.info('logged1')
-#        log.info('logged2')
-#        log.handler.flush()
-#        log_file_content = fileop.read_text_file(self.path)
-#        self.assertEqual((os.path.exists(self.path), 
-#                          log_file_content.find('logged1') != -1, 
-#                          log_file_content.find('logged2') != -1, 
-#                          log_file_content.find(reference_date) != -1), 
-#                          (True, True, True, True))
-#                          
-#    def test_02_user_controlled_saving_with_timestamps(self):
-#        while True:
-#            if int(time.time()*1000)%1000 < 500:
-#                break        
-#        reference_date = str(datetime.datetime.now()).split('.')[0]        
-#        log = Log(self.path, self.path, write_mode = 'user control')
-#        log.info('logged1')
-#        log.info('logged2')        
-#        log_file_content_pre_flush = fileop.read_text_file(self.path)
-#        log.flush()
-#        log_file_content = fileop.read_text_file(self.path)
-#        self.assertEqual((os.path.exists(self.path), 
-#                          log_file_content.find('logged1') != -1, 
-#                          log_file_content.find('logged2') != -1, 
-#                          log_file_content.find(reference_date) != -1, 
-#                          log_file_content_pre_flush), 
-#                          (True, True, True, True, ''))
-#                          
-#    def test_03_automatic_saving_with_elapsed_time(self):
-#        while True:
-#            if int(time.time()*1000)%1000 < 500:
-#                break        
-#        reference_date = str(datetime.datetime.now()).split('.')[0]
-#        log = Log(self.path, self.path, timestamp = 'elapsed_time')
-#        log.info('logged1')
-#        log.info('logged2')
-#        log.handler.flush()
-#        log_file_content = fileop.read_text_file(self.path)
-#        time_stamps = []
-#        for line in log_file_content.split('\n'):
-#            if len(line) > 0:
-#                time_stamps.append(float(line.split('\t')[0])< 1e-2)
-#        self.assertEqual((os.path.exists(self.path), 
-#                          log_file_content.find('logged1') != -1, 
-#                          log_file_content.find('logged2') != -1, 
-#                          log_file_content.find(reference_date) == -1, 
-#                          time_stamps[0], 
-#                          time_stamps[1]), 
-#                          (True, True, True, True, True, True))
-#                          
-#    def test_04_user_controlled_saving_with_elapsed_time(self):
-#        while True:
-#            if int(time.time()*1000)%1000 < 500:
-#                break        
-#        reference_date = str(datetime.datetime.now()).split('.')[0]
-#        log = Log(self.path, self.path, write_mode = 'user control', timestamp = 'elapsed_time')
-#        log.info('logged1')
-#        log.info('logged2')
-#        log_file_content_pre_flush = fileop.read_text_file(self.path)
-#        log.flush()
-#        log_file_content = fileop.read_text_file(self.path)
-#        time_stamps = []
-#        for line in log_file_content.split('\n'):
-#            if len(line) > 0:
-#                time_stamps.append(float(line.split('\t')[0])< 1e-2)
-#        self.assertEqual((os.path.exists(self.path), 
-#                          log_file_content.find('logged1') != -1, 
-#                          log_file_content.find('logged2') != -1, 
-#                          log_file_content.find(reference_date) == -1, 
-#                          time_stamps[0], 
-#                          time_stamps[1], 
-#                          log_file_content_pre_flush), 
-#                          (True, True, True, True, True, True, ''))
-#                          
-
     def test_01_create_logger(self):
-        p= Logger(self.machine_config)
+        p= Logger(filename=fileop.get_logfilename(self.machine_config), logpath = self.machine_config.LOG_PATH, remote_logpath = self.machine_config.REMOTE_LOG_PATH)
         p.add_source('mysource')
         p.start()
         p.info('test1', 'mysource')
@@ -341,13 +156,15 @@ class TestLog(unittest.TestCase):
         filelist['remotelogfiles'] = fileop.listdir_fullpath(self.machine_config.REMOTE_LOG_PATH)
         for k, v in filelist.items():
             filelist[k] = [os.path.split(i)[1] for i in v]
-        self.assertEqual((len(logged_text.split('INFO'))-1, len(logged_text.split('WARNING'))-1, len(logged_text.split('\n'))-1, 
-                            'test1' in logged_text, 'test2' in logged_text, 'test3' in logged_text, filelist['logfiles']), 
-                         (2, 1, 3, True, True, True, filelist['remotelogfiles'])
-                         )
+        self.assertEqual(len(logged_text.split('INFO'))-1, 2)
+        self.assertEqual(len(logged_text.split('WARNING'))-1, 1)
+        self.assertEqual(len(logged_text.split('\n'))-1, 3)
+        self.assertIn('test1', logged_text)
+        self.assertIn('test2', logged_text)
+        self.assertIn('test3', logged_text), 
+        self.assertEqual(filelist['logfiles'], filelist['remotelogfiles'])
         pass
-
-    
+        
     def tearDown(self):
         pass
         

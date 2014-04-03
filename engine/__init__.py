@@ -99,7 +99,13 @@ def application_init(**kwargs):
     if not utils.is_network_available():
         warnings.warn('Check network connection')
     #Set up application logging
-    logger = log.Logger(machine_config)
+    if not hasattr(machine_config,'REMOTE_LOG_PATH'):
+        remote_logpath = ''
+    else:
+        remote_logpath = machine_config.REMOTE_LOG_PATH
+    logger = log.Logger(filename=fileop.get_logfilename(machine_config), 
+                                    logpath = machine_config.LOG_PATH, 
+                                    remote_logpath = remote_logpath)
     log_sources = utils.get_key(kwargs, 'log_sources') 
     if log_sources is not None:
         map(logger.add_source, log_sources)

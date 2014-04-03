@@ -116,7 +116,7 @@ class QueuedSocket(multiprocessing.Process):
         self.command.put('terminated')
         if hasattr(self.log, 'info'):
             self.log.info('process ended', self.socket_name)
-            
+
 def start_sockets(appname, config, log):
     '''
     Starts sockets depending on config.CONNECTIONS and appname.
@@ -141,11 +141,10 @@ def start_sockets(appname, config, log):
                                                                                     log=log)
     [s.start() for s in sockets.values()]
     return sockets
-    
+
 def stop_sockets(sockets):
     [s.terminate() for s in sockets.values()]
-        
-            
+
 class TestQueuedSocket(unittest.TestCase):
     def setUp(self):
         import random
@@ -252,10 +251,10 @@ class TestQueuedSocket(unittest.TestCase):
         logfiles = []
         for appname in appnames:
             config.application_name = appname
-            logger = log.Logger(config)
+            logger = log.Logger(filename=fileop.get_logfilename(config), logpath = config.LOG_PATH, remote_logpath = config.REMOTE_LOG_PATH)
             sockets = start_sockets(appname, config, log=logger)#Unit under test
             logger.start()
-            time.sleep(1.0)
+            time.sleep(4.0)
             stop_sockets(sockets)
             logger.terminate()
             logfiles.append(logger.filename)

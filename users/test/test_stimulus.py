@@ -64,7 +64,7 @@ class WhiteNoiseExperiment(experiment.Experiment):
 class GUITestExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'Debug'
-        self.DURATION = 10.0#
+        self.DURATION = 10.0#Comment
         self.PAR2 = 2.0#Comment2
         self.PAR1 = 1.0#Comment1
         self.editable=True

@@ -180,6 +180,8 @@ class Config(object):
                     all_parameters[parameter_name] = d
         return all_parameters
         
+### Classes for test purposes ###
+        
 class ApplicationTestClass(Config):
     def _create_application_parameters(self):
         PAR1 = [1, [-2, 2]]

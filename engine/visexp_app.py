@@ -228,7 +228,12 @@ class TestStim(unittest.TestCase):
     def test_01_start_stim_loop(self):
         self.context['command'].put('terminate')
         run_stim(self.context)
-        time.sleep(1.0)
+        time.sleep(5.0)
+        t0 = time.time()
+        while True:#Wait for file
+            if os.path.exists(self.context['logger'].filename) or time.time()-t0>30.0:
+                break
+            time.sleep(1.0)
         self.assertNotEqual(os.path.getsize(self.context['logger'].filename), 0)
         
     def test_02_execute_command(self):
@@ -262,9 +267,12 @@ class TestStim(unittest.TestCase):
             {'function': 'set_variable', 'args': ['bullseye_size', 100.0]},
             {'function': 'set_variable', 'args': ['show_bullseye', True]},
             {'function': 'read', 'args': ['stim_context']}])
-        run_stim(self.context,timeout=5)
-        time.sleep(5)
-        context_sent = client.recv()['data']
+        run_stim(self.context,timeout=10)
+        t0=time.time()
+        while True:
+            context_sent = client.recv()['data']
+            if context_sent is not None or time.time()-t0>30:
+                break
         self.assertEqual(context_sent[0], 'stim_context')
         self.assertEqual(context_sent[1]['background_color'], 0.5)
         self.assertEqual(context_sent[1]['screen_center'], utils.rc((200,300)))
@@ -286,7 +294,7 @@ class TestStim(unittest.TestCase):
         self.assertEqual(numpy.asarray(Image.open(captured_files[0])).shape, numpy.asarray(Image.open(captured_files[-1])).shape)
         #Check screen color
         expected_color = numpy.array([0.5, 0.5, 0.5+1/6.0])*255
-        for captured_file in captured_files[5:]:
+        for captured_file in captured_files[-5:]:
             numpy.testing.assert_allclose(numpy.asarray(Image.open(captured_file))[0,0], expected_color,0,1)
             numpy.testing.assert_allclose(numpy.asarray(Image.open(captured_file))[1,0], expected_color,0,1)
             numpy.testing.assert_allclose(numpy.asarray(Image.open(captured_file))[0,1], expected_color,0,1)
@@ -310,7 +318,7 @@ class TestStim(unittest.TestCase):
             {'function': 'set_variable', 'args': ['bullseye_size', 100.0]},
             {'function': 'set_variable', 'args': ['show_bullseye', True]},
             {'function': 'read', 'args': ['stim_context']}])
-        run_stim(self.context,timeout=5)
+        run_stim(self.context,timeout=10)
         client.terminate()
         captured_files = map(os.path.join, len(os.listdir(capture_path))*[capture_path], os.listdir(capture_path))
         captured_files.sort()
@@ -329,14 +337,14 @@ class TestStim(unittest.TestCase):
             {'function': 'set_variable', 'args': ['bullseye_size', 100.0]},
             {'function': 'set_variable', 'args': ['show_bullseye', True]},
             {'function': 'read', 'args': ['stim_context']}])
-        run_stim(self.context,timeout=5)
+        run_stim(self.context,timeout=15)
         client.terminate()
         saved_context1 = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']), 'context', self.context['machine_config']))
         self.assertEqual(saved_context1['background_color'], 0.5)
         self.assertEqual(saved_context1['user_background_color'], 0.75)
         self.assertEqual(saved_context1['screen_center'], utils.rc((200,300)))
         visexpman.engine.stop_application(self.context)
-        time.sleep(5.0)
+        time.sleep(15.0)
         #Start stim again
         self.context = visexpman.engine.application_init(user = 'test', config =self.configname, application_name = 'stim')
         run_stim(self.context,timeout=5)
@@ -347,9 +355,14 @@ class TestStim(unittest.TestCase):
         
     def test_06_measure_frame_rate(self):
         client = self._send_commands_to_stim([{'function': 'measure_frame_rate'}])
-        run_stim(self.context,timeout=5)
-        time.sleep(2.0)
-        measured_framerate = float(client.recv().split('Hz')[0].split('measured frame rate: ')[1])
+        run_stim(self.context,timeout=10)
+        t0=time.time()
+        while True:
+            msg = client.recv()
+            if msg is not None or time.time() - t0>30.0:
+                break
+            time.sleep(1.0)
+        measured_framerate = float(msg.split('Hz')[0].split('measured frame rate: ')[1])
         numpy.testing.assert_allclose(measured_framerate, self.context['machine_config'].SCREEN_EXPECTED_FRAME_RATE, 0, self.context['machine_config'].FRAME_RATE_TOLERANCE)
         client.terminate()
 

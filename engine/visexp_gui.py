@@ -1306,6 +1306,9 @@ class testVisionExperimentGui(unittest.TestCase):
         fileop.cleanup_files(self.machine_config)
         self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'two photon laser',  'pixel/um', [200.0, 200.0], 'DebugExperimentConfig', [10.0], ['SIDE'], [10.0, 0.0])
         
+    def tearDown(self):
+        time.sleep(2)
+        
     def _call_gui(self, testmode):
         import subprocess
         code = 'python {0} -u test -c GUITestConfig -a main_ui --testmode {1}'.format(os.path.join(fileop.get_visexpman_module_path(), 'engine', 'visexp_app.py'), testmode)
