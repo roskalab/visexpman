@@ -1,4 +1,4 @@
-['r:\\codes\\visexpman\\users\\test\\unittest_aggregator.py']
+[u'R:\\codes\\visexpman\\users\\test\\unittest_aggregator.py']
 
 ################# Computer parameters ####################
 uname: ('Windows', 'F446L-FCC382', '7', '6.1.7601', 'AMD64', 'Intel64 Family 6 Model 37 Stepping 2, GenuineIntel')
@@ -116,8 +116,8 @@ test_32_array_parameter (visexpman.engine.generic.parameter.testParameter) ... o
 test_39_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 79 tests in 821.592s
+Ran 79 tests in 429.411s
 
 OK (skipped=2)
 
-2014-04-02 16:54:00.663000
+2014-04-03 20:01:11.108000
