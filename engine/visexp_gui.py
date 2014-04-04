@@ -1015,7 +1015,7 @@ class CentralWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
-    def __init__(self, config=None, application_name=None, log = None, sockets = None):
+    def __init__(self, config=None, application_name=None, log = None, socket_queues = None):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
 #            qt_app.setStyleSheet(fileop.read_text_file('/home/rz/Downloads/QTDark.stylesheet'))
@@ -1023,7 +1023,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.source_name = '{0}' .format(application_name)
         self.config = config
         self.log = log
-        self.sockets = sockets
+        self.socket_queues = socket_queues
         self.console_text = ''
         Qt.QMainWindow.__init__(self)
         self._set_window_title()

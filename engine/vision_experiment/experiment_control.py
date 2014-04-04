@@ -29,6 +29,17 @@ from visexpA.engine.datahandlers import hdf5io
 
 class ExperimentControl(object):
     '''
+    Reimplemented version: 
+    
+    Call parameters:
+    1. machine config
+    2. queued sockets
+    (3. mes connection)
+    4. Application log
+    
+    
+    
+
     Provides methods for running a single experiment or a series of experiments at different depths. These methods are inherited by experiment classes
     that contain the user defined stimulations and other experiment specific functions.
     

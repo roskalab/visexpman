@@ -42,18 +42,21 @@ from visexpman.engine.generic import gui as gui_generic
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datahandlers import matlabfile
 from visexpA.engine.datahandlers import hdf5io
+from visexpman.engine.hardware_interface import queued_socket
 try:
     import visexpA.engine.component_guesser as cg
 except:
     pass
 
 ANESTHESIA_HISTORY_UPDATE_PERIOD = 60.0
-class Poller(QtCore.QThread):
+class Poller(QtCore.QThread, queued_socket.QueuedSocketHelpers):
     '''
     Generic poller thread that receives commands via queues and executes them. Additionally can access gui
     '''
     #Initializing, loader methods
     def __init__(self, parent):
+        if hasattr(parent, 'socket_queues'):
+            queued_socket.QueuedSocketHelpers.__init__(self, parent.socket_queues)
         self.signal_id_queue = Queue.Queue() #signal parameter is passed to handler
         self.parent = parent
         self.config = self.parent.config
@@ -2671,11 +2674,10 @@ class CaImagingPoller(Poller):
             ai_channel = '{0}/ai{1}'.format(ai_channel.split('/')[0], enabled_channels[0])
         return ai_channel, enabled_channels
         
-class VisexpGuiPoller(Poller):
+class VisexpGuiPoller(Poller,):
     def __init__(self, parent):
         Poller.__init__(self, parent)
         self.config = parent.config
-        self.sockets = parent.sockets
         self.init_variables()
         self.load_context()
         self.init_widget_handlers()#Depends on context values
@@ -2811,9 +2813,9 @@ class VisexpGuiPoller(Poller):
         #Check for network connection status
         connected_nodes = ''
         n_connected = 0
-        n_connections = len(self.sockets.keys())
-        for remote_node_name, socket in self.sockets.items():
-            if socket.ping(timeout=1.0):
+        n_connections = len(self.socket_queues.keys())
+        for remote_node_name, socket in self.socket_queues.items():
+            if self.ping(timeout=1.0, connection=remote_node_name):
                 connected_nodes += remote_node_name + ' '
                 n_connected += 1
         self.parent.central_widget.main_widget.network_status.setText('Network connections: {2} {0}/{1}'.format(n_connected, n_connections, connected_nodes))

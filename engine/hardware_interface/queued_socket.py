@@ -5,7 +5,40 @@ import platform
 import unittest
 from visexpman.engine.generic import utils
 
-class QueuedSocket(multiprocessing.Process):
+class QueuedSocketHelpers(object):
+    '''
+    Provides send, receive and ping methods depending only on queues
+    '''
+    def __init__(self,socket_queues):
+        self.socket_queues=socket_queues
+        
+    def recv(self,connection=None):
+        if connection == None:
+            queue = self.socket_queues['fromsocket']
+        else:
+            queue = self.socket_queues[connection]['fromsocket']
+        if not queue.empty():
+            return queue.get()
+
+    def send(self,msg,connection=None):
+        if connection == None:
+            queue = self.socket_queues['tosocket']
+        else:
+            queue = self.socket_queues[connection]['tosocket']
+        queue.put(msg)
+            
+    def ping(self,timeout=1.0, connection=None):
+        self.send('ping',connection)
+        t0 = time.time()
+        while True:
+            resp = self.recv(connection)
+            if resp == 'pong':
+                return True
+            if time.time()-t0>timeout:
+                return False
+            time.sleep(0.1)
+
+class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
     '''
     Constructed with ip address: client, otherwise server. Non blocking reading of socket. Data is put to queue. 
     Received data is also saved to a queue
@@ -18,10 +51,9 @@ class QueuedSocket(multiprocessing.Process):
     For testing connection the QueuedSocket.ping method shall be used
     '''
     def __init__(self, socket_name, isserver, port, tosocket, fromsocket, ip = None, log = None):
+        QueuedSocketHelpers.__init__(self, {'tosocket': tosocket, 'fromsocket': fromsocket})
         self.socket_name = socket_name
         self.port = port
-        self.tosocket = tosocket
-        self.fromsocket = fromsocket
         self.ip= ip
         self.log=log
         self.isserver=isserver
@@ -30,24 +62,6 @@ class QueuedSocket(multiprocessing.Process):
         multiprocessing.Process.__init__(self)
         if hasattr(self.log, 'add_source'):
             self.log.add_source(self.socket_name)
-            
-    def send(self,obj):
-        self.tosocket.put(obj)
-        
-    def recv(self):
-        if not self.fromsocket.empty():
-            return self.fromsocket.get()
-            
-    def ping(self,timeout=1.0):
-        self.send('ping')
-        t0 = time.time()
-        while True:
-            resp = self.recv()
-            if resp == 'pong':
-                return True
-            if time.time()-t0>timeout:
-                return False
-            time.sleep(0.1)
         
     def terminate(self):
         self.command.put('terminate')
@@ -86,8 +100,8 @@ class QueuedSocket(multiprocessing.Process):
             return#In this case perhaps it is better to end the process
         while True:
             try:
-                if not self.tosocket.empty():
-                    message = self.tosocket.get()
+                if not self.socket_queues['tosocket'].empty():
+                    message = self.socket_queues['tosocket'].get()
                     message_str = utils.object2str(message)
                     #This blocks the process if remote peer is not connected.
                     #Receiving messages is blocked too which resumes only when remote peer is available.
@@ -101,9 +115,9 @@ class QueuedSocket(multiprocessing.Process):
                     if hasattr(self.log, 'info'):
                         self.log.info('received: ' + str(message),self.socket_name)
                     if message == 'ping':
-                        self.tosocket.put('pong')
+                        self.socket_queues['tosocket'].put('pong')
                     else:
-                        self.fromsocket.put(message)
+                        self.socket_queues['fromsocket'].put(message)
                 except zmq.ZMQError:
                     pass#Nothing has received
                 if not self.command.empty() and self.command.get()=='terminate':
@@ -141,7 +155,16 @@ def start_sockets(appname, config, log):
                                                                                     log=log)
     [s.start() for s in sockets.values()]
     return sockets
-
+    
+def get_queues(sockets):
+    queues = {}
+    for k,v in sockets.items():
+        queues[k] = {}
+        queues[k]['fromsocket'] = v.socket_queues['fromsocket']
+        queues[k]['tosocket'] = v.socket_queues['tosocket']
+    return queues
+    
+    
 def stop_sockets(sockets):
     [s.terminate() for s in sockets.values()]
 
@@ -151,22 +174,36 @@ class TestQueuedSocket(unittest.TestCase):
         self.port = random.randrange(20000,20100)
         
     def _wait4queues(self,queues):
+        t0=time.time()
         while True:
             time.sleep(0.1)
-            if all([not q.empty() for q in queues]):
+            if isinstance(queues, dict):
+                q = queues.values()
+            else:
+                q = queues
+            if all([not qi.empty() for qi in q]) or time.time()-t0>30:
                 break
         
     def test_01_simple_transfer(self):
-        server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue())
-        client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip='localhost')
+        from visexpman.users.test.test_configurations import GUITestConfig
+        from visexpman.engine.generic import log
+        from visexpman.engine.generic import fileop
+        import os.path
+        config = GUITestConfig()
+        config.user = 'test'
+        config.application_name = 'main_ui'
+        logger = log.Logger(filename=fileop.get_logfilename(config), logpath = config.LOG_PATH, remote_logpath = config.REMOTE_LOG_PATH)
+        server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue(),log=logger)
+        client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip='localhost',log=logger)
+        logger.start()
         client.start()
         server.start()
-        client.tosocket.put(['request'])
-        server.tosocket.put(['response'])
-        self._wait4queues([client.fromsocket,server.fromsocket])
-        self.assertEqual(['request'],server.fromsocket.get(block=False))
-        self.assertEqual(['response'],client.fromsocket.get(block=False))
-        for s in [client,server]:
+        client.send(['request'])
+        server.send(['response'])
+        self._wait4queues(client.socket_queues)
+        self.assertEqual(['request'],server.recv())
+        self.assertEqual(['response'],client.recv())
+        for s in [client,server, logger]:
             s.terminate()
         
     def test_02_big_data_transfer(self):
@@ -176,14 +213,14 @@ class TestQueuedSocket(unittest.TestCase):
         server.start()
         import numpy
         data = numpy.random.random(5000)
-        client.tosocket.put(data)
-        server.tosocket.put(data)
-        self._wait4queues([client.fromsocket,server.fromsocket])
-        self.assertEqual(data.sum(),server.fromsocket.get(block=False).sum())
-        self.assertEqual(data.sum(),client.fromsocket.get(block=False).sum())
+        client.send(data)
+        server.send(data)
+        self._wait4queues(client.socket_queues)
+        self.assertEqual(data.sum(),server.recv().sum())
+        self.assertEqual(data.sum(),client.recv().sum())
         for s in [client,server]:
             s.terminate()
-        
+
     def test_03_multiple_servers(self):
         server_names = ['stim','analysis', 'ca_imaging']
         gui = {}
@@ -195,33 +232,18 @@ class TestQueuedSocket(unittest.TestCase):
             servers[c] = QueuedSocket(c, True, self.port+i, multiprocessing.Queue(), multiprocessing.Queue())
             servers[c].start()
             i += 1
-        gui['stim'].tosocket.put({'start_experiment':True})
-        gui['analysis'].tosocket.put(range(10))
-        servers['stim'].tosocket.put('Done')
-        self._wait4queues([gui['stim'].fromsocket, servers['analysis'].fromsocket, servers['stim'].fromsocket])
-        self.assertEqual('Done',gui['stim'].fromsocket.get())
-        self.assertEqual(range(10), servers['analysis'].fromsocket.get())
-        self.assertEqual({'start_experiment':True}, servers['stim'].fromsocket.get())
+        gui['stim'].send({'start_experiment':True})
+        gui['analysis'].send(range(10))
+        servers['stim'].send('Done')
+        self._wait4queues([gui['stim'].socket_queues['fromsocket'], servers['analysis'].socket_queues['fromsocket'], servers['stim'].socket_queues['fromsocket']])
+        self.assertEqual('Done',gui['stim'].recv())
+        self.assertEqual(range(10), servers['analysis'].recv())
+        self.assertEqual({'start_experiment':True}, servers['stim'].recv())
         for c in server_names:
             gui[c].terminate()
             servers[c].terminate()
-        
-    def test_04_socket_helpers(self):
-        server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue())
-        client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip='localhost')
-        client.start()
-        server.start()
-        data1 = range(10)
-        data2 = {'a':2}
-        client.send(data1)
-        server.send(data2)
-        self._wait4queues([client.fromsocket,server.fromsocket])
-        self.assertEqual(data1,server.recv())
-        self.assertEqual(data2,client.recv())
-        for s in [client,server]:
-            s.terminate()
-        
-    def test_05_bind2ip(self):
+    
+    def test_04_bind2ip(self):
         server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip = utils.get_ip())
         client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip= utils.get_ip())
         client.start()
@@ -230,13 +252,13 @@ class TestQueuedSocket(unittest.TestCase):
         data2 = {'a':2}
         client.send(data1)
         server.send(data2)
-        self._wait4queues([client.fromsocket,server.fromsocket])
+        self._wait4queues(client.socket_queues)
         self.assertEqual(data1,server.recv())
         self.assertEqual(data2,client.recv())
         for s in [client,server]:
             s.terminate()
         
-    def test_06_start_sockets_from_config(self):
+    def test_05_start_sockets_from_config(self):
         '''
         QueuedSockets are started from a machine config.
         '''
@@ -260,15 +282,15 @@ class TestQueuedSocket(unittest.TestCase):
             logfiles.append(logger.filename)
         self.assertNotEqual(map(os.path.getsize, logfiles), len(logfiles) * [0])
         self.assertEqual([True for logfile in logfiles if 'error' in fileop.read_text_file(logfile).lower()],[])#Check if there is any error in logfiles
-            
-    def test_07_ping_connections(self):
+    
+    def test_06_ping_connections(self):
         server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip = utils.get_ip())
         client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip= utils.get_ip())
         client.start()
         server.start()
         time.sleep(2)
-        self.assertTrue(client.ping(5))
-        self.assertTrue(server.ping(5))
+        self.assertTrue(client.ping(10))
+        self.assertTrue(server.ping(10))
         for s in [client,server]:
             s.terminate()
             

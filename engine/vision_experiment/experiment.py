@@ -17,9 +17,17 @@ from visexpman.engine.vision_experiment import configuration
 import unittest
 
 class ExperimentConfig(Config):
-    def __init__(self, machine_config, queues, connections, application_log, experiment_class = None, source_code = None, parameters = {}):
+    '''
+    Init parameters:
+    machine config
+    experiment parameters
+    sockets
+    application log
+    call_parameters: to be added to experiment config.
+    '''
+    def __init__(self, machine_config, experiment_parameters, connections, application_log, experiment_class = None, source_code = None, parameters = {}):
         self.machine_config = machine_config
-        self.queues = queues
+#        self.queues = queues
         self.connections = connections
         self.application_log = application_log
         Config.__init__(self, machine_config)
