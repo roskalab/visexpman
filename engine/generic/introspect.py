@@ -3187,8 +3187,11 @@ def flatten(l, ltypes=(list, tuple)):
         i += 1
     return ltype(l)
 
-def list_of_empty_lists(n):
-    return [list() for _ in range(n)]
+def list_of_empty_mutables(n, prototype=list()):
+    return [copy.deepcopy(prototype) for _ in range(n)]
+
+def dict_of_empty_mutables(keys,prototype=list()):
+    return dict(zip(keys,list_of_empty_mutables(len(keys),prototype)))
     
 def traverse(obj,  attrchain):
     '''Walks trough the attribute chain starting from obj and returns the last element of the chain. E.g.
