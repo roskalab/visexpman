@@ -166,11 +166,17 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
     def set_filterwheel(self, channel, filter):
         raise NotImplementedError('')
         
+    def set_experiment_config(self,source_code, experiment_config_name):
+        '''
+        When user changes Experiment config name (stimulus), the selected experiment config
+        is sent to stim. Pre experiment is displayed if available
+        '''
+        
     def start_experiment(self,parameters):
         #Create experiment config class from experiment source code
         introspect.import_code(parameters['experiment_config_source_code'],'experiment_module', add_to_sys_modules=1)
         experiment_module = __import__('experiment_module')
-        self.experiment_config = getattr(experiment_module, experiment_name)(self.config, self.queues, \
+        self.experiment_config = getattr(experiment_module, parameters['experiment_name'])(self.config, self.queues, \
                                                                                                   self.connections, self.log, getattr(experiment_module,experiment_name), loadable_source_code)
         
         
