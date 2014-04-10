@@ -183,7 +183,7 @@ class TestQueuedSocket(unittest.TestCase):
                 q = queues
             if all([not qi.empty() for qi in q]) or time.time()-t0>30:
                 break
-        
+                
     def test_01_simple_transfer(self):
         from visexpman.users.test.test_configurations import GUITestConfig
         from visexpman.engine.generic import log
@@ -192,10 +192,8 @@ class TestQueuedSocket(unittest.TestCase):
         config = GUITestConfig()
         config.user = 'test'
         config.application_name = 'main_ui'
-        logger = log.Logger(filename=fileop.get_logfilename(config), logpath = config.LOG_PATH, remote_logpath = config.REMOTE_LOG_PATH)
-        server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue(),log=logger)
-        client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip='localhost',log=logger)
-        logger.start()
+        server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue())
+        client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip='localhost')
         client.start()
         server.start()
         client.send(['request'])
@@ -203,7 +201,7 @@ class TestQueuedSocket(unittest.TestCase):
         self._wait4queues(client.socket_queues)
         self.assertEqual(['request'],server.recv())
         self.assertEqual(['response'],client.recv())
-        for s in [client,server, logger]:
+        for s in [client,server]:
             s.terminate()
         
     def test_02_big_data_transfer(self):

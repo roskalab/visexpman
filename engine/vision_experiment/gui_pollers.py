@@ -2674,7 +2674,7 @@ class CaImagingPoller(Poller):
             ai_channel = '{0}/ai{1}'.format(ai_channel.split('/')[0], enabled_channels[0])
         return ai_channel, enabled_channels
         
-class VisexpGuiPoller(Poller,):
+class VisexpGuiPoller(Poller):
     def __init__(self, parent):
         Poller.__init__(self, parent)
         self.config = parent.config
