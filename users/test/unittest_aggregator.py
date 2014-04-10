@@ -134,6 +134,8 @@ TEST_unittests = [
     'visexpman.engine.generic.fileop.TestFileops',
     'visexpman.engine.generic.log.TestLog',
     'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket',
+    'visexpman.engine.hardware_interface.instrument.TestInstrument',
+    'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',
                 ]
                 
 TEST_priority_unittests = [

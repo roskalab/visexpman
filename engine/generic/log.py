@@ -27,8 +27,9 @@ class Logger(multiprocessing.Process):
     def __init__(self, *args, **kwargs):
         multiprocessing.Process.__init__(self)
         self.filename = kwargs['filename']
-        self.logpath = kwargs['logpath']
-        self.remote_logpath = kwargs['remote_logpath']
+        self.logpath = os.path.split(self.filename)[0]
+        if kwargs.has_key('remote_logpath'):
+            self.remote_logpath = kwargs['remote_logpath']
         self.command = multiprocessing.Queue()
         self.sources = {}
         self.add_source('default')
@@ -86,6 +87,7 @@ class Logger(multiprocessing.Process):
         '''
         for fn in fileop.listdir_fullpath(self.logpath):
             if fileop.is_first_tag(fn, 'log_') and fileop.file_extension(fn) == 'txt':
+                #TODO: check if remote path is available
                 target_path = os.path.join(self.remote_logpath, os.path.split(fn)[1])
                 if not os.path.exists(target_path):#Copy file if cannot be found in remote log folder
                     import shutil
@@ -125,7 +127,7 @@ class Logger(multiprocessing.Process):
                     self.saving2file_enable = True
             self.flush()
         self.file.close()
-        if os.path.exists(self.remote_logpath):#Do nothing when  remote log path not provided 
+        if hasattr(self, 'remote_logpath') and os.path.exists(self.remote_logpath):#Do nothing when  remote log path not provided 
             self.upload_logfiles()
 
 class TestLog(unittest.TestCase):
@@ -136,7 +138,7 @@ class TestLog(unittest.TestCase):
         self.machine_config.user = 'test'
 
     def test_01_create_logger(self):
-        p= Logger(filename=fileop.get_logfilename(self.machine_config), logpath = self.machine_config.LOG_PATH, remote_logpath = self.machine_config.REMOTE_LOG_PATH)
+        p= Logger(filename=fileop.get_logfilename(self.machine_config), remote_logpath = self.machine_config.REMOTE_LOG_PATH)
         p.add_source('mysource')
         p.start()
         p.info('test1', 'mysource')
@@ -163,7 +165,30 @@ class TestLog(unittest.TestCase):
         self.assertIn('test2', logged_text)
         self.assertIn('test3', logged_text), 
         self.assertEqual(filelist['logfiles'], filelist['remotelogfiles'])
-        pass
+        
+    def test_02_no_remote_logger(self):
+        p= Logger(filename=fileop.get_logfilename(self.machine_config))
+        p.add_source('mysource')
+        p.start()
+        p.info('test1', 'mysource')
+        time.sleep(1)
+        p.info('test2')
+        time.sleep(1)
+        p.warning('test3')
+        time.sleep(1)
+        p.terminate()
+        p.join()
+        logged_text = fileop.read_text_file(p.filename)
+        filelist  = {}
+        filelist['logfiles'] = fileop.listdir_fullpath(self.machine_config.LOG_PATH)
+        for k, v in filelist.items():
+            filelist[k] = [os.path.split(i)[1] for i in v]
+        self.assertEqual(len(logged_text.split('INFO'))-1, 2)
+        self.assertEqual(len(logged_text.split('WARNING'))-1, 1)
+        self.assertEqual(len(logged_text.split('\n'))-1, 3)
+        self.assertIn('test1', logged_text)
+        self.assertIn('test2', logged_text)
+        self.assertIn('test3', logged_text)
         
     def tearDown(self):
         pass

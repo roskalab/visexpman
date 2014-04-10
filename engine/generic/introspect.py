@@ -16,12 +16,18 @@ import subprocess, os, signal
 import copy
 import psutil
 
+def get_process_name(pid):
+    p = psutil.Process(pid)
+    if callable(p.name):
+        return p.name()
+    else:
+        return p.name
+
 def get_python_processes():
     pids = []
     for pid in psutil.get_pid_list():
         try:
-            p = psutil.Process(pid)
-            if 'python' in p.name:
+            if 'python' in get_process_name(pid):
                 pids.append(pid)
         except:
             pass
@@ -31,6 +37,7 @@ def kill_python_processes(dont_kill_pids):
     pids = get_python_processes()
     for pid in pids:
         if pid not in dont_kill_pids:
+            print pid
             p = psutil.Process(pid)
             p.kill()
 

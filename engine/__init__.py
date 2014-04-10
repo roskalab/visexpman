@@ -104,7 +104,6 @@ def application_init(**kwargs):
     else:
         remote_logpath = machine_config.REMOTE_LOG_PATH
     logger = log.Logger(filename=fileop.get_logfilename(machine_config), 
-                                    logpath = machine_config.LOG_PATH, 
                                     remote_logpath = remote_logpath)
     log_sources = utils.get_key(kwargs, 'log_sources') 
     if log_sources is not None:
@@ -127,7 +126,10 @@ def stop_application(context):
     #Terminate sockets
     queued_socket.stop_sockets(context['sockets'])
     #Terminate logger process
+    
     context['logger'].terminate()
+#    except:
+#        pass
     
 import unittest
 class TestApplicationInit(unittest.TestCase):

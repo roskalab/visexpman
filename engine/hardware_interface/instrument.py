@@ -1,18 +1,35 @@
 try:
     import serial
-except:
+except ImportError:
         pass
-        
 import os
 import unittest
 import time
+import multiprocessing
 
 import visexpman.engine.generic.configuration
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
+from visexpman.engine.generic import utils, fileop, log
 import logging
 import visexpman
 from visexpman.users.test import unittest_aggregator
+
+class InstrumentProcess(multiprocessing.Process):
+    '''
+    Superclass of instrument control related operations that need to run in a separate process
+    
+    It can be controlled via command_queue. This is available in experiment classes
+    '''
+    def __init__(self, instrument_name, command_queue, data_queue, logger):
+        multiprocessing.Process.__init__(self)
+        self.command_queue = command_queue
+        self.data_queue = data_queue
+        self.log = logger
+        self.instrument_name = instrument_name
+        if hasattr(self.log, 'add_source'):
+            self.log.add_source(instrument_name)
+            
+    def terminate(self):
+        self.command_queue.put('terminate')
 
 class Instrument(object):
     '''
@@ -301,9 +318,10 @@ class Filterwheel(Instrument):#TODO: all parameters need to be collected to one 
 class testConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):        
             
-        EXPERIMENT_LOG_PATH = unittest_aggregator.TEST_working_folder
-        TEST_DATA_PATH = unittest_aggregator.TEST_working_folder
-        ENABLE_FILTERWHEEL = unittest_aggregator.TEST_filterwheel_enable
+        self.EXPERIMENT_LOG_PATH = fileop.select_folder_exists(unittest_aggregator.TEST_working_folder)
+        self.TEST_DATA_PATH = fileop.select_folder_exists(unittest_aggregator.TEST_working_folder)
+        self.ENABLE_FILTERWHEEL = unittest_aggregator.TEST_filterwheel
+        return#TODO: rework all these instrument classes
         ENABLE_PARALLEL_PORT = True
         ENABLE_SHUTTER = True
         FILTERWHEEL_SERIAL_PORT = [{
@@ -459,53 +477,37 @@ class TestFilterwheel(unittest.TestCase):
         fw = Filterwheel(self.config, self.experiment_control)
         fw.set(1)
         self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (False, -1, 'ready'))
-        fw.release_instrument()        
+        fw.release_instrument()
         
-#== Shutter ==
-#    def test_12_shutter_communication_port_open(self):        
-#        sh = Shutter(self.config, self)        
-#        self.assertEqual(hasattr(sh, 'serial_port'),  True)
-#        sh.release_instrument()
-#        
-#    def test_13_shutter_toggle(self):        
-#        sh = Shutter(self.config, self)
-#        print 'The shutter should open and close'
-#        sh.toggle()
-#        time.sleep(1.0)
-#        sh.toggle()
-#        self.assertEqual(hasattr(sh, 'serial_port'),  True)
-#        sh.release_instrument()
-#        
-#    def test_14_open_shutter(self):
-#        pass
-#        
-#    def test_15_close_shutter(self):
-#        pass
-#        
-#    def test_XX_open_shutter_when_disabled(self):
-#        pass
-#        
-#    def test_16_shutter_parallelport_init(self):
-#        pass
-#        
-#    def test_17_shutter_parallelport_toggle(self):
-#        pass
-#        
-#    def test_18_open_parallelport_shutter(self):
-#        pass
-#        
-#    def test_15_close_parallelport_shutter(self):
-#        pass
-#        
-#    def test_XX_open_parallel_port_shutter_when_disabled(self):
-#        pass
+class DummyInstrumentProcess(InstrumentProcess):
+    def __init__(self, instrument_name, command_queue, data_queue, logger):
+        InstrumentProcess.__init__(self, instrument_name, command_queue, data_queue, logger)
         
-    
+    def run(self):
+        counter = 0
+        while True:
+            if not self.command_queue.empty():
+                if self.command_queue.get() == 'terminate':
+                    break
+            self.data_queue.put(counter)
+            counter += 1
+            self.log.info('counter: {0}'.format(counter), self.instrument_name)
+            time.sleep(0.1)
+        self.log.info('Done',self.instrument_name)
+
+class TestInstrument(unittest.TestCase):
+    def test_01_instrument_process(self):
+        fn = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_instrument_test_{0}.txt'.format(int(1000*time.time())))
+        instrument_name = 'test instrument'
+        logger = log.Logger(filename=fn)
+        ip = DummyInstrumentProcess(instrument_name, multiprocessing.Queue(), multiprocessing.Queue(), logger)
+        processes = [ip, logger]
+        [p.start() for p in processes]
+        time.sleep(3.0)
+        [p.terminate() for p in processes]
+        keywords = map(str,range(5))
+        keywords.extend([instrument_name, 'counter'])
+        map(self.assertIn, keywords, len(keywords)*[fileop.read_text_file(fn)])
         
 if __name__ == "__main__":    
     unittest.main()
-#    tc = testConfig()
-#    p = ParallelPort(tc)
-#    p.set_data_bit(0, 1)
-
-    

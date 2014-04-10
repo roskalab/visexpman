@@ -1,22 +1,150 @@
 import numpy
 import time
 import instrument
-import visexpman.engine.generic.configuration as configuration
-import visexpman.engine.generic.utils as utils
 import unittest
 import copy
 import logging
 import os
+import platform
 
+try:
+    import PyDAQmx
+    import PyDAQmx.DAQmxConstants as DAQmxConstants
+    import PyDAQmx.DAQmxTypes as DAQmxTypes
+except:
+    pass
+        
+from visexpman.engine.generic import configuration,utils,fileop
 from visexpman.users.test import unittest_aggregator
 
-if os.name == 'nt':
-    try:
-        import PyDAQmx
-        import PyDAQmx.DAQmxConstants as DAQmxConstants
-        import PyDAQmx.DAQmxTypes as DAQmxTypes
-    except:
-        pass
+def parse_channel_string(channels):
+    '''
+    Returns channel indexes, device name, channel type
+    '''
+    channel_indexes = map(int, channels.split('/')[-1].replace('ao','').replace('ai','').split(':'))
+    device_name = channels.split('/')[0]
+    if len(channel_indexes) == 1:
+        nchannels = 1
+    else:
+        nchannels = channel_indexes[1]-channel_indexes[0]+1
+    return device_name, nchannels, channel_indexes
+        
+class AnalogIOProcess(instrument.InstrumentProcess):
+    def __init__(self, instrument_name, command_queue, data_queue, logger, ai_sample_rate=None, ao_sample_rate=None, ai_channels=None, ao_channels=None, limits = None):
+        instrument.InstrumentProcess.__init__(self, instrument_name, command_queue, data_queue, logger)
+        self.ai_sample_rate = ai_sample_rate
+        self.ao_sample_rate = ao_sample_rate
+        self.ai_channels = ai_channels
+        self.ao_channels = ao_channels
+        if platform.system() == 'Windows':
+            self.enable_ai = False
+            self.enable_ao = False
+        else:
+            if ai_sample_rate is not None and ai_channels is not None:
+                self.enable_ai = True
+            if ao_sample_rate is not None and ao_channels is not None:
+                self.enable_ao = True
+        self.limits = limits
+        if self.limits is None:
+            self.limits = {}
+            self.limits['min_ao_voltage'] = -5.0
+            self.limits['max_ao_voltage'] = 5.0
+            self.limits['min_ai_voltage'] = -5.0
+            self.limits['max_ai_voltage'] = 5.0
+            self.limits['timeout'] = 3.0
+        
+    def _configure_timing(self):    
+            if self.enable_ao:
+                self.analog_output.CfgSampClkTiming("OnboardClock",
+                                             DAQmxConstants.DAQmx_Val_ContSamps,
+                                            DAQmxConstants.DAQmx_Val_Rising,
+                                            self.ao_sampling_mode,
+                                            self.number_of_ao_samples)
+            if self.enable_ai:
+                self.analog_input.CfgSampClkTiming("OnboardClock",
+                                            self.ai_sample_rate,
+                                            DAQmxConstants.DAQmx_Val_Rising,
+                                            DAQmxConstants.DAQmx_Val_ContSamps,
+                                            self.number_of_ai_samples)
+                                            
+    def _create_tasks(self):
+        if self.enable_ao:
+            self.analog_output = PyDAQmx.Task()
+            self.analog_output.CreateAOVoltageChan(self.ao_channels,
+                                                            'ao',
+                                                            self.limits['min_ao_voltage'],
+                                                            self.limits['max_ao_voltage'],
+                                                            DAQmxConstants.DAQmx_Val_Volts,
+                                                            None)
+            ao_device_name, self.number_of_ao_channels, ao_channel_indexes = parse_channel_string(self.ao_channels)
+            if self.enable_ai:
+                self.analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(ao_device_name), DAQmxConstants.DAQmx_Val_Rising)
+                
+        if self.enable_ai:
+            self.analog_input = PyDAQmx.Task()
+            for terminal_config in [DAQmxConstants.DAQmx_Val_RSE, DAQmx_Val_PseudoDiff]:
+                try:
+                    self.analog_input.CreateAIVoltageChan(self.ai_channels,
+                                                            'ai',
+                                                            terminal_config,
+                                                            self.limits['min_ai_voltage'],
+                                                            self.limits['max_ai_voltage'],
+                                                            DAQmxConstants.DAQmx_Val_Volts,
+                                                            None)
+                except:
+                    pass
+            self.read = DAQmxTypes.int32()
+            ai_device_name, self.number_of_ai_channels, ai_channel_indexes = parse_channel_string(self.ai_channels)
+            
+    def _close_tasks(self):
+        if self.enable_ao:
+            self.analog_output.ClearTask()
+        if self.enable_ai:
+            self.analog_input.ClearTask()
+            
+    def _write_waveform(self):
+        if self.enable_ao:
+            self.analog_output.WriteAnalogF64(self.number_of_ao_samples,
+                                False,
+                                self.limits['timeout'],
+                                DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                self.waveform,
+                                None,
+                                None)
+            
+    def _start(self, **kwargs):
+        '''
+        Start daq activity
+        '''
+        
+    def _stop(self, **kwargs):
+        '''
+        Stop daq activity
+        '''
+        
+            
+    def run(self):
+        if platform.system() != 'Windows':
+            return
+        self._create_tasks()
+        while True:
+            if not self.command_queue.empty():
+                command = self.command_queue.get()
+                if command == 'terminate':
+                    break
+                elif isinstance(command, list) and len(command) == 2:
+                    parameters = command[1]
+                    command = command[0]
+                    if command == 'start':
+                        self._start(**parameters)
+                    elif command == 'stop':
+                        self._stop(**parameters)
+                    
+                        
+        self._close_tasks()
+        
+                
+        
         
 class DigitalIO(instrument.Instrument):
     def init_instrument(self):
@@ -483,7 +611,10 @@ class TestDaqInstruments(unittest.TestCase):
     '''
     def setUp(self):
         self.config = testDaqConfig()
-        self.experiment_control = instrument.testLogClass(self.config)
+        try:
+            self.experiment_control = instrument.testLogClass(self.config)
+        except:
+            pass
         self.state = 'experiment running'
 
     def tearDown(self):
@@ -1094,6 +1225,32 @@ class TestDaqInstruments(unittest.TestCase):
         waveform = numpy.array([waveform, 1.0 + 2.0 * waveform]).transpose()
         waveform[-1] = [0.0, 0.0]
         return numpy.round(waveform, 2)
+        
+    def test_100_parse_channel_string(self):
+        channels_strings = ['Dev1/ao0:2', 'Dev2/ao1', 'Dev3/ai2:3']
+        expected_devnames = ['Dev1', 'Dev2', 'Dev3']
+        expected_nchannels = [3, 1, 2]
+        expected_channel_indexes = [[0,2], [1], [2,3]]
+        for i in range(len(channels_strings)):
+            device_name, nchannels, channel_indexes = parse_channel_string(channels_strings[i])
+            self.assertEqual(device_name, expected_devnames[i])
+            self.assertEqual(nchannels, expected_nchannels[i])
+            self.assertEqual(channel_indexes, expected_channel_indexes[i])
+            
+    def test_101_start_aio_process(self):
+        import multiprocessing
+        from visexpman.engine.generic import log
+        fn = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_instrument_test_{0}.txt'.format(int(1000*time.time())))
+        logger = log.Logger(filename=fn)
+        aio = AnalogIOProcess('test aio', multiprocessing.Queue(), multiprocessing.Queue(), logger,
+                                ai_sample_rate = 10000, 
+                                ao_sample_rate = 10000, 
+                                ai_channels = 'Dev/ai0:1',
+                                ao_channels='Dev1/ao2:3')
+        processes = [aio,logger]
+        [p.start() for p in processes]
+        time.sleep(4)
+        [p.terminate() for p in processes]
 
 if __name__ == '__main__':
     unittest.main()

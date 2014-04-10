@@ -251,7 +251,7 @@ class TestQueuedSocket(unittest.TestCase):
         logfiles = []
         for appname in appnames:
             config.application_name = appname
-            logger = log.Logger(filename=fileop.get_logfilename(config), logpath = config.LOG_PATH, remote_logpath = config.REMOTE_LOG_PATH)
+            logger = log.Logger(filename=fileop.get_logfilename(config), remote_logpath = config.REMOTE_LOG_PATH)
             sockets = start_sockets(appname, config, log=logger)#Unit under test
             logger.start()
             time.sleep(4.0)

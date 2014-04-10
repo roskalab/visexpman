@@ -1131,7 +1131,6 @@ class VisionExperimentGui(Qt.QMainWindow):
         
     def close_app(self):
         self.printc('Please wait till gui closes')
-        self.log.terminate()
         self.poller.abort = True
         self.poller.wait()
         self.close()
@@ -1485,7 +1484,6 @@ class testVisionExperimentGui(unittest.TestCase):
                           ))
 
 #    @unittest.skip('') 
-    @unittest.skipIf(unittest_aggregator.TEST_no_user_action,  'Requires user action')            
     def test_10_remove_experiment_log_entry(self):
         '''
         Context file is available, two animal files are created, experiment log added to one. Experiment log entry remove also tested
@@ -1519,7 +1517,8 @@ class testVisionExperimentGui(unittest.TestCase):
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=11)
         context = self._read_context()
         self.assertEqual(len(context['variables']['self.animal_file.animal_files.keys']), 2)
-        
+
+#    @unittest.skip('')
     def test_12_context_loading(self):
         '''
         Animal files are created and and one is selected. Widget content is modified. 
@@ -1543,6 +1542,7 @@ class testVisionExperimentGui(unittest.TestCase):
                 context['widgets']['self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text'],
                 ),expected_values)
                 
+#    @unittest.skip('')
     def test_13_add_remove_experiment_no_animal_file(self):
         '''
         Add many experiment entries and modify their status, finally remove one
@@ -1562,7 +1562,8 @@ class testVisionExperimentGui(unittest.TestCase):
                     context['variables']['self.animal_file.recordings'][0]['recording_channels'], 
                     context['variables']['self.animal_file.recordings'][0]['scan_center'], 
                     ), self.test_13_14_expected_values)
-        
+    
+#    @unittest.skip('')    
     def test_14_add_remove_experiment_animal_file(self):
         self._call_gui(14)
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=14)
