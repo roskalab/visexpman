@@ -112,12 +112,15 @@ def application_init(**kwargs):
         logger.add_source(machine_config.application_name)
     #Set up network connections
     sockets = queued_socket.start_sockets(machine_config.application_name, machine_config, logger)
+    if machine_config.PLATFORM == 'rc_cortical' or machine_config.PLATFORM == 'ac_cortical' :
+        raise NotImplementedError('Here comes the initialization of MES non zmq sockets')
     if utils.get_key(kwargs, 'log_start') :
         logger.start()
     context = {}
     context['machine_config'] = machine_config
     context['logger'] = logger
     context['sockets'] = sockets
+    context['socket_queues'] = queued_socket.get_queues(sockets)
     context['application_name'] = args['application_name']
     context['command'] = multiprocessing.Queue()
     return context

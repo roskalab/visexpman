@@ -17,10 +17,18 @@ from visexpman.engine.vision_experiment import configuration
 import unittest
 
 class ExperimentConfig(Config):
-    def __init__(self, machine_config, queues, connections, application_log, experiment_class = None, source_code = None, parameters = {}):
+    '''
+    Init parameters:
+    machine config
+    experiment parameters
+    sockets
+    application log
+    call_parameters: to be added to experiment config.
+    '''
+    def __init__(self, machine_config, experiment_parameters, connections, application_log, experiment_class = None, source_code = None, parameters = {}):
         self.machine_config = machine_config
-        self.queues = queues
-        self.connections = connections
+        self.queues = None
+        self.connections = connections#TODO: remove
         self.application_log = application_log
         Config.__init__(self, machine_config)
         self.editable=True#If false, experiment config parameters cannot be edited from GUI
@@ -156,7 +164,10 @@ class Experiment(stimulation_library.StimulationSequences):
 
 class PreExperiment(Experiment):
     '''
-    The run method of this experiment will be called prior the experiment to provide some initial stimulus while the experimental setup is being set up.
+    The prerun method of this experiment will be called prior the experiment to provide some initial stimulus while the experimental setup is being set up.
+    
+    The prerun method can draw only one frame at a time withoud flipping it.
+    For moving pre runnable pattern the user shall use a state variable for control
     '''
     pass
     #TODO: Overlay menu on pre experiment visual stimulus so that the text is blended to the graphical pattern
@@ -166,6 +177,7 @@ class PreExperiment(Experiment):
 
 ######################### Restore experiment config from measurement data #########################
 
+#OBSOLETE
 class MachineConfig(configuration.VisionExperimentConfig):
     def __init__(self, machine_config_dict, default_user = None):
         self.machine_config_dict = machine_config_dict
@@ -181,7 +193,8 @@ class MachineConfig(configuration.VisionExperimentConfig):
             self.user = self.default_user
         self._create_parameters_from_locals(locals())
         pass
-        
+    
+#OBSOLETE
 def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = None,  experiment_source = None,  machine_config_dict = None, user = None):
     if fragment_hdf5_handler != None and experiment_source == None and machine_config_dict == None:
         experiment_source = fragment_hdf5_handler.findvar('experiment_source').tostring()
@@ -193,6 +206,20 @@ def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = No
     return experiment_config
     a = experiment_module.MovingDot(machine_config, None, experiment_config)
     
+def create_experiment_config(experiment_name, source_code, machine_config, socket_queues=None, application_log=None):
+    '''
+    Instantiates experiment config object from either source code or experiment_name.
+    '''
+    if source_code is None:#experiment_name class is searched in user and common folders
+        return utils.fetch_classes('visexpman.users.'+machine_config.user,
+                                    experiment_name, required_ancestors = ExperimentConfig,direct = False)[0][1]()#TODO: args not correct
+    else:
+        introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
+        experiment_module = __import__('experiment_module')
+        return getattr(experiment_module, experiment_name)(self.config, self.queues, #TODO: args not correct
+                                                                                                  self.connections, self.log, getattr(experiment_module,experiment_name), source_code)
+        
+    #TODO: use create_experiment_config
 def get_experiment_duration(experiment_config_class, config, source=None):
     if source is None:
         experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]

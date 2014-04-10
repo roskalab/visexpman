@@ -81,11 +81,10 @@ class VisionExperimentScreen(graphics.Screen):
         self._display_bullseye()
         if self.show_text and self.config.ENABLE_TEXT:
             self.render_text(self.menu_text +'\n\n\n' + self.screen_text, color = self.text_color, position = self.text_position, text_style = self.text_style)
+        #TODO: call  prerun method of pre experiment if exists
         self.flip()
 
-    def run_preexperiment(self):
-        pass
-
+    
 class ScreenAndKeyboardHandler(VisionExperimentScreen):
     '''
     VisexpmanScreen is amended with keyboard handling

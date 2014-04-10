@@ -57,10 +57,13 @@ def get_ip():
     '''
     import socket
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        s.connect(('rzws.fmi.ch', 0))#Assuming that we are inside FMI
-    except:
-        s.connect(('google.com', 0))
+    addresses =['rzws.fmi.ch', 'google.com', '127.0.0.1']#Assuming to be in FMI, otherwise assuming connected to internet, finally trying localhost
+    for address in addresses:
+        try:
+            s.connect((address, 0))
+            break
+        except:
+            continue
     return s.getsockname()[0]
         
 def resample_array(array, factor):

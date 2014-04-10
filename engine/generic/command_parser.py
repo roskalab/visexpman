@@ -5,18 +5,19 @@ import unittest
 import sys
 import time
 from visexpman.engine.generic import utils
+from visexpman.engine.hardware_interface import queued_socket
 method_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
 parameter_extract = re.compile('EOC(.+)EOP') # an optional parameter string follows EOC terminated by EOP. In case of binary data EOC and EOP should be escaped.
 
-class ServerLoop(object):
+class ServerLoop(queued_socket.QueuedSocketHelpers):
     '''
     Overtakes CommandParser class.
     Checks for function calls coming from a queued socket. Corresponding functions are called.
     '''
-    def __init__(self, machine_config, queued_socket, command, log = None):
+    def __init__(self, machine_config, socket_queues, command, log = None):
+        queued_socket.QueuedSocketHelpers.__init__(self, socket_queues)
         self.machine_config = machine_config
         self.config = machine_config
-        self.socket = queued_socket
         self.command = command
         self.log = log
         self.log_source_name = self.machine_config.application_name
@@ -28,7 +29,7 @@ class ServerLoop(object):
         Message to logfile, queued socket and standard output
         '''
         message_string = str(message)
-        self.socket.send(message_string)
+        self.send(message_string)
         if stdio:
             sys.stdout.write(message_string+'\n')
         if hasattr(self.log, loglevel):
@@ -38,7 +39,7 @@ class ServerLoop(object):
         '''
         Checks for incoming data from socket and if data contains valid data, corresponding function is called
         '''
-        message = self.socket.recv()
+        message = self.recv()
         if not utils.safe_has_key(message, 'function'):
             return False
         if not hasattr(self, message['function']):
@@ -66,7 +67,7 @@ class ServerLoop(object):
         Application specific periodic function calls come here
         '''
         
-    def at_prcess_end(self):
+    def at_process_end(self):
         '''
         Called at end of process
         '''

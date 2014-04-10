@@ -1,4 +1,10 @@
-['users/test/unittest_aggregator.py']
+['/home/zoltan/visexp/visexpman/users/test/unittest_aggregator.py']
+
+################# Computer parameters ####################
+uname: ('Linux', 'none', '3.2.0-54-generic', '#82-Ubuntu SMP Tue Sep 10 20:08:42 UTC 2013', 'x86_64', 'x86_64')
+architecture: ('64bit', 'ELF')
+python_build: ('default', 'Feb 27 2014 19:58:35')
+python_version: 2.7.3
 
 ################# Test parameters ####################
 TEST_consider_frame_rate = False
@@ -9,6 +15,7 @@ TEST_filterwheel = False
 TEST_goniometer = False
 TEST_invalid_file = /home
 TEST_machine_info = ('Linux', 'none', '3.2.0-54-generic', '#82-Ubuntu SMP Tue Sep 10 20:08:42 UTC 2013', 'x86_64', 'x86_64')
+TEST_machine_name = none
 TEST_mes = False
 TEST_no_user_action = False
 TEST_os = Linux
@@ -16,92 +23,100 @@ TEST_osuser = zoltan
 TEST_parallel_port = False
 TEST_priority_unittests = ['testVisionExperimentGui.test_01_select_stimfile']
 TEST_remote_focus = False
-TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/home/zoltan/Downloads']
+TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/home/zoltan/Downloads', 'c:\\temp']
 TEST_short = False
 TEST_single_unittest = 
 TEST_stage = False
 TEST_stim = False
 TEST_test = True
 TEST_uled = False
-TEST_unittests = ['visexpman.engine.visexp_gui.testVisionExperimentGui', 'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 'visexpman.engine.TestApplicationInit', 'visexpman.engine.generic.parameter.testParameter', 'visexpman.engine.generic.fileop.TestFileops', 'visexpman.engine.generic.log.TestLog', 'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket']
+TEST_unittests = ['visexpman.engine.visexp_gui.testVisionExperimentGui', 'visexpman.engine.visexp_app.TestStim', 'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 'visexpman.engine.TestApplicationInit', 'visexpman.engine.generic.parameter.testParameter', 'visexpman.engine.generic.fileop.TestFileops', 'visexpman.engine.generic.log.TestLog', 'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket']
 TEST_valid_file = /etc/fstab
-TEST_working_folder = ['/mnt/rzws/work', 'r:\\work', '/home/zoltan/Downloads/work']
+TEST_working_folder = ['/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', '/home/zoltan/Downloads/work', 'c:\\temp']
 
 ################# Test results ####################
 test_01_select_stimfile (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_13_add_remove_experiment_no_animal_file (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_17_numeric_parameter_invalid_range_2 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_05_load_animal_files_from_data_storage_and_modify (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_34_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
-test_14_add_remove_experiment_animal_file (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_04_load_animal_files_from_data_storage_and_switch (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_03_valid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_04_invalid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_18_numeric_parameter_invalid_range_3 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_03_multiple_servers (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_29_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_06_modify_animal_parameter_name (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
 test_27_string_list_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_11_copy_animal_file_after_gui_start (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_09_no_context_file_but_animal_file_add_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_03_invalid_config (visexpman.engine.TestApplicationInit) ... ok
-test_04_socket_helpers (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_21_numeric_list_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_08_valid_switch_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_03_animal_file_parameter_not_provided (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_37_set_invalid_type_value_2 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_38_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
-test_11_enumerated_parameter_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_07_add_experiment_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_13_valid_numeric_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_25_invalid_numeric_list_parameter_2 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_31_list_of_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_10_remove_experiment_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_08_context_file_no_animal_file_add_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_32_array_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_04_ulcorner_coordinate_system (visexpman.engine.visexp_app.TestStim) ... ok
+test_14_add_remove_experiment_animal_file (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
 test_40_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
 test_36_set_invalid_type_value_1 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_01_valid_path_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_07_string_parameter_with_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_01_parse_stim_file (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
-test_05_invalid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_02_create_animal_file (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
+test_03_animal_file_parameter_not_provided (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
 test_05_freespace_error (visexpman.engine.TestApplicationInit) ... ok
-test_06_start_sockets_from_config (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_12_context_loading (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_02_big_data_transfer (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_28_string_list_parameter_with_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_20_invalid_numeric_parameter_2 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_19_invalid_numeric_parameter_1 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_01_simple_transfer (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_03_parse_animal_filename (visexpman.engine.generic.fileop.TestFileops) ... ok
-test_06_modify_animal_parameter_name (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
+test_03_multiple_servers (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
+test_05_load_animal_files_from_data_storage_and_modify (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
 test_02_invalid_path_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_12_enumerated_parameter_invalid_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_24_invalid_numeric_list_parameter_1 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_01_pngsave (visexpman.engine.generic.fileop.TestFileops) ... ok
-test_03_read_experiment_duration_from_source (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
-test_26_numeric_list_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_22_numeric_list_parameter_invalid_range1 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_05_bind2ip (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_01_create_logger (visexpman.engine.generic.log.TestLog) ... ok
+test_08_valid_switch_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_16_numeric_parameter_invalid_range_1 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_19_invalid_numeric_parameter_1 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_02_execute_command (visexpman.engine.visexp_app.TestStim) ... ok
+test_06_ping_connections (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
+test_38_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
+test_11_copy_animal_file_after_gui_start (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
+test_01_start_stim_loop (visexpman.engine.visexp_app.TestStim) ... ok
+test_33_array_parameter_with_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_03_invalid_config (visexpman.engine.TestApplicationInit) ... ok
 test_02_read_experiment_duration (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
+test_02_big_data_transfer (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
+test_09_no_context_file_but_animal_file_add_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
+test_04_load_animal_files_from_data_storage_and_switch (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
+test_37_set_invalid_type_value_2 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_03_parse_animal_filename (visexpman.engine.generic.fileop.TestFileops) ... ok
+test_04_bind2ip (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
+test_08_context_file_no_animal_file_add_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
+test_17_numeric_parameter_invalid_range_2 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_25_invalid_numeric_list_parameter_2 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_01_valid_path_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_12_context_loading (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
+test_10_remove_experiment_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
+test_28_string_list_parameter_with_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_30_invalid_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
 test_15_numeric_parameter_invalid_range_1 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_23_numeric_list_parameter_invalid_range2 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_01_command_line_args (visexpman.engine.TestApplicationInit) ... ok
+test_05_start_sockets_from_config (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
 test_02_copier (visexpman.engine.generic.fileop.TestFileops) ... skipped 'Starts a process and blocks other tests, needs to be fixed'
 test_35_set_out_of_range_value (visexpman.engine.generic.parameter.testParameter) ... ok
-test_16_numeric_parameter_invalid_range_1 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_10_valid_enumerated_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_04_freespace_warning (visexpman.engine.TestApplicationInit) ... ok
-test_30_invalid_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_06_valid_string_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_14_numeric_parameter_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_01_simple_transfer (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
+test_02_create_animal_file (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
 test_02_no_command_line_args (visexpman.engine.TestApplicationInit) ... ok
 test_09_invalid_switch_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_33_array_parameter_with_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_13_add_remove_experiment_no_animal_file (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
+test_01_pngsave (visexpman.engine.generic.fileop.TestFileops) ... ok
+test_24_invalid_numeric_list_parameter_1 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_20_invalid_numeric_parameter_2 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_18_numeric_parameter_invalid_range_3 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_04_invalid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_01_command_line_args (visexpman.engine.TestApplicationInit) ... ok
+test_07_add_experiment_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
+test_04_freespace_warning (visexpman.engine.TestApplicationInit) ... ok
+test_10_valid_enumerated_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_23_numeric_list_parameter_invalid_range2 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_14_numeric_parameter_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_05_context_persistence (visexpman.engine.visexp_app.TestStim) ... ok
+test_26_numeric_list_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_21_numeric_list_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_32_array_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_01_create_logger (visexpman.engine.generic.log.TestLog) ... ok
+test_03_presscommands (visexpman.engine.visexp_app.TestStim) ... ok
+test_12_enumerated_parameter_invalid_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_22_numeric_list_parameter_invalid_range1 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_06_measure_frame_rate (visexpman.engine.visexp_app.TestStim) ... ok
+test_07_string_parameter_with_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_34_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
+test_13_valid_numeric_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_06_valid_string_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_03_read_experiment_duration_from_source (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
+test_29_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_03_valid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_11_enumerated_parameter_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_01_parse_stim_file (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
+test_05_invalid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_31_list_of_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
 test_39_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
 
 ----------------------------------------------------------------------
-Ran 72 tests in 275.834s
+Ran 78 tests in 459.434s
 
 OK (skipped=1)
+
+2014-04-07 13:16:16.988913

@@ -20,14 +20,14 @@ from visexpman.engine.generic import fileop
 from visexpA.engine.datahandlers import hdf5io
 
 class StimulationLoop(ServerLoop, VisionExperimentScreen):
-    def __init__(self, machine_config, queued_socket, command, log):
-        ServerLoop.__init__(self, machine_config, queued_socket, command, log)
+    def __init__(self, machine_config, socket_queues, command, log):
+        ServerLoop.__init__(self, machine_config, socket_queues, command, log)
         self.load_stim_context()
         VisionExperimentScreen.__init__(self)
         self.exit=False
         if not introspect.is_test_running():
             #Call measure framerate by putting a message into queue. 
-            self.socket.fromsocket.put({'function': 'measure_frame_rate', 'kwargs' :{'duration':1.0, 'background_color': self.stim_context['background_color']}})
+            self.socket_queues['fromsocket'].put({'function': 'measure_frame_rate', 'kwargs' :{'duration':1.0, 'background_color': self.stim_context['background_color']}})
 
     def load_stim_context(self):
         '''
@@ -50,7 +50,7 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         
     def _set_background_color(self,color):
         self.stim_context['background_color'] = color
-        self.socket.send({'update': ['stim background color', color]})#Feedback to main_ui, this value show up in the box where user can adjust color,
+        self.send({'update': ['stim background color', color]})#Feedback to main_ui, this value show up in the box where user can adjust color,
     
     def application_callback(self):
         '''
@@ -144,29 +144,45 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         
     def read(self,varname):
         if hasattr(self, varname):
-            self.socket.send({'data': [varname,getattr(self,varname)]})
+            self.send({'data': [varname,getattr(self,varname)]})
         else:
-            self.socket.send('{0} variable does not exists'.format(varname))
+            self.send('{0} variable does not exists'.format(varname))
             
     def set_context_variable(self, varname, value):
         '''
         Screen center, background color can be set with this function
         '''
         if not self.stim_context.has_key(varname):
-            self.socket.send('{0} variable does not exists'.format(varname))
+            self.send('{0} variable does not exists'.format(varname))
         else:
             self.stim_context[varname] = value
             
     def set_variable(self,varname, value):
         if not hasattr(self, varname):
-            self.socket.send('{0} variable does not exists'.format(varname))
+            self.send('{0} variable does not exists'.format(varname))
         else:
             setattr(self, varname, value)
             
     def set_filterwheel(self, channel, filter):
         raise NotImplementedError('')
         
+    def set_experiment_config(self,source_code, experiment_config_name):
+        '''
+        When user changes Experiment config name (stimulus), the selected experiment config
+        is sent to stim. Pre experiment is displayed if available
+        '''
+        
     def start_experiment(self,parameters):
+        #Create experiment config class from experiment source code
+        introspect.import_code(parameters['experiment_config_source_code'],'experiment_module', add_to_sys_modules=1)
+        experiment_module = __import__('experiment_module')
+        self.experiment_config = getattr(experiment_module, parameters['experiment_name'])(self.config, self.queues, \
+                                                                                                  self.connections, self.log, getattr(experiment_module,experiment_name), loadable_source_code)
+        
+        
+        
+        
+        
         self.printl(parameters)
         
 def run_main_ui(context):
@@ -174,10 +190,10 @@ def run_main_ui(context):
     gui =  VisionExperimentGui(config=context['machine_config'], 
                                                         application_name =context['application_name'], 
                                                         log=context['logger'],
-                                                        sockets = context['sockets'])
+                                                        socket_queues = context['socket_queues'])
         
 def run_stim(context, timeout = None):
-    stim = StimulationLoop(context['machine_config'], context['sockets']['stim'], context['command'], context['logger'])
+    stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'])
     context['logger'].start()
     stim.run(timeout=timeout)
 

@@ -833,7 +833,7 @@ class ExperimentControl(gui.WidgetControl):
         for i in range(len(self.poller.animal_file.recordings)):
             if self.poller.animal_file.recordings[i]['status'] == 'issued':
                 function_call = {'function': 'start_experiment', 'args': [self.poller.animal_file.recordings[i]]}
-                self.poller.sockets['stim'].send(function_call)
+                self.poller.send(function_call,connection='stim')
                 if self.config.PLATFORM == 'elphys_retinal_ca':
                     self.poller.sockets['ca_imaging'].send(function_call)
                 elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':

@@ -1015,7 +1015,7 @@ class CentralWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
-    def __init__(self, config=None, application_name=None, log = None, sockets = None):
+    def __init__(self, config=None, application_name=None, log = None, socket_queues = None):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
 #            qt_app.setStyleSheet(fileop.read_text_file('/home/rz/Downloads/QTDark.stylesheet'))
@@ -1023,7 +1023,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.source_name = '{0}' .format(application_name)
         self.config = config
         self.log = log
-        self.sockets = sockets
+        self.socket_queues = socket_queues
         self.console_text = ''
         Qt.QMainWindow.__init__(self)
         self._set_window_title()
@@ -1343,11 +1343,10 @@ class testVisionExperimentGui(unittest.TestCase):
         time.sleep(1.0)
         context = self._read_context()
         time.sleep(1.0)
-        self.assertEqual(('GUITestExperimentConfig' in context['variables']['self.experiment_control.experiment_config_classes.keys'], 
-                          context['variables']['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount'], 
-                          'test_stimulus.py' in context['variables']['self.experiment_control.user_selected_stimulation_module'], 
-                          source_before), 
-                          (True, 3, True, fileop.read_text_file(sourcefile_path)))
+        self.assertIn('GUITestExperimentConfig', context['variables']['self.experiment_control.experiment_config_classes.keys'])
+        self.assertEqual(context['variables']['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount'], 3)
+        self.assertIn('test_stimulus.py', context['variables']['self.experiment_control.user_selected_stimulation_module'])
+        self.assertEqual(source_before, fileop.read_text_file(sourcefile_path))
                           
 #    @unittest.skip('')
     def test_02_create_animal_file(self):
@@ -1358,14 +1357,14 @@ class testVisionExperimentGui(unittest.TestCase):
 #        from visexpA.engine.datahandlers import hdf5io
         context = self._read_context()
         
-        self.assertEqual((
-                          os.path.exists(context['variables']['self.animal_file.filename']), 
-                    os.path.split(context['variables']['self.animal_file.filename'])[1], 
-                    utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config)), 
-                    ), 
-                    (True, 'animal_test_strain_1-1-2013_1-5-2013_L2R1.hdf5', 
-                    {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label', 'injection_target': '', 'ear_punch_left': '2', 'comment': '', 'strain': 'strain', 'ear_punch_right': '1', 'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'test'}
-                    ))
+        self.assertEqual(os.path.exists(context['variables']['self.animal_file.filename']), True)
+        
+        self.assertEqual(os.path.split(context['variables']['self.animal_file.filename'])[1], 'animal_test_strain_1-1-2013_1-5-2013_L2R1.hdf5')
+        self.assertEqual(utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config)),
+                                                                                  {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label',
+                                                                                    'injection_target': '', 'ear_punch_left': '2', 
+                                                                                    'comment': '', 'strain': 'strain', 'ear_punch_right': '1',
+                                                                                    'gender': 'male', 'birth_date': '1-1-2013', 'injection_date': '1-5-2013', 'id': 'test'})
 
 #    @unittest.skip('')
     def test_03_animal_file_parameter_not_provided(self):
