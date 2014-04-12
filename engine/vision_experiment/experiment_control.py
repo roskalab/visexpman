@@ -152,6 +152,17 @@ class ExperimentControl(object):
         self.application_log.flush()
         return message_to_screen
         
+    def _wait_filetrigger(self):#TODO: more configurable filetriggering shall be implemented
+        if hasattr(self.machine_config, 'TRIGGER_PATH'):
+            files = os.listdir(self.machine_config.TRIGGER_PATH)
+            while True:
+                if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
+                    self.abort=True
+                    break
+                if len(files) < len(os.listdir(self.machine_config.TRIGGER_PATH)):
+                    break
+                time.sleep(0.1)
+        
     def _load_experiment_parameters(self):
         if not self.parameters.has_key('id'):
             self.printl('Measurement ID is NOT provided')
