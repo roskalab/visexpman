@@ -97,7 +97,6 @@ class Logger(multiprocessing.Process):
     ########### Commands ###########
     def terminate(self):
         self.command.put('terminate')
-        self.join()
         
     def suspend(self):
         '''
@@ -119,13 +118,14 @@ class Logger(multiprocessing.Process):
                 command = self.command.get()
                 if command == 'terminate':
                     self.flush()
-                    self.file.close()
                     break
                 elif command == 'suspend':
                     self.saving2file_enable = False
                 elif command == 'resume':
                     self.saving2file_enable = True
-            self.flush()
+            if self.saving2file_enable:
+                self.flush()
+        self.flush()#Make sure that all entries in queue are saved
         self.file.close()
         if hasattr(self, 'remote_logpath') and os.path.exists(self.remote_logpath):#Do nothing when  remote log path not provided 
             self.upload_logfiles()

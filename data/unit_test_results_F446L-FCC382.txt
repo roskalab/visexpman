@@ -148,8 +148,8 @@ test_04_sample_rate_and_analog_config (visexpman.engine.hardware_interface.daq_i
 test_12_reuse_analogio_class (visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments) ... skipped 'Daq tests disabled'
 
 ----------------------------------------------------------------------
-Ran 111 tests in 524.354s
+Ran 111 tests in 551.744s
 
 OK (skipped=31)
 
-2014-04-10 22:06:42.068000
+2014-04-12 09:27:49.849000

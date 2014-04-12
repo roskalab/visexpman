@@ -17,6 +17,11 @@ except:
 from visexpman.engine.generic import configuration,utils,fileop
 from visexpman.users.test import unittest_aggregator
 
+class DaqInstrumentError(Exception):
+    '''
+    Raised when Daq related error detected
+    '''
+
 def parse_channel_string(channels):
     '''
     Returns channel indexes, device name, channel type
@@ -28,22 +33,36 @@ def parse_channel_string(channels):
     else:
         nchannels = channel_indexes[1]-channel_indexes[0]+1
     return device_name, nchannels, channel_indexes
+    
+class AnalogIoHelpers(object):
+    def __init__(self, command_queue, data_queue):
+        if not hasattr(self, 'command_queue'):
+            self.command_queue = command_queue
+        if not hasattr(self, 'data_queue'):
+            self.data_queue = data_queue
+
+    def start_daq(self, **kwargs):
+        self.command_queue.put(['start', kwargs])
+
+    def stop_daq(self):
+        self.command_queue.put(['stop', {}])
+        while True:
+            if not self.data_queue.empty():
+                return self.data_queue.get()
+            else:
+                time.sleep(0.1)
         
-class AnalogIOProcess(instrument.InstrumentProcess):
-    def __init__(self, instrument_name, command_queue, data_queue, logger, ai_sample_rate=None, ao_sample_rate=None, ai_channels=None, ao_channels=None, limits = None):
+class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
+    def __init__(self, instrument_name, command_queue, data_queue, logger, ai_channels=None, ao_channels=None, limits = None):
         instrument.InstrumentProcess.__init__(self, instrument_name, command_queue, data_queue, logger)
-        self.ai_sample_rate = ai_sample_rate
-        self.ao_sample_rate = ao_sample_rate
         self.ai_channels = ai_channels
         self.ao_channels = ao_channels
-        if platform.system() == 'Windows':
+        if platform.system() != 'Windows':
             self.enable_ai = False
             self.enable_ao = False
         else:
-            if ai_sample_rate is not None and ai_channels is not None:
-                self.enable_ai = True
-            if ao_sample_rate is not None and ao_channels is not None:
-                self.enable_ao = True
+            self.enable_ai = ai_channels is not None
+            self.enable_ao = ao_channels is not None
         self.limits = limits
         if self.limits is None:
             self.limits = {}
@@ -79,10 +98,11 @@ class AnalogIOProcess(instrument.InstrumentProcess):
             ao_device_name, self.number_of_ao_channels, ao_channel_indexes = parse_channel_string(self.ao_channels)
             if self.enable_ai:
                 self.analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(ao_device_name), DAQmxConstants.DAQmx_Val_Rising)
-                
+            if hasattr(self.log, 'info'):
+                    self.log.info('Analog output task created',self.instrument_name)
         if self.enable_ai:
             self.analog_input = PyDAQmx.Task()
-            for terminal_config in [DAQmxConstants.DAQmx_Val_RSE, DAQmx_Val_PseudoDiff]:
+            for terminal_config in [DAQmxConstants.DAQmx_Val_PseudoDiff, DAQmxConstants.DAQmx_Val_RSE]:
                 try:
                     self.analog_input.CreateAIVoltageChan(self.ai_channels,
                                                             'ai',
@@ -91,20 +111,26 @@ class AnalogIOProcess(instrument.InstrumentProcess):
                                                             self.limits['max_ai_voltage'],
                                                             DAQmxConstants.DAQmx_Val_Volts,
                                                             None)
-                except:
+                except PyDAQmx.DAQError:
                     pass
             self.read = DAQmxTypes.int32()
             ai_device_name, self.number_of_ai_channels, ai_channel_indexes = parse_channel_string(self.ai_channels)
+            if hasattr(self.log, 'info'):
+                    self.log.info('Analog input task created', self.instrument_name)
             
     def _close_tasks(self):
         if self.enable_ao:
             self.analog_output.ClearTask()
+            if hasattr(self.log, 'info'):
+                self.log.info('Analog output task finished', self.instrument_name)
         if self.enable_ai:
             self.analog_input.ClearTask()
+            if hasattr(self.log, 'info'):
+                time.sleep(0.01)#Ensures that next log is saved correctly
+                self.log.info('Analog input task finished', self.instrument_name)        
             
     def _write_waveform(self):
-        if self.enable_ao:
-            self.analog_output.WriteAnalogF64(self.number_of_ao_samples,
+        self.analog_output.WriteAnalogF64(self.number_of_ao_samples,
                                 False,
                                 self.limits['timeout'],
                                 DAQmxConstants.DAQmx_Val_GroupByChannel,
@@ -115,36 +141,53 @@ class AnalogIOProcess(instrument.InstrumentProcess):
     def _start(self, **kwargs):
         '''
         Start daq activity
-        '''
         
+        Expected parameters:
+        ao: waveform, infinite, ao_sample_rate
+        ai: nsamples, ai_sample_rate
+        
+        '''
+        #Checks for and sets expected arguments
+        expected_kwargs = {}
+        expected_kwargs['ai'] = ['ai_sample_rate', 'n_ai_samples']
+        expected_kwargs['ao'] = ['ao_sample_rate', 'ao_waveform']
+        for k in expected_kwargs.keys():
+            if getattr(self, 'enable_' + k):
+                for argname in expected_kwargs[k]:
+                    if kwargs.has_key(argname):
+                        setattr(self, argname, kwargs[argname])
+                    else:
+                        raise DaqInstrumentError('{0} argument is expected but not provided'.format(argname))
+
     def _stop(self, **kwargs):
         '''
         Stop daq activity
         '''
-        
-            
+        self.data_queue.put({})
+
     def run(self):
         if platform.system() != 'Windows':
             return
-        self._create_tasks()
-        while True:
-            if not self.command_queue.empty():
-                command = self.command_queue.get()
-                if command == 'terminate':
-                    break
-                elif isinstance(command, list) and len(command) == 2:
-                    parameters = command[1]
-                    command = command[0]
-                    if command == 'start':
-                        self._start(**parameters)
-                    elif command == 'stop':
-                        self._stop(**parameters)
-                    
-                        
-        self._close_tasks()
-        
-                
-        
+        try:
+            self._create_tasks()
+            while True:
+                time.sleep(0.1)
+                if not self.command_queue.empty():
+                    command = self.command_queue.get()
+                    if command == 'terminate':
+                        break
+                    elif isinstance(command, list) and len(command) == 2:
+                        parameters = command[1]
+                        command = command[0]
+                        if command == 'start':
+                            self._start(**parameters)
+                        elif command == 'stop':
+                            self._stop(**parameters)
+            self._close_tasks()
+        except:
+            import traceback
+            if hasattr(self.log, 'error'):
+                self.log.error(traceback.format_exc(),self.instrument_name)
         
 class DigitalIO(instrument.Instrument):
     def init_instrument(self):
@@ -1240,17 +1283,25 @@ class TestDaqInstruments(unittest.TestCase):
     def test_101_start_aio_process(self):
         import multiprocessing
         from visexpman.engine.generic import log
-        fn = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_instrument_test_{0}.txt'.format(int(1000*time.time())))
+        fn = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_daq_test_{0}.txt'.format(int(1000*time.time())))
         logger = log.Logger(filename=fn)
         aio = AnalogIOProcess('test aio', multiprocessing.Queue(), multiprocessing.Queue(), logger,
-                                ai_sample_rate = 10000, 
-                                ao_sample_rate = 10000, 
-                                ai_channels = 'Dev/ai0:1',
+                                ai_channels = 'Dev1/ai0:1',
                                 ao_channels='Dev1/ao2:3')
         processes = [aio,logger]
         [p.start() for p in processes]
-        time.sleep(4)
-        [p.terminate() for p in processes]
-
+        aio.start_daq(ai_sample_rate = 10000, ao_sample_rate = 10000, n_ai_samples = None, ao_waveform = numpy.ones((2,1000)))
+        time.sleep(3)
+        aio.stop_daq()
+        aio.terminate()
+        time.sleep(0.5)
+        logger.terminate()
+        expected_logs = ['test aio', 'Analog output task created', 'Analog input task created',
+                        'Analog output task finished', 'Analog input task finished']
+        not_expected_logs = ['ERROR', 'default']
+        map(self.assertNotIn, not_expected_logs, len(not_expected_logs)*[fileop.read_text_file(fn)])
+        map(self.assertIn, expected_logs, len(expected_logs)*[fileop.read_text_file(fn)])
+        
+        
 if __name__ == '__main__':
     unittest.main()

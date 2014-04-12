@@ -504,9 +504,12 @@ class TestInstrument(unittest.TestCase):
         processes = [ip, logger]
         [p.start() for p in processes]
         time.sleep(3.0)
-        [p.terminate() for p in processes]
+        ip.terminate()
+        time.sleep(1)
+        logger.terminate()
+#        [p.terminate() for p in processes]
         keywords = map(str,range(5))
-        keywords.extend([instrument_name, 'counter'])
+        keywords.extend([instrument_name, 'counter', 'Done'])
         map(self.assertIn, keywords, len(keywords)*[fileop.read_text_file(fn)])
         
 if __name__ == "__main__":    

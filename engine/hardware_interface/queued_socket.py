@@ -125,7 +125,7 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                 time.sleep(self.loop_wait)
             except:
                 import traceback
-                if hasattr(self.log, 'info'):
+                if hasattr(self.log, 'error'):
                     self.log.error(traceback.format_exc(),self.socket_name)
         self.command.put('terminated')
         if hasattr(self.log, 'info'):
