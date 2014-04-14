@@ -456,7 +456,6 @@ def find_content_in_folder(content, folder_name, file_filter):
     
 
 import os
-import pwd
 
 def get_username():
     return pwd.getpwuid( os.getuid() )[ 0 ]
