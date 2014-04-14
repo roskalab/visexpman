@@ -33,7 +33,11 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
         if stdio:
             sys.stdout.write(message_string+'\n')
         if hasattr(self.log, loglevel):
-            getattr(self.log, loglevel)(message_string, self.log_source_name)
+            if socket_queues.has_key('tosocket'):#Send to socket such that main_ui could display it
+                queue = socket_queues['tosocket']
+            else:
+                queue = None
+            getattr(self.log, loglevel)(message_string, self.log_source_name, queue)
         
     def fetch_next_call(self):
         '''

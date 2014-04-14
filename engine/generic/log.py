@@ -65,18 +65,21 @@ class Logger(multiprocessing.Process):
     def _entry2text(self, entry):
         return '{0} {1}/{2}\t{3}\n'.format(utils.timestamp2ymdhms(entry[0]), entry[1], entry[2], entry[3])
         
-    def info(self, msg, source='default'):
-        self.add_entry(msg, source, 'INFO')
+    def info(self, msg, source='default', queue = None):
+        self.add_entry(msg, source, 'INFO', queue)
     
-    def warning(self, msg, source='default'):
-        self.add_entry(msg, source, 'WARNING')
+    def warning(self, msg, source='default', queue = None):
+        self.add_entry(msg, source, 'WARNING', queue)
         
-    def error(self, msg, source='default'):
-        self.add_entry(msg, source, 'ERROR')
+    def error(self, msg, source='default', queue = None):
+        self.add_entry(msg, source, 'ERROR', queue)
         
-    def add_entry(self, msg, source, loglevel):
+    def add_entry(self, msg, source, loglevel, queue):
         if self.sources.has_key(source):
-            self.sources[source].put([time.time(), loglevel, source, msg])#Timestamp is not captured when the data saving takes place
+            entry = [time.time(), loglevel, source, msg]
+            self.sources[source].put(entry)#Timestamp is not captured when the data saving takes place
+            if queue is not None:
+                queue.put(entry)
         else:
             from visexpman.engine import LoggingError
             raise LoggingError('{0} logging source was not added to logger'.format(source))

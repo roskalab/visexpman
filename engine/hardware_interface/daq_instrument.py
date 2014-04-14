@@ -35,26 +35,43 @@ def parse_channel_string(channels):
     return device_name, nchannels, channel_indexes
     
 class AnalogIoHelpers(object):
-    def __init__(self, command_queue, data_queue):
-        if not hasattr(self, 'command_queue'):
-            self.command_queue = command_queue
-        if not hasattr(self, 'data_queue'):
-            self.data_queue = data_queue
+    def __init__(self, queues):
+        if not hasattr(self, queues):
+            self.queues = queues
 
     def start_daq(self, **kwargs):
-        self.command_queue.put(['start', kwargs])
+        self.queues['command'].put(['start', kwargs])
 
-    def stop_daq(self):
-        self.command_queue.put(['stop', {}])
+    def stop_daq(self,timeout = 30.0):
+        self.queues['command'].put(['stop', {}])
+        t0 = time.time()
         while True:
-            if not self.data_queue.empty():
-                return self.data_queue.get()
+            if time.time()-t0>timeout:
+                return 'timeout'
+            if not self.queues['response'].empty():
+                return self.queues['response'].get()
             else:
                 time.sleep(0.1)
+                
+    def read_ai(self):
+        '''
+        Read analog input buffer
+        '''
+        if not self.queues['data'].empty():
+            return self.queues['data'].get()
+                
+    def set_digital_output(self, **kwargs):
+        self.queues['command'].put(['_set_digital_output', kwargs])
         
 class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
-    def __init__(self, instrument_name, command_queue, data_queue, logger, ai_channels=None, ao_channels=None, limits = None):
-        instrument.InstrumentProcess.__init__(self, instrument_name, command_queue, data_queue, logger)
+    '''
+    At waveform generation always continous sampling mode is selected.
+    
+    Samples from analog inputs are always passed to data queue, such that a user intraface process could display it
+    or could continously save it to file. No saving data to file takes place in this process.
+    '''
+    def __init__(self, instrument_name, queues, logger, ai_channels=None, ao_channels=None, limits = None):
+        instrument.InstrumentProcess.__init__(self, instrument_name, queues, logger)
         self.ai_channels = ai_channels
         self.ao_channels = ao_channels
         if platform.system() != 'Windows':
@@ -71,20 +88,22 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
             self.limits['min_ai_voltage'] = -5.0
             self.limits['max_ai_voltage'] = 5.0
             self.limits['timeout'] = 3.0
+        self.running = False
         
     def _configure_timing(self):    
-            if self.enable_ao:
-                self.analog_output.CfgSampClkTiming("OnboardClock",
-                                             DAQmxConstants.DAQmx_Val_ContSamps,
-                                            DAQmxConstants.DAQmx_Val_Rising,
-                                            self.ao_sampling_mode,
-                                            self.number_of_ao_samples)
-            if self.enable_ai:
-                self.analog_input.CfgSampClkTiming("OnboardClock",
-                                            self.ai_sample_rate,
-                                            DAQmxConstants.DAQmx_Val_Rising,
-                                            DAQmxConstants.DAQmx_Val_ContSamps,
-                                            self.number_of_ai_samples)
+        if self.enable_ao:
+            self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_ContSamps
+            self.analog_output.CfgSampClkTiming("OnboardClock",
+                                        self.ao_sample_rate,
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        self.ao_sampling_mode,
+                                        self.number_of_ao_samples)
+        if self.enable_ai:
+            self.analog_input.CfgSampClkTiming("OnboardClock",
+                                        self.ai_sample_rate,
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_ContSamps,
+                                        self.number_of_ai_samples)
                                             
     def _create_tasks(self):
         if self.enable_ao:
@@ -98,8 +117,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
             ao_device_name, self.number_of_ao_channels, ao_channel_indexes = parse_channel_string(self.ao_channels)
             if self.enable_ai:
                 self.analog_output.CfgDigEdgeStartTrig('/{0}/ai/StartTrigger' .format(ao_device_name), DAQmxConstants.DAQmx_Val_Rising)
-            if hasattr(self.log, 'info'):
-                    self.log.info('Analog output task created',self.instrument_name)
+            self.printl('Analog output task created')
         if self.enable_ai:
             self.analog_input = PyDAQmx.Task()
             for terminal_config in [DAQmxConstants.DAQmx_Val_PseudoDiff, DAQmxConstants.DAQmx_Val_RSE]:
@@ -115,26 +133,23 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
                     pass
             self.read = DAQmxTypes.int32()
             ai_device_name, self.number_of_ai_channels, ai_channel_indexes = parse_channel_string(self.ai_channels)
-            if hasattr(self.log, 'info'):
-                    self.log.info('Analog input task created', self.instrument_name)
+            self.printl('Analog input task created')
             
     def _close_tasks(self):
         if self.enable_ao:
             self.analog_output.ClearTask()
-            if hasattr(self.log, 'info'):
-                self.log.info('Analog output task finished', self.instrument_name)
+            self.printl('Analog output task finished')
         if self.enable_ai:
             self.analog_input.ClearTask()
-            if hasattr(self.log, 'info'):
-                time.sleep(0.01)#Ensures that next log is saved correctly
-                self.log.info('Analog input task finished', self.instrument_name)        
+            time.sleep(0.01)#Ensures that next log is saved correctly
+            self.printl('Analog input task finished')
             
     def _write_waveform(self):
         self.analog_output.WriteAnalogF64(self.number_of_ao_samples,
                                 False,
                                 self.limits['timeout'],
                                 DAQmxConstants.DAQmx_Val_GroupByChannel,
-                                self.waveform,
+                                self.ao_waveform,
                                 None,
                                 None)
             
@@ -149,7 +164,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         '''
         #Checks for and sets expected arguments
         expected_kwargs = {}
-        expected_kwargs['ai'] = ['ai_sample_rate', 'n_ai_samples']
+        expected_kwargs['ai'] = ['ai_sample_rate']
         expected_kwargs['ao'] = ['ao_sample_rate', 'ao_waveform']
         for k in expected_kwargs.keys():
             if getattr(self, 'enable_' + k):
@@ -158,36 +173,107 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
                         setattr(self, argname, kwargs[argname])
                     else:
                         raise DaqInstrumentError('{0} argument is expected but not provided'.format(argname))
+        if not self.enable_ao and self.enable_ai:
+            if kwargs.has_key('ai_record_time'):
+                self.ai_record_time = kwargs['ai_record_time']
+            else:
+                 raise DaqInstrumentError('ai_record_time argument is expected but not provided')
+        
+        #Calculate number of samples
+        if self.enable_ao:
+            self.number_of_ao_samples = self.ao_waveform.shape[1]
+            if self.enable_ai:
+                self.number_of_ai_samples = int(self.number_of_ao_samples * self.ai_sample_rate / self.ao_sample_rate)
+        else:
+            self.number_of_ai_samples = int(self.ai_record_time * self.ai_sample_rate)
+            
+        #create ai buffer    
+        if self.enable_ai:
+            self.ai_data = numpy.zeros(self.number_of_ai_samples*self.number_of_ai_channels, dtype=numpy.float64)
+        self._configure_timing() #this cannot be done during init because the lenght of the signal is not known before waveform is set
+        if self.enable_ao:
+            self._write_waveform()
+            self.analog_output.StartTask()
+        if self.enable_ai:
+            self.analog_input.StartTask()
+        self.running = True
+        self.ai_frames = 0
+        self.printl('Daq started with parameters: {0}'.format(kwargs))
+#        time.sleep(0.1)
+#        f=open('c:\\temp\\d{0}.txt'.format(int(time.time())),'wt')
+#        f.write('now')
+#        f.close()
 
     def _stop(self, **kwargs):
         '''
         Stop daq activity
         '''
-        self.data_queue.put({})
+        aborted = kwargs.has_key('aborted') and kwargs['aborted']
+        if self.enable_ai:
+            try:
+                self.analog_input.ReadAnalogF64(self.number_of_ai_samples,
+                                            self.limits['timeout'],
+                                            DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                            self.ai_data,
+                                            self.number_of_ai_samples * self.number_of_ai_channels,
+                                            DAQmxTypes.byref(self.read),
+                                            None)
+            except PyDAQmx.DAQError:
+                pass#Ignore if not enough data is available
+        if self.enable_ao:
+            self.analog_output.StopTask()
+        if self.enable_ai:
+            self.analog_input.StopTask()
+        self.running = False
+        self.printl('Daq stopped, ai frames: {0}'.format(self.ai_frames))
+        self.queues['response'].put(['daq stop', self.ai_frames])
+        
+    def _set_digital_output(self, **kwargs):
+        pass
+        
+    def _read_ai(self):
+        samples_to_read = self.number_of_ai_samples * self.number_of_ai_channels
+        try:
+            self.analog_input.ReadAnalogF64(self.number_of_ai_samples,
+                                        self.limits['timeout'],
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        self.ai_data,
+                                        samples_to_read,
+                                        DAQmxTypes.byref(self.read),
+                                        None)
+        except PyDAQmx.DAQError:
+            pass
+        ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
+        ##self.ai_raw_data = self.ai_data
+        ai_data = ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose()
+        self.queues['data'].put(copy.deepcopy(ai_data))
+        self.ai_frames += 1
 
     def run(self):
         if platform.system() != 'Windows':
+            self.printl('{0} platform not supported'.format(platform.system()))
             return
         try:
             self._create_tasks()
             while True:
-                time.sleep(0.1)
-                if not self.command_queue.empty():
-                    command = self.command_queue.get()
+                time.sleep(0.05)
+                if not self.queues['command'].empty():
+                    command = self.queues['command'].get()
                     if command == 'terminate':
                         break
                     elif isinstance(command, list) and len(command) == 2:
                         parameters = command[1]
                         command = command[0]
-                        if command == 'start':
-                            self._start(**parameters)
-                        elif command == 'stop':
-                            self._stop(**parameters)
+                        if hasattr(self, '_' + command):
+                            getattr(self, '_' + command)(**parameters)
+                        else:
+                            self.printl('Command not supported: {0}' .format(command), 'error')
+                if self.running and self.enable_ai:
+                    self._read_ai()
             self._close_tasks()
         except:
             import traceback
-            if hasattr(self.log, 'error'):
-                self.log.error(traceback.format_exc(),self.instrument_name)
+            self.printl(traceback.format_exc(), 'error')
         
 class DigitalIO(instrument.Instrument):
     def init_instrument(self):
@@ -1285,22 +1371,62 @@ class TestDaqInstruments(unittest.TestCase):
         from visexpman.engine.generic import log
         fn = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_daq_test_{0}.txt'.format(int(1000*time.time())))
         logger = log.Logger(filename=fn)
-        aio = AnalogIOProcess('test aio', multiprocessing.Queue(), multiprocessing.Queue(), logger,
+        aio = AnalogIOProcess('test aio', {'command': multiprocessing.Queue(), 
+                                                                            'response': multiprocessing.Queue(), 
+                                                                            'data': multiprocessing.Queue()}, logger,
                                 ai_channels = 'Dev1/ai0:1',
                                 ao_channels='Dev1/ao2:3')
         processes = [aio,logger]
         [p.start() for p in processes]
-        aio.start_daq(ai_sample_rate = 10000, ao_sample_rate = 10000, n_ai_samples = None, ao_waveform = numpy.ones((2,1000)))
+        nsample=1000
+        wf = 0.5*numpy.ones((2,nsample))
+        wf[1,:] = numpy.arange(nsample,dtype=numpy.float)/nsample
+#        wf[:,-1] = 0
+        sample_rate = 100000
+        aio.start_daq(ai_sample_rate = sample_rate, ao_sample_rate = sample_rate, n_ai_samples = None, ao_waveform =wf)
+        t0=time.time()
+        time.sleep(30)
+
+        data = []
+#        while not aio.queues['data'].empty():
+#            data.append(aio.queues['data'].get())
+        nfr = aio.stop_daq()[1]
+        print nfr
+        print time.time()-t0
+
         time.sleep(3)
-        aio.stop_daq()
+        t0=time.time()
+        for i in range(nfr):
+            data.append(aio.queues['data'].get(timeout = 1))
+        print time.time()-t0
+        time.sleep(5)
+        print aio.queues['data'].empty()
         aio.terminate()
         time.sleep(0.5)
+        print len(data)
         logger.terminate()
         expected_logs = ['test aio', 'Analog output task created', 'Analog input task created',
-                        'Analog output task finished', 'Analog input task finished']
+                        'Analog output task finished', 'Analog input task finished', 'Daq started with parameters', 'Daq stopped']
         not_expected_logs = ['ERROR', 'default']
         map(self.assertNotIn, not_expected_logs, len(not_expected_logs)*[fileop.read_text_file(fn)])
         map(self.assertIn, expected_logs, len(expected_logs)*[fileop.read_text_file(fn)])
+#        pass
+#        numpy.diff(numpy.round(data[0][:,1],2))
+#        wf[1,:]
+        from pylab import plot, show, legend,figure
+        figure(1)
+        plot(data[0][:,1])
+        plot(wf[1,:])
+        legend(['ai', 'ao'])
+        figure(2)
+        plot(data[1][:,1])
+        plot(wf[1,:])
+        legend(['ai', 'ao'])
+        figure(3)
+        plot(data[1][:,1]-wf[1,:])
+        legend(['ai', 'ao'])
+        show()
+        
         
         
 if __name__ == '__main__':

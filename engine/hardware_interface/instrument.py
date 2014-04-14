@@ -18,18 +18,25 @@ class InstrumentProcess(multiprocessing.Process):
     Superclass of instrument control related operations that need to run in a separate process
     
     It can be controlled via command_queue. This is available in experiment classes
+    Queues:
+    command: commands for controlling the process
+    response: responses to commands are put here by the process
+    data: data acquired by process
     '''
-    def __init__(self, instrument_name, command_queue, data_queue, logger):
+    def __init__(self, instrument_name, queues, logger):
         multiprocessing.Process.__init__(self)
-        self.command_queue = command_queue
-        self.data_queue = data_queue
+        self.queues = queues
         self.log = logger
         self.instrument_name = instrument_name
         if hasattr(self.log, 'add_source'):
             self.log.add_source(instrument_name)
             
     def terminate(self):
-        self.command_queue.put('terminate')
+        self.queues['command'].put('terminate')
+            
+    def printl(self,msg, loglevel='info'):
+        if hasattr(self.log, loglevel):
+            getattr(self.log,loglevel)(str(msg), self.instrument_name)
 
 class Instrument(object):
     '''
@@ -480,27 +487,26 @@ class TestFilterwheel(unittest.TestCase):
         fw.release_instrument()
         
 class DummyInstrumentProcess(InstrumentProcess):
-    def __init__(self, instrument_name, command_queue, data_queue, logger):
-        InstrumentProcess.__init__(self, instrument_name, command_queue, data_queue, logger)
-        
     def run(self):
         counter = 0
         while True:
-            if not self.command_queue.empty():
-                if self.command_queue.get() == 'terminate':
+            if not self.queues['command'].empty():
+                if self.queues['command'].get() == 'terminate':
                     break
-            self.data_queue.put(counter)
+            self.queues['data'].put(counter)
             counter += 1
-            self.log.info('counter: {0}'.format(counter), self.instrument_name)
+            self.printl('counter: {0}'.format(counter))
             time.sleep(0.1)
-        self.log.info('Done',self.instrument_name)
+        self.printl('Done')
 
 class TestInstrument(unittest.TestCase):
     def test_01_instrument_process(self):
         fn = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_instrument_test_{0}.txt'.format(int(1000*time.time())))
         instrument_name = 'test instrument'
         logger = log.Logger(filename=fn)
-        ip = DummyInstrumentProcess(instrument_name, multiprocessing.Queue(), multiprocessing.Queue(), logger)
+        ip = DummyInstrumentProcess(instrument_name, {'command': multiprocessing.Queue(), 
+                                                                            'response': multiprocessing.Queue(), 
+                                                                            'data': multiprocessing.Queue()}, logger)
         processes = [ip, logger]
         [p.start() for p in processes]
         time.sleep(3.0)
@@ -511,6 +517,8 @@ class TestInstrument(unittest.TestCase):
         keywords = map(str,range(5))
         keywords.extend([instrument_name, 'counter', 'Done'])
         map(self.assertIn, keywords, len(keywords)*[fileop.read_text_file(fn)])
+        self.assertFalse(ip.queues['data'].empty())
+        self.assertTrue(ip.queues['response'].empty())
         
 if __name__ == "__main__":    
     unittest.main()
