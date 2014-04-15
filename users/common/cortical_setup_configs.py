@@ -18,28 +18,33 @@ class SantiagoSetupConfig(ElphysConfig):
         
         #=== screen ===
         FULLSCREEN = True
-        SCREEN_RESOLUTION = utils.cr([1024,768])#TBD
+        SCREEN_RESOLUTION = utils.cr([960,540])
+        SCREEN_ROTATION=-90
         COORDINATE_SYSTEM='center'
         
         ENABLE_FRAME_CAPTURE = False
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0      
         IMAGE_DIRECTLY_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = 340.0#mm#TBD
-        SCREEN_PIXEL_WIDTH = 0.46#50 pixels = 23 mm#TBD
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = 260.0#mm
+        SCREEN_PIXEL_WIDTH = 0.5#mm 200 pixels = 100 mm
         
         #=== hardware ===
         ENABLE_PARALLEL_PORT = (os.name == 'nt')
         ACQUISITION_TRIGGER_PIN = 0
-        BLOCK_TRIGGER_PIN = 1
-        FRAME_TRIGGER_PIN = 2
+        BLOCK_TRIGGER_PIN = 2
+        FRAME_TRIGGER_PIN = 1
+        
+        
+        ENABLE_UDP = True
         self._create_parameters_from_locals(locals())
 
 class DebugSantiagoSetupConfig(SantiagoSetupConfig):
     def _set_user_parameters(self):
         SantiagoSetupConfig._set_user_parameters(self)
 #        SCREEN_UM_TO_PIXEL_SCALE = 1.0
-#        IMAGE_DIRECTLY_PROJECTED_ON_RETINA = True
-        FULLSCREEN = False
+#        SCREEN_RESOLUTION = utils.cr([960,540])
+#        self.IMAGE_DIRECTLY_PROJECTED_ON_RETINA_p.v = True
+        FULLSCREEN = not False
 
         self._create_parameters_from_locals(locals())

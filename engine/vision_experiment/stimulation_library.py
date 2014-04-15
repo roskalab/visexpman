@@ -1088,7 +1088,7 @@ class StimulationSequences(Stimulations):
     def moving_grating_stimulus(self):
         pass
         
-    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0,block_trigger = False, shape_starts_from_edge=False):
+    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0,block_trigger = False, shape_starts_from_edge=False, enable_centering = False):
         '''
         shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
         '''
@@ -1122,10 +1122,11 @@ class StimulationSequences(Stimulations):
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
         for spd in speeds:
             for direction in directions:
+                direction += self.machine_config.SCREEN_ROTATION
                 end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(vaf*direction)))), self.config.SCREEN_CENTER, operation = '+')
                 start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
                 spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =vaf*direction , size = size,  block_trigger = block_trigger, save_frame_info = False, enable_centering = False)
+                self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =vaf*direction , size = size,  block_trigger = block_trigger, save_frame_info = False, enable_centering = enable_centering)
                 if pause > 0:
                     self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
                 if self.abort:

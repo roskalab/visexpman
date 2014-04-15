@@ -102,7 +102,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         }
 
         ############### Display/graphics parameters: ################
-        SCREEN_RESOLUTION = utils.rc([600, 800])        
+        SCREEN_RESOLUTION = utils.rc([600, 800])      
+        SCREEN_ROTATION  = [0, [-180,180]]#in degree
         FULLSCREEN = False
         SCREEN_EXPECTED_FRAME_RATE = [60.0,  FPS_RANGE]
         SCREEN_MAX_FRAME_RATE = [60.0,  FPS_RANGE]
