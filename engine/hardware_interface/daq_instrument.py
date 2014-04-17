@@ -21,7 +21,7 @@ class DaqInstrumentError(Exception):
     '''
     Raised when Daq related error detected
     '''
-
+    
 def parse_channel_string(channels):
     '''
     Returns channel indexes, device name, channel type
@@ -34,22 +34,82 @@ def parse_channel_string(channels):
         nchannels = channel_indexes[1]-channel_indexes[0]+1
     return device_name, nchannels, channel_indexes
     
+def set_digital_line(channel, value):
+    digital_output = PyDAQmx.Task()
+    digital_output.CreateDOChan(channel,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)
+    digital_output.WriteDigitalLines(1,
+                                    True,
+                                    1.0,
+                                    DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                    numpy.array([int(value)], dtype=numpy.uint8),
+                                    None,
+                                    None)
+    digital_output.ClearTask()
+    
+def set_voltage(channel, voltage):
+    sample_per_channel = 10
+    analog_output = PyDAQmx.Task()
+    analog_output.CreateAOVoltageChan(channel,
+                                        'ao',
+                                        voltage-1,
+                                        voltage+1,
+                                        DAQmxConstants.DAQmx_Val_Volts,
+                                        None)
+    analog_output.CfgSampClkTiming("OnboardClock",
+                                        1000,
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_FiniteSamps,
+                                        sample_per_channel)
+                                                            
+    analog_output.WriteAnalogF64(self.number_of_ao_samples,
+                                False,
+                                1.0,
+                                DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                numpy.ones((parse_channel_string(channel)[1], sample_per_channel))*value,
+                                None,
+                                None)
+    analog_output.StartTask()
+    analog_output.WaitUntilTaskDone(1.0)
+    analog_output.StopTask()                            
+    analog_output.ClearTask()
+    
 class AnalogIoHelpers(object):
     def __init__(self, queues):
+        self.n_ai_reads = 0
         if not hasattr(self, queues):
             self.queues = queues
 
     def start_daq(self, **kwargs):
         self.queues['command'].put(['start', kwargs])
+        t0 = time.time()
+        if kwargs.has_key('timeout'):
+            timeout = kwargs['timeout']
+        else:
+            timeout = 30.0
+        while True:
+            if not self.queues['response'].empty():
+                return 'started'
+            time.sleep(0.1)
+            if time.time()-t0>timeout:
+                return 'timeout'
+            
 
     def stop_daq(self,timeout = 30.0):
+        '''
+        Terminates waveform generation and/or data acquisition and returns data if any available
+        '''
         self.queues['command'].put(['stop', {}])
         t0 = time.time()
         while True:
             if time.time()-t0>timeout:
                 return 'timeout'
             if not self.queues['response'].empty():
-                return self.queues['response'].get()
+                nframes = self.queues['response'].get()[1]
+                data = []
+                for i in range(nframes - self.n_ai_reads):
+                    data.append(self.queues['data'].get(timeout = 1))
+                data = numpy.array(data)
+                return data, nframes
             else:
                 time.sleep(0.1)
                 
@@ -58,6 +118,7 @@ class AnalogIoHelpers(object):
         Read analog input buffer
         '''
         if not self.queues['data'].empty():
+            self.n_ai_reads +=1
             return self.queues['data'].get()
                 
     def set_digital_output(self, **kwargs):
@@ -162,6 +223,8 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         ai: nsamples, ai_sample_rate
         
         '''
+        if self.running:
+            self.queues['response'].put(['Already running', ])
         #Checks for and sets expected arguments
         expected_kwargs = {}
         expected_kwargs['ai'] = ['ai_sample_rate']
@@ -199,15 +262,14 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         self.running = True
         self.ai_frames = 0
         self.printl('Daq started with parameters: {0}'.format(kwargs))
-#        time.sleep(0.1)
-#        f=open('c:\\temp\\d{0}.txt'.format(int(time.time())),'wt')
-#        f.write('now')
-#        f.close()
+        self.queues['response'].put(['started'])
 
     def _stop(self, **kwargs):
         '''
         Stop daq activity
         '''
+        if not self.running:
+            self.queues['response'].put(['Not running, cannot be stopped', ])
         aborted = kwargs.has_key('aborted') and kwargs['aborted']
         if self.enable_ai:
             try:
@@ -226,10 +288,10 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
             self.analog_input.StopTask()
         self.running = False
         self.printl('Daq stopped, ai frames: {0}'.format(self.ai_frames))
-        self.queues['response'].put(['daq stop', self.ai_frames])
+        self.queues['response'].put(['stop', self.ai_frames])
         
     def _set_digital_output(self, **kwargs):
-        pass
+        set_digital_line(kwargs['channel'], kwargs['value'])
         
     def _read_ai(self):
         samples_to_read = self.number_of_ai_samples * self.number_of_ai_channels
@@ -1355,7 +1417,36 @@ class TestDaqInstruments(unittest.TestCase):
         waveform[-1] = [0.0, 0.0]
         return numpy.round(waveform, 2)
         
-    def test_100_parse_channel_string(self):
+class TestAnalogIOProcess(unittest.TestCase):
+    '''
+    Expected connections:
+    AO2 - AI0
+    AO3 - AI1
+    '''
+    def setUp(self):
+        import multiprocessing
+        from visexpman.engine.generic import log
+        self.logile = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_daq_test_{0}.txt'.format(int(1000*time.time())))
+        self.logger = log.Logger(filename=self.logile)
+        self.queues = {'command': multiprocessing.Queue(), 
+                                                                            'response': multiprocessing.Queue(), 
+                                                                            'data': multiprocessing.Queue()}
+        from visexpman.engie.generic import signal
+        self.ao_sample_rate = 10000
+        tup = 0.02
+        tdown = 0.001
+        amplitudes = [-1, 1,3]
+        self.test_waveform = [signal.wf_triangle(amplitude, tup, tdown, tup+tdown, self.ao_sample_rate) for amplitude in amplitudes]
+        self.test_waveform = numpy.concatenate(tuple(self.test_waveform))
+        self.expected_logs = ['test aio', 'Daq started with parameters', 'Daq stopped']
+        self.ai_expected_logs = ['Analog input task created', 'Analog input task finished']
+        self.ao_expected_logs = ['Analog output task created', 'Analog output task finished', 'Analog input task finished']
+        self.not_expected_logs = ['ERROR', 'default']
+        
+    def tearDown(self):
+        self.logger.terminate()
+        
+    def test_01_parse_channel_string(self):
         channels_strings = ['Dev1/ao0:2', 'Dev2/ao1', 'Dev3/ai2:3']
         expected_devnames = ['Dev1', 'Dev2', 'Dev3']
         expected_nchannels = [3, 1, 2]
@@ -1366,17 +1457,76 @@ class TestDaqInstruments(unittest.TestCase):
             self.assertEqual(nchannels, expected_nchannels[i])
             self.assertEqual(channel_indexes, expected_channel_indexes[i])
             
-    def test_101_start_aio_process(self):
-        import multiprocessing
-        from visexpman.engine.generic import log
-        fn = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_daq_test_{0}.txt'.format(int(1000*time.time())))
-        logger = log.Logger(filename=fn)
-        aio = AnalogIOProcess('test aio', {'command': multiprocessing.Queue(), 
-                                                                            'response': multiprocessing.Queue(), 
-                                                                            'data': multiprocessing.Queue()}, logger,
+    def test_02_aio_multichannel(self):
+        aio_binning_factor = 3
+        aio = AnalogIOProcess('test aio', self.queues, self.logger,
                                 ai_channels = 'Dev1/ai0:1',
                                 ao_channels='Dev1/ao2:3')
-        processes = [aio,logger]
+        processes = [aio,self.logger]
+        [p.start() for p in processes]
+        aio.start_daq(ai_sample_rate = self.ao_sample_rate, ao_sample_rate = self.ao_sample_rate, 
+                      n_ai_samples = None, ao_waveform = self.test_waveform,
+                      timeout = 60) 
+        time.sleep(10)
+        data1 = aio.stop_daq()
+        aio.start_daq(ai_sample_rate = aio_binning_factor*self.ao_sample_rate, ao_sample_rate = self.ao_sample_rate, 
+                      n_ai_samples = None, ao_waveform = self.test_waveform,
+                      timeout = 60) 
+        time.sleep(10)
+        data2 = aio.stop_daq()
+        aio.terminate()
+        map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
+        for el in [self.expected_logs, self.ai_expected_logs, self.ao_expected_logs]:
+            map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
+        #Test: length of recording shall be close to 10 second
+        #data2:  consider aio_binning_factor
+    
+    def test_03_single_ai_channel(self):
+        #Setting 3 V on analog output 2
+        set_voltage('Dev1/ao2', 3)
+        #Sampling analog input starts
+        aio = AnalogIOProcess('test aio', self.queues, self.logger,
+                                ai_channels = 'Dev1/ai0')
+        processes = [aio,self.logger]
+        [p.start() for p in processes]
+        aio.start_daq(ai_sample_rate = self.ao_sample_rate,
+                      n_ai_samples = 100000,
+                      timeout = 60) 
+        time.sleep(10)
+        data = aio.stop_daq()
+        aio.terminate()
+        map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
+        for el in [self.expected_logs, self.ai_expected_logs]:
+            map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
+        #constant 3 V is expected in data
+        numpy.testing.assert_allclose(data.mean(), 3.0, 0, 1e-3)
+        numpy.testing.assert_allclose(data.max()-data.min(), 0.0, 0, 1e-3)
+        
+    def test_04_set_do_line(self):
+        set_digital_line('Dev1/port0/line0', 0)
+        set_digital_line('Dev1/port0/line0', 1)
+        set_digital_line('Dev1/port0/line0', 0)
+        
+    def test_05_set_voltage(self):
+        set_voltage('Dev1/ao2', 3)
+        set_voltage('Dev1/ao2', 0)
+        
+    def test_06_aio_start_without_params(self):
+        aio = AnalogIOProcess('test aio', self.queues, self.logger,
+                                ai_channels = 'Dev1/ai0:1',
+                                ao_channels='Dev1/ao2:3')
+        processes = [aio,self.logger]
+        [p.start() for p in processes]
+        aio.start_daq() 
+        aio.terminate()
+        self.assertIn('DaqInstrumentError', fileop.read_text_file(self.logile))
+            
+    def test_101_start_aio_process(self):
+        
+        aio = AnalogIOProcess('test aio', self.queues, self.logger,
+                                ai_channels = 'Dev1/ai0:1',
+                                ao_channels='Dev1/ao2:3')
+        processes = [aio,self.logger]
         [p.start() for p in processes]
         nsample=1000
         wf = 0.5*numpy.ones((2,nsample))
@@ -1404,12 +1554,12 @@ class TestDaqInstruments(unittest.TestCase):
         aio.terminate()
         time.sleep(0.5)
         print len(data)
-        logger.terminate()
+        self.logger.terminate()#TODO:remove
         expected_logs = ['test aio', 'Analog output task created', 'Analog input task created',
                         'Analog output task finished', 'Analog input task finished', 'Daq started with parameters', 'Daq stopped']
         not_expected_logs = ['ERROR', 'default']
-        map(self.assertNotIn, not_expected_logs, len(not_expected_logs)*[fileop.read_text_file(fn)])
-        map(self.assertIn, expected_logs, len(expected_logs)*[fileop.read_text_file(fn)])
+        map(self.assertNotIn, not_expected_logs, len(not_expected_logs)*[fileop.read_text_file(self.logile)])
+        map(self.assertIn, expected_logs, len(expected_logs)*[fileop.read_text_file(self.logile)])
 #        pass
 #        numpy.diff(numpy.round(data[0][:,1],2))
 #        wf[1,:]
@@ -1427,7 +1577,7 @@ class TestDaqInstruments(unittest.TestCase):
         legend(['ai', 'ao'])
         show()
         
-        
+    
         
 if __name__ == '__main__':
     unittest.main()

@@ -53,7 +53,27 @@ def greyscale(im, weights = numpy.array([1.0, 1.0, 1.0])):
         maxval = 2**(im.dtype.itemsize*8)-1
     return numpy.cast[im.dtype.name]((numpy.cast['float'](im)*weights).sum(axis=2)/(maxval*weights.sum())*maxval)
        
-class TestFilters(unittest.TestCase):
+############## Waveform generation ##############
+def time_series(duration, fs):
+    return numpy.linspace(0, duration, duration*fs+1)
+
+def wf_sin(a, f, duration, fs, phase = 0, offset = 0):
+    t = time_series(duration, fs)
+    return offset + 0.5*a*numpy.sin(t*2*numpy.pi*f+phase*numpy.pi/180.0)
+         
+def wf_triangle(a, t_up, t_down, duration, fs, offset = 0):
+    if t_up + t_down > duration:
+        raise ValueError('t_up and t_down must be less than duration')
+    nsample_up = t_up*fs+1
+    nsample_down = t_down*fs+1
+    triangle = numpy.concatenate((numpy.linspace(a/nsample_up, a, nsample_up), numpy.linspace(a-a/nsample_down, 0, nsample_down)))
+    sig = numpy.zeros(fs*duration)
+    triangle = numpy.tile(triangle, sig.shape[0]/triangle.shape[0])
+    sig[:triangle.shape[0]] = triangle
+    return sig+offset
+
+       
+class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
         #generate test data
         numpy.testing.assert_equal(numpy.array([100,100,100,100,120,140,160,180,200,200],dtype=numpy.float),
@@ -119,6 +139,31 @@ class TestFilters(unittest.TestCase):
         expected2[:,-1] = 0.6/1.75
         expected2[:,-2] = 0.125/1.75
         numpy.testing.assert_equal(greyscale(data2, numpy.array([1.0, 0.5, 0.25])), expected2)
+        
+    def test_07_sin_waveform(self):
+        sig=wf_sin(1,2,0.5,100,45,1)
+        numpy.testing.assert_allclose(sig.max()-sig.min(), 1, 0, 1e-2)
+        numpy.testing.assert_allclose(sig[0], numpy.sin(numpy.pi/4)/2+1, 0, 1e-2)
+        self.assertEqual(sig.shape[0], 51)
+        
+    def test_08_triangle_wf(self):
+        a = 1.0
+        t_up = 0.2
+        t_down = 0.1
+        duration = 1.7
+        fs = 100
+        sig = wf_triangle(a, t_up, t_down, duration, fs)
+        self.assertEqual(sig.max(), a)
+        self.assertEqual(sig.min(), 0)
+        numpy.testing.assert_allclose(numpy.diff(sig[:t_up*fs]).std(), 0, 0, 1e-5)
+        numpy.testing.assert_allclose(numpy.diff(sig[t_up*fs: (t_up+t_down)*fs]).std(), 0, 0, 1e-5)
+        if False:
+            from pylab import plot,show
+            print numpy.diff(sig)
+            plot(sig)
+            show()
+        
+        
     
 if __name__=='__main__':
     unittest.main()
