@@ -539,9 +539,81 @@ def data23dplot(data):
             value = value[0]
         values.append(value)
     return axis1_mg, axis2_mg, numpy.array(values).reshape(axis1_mg.shape)
+
+class ScannerIdentification(object):
+    '''
+    Concept:
+    Mirror angle and angle error signal are recorded while position command signal is generated.
+    Mirror angle seems to be always less than what is expected from the command voltage.
+    Real mirror angle and measured angle signal corresponds to each other.
+    
+    1. command voltage - real angle characteristics at low frequencies
+        +/- 7 V range with 0.1 V steps for 1 second, check position stability and hysteresis
+        
+    From this the real angle/voltage scale can be determined. 
+    The angle error signal is to be validated from this data.
+        
+    What is the amplitude, frequency and offset range where the mirror angle has an acceptable
+    or predictable error to the command signal? The scanner shall be operated within this domain. 
+    
+    2. Mirror delay and amplitude error characteristics
+        amplitude ange: 0.1-10 V
+        offset range: +/- 1.8 V, 0.1 V steps
+        frequency range: 1-2000 Hz
+        
+    
+    '''
+    def __init__(self):
+        self.ao_sample_rate = 100
+        
+    def command_voltage_angle_characteristics(self):
+        import random
+        import copy
+        
+        measurement_time_per_point = 1.0#sec
+        repeats = 2
+        voltage_range = 7
+        voltage_step_size = 0.1
+        voltage_up = numpy.round(numpy.arange(-voltage_range,voltage_range,voltage_step_size),3)
+        voltage_down = voltage_up[::-1]#See if there is any hysteresis
+        voltage_random = copy.deepcopy(voltage_down)
+        random.seed(0)
+        random.shuffle(voltage_random)
+        voltage_sequence = numpy.tile(numpy.concatenate((voltage_up, voltage_down, voltage_random)),repeats)
+        voltages = []
+        for v in voltage_sequence:
+            voltages.append([v]*int(self.ao_sample_rate*measurement_time_per_point))
+        voltages = numpy.array(voltages)
+        pass
+        
+    def frequency_domain_characteristics(self):
+        voltage_step = 0.2
+        offset_range = 1.8
+        amplitude_range = 10
+        periods = 20
+        frequency_limit = 500
+        voltage_limit = 6
+        params = {}
+        params['frequency'] = numpy.concatenate((numpy.logspace(1,3,15,False), numpy.linspace(1000, 3000, 10)))
+        params['voltage'] = numpy.logspace(-1, 1, 30)
+        params['offset'] = numpy.concatenate((numpy.logspace(-1, 0.24, 6), -numpy.logspace(-1, 0.24, 6), numpy.zeros(1)))
+        from visexpman.engine import generic
+        params = generic.iterate_parameter_space(params)
+        params = [par for par in params if not (par['frequency'] > frequency_limit and par['voltage'] > voltage_limit)]
+        test_signal = []
+        from visexpman.engine.generic import signal
+        nsamples = 0
+        for param in params:
+            duration = periods/param['frequency']
+            test_signal.append(signal.wf_sin(param['voltage'], param['frequency'], duration, self.ao_sample_rate, offset = param['offset']))
+            nsamples += test_signal[-1].shape[0]
+        print float(nsamples)/self.ao_sample_rate/3600
     
     
 if __name__ == "__main__":
+    s=ScannerIdentification()
+    s.command_voltage_angle_characteristics()
+    s.frequency_domain_characteristics()
 #    import mpl_toolkits.mplot3d.axes3d as p3
 #    x=numpy.linspace(0, 10, 10)
 #    y=numpy.linspace(5, 8, 10)
@@ -558,7 +630,7 @@ if __name__ == "__main__":
 #    show()
     p='/mnt/datafast/debug/data/2013-06-18'
 #    p='V:\\debug\\data\\2013-06-18'
-    calculate_bead_size(p)
+#    calculate_bead_size(p)
 #    recordings2calibdata('V:\\debug\\data\\2013-06-02', 'V:\\debug\\out1')
 #    plot_delay_curve(generate_delay_curve())
 #    plot_delay_curve('V:\\debug\\out\\res_00000.hdf5')
