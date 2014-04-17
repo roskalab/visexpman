@@ -1446,6 +1446,7 @@ class TestAnalogIOProcess(unittest.TestCase):
     def tearDown(self):
         self.logger.terminate()
         
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
     def test_01_parse_channel_string(self):
         channels_strings = ['Dev1/ao0:2', 'Dev2/ao1', 'Dev3/ai2:3']
         expected_devnames = ['Dev1', 'Dev2', 'Dev3']
@@ -1457,6 +1458,7 @@ class TestAnalogIOProcess(unittest.TestCase):
             self.assertEqual(nchannels, expected_nchannels[i])
             self.assertEqual(channel_indexes, expected_channel_indexes[i])
             
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
     def test_02_aio_multichannel(self):
         aio_binning_factor = 3
         aio = AnalogIOProcess('test aio', self.queues, self.logger,
@@ -1481,6 +1483,7 @@ class TestAnalogIOProcess(unittest.TestCase):
         #Test: length of recording shall be close to 10 second
         #data2:  consider aio_binning_factor
     
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
     def test_03_single_ai_channel(self):
         #Setting 3 V on analog output 2
         set_voltage('Dev1/ao2', 3)
@@ -1502,15 +1505,18 @@ class TestAnalogIOProcess(unittest.TestCase):
         numpy.testing.assert_allclose(data.mean(), 3.0, 0, 1e-3)
         numpy.testing.assert_allclose(data.max()-data.min(), 0.0, 0, 1e-3)
         
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
     def test_04_set_do_line(self):
         set_digital_line('Dev1/port0/line0', 0)
         set_digital_line('Dev1/port0/line0', 1)
         set_digital_line('Dev1/port0/line0', 0)
-        
+    
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
     def test_05_set_voltage(self):
         set_voltage('Dev1/ao2', 3)
         set_voltage('Dev1/ao2', 0)
         
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
     def test_06_aio_start_without_params(self):
         aio = AnalogIOProcess('test aio', self.queues, self.logger,
                                 ai_channels = 'Dev1/ai0:1',
@@ -1521,7 +1527,8 @@ class TestAnalogIOProcess(unittest.TestCase):
         aio.terminate()
         self.assertIn('DaqInstrumentError', fileop.read_text_file(self.logile))
             
-    def test_101_start_aio_process(self):
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
+    def test_00_start_aio_process(self):
         
         aio = AnalogIOProcess('test aio', self.queues, self.logger,
                                 ai_channels = 'Dev1/ai0:1',

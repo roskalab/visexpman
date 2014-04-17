@@ -191,7 +191,7 @@ def run_main_ui(context):
                                                         application_name =context['application_name'], 
                                                         log=context['logger'],
                                                         socket_queues = context['socket_queues'])
-        
+
 def run_stim(context, timeout = None):
     stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'])
     context['logger'].start()

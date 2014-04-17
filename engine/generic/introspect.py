@@ -34,12 +34,14 @@ def get_python_processes():
     return pids
     
 def kill_python_processes(dont_kill_pids):
+    killed = []
     pids = get_python_processes()
     for pid in pids:
         if pid not in dont_kill_pids:
-            print pid
+            killed.append(pid)
             p = psutil.Process(pid)
             p.kill()
+    return killed
 
 def dumpall(fn):
     '''

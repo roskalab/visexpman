@@ -79,7 +79,7 @@ class Logger(multiprocessing.Process):
             entry = [time.time(), loglevel, source, msg]
             self.sources[source].put(entry)#Timestamp is not captured when the data saving takes place
             if queue is not None:
-                queue.put(entry)
+                queue.put(entry[-1])
         else:
             from visexpman.engine import LoggingError
             raise LoggingError('{0} logging source was not added to logger'.format(source))
