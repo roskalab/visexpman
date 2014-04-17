@@ -341,14 +341,14 @@ def write_text_file(filename, content):
 
 ################# Vision experiment manager related ####################
 
-def get_visexpman_module_path():
+def visexpman_package_path():
     return os.path.split(sys.modules['visexpman'].__file__)[0]
     
 def get_user_module_folder(config):
     '''
     Returns folder path where user's stimulation files or other source files reside
     '''
-    return os.path.join(get_visexpman_module_path(), 'users', config.user)
+    return os.path.join(visexpman_package_path(), 'users', config.user)
     
 def get_user_experiment_data_folder(config):
     '''

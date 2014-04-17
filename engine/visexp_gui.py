@@ -1310,7 +1310,7 @@ class testVisionExperimentGui(unittest.TestCase):
         
     def _call_gui(self, testmode):
         import subprocess
-        code = 'python {0} -u test -c GUITestConfig -a main_ui --testmode {1}'.format(os.path.join(fileop.get_visexpman_module_path(), 'engine', 'visexp_app.py'), testmode)
+        code = 'python {0} -u test -c GUITestConfig -a main_ui --testmode {1}'.format(os.path.join(fileop.visexpman_package_path(), 'engine', 'visexp_app.py'), testmode)
         subprocess.call(code, shell=True)
         
     def _read_context(self):

@@ -133,6 +133,7 @@ TEST_unittests = [
     'visexpman.engine.generic.parameter.testParameter',
     'visexpman.engine.generic.fileop.TestFileops',
     'visexpman.engine.generic.log.TestLog',
+    'visexpman.engine.generic.signal.TestFilters',
     'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket',
     'visexpman.engine.hardware_interface.instrument.TestInstrument',
     'visexpman.engine.hardware_interface.daq_instrument.TestDaqInstruments',

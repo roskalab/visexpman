@@ -311,6 +311,14 @@ def argsort(seq):
     #by ubuntu
     return sorted(range(len(seq)), key=seq.__getitem__)
     
+def inrange(val, min, max):
+    if hasattr(val, 'dtype') and ((val >= min).all() and (val <= max).all()):
+        return True
+    elif val >= min and val <= max:
+       return True
+    return False
+        
+    
 def nd(rcarray, squeeze=False, dim_order=None,tuples=0):
     '''Convenience function to convert a recarray to nd array'''
     if dim_order is None: dim_order = [0, 1, 2]

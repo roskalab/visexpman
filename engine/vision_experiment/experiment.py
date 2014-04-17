@@ -257,7 +257,7 @@ def parse_stimulation_file(filename):
     
 class testExperimentHelpers(unittest.TestCase):
     def test_01_parse_stim_file(self):
-        experiment_config_classes = parse_stimulation_file(os.path.join(fileop.get_visexpman_module_path(), 'users','test','test_stimulus.py'))
+        experiment_config_classes = parse_stimulation_file(os.path.join(fileop.visexpman_package_path(), 'users','test','test_stimulus.py'))
         self.assertEqual((
                           experiment_config_classes.has_key('GUITestExperimentConfig'), 
                           experiment_config_classes.has_key('DebugExperimentConfig'), 
