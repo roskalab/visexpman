@@ -166,25 +166,17 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [0.0, [0, 1000.0]] #mm
         
         ########## Commands #############
-        COMMAND_DOMAINS = ['keyboard', 'running experiment', 'network interface', 'remote client']
-        #Currently the keyboard and running experiment domains are considered:
-        #-keyboard: at generating menu for hotkeys
-        #-running experiment: during experiment only these commands are accepted
-        COMMANDS = { 
-                    'hide_menu': {'key': 'h', 'domain': ['keyboard']}, 
-                    #Dynamically added to the list: 'experiment_select' : {'key' : None, 'domain': ['keyboard']},
-                    'execute_experiment': {'key': 'e', 'domain': ['keyboard', 'network interface', 'remote client']}, 
-                    'abort_experiment': {'key': 'a', 'domain': ['running experiment']}, 
-                    'bullseye': {'key': 'b', 'domain': ['keyboard', 'network interface', 'remote client']}, 
-                    'color': {'key': 'c', 'domain': ['network interface', 'remote client']},
-                    'filterwheel': {'key': 'f', 'domain': ['network interface', 'remote client']},
-                    'echo' : {'key' : 't', 'domain': ['keyboard', 'network interface', 'remote client']},
-                    'set_measurement_id' : {'key' : 'i', 'domain': ['keyboard', 'network interface', 'remote client']},
-                    'quit': {'key': 'escape', 'domain': ['keyboard', 'network interface', 'remote client']},#Perhaps this command shall be accepted from keyboard
-                    }
-        #By overriding this parameter, the user can define additional keyboard commands that are handled during experiment
-        USER_EXPERIMENT_COMMANDS = {}
-        
+        KEYS = {}
+        KEYS['abort'] = 'a'
+        KEYS['exit'] = 'escape'
+        KEYS['measure framerate'] = 'm'
+        KEYS['hide text'] = 'h'
+        KEYS['show bullseye'] = 'b'
+        KEYS['set black'] = 'd'
+        KEYS['set grey'] = 'g'
+        KEYS['set white'] = 'w'
+        KEYS['set user color'] = 'u'
+            
         ############## Stimulation software graphic menu related OBSOLETE ##########
         ENABLE_TEXT = True
         TEXT_COLOR = [[1.0,  0.0,  0.0] ,  [[0.0, 0.0, 0.0],  [1.0,  1.0,  1.0]]]
@@ -241,6 +233,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         STIM_SYNC_CHANNEL_INDEX = [-1,  [-1,  10]]
         SYNC_SIGNAL_MIN_AMPLITUDE = [1.5, [0.5, 10.0]]
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]]
+    
         self._create_parameters_from_locals(locals())#this function call is compulsory
 
     def _calculate_parameters(self):
@@ -251,14 +244,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         DEFAULT_IMAGE_FILE = os.path.join(self.PACKAGE_PATH ,'data','images','default.bmp')
         BULLSEYE_FILE = self.PACKAGE_PATH + os.sep + 'data' + os.sep + 'images'+ os.sep +'bullseye.bmp'        
     
-        #== Command list and menu text ==
-        #Check if there is no redundancy in command configuration
-        self.COMMANDS = self._merge_commands(self.COMMANDS, self.USER_EXPERIMENT_COMMANDS)        
-        MENU_TEXT = ''
-        for k, v in self.COMMANDS.items():            
-            if utils.is_in_list(v['domain'], 'keyboard'):                
-                MENU_TEXT += v['key'] + ' - ' + k + '\n'
-
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX
         
         #== Parallel port pins ==        

@@ -24,8 +24,49 @@ from visexpman.engine.hardware_interface import instrument
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.hardware_interface import stage_control
 from visexpman.engine.hardware_interface import digital_io
-
+from visexpman.engine.vision_experiment.screen import is_key_pressed
 from visexpA.engine.datahandlers import hdf5io
+
+class Trigger(object):
+    '''
+    Provides methods for detecting/generating triggers
+    Logging takes place outside this class
+    '''
+    def __init__(self,config, queues, digital_output):
+        self.config=config
+        self.queues = queues
+        self.digital_output = digital_output
+        
+    def _wait4trigger(self, wait_method, args, kwargs):
+        '''
+        wait_method is a callable function that returns True when trigger event occured
+        '''
+        while True:
+            if utils.is_abort_experiment_in_queue(self.queues['command'], False) or is_key_pressed(self.config.KEYS['abort']):
+                return False
+            if wait_method(*args, **kwargs):
+                return True
+                
+    def wait4queue_trigger(self, keyword): 
+        return self._wait4trigger(utils.is_keyword_in_queue, (self.queues['command'], keyword), {})
+        
+    def wait4keyboard_trigger(self, key):
+        return self._wait4trigger(is_key_pressed, (self.config.KEYS[key]), {})
+        
+    def wait4digital_input_trigger(self, pin):
+        pass
+    
+    def wait4newfiletrigger(self):
+        files = os.listdir(self.machine_config.TRIGGER_PATH)
+        def is_new_file(files):
+            return len(files) < len(os.listdir(self.machine_config.TRIGGER_PATH))
+        return self._wait4trigger(is_new_file, (files), {})
+            
+    def set_trigger(self, pin):
+        self.digital_output.set_pin(pin, True)
+        
+    def clear_trigger(self,pin):
+        self.digital_output.set_pin(pin, False)
 
 class ExperimentControl(object):
     '''
@@ -151,17 +192,7 @@ class ExperimentControl(object):
             self.printl('SOCstim_finishedEOC{0}EOP'.format(self.id))
         self.application_log.flush()
         return message_to_screen
-        
-    def _wait_filetrigger(self):#TODO: more configurable filetriggering shall be implemented
-        if hasattr(self.machine_config, 'TRIGGER_PATH'):
-            files = os.listdir(self.machine_config.TRIGGER_PATH)
-            while True:
-                if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
-                    self.abort=True
-                    break
-                if len(files) < len(os.listdir(self.machine_config.TRIGGER_PATH)):
-                    break
-                time.sleep(0.1)
+
         
     def _load_experiment_parameters(self):
         if not self.parameters.has_key('id'):

@@ -32,7 +32,12 @@ class VisionExperimentScreen(graphics.Screen):
         self.text_style = GLUT_BITMAP_8_BY_13
         self.max_lines = int(self.config.SCREEN_RESOLUTION['row']/13.0)
         self.max_chars =  int(self.config.SCREEN_RESOLUTION['col']/(8+13.0))
-        self.menu_text = 'ESCAPE - exit, b - toggle bullseye, h - Hide text, w - white, d - black, g - mid grey, u - user defined color, cursors - adjust screen center, m - measure frame rate'
+        self.menu_text = 'cursors - adjust screen center, '
+        commands = self.config.KEYS.keys()
+        commands.sort()
+        for k in commands:
+            self.menu_text+= '{0} - {1}, '.format(self.config.KEYS[k], k)
+        self.menu_text = self.menu_text[:-2]
         #Split menu text to lines
         parts = [[]]
         self.menu_lines = 0
@@ -152,6 +157,9 @@ def check_keyboard():
             key_pressed = pygame.key.name(event.key)                
             keys_pressed.append(key_pressed)
     return keys_pressed
+    
+def is_key_pressed(key):
+    return key in check_keyboard()
     
 if __name__ == "__main__":
     pass

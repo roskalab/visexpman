@@ -60,21 +60,21 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
             return 'terminate'
         #Check keyboard
         for key_pressed in check_keyboard():
-            if key_pressed == 'escape':#Exit application
+            if key_pressed == self.config.KEYS['exit']:#Exit application
                 return 'terminate'
-            elif key_pressed == 'm':#measure frame rate
+            elif key_pressed == self.config.KEYS['measure framerate']:#measure frame rate
                 self.measure_frame_rate()
-            elif key_pressed == 'h':#show/hide text on screen
+            elif key_pressed == self.config.KEYS['hide text']:#show/hide text on screen
                 self.show_text = not self.show_text
-            elif key_pressed == 'b':#show/hide bullseye
+            elif key_pressed == self.config.KEYS['show bullseye']:#show/hide bullseye
                 self.show_bullseye = not self.show_bullseye
-            elif key_pressed == 'd':
+            elif key_pressed == self.config.KEYS['set black']:
                 self._set_background_color(0.0)
-            elif key_pressed == 'g':
+            elif key_pressed == self.config.KEYS['set grey']:
                 self._set_background_color(0.5)
-            elif key_pressed == 'w':
+            elif key_pressed == self.config.KEYS['set white']:
                 self._set_background_color(1.0)
-            elif key_pressed == 'u':
+            elif key_pressed == self.config.KEYS['set user color']:
                 self._set_background_color(self.stim_context['user_background_color'])
             elif key_pressed == 'up':
                 if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down':
