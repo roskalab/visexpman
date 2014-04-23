@@ -132,8 +132,8 @@ test_01_create_logger (visexpman.engine.generic.log.TestLog) ... ok
 test_08_triangle_wf (visexpman.engine.generic.signal.TestSignal) ... ok
 
 ----------------------------------------------------------------------
-Ran 95 tests in 474.023s
+Ran 95 tests in 497.701s
 
 OK (skipped=8)
 
-2014-04-17 20:51:29.982474
+2014-04-23 09:41:02.391322

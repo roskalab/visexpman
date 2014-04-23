@@ -1015,7 +1015,7 @@ class CentralWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
-    def __init__(self, config=None, application_name=None, log = None, socket_queues = None):
+    def __init__(self, config=None, application_name=None, log = None, socket_queues = None, warning = []):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
 #            qt_app.setStyleSheet(fileop.read_text_file('/home/rz/Downloads/QTDark.stylesheet'))
@@ -1037,12 +1037,20 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.show()
         self.init_widget_content()
         self.block_widgets(False)
+        self.display_warnings(warning)
+        
         if QtCore.QCoreApplication.instance() is not None:
             QtCore.QCoreApplication.instance().exec_()
         
     def create_widgets(self):
         self.central_widget = CentralWidget(self, self.config)
         self.setCentralWidget(self.central_widget)
+        
+    def display_warnings(self, warnings):
+        for warning in warnings:
+            if not introspect.is_test_running():
+                self.notify_user('WARNING', str(warning.message))
+            self.log.warning(warning.message, application_name)
         
     def init_variables(self):
         self.console_text = ''
@@ -1582,12 +1590,4 @@ class testVisionExperimentGui(unittest.TestCase):
                     ), self.test_13_14_expected_values)
 
 if __name__ == '__main__':
-    if len(sys.argv) ==1:
-        unittest.main()
-    elif True:
-        if len(sys.argv) == 2:
-            gui =  VisionExperimentGui('zoltan', 'CaImagingTestConfig', sys.argv[1])
-#            introspect.dumpall('/tmp/d.txt')
-    else:
-        run_cortical_gui()
-    
+    unittest.main()

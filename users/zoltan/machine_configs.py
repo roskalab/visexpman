@@ -141,7 +141,7 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
         FULLSCREEN = not True
-        paths = ['/home/zoltan/Downloads','/mnt/rznb/data', '/mnt/rzws/experiment_data','/mnt/datafast/debug/data', 'r:\\experiment_data', 'v:\\debug\\data']
+        paths = ['/home/zoltan/Downloads/work','/mnt/rznb/data', '/mnt/rzws/experiment_data','/mnt/datafast/debug/data', 'r:\\experiment_data', 'v:\\debug\\data']
         for path in paths:
             if os.path.exists(path):
                 self.root_folder = path

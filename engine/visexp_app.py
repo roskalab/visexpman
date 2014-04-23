@@ -10,6 +10,7 @@ import unittest
 import time
 import os.path
 import numpy
+import warnings
 import visexpman.engine
 from visexpman.engine.visexp_gui import VisionExperimentGui
 from visexpman.engine.generic.command_parser import ServerLoop
@@ -190,7 +191,8 @@ def run_main_ui(context):
     gui =  VisionExperimentGui(config=context['machine_config'], 
                                                         application_name =context['application_name'], 
                                                         log=context['logger'],
-                                                        socket_queues = context['socket_queues'])
+                                                        socket_queues = context['socket_queues'],
+                                                        warning = context['warning'])
 
 def run_stim(context, timeout = None):
     stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'])
@@ -198,9 +200,12 @@ def run_stim(context, timeout = None):
     stim.run(timeout=timeout)
 
 def run_application():
-    context = visexpman.engine.application_init()
-    globals()['run_{0}'.format(context['application_name'])](context)
-    visexpman.engine.stop_application(context)
+    warnings.simplefilter("always")
+    with warnings.catch_warnings(record=True) as w:
+        context = visexpman.engine.application_init()
+        context['warning'] = w
+        globals()['run_{0}'.format(context['application_name'])](context)
+        visexpman.engine.stop_application(context)
 
 class TestStim(unittest.TestCase):
     def setUp(self):
