@@ -50,7 +50,7 @@ class ExperimentConfig(Config):
         #Instantiate experiment class
         self.runnable = experiment_class(machine_config, self, queues, parameters, log)
 
-    def run(self, fragment_id = 0):
+    def run(self, fragment_id = 0):#OBSOLETE
         if self.runnable == None:
             raise ValueError('Specified stimulus class is not instantiated.')
         else:
@@ -60,15 +60,7 @@ class ExperimentConfig(Config):
             else:
                 self.runnable.run()
         self.runnable.cleanup()
-        
-    def post_experiment(self):
-        self.runnable.post_experiment()
-        
-    def pre_first_fragment(self):
-        self.runnable.pre_first_fragment()
-        
-    def set_experiment_control_context(self):
-        self.runnable.set_experiment_control_context()
+
 
 class Experiment(stimulation_library.StimulationSequences):
     '''
@@ -76,48 +68,28 @@ class Experiment(stimulation_library.StimulationSequences):
     The following variable is saved to the output file: self.experiment_specific_data
     '''
     def __init__(self, machine_config, experiment_config=None, queues=None, parameters=None, log=None):
-        self.parameters = parameters
         self.experiment_config = experiment_config
-        self.machine_config = machine_config
-        self.queues = queues
-        self.parameters = parameters
-        self.log = log
         self.experiment_name = self.__class__.__name__.split('_')[0]
         self.experiment_config_name = self.experiment_config.__class__.__name__.split('_')[0]
+        stimulation_library.Stimulations.__init__(self, machine_config, queues, log)
         self.prepare()
-        stimulation_library.Stimulations.__init__(self, self.machine_config, log)
 
     def prepare(self):
         '''
-        Compulsory outputs for fragmented mes experiments:
-            self.number_of_fragments
-            self.fragment_durations - list of fragment stim times in sec
-            
+        self.experiment_duration must be calculated here
+        Longer calculations for stimulation shall be implemented here
         '''
-        pass
-        
-    def pre_first_fragment(self):
-        '''
-        Called before run if experiment is fragmented
-        '''
-
+    
     def run(self, fragment_id = 0):
         '''
         fragment_id: experiment can be split up to measurement fragments.
         '''    
         pass
 
-    def cleanup(self):
-        '''
-        Operations to execute right after running the experiment. Saving user specific files, closing instruments  that are not handled within Device class, user specific file operations
-        '''
-        pass
-        
     def post_experiment(self):
         '''
-        Instructions can be put here that are intended to execute after the whole experiment procedure, when all the logfiles are flushed
-        '''
-        pass
+        Operations to execute right after the experiment. Saving user specific files, closing instruments  that are not handled within Device class, user specific file operations
+        '''        
         
     ################# helpers ############################
     def set_default_experiment_parameter_values(self, parameter_default_values):

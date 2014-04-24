@@ -175,11 +175,25 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         
     def start_experiment(self,parameters):
         #Create experiment config class from experiment source code
-        introspect.import_code(parameters['experiment_config_source_code'],'experiment_module', add_to_sys_modules=1)
-        experiment_module = __import__('experiment_module')
-        self.experiment_config = getattr(experiment_module, parameters['experiment_name'])(self.config, self.socket_queues, \
+        if parameters.has_key('experiment_config_source_code'):
+            introspect.import_code(parameters['experiment_config_source_code'],'experiment_module', add_to_sys_modules=1)
+            experiment_module = __import__('experiment_module')
+            self.experiment_config = getattr(experiment_module, parameters['experiment_name'])(self.config, self.socket_queues, \
                                                                                                   experiment_module, parameters, self.log)
+        else:
+            #Source code not provided, existing experiment config module is instantiated
+            experiment_module = None
+            experiment_config_class = utils.fetch_classes('visexpman.users.'+ self.machine_config.user, classname = parameters['experiment_name'],  
+                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct=False)
+            if len(experiment_config_class)==0:
+                from visexpman.engine import ExperimentConfigError
+                raise ExperimentConfigError('{0} user\'s {1} experiment config cannot be fetched or does not exists'
+                                            .format(self.machine_config.user, parameters['experiment_name']))
+            self.experiment_config = experiment_config_class[0][1](self.config, self.socket_queues, \
+                                                                                                  experiment_module, parameters, self.log)
+        #Prepare experiment, run stimulation and save data
         self.experiment_config.runnable.run()
+        self.stim_context['last_experiment_parameters'] = parameters
         
 def run_main_ui(context):
     context['logger'].start()#This needs to be started separately from application_init ensuring that other logger source can be added 
@@ -193,6 +207,25 @@ def run_stim(context, timeout = None):
     stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'])
     context['logger'].start()
     stim.run(timeout=timeout)
+    
+def stimulation_tester(user, machine_config, experiment_config):
+    '''
+    Runs the provided experiment config and terminates
+    '''
+    context = visexpman.engine.application_init(user = user, config = machine_config, application_name = 'stim')
+    stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'])
+    parameters = {
+            'experiment_name': experiment_config,
+            'cell_name': '', 
+            'stimulation_device' : '', 
+            'id':str(int(numpy.round(time.time(), 2)*100))}
+    commands = [{'function': 'start_experiment', 'args': [parameters]}]
+    commands.append({'function': 'exit_application'})
+    map(context['socket_queues']['stim']['fromsocket'].put, commands)
+    context['logger'].start()
+    stim.run()
+    visexpman.engine.stop_application(context)
+    return context
 
 def run_application():
     warnings.simplefilter("always")
@@ -213,7 +246,8 @@ class TestStim(unittest.TestCase):
         self.machine_config.application_name='stim'
         self.machine_config.user = 'test'
         fileop.cleanup_files(self.machine_config)
-        self.context = visexpman.engine.application_init(user = 'test', config = self.configname, application_name = 'stim')
+        if '_08_' not in self._testMethodName:
+            self.context = visexpman.engine.application_init(user = 'test', config = self.configname, application_name = 'stim')
         self.dont_kill_processes = introspect.get_python_processes()
         
     def _prepare_capture_folder(self):
@@ -238,7 +272,8 @@ class TestStim(unittest.TestCase):
         return client
         
     def tearDown(self):
-        visexpman.engine.stop_application(self.context)
+        if hasattr(self, 'context'):
+            visexpman.engine.stop_application(self.context)
         introspect.kill_python_processes(self.dont_kill_processes)
         
     def test_01_start_stim_loop(self):
@@ -412,6 +447,10 @@ class TestStim(unittest.TestCase):
         client.terminate()
         self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower())
         #TODO: test not complete
+        
+    def test_08_stimulation_tester(self):
+        context = stimulation_tester('test', 'GUITestConfig', 'TestCommonExperimentConfig')
+        pass
 
 if __name__=='__main__':
     if len(sys.argv)>1:

@@ -28,27 +28,21 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
     """
-    def __init__(self, config, application_log, experiment_control_dependent = True):
-        self.config = config
+    def __init__(self, config, queues, application_log):        
+        self._init_variables()
         #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
         self.screen = graphics.Screen(config, init_mode = 'no_screen')
-#        self.init_flip_variables()
-#        self.load_keyboard_commands(self) #this is necessary for accepting keyboard commands during experiment
-        self.abort = False
-        
-        experiment_control.ExperimentControl.__init__(self, config, application_log)
-        
-        self.experiment_control_dependent = experiment_control_dependent
+        experiment_control.ExperimentControl.__init__(self, config, queues, application_log)
         self.grating_texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.grating_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         
+    def _init_variables(self):
+        self.abort = False
         self.delayed_frame_counter = 0 #counts how many frames were delayed
         self.log_on_flip_message = ''
         self.elapsed_time = 0
-        
         self.text_on_stimulus = []
-        
         #Command buffer for keyboard commands during experiment
         self.keyboard_commands = multiprocessing.Queue()
         
@@ -72,7 +66,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
         else:
             frame_rate_warning = ''
-        if self.experiment_control_dependent and not self.config.STIMULUS2MEMORY:
+        if not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
             if hasattr(self, 'start_time'):
                 self.elapsed_time = self.flip_time -  self.start_time
@@ -141,13 +135,13 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         '''
         Generates frame trigger pulses
         '''
-        if self.experiment_control_dependent and hasattr(self, 'parallel_port'):
+        if hasattr(self, 'parallel_port'):
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
             time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
             
     def block_trigger_pulse(self, pulse_width=None):
-        if self.experiment_control_dependent and hasattr(self, 'parallel_port'):
+        if hasattr(self, 'parallel_port'):
             self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
             if pulse_width is None:
                 time.sleep(self.config.BLOCK_TRIGGER_PULSE_WIDTH)
@@ -221,7 +215,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         '''
         if width is None:
             width = self.config.FRAME_TRIGGER_PULSE_WIDTH
-        if self.experiment_control_dependent and hasattr(self, 'parallel_port'):
+        if hasattr(self, 'parallel_port'):
             self.parallel_port.set_data_bit(pin, 1, log = False)
             time.sleep(width)
             self.parallel_port.set_data_bit(pin, 0, log = False)

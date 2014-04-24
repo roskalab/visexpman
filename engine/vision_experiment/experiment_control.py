@@ -67,8 +67,32 @@ class Trigger(object):
         
     def clear_trigger(self,pin):
         self.digital_output.set_pin(pin, False)
+        
+class ExperimentControl(Trigger):
+    def __init__(self, config, queues, log):
+        self.machine_config = config
+        self.queues = queues
+        self.log = log
+        self._init_devices()
+        Trigger.__init__(self,config, queues, self.digital_output)
 
-class ExperimentControl(object):
+
+        
+    def _init_devices(self):
+        '''
+        Initializes devices:
+            stage controller
+            objective control
+            digital io (parallel port or serial port io)
+            ...
+        '''
+        self.digital_output = None
+        
+        
+    
+        
+        
+class ExperimentControl1(object):
     '''
     Reimplemented version: 
     
