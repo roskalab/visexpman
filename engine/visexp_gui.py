@@ -1050,7 +1050,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         for warning in warnings:
             if not introspect.is_test_running():
                 self.notify_user('WARNING', str(warning.message))
-            self.log.warning(warning.message, application_name)
+            self.log.warning(warning.message, self.source_name)
         
     def init_variables(self):
         self.console_text = ''
@@ -1168,7 +1168,7 @@ class VisionExperimentGui(Qt.QMainWindow):
             comment = 'Issue time: {0}, id: {6}, scanning range: {1}, resolution: {2} {3}, duration: {4} s, recording channel(s): {5}'\
                     .format(utils.timestamp2hms(int(recording['id'])/100.0), recording['scanning_range'], 
                                                           recording['pixel_size'], recording['resolution_unit'], 
-                                                          recording['duration'][0], recording['recording_channels'], recording['id'])
+                                                          recording['duration'], recording['recording_channels'], recording['id'])
             status_data[name] = recording['status']+'#'+comment
         entry_order.reverse()
         self.central_widget.main_widget.recording_status.table.set_values(status_data, entry_order)
@@ -1311,7 +1311,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self.machine_config.application_name='main_ui'
         self.machine_config.user = 'test'
         fileop.cleanup_files(self.machine_config)
-        self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'two photon laser',  'pixel/um', [200.0, 200.0], 'DebugExperimentConfig', [10.0], ['SIDE'], [10.0, 0.0])
+        self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'two photon laser',  'pixel/um', [200.0, 200.0], 'DebugExperimentConfig', 10.0, ['SIDE'], [10.0, 0.0])
         
     def tearDown(self):
         time.sleep(2)

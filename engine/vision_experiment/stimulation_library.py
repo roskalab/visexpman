@@ -6,6 +6,7 @@ import time
 from PIL import Image
 import inspect
 import re
+import multiprocessing
 
 from OpenGL.GL import *
 from OpenGL.GLU import *
@@ -27,7 +28,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
     """
-    def __init__(self,  config,  application_log, experiment_control_dependent = True):
+    def __init__(self, config, application_log, experiment_control_dependent = True):
         self.config = config
         #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
         self.screen = graphics.Screen(config, init_mode = 'no_screen')
@@ -49,7 +50,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         self.text_on_stimulus = []
         
         #Command buffer for keyboard commands during experiment
-        self.command_buffer = ''
+        self.keyboard_commands = multiprocessing.Queue()
         
     def _flip(self,  trigger = False, count = True):
         """
@@ -92,20 +93,21 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         else:
             self._flip(trigger = frame_trigger)
             
-    def check_abort_pressed(self):
-        command = screen.check_keyboard() #Here only commands with running experiment domain are considered
-        if command != None:
-            for k, v in self.config.COMMANDS.items():
-                if v['key'] == command and 'running experiment' in v['domain']:
-                    self.command_buffer += k
-                    break
-        if 'abort_experiment' in self.command_buffer or utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
-            self.command_buffer = self.command_buffer.replace('abort_experiment', '')
-            self.printl('Abort pressed', application_log = True)
-            self.abort = True
-            return True
-        else:
-            return False
+    def check_abort_pressed(self):#TODO: rename
+        '''
+        Check keyboard, returns True if abort key sensed. 
+        Other commands are saved to keyboard command queue
+        '''
+        for command in screen.check_keyboard(): #Here only commands with running experiment domain are considered
+            if command == self.config.KEYS['abort']:
+                self.printl('Abort pressed', application_log = True)
+                self.abort = True
+                return True
+            else:
+                cmd = [k for k, v in self.config.KEYS.items() if command == v]
+                if len(cmd)>0:
+                    self.keyboard_commands.put(cmd[0])
+                return False
         
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
         '''

@@ -750,9 +750,6 @@ class ExperimentControl(gui.WidgetControl):
                                                                                    self.mandatory_parameters['experiment_name'], 
                                                                                    self.config, 
                                                                                    source=self.mandatory_parameters['experiment_config_source_code'])
-        if len(self.mandatory_parameters['duration']) > 1:
-            self.poller.notify_user('WARNING', 'Multiple fragment experiments not yet supported')
-            return False
         #Parse list item names to pmt names
         self.mandatory_parameters['recording_channels'] = [stringop.string_in_list(self.config.PMTS.keys(), channel_name, return_match = True, any_match = True) for channel_name in self.mandatory_parameters['recording_channels']]
         if len(self.mandatory_parameters['recording_channels'])==0:

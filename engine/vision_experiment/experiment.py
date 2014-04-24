@@ -20,51 +20,35 @@ class ExperimentConfig(Config):
     '''
     Init parameters:
     machine config
-    experiment parameters
-    sockets
-    application log
-    call_parameters: to be added to experiment config.
+    parameters: saved to experiment config.
+    socket queues
+    log
     '''
-    def __init__(self, machine_config, experiment_parameters, connections, application_log, experiment_class = None, source_code = None, parameters = {}):
-        self.machine_config = machine_config
-        self.queues = None
-        self.connections = connections#TODO: remove
-        self.application_log = application_log
-        Config.__init__(self, machine_config)
+    def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None):
+        Config.__init__(self, ignore_range = True)
+        self.CALL_PARAMETERS = parameters
         self.editable=True#If false, experiment config parameters cannot be edited from GUI
         if machine_config != None:
-            self.create_runnable(experiment_class, source_code, parameters) # needs to be called so that runnable is instantiated and other checks are done        
+            self.create_runnable(machine_config, queues, experiment_module, parameters, log) # needs to be called so that runnable is instantiated and other checks are done
 
-    def create_runnable(self, experiment_class, source_code, parameters):
-        if self.runnable == None:
+    def create_runnable(self, machine_config, queues, experiment_module, parameters, log):
+        #Find experiment class
+        if self.runnable is None:
             raise ValueError('You must specify the class which will run the experiment')
-        else:
-            if experiment_class == None and source_code == None:
-                if not hasattr(self.machine_config, 'users'):
-                    self.machine_config.users = [self.machine_config.user]
-                self.machine_config.users.append('common')
-                for u in self.machine_config.users:
-                    try:
-                        self.runnable = utils.fetch_classes('visexpman.users.'+ u, classname = self.runnable,  
-                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment, direct=False)[0][1]\
-                            (self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the actual stimulation
-                        break
-                    except IndexError:
-                        continue
-                        
-            else:
-                self.runnable = experiment_class(self.machine_config, self, self.queues, self.connections, self.application_log, source_code, parameters = parameters)
-            if hasattr(self, 'pre_runnable'):
-                for u in self.machine_config.users:
-                    for pre_experiment_class in utils.fetch_classes('visexpman.users.'+ u, required_ancestors = visexpman.engine.vision_experiment.experiment.PreExperiment, direct=False):
-                        if pre_experiment_class[1].__name__ == self.pre_runnable:
-                            self.pre_runnable = pre_experiment_class[1](self.machine_config, self, self.queues, self.connections, self.application_log, parameters = parameters) # instantiates the code that will run the pre experiment code
-                            break
-                        
-        if hasattr(self, 'runnable') and source_code is not None:
-            self.runnable.experiment_source_code = source_code
-        else:
-            self.runnable.experiment_source_code = None
+        elif self.runnable in dir(experiment_module):#experiment class is implemented in source code
+            experiment_class = getattr(experiment_module, self.runnable)
+        else: #experiment class is in common or user module
+            for u in ['common', machine_config.user]:
+                experiment_class = utils.fetch_classes('visexpman.users.'+ u, classname = self.runnable,  
+                                                    required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment, direct=False)
+                if len(experiment_class) == 1:
+                    experiment_class = experiment_class[0][1]
+                    break
+        #check if class inherits from experiment
+        if len([True for base in experiment_class.__bases__ if base.__name__ =='Experiment'])==0:
+            raise ExperimentConfigError('runnable points to a class that does not inherit from Experiment')
+        #Instantiate experiment class
+        self.runnable = experiment_class(machine_config, self, queues, parameters, log)
 
     def run(self, fragment_id = 0):
         if self.runnable == None:
@@ -89,21 +73,19 @@ class ExperimentConfig(Config):
 class Experiment(stimulation_library.StimulationSequences):
     '''
     The usage of experiment fragments assumes the existence of number_of_fragments variable
-    The floowing variable is saved to the output file: self.experiment_specific_data
+    The following variable is saved to the output file: self.experiment_specific_data
     '''
-    def __init__(self, machine_config, experiment_config, queues, connections, application_log, source_code = None , parameters = {}):
+    def __init__(self, machine_config, experiment_config=None, queues=None, parameters=None, log=None):
         self.parameters = parameters
         self.experiment_config = experiment_config
         self.machine_config = machine_config
         self.queues = queues
-        self.connections = connections
-        if source_code != None:
-            self.source_code = source_code
+        self.parameters = parameters
+        self.log = log
         self.experiment_name = self.__class__.__name__.split('_')[0]
         self.experiment_config_name = self.experiment_config.__class__.__name__.split('_')[0]
-        self.name_tag = self.experiment_config_name.replace('Config', '').replace('config', '')
         self.prepare()
-        stimulation_library.Stimulations.__init__(self, self.machine_config, application_log)
+        stimulation_library.Stimulations.__init__(self, self.machine_config, log)
 
     def prepare(self):
         '''
@@ -223,12 +205,12 @@ def create_experiment_config(experiment_name, source_code, machine_config, socke
 def get_experiment_duration(experiment_config_class, config, source=None):
     if source is None:
         experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
-        experiment_class_object = experiment_class(config,None,None,None).runnable
+        experiment_class_object = experiment_class(config).runnable
     else:
         introspect.import_code(source,'experiment_config_module', add_to_sys_modules=1)
         experiment_config_module = __import__('experiment_config_module')
-        experiment_config_class_object = getattr(experiment_config_module, experiment_config_class)(None,None,None,None)
-        experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object,None,None,None)
+        experiment_config_class_object = getattr(experiment_config_module, experiment_config_class)(None)
+        experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
     if hasattr(experiment_class_object, 'experiment_duration'):
         return experiment_class_object.experiment_duration
         
@@ -269,7 +251,7 @@ class testExperimentHelpers(unittest.TestCase):
         conf = GUITestConfig()
         conf.user='test'
         duration = get_experiment_duration('DebugExperimentConfig', conf, source=None)
-        self.assertEqual(duration, [10.0])
+        self.assertEqual(duration, 10.0)
         pass
         
     def test_03_read_experiment_duration_from_source(self):
@@ -279,7 +261,7 @@ class testExperimentHelpers(unittest.TestCase):
         source = fileop.read_text_file(os.path.join(fileop.get_user_module_folder(conf), 'test_stimulus.py'))
         conf.user='zoltan'
         duration = get_experiment_duration('DebugExperimentConfig', conf, source=source)
-        self.assertEqual(duration, [10.0])
+        self.assertEqual(duration, 10.0)
     
 if __name__ == "__main__":
     unittest.main()

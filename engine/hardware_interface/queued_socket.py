@@ -4,6 +4,7 @@ import multiprocessing
 import platform
 import unittest
 from visexpman.engine.generic import utils
+from visexpman.engine.generic import log
 
 class QueuedSocketHelpers(object):
     '''
@@ -108,12 +109,12 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                     #If this does not happen, Process.terminate() terimates the process.
                     self.socket.send(message_str)
                     if hasattr(self.log, 'info'):
-                        self.log.info('sent: ' + str(message),self.socket_name)
+                        self.log.info('sent: ' + log.log2str(message),self.socket_name)
                 try:
                     message = self.socket.recv(flags=zmq.NOBLOCK)
                     message = utils.str2object(message)
                     if hasattr(self.log, 'info'):
-                        self.log.info('received: ' + str(message),self.socket_name)
+                        self.log.info('received: ' + log.log2str(message),self.socket_name)
                     if message == 'ping':
                         self.socket_queues['tosocket'].put('pong')
                     else:

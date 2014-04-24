@@ -177,14 +177,9 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
         #Create experiment config class from experiment source code
         introspect.import_code(parameters['experiment_config_source_code'],'experiment_module', add_to_sys_modules=1)
         experiment_module = __import__('experiment_module')
-        self.experiment_config = getattr(experiment_module, parameters['experiment_name'])(self.config, self.queues, \
-                                                                                                  self.connections, self.log, getattr(experiment_module,experiment_name), loadable_source_code)
-        
-        
-        
-        
-        
-        self.printl(parameters)
+        self.experiment_config = getattr(experiment_module, parameters['experiment_name'])(self.config, self.socket_queues, \
+                                                                                                  experiment_module, parameters, self.log)
+        self.experiment_config.runnable.run()
         
 def run_main_ui(context):
     context['logger'].start()#This needs to be started separately from application_init ensuring that other logger source can be added 
@@ -291,12 +286,12 @@ class TestStim(unittest.TestCase):
         run_stim(self.context,timeout=10)
         t0=time.time()
         while True:
-            context_sent = client.recv()['data']
+            context_sent = client.recv()
             if context_sent is not None or time.time()-t0>30:
                 break
-        self.assertEqual(context_sent[0], 'stim_context')
-        self.assertEqual(context_sent[1]['background_color'], 0.5)
-        self.assertEqual(context_sent[1]['screen_center'], utils.rc((200,300)))
+        self.assertEqual(context_sent['data'][0], 'stim_context')
+        self.assertEqual(context_sent['data'][1]['background_color'], 0.5)
+        self.assertEqual(context_sent['data'][1]['screen_center'], utils.rc((200,300)))
         client.terminate()
         saved_context = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']), 'context', self.context['machine_config']))
         self.assertEqual(saved_context['background_color'], 0.5)
@@ -386,6 +381,37 @@ class TestStim(unittest.TestCase):
         measured_framerate = float(msg.split('Hz')[0].split('measured frame rate: ')[1])
         numpy.testing.assert_allclose(measured_framerate, self.context['machine_config'].SCREEN_EXPECTED_FRAME_RATE, 0, self.context['machine_config'].FRAME_RATE_TOLERANCE)
         client.terminate()
+        
+    def test_07_execute_experiment(self):
+        source = fileop.read_text_file(os.path.join(fileop.visexpman_package_path(), 'users', 'test', 'test_stimulus.py'))
+        experiment_names = ['GUITestExperimentConfig', 'TestCommonExperimentConfig']
+        parameters = {
+            'experiment_name': '',
+            'experiment_config_source_code' : source,
+            'cell_name': 'cell0', 
+            'stimulation_device' : '', 
+            'recording_channels' : '', 
+            'enable_scanner_synchronization' : False, 
+            'scanning_range' : [100.0, 100.0], 
+            'pixel_size' : 1.0, 
+            'resolution_unit' : 'um/pixel', 
+            'scan_center' : [0.0,0.0],
+            'trigger_width' : 0.0,
+            'trigger_delay' : 0.0,
+            'status' : 'preparing', 
+            'id':str(int(numpy.round(time.time(), 2)*100))}
+        commands = []
+        for experiment_name in experiment_names:
+            import copy
+            pars = copy.deepcopy(parameters)
+            pars['experiment_name'] = experiment_name
+            commands.append({'function': 'start_experiment', 'args': [pars]})
+        commands.append({'function': 'exit_application'})
+        client = self._send_commands_to_stim(commands)
+        run_stim(self.context,timeout=None)
+        client.terminate()
+        self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower())
+        #TODO: test not complete
 
 if __name__=='__main__':
     if len(sys.argv)>1:

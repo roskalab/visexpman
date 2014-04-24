@@ -70,22 +70,31 @@ class GUITestExperimentConfig(experiment.ExperimentConfig):
         self.editable=True
         self._create_parameters_from_locals(locals())
         
+class TestCommonExperimentConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'MovingShapeExperiment'
+        SHAPE_SIZE = 100
+        SPEEDS = [1000.0]
+        DIRECTIONS = [0]
+        self._create_parameters_from_locals(locals())
+                                 
+        
 class DebugExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'Debug'
         self.DURATION = 10.0#Comment
 #        self.pre_runnable = 'TestPre'
         self._create_parameters_from_locals(locals())
-        
+
 class Debug(experiment.Experiment):
     def prepare(self):
-        self.experiment_duration = [self.experiment_config.DURATION]
+        self.experiment_duration = self.experiment_config.DURATION
     
     def run(self):
         self.show_shape(duration=0,size=10, color=1.0, part_of_drawing_sequence=True, flip=False)
         self.show_shape(duration=0,pos = utils.rc((10, 0)), size=30, color=0.7, part_of_drawing_sequence=True, flip=False)
         self.show_shape(duration=0,size=100, color=0.4, part_of_drawing_sequence=True, flip=True)
-        time.sleep(5.0)
+        time.sleep(self.experiment_duration)
         return
             
 if __name__ == "__main__":

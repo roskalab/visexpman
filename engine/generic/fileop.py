@@ -1,4 +1,3 @@
-#TODO: rename to file_utils
 import sys
 import os, re
 import os.path
