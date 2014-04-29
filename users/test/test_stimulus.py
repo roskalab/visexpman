@@ -75,7 +75,7 @@ class TestCommonExperimentConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingShapeExperiment'
         SHAPE_SIZE = 100
         SPEEDS = [1000.0]
-        DIRECTIONS = [0]
+        DIRECTIONS = [90]
         self._create_parameters_from_locals(locals())
                                  
         

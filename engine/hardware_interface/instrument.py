@@ -509,7 +509,7 @@ class TestInstrument(unittest.TestCase):
                                                                             'data': multiprocessing.Queue()}, logger)
         processes = [ip, logger]
         [p.start() for p in processes]
-        time.sleep(3.0)
+        time.sleep(5.0)
         ip.terminate()
         time.sleep(1)
         logger.terminate()

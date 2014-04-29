@@ -67,7 +67,7 @@ def wf_triangle(a, t_up, t_down, duration, fs, offset = 0):
     nsample_up = t_up*fs+1
     nsample_down = t_down*fs+1
     triangle = numpy.concatenate((numpy.linspace(a/nsample_up, a, nsample_up), numpy.linspace(a-a/nsample_down, 0, nsample_down)))
-    sig = numpy.zeros(fs*duration)
+    sig = numpy.zeros(int(fs*duration))
     triangle = numpy.tile(triangle, sig.shape[0]/triangle.shape[0])
     sig[:triangle.shape[0]] = triangle
     return sig+offset
@@ -155,15 +155,13 @@ class TestSignal(unittest.TestCase):
         sig = wf_triangle(a, t_up, t_down, duration, fs)
         self.assertEqual(sig.max(), a)
         self.assertEqual(sig.min(), 0)
-        numpy.testing.assert_allclose(numpy.diff(sig[:t_up*fs]).std(), 0, 0, 1e-5)
-        numpy.testing.assert_allclose(numpy.diff(sig[t_up*fs: (t_up+t_down)*fs]).std(), 0, 0, 1e-5)
+        numpy.testing.assert_allclose(numpy.diff(sig[:int(t_up*fs)]).std(), 0.0, 0.0, 1e-5)
+        numpy.testing.assert_allclose(numpy.diff(sig[int(t_up*fs): int((t_up+t_down)*fs)]).std(), 0.0, 0.0, 1e-5)
         if False:
             from pylab import plot,show
             print numpy.diff(sig)
             plot(sig)
             show()
-        
-        
     
 if __name__=='__main__':
     unittest.main()

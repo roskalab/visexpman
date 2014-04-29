@@ -172,8 +172,8 @@ def create_experiment_config(experiment_name, source_code, machine_config, socke
         experiment_module = __import__('experiment_module')
         return getattr(experiment_module, experiment_name)(self.config, self.queues, #TODO: args not correct
                                                                                                   self.connections, self.log, getattr(experiment_module,experiment_name), source_code)
-        
-    #TODO: use create_experiment_config
+
+#TODO: use create_experiment_config
 def get_experiment_duration(experiment_config_class, config, source=None):
     if source is None:
         experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
@@ -185,7 +185,8 @@ def get_experiment_duration(experiment_config_class, config, source=None):
         experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
     if hasattr(experiment_class_object, 'experiment_duration'):
         return experiment_class_object.experiment_duration
-        
+
+
 def parse_stimulation_file(filename):
     '''
     From a stimulation file get the names of experiment classes and the parameter values for each
@@ -209,6 +210,7 @@ def parse_stimulation_file(filename):
     return experiment_config_classes
     
     
+
 class testExperimentHelpers(unittest.TestCase):
     def test_01_parse_stim_file(self):
         experiment_config_classes = parse_stimulation_file(os.path.join(fileop.visexpman_package_path(), 'users','test','test_stimulus.py'))

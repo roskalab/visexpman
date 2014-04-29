@@ -14,7 +14,7 @@ from OpenGL.GLUT import *
 
 import command_handler
 import experiment_control
-from visexpman.engine.generic import graphics #Not used
+from visexpman.engine.generic import graphics
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import colors
 from visexpman.engine.vision_experiment import screen

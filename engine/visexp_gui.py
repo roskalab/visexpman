@@ -1307,14 +1307,15 @@ import unittest
 class testVisionExperimentGui(unittest.TestCase):
     
     def setUp(self):
-        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+        from visexpman.users.test.test_configurations import GUITestConfig
+        self.machine_config = GUITestConfig()
         self.machine_config.application_name='main_ui'
         self.machine_config.user = 'test'
         fileop.cleanup_files(self.machine_config)
-        self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'two photon laser',  'pixel/um', [200.0, 200.0], 'DebugExperimentConfig', 10.0, ['SIDE'], [10.0, 0.0])
+        self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'two photon laser',  'pixel/um', [200.0, 200.0], 'DebugExperimentConfig', 10.0, ['SIDE'], [10.0, 0.0])     
         
     def tearDown(self):
-        time.sleep(2)
+        time.sleep(10)
         
     def _call_gui(self, testmode):
         import subprocess
@@ -1322,7 +1323,19 @@ class testVisionExperimentGui(unittest.TestCase):
         subprocess.call(code, shell=True)
         
     def _read_context(self):
-        return utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.machine_config), 'context', self.machine_config))
+        fn = fileop.get_context_filename(self.machine_config)
+        t0=time.time()
+        while True:
+            time.sleep(1.0)
+            try:
+                if os.path.exists(fn):
+                    time.sleep(1.0)
+                    context = utils.array2object(hdf5io.read_item(fn, 'context', filelocking=False))
+                    return context
+            except:
+               pass
+            if time.time()-t0>60:
+                break
     
     def _create_animal_parameter_file(self, id):
         '''
@@ -1348,9 +1361,7 @@ class testVisionExperimentGui(unittest.TestCase):
         source_before = fileop.read_text_file(sourcefile_path)
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=1)
         self._call_gui(1)
-        time.sleep(1.0)
         context = self._read_context()
-        time.sleep(1.0)
         self.assertIn('GUITestExperimentConfig', context['variables']['self.experiment_control.experiment_config_classes.keys'])
         self.assertEqual(context['variables']['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount'], 3)
         self.assertIn('test_stimulus.py', context['variables']['self.experiment_control.user_selected_stimulation_module'])
@@ -1362,11 +1373,8 @@ class testVisionExperimentGui(unittest.TestCase):
         Creating animal file is tested
         '''
         self._call_gui(2)
-#        from visexpA.engine.datahandlers import hdf5io
         context = self._read_context()
-        
-        self.assertEqual(os.path.exists(context['variables']['self.animal_file.filename']), True)
-        
+        self.assertTrue(os.path.exists(context['variables']['self.animal_file.filename']))
         self.assertEqual(os.path.split(context['variables']['self.animal_file.filename'])[1], 'animal_test_strain_1-1-2013_1-5-2013_L2R1.hdf5')
         self.assertEqual(utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config)),
                                                                                   {'imaging_channels': 'green', 'red_labeling': '', 'green_labeling': 'label',
@@ -1383,7 +1391,7 @@ class testVisionExperimentGui(unittest.TestCase):
                                                               (False, 
                                                               ))
     
-#    @unittest.skip('') 
+#    @unittest.skip('')
     def test_04_load_animal_files_from_data_storage_and_switch(self):
         '''
         Load animal parameter files from data storage and select the second one. Then modify date of birth, reload original values, finally modify labeling and save changes to file, which sould not happen because it is on data storage
@@ -1414,6 +1422,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self._create_animal_parameter_file('data_storage2')
         #Run gui
         self._call_gui(5)
+        
         context = self._read_context()
         for fn in context['variables']['self.animal_file.animal_files.keys']:
             if 'data_storage2' in fn and  fileop.get_user_experiment_data_folder(self.machine_config) in fn:
@@ -1437,6 +1446,7 @@ class testVisionExperimentGui(unittest.TestCase):
         Modify animal strain to trigger animal file renaming
         '''
         self._call_gui(6)
+        
         context = self._read_context()
         self.assertEqual((os.path.exists(context['variables']['self.animal_file.filename']), 
                                                               os.path.exists(context['variables']['self.animal_file.filename'].replace('test1', 'test')), 
@@ -1479,7 +1489,6 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         
         self._call_gui(9)
-#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=9)
         context = self._read_context()
         explog = utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config))
         self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
@@ -1497,7 +1506,6 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         self._call_gui(0)
         self._call_gui(10)
-#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=10)
         context = self._read_context()
         explog = utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config))
         other_animal_filename = [fn for fn in context['variables']['self.animal_file.animal_files.keys'] if fn != context['variables']['self.animal_file.filename']][0]
@@ -1521,7 +1529,6 @@ class testVisionExperimentGui(unittest.TestCase):
         self._create_animal_parameter_file('copied1')
         self._create_animal_parameter_file('copied2')
         self._call_gui(11)
-#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=11)
         context = self._read_context()
         self.assertEqual(len(context['variables']['self.animal_file.animal_files.keys']), 2)
 
@@ -1533,6 +1540,12 @@ class testVisionExperimentGui(unittest.TestCase):
         Context file after the second and first run shall have the same content. 
         '''
         self._call_gui(12)
+        
+#        from visexpman.engine.visexp_app import run_main_ui
+#        context = visexpman.engine.application_init(user='test', config ='GUITestConfig', application_name='main_ui')
+#        context['machine_config'].testmode=12
+#        run_main_ui(context)
+#        visexpman.engine.stop_application(context)
         contexts = []
         contexts.append(self._read_context())
         self._call_gui(0)
@@ -1555,7 +1568,6 @@ class testVisionExperimentGui(unittest.TestCase):
         Add many experiment entries and modify their status, finally remove one
         '''
         self._call_gui(13)
-#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=13)
         context = self._read_context()
         self.assertEqual((len(context['variables']['self.animal_file.recordings']), 
                     context['variables']['self.animal_file.recordings'][0]['status'], 
@@ -1570,10 +1582,9 @@ class testVisionExperimentGui(unittest.TestCase):
                     context['variables']['self.animal_file.recordings'][0]['scan_center'], 
                     ), self.test_13_14_expected_values)
     
-#    @unittest.skip('')    
+#    @unittest.skip('')
     def test_14_add_remove_experiment_animal_file(self):
         self._call_gui(14)
-#        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=14)
         context = self._read_context()
         recordings = utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'recordings', self.machine_config))
         self.assertEqual((len(recordings), 
@@ -1588,6 +1599,6 @@ class testVisionExperimentGui(unittest.TestCase):
                     recordings[0]['recording_channels'], 
                     recordings[0]['scan_center'], 
                     ), self.test_13_14_expected_values)
-
+                    
 if __name__ == '__main__':
     unittest.main()

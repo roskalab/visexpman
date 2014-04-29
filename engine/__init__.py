@@ -123,6 +123,7 @@ def application_init(**kwargs):
     context['socket_queues'] = queued_socket.get_queues(sockets)
     context['application_name'] = args['application_name']
     context['command'] = multiprocessing.Queue()
+    context['warning'] = []
     return context
     
 def stop_application(context):
@@ -150,8 +151,9 @@ class TestApplicationInit(unittest.TestCase):
         sys.argv.append('-a main_ui')
         self.context = application_init(log_start=True)
         
-#    @unittest.skip('')
+  # @unittest.skip('')
     def test_02_no_command_line_args(self):
+
         self.context = application_init(user='test', config='GUITestConfig', application_name='main_ui',log_start=True)
         
 #    @unittest.skip('')
