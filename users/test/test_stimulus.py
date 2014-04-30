@@ -14,6 +14,73 @@ from visexpman.users.test import unittest_aggregator
 from visexpman.users.common import stimuli
 from visexpA.engine.datadisplay import videofile
 
+class TestCurtainConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'TestCurtainExp'
+        self._create_parameters_from_locals(locals())
+
+class TestCurtainExp(experiment.Experiment):
+    def run(self):
+        self.show_curtain(self.machine_config.SCREEN_SIZE_UM['col']*0.5, color = 1.0, direction=45.0, background_color = 0.0, pause = 0.0)
+        
+class TestNaturalStimConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'TestNaturalStimExp'
+        self._create_parameters_from_locals(locals())
+        
+class TestNaturalStimExp(experiment.Experiment):
+    def run(self):
+        
+        texture = numpy.random.random((10,10))
+        diagonal = 100.0
+        vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
+        vertices = vertices.transpose()
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+
+        cut_off_ratio = 1.0
+        texture_coordinates = numpy.array(
+                             [
+                             [cut_off_ratio, 1.0],
+                             [0.0, 1.0],
+                             [0.0, 0.0],
+                             [cut_off_ratio, 0.0],
+                             ])
+
+        glTexCoordPointerf(texture_coordinates)
+        
+        phase += pixel_velocities[i]
+        glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
+        if not part_of_drawing_sequence:
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glColor3fv((1.0,1.0,1.0))
+        glDrawArrays(GL_POLYGON,  0, 4)
+        
+        
+        self._flip_and_block_trigger(0, 1, True, False)
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
+
+class Pointing2NotExistingConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'None'
+        self._create_parameters_from_locals(locals())
+        
+class Pointing2NonExpConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'DummyClass'
+        self._create_parameters_from_locals(locals())
+        
+class DummyClass(object):
+    pass
+
 class MovingGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         #Timing        

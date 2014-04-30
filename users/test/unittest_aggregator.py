@@ -129,6 +129,7 @@ TEST_unittests = [
     'visexpman.engine.visexp_gui.testVisionExperimentGui',
     'visexpman.engine.visexp_app.TestStim',
     'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 
+    'visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns', 
     'visexpman.engine.TestApplicationInit',
     'visexpman.engine.generic.parameter.testParameter',
     'visexpman.engine.generic.fileop.TestFileops',

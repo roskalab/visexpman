@@ -36,6 +36,15 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         self.grating_texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.grating_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
+        #Calculate axis factors
+        if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
+            self.vaf = 1
+        else:
+            self.vaf = -1
+        if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
+            self.haf = 1
+        else:
+            self.has = -1
         
     def _init_variables(self):
         self.abort = False
@@ -1093,7 +1102,7 @@ class StimulationSequences(Stimulations):
     def moving_grating_stimulus(self):
         pass
         
-    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0,block_trigger = False, shape_starts_from_edge=False):
+    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0, block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
         '''
         shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
         '''
@@ -1114,29 +1123,22 @@ class StimulationSequences(Stimulations):
             self.movement = max(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) + shape_size
         else:
             self.movement = min(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
-        self._save_stimulus_frame_info(inspect.currentframe())
-        #Calculate axis factors
-        if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
-            vaf = 1
-        else:
-            vaf = -1
-        if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
-            haf = 1
-        else:
-            has = -1
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe())
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
         for spd in speeds:
             for direction in directions:
-                end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(vaf*direction)))), self.config.SCREEN_CENTER, operation = '+')
-                start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
+                end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.config.SCREEN_CENTER, operation = '+')
+                start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
                 spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =vaf*direction , size = size,  block_trigger = block_trigger, save_frame_info = False, enable_centering = False)
+                self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size,  block_trigger = block_trigger, save_frame_info = False, enable_centering = False)
                 if pause > 0:
                     self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
                 if self.abort:
                     break
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
     def white_noise(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None):
         '''
@@ -1145,6 +1147,7 @@ class StimulationSequences(Stimulations):
         colors: set of colors or intensities to be used
         n_on_pixels: if provided the number of white pixels shown. colors shall be a list of two.
         '''
+        #TODO: has to be reworked
         self.log.info('white_noise(' + str(duration)+ ', ' + str(pixel_size) +', ' + str(flickering_frequency) +', ' + str(colors) +', ' + str(n_on_pixels) + ')')
         self._save_stimulus_frame_info(inspect.currentframe())
         if flickering_frequency == 0:
@@ -1203,12 +1206,36 @@ class StimulationSequences(Stimulations):
     def measure_light_power(self, reference_intensity):
         pass
         
-class testStimulationPatterns(unittest.TestCase):
+    def show_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0,block_trigger = False):
+        self.log.info('show_curtain(' + str(color)+ ', ' + str(background_color) +', ' + str(speed) +', ' + str(direction) +', ' + str(pause) + ', ' + str(block_trigger) +')')
+        self._save_stimulus_frame_info(inspect.currentframe())
+        movement = numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['col']**2+self.machine_config.SCREEN_SIZE_UM['row']**2)
+        size = utils.rc((movement, movement))
+        end_point = self.config.SCREEN_CENTER
+        start_point = utils.rc_add(utils.cr((0.5 * 2 * movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * 2 * movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
+#        import pdb
+#        pdb.set_trace()
+        pos = utils.calculate_trajectory(start_point, end_point, speed/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+        if pause > 0:
+            self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
+        self.show_shape(shape = 'rect',  pos = pos,  
+                            color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size,  block_trigger = block_trigger, 
+                            save_frame_info = False, enable_centering = False)
+        if pause > 0:
+            self.show_fullscreen(duration = pause, color = color, save_frame_info = False, frame_trigger = False)
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        
+class TestStimulationPatterns(unittest.TestCase):
 
-    def test_01_stimulation_development(self):
-        from visexpman.engine.visexp_runner import VisionExperimentRunner
-        v = VisionExperimentRunner('zoltan', 'StimulusDevelopmentMachineConfig')
-        v.run_experiment('StimulusPatternDevelopmentConfig')
+    def test_01_curtain(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', capture_frames = not True)
+        
+    def test_02_natural(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        context = stimulation_tester('test', 'GUITestConfig', 'TestNaturalStimConfig', capture_frames = not True)
+        
+        
 
 if __name__ == "__main__":
     unittest.main()

@@ -7,6 +7,7 @@ from visexpman.engine.generic.configuration import Config
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 from visexpman.engine.generic import introspect
+from visexpman.engine import ExperimentConfigError
 import stimulation_library
 
 import inspect
@@ -44,6 +45,8 @@ class ExperimentConfig(Config):
                 if len(experiment_class) == 1:
                     experiment_class = experiment_class[0][1]
                     break
+        if isinstance(experiment_class,list) and len(experiment_class) == 0:
+            raise ExperimentConfigError('runnable points to a non existing experiment class')
         #check if class inherits from experiment
         if len([True for base in experiment_class.__bases__ if base.__name__ =='Experiment'])==0:
             raise ExperimentConfigError('runnable points to a class that does not inherit from Experiment')
@@ -160,20 +163,6 @@ def restore_experiment_config(experiment_config_name, fragment_hdf5_handler = No
     return experiment_config
     a = experiment_module.MovingDot(machine_config, None, experiment_config)
     
-def create_experiment_config(experiment_name, source_code, machine_config, socket_queues=None, application_log=None):
-    '''
-    Instantiates experiment config object from either source code or experiment_name.
-    '''
-    if source_code is None:#experiment_name class is searched in user and common folders
-        return utils.fetch_classes('visexpman.users.'+machine_config.user,
-                                    experiment_name, required_ancestors = ExperimentConfig,direct = False)[0][1]()#TODO: args not correct
-    else:
-        introspect.import_code(source_code,'experiment_module', add_to_sys_modules=1)
-        experiment_module = __import__('experiment_module')
-        return getattr(experiment_module, experiment_name)(self.config, self.queues, #TODO: args not correct
-                                                                                                  self.connections, self.log, getattr(experiment_module,experiment_name), source_code)
-
-#TODO: use create_experiment_config
 def get_experiment_duration(experiment_config_class, config, source=None):
     if source is None:
         experiment_class = utils.fetch_classes('visexpman.users.'+ config.user, classname = experiment_config_class, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)[0][1]
@@ -208,8 +197,6 @@ def parse_stimulation_file(filename):
             except:
                 continue
     return experiment_config_classes
-    
-    
 
 class testExperimentHelpers(unittest.TestCase):
     def test_01_parse_stim_file(self):
@@ -236,6 +223,19 @@ class testExperimentHelpers(unittest.TestCase):
         conf.user='zoltan'
         duration = get_experiment_duration('DebugExperimentConfig', conf, source=source)
         self.assertEqual(duration, 10.0)
+        
+    def test_04_not_existing_experiment_class(self):
+        from visexpman.users.test.test_configurations import GUITestConfig
+        conf = GUITestConfig()
+        conf.user='test'
+        self.assertRaises(ExperimentConfigError, get_experiment_duration,'Pointing2NotExistingConfig', conf, None)
+        
+    def test_05_exp_config_points2non_expclass(self):
+        from visexpman.users.test.test_configurations import GUITestConfig
+        conf = GUITestConfig()
+        conf.user='test'
+        self.assertRaises(ExperimentConfigError, get_experiment_duration,'Pointing2NonExpConfig', conf, None)
+        
     
 if __name__ == "__main__":
     unittest.main()
