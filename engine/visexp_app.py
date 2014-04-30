@@ -450,7 +450,7 @@ class TestStim(unittest.TestCase):
         
     def test_08_stimulation_tester(self):
         context = stimulation_tester('test', 'GUITestConfig', 'TestCommonExperimentConfig')
-        pass
+        self.assertNotIn('error', fileop.read_text_file(context['logger'].filename).lower())
 
 if __name__=='__main__':
     if len(sys.argv)>1:
