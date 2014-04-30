@@ -1088,7 +1088,7 @@ class StimulationSequences(Stimulations):
     def moving_grating_stimulus(self):
         pass
         
-    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0,block_trigger = False, shape_starts_from_edge=False, enable_centering = False):
+    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0, block_trigger = False, shape_starts_from_edge=False, enable_centering = False):
         '''
         shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
         '''

@@ -19,7 +19,7 @@ class SantiagoSetupConfig(ElphysConfig):
         #=== screen ===
         FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([960,540])
-        SCREEN_ROTATION=-90
+        SCREEN_ROTATION=-90*0
         COORDINATE_SYSTEM='center'
         
         ENABLE_FRAME_CAPTURE = False

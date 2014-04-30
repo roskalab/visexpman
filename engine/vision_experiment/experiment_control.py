@@ -590,14 +590,14 @@ class ExperimentControl(object):
             analog_input_data = hdf5io.read_item(f.replace('.mat', '.hdf5'), '_'.join(os.path.split(f.replace('.mat', ''))[1].split('_')[-3:]), filelocking=False)['sync_data']
         else:
             analog_input_data = numpy.zeros((2, 2))
-            if self.config.PLATFORM != 'retinal_ca':
+            if self.config.PLATFORM != 'retinal_ca' and False:
                 self.printl('Analog input data is NOT available')
         stimulus_frame_info_with_data_series_index, rising_edges_indexes, pulses_detected =\
                             experiment_data.preprocess_stimulus_sync(\
                             analog_input_data[:, self.config.STIM_SYNC_CHANNEL_INDEX], 
                             stimulus_frame_info = self.stimulus_frame_info[self.stimulus_frame_info_pointer:], 
                             sync_signal_min_amplitude = self.config.SYNC_SIGNAL_MIN_AMPLITUDE)
-        if not pulses_detected and self.config.PLATFORM != 'retinal_ca':
+        if not pulses_detected and self.config.PLATFORM != 'retinal_ca' and False:
             self.printl('Stimulus sync signal is NOT detected')
         if self.config.PLATFORM == 'rc_cortical' and not self.parameters['enable_intrinsic']:
             a, b, pulses_detected =\
