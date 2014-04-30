@@ -208,11 +208,13 @@ def run_stim(context, timeout = None):
     context['logger'].start()
     stim.run(timeout=timeout)
     
-def stimulation_tester(user, machine_config, experiment_config):
+def stimulation_tester(user, machine_config, experiment_config, capture_frames=False):
     '''
     Runs the provided experiment config and terminates
     '''
     context = visexpman.engine.application_init(user = user, config = machine_config, application_name = 'stim')
+    if capture_frames:
+        context['capture_path'] = prepare_capture_folder(context['machine_config'])
     stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'])
     parameters = {
             'experiment_name': experiment_config,
@@ -249,12 +251,6 @@ class TestStim(unittest.TestCase):
         if '_08_' not in self._testMethodName:
             self.context = visexpman.engine.application_init(user = 'test', config = self.configname, application_name = 'stim')
         self.dont_kill_processes = introspect.get_python_processes()
-        
-    def _prepare_capture_folder(self):
-        self.context['machine_config'].ENABLE_FRAME_CAPTURE = True
-        self.context['machine_config'].CAPTURE_PATH = os.path.join(self.context['machine_config'].root_folder, 'capture')
-        fileop.mkdir_notexists(self.context['machine_config'].CAPTURE_PATH, remove_if_exists=True)
-        return self.context['machine_config'].CAPTURE_PATH
         
     def _send_commands_to_stim(self, commands):
         from visexpman.engine.hardware_interface import queued_socket
@@ -310,7 +306,7 @@ class TestStim(unittest.TestCase):
             self.assertIn(tag+'test OK 2', fileop.read_text_file(self.context['logger'].filename))
             
     def test_03_presscommands(self):
-        capture_path = self._prepare_capture_folder()
+        capture_path = prepare_capture_folder(self.context['machine_config'])
         self.context['machine_config'].COLOR_MASK = numpy.array([0.5, 0.5, 1.0])
         client = self._send_commands_to_stim([{'function': 'set_context_variable', 'args': ['background_color', 0.5]},
             {'function': 'set_context_variable', 'args': ['screen_center', utils.rc((200,300))]},
@@ -361,7 +357,7 @@ class TestStim(unittest.TestCase):
         '''
         Checks if bullseye is put to the right place in ulcorner coordinate system
         '''
-        capture_path = self._prepare_capture_folder()
+        capture_path = prepare_capture_folder(self.context['machine_config'])
         self.context['machine_config'].COLOR_MASK = numpy.array([0.5, 0.5, 1.0])
         client = self._send_commands_to_stim([{'function': 'set_context_variable', 'args': ['background_color', 0.5]},
             {'function': 'set_context_variable', 'args': ['screen_center', utils.rc((200,300))]},
@@ -452,6 +448,11 @@ class TestStim(unittest.TestCase):
         context = stimulation_tester('test', 'GUITestConfig', 'TestCommonExperimentConfig')
         self.assertNotIn('error', fileop.read_text_file(context['logger'].filename).lower())
 
+def prepare_capture_folder(machine_config):
+    machine_config.ENABLE_FRAME_CAPTURE = True
+    machine_config.CAPTURE_PATH = os.path.join(machine_config.root_folder, 'capture')
+    fileop.mkdir_notexists(machine_config.CAPTURE_PATH, remove_if_exists=True)
+    return machine_config.CAPTURE_PATH
 if __name__=='__main__':
     if len(sys.argv)>1:
         run_application()

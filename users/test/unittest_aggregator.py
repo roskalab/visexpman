@@ -129,6 +129,7 @@ TEST_unittests = [
     'visexpman.engine.visexp_gui.testVisionExperimentGui',
     'visexpman.engine.visexp_app.TestStim',
     'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 
+    'visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns', 
     'visexpman.engine.TestApplicationInit',
     'visexpman.engine.generic.parameter.testParameter',
     'visexpman.engine.generic.fileop.TestFileops',
@@ -143,7 +144,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = ''#TestStim.test_08_stimulation_tester'#testVisionExperimentGui.test_14_add_remove_experiment_animal_file'#TestStim.test_05_context_persistence'#testVisionExperimentGui.test_01_select_stimfile'
+TEST_single_unittest = ''#testVisionExperimentGui.test_15_repeated_gui_runs'
 
 def get_python_processes():
     pids = []
@@ -245,11 +246,16 @@ class ShowTestProgress(threading.Thread):
                 prev_lines = len(lines)
                 if len(lines) - (start_line+1)> self.ntests:
                     break
+                if len(lines) == 0:
+                    test_name = ''
+                else:
+                    test_name = lines[-1]
+                    test_name = test_name.split(' ')[0]
                 sys.stdout.write('\r=========== {0}/{1} ==========='.format(len(lines) - (start_line+1),self.ntests))
                 sys.stdout.flush()
             if tests_finished:
                 break
-            time.sleep(1.0)
+            time.sleep(2.0)
 
 class UnitTestRunner(object):
     '''

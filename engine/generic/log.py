@@ -108,6 +108,12 @@ class Logger(multiprocessing.Process):
     ########### Commands ###########
     def terminate(self):
         self.command.put('terminate')
+        while True:
+            state = not self.command.empty()
+            if state:
+                break
+            time.sleep(0.1)
+        self.join()
         
     def suspend(self):
         '''
@@ -122,6 +128,9 @@ class Logger(multiprocessing.Process):
         self.command.put('resume')
 
     def run(self):
+        t0=time.time()
+        while not os.path.exists(os.path.split(self.filename)[0]) and time.time()-t0<30.0:
+            time.sleep(1)
         self.file = open(self.filename, 'wt')#Create file
         while True:
             time.sleep(0.1)
@@ -140,6 +149,7 @@ class Logger(multiprocessing.Process):
         self.file.close()
         if hasattr(self, 'remote_logpath') and os.path.exists(self.remote_logpath):#Do nothing when  remote log path not provided 
             self.upload_logfiles()
+        self.command.put('terminated')
 
 class TestLog(unittest.TestCase):
     def setUp(self):
@@ -162,7 +172,6 @@ class TestLog(unittest.TestCase):
         time.sleep(1)
 #        p.run()
         p.terminate()
-        p.join()
         logged_text = fileop.read_text_file(p.filename)
         filelist  = {}
         filelist['logfiles'] = fileop.listdir_fullpath(self.machine_config.LOG_PATH)
@@ -188,7 +197,6 @@ class TestLog(unittest.TestCase):
         p.warning('test3')
         time.sleep(1)
         p.terminate()
-        p.join()
         logged_text = fileop.read_text_file(p.filename)
         filelist  = {}
         filelist['logfiles'] = fileop.listdir_fullpath(self.machine_config.LOG_PATH)

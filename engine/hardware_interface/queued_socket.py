@@ -2,9 +2,12 @@ import zmq
 import time
 import multiprocessing
 import platform
+import traceback
 import unittest
+import sys
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import log
+from visexpman.engine.generic import introspect
 
 class QueuedSocketHelpers(object):
     '''
@@ -72,7 +75,8 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                 if state:
                     break
                 time.sleep(0.1)
-            multiprocessing.Process.terminate(self)
+#            multiprocessing.Process.terminate(self)
+            self.join()
 #        else:
 #            self.join()
         
@@ -154,7 +158,8 @@ def start_sockets(appname, config, log):
                                                                                     multiprocessing.Queue(), 
                                                                                     ip = config.CONNECTIONS[appname]['ip'][appname],
                                                                                     log=log)
-    [s.start() for s in sockets.values()]
+    if not ((introspect.is_test_running() and platform.system()=='Windows') and '--testmode' in sys.argv):
+        [s.start() for s in sockets.values()]#Not run when unittests of gui are executed on windows platform
     return sockets
     
 def get_queues(sockets):
@@ -167,7 +172,7 @@ def get_queues(sockets):
     
     
 def stop_sockets(sockets):
-    [s.terminate() for s in sockets.values()]
+    [s.terminate() for s in sockets.values() if s.is_alive()]
 
 class TestQueuedSocket(unittest.TestCase):
     def setUp(self):

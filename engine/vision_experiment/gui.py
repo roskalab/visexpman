@@ -9,11 +9,13 @@ import datetime
 import time
 import copy
 import shutil
+import inspect
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
+import visexpman
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
@@ -28,8 +30,7 @@ from visexpman.engine.generic import utils
 BUTTON_HIGHLIGHT = 'color: red'#TODO: this has to be eliminated
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
-        
-        
+                
 ############### Common widgets ###############
 class StandardIOWidget(QtGui.QWidget):
     def __init__(self, parent):
