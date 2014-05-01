@@ -103,7 +103,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         '''
         for command in screen.check_keyboard(): #Here only commands with running experiment domain are considered
             if command == self.config.KEYS['abort']:
-                self.printl('Abort pressed', application_log = True)
+                self.printl('Abort pressed')
                 self.abort = True
                 return True
             else:
@@ -1206,8 +1206,8 @@ class StimulationSequences(Stimulations):
     def measure_light_power(self, reference_intensity):
         pass
         
-    def show_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0,block_trigger = False):
-        self.log.info('show_curtain(' + str(color)+ ', ' + str(background_color) +', ' + str(speed) +', ' + str(direction) +', ' + str(pause) + ', ' + str(block_trigger) +')')
+    def moving_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0,block_trigger = False):
+        self.log.info('moving_curtain(' + str(color)+ ', ' + str(background_color) +', ' + str(speed) +', ' + str(direction) +', ' + str(pause) + ', ' + str(block_trigger) +')')
         self._save_stimulus_frame_info(inspect.currentframe())
         movement = numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['col']**2+self.machine_config.SCREEN_SIZE_UM['row']**2)
         size = utils.rc((movement, movement))
@@ -1227,7 +1227,7 @@ class StimulationSequences(Stimulations):
         
 class TestStimulationPatterns(unittest.TestCase):
 
-    def test_01_curtain(self):
+    def te1st_01_curtain(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', capture_frames = not True)
         

@@ -4,6 +4,10 @@ import serial
 import os.path
 import os
 
+from OpenGL.GL import *
+from OpenGL.GLU import *
+from OpenGL.GLUT import *
+
 import visexpman
 from visexpman.engine import visexp_runner
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
@@ -21,7 +25,7 @@ class TestCurtainConfig(experiment.ExperimentConfig):
 
 class TestCurtainExp(experiment.Experiment):
     def run(self):
-        self.show_curtain(self.machine_config.SCREEN_SIZE_UM['col']*0.5, color = 1.0, direction=45.0, background_color = 0.0, pause = 0.0)
+        self.moving_curtain(self.machine_config.SCREEN_SIZE_UM['col']*0.5, color = 1.0, direction=45.0, background_color = 0.0, pause = 0.0)
         
 class TestNaturalStimConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -30,9 +34,25 @@ class TestNaturalStimConfig(experiment.ExperimentConfig):
         
 class TestNaturalStimExp(experiment.Experiment):
     def run(self):
+        t0=time.time()
+        self.show_fullscreen(duration=1.0, color=1.0)
+        print time.time()-t0
+        speed = 100
+        cut_off_ratio = 1.0
+        profile_size = self.config.SCREEN_RESOLUTION['col']
+        profile = numpy.linspace(0,1,profile_size)
         
-        texture = numpy.random.random((10,10))
-        diagonal = 100.0
+#        profile[1::20] =0.0
+#        profile[2::20] =0.0
+        profile = numpy.repeat(profile, 10)
+        profile[0::200] =0.0
+        alltexture = numpy.repeat(profile,3).reshape(profile_size*10,1,3)
+        texture = alltexture[:profile_size]
+        diagonal = numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2+self.config.SCREEN_RESOLUTION['col']**2)
+        alpha = numpy.arctan2(self.config.SCREEN_RESOLUTION['row'],self.config.SCREEN_RESOLUTION['col'])
+        angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
+        orientation_rad = 0
+        angles = angles + orientation_rad
         vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
         vertices = vertices.transpose()
         glEnableClientState(GL_VERTEX_ARRAY)
@@ -43,8 +63,6 @@ class TestNaturalStimExp(experiment.Experiment):
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
         glEnable(GL_TEXTURE_2D)
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-
-        cut_off_ratio = 1.0
         texture_coordinates = numpy.array(
                              [
                              [cut_off_ratio, 1.0],
@@ -54,19 +72,36 @@ class TestNaturalStimExp(experiment.Experiment):
                              ])
 
         glTexCoordPointerf(texture_coordinates)
-        
-        phase += pixel_velocities[i]
-        glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
-        if not part_of_drawing_sequence:
+        phase = 0.0
+        dphase = (float(speed)/self.config.SCREEN_RESOLUTION['col'])/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        ds = int(float(speed)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+        i = 0
+        self.frame_counter =0
+        self.machine_config.INSERT_FLIP_DELAY=True
+        t0=time.time()
+        while True:
+            if i+profile_size>=alltexture.shape[0]:
+                break
+            phase -= dphase
+#            glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
+            texture = alltexture[i:i+profile_size]
+            i += ds
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-        glColor3fv((1.0,1.0,1.0))
-        glDrawArrays(GL_POLYGON,  0, 4)
-        
-        
-        self._flip_and_block_trigger(0, 1, True, False)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+
+            self._flip_and_block_trigger(0, 1, True, False)
+            self.frame_counter +=1
+            if self.frame_counter  == 600:
+                break
+            if self.abort:
+                break
+        print time.time()-t0, self.frame_counter
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
+        pass
 
 class Pointing2NotExistingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):

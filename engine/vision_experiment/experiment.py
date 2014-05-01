@@ -106,14 +106,14 @@ class Experiment(stimulation_library.StimulationSequences):
             else:
                 setattr(self, k.lower(), v)
                 
-#     def printl(self, message):
-#         '''
-#         Helper function that can be called during experiment. The message is sent to:
-#         -standard output
-#         -gui
-#         -experiment log
-#         '''
-#         print message
+    def printl(self, message):
+         '''
+         Helper function that can be called during experiment. The message is sent to:
+         -standard output
+         -gui
+         -experiment log
+         '''
+         print message
 #         self.to_gui.put(str(message))
 #         if hasattr(self, 'log'):
 #             self.log.info(str(message))
