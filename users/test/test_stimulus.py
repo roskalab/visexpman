@@ -36,7 +36,7 @@ class TestNaturalStimExp(experiment.Experiment):
     def run(self):
         t0=time.time()
         self.show_fullscreen(duration=1.0, color=1.0)
-        print time.time()-t0
+        print 60/(time.time()-t0)
         speed = 100
         cut_off_ratio = 1.0
         profile_size = self.config.SCREEN_RESOLUTION['col']
@@ -76,8 +76,8 @@ class TestNaturalStimExp(experiment.Experiment):
         dphase = (float(speed)/self.config.SCREEN_RESOLUTION['col'])/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
         ds = int(float(speed)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
         i = 0
-        self.frame_counter =0
-        self.machine_config.INSERT_FLIP_DELAY=True
+        
+#        self.machine_config.INSERT_FLIP_DELAY=True
         t0=time.time()
         while True:
             if i+profile_size>=alltexture.shape[0]:
@@ -90,14 +90,17 @@ class TestNaturalStimExp(experiment.Experiment):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
-
-            self._flip_and_block_trigger(0, 1, True, False)
-            self.frame_counter +=1
-            if self.frame_counter  == 600:
+#            self._flip()
+#            self.screen.flip()
+#            time.sleep(5e-3)
+            self._flip_and_block_trigger(1, 1, True, False)
+#            self.frame_counter +=1
+            if self.frame_counter  == 6000:
                 break
             if self.abort:
                 break
-        print time.time()-t0, self.frame_counter
+        dt=(time.time()-t0)
+        print self.frame_counter/dt,dt
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)

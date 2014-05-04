@@ -45,6 +45,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self.haf = 1
         else:
             self.has = -1
+        self.frame_counter = 0
         
     def _init_variables(self):
         self.abort = False
