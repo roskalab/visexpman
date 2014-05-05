@@ -33,7 +33,24 @@ class TestNaturalStimConfig(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
         
 class TestNaturalStimExp(experiment.Experiment):
+    
+    def generate_phases(self, n):
+        p = 3559
+        q = 3571
+        x0 = 2
+        v = []
+        xn = x0
+        for i in range(n):
+            xn = (xn**2) % (p*q)
+            v.append(xn/float(p*q))
+        return numpy.array(v)*360.0
+        
+    def generate_intensity_profile(self, duration, speed, minimal_spatial_period, spatial_resolution):
+        pass#!!!!!!!!!CONTINUE HERE
+        
+    
     def run(self):
+        print self.generate_phases(10)
         t0=time.time()
         self.show_fullscreen(duration=1.0, color=1.0)
         print 60/(time.time()-t0)
@@ -51,7 +68,7 @@ class TestNaturalStimExp(experiment.Experiment):
         diagonal = numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2+self.config.SCREEN_RESOLUTION['col']**2)
         alpha = numpy.arctan2(self.config.SCREEN_RESOLUTION['row'],self.config.SCREEN_RESOLUTION['col'])
         angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
-        orientation_rad = 0
+        orientation_rad = numpy.pi/2
         angles = angles + orientation_rad
         vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
         vertices = vertices.transpose()
@@ -90,12 +107,9 @@ class TestNaturalStimExp(experiment.Experiment):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
-#            self._flip()
-#            self.screen.flip()
-#            time.sleep(5e-3)
             self._flip_and_block_trigger(1, 1, True, False)
 #            self.frame_counter +=1
-            if self.frame_counter  == 6000:
+            if self.frame_counter  == 600:
                 break
             if self.abort:
                 break
