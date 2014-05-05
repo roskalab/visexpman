@@ -1228,7 +1228,7 @@ class StimulationSequences(Stimulations):
         
 class TestStimulationPatterns(unittest.TestCase):
 
-    def te1st_01_curtain(self):
+    def test_01_curtain(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', capture_frames = not True)
         
@@ -1236,7 +1236,13 @@ class TestStimulationPatterns(unittest.TestCase):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'GUITestConfig', 'TestNaturalStimConfig', capture_frames = not True)
         
-        
+    def test_03_export2video(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        context = stimulation_tester('test', 'GUITestConfig', 'TestVideoExportConfig', capture_frames = True)
+        videofile = os.path.join(context['machine_config'].EXPERIMENT_DATA_PATH, 'out.mp4')
+        self.assertTrue(os.path.exists(videofile))
+        self.assertGreater(os.path.getsize(videofile), 30e3)
+        os.remove(videofile)
 
 if __name__ == "__main__":
     unittest.main()

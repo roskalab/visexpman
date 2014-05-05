@@ -18,6 +18,17 @@ from visexpman.users.test import unittest_aggregator
 from visexpman.users.common import stimuli
 from visexpA.engine.datadisplay import videofile
 
+class TestVideoExportConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'TestVideoExportExp'
+        self._create_parameters_from_locals(locals())
+
+class TestVideoExportExp(experiment.Experiment):
+    def run(self):
+        for c in numpy.arange(0.0, 1.0, 0.01):
+            self.show_fullscreen(color = c)
+        self.export2video(os.path.join(self.machine_config.EXPERIMENT_DATA_PATH, 'out.mp4'), img_format='png')
+        
 class TestCurtainConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'TestCurtainExp'
