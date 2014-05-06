@@ -1335,8 +1335,7 @@ class TestStimulationPatterns(unittest.TestCase):
         spectrum = spectrum[:spectrum.shape[0]/2]
         #TODO: test for checking periodicity
         #TODO: test for checking 1/x spectrum
-        
-        
+
     @unittest.skip('')
     def test_03_natural_export(self):
         export = True
@@ -1345,6 +1344,15 @@ class TestStimulationPatterns(unittest.TestCase):
                 STIM2VIDEO = export, OUT_PATH = '/mnt/rzws/dataslow/natural_stimulus',
                 EXPORT_INTENSITY_PROFILE = export,
                 DURATION = 20.0, REPEATS = 5, DIRECTIONS = range(0, 360, 90), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
+
+    def test_04_export2video(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        context = stimulation_tester('test', 'GUITestConfig', 'TestVideoExportConfig', capture_frames = True)
+        videofile = os.path.join(context['machine_config'].EXPERIMENT_DATA_PATH, 'out.mp4')
+        self.assertTrue(os.path.exists(videofile))
+        self.assertGreater(os.path.getsize(videofile), 30e3)
+        os.remove(videofile)
+
 
 if __name__ == "__main__":
     unittest.main()
