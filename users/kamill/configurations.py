@@ -35,13 +35,13 @@ class StimDev(VisionExperimentConfig):
         SCREEN_UM_TO_PIXEL_SCALE = 1.65
         
         #=== hardware ===
-        ENABLE_PARALLEL_PORT =  False#(self.OS == 'win')
+        ENABLE_PARALLEL_PORT =  False#(self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        ENABLE_UDP = False#(self.OS == 'win')
+        ENABLE_UDP = False#(self.OS == 'Windows')
   
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = False

@@ -208,12 +208,14 @@ def run_stim(context, timeout = None):
     context['logger'].start()
     stim.run(timeout=timeout)
     
-def stimulation_tester(user, machine_config, experiment_config, capture_frames=False):
+def stimulation_tester(user, machine_config, experiment_config, **kwargs):
     '''
     Runs the provided experiment config and terminates
     '''
     context = visexpman.engine.application_init(user = user, config = machine_config, application_name = 'stim')
-    if capture_frames:
+    for k,v in kwargs.items():
+        setattr(context['machine_config'], k, v)
+    if context['machine_config'].ENABLE_FRAME_CAPTURE:
         context['capture_path'] = prepare_capture_folder(context['machine_config'])
     stim = StimulationLoop(context['machine_config'], context['socket_queues']['stim'], context['command'], context['logger'])
     parameters = {
@@ -228,6 +230,13 @@ def stimulation_tester(user, machine_config, experiment_config, capture_frames=F
     stim.run()
     visexpman.engine.stop_application(context)
     return context
+    
+def prepare_capture_folder(machine_config):
+    machine_config.ENABLE_FRAME_CAPTURE = True
+    machine_config.CAPTURE_PATH = os.path.join(machine_config.root_folder, 'capture')
+    fileop.mkdir_notexists(machine_config.CAPTURE_PATH, remove_if_exists=True)
+    return machine_config.CAPTURE_PATH
+
 
 def run_application():
     warnings.simplefilter("always")
@@ -447,12 +456,7 @@ class TestStim(unittest.TestCase):
     def test_08_stimulation_tester(self):
         context = stimulation_tester('test', 'GUITestConfig', 'TestCommonExperimentConfig')
         self.assertNotIn('error', fileop.read_text_file(context['logger'].filename).lower())
-
-def prepare_capture_folder(machine_config):
-    machine_config.ENABLE_FRAME_CAPTURE = True
-    machine_config.CAPTURE_PATH = os.path.join(machine_config.root_folder, 'capture')
-    fileop.mkdir_notexists(machine_config.CAPTURE_PATH, remove_if_exists=True)
-    return machine_config.CAPTURE_PATH
+    
 if __name__=='__main__':
     if len(sys.argv)>1:
         run_application()

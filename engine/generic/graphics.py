@@ -90,9 +90,9 @@ class Screen(object):
         self.wait_time_left = 0.0
         self.elapsed_time = 0.0
         #frame wait time calculation
-        self.frame_wait_time = self.config.FRAME_WAIT_FACTOR * 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE - self.config.FLIP_EXECUTION_TIME        
+        self.frame_wait_time = self.config.FRAME_WAIT_FACTOR * 1.0 / self.config.SCREEN_EXPECTED_FRAME_RATE - self.config.FLIP_EXECUTION_TIME
 
-        if self.config.OS == 'linux':
+        if self.config.OS == 'Linux':
             self.clock = pygame.time.Clock()
         
     def create_screen(self):
@@ -180,7 +180,7 @@ class Screen(object):
                if self.wait_time_left > 0.0:
                    time.sleep(self.wait_time_left)
         if not self.config.STIMULUS2MEMORY:
-            if self.config.OS == 'linux':
+            if self.config.OS == 'Linux':
                 self.clock.tick(self.config.SCREEN_EXPECTED_FRAME_RATE)
 #            count = ctypes.c_uint()
 #            glxext_arb.glXGetVideoSyncSGI(ctypes.byref(count))

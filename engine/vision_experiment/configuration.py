@@ -162,7 +162,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         IMAGE_DIRECTLY_PROJECTED_ON_RETINA = True
         SCREEN_UM_TO_PIXEL_SCALE = [1.0,  [1e-3,  1e3]] #converts um to pixel [pixel/um]
         VISUAL_ANGLE_TO_UM_SCALE = [300.0/10.0, [0, 10000]]#300 um corresponds to 10 degrees of visual field
-        SCREEN_PIXEL_WIDTH = [1.0, [1e-10, 10e5]]
+        SCREEN_PIXEL_WIDTH = [1.0, [1e-10, 10e5]] #Needs to be defined in in vivo setups. Otherwise identical to SCREEN_UM_TO_PIXEL_SCALE
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [0.0, [0, 1000.0]] #mm
         
         ########## Commands #############

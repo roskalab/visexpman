@@ -266,7 +266,7 @@ class MesInterface(object):
                 parameter_file.tofile(two_photon_image_path)
         else:
             two_photon_image_path = parameter_file
-            two_photon_image_path_on_mes = fileop.convert_path_to_remote_machine_path(two_photon_image_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS != 'win'))
+            two_photon_image_path_on_mes = fileop.convert_path_to_remote_machine_path(two_photon_image_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS != 'Windows'))
         utils.empty_queue(self.queues['mes']['in'])
         result = False
         image = numpy.zeros((2, 2))
@@ -530,7 +530,7 @@ class MesInterface(object):
             line_scan_path, line_scan_path_on_mes = self._generate_mes_file_paths('line_scan_parameters.mat')
         else:
             line_scan_path = parameter_file
-            line_scan_path_on_mes = fileop.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS != 'win'))
+            line_scan_path_on_mes = fileop.convert_path_to_remote_machine_path(line_scan_path, self.config.MES_DATA_FOLDER,  remote_win_path = (self.config.OS != 'Windows'))
         utils.empty_queue(self.queues['mes']['in'])
         #Acquire line scan if MES is connected
         if self.connection.connected_to_remote_client():

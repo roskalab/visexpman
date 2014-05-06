@@ -1223,6 +1223,9 @@ def safe_has_key(var, key):
             result = True
     return result
     
+def safe_istrue(obj, var):
+    return (hasattr(obj, var) and getattr(obj, var))
+    
 def get_key(var, key):
     '''
     Returns None when dict does not have specified key
@@ -1263,6 +1266,12 @@ def check_expected_parameter(config, parameter_name):
     for pn in item2list(parameter_name):
         if not hasattr(config, pn):
             raise RuntimeError('{0} parameter must be defined'.format(pn))
+            
+def images2mpeg4(folder, video_path,  fps):
+    if os.path.exists(video_path):
+        os.remove(video_path)
+    command = 'avconv -y -r {0} -i {1} -map 0 -c:v libx264 -b 5M {2}'.format(fps, folder, video_path)
+    os.system(command)
 
 class TestUtils(unittest.TestCase):
     def setUp(self):

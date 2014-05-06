@@ -71,7 +71,54 @@ def wf_triangle(a, t_up, t_down, duration, fs, offset = 0):
     triangle = numpy.tile(triangle, sig.shape[0]/triangle.shape[0])
     sig[:triangle.shape[0]] = triangle
     return sig+offset
-
+    
+def generate_random_angles(n, p = 3559, q = 3571, x0 = 17):
+    '''
+    Generates n angles (-pi...pi range) using Blum Blum Shub pseudorandom generation algorithm:
+    xn+1 = xn**2 mod M where M is the product of two big primes.
+    '''
+    if p*q<n:
+        raise RuntimeError('Bigger prime numbers must be provided as p and q')
+    v = []
+    xn = x0
+    for i in range(n):
+        xn = (xn**2) % (p*q)
+        v.append(xn/float(p*q))
+    return numpy.array(v)*2*numpy.pi - numpy.pi
+    
+def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period,spatial_resolution, intensity_levels = 255):
+    '''
+    duration: duration of stimulus
+    speed: um/s
+    minimal_spatial_period: um
+    spatial resolution is determined from pixel2um config parameter
+    
+    '''
+    spatial_range = duration * speed
+    if minimal_spatial_period < 5 * spatial_resolution:
+        raise RuntimeError('minimal_spatial_period ({0}) shall be bigger than 5 x spatial_resolution ({0}) ' .format(minimal_spatial_period, spatial_resolution))
+    spatial_frequencies = numpy.arange(1.0/spatial_range, 1.0/minimal_spatial_period+1.0/spatial_range, 1.0/spatial_range)
+    amplitudes = 1.0/spatial_frequencies
+    phases = generate_random_angles(spatial_frequencies.shape[0])
+    intensity_profile = numpy.zeros(int(spatial_range/spatial_resolution))
+    s = numpy.arange(0, spatial_range, spatial_resolution)
+    for harmonic in range(spatial_frequencies.shape[0]):
+        intensity_profile += amplitudes[harmonic]*numpy.sin(2*numpy.pi*s*spatial_frequencies[harmonic] + phases[harmonic])
+        if abs(intensity_profile[0]-intensity_profile[-1])/intensity_profile.max()>1e-3:
+            pass
+    intensity_profile = scale(intensity_profile)
+    if intensity_levels != 0:
+        intensity_profile = numpy.cast['int'](intensity_profile*intensity_levels)/float(intensity_levels)
+    if not True:
+        from pylab import plot,show,figure
+        figure(1)
+        plot(s, intensity_profile)
+        figure(2)
+        plot(numpy.linspace(0, 2.0/spatial_resolution, intensity_profile.shape[0]), 0.5*abs(numpy.fft.fft(intensity_profile)/intensity_profile.shape[0])/intensity_profile.shape[0],'o')
+        figure(3)
+        plot(numpy.tile(intensity_profile,3),'o')
+        show()
+    return intensity_profile
        
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
@@ -162,6 +209,9 @@ class TestSignal(unittest.TestCase):
             print numpy.diff(sig)
             plot(sig)
             show()
+            
+    def test_08_generate_natural_stimulus_intensity_profile(self):
+        generate_natural_stimulus_intensity_profile(20.0, 300.0, 20.0,2.0)
     
 if __name__=='__main__':
     unittest.main()

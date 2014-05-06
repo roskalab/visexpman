@@ -1,6 +1,7 @@
 import sys
 import os.path
 import os 
+import platform
 
 import parameter
 
@@ -59,15 +60,8 @@ class Config(object):
         self._create_parameter_aliases()
 
     def _create_generic_parameters(self):
-        self.PACKAGE_PATH_p = parameter.Parameter(os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0], is_path=True)                
-        OS = 'unknown'
-        if os.name == 'nt':
-            OS = 'win'
-        elif os.name == 'posix':
-            OS = 'linux'
-        elif hasattr(os,  'uname'):            
-            if os.uname()[0] != 'Linux':
-                OS = 'osx'                
+        self.PACKAGE_PATH_p = parameter.Parameter(os.path.split(os.path.split(os.path.dirname(parameter.__file__))[0])[0], is_path=True)
+        OS = platform.system()
         self.OS_p = parameter.Parameter(OS)
         self._create_parameter_aliases()
         return

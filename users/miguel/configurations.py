@@ -35,13 +35,13 @@ class MVSSA(ElphysRetinalCaImagingConfig):
         SCREEN_UM_TO_PIXEL_SCALE = 1
         
         #=== hardware ===
-        ENABLE_PARALLEL_PORT =  False#(self.OS == 'win')
+        ENABLE_PARALLEL_PORT =  False#(self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        ENABLE_UDP = False#(self.OS == 'win')
+        ENABLE_UDP = False#(self.OS == 'Windows')
   
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = False
@@ -56,7 +56,7 @@ class MVSSA(ElphysRetinalCaImagingConfig):
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 300.0,
-                    'ENABLE' :  False#(self.OS == 'win')
+                    'ENABLE' :  False#(self.OS == 'Windows')
                     },
                     {
                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
@@ -66,7 +66,7 @@ class MVSSA(ElphysRetinalCaImagingConfig):
                     'MAX_VOLTAGE' : 3.0,
                     'MIN_VOLTAGE' : 0.0,
                     'DURATION_OF_AI_READ' : 1.0,
-                    'ENABLE' :  False#(self.OS == 'win')
+                    'ENABLE' :  False#(self.OS == 'Windows')
                     },
                     ]
         gamma_corr_filename = 'c:\\visexp\\gamma.hdf5'
@@ -112,7 +112,7 @@ class MVS(ElphysRetinalCaImagingConfig):
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        ENABLE_UDP = True#(self.OS == 'win')
+        ENABLE_UDP = True#(self.OS == 'Windows')
   
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = False
@@ -127,7 +127,7 @@ class MVS(ElphysRetinalCaImagingConfig):
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 300.0,
-                    'ENABLE' :  False#(self.OS == 'win')
+                    'ENABLE' :  False#(self.OS == 'Windows')
                     },
                     {
                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
@@ -137,7 +137,7 @@ class MVS(ElphysRetinalCaImagingConfig):
                     'MAX_VOLTAGE' : 3.0,
                     'MIN_VOLTAGE' : 0.0,
                     'DURATION_OF_AI_READ' : 1.0,
-                    'ENABLE' :  False#(self.OS == 'win')
+                    'ENABLE' :  False#(self.OS == 'Windows')
                     },
                     ]
                     

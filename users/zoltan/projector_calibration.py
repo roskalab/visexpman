@@ -82,7 +82,7 @@ class FindLinearRangeParameters(experiment.ExperimentConfig):
 
 class ProjectorCalibration(experiment.Experiment):
     def prepare(self):
-        if self.machine_config.OS == 'win' and hasattr(self.machine_config, 'LIGHT_METER') and self.machine_config.LIGHT_METER['ENABLE']:
+        if self.machine_config.OS == 'Windows' and hasattr(self.machine_config, 'LIGHT_METER') and self.machine_config.LIGHT_METER['ENABLE']:
             self.lightmeter = lightmeter.LightMeter(self.machine_config)
             for i in range(30):#dummy reads, might help
                 self.lightmeter.read_power()

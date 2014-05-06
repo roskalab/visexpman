@@ -437,7 +437,7 @@ class DebugRlvivo1(RcMicroscopeSetup):
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
         
         #=== hardware ===
-        ENABLE_PARALLEL_PORT = (self.OS == 'win')
+        ENABLE_PARALLEL_PORT = (self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
@@ -465,7 +465,7 @@ class Debug(RcMicroscopeSetup):
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
         self.COMMAND_RELAY_SERVER['ENABLE'] = True
         #=== hardware ===
-        ENABLE_PARALLEL_PORT = (self.OS == 'win')
+        ENABLE_PARALLEL_PORT = (self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
@@ -490,7 +490,7 @@ class Debug(RcMicroscopeSetup):
         degree_factor = 0.00045*4 #According to manufacturer
         
         STAGE = [{'SERIAL_PORT' : motor_serial_port,
-                 'ENABLE': (self.OS == 'win'),
+                 'ENABLE': (self.OS == 'Windows'),
                  'SPEED': 2000,
                  'ACCELERATION' : 1000,
                  'MOVE_TIMEOUT' : 45.0,
@@ -514,7 +514,7 @@ class Debug(RcMicroscopeSetup):
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 2*self.MAXIMUM_RECORDING_DURATION,
-                    'ENABLE' : (self.OS == 'win')
+                    'ENABLE' : (self.OS == 'Windows')
                     },
                     {
                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
@@ -524,7 +524,7 @@ class Debug(RcMicroscopeSetup):
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : 0.0,
                     
-                    'ENABLE' : (self.OS == 'win')
+                    'ENABLE' : (self.OS == 'Windows')
                     }
                     ]
         

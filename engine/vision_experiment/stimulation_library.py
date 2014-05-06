@@ -18,6 +18,7 @@ from visexpman.engine.generic import graphics
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import colors
 from visexpman.engine.vision_experiment import screen
+from visexpman.engine.generic import signal
 from visexpA.engine.datadisplay import videofile
 
 import unittest
@@ -438,7 +439,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if isinstance(size, float) or isinstance(size, int):        
             size_pixel = utils.rc((size, size))        
         elif isinstance(size, numpy.ndarray):   
-            size_pixel = size                
+            size_pixel = size
         else:
             raise RuntimeError('Parameter size is provided in an unsupported format')
         size_pixel = utils.rc_x_const(size_pixel, self.config.SCREEN_UM_TO_PIXEL_SCALE)        
@@ -988,6 +989,84 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+            
+    def show_natural_bars(self, speed = 300, repeats = 5, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, save_frame_info =True, block_trigger = False):
+        if spatial_resolution is None:
+            spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
+        if minimal_spatial_period is None:
+            minimal_spatial_period = 10 * spatial_resolution
+        self.log_on_flip_message_initial = 'show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')'
+        self.log_on_flip_message_continous = 'show_natural_bars'
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
+        self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
+        if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
+            self.intensity_profile = self.machine_config.GAMMA_CORRECTION(self.intensity_profile)
+        intensity_profile_length = self.intensity_profile.shape[0]
+        if self.intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
+            self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
+        alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
+        texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
+        diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
+        diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
+        alpha =numpy.pi/4
+        angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
+        angles = angles + direction*numpy.pi/180.0
+        vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
+        vertices = vertices.transpose()
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        texture_coordinates = numpy.array(
+                             [
+                             [1.0, 1.0],
+                             [0.0, 1.0],
+                             [0.0, 0.0],
+                             [1.0, 0.0],
+                             ])
+        glTexCoordPointerf(texture_coordinates)
+        ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+#        t0=time.time()
+        texture_pointer = 0
+        frame_counter = 0
+        while True:
+            start_index = int(texture_pointer)
+            end_index = int(start_index + self.config.SCREEN_RESOLUTION['col'])
+            if end_index > alltexture.shape[0]:
+                end_index -= alltexture.shape[0]
+            if start_index < end_index:
+                texture = alltexture[start_index:end_index]
+            else:
+                texture = numpy.zeros_like(texture)
+                texture[:-end_index] = alltexture[start_index:]
+                texture[-end_index:] = alltexture[:end_index]
+            if start_index >= intensity_profile_length:
+                break
+            texture_pointer += ds
+            frame_counter += 1
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            self._flip_and_block_trigger(frame_counter, frame_counter+10, True, block_trigger)#Don't want to calculate the overall number of frames
+            if self.abort:
+                break
+        if block_trigger:
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
+#        dt=(time.time()-t0)
+#        print self.frame_counter/dt,dt,self.frame_counter,texture_pointer
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+
         
 class StimulationSequences(Stimulations):
     '''
@@ -1023,7 +1102,7 @@ class StimulationSequences(Stimulations):
             raise RuntimeError('Micro LED array stimulation is not configured properly, make sure that {0} parameters have correct values'.format(expected_configs))
         
     def export2video(self, filename, img_format='png'):
-        videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
+        utils.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
         
     def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
         '''
@@ -1228,15 +1307,44 @@ class StimulationSequences(Stimulations):
         
 class TestStimulationPatterns(unittest.TestCase):
 
-    def te1st_01_curtain(self):
+    def test_01_curtain(self):
         from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', capture_frames = not True)
-        
-    def test_02_natural(self):
+        context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', ENABLE_FRAME_CAPTURE = not True)
+
+#    @unittest.skip('')
+    def test_02_natural_stim_spectrum(self):
         from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'GUITestConfig', 'TestNaturalStimConfig', capture_frames = not True)
+        from PIL import Image
+        from visexpman.engine.generic import fileop
+        spd = 300
+        duration = 3.0
+        repeats = 2
+        context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = True,
+                DURATION = duration, REPEATS = repeats, DIRECTIONS = [0], SPEED=spd)
+        intensities = []
+        fns = fileop.listdir_fullpath(context['machine_config'].CAPTURE_PATH)
+        #Check if number of frames generated corresponds to duration, repeat and frame rate
+        self.assertAlmostEqual(len(fns), duration*repeats*context['machine_config'].SCREEN_EXPECTED_FRAME_RATE,delta=5)
+        for f in fns:
+            im = numpy.asarray(Image.open(f))
+            first_column = im[:,0]
+            self.assertEqual(first_column.std(),0)#Check if columns have the same color
+            intensities.append(first_column.mean())
+        intensities = numpy.array(intensities)
+        spectrum = abs(numpy.fft.fft(intensities))/2/spectrum.shape[0]
+        spectrum = spectrum[:spectrum.shape[0]/2]
+        #TODO: test for checking periodicity
+        #TODO: test for checking 1/x spectrum
         
         
+    @unittest.skip('')
+    def test_03_natural_export(self):
+        export = True
+        from visexpman.engine.visexp_app import stimulation_tester
+        context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = export,
+                STIM2VIDEO = export, OUT_PATH = '/mnt/rzws/dataslow/natural_stimulus',
+                EXPORT_INTENSITY_PROFILE = export,
+                DURATION = 20.0, REPEATS = 5, DIRECTIONS = range(0, 360, 90), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
 
 if __name__ == "__main__":
     unittest.main()

@@ -90,7 +90,7 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
             }
         }
         #=== hardware ===
-        ENABLE_PARALLEL_PORT = (self.OS == 'win')
+        ENABLE_PARALLEL_PORT = (self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
@@ -103,7 +103,7 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
                                     'bytesize' : serial.EIGHTBITS,                    
                                     }
         STAGE = [{'SERIAL_PORT' : motor_serial_port,
-                 'ENABLE': (self.OS == 'win'),
+                 'ENABLE': (self.OS == 'Windows'),
                  'SPEED': 800,
                  'ACCELERATION' : 200,
                  'MOVE_TIMEOUT' : 45.0,
@@ -120,7 +120,7 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
-                    'ENABLE' : (self.OS == 'win')
+                    'ENABLE' : (self.OS == 'Windows')
                     },
                     {
                     'ANALOG_CONFIG' : 'ao',
@@ -129,7 +129,7 @@ class TestMesPlatformConfig(configuration.VisionExperimentConfig):
                     'AO_CHANNEL' : 'Dev1/ao0',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : 0.0,
-                    'ENABLE' : (self.OS == 'win')
+                    'ENABLE' : (self.OS == 'Windows')
                     }
                     ]
         self._create_parameters_from_locals(locals())
@@ -357,7 +357,7 @@ class TestElphysPlatformConfig(configuration.VisionExperimentConfig):
         #=== Network ===
         ENABLE_UDP = False
         #=== hardware ===
-        ENABLE_PARALLEL_PORT = (self.OS == 'win')
+        ENABLE_PARALLEL_PORT = (self.OS == 'Windows')
         ACQUISITION_TRIGGER_PIN = 2
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
@@ -372,7 +372,7 @@ class TestElphysPlatformConfig(configuration.VisionExperimentConfig):
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 2*MAXIMUM_RECORDING_DURATION[0],
-                    'ENABLE' : (self.OS == 'win')
+                    'ENABLE' : (self.OS == 'Windows')
                     },
                     {
                     'ANALOG_CONFIG' : 'ao',
@@ -381,7 +381,7 @@ class TestElphysPlatformConfig(configuration.VisionExperimentConfig):
                     'AO_CHANNEL' : 'Dev1/ao0',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : 0.0,
-                    'ENABLE' : (self.OS == 'win')
+                    'ENABLE' : (self.OS == 'Windows')
                     }
                     ]
         self._create_parameters_from_locals(locals())
@@ -540,3 +540,8 @@ class ULCornerTestConfig(GUITestConfig):
         GUITestConfig._set_user_parameters(self)
         COORDINATE_SYSTEM='ulcorner'
         self._create_parameters_from_locals(locals())
+        
+class NaturalStimulusTestMachineConfig(GUITestConfig):
+    def _set_user_parameters(self):
+        GUITestConfig._set_user_parameters(self)
+        del self.GAMMA_CORRECTION

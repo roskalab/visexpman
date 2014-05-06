@@ -519,7 +519,7 @@ class ExperimentControl1(object):
     def _close_devices(self):
         if self.config.PLATFORM != 'mc_mea':
             self.parallel_port.release_instrument()
-        if self.config.OS == 'win':
+        if self.config.OS == 'Windows':
             for filterwheel in self.filterwheels:
                 filterwheel.release_instrument()
         if hasattr(self, 'led_controller'):

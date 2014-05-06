@@ -101,7 +101,7 @@ class MultiChannel256MeaSetup(MCMEAConfig): #David machine config
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        ENABLE_UDP = False#(self.OS == 'win')
+        ENABLE_UDP = False#(self.OS == 'Windows')
     
         #=== Filterwheel ===
         ENABLE_FILTERWHEEL = False
@@ -116,7 +116,7 @@ class MultiChannel256MeaSetup(MCMEAConfig): #David machine config
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 300.0,
-                    'ENABLE' :  False#(self.OS == 'win')
+                    'ENABLE' :  False#(self.OS == 'Windows')
                     },
                     {
                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
@@ -126,7 +126,7 @@ class MultiChannel256MeaSetup(MCMEAConfig): #David machine config
                     'MAX_VOLTAGE' : 3.0,
                     'MIN_VOLTAGE' : 0.0,
                     'DURATION_OF_AI_READ' : 1.0,
-                    'ENABLE' :  False#(self.OS == 'win')
+                    'ENABLE' :  False#(self.OS == 'Windows')
                     },
                     ]
         #=== Others ===

@@ -33,92 +33,27 @@ class TestNaturalStimConfig(experiment.ExperimentConfig):
         self._create_parameters_from_locals(locals())
         
 class TestNaturalStimExp(experiment.Experiment):
-    
-    def generate_phases(self, n):
-        p = 3559
-        q = 3571
-        x0 = 2
-        v = []
-        xn = x0
-        for i in range(n):
-            xn = (xn**2) % (p*q)
-            v.append(xn/float(p*q))
-        return numpy.array(v)*360.0
-        
-    def generate_intensity_profile(self, duration, speed, minimal_spatial_period, spatial_resolution):
-        pass#!!!!!!!!!CONTINUE HERE
-        
-    
     def run(self):
-        print self.generate_phases(10)
-        t0=time.time()
-        self.show_fullscreen(duration=1.0, color=1.0)
-        print 60/(time.time()-t0)
-        speed = 100
-        cut_off_ratio = 1.0
-        profile_size = self.config.SCREEN_RESOLUTION['col']
-        profile = numpy.linspace(0,1,profile_size)
-        
-#        profile[1::20] =0.0
-#        profile[2::20] =0.0
-        profile = numpy.repeat(profile, 10)
-        profile[0::200] =0.0
-        alltexture = numpy.repeat(profile,3).reshape(profile_size*10,1,3)
-        texture = alltexture[:profile_size]
-        diagonal = numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2+self.config.SCREEN_RESOLUTION['col']**2)
-        alpha = numpy.arctan2(self.config.SCREEN_RESOLUTION['row'],self.config.SCREEN_RESOLUTION['col'])
-        angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
-        orientation_rad = numpy.pi/2
-        angles = angles + orientation_rad
-        vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
-        vertices = vertices.transpose()
-        glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointerf(vertices)
-        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
-        glEnable(GL_TEXTURE_2D)
-        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-        texture_coordinates = numpy.array(
-                             [
-                             [cut_off_ratio, 1.0],
-                             [0.0, 1.0],
-                             [0.0, 0.0],
-                             [cut_off_ratio, 0.0],
-                             ])
-
-        glTexCoordPointerf(texture_coordinates)
-        phase = 0.0
-        dphase = (float(speed)/self.config.SCREEN_RESOLUTION['col'])/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-        ds = int(float(speed)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
-        i = 0
-        
-#        self.machine_config.INSERT_FLIP_DELAY=True
-        t0=time.time()
-        while True:
-            if i+profile_size>=alltexture.shape[0]:
-                break
-            phase -= dphase
-#            glTexCoordPointerf(texture_coordinates + numpy.array([phase,0.0]))
-            texture = alltexture[i:i+profile_size]
-            i += ds
-            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
-            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            glColor3fv((1.0,1.0,1.0))
-            glDrawArrays(GL_POLYGON,  0, 4)
-            self._flip_and_block_trigger(1, 1, True, False)
-#            self.frame_counter +=1
-            if self.frame_counter  == 600:
-                break
+        for rep in range(self.machine_config.REPEATS):
             if self.abort:
                 break
-        dt=(time.time()-t0)
-        print self.frame_counter/dt,dt
-        glDisable(GL_TEXTURE_2D)
-        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
-        glDisableClientState(GL_VERTEX_ARRAY)
-        pass
+            for directions in self.machine_config.DIRECTIONS:
+                if self.abort:
+                    break
+                print rep, directions,self.frame_counter
+                t0=time.time()
+                self.show_natural_bars(speed = self.machine_config.SPEED, repeats = 1, duration=self.machine_config.DURATION, minimal_spatial_period = None, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, intensity_levels = 255, direction = directions, save_frame_info =True, block_trigger = False)
+                print time.time()-t0
+        if utils.safe_istrue(self.machine_config, 'STIM2VIDEO') and hasattr(self.machine_config, 'OUT_PATH') and self.machine_config.OS == 'Linux':
+            self.export2video(os.path.join(self.machine_config.OUT_PATH, 'natural_stim.mp4'))
+        if utils.safe_istrue(self.machine_config, 'EXPORT_INTENSITY_PROFILE'):
+            txtpath = os.path.join(self.machine_config.OUT_PATH, 'intensity_profile.txt')
+            if os.path.exists(txtpath):
+                os.remove(txtpath)
+            numpy.savetxt(txtpath, numpy.round(self.intensity_profile,4))
+            from pylab import plot, savefig
+            plot(self.intensity_profile)
+            savefig(os.path.join(self.machine_config.OUT_PATH, 'intensity_profile.png'))
 
 class Pointing2NotExistingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):

@@ -9,11 +9,11 @@ class InsermSetupConfig(ElphysRetinalCaImagingConfig):
     '''
     def _set_user_parameters(self):
         EXPERIMENT_FILE_FORMAT = 'mat'
-        if self.OS == 'win':
+        if self.OS == 'Windows':
             PLATFORM = 'elphys_retinal_ca'
         else:
             PLATFORM = 'standalone'
-        if self.OS == 'win':
+        if self.OS == 'Windows':
             root_folder = 'c:\\data'
         else:
             root_folder = '/mnt/datafast/debug'
@@ -44,7 +44,7 @@ class InsermSetupConfig(ElphysRetinalCaImagingConfig):
         
         #=== network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        ENABLE_UDP = (self.OS == 'win')
+        ENABLE_UDP = (self.OS == 'Windows')
         #=== LED controller ===
         STIM_SYNC_CHANNEL_INDEX = 1
         DAQ_CONFIG = [
@@ -56,7 +56,7 @@ class InsermSetupConfig(ElphysRetinalCaImagingConfig):
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
                     'DURATION_OF_AI_READ' : 300.0,
-                    'ENABLE' :  False#(self.OS == 'win')
+                    'ENABLE' :  False#(self.OS == 'Windows')
                     },
                     {
                     'ANALOG_CONFIG' : 'ao', #'ai', 'ao', 'aio', 'undefined'
@@ -66,12 +66,12 @@ class InsermSetupConfig(ElphysRetinalCaImagingConfig):
                     'MAX_VOLTAGE' : 3.0,
                     'MIN_VOLTAGE' : 0.0,
                     'DURATION_OF_AI_READ' : 1.0,
-                    'ENABLE' :  False#(self.OS == 'win')
+                    'ENABLE' :  False#(self.OS == 'Windows')
                     },
                     ]
                     
         #=== Filterwheel ===
-        ENABLE_FILTERWHEEL = (self.OS == 'win')
+        ENABLE_FILTERWHEEL = (self.OS == 'Windows')
         FILTERWHEEL_SERIAL_PORT = [{
                                     'port' :  'COM3',
                                     'baudrate' : 115200,
