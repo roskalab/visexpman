@@ -202,7 +202,10 @@ class ExperimentControl(object):
                         self.printl('{0} is set to {1}'.format(parameter_name2set.replace('_', ' ').capitalize(), value))
                         setattr(self,  parameter_name2set,  value)
             #read stage and objective
-            self.stage_position = self.stage.read_position() - self.stage_origin
+            raw_stage_pos = self.stage.read_position()
+            self.stage_position = raw_stage_pos - self.stage_origin
+            msg='DEBUG: Stage position abs {0}, rel: {1}, origin: {2}' .format(raw_stage_pos, self.stage_position, self.stage_origin)
+            self.printl(msg,  application_log = True)
             result, self.objective_position, self.objective_origin = self.mes_interface.read_objective_position(timeout = self.config.MES_TIMEOUT, with_origin = True)
             if not result:
                 time.sleep(0.4)#This message does not reach gui, perhaps a small delay will ensure it

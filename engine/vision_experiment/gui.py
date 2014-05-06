@@ -1445,6 +1445,8 @@ class MainPoller(Poller):
         if hasattr(self.xy_scan, 'has_key'):
             if self.xy_scan.has_key('path'):#For unknown reason this key is not found sometimes
                 self.files_to_delete.append(self.xy_scan['path'])
+        else:
+            del self.xy_scan
         if result:
             if self.xy_scan.has_key(self.config.DEFAULT_PMT_CHANNEL):
                 self.show_image(self.xy_scan[self.config.DEFAULT_PMT_CHANNEL], 0, self.xy_scan['scale'], origin = self.xy_scan['origin'])
@@ -1648,12 +1650,13 @@ class MainPoller(Poller):
         -objective positon where the data acquisition shall take place. This is below the brain surface
         -stage position. If master position is saved, the current position is set to origin. The origin of stimulation software is also 
         '''
+        self.printc('Add scan region pressed')
         if not self.xz_scan_acquired and hasattr(self, 'xz_scan'):
             del self.xz_scan
         if not hasattr(self, 'xy_scan'):
             self.printc('No brain surface image is acquired')
             return
-        if not self.xy_scan.has_key('averaging'):
+        if not utils.safe_has_key(self.xy_scan, 'averaging'):
             self.printc('Please send this to Zoltan:')
             self.printc('=================================')
             self.printc(type(self.xy_scan))
@@ -2010,9 +2013,13 @@ class MainPoller(Poller):
                 os.remove(p)
 
     def graceful_stop_experiment(self):
-        command = 'SOCgraceful_stop_experimentEOCguiEOP'
-        self.queues['stim']['out'].put(command)
+#        command = 'SOCgraceful_stop_experimentEOCguiEOP'
+#        self.queues['stim']['out'].put(command)
         self.printc('Graceful stop requested, please wait')
+        for id in self.issued_ids:
+            p = os.path.join(self.config.EXPERIMENT_DATA_PATH, id+'.hdf5')
+            if os.path.exists(p):
+                os.remove(p)
 
     def start_experiment(self):
         self.printc('Experiment started, please wait')

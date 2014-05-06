@@ -87,6 +87,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
 
     def run_loop(self):
         last_log_time = time.time()
+        last_stage_read  =time.time()
         try:
             while self.loop_state == 'running':
                 self.clear_screen_to_background()
@@ -102,6 +103,9 @@ class VisionExperimentRunner(command_handler.CommandHandler):
                 if now - last_log_time > 10.0:
                     last_log_time = now
                     self.log.info('main loop alive')
+                if now - last_stage_read > 60.0:#DEBUG
+                    last_stage_read = now
+                    self.stage('read',togui=False)
                 #To avoid race condition
                 time.sleep(0.1)
         except:

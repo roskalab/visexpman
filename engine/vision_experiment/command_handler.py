@@ -81,7 +81,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                 filterwheel.release_instrument()
         return 'filterwheel ' + str(filterwheel_id) + ',  ' +str(filter_position)
         
-    def stage(self,par, new_x = 0, new_y = 0, new_z = 0):
+    def stage(self,par, new_x = 0, new_y = 0, new_z = 0, togui=True):
         '''
         read stage:
             command: SOCstageEOCreadEOP
@@ -95,10 +95,12 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
             if 'read' in par or 'set' in par or 'origin' in par:
                 stage = stage_control.AllegraStage(self.config, log = self.log, queue = self.queues['gui']['in'])
                 position = stage.read_position()
+                self.log.info('DEBUG: Stage position abs {0}' .format(position))
                 if position == []:
                     self.queues['gui']['out'].put('SOCstageEOCerrorEOP')
                 if 'set' not in par:
-                    self.queues['gui']['out'].put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
+                    if togui:
+                        self.queues['gui']['out'].put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
                 if 'origin' in par:
                     self.stage_origin = position
                 if 'set' in par:
