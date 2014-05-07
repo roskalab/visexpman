@@ -19,7 +19,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import colors
 from visexpman.engine.vision_experiment import screen
 from visexpman.engine.generic import signal
-from visexpA.engine.datadisplay import videofile
+from visexpman.users.test import unittest_aggregator
 
 import unittest
 command_extract = re.compile('SOC(.+)EOC')
@@ -1331,7 +1331,7 @@ class TestStimulationPatterns(unittest.TestCase):
             self.assertEqual(first_column.std(),0)#Check if columns have the same color
             intensities.append(first_column.mean())
         intensities = numpy.array(intensities)
-        spectrum = abs(numpy.fft.fft(intensities))/2/spectrum.shape[0]
+        spectrum = abs(numpy.fft.fft(intensities))/2/intensities.shape[0]
         spectrum = spectrum[:spectrum.shape[0]/2]
         #TODO: test for checking periodicity
         #TODO: test for checking 1/x spectrum
@@ -1345,14 +1345,14 @@ class TestStimulationPatterns(unittest.TestCase):
                 EXPORT_INTENSITY_PROFILE = export,
                 DURATION = 20.0, REPEATS = 5, DIRECTIONS = range(0, 360, 90), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
 
+    @unittest.skipIf(unittest_aggregator.TEST_os != 'Linux',  'Supported only on Linux')
     def test_04_export2video(self):
         from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'GUITestConfig', 'TestVideoExportConfig', capture_frames = True)
+        context = stimulation_tester('test', 'GUITestConfig', 'TestVideoExportConfig', ENABLE_FRAME_CAPTURE = True)
         videofile = os.path.join(context['machine_config'].EXPERIMENT_DATA_PATH, 'out.mp4')
         self.assertTrue(os.path.exists(videofile))
         self.assertGreater(os.path.getsize(videofile), 30e3)
         os.remove(videofile)
-
 
 if __name__ == "__main__":
     unittest.main()

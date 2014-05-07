@@ -75,10 +75,7 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                 if state:
                     break
                 time.sleep(0.1)
-#            multiprocessing.Process.terminate(self)
             self.join()
-#        else:
-#            self.join()
         
     def _connect(self):
         self.context = zmq.Context()

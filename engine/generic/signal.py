@@ -64,8 +64,8 @@ def wf_sin(a, f, duration, fs, phase = 0, offset = 0):
 def wf_triangle(a, t_up, t_down, duration, fs, offset = 0):
     if t_up + t_down > duration:
         raise ValueError('t_up and t_down must be less than duration')
-    nsample_up = t_up*fs+1
-    nsample_down = t_down*fs+1
+    nsample_up = t_up*fs
+    nsample_down = t_down*fs
     triangle = numpy.concatenate((numpy.linspace(a/nsample_up, a, nsample_up), numpy.linspace(a-a/nsample_down, 0, nsample_down)))
     sig = numpy.zeros(int(fs*duration))
     triangle = numpy.tile(triangle, sig.shape[0]/triangle.shape[0])
@@ -210,7 +210,17 @@ class TestSignal(unittest.TestCase):
             plot(sig)
             show()
             
-    def test_08_generate_natural_stimulus_intensity_profile(self):
+    def test_09_triangle_wf_single(self):
+        a = -1.0
+        t_up = 0.02
+        t_down = 0.001
+        duration = 0.021
+        fs = 10000
+        sig = wf_triangle(a, t_up, t_down, duration, fs)
+        self.assertNotEqual(abs(sig).sum(), 0)
+        
+            
+    def test_10_generate_natural_stimulus_intensity_profile(self):
         generate_natural_stimulus_intensity_profile(20.0, 300.0, 20.0,2.0)
     
 if __name__=='__main__':

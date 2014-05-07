@@ -144,7 +144,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = ''#testVisionExperimentGui.test_15_repeated_gui_runs'
+TEST_single_unittest = 'TestAnalogIOProcess.test_07_aio_process_run_twice'#test_04_aio_multichannel
 
 def get_python_processes():
     pids = []

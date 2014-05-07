@@ -61,11 +61,11 @@ def set_voltage(channel, voltage):
                                         DAQmxConstants.DAQmx_Val_FiniteSamps,
                                         sample_per_channel)
                                                             
-    analog_output.WriteAnalogF64(self.number_of_ao_samples,
+    analog_output.WriteAnalogF64(sample_per_channel,
                                 False,
                                 1.0,
                                 DAQmxConstants.DAQmx_Val_GroupByChannel,
-                                numpy.ones((parse_channel_string(channel)[1], sample_per_channel))*value,
+                                numpy.ones((parse_channel_string(channel)[1], sample_per_channel))*voltage,
                                 None,
                                 None)
     analog_output.StartTask()
@@ -76,7 +76,7 @@ def set_voltage(channel, voltage):
 class AnalogIoHelpers(object):
     def __init__(self, queues):
         self.n_ai_reads = 0
-        if not hasattr(self, queues):
+        if not hasattr(self, 'queues'):
             self.queues = queues
 
     def start_daq(self, **kwargs):
@@ -88,12 +88,11 @@ class AnalogIoHelpers(object):
             timeout = 30.0
         while True:
             if not self.queues['response'].empty():
-                return 'started'
+                return self.queues['response'].get()[0]
             time.sleep(0.1)
             if time.time()-t0>timeout:
                 return 'timeout'
             
-
     def stop_daq(self,timeout = 30.0):
         '''
         Terminates waveform generation and/or data acquisition and returns data if any available
@@ -104,12 +103,15 @@ class AnalogIoHelpers(object):
             if time.time()-t0>timeout:
                 return 'timeout'
             if not self.queues['response'].empty():
-                nframes = self.queues['response'].get()[1]
+                response = self.queues['response'].get()
+                nframes = response[1]
                 data = []
                 for i in range(nframes - self.n_ai_reads):
                     data.append(self.queues['data'].get(timeout = 1))
-                data = numpy.array(data)
-                return data, nframes
+                data_array = numpy.array(data)
+                if data_array.dtype == numpy.object:#When buffer reads have different lenght
+                    data_array = numpy.concatenate(tuple(data))
+                return data_array, nframes
             else:
                 time.sleep(0.1)
                 
@@ -133,6 +135,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
     '''
     def __init__(self, instrument_name, queues, logger, ai_channels=None, ao_channels=None, limits = None):
         instrument.InstrumentProcess.__init__(self, instrument_name, queues, logger)
+        AnalogIoHelpers.__init__(self,queues)
         self.ai_channels = ai_channels
         self.ao_channels = ao_channels
         if platform.system() != 'Windows':
@@ -246,13 +249,10 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         if self.enable_ao:
             self.number_of_ao_samples = self.ao_waveform.shape[1]
             if self.enable_ai:
-                self.number_of_ai_samples = int(self.number_of_ao_samples * self.ai_sample_rate / self.ao_sample_rate)
+                self.number_of_ai_samples = int(self.number_of_ao_samples * float(self.ai_sample_rate) / float(self.ao_sample_rate))
         else:
             self.number_of_ai_samples = int(self.ai_record_time * self.ai_sample_rate)
             
-        #create ai buffer    
-        if self.enable_ai:
-            self.ai_data = numpy.zeros(self.number_of_ai_samples*self.number_of_ai_channels, dtype=numpy.float64)
         self._configure_timing() #this cannot be done during init because the lenght of the signal is not known before waveform is set
         if self.enable_ao:
             self._write_waveform()
@@ -271,17 +271,6 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         if not self.running:
             self.queues['response'].put(['Not running, cannot be stopped', ])
         aborted = kwargs.has_key('aborted') and kwargs['aborted']
-        if self.enable_ai:
-            try:
-                self.analog_input.ReadAnalogF64(self.number_of_ai_samples,
-                                            self.limits['timeout'],
-                                            DAQmxConstants.DAQmx_Val_GroupByChannel,
-                                            self.ai_data,
-                                            self.number_of_ai_samples * self.number_of_ai_channels,
-                                            DAQmxTypes.byref(self.read),
-                                            None)
-            except PyDAQmx.DAQError:
-                pass#Ignore if not enough data is available
         if self.enable_ao:
             self.analog_output.StopTask()
         if self.enable_ai:
@@ -295,6 +284,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         
     def _read_ai(self):
         samples_to_read = self.number_of_ai_samples * self.number_of_ai_channels
+        self.ai_data = numpy.zeros(self.number_of_ai_samples*self.number_of_ai_channels, dtype=numpy.float64)
         try:
             self.analog_input.ReadAnalogF64(self.number_of_ai_samples,
                                         self.limits['timeout'],
@@ -1431,22 +1421,68 @@ class TestAnalogIOProcess(unittest.TestCase):
         self.queues = {'command': multiprocessing.Queue(), 
                                                                             'response': multiprocessing.Queue(), 
                                                                             'data': multiprocessing.Queue()}
-        from visexpman.engie.generic import signal
-        self.ao_sample_rate = 10000
+        from visexpman.engine.generic import signal
+        self.ao_sample_rate = 40000
+        self.ao_sample_rate2 = 10000
         tup = 0.02
         tdown = 0.001
         amplitudes = [-1, 1,3]
         self.test_waveform = [signal.wf_triangle(amplitude, tup, tdown, tup+tdown, self.ao_sample_rate) for amplitude in amplitudes]
         self.test_waveform = numpy.concatenate(tuple(self.test_waveform))
+        self.test_waveform2 = numpy.linspace(0, 1, 1000)
+        
         self.expected_logs = ['test aio', 'Daq started with parameters', 'Daq stopped']
         self.ai_expected_logs = ['Analog input task created', 'Analog input task finished']
         self.ao_expected_logs = ['Analog output task created', 'Analog output task finished', 'Analog input task finished']
         self.not_expected_logs = ['ERROR', 'default']
         
     def tearDown(self):
-        self.logger.terminate()
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
+        if unittest_aggregator.TEST_daq:
+            set_voltage('Dev1/ao2', 0)
+            set_voltage('Dev1/ao3', 0)
+        if self.logger.is_alive():
+            self.logger.terminate()
+            
+    def _aio_restarted(self,logger,test_waveform):
+        aio_binning_factor1 = 4
+        aio_binning_factor2 = 5
+        duration1 = 4.0
+        duration2 = 7.0
+        aio = AnalogIOProcess('test aio', self.queues, logger,
+                                ai_channels = 'Dev1/ai0:1',
+                                ao_channels='Dev1/ao2:3')
+        self.test_waveform2ch = numpy.tile(test_waveform,2).reshape((2, test_waveform.shape[0]))
+        self.test_waveform22ch = -self.test_waveform2ch
+        processes = [aio,logger]
+        [p.start() for p in processes if hasattr(p, 'start') and not p.is_alive()]
+        aio.start_daq(ai_sample_rate = aio_binning_factor1*self.ao_sample_rate, ao_sample_rate = self.ao_sample_rate, 
+                      ao_waveform = self.test_waveform2ch,
+                      timeout = 30) 
+        time.sleep(duration1)
+        data1 = aio.stop_daq()
+        aio.start_daq(ai_sample_rate = aio_binning_factor2*self.ao_sample_rate2, ao_sample_rate = self.ao_sample_rate2, 
+                      ao_waveform = self.test_waveform22ch,
+                      timeout = 30) 
+        time.sleep(duration2)
+        data2 = aio.stop_daq()
+        aio.terminate()
+        time.sleep(0.5)#Wait till log flushed to file
+        if logger is not None:
+            map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
+            for el in [self.expected_logs, self.ai_expected_logs, self.ao_expected_logs]:
+                map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
+        #Check if two channel data is aquired
+        self.assertEqual(data1[0].shape[2],2)
+        self.assertEqual(data2[0].shape[2],2)
+        #check if length of recorded analog input data is realistic
+        self.assertAlmostEqual(data1[0].shape[0]*data1[0].shape[1]/float(aio_binning_factor1*self.ao_sample_rate), duration1, delta = 0.5)
+        self.assertAlmostEqual(data2[0].shape[0]*data2[0].shape[1]/float(self.ao_sample_rate2*aio_binning_factor2), duration2, delta = 0.5)
+        #Compare generated and acquired waveforms
+        numpy.testing.assert_allclose(data1[0][:,:,0].mean(axis=0)[1:], numpy.repeat(test_waveform,aio_binning_factor1)[:-1], 0, 1e-3)
+        numpy.testing.assert_allclose(data2[0][:,:,0].mean(axis=0)[1:], numpy.repeat(-test_waveform,aio_binning_factor2)[:-1], 0, 1e-3)
+        numpy.testing.assert_allclose(data1[0][:,:,1].mean(axis=0), numpy.repeat(test_waveform,aio_binning_factor1), 0, 1e-3)
+        numpy.testing.assert_allclose(data2[0][:,:,1].mean(axis=0), numpy.repeat(-test_waveform,aio_binning_factor2), 0, 1e-3)
+    
     def test_01_parse_channel_string(self):
         channels_strings = ['Dev1/ao0:2', 'Dev2/ao1', 'Dev3/ai2:3']
         expected_devnames = ['Dev1', 'Dev2', 'Dev3']
@@ -1459,62 +1495,52 @@ class TestAnalogIOProcess(unittest.TestCase):
             self.assertEqual(channel_indexes, expected_channel_indexes[i])
             
     @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
-    def test_02_aio_multichannel(self):
-        aio_binning_factor = 3
-        aio = AnalogIOProcess('test aio', self.queues, self.logger,
-                                ai_channels = 'Dev1/ai0:1',
-                                ao_channels='Dev1/ao2:3')
-        processes = [aio,self.logger]
-        [p.start() for p in processes]
-        aio.start_daq(ai_sample_rate = self.ao_sample_rate, ao_sample_rate = self.ao_sample_rate, 
-                      n_ai_samples = None, ao_waveform = self.test_waveform,
-                      timeout = 60) 
-        time.sleep(10)
-        data1 = aio.stop_daq()
-        aio.start_daq(ai_sample_rate = aio_binning_factor*self.ao_sample_rate, ao_sample_rate = self.ao_sample_rate, 
-                      n_ai_samples = None, ao_waveform = self.test_waveform,
-                      timeout = 60) 
-        time.sleep(10)
-        data2 = aio.stop_daq()
-        aio.terminate()
-        map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
-        for el in [self.expected_logs, self.ai_expected_logs, self.ao_expected_logs]:
-            map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
-        #Test: length of recording shall be close to 10 second
-        #data2:  consider aio_binning_factor
+    def test_02_set_voltage(self):
+        set_voltage('Dev1/ao2', 3)
+        set_voltage('Dev1/ao2', 0)
+        
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
+    def test_03_set_do_line(self):
+        set_digital_line('Dev1/port0/line0', 0)
+        set_digital_line('Dev1/port0/line0', 1)
+        set_digital_line('Dev1/port0/line0', 0)
+            
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
+    def test_04_aio_multichannel(self):
+        '''
+        Analog IO process started and two consecutive analog waveform generation and analog input sampling 
+        is initiated. Different ao sampling rates and binning factors are used.
+        
+        First ai channel has one sample delay and ao sampling rate increase does not work
+        '''
+        self._aio_restarted(self.logger, self.test_waveform)
     
     @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
-    def test_03_single_ai_channel(self):
-        #Setting 3 V on analog output 2
-        set_voltage('Dev1/ao2', 3)
+    def test_05_single_ai_channel(self):
+        #Setting 3 V on analog output 3
+        voltage = 3.0
+        set_voltage('Dev1/ao3', voltage)
         #Sampling analog input starts
+        ai_record_time = 5.0
+        ai_sample_rate = 1000000
         aio = AnalogIOProcess('test aio', self.queues, self.logger,
-                                ai_channels = 'Dev1/ai0')
+                                ai_channels = 'Dev1/ai1')
         processes = [aio,self.logger]
         [p.start() for p in processes]
-        aio.start_daq(ai_sample_rate = self.ao_sample_rate,
-                      n_ai_samples = 100000,
-                      timeout = 60) 
-        time.sleep(10)
+        aio.start_daq(ai_sample_rate = ai_sample_rate,
+                      ai_record_time = ai_record_time,
+                      timeout = 30) 
+        time.sleep(ai_record_time)
         data = aio.stop_daq()
         aio.terminate()
+        time.sleep(0.5)
         map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
         for el in [self.expected_logs, self.ai_expected_logs]:
             map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
         #constant 3 V is expected in data
-        numpy.testing.assert_allclose(data.mean(), 3.0, 0, 1e-3)
-        numpy.testing.assert_allclose(data.max()-data.min(), 0.0, 0, 1e-3)
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
-    def test_04_set_do_line(self):
-        set_digital_line('Dev1/port0/line0', 0)
-        set_digital_line('Dev1/port0/line0', 1)
-        set_digital_line('Dev1/port0/line0', 0)
-    
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
-    def test_05_set_voltage(self):
-        set_voltage('Dev1/ao2', 3)
-        set_voltage('Dev1/ao2', 0)
+        numpy.testing.assert_allclose(data[0].mean(), voltage, 0, 1e-3)
+        numpy.testing.assert_allclose(data[0].max()-data[0].min(), 0.0, 0, 1e-2*voltage)
+        self.assertGreaterEqual(data[0].shape[0]/float(ai_sample_rate), ai_record_time)
         
     @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
     def test_06_aio_start_without_params(self):
@@ -1523,68 +1549,20 @@ class TestAnalogIOProcess(unittest.TestCase):
                                 ao_channels='Dev1/ao2:3')
         processes = [aio,self.logger]
         [p.start() for p in processes]
-        aio.start_daq() 
+        aio.start_daq(timeout = 10.0) 
         aio.terminate()
         self.assertIn('DaqInstrumentError', fileop.read_text_file(self.logile))
-            
+        
     @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
-    def test_00_start_aio_process(self):
+    def test_07_aio_process_run_twice(self):
+        '''
+        Tests:
+         - In one session multiple consecutive AnalogIO process can be run
+         - if small buffer (short waveform) is handled properly
+        '''
+        for wf in [self.test_waveform,self.test_waveform,self.test_waveform]:
+            self._aio_restarted(None, wf)
         
-        aio = AnalogIOProcess('test aio', self.queues, self.logger,
-                                ai_channels = 'Dev1/ai0:1',
-                                ao_channels='Dev1/ao2:3')
-        processes = [aio,self.logger]
-        [p.start() for p in processes]
-        nsample=1000
-        wf = 0.5*numpy.ones((2,nsample))
-        wf[1,:] = numpy.arange(nsample,dtype=numpy.float)/nsample
-#        wf[:,-1] = 0
-        sample_rate = 100000
-        aio.start_daq(ai_sample_rate = sample_rate, ao_sample_rate = sample_rate, n_ai_samples = None, ao_waveform =wf)
-        t0=time.time()
-        time.sleep(30)
-
-        data = []
-#        while not aio.queues['data'].empty():
-#            data.append(aio.queues['data'].get())
-        nfr = aio.stop_daq()[1]
-        print nfr
-        print time.time()-t0
-
-        time.sleep(3)
-        t0=time.time()
-        for i in range(nfr):
-            data.append(aio.queues['data'].get(timeout = 1))
-        print time.time()-t0
-        time.sleep(5)
-        print aio.queues['data'].empty()
-        aio.terminate()
-        time.sleep(0.5)
-        print len(data)
-        self.logger.terminate()#TODO:remove
-        expected_logs = ['test aio', 'Analog output task created', 'Analog input task created',
-                        'Analog output task finished', 'Analog input task finished', 'Daq started with parameters', 'Daq stopped']
-        not_expected_logs = ['ERROR', 'default']
-        map(self.assertNotIn, not_expected_logs, len(not_expected_logs)*[fileop.read_text_file(self.logile)])
-        map(self.assertIn, expected_logs, len(expected_logs)*[fileop.read_text_file(self.logile)])
-#        pass
-#        numpy.diff(numpy.round(data[0][:,1],2))
-#        wf[1,:]
-        from pylab import plot, show, legend,figure
-        figure(1)
-        plot(data[0][:,1])
-        plot(wf[1,:])
-        legend(['ai', 'ao'])
-        figure(2)
-        plot(data[1][:,1])
-        plot(wf[1,:])
-        legend(['ai', 'ao'])
-        figure(3)
-        plot(data[1][:,1]-wf[1,:])
-        legend(['ai', 'ao'])
-        show()
-        
-    
         
 if __name__ == '__main__':
     unittest.main()

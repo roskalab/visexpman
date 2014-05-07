@@ -44,6 +44,8 @@ class Logger(multiprocessing.Process):
         self.saving2file_enable = True
 
     def add_source(self, source_name):
+        if self.sources.has_key(source_name):#If source already added silently do nothing
+            return
         if self.pid is not None:
             raise LoggingError('Logger process alread started, {0} source cannot be added'.format(source_name))
         self.sources[source_name] = multiprocessing.Queue()
