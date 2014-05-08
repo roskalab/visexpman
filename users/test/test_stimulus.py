@@ -16,7 +16,55 @@ from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.users.test import unittest_aggregator
 from visexpman.users.common import stimuli
-from visexpA.engine.datadisplay import videofile
+
+class TestTextureStimConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'TestTextureStim'
+        self._create_parameters_from_locals(locals())
+        
+class TestTextureStim(experiment.Experiment):
+    def run(self):
+        return
+        nframes = 600
+        data = numpy.random.random((nframes, self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col'], 3))
+        texture = data[0]
+        diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
+        diagonal =  numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
+        alpha =numpy.pi/4
+        angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
+        vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
+        vertices = vertices.transpose()
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        texture_coordinates = numpy.array(
+                             [
+                             [1.0, 1.0],
+                             [0.0, 1.0],
+                             [0.0, 0.0],
+                             [1.0, 0.0],
+                             ])
+        glTexCoordPointerf(texture_coordinates)
+        t0=time.time()
+        for frame_i in range(nframes):
+            texture = data[frame_i]
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            self._flip_and_block_trigger(frame_i, frame_i+10, True, False)#Don't want to calculate the overall number of frames
+            if self.abort:
+                break
+        dt = time.time()-t0
+        print dt, nframes, nframes/dt
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
 
 class TestVideoExportConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -75,34 +123,6 @@ class Pointing2NonExpConfig(experiment.ExperimentConfig):
         
 class DummyClass(object):
     pass
-
-class MovingGratingConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        #Timing        
-        self.NUMBER_OF_MARCHING_PHASES = 4
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
-        self.MARCH_TIME = 0.0
-        self.GRATING_STAND_TIME = 0.0
-        #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 90)
-        self.WHITE_BAR_WIDTHS = [300.0]
-        self.VELOCITIES = [1200.0]
-        self.DUTY_CYCLES = [2.5] 
-        self.REPEATS = 1
-        self.PAUSE_BEFORE_AFTER = 0.0
-        self.runnable = 'MovingGrating1'
-        self._create_parameters_from_locals(locals())
-
-class MovingGrating1(stimuli.MovingGrating):
-    def run(self, fragment_id=0):
-        shutil.rmtree(self.machine_config.CAPTURE_PATH)
-        os.mkdir(self.machine_config.CAPTURE_PATH)
-        self.machine_config.ENABLE_FRAME_CAPTURE = True
-        grating.MovingGrating.run(self, fragment_id)
-        #save captured frames to avi
-        videofile.image_files2mpg(self.machine_config.CAPTURE_PATH, os.path.join(self.machine_config.VIDEO_PATH, '{0}.mpg'.format(self.experiment_name)), 
-                                                                                                                                  fps = self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
-        self.machine_config.ENABLE_FRAME_CAPTURE = False
 
 class WhiteNoiseParameters(experiment.ExperimentConfig):
     def _create_parameters(self):

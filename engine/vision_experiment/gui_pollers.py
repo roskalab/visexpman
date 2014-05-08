@@ -2961,6 +2961,7 @@ class VisexpGuiPoller(Poller):
         time.sleep(0.5)                
         self.command_relay_server.shutdown_servers()
         self.save_context()
+        time.sleep(3.0)
         
     def test(self):
         if (hasattr(self, 'test_run') and self.testmode!=1 and self.testmode != 11)\

@@ -1067,7 +1067,6 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
-        
 class StimulationSequences(Stimulations):
     '''
     Stimulation sequences, helpers
@@ -1353,6 +1352,10 @@ class TestStimulationPatterns(unittest.TestCase):
         self.assertTrue(os.path.exists(videofile))
         self.assertGreater(os.path.getsize(videofile), 30e3)
         os.remove(videofile)
+        
+    def test_00_texture(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        context = stimulation_tester('test', 'GUITestConfig', 'TestTextureStimConfig', ENABLE_FRAME_CAPTURE = False)
 
 if __name__ == "__main__":
     unittest.main()

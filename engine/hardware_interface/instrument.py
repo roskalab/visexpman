@@ -13,7 +13,7 @@ import logging
 import visexpman
 from visexpman.users.test import unittest_aggregator
 
-class InstrumentProcess(multiprocessing.Process):
+class InstrumentProcess(multiprocessing.Process, log.LoggerHelper):
     '''
     Superclass of instrument control related operations that need to run in a separate process
     
@@ -30,13 +30,20 @@ class InstrumentProcess(multiprocessing.Process):
         self.instrument_name = instrument_name
         if hasattr(self.log, 'add_source'):
             self.log.add_source(instrument_name)
+        elif hasattr(self.log, 'put'):
+            log.LoggerHelper.__init__(self, self.log)
             
     def terminate(self):
         self.queues['command'].put('terminate')
             
     def printl(self,msg, loglevel='info'):
         if hasattr(self.log, loglevel):
-            getattr(self.log,loglevel)(str(msg), self.instrument_name)
+            logfunc = getattr(self.log,loglevel)
+        elif hasattr(self, loglevel):
+            logfunc = getattr(self,loglevel)
+        else:
+            return
+        logfunc(str(msg), self.instrument_name)
 
 class Instrument(object):
     '''
@@ -504,9 +511,11 @@ class TestInstrument(unittest.TestCase):
         fn = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_instrument_test_{0}.txt'.format(int(1000*time.time())))
         instrument_name = 'test instrument'
         logger = log.Logger(filename=fn)
+        logger.add_source(instrument_name)
+        logqueue = logger.get_queues()[instrument_name]
         ip = DummyInstrumentProcess(instrument_name, {'command': multiprocessing.Queue(), 
                                                                             'response': multiprocessing.Queue(), 
-                                                                            'data': multiprocessing.Queue()}, logger)
+                                                                            'data': multiprocessing.Queue()}, logqueue)
         processes = [ip, logger]
         [p.start() for p in processes]
         time.sleep(5.0)

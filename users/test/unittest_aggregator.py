@@ -144,7 +144,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = 'TestAnalogIOProcess.test_07_aio_process_run_twice'#test_04_aio_multichannel
+TEST_single_unittest = ''#TestAnalogIOProcess.test_08_short_waveform'
 
 def get_python_processes():
     pids = []
@@ -251,7 +251,7 @@ class ShowTestProgress(threading.Thread):
                 else:
                     test_name = lines[-1]
                     test_name = test_name.split(' ')[0]
-                sys.stdout.write('\r=========== {0}/{1} ==========='.format(len(lines) - (start_line+1),self.ntests))
+                sys.stdout.write('\r=========== {0}/{1} ===========\t{2}'.format(len(lines) - (start_line+1),self.ntests,test_name))
                 sys.stdout.flush()
             if tests_finished:
                 break

@@ -13,9 +13,10 @@ try:
     import PyDAQmx.DAQmxTypes as DAQmxTypes
 except:
     pass
-        
 from visexpman.engine.generic import configuration,utils,fileop
 from visexpman.users.test import unittest_aggregator
+
+WAVEFORM_MIN_DURATION = 0.06 #measured with test 08 on usb-6259, 0.054-0.058 also works
 
 class DaqInstrumentError(Exception):
     '''
@@ -249,6 +250,9 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         if self.enable_ao:
             self.number_of_ao_samples = self.ao_waveform.shape[1]
             if self.enable_ai:
+                waveform_duration = float(self.number_of_ao_samples)/self.ao_sample_rate
+                if waveform_duration < WAVEFORM_MIN_DURATION:
+                    self.printl('Waveform duration ({0} s) is less than {1} s, analog samples might be lost'.format(waveform_duration, WAVEFORM_MIN_DURATION), loglevel = 'warning')
                 self.number_of_ai_samples = int(self.number_of_ao_samples * float(self.ai_sample_rate) / float(self.ao_sample_rate))
         else:
             self.number_of_ai_samples = int(self.ai_record_time * self.ai_sample_rate)
@@ -1418,6 +1422,9 @@ class TestAnalogIOProcess(unittest.TestCase):
         from visexpman.engine.generic import log
         self.logile = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_daq_test_{0}.txt'.format(int(1000*time.time())))
         self.logger = log.Logger(filename=self.logile)
+        self.instrument_name = 'test aio'
+        self.logger.add_source(self.instrument_name)
+        self.logqueue = self.logger.get_queues()[self.instrument_name]
         self.queues = {'command': multiprocessing.Queue(), 
                                                                             'response': multiprocessing.Queue(), 
                                                                             'data': multiprocessing.Queue()}
@@ -1434,7 +1441,7 @@ class TestAnalogIOProcess(unittest.TestCase):
         self.expected_logs = ['test aio', 'Daq started with parameters', 'Daq stopped']
         self.ai_expected_logs = ['Analog input task created', 'Analog input task finished']
         self.ao_expected_logs = ['Analog output task created', 'Analog output task finished', 'Analog input task finished']
-        self.not_expected_logs = ['ERROR', 'default']
+        self.not_expected_logs = ['WARNING', 'ERROR', 'default']
         
     def tearDown(self):
         if unittest_aggregator.TEST_daq:
@@ -1447,8 +1454,8 @@ class TestAnalogIOProcess(unittest.TestCase):
         aio_binning_factor1 = 4
         aio_binning_factor2 = 5
         duration1 = 4.0
-        duration2 = 7.0
-        aio = AnalogIOProcess('test aio', self.queues, logger,
+        duration2 = 8.0
+        aio = AnalogIOProcess(self.instrument_name, self.queues, logger,
                                 ai_channels = 'Dev1/ai0:1',
                                 ao_channels='Dev1/ao2:3')
         self.test_waveform2ch = numpy.tile(test_waveform,2).reshape((2, test_waveform.shape[0]))
@@ -1467,10 +1474,9 @@ class TestAnalogIOProcess(unittest.TestCase):
         data2 = aio.stop_daq()
         aio.terminate()
         time.sleep(0.5)#Wait till log flushed to file
-        if logger is not None:
-            map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
-            for el in [self.expected_logs, self.ai_expected_logs, self.ao_expected_logs]:
-                map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
+        map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
+        for el in [self.expected_logs, self.ai_expected_logs, self.ao_expected_logs]:
+            map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
         #Check if two channel data is aquired
         self.assertEqual(data1[0].shape[2],2)
         self.assertEqual(data2[0].shape[2],2)
@@ -1523,7 +1529,7 @@ class TestAnalogIOProcess(unittest.TestCase):
         #Sampling analog input starts
         ai_record_time = 5.0
         ai_sample_rate = 1000000
-        aio = AnalogIOProcess('test aio', self.queues, self.logger,
+        aio = AnalogIOProcess(self.instrument_name, self.queues, self.logger,
                                 ai_channels = 'Dev1/ai1')
         processes = [aio,self.logger]
         [p.start() for p in processes]
@@ -1560,9 +1566,40 @@ class TestAnalogIOProcess(unittest.TestCase):
          - In one session multiple consecutive AnalogIO process can be run
          - if small buffer (short waveform) is handled properly
         '''
-        for wf in [self.test_waveform,self.test_waveform,self.test_waveform]:
-            self._aio_restarted(None, wf)
-        
+        self.logger.start()
+        for wf in [numpy.repeat(self.test_waveform,2),0.5*self.test_waveform,numpy.repeat(-0.2*self.test_waveform,3)]:
+            self._aio_restarted(self.logqueue, wf)
+            
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
+    def test_08_short_waveform(self):
+        from pylab import plot, show
+        self.logger.start()
+        configs = [(200000,12000), (10000, 600), (100000, 6000)]
+        for sample_rate, wf_size in configs:
+            waveform = numpy.linspace(0,1,wf_size)
+            duration = 3.0
+            for rep in range(3):
+                aio = AnalogIOProcess(self.instrument_name, self.queues, self.logqueue,
+                                        ai_channels = 'Dev1/ai0:1',
+                                        ao_channels='Dev1/ao2:3')
+                aio.start()
+                aio.start_daq(ai_sample_rate = sample_rate, ao_sample_rate = sample_rate, 
+                              ao_waveform = numpy.tile(waveform,2).reshape((2, waveform.shape[0])),
+                              timeout = 30) 
+                time.sleep(duration)
+                data = aio.stop_daq()
+                aio.terminate()
+                self.assertGreaterEqual(data[0].shape[0]*data[0].shape[1]/float(sample_rate), duration)
+                self.assertAlmostEqual(data[0].shape[0]*data[0].shape[1]/float(sample_rate), duration, delta = 0.3)
+                numpy.testing.assert_allclose(data[0][:,:,1].flatten(), numpy.tile(waveform,data[1]), 0, 1e-2)
+            if not True:
+                plot(data[0][:,:,1].flatten())
+                plot(numpy.tile(waveform,data[1]))
+                show()
+        #check log
+        map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
+        for el in [self.expected_logs, self.ai_expected_logs]:
+            map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
         
 if __name__ == '__main__':
     unittest.main()

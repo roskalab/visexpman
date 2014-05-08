@@ -20,11 +20,43 @@ class LoggingError(Exception):
     
 def log2str(msg):
     msg_out = copy.deepcopy(msg)
+    #Experiment config source code is not logged
     if utils.safe_has_key(msg_out, 'args') and isinstance(msg_out['args'], list) and utils.safe_has_key(msg_out['args'][0], 'experiment_config_source_code'):
         msg_out['args'][0]['experiment_config_source_code'] = 'Not logged'
     return str(msg_out)
+    
+class LoggerHelper(object):
+    '''
+    Set of functions for adding log entries.
+    '''
+    def __init__(self, queue=None):
+        if not hasattr(self, 'sources'):
+            self.queue = queue
+            
+    def info(self, msg, source='default', queue = None):
+        self.add_entry(msg, source, 'INFO', queue)
+    
+    def warning(self, msg, source='default', queue = None):
+        self.add_entry(msg, source, 'WARNING', queue)
+        
+    def error(self, msg, source='default', queue = None):
+        self.add_entry(msg, source, 'ERROR', queue)
+        
+    def add_entry(self, msg, source, loglevel, queue):
+        entry = [time.time(), loglevel, source, msg]
+        if not hasattr(self, 'sources'):
+            q = self.queue
+        elif self.sources.has_key(source):
+            q = self.sources[source]
+        else:
+            from visexpman.engine import LoggingError
+            raise LoggingError('{0} logging source was not added to logger'.format(source))
+        if queue is not None:#Message is put to provided queue, this is used for sending log info to remote application's console
+            queue.put(entry[-1])
+        q.put(entry)
+        
 
-class Logger(multiprocessing.Process):
+class Logger(multiprocessing.Process,LoggerHelper):
     '''
     Logger process that receives log entries via queues and saves all to one file.
     File operations can be suspended to minimize timing jitters in visual stimulation or in other 'real time' activities.
@@ -42,6 +74,9 @@ class Logger(multiprocessing.Process):
         self.sources = {}
         self.add_source('default')
         self.saving2file_enable = True
+        
+    def get_queues(self):
+        return self.sources
 
     def add_source(self, source_name):
         if self.sources.has_key(source_name):#If source already added silently do nothing
@@ -75,24 +110,6 @@ class Logger(multiprocessing.Process):
     def _entry2text(self, entry):
         return '{0} {1}/{2}\t{3}\n'.format(utils.timestamp2ymdhms(entry[0]), entry[1], entry[2], entry[3])
         
-    def info(self, msg, source='default', queue = None):
-        self.add_entry(msg, source, 'INFO', queue)
-    
-    def warning(self, msg, source='default', queue = None):
-        self.add_entry(msg, source, 'WARNING', queue)
-        
-    def error(self, msg, source='default', queue = None):
-        self.add_entry(msg, source, 'ERROR', queue)
-        
-    def add_entry(self, msg, source, loglevel, queue):
-        if self.sources.has_key(source):
-            entry = [time.time(), loglevel, source, msg]
-            self.sources[source].put(entry)#Timestamp is not captured when the data saving takes place
-            if queue is not None:
-                queue.put(entry[-1])
-        else:
-            from visexpman.engine import LoggingError
-            raise LoggingError('{0} logging source was not added to logger'.format(source))
         
     def upload_logfiles(self):
         '''
