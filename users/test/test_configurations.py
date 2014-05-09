@@ -493,7 +493,6 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
         configuration.ElphysRetinalCaImagingConfig.__init__(self)
         
     def _set_user_parameters(self):
-        
         from visexpman.users.test import unittest_aggregator
         self.root_folder = fileop.select_folder_exists(unittest_aggregator.TEST_working_folder)
         LOG_PATH = os.path.join(self.root_folder, 'log')
@@ -545,3 +544,8 @@ class NaturalStimulusTestMachineConfig(GUITestConfig):
     def _set_user_parameters(self):
         GUITestConfig._set_user_parameters(self)
         del self.GAMMA_CORRECTION
+
+class TextureTestMachineConfig(GUITestConfig):
+    def _set_user_parameters(self):
+        GUITestConfig._set_user_parameters(self)
+        self.SCREEN_RESOLUTION = utils.cr([300, 300])

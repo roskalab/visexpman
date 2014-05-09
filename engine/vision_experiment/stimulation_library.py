@@ -1292,8 +1292,6 @@ class StimulationSequences(Stimulations):
         size = utils.rc((movement, movement))
         end_point = self.config.SCREEN_CENTER
         start_point = utils.rc_add(utils.cr((0.5 * 2 * movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * 2 * movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
-#        import pdb
-#        pdb.set_trace()
         pos = utils.calculate_trajectory(start_point, end_point, speed/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
         if pause > 0:
             self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
@@ -1306,6 +1304,7 @@ class StimulationSequences(Stimulations):
         
 class TestStimulationPatterns(unittest.TestCase):
 
+#    @unittest.skip('')
     def test_01_curtain(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', ENABLE_FRAME_CAPTURE = not True)
@@ -1344,7 +1343,7 @@ class TestStimulationPatterns(unittest.TestCase):
                 EXPORT_INTENSITY_PROFILE = export,
                 DURATION = 20.0, REPEATS = 5, DIRECTIONS = range(0, 360, 90), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
 
-    @unittest.skipIf(unittest_aggregator.TEST_os != 'Linux',  'Supported only on Linux')
+    @unittest.skipIf(unittest_aggregator.TEST_os != 'Linux',  'Supported only on Linux')    
     def test_04_export2video(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'GUITestConfig', 'TestVideoExportConfig', ENABLE_FRAME_CAPTURE = True)
@@ -1353,9 +1352,9 @@ class TestStimulationPatterns(unittest.TestCase):
         self.assertGreater(os.path.getsize(videofile), 30e3)
         os.remove(videofile)
         
-    def test_00_texture(self):
+    def test_05_texture(self):
         from visexpman.engine.visexp_app import stimulation_tester
-        context = stimulation_tester('test', 'GUITestConfig', 'TestTextureStimConfig', ENABLE_FRAME_CAPTURE = False)
+        context = stimulation_tester('test', 'TextureTestMachineConfig', 'TestTextureStimConfig', ENABLE_FRAME_CAPTURE = False)
 
 if __name__ == "__main__":
     unittest.main()

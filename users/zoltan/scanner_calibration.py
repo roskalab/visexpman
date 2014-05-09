@@ -565,6 +565,8 @@ class ScannerIdentification(object):
     '''
     def __init__(self):
         self.ao_sample_rate = 100
+        self.ao_channel_name = 'Dev1/ao1'
+        self.ai_channel_name = 'Dev1/ai2'
         
     def command_voltage_angle_characteristics(self):
         import random
@@ -608,6 +610,14 @@ class ScannerIdentification(object):
             test_signal.append(signal.wf_sin(param['voltage'], param['frequency'], duration, self.ao_sample_rate, offset = param['offset']))
             nsamples += test_signal[-1].shape[0]
         print float(nsamples)/self.ao_sample_rate/3600
+        
+    def run_measurement(self,waveform):
+        from visexpman.engine.generic import log
+        from visexpman.engine.hardware_interface import daq_instrument
+        self.logile = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_scanner_calibration_{0}.txt'.format(int(1000*time.time())))
+        self.logger = log.Logger(filename=self.logile)
+        self.instrument_name = 'aio'
+        self.logger.add_source(self.instrument_name)
     
     
 if __name__ == "__main__":

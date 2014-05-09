@@ -24,9 +24,10 @@ class TestTextureStimConfig(experiment.ExperimentConfig):
         
 class TestTextureStim(experiment.Experiment):
     def run(self):
-        return
-        nframes = 600
-        data = numpy.random.random((nframes, self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col'], 3))
+        nframes = int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE*60*1)
+        shape = (1, self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col'], 3)
+        data = numpy.random.random(shape)
+#        data = numpy.cast['uint8'](data)
         texture = data[0]
         diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
         diagonal =  numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
@@ -36,7 +37,9 @@ class TestTextureStim(experiment.Experiment):
         vertices = vertices.transpose()
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
-        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
+        dt = GL_FLOAT
+#        dt = GL_UNSIGNED_BYTE
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, dt, texture)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
@@ -52,8 +55,10 @@ class TestTextureStim(experiment.Experiment):
         glTexCoordPointerf(texture_coordinates)
         t0=time.time()
         for frame_i in range(nframes):
-            texture = data[frame_i]
-            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
+#            texture = data[frame_i]
+            texture = numpy.random.random(shape)[0]
+            texture == texture*0.5+0.5
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, dt, texture)
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
@@ -61,10 +66,12 @@ class TestTextureStim(experiment.Experiment):
             if self.abort:
                 break
         dt = time.time()-t0
-        print dt, nframes, nframes/dt
+#        print dt, nframes, nframes/dt
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
+        if nframes/dt < self.machine_config.SCREEN_EXPECTED_FRAME_RATE*0.95:
+            raise RuntimeError('Expected frame rate: {0}, measured frame rate {1}'.format(nframes/dt, self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
 
 class TestVideoExportConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
