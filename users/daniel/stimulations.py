@@ -7,6 +7,26 @@ import os
 import shutil
 import random
 
+class CurtainConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.SPEED = 1200.0
+        self.DIRECTIONS = range(0,360,45)
+        self.REPEATS = 3
+        self.runnable = 'CurtainExperiment'
+        self._create_parameters_from_locals(locals())
+
+class CurtainExperiment(experiment.Experiment):
+    def prepare(self):
+        print self.machine_config.SCREEN_CENTER
+        self.fragment_durations = self.moving_curtain(self.experiment_config.SPEED, color = 1.0, direction=0, background_color = 0.0, pause = 0.0,noshow=True).shape[0]/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+        self.fragment_durations *= self.experiment_config.REPEATS * len(self.experiment_config.DIRECTIONS)
+    
+    def run(self):
+        for rep in range(self.experiment_config.REPEATS):
+            for d in self.experiment_config.DIRECTIONS:
+                self.moving_curtain(self.experiment_config.SPEED, color = 1.0, direction=d, background_color = 0.0, pause = 0.0)
+
+
 class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'

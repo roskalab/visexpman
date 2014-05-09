@@ -49,7 +49,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         
         #Command buffer for keyboard commands during experiment
         self.command_buffer = ''
-
+        
     def _flip(self,  trigger = False,  saveFrame = False, count = True):
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
@@ -886,6 +886,35 @@ class StimulationSequences(Stimulations):
         
     def moving_grating_stimulus(self):
         pass
+        
+    def moving_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0, noshow=False):
+        if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
+            self.vaf = 1
+        else:
+            self.vaf = -1
+        if self.machine_config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
+            self.haf = 1
+        else:
+            self.has = -1
+        self.log_on_flip_message_initial = 'moving_curtain(' + str(color)+ ', ' + str(background_color) +', ' + str(speed) +', ' + str(direction) +', ' + str(pause) + ' )'
+        self._save_stimulus_frame_info(inspect.currentframe())
+        movement = numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['col']**2+self.machine_config.SCREEN_SIZE_UM['row']**2)
+        size = utils.rc((movement, movement))
+        end_point = self.machine_config.SCREEN_CENTER
+        start_point = utils.rc_add(utils.cr((0.5 * 2 * movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * 2 * movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
+        pos = utils.calculate_trajectory(start_point, end_point, speed/self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
+        if noshow:
+            return pos
+        if pause > 0:
+            self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False)
+        for p in pos:
+            self.show_shape(shape = 'rect',  pos = p,  
+                            color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size)
+            if self.abort:
+                break
+        if pause > 0:
+            self.show_fullscreen(duration = pause, color = color, save_frame_info = False)
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
 #class FlashConfig(experiment.ExperimentConfig):
 #    def _create_parameters(self):
