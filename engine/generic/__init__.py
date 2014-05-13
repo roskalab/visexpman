@@ -71,8 +71,8 @@ def expspace(start,  end,  number_of_points):
     
 def iterate_parameter_space(parameters):
     iterable_parameters = []
-    for parameter_name, parameter_values in parameters.items():
-        iterable_parameters.append(parameter_values)
+    for parameter_name in parameters.keys():
+        iterable_parameters.append(parameters[parameter_name])
     iterable = []
     for item in itertools.product(*iterable_parameters):
         iterable.append(item)

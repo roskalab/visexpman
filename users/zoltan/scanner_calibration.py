@@ -564,15 +564,17 @@ class ScannerIdentification(object):
     
     '''
     def __init__(self):
-        self.ao_sample_rate = 100
+        self.ao_sample_rate = 100000
         self.ao_channel_name = 'Dev1/ao1'
         self.ai_channel_name = 'Dev1/ai2'
+        self.angle2voltage_factor = 0.66132089075664857    
+        self.voltage_correction_factor = self.angle2voltage_factor*2
         
     def command_voltage_angle_characteristics(self):
         import random
         import copy
         
-        measurement_time_per_point = 1.0#sec
+        measurement_time_per_point = 0.7#sec
         repeats = 2
         voltage_range = 7
         voltage_step_size = 0.1
@@ -580,50 +582,200 @@ class ScannerIdentification(object):
         voltage_down = voltage_up[::-1]#See if there is any hysteresis
         voltage_random = copy.deepcopy(voltage_down)
         random.seed(0)
-        random.shuffle(voltage_random)
-        voltage_sequence = numpy.tile(numpy.concatenate((voltage_up, voltage_down, voltage_random)),repeats)
+#        random.shuffle(voltage_random)
+        voltage_sequence = numpy.tile(numpy.concatenate((voltage_up, voltage_down)),repeats)
         voltages = []
         for v in voltage_sequence:
             voltages.append([v]*int(self.ao_sample_rate*measurement_time_per_point))
-        voltages = numpy.array(voltages)
+        waveform = numpy.concatenate(tuple(voltages))
+        measured = self.run_measurement(waveform)
+        measured = measured[:,0]
+        index_of_transitions = numpy.nonzero(numpy.diff(waveform))[0]
+        indexes2remove = numpy.concatenate(tuple([index_of_transitions +i for i in range(-10,20)]))
+        
+#        print angle2voltage_factor,(waveform/measured)[indexes].std()
+        measured = measured[:waveform.shape[0]]
+        ratio = waveform/measured
+        ratio = numpy.where(abs(ratio) > 2 , 1.3, ratio)
+        #From datasheet: 0.5 volt/degree
+        angle2voltage_factor = 0.5*ratio.mean()#0.66132089075664857     
+        mask = numpy.ones_like(waveform)
+        mask[indexes2remove] = 0.0
+        angle_command = waveform /angle2voltage_factor
+        angle_measured = measured * 2
+        
+        from pylab import plot,show,figure
+        figure(1)
+        plot(ratio)
+        figure(2)
+        plot(measured)
+        plot(waveform)
+        show()
         pass
         
     def frequency_domain_characteristics(self):
-        voltage_step = 0.2
-        offset_range = 1.8
-        amplitude_range = 10
-        periods = 20
+        periods = 10
         frequency_limit = 500
-        voltage_limit = 6
-        params = {}
-        params['frequency'] = numpy.concatenate((numpy.logspace(1,3,15,False), numpy.linspace(1000, 3000, 10)))
-        params['voltage'] = numpy.logspace(-1, 1, 30)
-        params['offset'] = numpy.concatenate((numpy.logspace(-1, 0.24, 6), -numpy.logspace(-1, 0.24, 6), numpy.zeros(1)))
+        voltage_limit = 3
+        paramspace = {}
+        paramspace['frequency'] = numpy.concatenate((numpy.logspace(1,3,13,False), numpy.linspace(1000, 2000, 5)))
+        paramspace['voltage'] = numpy.logspace(-1, 0.7, 6)
+        paramspace['offset'] = numpy.concatenate((-numpy.logspace(0.2, -1, 3), numpy.zeros(1), numpy.logspace(-1, 0.2, 3)))
         from visexpman.engine import generic
-        params = generic.iterate_parameter_space(params)
+        params = []
+        for o in paramspace['offset']:
+            for v in paramspace['voltage']:
+                for f in paramspace['frequency']:
+                    params.append({'frequency': f, 'voltage': v, 'offset': o})
+                    
+#        params = generic.iterate_parameter_space(paramspace)
+        
+        
+#        params = params[:10]
         params = [par for par in params if not (par['frequency'] > frequency_limit and par['voltage'] > voltage_limit)]
         test_signal = []
         from visexpman.engine.generic import signal
         nsamples = 0
         for param in params:
             duration = periods/param['frequency']
+            test_signal.append(numpy.ones(0.1 * self.ao_sample_rate)*param['offset'])
             test_signal.append(signal.wf_sin(param['voltage'], param['frequency'], duration, self.ao_sample_rate, offset = param['offset']))
             nsamples += test_signal[-1].shape[0]
-        print float(nsamples)/self.ao_sample_rate/3600
-        
+        print float(nsamples)/self.ao_sample_rate/60
+        from pylab import plot,show,figure
+        wf = numpy.concatenate(tuple(test_signal))
+        t = numpy.arange(wf.shape[0],dtype= numpy.float)/self.ao_sample_rate
+        measured = self.run_measurement(wf*self.voltage_correction_factor)
+        measured = measured[:wf.shape[0],0]
+        h=hdf5io.Hdf5io('r:\\dataslow\\scanner_angle_calib\\frequency_domain_characteristics.hdf5',filelocking=False)
+        h.waveform = wf
+        h.measured = measured
+        h.ao_sample_rate = self.ao_sample_rate
+        h.params = params
+        h.angle2voltage_factor = self.angle2voltage_factor
+        h.save(['angle2voltage_factor', 'waveform', 'measured', 'ao_sample_rate', 'params'])
+        h.close()
+
     def run_measurement(self,waveform):
         from visexpman.engine.generic import log
         from visexpman.engine.hardware_interface import daq_instrument
+        from visexpman.users.test import unittest_aggregator
+        from visexpman.engine.generic import log
+        import multiprocessing
         self.logile = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_scanner_calibration_{0}.txt'.format(int(1000*time.time())))
         self.logger = log.Logger(filename=self.logile)
         self.instrument_name = 'aio'
         self.logger.add_source(self.instrument_name)
+        self.limits = {}
+        vlim = 7.1
+        self.limits['min_ao_voltage'] = -vlim
+        self.limits['max_ao_voltage'] = vlim
+        self.limits['min_ai_voltage'] = -vlim
+        self.limits['max_ai_voltage'] = vlim
+        self.limits['timeout'] = 1
+        self.queues = {'command': multiprocessing.Queue(), 
+                                                                            'response': multiprocessing.Queue(), 
+                                                                            'data': multiprocessing.Queue()}
+        aio = daq_instrument.AnalogIOProcess(self.instrument_name, self.queues, self.logger,
+                                ai_channels = self.ai_channel_name,
+                                ao_channels= self.ao_channel_name, limits = self.limits)
+        [p.start() for p in [aio,self.logger]]
+        if aio.start_daq(ai_sample_rate = self.ao_sample_rate, ao_sample_rate = self.ao_sample_rate, 
+                      ao_waveform = waveform.reshape((1,waveform.shape[0])),
+                      timeout = 30) == 'timeout':
+                          print 'did not start correctly'
+                          self.stop_aio(aio)
+                          return
+                          
+#        t0 = time.time()
+#        data1 = []
+#        while True:
+#            res = aio.read_ai()
+#            if res is not None:
+#                if res.shape[0]*res.shape[1] != 0:
+#                    data1.append(res)
+#            if time.time()-t0 > 1.5*float(waveform.shape[0])/self.ao_sample_rate:
+#                break
+#            time.sleep(1e-3)
+        time.sleep(float(waveform.shape[0])/self.ao_sample_rate*1.3)
+        data = aio.stop_daq()
+        self.stop_aio(aio)
+        return data[0]
+        
+    def stop_aio(self,aio):
+        aio.terminate()
+        daq_instrument.set_voltage(self.ao_channel_name, 0)
+        if self.logger.is_alive():
+            self.logger.terminate()
+        [utils.empty_queue(q) for q in self.queues.values()]
+        
+    def eval_frequency_characteristics(self,filename):
+        varnames = ['angle2voltage_factor', 'waveform', 'measured', 'ao_sample_rate', 'params']
+        d = utils.array2object(numpy.load(filename))
+        [setattr(self, vn, d[vn]) for vn in varnames]
+        gap_indexes = numpy.nonzero(numpy.diff(self.waveform))[0]
+        gap_sizes = numpy.diff(gap_indexes)
+        gap_indexes = numpy.nonzero(numpy.where(gap_sizes>1, gap_sizes, 0))[0]
+        limiter = numpy.zeros(0.1*self.ao_sample_rate)
+        mask=numpy.ones_like(self.waveform)
+        mask[numpy.nonzero(numpy.diff(self.waveform))[0]]=0#Has to be filtered
+        rising_edge_indexes = numpy.nonzero(numpy.where(numpy.diff(mask)==1,1,0))[0][:-1]
+        rising_edge_indexes = rising_edge_indexes.tolist()
+        rising_edge_indexes.insert(0,0)
+        rising_edge_indexes = numpy.array(rising_edge_indexes)
+        falling_edge_indexes = numpy.nonzero(numpy.where(numpy.diff(mask)==-1,1,0))[0]
+        indexes = [[rising_edge_indexes[i], falling_edge_indexes[i]] for i in range(rising_edge_indexes.shape[0]) if falling_edge_indexes[i] - rising_edge_indexes[i] >100]
+        mask=numpy.zeros_like(self.waveform)
+        for i in indexes:
+            mask[i[0]:i[1]]=1
+        edges = numpy.nonzero(numpy.diff(mask))[0]
+        edges = edges.tolist()
+        edges.append(len(mask)-1)
+        edges = numpy.array(edges)
+        mask=numpy.zeros_like(self.waveform)
+        for i in range(edges.shape[0]/2):
+            mask[edges[0::2][i]:edges[1::2][i]]=1
+        for i in range(len(self.params)):
+            self.params[i]['rising'] = edges[0::2][i]
+            self.params[i]['falling'] = edges[1::2][i]
+        res = [self.eval_single(p) for p in self.params]
+        plot(self.waveform)
+        show()
+        pass
+        
+    def eval_single(self,param):
+        '''
+        Gain and phase shift has to be calculated
+        '''
+        command = self.waveform[param['rising']:param['falling']]
+        measured = self.measured[param['rising']:param['falling']]
+        import scipy.optimize
+        p0 = [param['voltage'], param['frequency'], 0.0,  param['offset']]
+        sinus(numpy.arange(measured.shape[0]),*p0)
+        coeff, var_matrix = scipy.optimize.curve_fit(sinus, numpy.arange(measured.shape[0], dtype=numpy.float)/self.ao_sample_rate, measured, p0=p0)
+        import copy
+        res = copy.deepcopy(param)
+        res['measured'] = {}
+        res['measured']['voltage'] = coeff[0]*2
+        res['measured']['frequency'] = coeff[1]
+        res['measured']['phase'] = coeff[2]
+        res['measured']['offset'] = coeff[3]
+        res['measured']['gain'] = res['measured']['voltage']/param['voltage']
+        return res
+        
+    
+def sinus(x, *p):
+    A, f, ph, o = p
+    return A*numpy.sin(numpy.pi*2*x*f+ph)+o
     
     
 if __name__ == "__main__":
     s=ScannerIdentification()
-    s.command_voltage_angle_characteristics()
-    s.frequency_domain_characteristics()
+    if False:
+        s.command_voltage_angle_characteristics()
+        s.frequency_domain_characteristics()
+#    s.eval_frequency_characteristics('r:\\dataslow\\scanner_angle_calib\\frequency_domain_characteristics.npy')
+    s.eval_frequency_characteristics('/mnt/rzws/dataslow/scanner_angle_calib/frequency_domain_characteristics.npy')
 #    import mpl_toolkits.mplot3d.axes3d as p3
 #    x=numpy.linspace(0, 10, 10)
 #    y=numpy.linspace(5, 8, 10)

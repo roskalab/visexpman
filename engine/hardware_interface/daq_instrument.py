@@ -108,7 +108,7 @@ class AnalogIoHelpers(object):
                 nframes = response[1]
                 data = []
                 for i in range(nframes - self.n_ai_reads):
-                    data.append(self.queues['data'].get(timeout = 1))
+                    data.append(self.queues['data'].get(timeout = 5))
                 data_array = numpy.array(data)
                 if data_array.dtype == numpy.object:#When buffer reads have different lenght
                     data_array = numpy.concatenate(tuple(data))
@@ -312,7 +312,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         try:
             self._create_tasks()
             while True:
-                time.sleep(0.05)
+                time.sleep(10e-3)
                 if not self.queues['command'].empty():
                     command = self.queues['command'].get()
                     if command == 'terminate':
