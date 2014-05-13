@@ -11,7 +11,7 @@ def xls2hdf5(filename, sheet_name, date, outfolder):
             contrast = sh.row_values(row+2)[1:]
             intensity = sh.row_values(row+3)[1:]
             gamma_correction = numpy.array([contrast, intensity]).T
-            h = hdf5io.Hdf5io(os.path.join(os.path,'gamma.hdf5'), filelocking=False)
+            h = hdf5io.Hdf5io(os.path.join(outfolder,'gamma.hdf5'), filelocking=False)
             h.gamma_correction = gamma_correction
             h.save('gamma_correction')
             h.close()
