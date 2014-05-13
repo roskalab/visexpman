@@ -33,7 +33,7 @@ def histogram_shift(data, output_range, min = None, max = None, gamma = 1.0, ban
     return interpolator(data_shifted)
     
 def scale(data, output_range_min = 0.0, output_range_max =1.0):
-    return (data - data.min())/(data.max() - data.min())*(output_range_max - output_range_min)+output_range_min
+    return (numpy.cast['float'](data) - data.min())/(data.max() - data.min())*(output_range_max - output_range_min)+output_range_min
 
 def greyscale(im, weights = numpy.array([1.0, 1.0, 1.0])):
     '''
