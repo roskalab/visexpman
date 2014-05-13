@@ -5,36 +5,55 @@ import time
 import random
 import copy
 
-class MovingGratingConfigFindOrientation(experiment.ExperimentConfig):
+
+class CurtainConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.REPEATS = 5
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 2
-        self.TUNING_SPEEDS = [800.0, 400.0,100.0]
-        self.TUNING_WHITE_BAR_WIDTHS = [150.0, 300.0, 600.0, 1000.0]
-        self.TUNING_ORIENTATION = 90.0
-        self.MARCH_TIME = 1.0
-        self.GREY_INSTEAD_OF_MARCHING=True
-        
-        self.NUMBER_OF_MARCHING_PHASES = 0
-        self.GRATING_STAND_TIME = 0
+        #Timing        
+        self.NUMBER_OF_MARCHING_PHASES = 1 #number of static bar compositions at beginning
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1 #how many times the bar hit a point -> this + speed = moving time
+        self.MARCH_TIME = 0.0 # standing phase time
+        self.GRATING_STAND_TIME = 0.0 #post-moving-phase time
+        #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
-        self.WHITE_BAR_WIDTHS = [300.0]
-        self.VELOCITIES = [800.0]
-        self.DUTY_CYCLES = [self.machine_config.SCREEN_SIZE_UM['col']*1.414/self.WHITE_BAR_WIDTHS] 
-        self.PAUSE_BEFORE_AFTER = 0.0
+        self.WHITE_BAR_WIDTHS = [3000.0]
+        self.VELOCITIES = [300.0]
+        self.DUTY_CYCLES = [2] #white and blck bar ratio -> number of bars 
+        self.REPEATS = 3
+        self.PAUSE_BEFORE_AFTER = 5.0 #very beginning and end waiting time
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
-        
-class MovingGratingTuning(MovingGratingConfigFindOrientation):
-    def _create_parameters(self):
-        MovingGratingConfigFindOrientation._create_parameters(self)
-        self.VELOCITIES = self.TUNING_SPEEDS
-        self.WHITE_BAR_WIDTHS = self.TUNING_WHITE_BAR_WIDTHS
-        self.ORIENTATIONS = [self.TUNING_ORIENTATION]
-        self.DUTY_CYCLES = [1.0]
-        self.REPEATS = 3
-        self._create_parameters_from_locals(locals())
+if 0:
+    class MovingGratingConfigFindOrientation(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.REPEATS = 5
+            self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 2
+            self.TUNING_SPEEDS = [800.0, 400.0,100.0]
+            self.TUNING_WHITE_BAR_WIDTHS = [150.0, 300.0, 600.0, 1000.0]
+            self.TUNING_ORIENTATION = 90.0
+            self.MARCH_TIME = 1.0
+            self.GREY_INSTEAD_OF_MARCHING=True
+            
+            self.NUMBER_OF_MARCHING_PHASES = 0
+            self.GRATING_STAND_TIME = 0
+            self.ORIENTATIONS = range(0, 360, 45)
+            self.WHITE_BAR_WIDTHS = [300.0]
+            self.VELOCITIES = [800.0]
+            self.DUTY_CYCLES = [self.machine_config.SCREEN_SIZE_UM['col']*1.414/self.WHITE_BAR_WIDTHS] 
+            self.PAUSE_BEFORE_AFTER = 0.0
+            self.runnable = 'MovingGrating'
+            self.pre_runnable = 'MovingGratingPre'
+            self._create_parameters_from_locals(locals())
+            
+    class MovingGratingTuning(MovingGratingConfigFindOrientation):
+        def _create_parameters(self):
+            MovingGratingConfigFindOrientation._create_parameters(self)
+            self.VELOCITIES = self.TUNING_SPEEDS
+            self.WHITE_BAR_WIDTHS = self.TUNING_WHITE_BAR_WIDTHS
+            self.ORIENTATIONS = [self.TUNING_ORIENTATION]
+            self.DUTY_CYCLES = [1.0]
+            self.REPEATS = 3
+            self._create_parameters_from_locals(locals())
 
 class MovingGratingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -106,27 +125,27 @@ class MovingGratingNoMarchingBlackPreConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())
-        
-class MovingGratingWithFlashConfig(MovingGratingNoMarchingConfig):
-    def _create_parameters(self):
-        MovingGratingNoMarchingConfig._create_parameters(self)
-        #Flash config
-        self.ENABLE_FLASH = True
-        self.FLASH_DURATION = 0.1
-        self.TIMING = [2.0, self.FLASH_DURATION, 7.0, self.FLASH_DURATION, 7.0]
-        self.FLASH_REPEATS = 1
-        self.BLACK = 0.0
-        self.WHITE = 1.0
-        self.PAUSE_BEFORE_AFTER = 12.0
-        
-class MovingGratingSineConfig(MovingGratingNoMarchingConfig):
-    def _create_parameters(self):
-        MovingGratingNoMarchingConfig._create_parameters(self)
-        self.PROFILE = 'sin'
-        self.DUTY_CYCLES = [1.0] #put 1.0 to a different config
-        self.runnable = 'MovingGrating'
-        self.pre_runnable = 'MovingGratingPre'
-#         self._create_parameters_from_locals(locals())
+if 0:       
+    class MovingGratingWithFlashConfig(MovingGratingNoMarchingConfig):
+        def _create_parameters(self):
+            MovingGratingNoMarchingConfig._create_parameters(self)
+            #Flash config
+            self.ENABLE_FLASH = True
+            self.FLASH_DURATION = 0.1
+            self.TIMING = [2.0, self.FLASH_DURATION, 7.0, self.FLASH_DURATION, 7.0]
+            self.FLASH_REPEATS = 1
+            self.BLACK = 0.0
+            self.WHITE = 1.0
+            self.PAUSE_BEFORE_AFTER = 12.0
+            
+    class MovingGratingSineConfig(MovingGratingNoMarchingConfig):
+        def _create_parameters(self):
+            MovingGratingNoMarchingConfig._create_parameters(self)
+            self.PROFILE = 'sin'
+            self.DUTY_CYCLES = [1.0] #put 1.0 to a different config
+            self.runnable = 'MovingGrating'
+            self.pre_runnable = 'MovingGratingPre'
+    #         self._create_parameters_from_locals(locals())
         
 if 0:
     class MovingGratingNoMarchingNoStandingConfig(experiment.ExperimentConfig):
@@ -147,103 +166,103 @@ if 0:
             self.runnable = 'MovingGrating'
             self.pre_runnable = 'MovingGratingPre'
             self._create_parameters_from_locals(locals())
-
-class ShortMovingGratingConfig(MovingGratingWithFlashConfig):
-    def _create_parameters(self):
-        MovingGratingWithFlashConfig._create_parameters(self)
-        self.ENABLE_FLASH = False
-        #Timing
-        self.NUMBER_OF_MARCHING_PHASES = 1
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1
-        self.MARCH_TIME = 0.5
-        self.GRATING_STAND_TIME = 0.5
-        #Grating parameters        
-        self.ORIENTATIONS = [0,45,90,135,180,225,270,315]
-        self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.PAUSE_BEFORE_AFTER = 0.0
-        self.REPEATS = 1
-        self.runnable = 'MovingGrating'
-        self.pre_runnable = 'MovingGratingPre'
-        self._create_parameters_from_locals(locals())
-        
-class MovingGratingConfig16Directions(MovingGratingNoMarchingConfig):
-    def _create_parameters(self):
-        MovingGratingNoMarchingConfig._create_parameters(self)
-        self.NUMBER_OF_MARCHING_PHASES = 1
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
-        self.MARCH_TIME = 4.0
-        self.GRATING_STAND_TIME = 4.0
-        #Grating parameters
-        self.ORIENTATIONS = numpy.arange(0, 360, 22.5).tolist()
-        self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [1200.0]#1800
-        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 2
-        self.PAUSE_BEFORE_AFTER = 5.0
-        self.runnable = 'MovingGrating'
-        self.pre_runnable = 'MovingGratingPre'
-        self._create_parameters_from_locals(locals())
-
-        
-class KamillMovingGratingNoMarchingConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        #Timing
-        self.NUMBER_OF_MARCHING_PHASES = 1
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
-        self.MARCH_TIME = 4.0
-        self.GRATING_STAND_TIME = 4.0
-        #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
-        self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [1200.0]#1800
-        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 2
-        self.PAUSE_BEFORE_AFTER = 5.0
-        self.runnable = 'MovingGrating'
-        self.pre_runnable = 'BlackPre'
-        self._create_parameters_from_locals(locals())
-               
-class KamillMovingGratingWithFlashConfig(KamillMovingGratingNoMarchingConfig):
-    def _create_parameters(self):
-        KamillMovingGratingNoMarchingConfig._create_parameters(self)
-        #Flash config
-        self.ENABLE_FLASH = True
-        self.FLASH_DURATION = 2.0
-        self.TIMING = [10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0]
-        self.FLASH_REPEATS = 1
-        self.BLACK = 0.0
-        self.WHITE = 1.0
-        self.PAUSE_BEFORE_AFTER = 1.0        
-
-class KamillFastMovingGratingMarchingConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        #Timing
-        self.NUMBER_OF_MARCHING_PHASES = 3
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
-        self.MARCH_TIME = 2.0
-        self.GRATING_STAND_TIME = 0.2
-        #Grating parameters
-        self.ORIENTATIONS = range(0, 360, 45)
-        self.WHITE_BAR_WIDTHS = [300.0]#300
-        self.VELOCITIES = [1800.0]#1800
-        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
-        self.REPEATS = 2
-        self.PAUSE_BEFORE_AFTER = 5.0
-        self.runnable = 'MovingGrating'
-        self.pre_runnable = 'BlackPre'
-        self._create_parameters_from_locals(locals())
-               
-class KamillFastMovingGratingWithFlashConfig(KamillFastMovingGratingMarchingConfig):
-    def _create_parameters(self):
-        KamillFastMovingGratingNoMarchingConfig._create_parameters(self)
-        #Flash config
-        self.ENABLE_FLASH = True
-        self.FLASH_DURATION = 2.0
-        self.TIMING = [10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0]
-        self.FLASH_REPEATS = 1
-        self.BLACK = 0.0
-        self.WHITE = 1.0
-        self.PAUSE_BEFORE_AFTER = 1.0            
+if 0:
+    class ShortMovingGratingConfig(MovingGratingWithFlashConfig):
+        def _create_parameters(self):
+            MovingGratingWithFlashConfig._create_parameters(self)
+            self.ENABLE_FLASH = False
+            #Timing
+            self.NUMBER_OF_MARCHING_PHASES = 1
+            self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1
+            self.MARCH_TIME = 0.5
+            self.GRATING_STAND_TIME = 0.5
+            #Grating parameters        
+            self.ORIENTATIONS = [0,45,90,135,180,225,270,315]
+            self.WHITE_BAR_WIDTHS = [300.0]#300
+            self.PAUSE_BEFORE_AFTER = 0.0
+            self.REPEATS = 1
+            self.runnable = 'MovingGrating'
+            self.pre_runnable = 'MovingGratingPre'
+            self._create_parameters_from_locals(locals())
+if 0:        
+    class MovingGratingConfig16Directions(MovingGratingNoMarchingConfig):
+        def _create_parameters(self):
+            MovingGratingNoMarchingConfig._create_parameters(self)
+            self.NUMBER_OF_MARCHING_PHASES = 1
+            self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+            self.MARCH_TIME = 4.0
+            self.GRATING_STAND_TIME = 4.0
+            #Grating parameters
+            self.ORIENTATIONS = numpy.arange(0, 360, 22.5).tolist()
+            self.WHITE_BAR_WIDTHS = [300.0]#300
+            self.VELOCITIES = [1200.0]#1800
+            self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+            self.REPEATS = 2
+            self.PAUSE_BEFORE_AFTER = 5.0
+            self.runnable = 'MovingGrating'
+            self.pre_runnable = 'MovingGratingPre'
+            self._create_parameters_from_locals(locals())
+    
+            
+    class KamillMovingGratingNoMarchingConfig(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            #Timing
+            self.NUMBER_OF_MARCHING_PHASES = 1
+            self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+            self.MARCH_TIME = 4.0
+            self.GRATING_STAND_TIME = 4.0
+            #Grating parameters
+            self.ORIENTATIONS = range(0, 360, 45)
+            self.WHITE_BAR_WIDTHS = [300.0]#300
+            self.VELOCITIES = [1200.0]#1800
+            self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+            self.REPEATS = 2
+            self.PAUSE_BEFORE_AFTER = 5.0
+            self.runnable = 'MovingGrating'
+            self.pre_runnable = 'BlackPre'
+            self._create_parameters_from_locals(locals())
+                   
+    class KamillMovingGratingWithFlashConfig(KamillMovingGratingNoMarchingConfig):
+        def _create_parameters(self):
+            KamillMovingGratingNoMarchingConfig._create_parameters(self)
+            #Flash config
+            self.ENABLE_FLASH = True
+            self.FLASH_DURATION = 2.0
+            self.TIMING = [10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0]
+            self.FLASH_REPEATS = 1
+            self.BLACK = 0.0
+            self.WHITE = 1.0
+            self.PAUSE_BEFORE_AFTER = 1.0        
+    
+    class KamillFastMovingGratingMarchingConfig(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            #Timing
+            self.NUMBER_OF_MARCHING_PHASES = 3
+            self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 4
+            self.MARCH_TIME = 2.0
+            self.GRATING_STAND_TIME = 0.2
+            #Grating parameters
+            self.ORIENTATIONS = range(0, 360, 45)
+            self.WHITE_BAR_WIDTHS = [300.0]#300
+            self.VELOCITIES = [1800.0]#1800
+            self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+            self.REPEATS = 2
+            self.PAUSE_BEFORE_AFTER = 5.0
+            self.runnable = 'MovingGrating'
+            self.pre_runnable = 'BlackPre'
+            self._create_parameters_from_locals(locals())
+                   
+    class KamillFastMovingGratingWithFlashConfig(KamillFastMovingGratingMarchingConfig):
+        def _create_parameters(self):
+            KamillFastMovingGratingNoMarchingConfig._create_parameters(self)
+            #Flash config
+            self.ENABLE_FLASH = True
+            self.FLASH_DURATION = 2.0
+            self.TIMING = [10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0, self.FLASH_DURATION, 10.0]
+            self.FLASH_REPEATS = 1
+            self.BLACK = 0.0
+            self.WHITE = 1.0
+            self.PAUSE_BEFORE_AFTER = 1.0            
         
 class MovingGratingSpeed100ums(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
@@ -257,9 +276,12 @@ class MovingGratingSpeed300ums(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
         self.VELOCITIES = [300.0]
-        self.WHITE_BAR_WIDTHS = [200.0]
-        self.DUTY_CYCLES = [1.0]
-        self.REPEATS = 2
+        self.WHITE_BAR_WIDTHS = [300.0]
+        self.DUTY_CYCLES = [9.0]
+        self.REPEATS = 3
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1
+        self.PAUSE_BEFORE_AFTER = 2.0 #very beginning and end waiting time
+        self.GRATING_STAND_TIME = 0.0 #post-moving-phase time
         
 class MovingGratingSpeed800ums(MovingGratingNoMarchingConfig):
     def _create_parameters(self):

@@ -4,106 +4,106 @@ from visexpman.engine.generic import utils
 import os
 import numpy
 import time
-
-class Led1min5x100msStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 60.0 #10.0
-        self.NUMBER_OF_FLASHES = 5.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 10.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class Led1min3x100ms7VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 60.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 7.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-class Led2min3x10msStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 120.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 10e-3
-        self.FLASH_AMPLITUDE = 10.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-class Led3x100ms1VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 1.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-class Led3x100ms2VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 2.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-
-class Led3x100ms4VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 4.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class Led3x100ms7VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 7.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-class Led3x100ms10VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 10.0 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 15.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-class Led3x100ms0p4VStimulationConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
-        self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 100e-3
-        self.FLASH_AMPLITUDE = 0.4 #10.0
-        self.DELAY_BEFORE_FIRST_FLASH = 30.0
-        self.runnable = 'LedStimulation'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
+if 0:
+    class Led1min5x100msStimulationConfig(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.PAUSE_BETWEEN_FLASHES = 60.0 #10.0
+            self.NUMBER_OF_FLASHES = 5.0
+            self.FLASH_DURATION = 100e-3
+            self.FLASH_AMPLITUDE = 10.0 #10.0
+            self.DELAY_BEFORE_FIRST_FLASH = 15.0
+            self.runnable = 'LedStimulation'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class Led1min3x100ms7VStimulationConfig(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.PAUSE_BETWEEN_FLASHES = 60.0 #10.0
+            self.NUMBER_OF_FLASHES = 3.0
+            self.FLASH_DURATION = 100e-3
+            self.FLASH_AMPLITUDE = 7.0 #10.0
+            self.DELAY_BEFORE_FIRST_FLASH = 15.0
+            self.runnable = 'LedStimulation'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+    
+    class Led2min3x10msStimulationConfig(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.PAUSE_BETWEEN_FLASHES = 120.0 #10.0
+            self.NUMBER_OF_FLASHES = 3.0
+            self.FLASH_DURATION = 10e-3
+            self.FLASH_AMPLITUDE = 10.0 #10.0
+            self.DELAY_BEFORE_FIRST_FLASH = 15.0
+            self.runnable = 'LedStimulation'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+    
+    class Led3x100ms1VStimulationConfig(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
+            self.NUMBER_OF_FLASHES = 3.0
+            self.FLASH_DURATION = 100e-3
+            self.FLASH_AMPLITUDE = 1.0 #10.0
+            self.DELAY_BEFORE_FIRST_FLASH = 15.0
+            self.runnable = 'LedStimulation'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+    
+    class Led3x100ms2VStimulationConfig(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
+            self.NUMBER_OF_FLASHES = 3.0
+            self.FLASH_DURATION = 100e-3
+            self.FLASH_AMPLITUDE = 2.0 #10.0
+            self.DELAY_BEFORE_FIRST_FLASH = 15.0
+            self.runnable = 'LedStimulation'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+    
+    
+    class Led3x100ms4VStimulationConfig(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
+            self.NUMBER_OF_FLASHES = 3.0
+            self.FLASH_DURATION = 100e-3
+            self.FLASH_AMPLITUDE = 4.0 #10.0
+            self.DELAY_BEFORE_FIRST_FLASH = 15.0
+            self.runnable = 'LedStimulation'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class Led3x100ms7VStimulationConfig(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
+            self.NUMBER_OF_FLASHES = 3.0
+            self.FLASH_DURATION = 100e-3
+            self.FLASH_AMPLITUDE = 7.0 #10.0
+            self.DELAY_BEFORE_FIRST_FLASH = 15.0
+            self.runnable = 'LedStimulation'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+    
+    class Led3x100ms10VStimulationConfig(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
+            self.NUMBER_OF_FLASHES = 3.0
+            self.FLASH_DURATION = 100e-3
+            self.FLASH_AMPLITUDE = 10.0 #10.0
+            self.DELAY_BEFORE_FIRST_FLASH = 15.0
+            self.runnable = 'LedStimulation'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+    
+    class Led3x100ms0p4VStimulationConfig(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
+            self.NUMBER_OF_FLASHES = 3.0
+            self.FLASH_DURATION = 100e-3
+            self.FLASH_AMPLITUDE = 0.4 #10.0
+            self.DELAY_BEFORE_FIRST_FLASH = 30.0
+            self.runnable = 'LedStimulation'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
 
 class LedKamill2Config(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -194,124 +194,125 @@ class KamillLedStimulation(experiment.Experiment):
         self.led_controller.start()
         
 LED_DELAY = 1.5
-class uLedA75um1sUpDown(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 15.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um1sLeftRight(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 15.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um1sULBR(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 15.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um1sBLUR(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 15.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-class uLedA75um2sUpDown(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 25.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um2sLeftRight(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 25.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um2sULBR(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 25.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um2sBLUR(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 25.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-        
-class uLedA75um3sUpDown(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 40.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um3sLeftRight(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 40.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um3sULBR(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 40.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um3sBLUR(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 40.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um5sUpDown(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 60.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um5sLeftRight(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 60.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um5sULBR(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 60.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-        
-class uLedA75um5sBLUR(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.DURATION = 60.0
-        self.runnable = 'uLedPilotExp'
-        self.pre_runnable = 'LedPre'
-        self._create_parameters_from_locals(locals())
-
-
-class uLedPilotExp(experiment.Experiment):
-    def prepare(self):
-        self.fragment_durations = [self.experiment_config.DURATION+LED_DELAY * 3]
-    def run(self):
-        self.add_text('LED array experiment', color = (1.0,  0.0,  0.0), position = utils.cr((400,300)))
-        self.show_fullscreen(color = 0.0, duration = 0.0)
-        time.sleep(self.experiment_config.DURATION)
+if 0:
+    class uLedA75um1sUpDown(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 15.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um1sLeftRight(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 15.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um1sULBR(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 15.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um1sBLUR(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 15.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+    
+    class uLedA75um2sUpDown(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 25.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um2sLeftRight(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 25.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um2sULBR(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 25.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um2sBLUR(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 25.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+            
+    class uLedA75um3sUpDown(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 40.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um3sLeftRight(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 40.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um3sULBR(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 40.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um3sBLUR(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 40.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um5sUpDown(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 60.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um5sLeftRight(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 60.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um5sULBR(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 60.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+            
+    class uLedA75um5sBLUR(experiment.ExperimentConfig):
+        def _create_parameters(self):
+            self.DURATION = 60.0
+            self.runnable = 'uLedPilotExp'
+            self.pre_runnable = 'LedPre'
+            self._create_parameters_from_locals(locals())
+    
+    
+    class uLedPilotExp(experiment.Experiment):
+        def prepare(self):
+            self.fragment_durations = [self.experiment_config.DURATION+LED_DELAY * 3]
+        def run(self):
+            self.add_text('LED array experiment', color = (1.0,  0.0,  0.0), position = utils.cr((400,300)))
+            self.show_fullscreen(color = 0.0, duration = 0.0)
+            time.sleep(self.experiment_config.DURATION)
