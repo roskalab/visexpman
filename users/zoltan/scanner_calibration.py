@@ -711,6 +711,8 @@ class ScannerIdentification(object):
         
     def eval_frequency_characteristics(self,filename):
         varnames = ['angle2voltage_factor', 'waveform', 'measured', 'ao_sample_rate', 'params']
+        outfolder = os.path.join(os.path.split(filename)[0],'out')
+        fileop.mkdir_notexists(outfolder, remove_if_exists=True)
         d = utils.array2object(numpy.load(filename))
         [setattr(self, vn, d[vn]) for vn in varnames]
         gap_indexes = numpy.nonzero(numpy.diff(self.waveform))[0]
@@ -739,9 +741,81 @@ class ScannerIdentification(object):
             self.params[i]['rising'] = edges[0::2][i]
             self.params[i]['falling'] = edges[1::2][i]
         res = [self.eval_single(p) for p in self.params]
-        plot(self.waveform)
-        show()
+        #gain, phase and offset change over frequency, amplitude and offset
+        from mpl_toolkits.mplot3d import Axes3D
+        parameter_ranges = {}
+        for pname in ['frequency', 'voltage', 'offset']:
+            parameter_ranges[pname] = list(set([p[pname] for p in res]))
+            parameter_ranges[pname].sort()
+        fig_ct = 1
+        curves = []
+        legend_items = []
+        for offset in parameter_ranges['offset']:
+            X, Y = numpy.meshgrid(parameter_ranges['frequency'], parameter_ranges['voltage'])
+            phase = numpy.zeros_like(X)
+            gain = numpy.zeros_like(X)
+            for fi in range(len(parameter_ranges['frequency'])):
+                for vi in range(len(parameter_ranges['voltage'])):
+                    record = [r['measured'] for r in res if r['frequency'] == parameter_ranges['frequency'][fi] and r['voltage'] == parameter_ranges['voltage'][vi] and r['offset'] == offset]
+                    if len(record)==0:
+                        phase[vi,fi] = numpy.nan
+                        gain[vi,fi] = numpy.nan
+                        continue
+                    record = record[0]
+                    phase[vi,fi] = record['phase']
+                    gain[vi,fi] = record['gain']
+#            fig = figure(fig_ct)
+#            fig_ct += 1
+#            ax = fig.gca(projection='3d')
+#            surf = ax.plot_surface(X, Y, phase, rstride=1, cstride=1, linewidth=0, antialiased=True)
+#            title('phase, offset {0}'.format(offset))
+#            fig = figure(fig_ct)
+#            fig_ct += 1
+#            ax = fig.gca(projection='3d')
+#            surf = ax.plot_surface(X, Y, gain, rstride=1, cstride=1, linewidth=0, antialiased=True)
+#            title('gain, offset {0}'.format(offset))
+            for v in parameter_ranges['voltage']:
+                c = numpy.array([[r['measured']['frequency'], r['measured']['gain'], r['measured']['phase'],r['voltage']] for r in res if r['voltage'] == v and r['offset'] == offset])
+                curves.append(c)
+                legend_items.append('{0:2.2f},{1:2.2f}'.format(v,offset))
+                figure(fig_ct)
+                plot(c[:,0],c[:,1])
+                figure(fig_ct+1)
+                plot(c[:,0],c[:,2]*180/numpy.pi)
+#            figure(fig_ct)
+#            legend(map(str, numpy.round(parameter_ranges['voltage'],2)))
+#            figure(fig_ct+1)
+#            legend(map(str, numpy.round(parameter_ranges['voltage'],2)))
+#            fig_ct += 2
+        figure(fig_ct)
+        title('gain')
+#        legend(legend_items)
+#        savefig(os.path.join(outfolder, 'v_gain_{0:0=5}.png'.format(fig_ct)))
+        figure(fig_ct+1)
+        title('phase')
+#        legend(legend_items)
+#        savefig(os.path.join(outfolder, 'v_phase_{0:0=5}.png'.format(fig_ct+1)))
+#        show()
+        #phase fitting
+        phase_steepness = []#rad/Hz
+        for c in [c[:,2] for c in curves]:
+            p0 = [-1.0, 0.0]
+            import scipy.optimize
+            coeff, var_matrix = scipy.optimize.curve_fit(linear, numpy.array(parameter_ranges['frequency'])[:c.shape[0]], c, p0=p0)
+            phase_steepness.append(coeff)
+        phase_params = numpy.array(phase_steepness).mean(axis=0)
+        #gain fitting
+        coeffs = []
+        for c in [c[:,1] for c in curves]:
+            p0 = [1,1,1]
+            coeff, var_matrix = scipy.optimize.curve_fit(poly, numpy.array(parameter_ranges['frequency'])[:c.shape[0]], c, p0=p0)
+            coeffs.append(coeff)
+
+        gain_params = numpy.array(coeffs).mean(axis=0)
         pass
+            
+        
+    
         
     def eval_single(self,param):
         '''
@@ -751,7 +825,6 @@ class ScannerIdentification(object):
         measured = self.measured[param['rising']:param['falling']]
         import scipy.optimize
         p0 = [param['voltage'], param['frequency'], 0.0,  param['offset']]
-        sinus(numpy.arange(measured.shape[0]),*p0)
         coeff, var_matrix = scipy.optimize.curve_fit(sinus, numpy.arange(measured.shape[0], dtype=numpy.float)/self.ao_sample_rate, measured, p0=p0)
         import copy
         res = copy.deepcopy(param)
@@ -761,21 +834,50 @@ class ScannerIdentification(object):
         res['measured']['phase'] = coeff[2]
         res['measured']['offset'] = coeff[3]
         res['measured']['gain'] = res['measured']['voltage']/param['voltage']
-        return res
+        res['measured']['offset_change'] = param['offset'] - res['measured']['offset']
         
-    
+        return res
+            
 def sinus(x, *p):
     A, f, ph, o = p
     return A*numpy.sin(numpy.pi*2*x*f+ph)+o
     
+def linear(x, *p):
+    A,b = p
+    return A*x+b
+    
+def poly(x, *p):
+    res = []
+    for o in range(len(p)):
+        res .append(p[o]*x**o)
+    return numpy.array(res).sum(axis=0)
+        
+def scanner_control_signal():
+    from visexpman.engine.generic import signal
+    error = 10e-2
+    f = 1500
+    fs = 400e3
+    duration = 1.0/f
+    a =1
+    xscanner = signal.wf_sin(a, f, duration, fs,phase = 0)
+    yscanner = signal.wf_sin(a, f/10, duration, fs,phase = 0)
+    xlin = numpy.arange(xscanner.shape[0],dtype=numpy.float)*numpy.diff(xscanner)[0]
+#    plot(xlin)
+    plot(xscanner)
+    plot(yscanner)
+#    plot(abs(xscanner-xlin))
+#    plot(numpy.ones_like(xscanner)*error)
+    samples_per_x_period = 2*numpy.where(numpy.ones_like(xscanner)*error-abs(xscanner-xlin)>0,1,0).sum()
+    pass
     
 if __name__ == "__main__":
     s=ScannerIdentification()
     if False:
         s.command_voltage_angle_characteristics()
         s.frequency_domain_characteristics()
+    scanner_control_signal()
 #    s.eval_frequency_characteristics('r:\\dataslow\\scanner_angle_calib\\frequency_domain_characteristics.npy')
-    s.eval_frequency_characteristics('/mnt/rzws/dataslow/scanner_angle_calib/frequency_domain_characteristics.npy')
+    s.eval_frequency_characteristics('/mnt/rzws/dataslow/scanner_frq_domain_anal/frequency_domain_characteristics.npy')
 #    import mpl_toolkits.mplot3d.axes3d as p3
 #    x=numpy.linspace(0, 10, 10)
 #    y=numpy.linspace(5, 8, 10)

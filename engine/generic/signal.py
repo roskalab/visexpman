@@ -60,7 +60,7 @@ def time_series(duration, fs):
 def wf_sin(a, f, duration, fs, phase = 0, offset = 0):
     t = time_series(duration, fs)
     return offset + 0.5*a*numpy.sin(t*2*numpy.pi*f+phase*numpy.pi/180.0)
-         
+    
 def wf_triangle(a, t_up, t_down, duration, fs, offset = 0):
     if t_up + t_down > duration:
         raise ValueError('t_up and t_down must be less than duration')
