@@ -902,28 +902,31 @@ class ScannerIdentification(object):
             error = numpy.where(error<1e-2,1.0,error)
             res[-1]['error']=error
             if not plots.has_key(param['flyback_time']):
-                plots[param['flyback_time']] = []
-            plots[param['flyback_time']].append(error)
-            figure(figct)
-            plot(command_mean)
-            plot(measured_mean)
-            title('{0}, {1}, {2}, {3},\n {4},{5}, {6}'.format(param['voltage'], param['offset'], param['frame_rate'], 1/param['flyback_time'], res[-1]['measured'], res[-1]['command'], res[-1]['error']))
-            savefig(os.path.join(self.outfolder,'{0}.png'.format(figct)))
-            figct +=1
+                plots[param['flyback_time']] = {}
+                if not plots[param['flyback_time']].has_key(param['frame_rate']):
+                    plots[param['flyback_time']][param['frame_rate']] = {}
+                    if not plots[param['flyback_time']][param['frame_rate']].has_key(param['voltage']):
+                        plots[param['flyback_time']][param['frame_rate']][param['voltage']] = []
+            plots[param['flyback_time']][param['frame_rate']][param['voltage']].append(error)
         
         leg1 = []
         leg2 = []
         for fbtime in plots.keys():
-            figure(fgct)
-            dat= numpy.array(plots[fbtime])
-            plot(dat[:,0])
-            leg1.append('steepness, {0}'.format(1/fbtime))
-            figure(fgct+1)
-            plot(dat[:,1])
-            leg2.append('offset, {0}'.format(1/fbtime))
-        figure(fgct)
+            for framerate in plots[fbtime].keys():
+                for v in plots[fbtime][framerate].keys():
+                    dat= numpy.array(plots[fbtime][framerate][v])
+                    figure(1)
+                    plot(dat[:,0])
+                    leg1.append('speed, {0}, {1}, {2}'.format(1/fbtime, framerate,v))
+                    figure(2)
+                    plot(dat[:,1])
+                    leg2.append('offset, {0}, {1}, {2}'.format(1/fbtime, framerate,v))
+                    
+                    
+            
+        figure(1)
         legend(leg1)
-        figure(fgct+1)
+        figure(2)
         legend(leg2)
         show()
 #            fgct+=2
@@ -971,4 +974,5 @@ if __name__ == "__main__":
 #    scanner_control_signal()
 #    s.eval_frequency_characteristics('r:\\dataslow\\scanner_frq_domain_anal\\high_frequency_domain_characteristics.npy')
 #        s.eval_frequency_characteristics('/mnt/rzws/dataslow/scanner_frq_domain_anal/high_frequency_domain_characteristics.npy')
-    s.eval_y_scanner('/mnt/rzws/dataslow/scanner_frq_domain_anal/y_mirror.npy')
+#    s.eval_y_scanner('/mnt/rzws/dataslow/scanner_frq_domain_anal/y_mirror.npy')
+    s.eval_y_scanner('/home/zoltan/codes/data/y_mirror.npy')
