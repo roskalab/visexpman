@@ -15,6 +15,7 @@ from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.hardware_interface import camera_interface
 from visexpman.engine.generic import configuration
 from visexpman.engine.generic import fileop
+from visexpman.engine.generic import signal
 
 class TestConfig(configuration.Config):
     def _create_application_parameters(self):
@@ -149,11 +150,6 @@ def evaluate_calibdata():
     print coeff#[ 0.00043265 -0.02486131]
     
     #    show()
-    
-def linear(x, *p):
-    A, B = p
-    return A*x + B
-
     
 def evaluate_videos():
     '''
@@ -614,13 +610,20 @@ class ScannerIdentification(object):
         pass
         
     def frequency_domain_characteristics(self):
-        periods = 10
+        
         frequency_limit = 500
         voltage_limit = 3
         paramspace = {}
-        paramspace['frequency'] = numpy.concatenate((numpy.logspace(1,3,13,False), numpy.linspace(1000, 2000, 5)))
-        paramspace['voltage'] = numpy.logspace(-1, 0.7, 6)
-        paramspace['offset'] = numpy.concatenate((-numpy.logspace(0.2, -1, 3), numpy.zeros(1), numpy.logspace(-1, 0.2, 3)))
+        if False:
+            periods = 10
+            paramspace['frequency'] = numpy.concatenate((numpy.logspace(1,3,13,False), numpy.linspace(1000, 2000, 5)))
+            paramspace['voltage'] = numpy.logspace(-1, 0.7, 6)
+            paramspace['offset'] = numpy.concatenate((-numpy.logspace(0.2, -1, 3), numpy.zeros(1), numpy.logspace(-1, 0.2, 3)))
+        else:
+            periods = 40
+            paramspace['frequency'] = numpy.linspace(1000, 2500, 10)
+            paramspace['voltage'] = numpy.linspace(0.5, 2, 4)
+            paramspace['offset'] = numpy.linspace(1.0, -1.0, 3)
         from visexpman.engine import generic
         params = []
         for o in paramspace['offset']:
@@ -642,19 +645,17 @@ class ScannerIdentification(object):
             test_signal.append(signal.wf_sin(param['voltage'], param['frequency'], duration, self.ao_sample_rate, offset = param['offset']))
             nsamples += test_signal[-1].shape[0]
         print float(nsamples)/self.ao_sample_rate/60
-        from pylab import plot,show,figure
         wf = numpy.concatenate(tuple(test_signal))
         t = numpy.arange(wf.shape[0],dtype= numpy.float)/self.ao_sample_rate
         measured = self.run_measurement(wf*self.voltage_correction_factor)
         measured = measured[:wf.shape[0],0]
-        h=hdf5io.Hdf5io('r:\\dataslow\\scanner_angle_calib\\frequency_domain_characteristics.hdf5',filelocking=False)
-        h.waveform = wf
-        h.measured = measured
-        h.ao_sample_rate = self.ao_sample_rate
-        h.params = params
-        h.angle2voltage_factor = self.angle2voltage_factor
-        h.save(['angle2voltage_factor', 'waveform', 'measured', 'ao_sample_rate', 'params'])
-        h.close()
+        data = {}
+        data['waveform'] = wf
+        data['measured'] = measured
+        data['ao_sample_rate'] = self.ao_sample_rate
+        data['params'] = params
+        data['angle2voltage_factor'] = self.angle2voltage_factor
+        numpy.save('r:\\dataslow\\scanner_frq_domain_anal\\high_frequency_domain_characteristics.npy', utils.object2array(data))
 
     def run_measurement(self,waveform):
         from visexpman.engine.generic import log
@@ -709,10 +710,10 @@ class ScannerIdentification(object):
             self.logger.terminate()
         [utils.empty_queue(q) for q in self.queues.values()]
         
-    def eval_frequency_characteristics(self,filename):
+    def load_measurement(self,filename):
         varnames = ['angle2voltage_factor', 'waveform', 'measured', 'ao_sample_rate', 'params']
-        outfolder = os.path.join(os.path.split(filename)[0],'out')
-        fileop.mkdir_notexists(outfolder, remove_if_exists=True)
+        self.outfolder = os.path.join(os.path.split(filename)[0],'out')
+        fileop.mkdir_notexists(self.outfolder, remove_if_exists=True)
         d = utils.array2object(numpy.load(filename))
         [setattr(self, vn, d[vn]) for vn in varnames]
         gap_indexes = numpy.nonzero(numpy.diff(self.waveform))[0]
@@ -740,6 +741,9 @@ class ScannerIdentification(object):
         for i in range(len(self.params)):
             self.params[i]['rising'] = edges[0::2][i]
             self.params[i]['falling'] = edges[1::2][i]
+        
+    def eval_frequency_characteristics(self,filename):
+        self.load_measurement(filename)
         res = [self.eval_single(p) for p in self.params]
         #gain, phase and offset change over frequency, amplitude and offset
         from mpl_toolkits.mplot3d import Axes3D
@@ -813,9 +817,6 @@ class ScannerIdentification(object):
 
         gain_params = numpy.array(coeffs).mean(axis=0)
         pass
-            
-        
-    
         
     def eval_single(self,param):
         '''
@@ -832,11 +833,102 @@ class ScannerIdentification(object):
         res['measured']['voltage'] = coeff[0]*2
         res['measured']['frequency'] = coeff[1]
         res['measured']['phase'] = coeff[2]
+        if res['measured']['phase'] > numpy.pi:
+            res['measured']['phase'] = res['measured']['phase'] - numpy.pi
         res['measured']['offset'] = coeff[3]
-        res['measured']['gain'] = res['measured']['voltage']/param['voltage']
+        res['measured']['gain'] = abs(res['measured']['voltage']/param['voltage'])
         res['measured']['offset_change'] = param['offset'] - res['measured']['offset']
-        
         return res
+        
+    def y_mirror_test(self):
+        periods = 5
+        paramspace = {}
+        paramspace['voltage'] = numpy.logspace(-0.3,0.5,4)
+        paramspace['offset'] = numpy.array([-1.0,0.0,1.0])
+        paramspace['frame_rate'] = numpy.array([3.0, 5.0, 10.0, 20.0])
+        paramspace['flyback_time'] = numpy.array([1.0/1500, 2/1500.0, 5.0/1500, 10.0/1500])
+        params = []
+        for o in paramspace['offset']:
+            for v in paramspace['voltage']:
+                for f in paramspace['frame_rate']:
+                    for fb in paramspace['flyback_time']:
+                        params.append({'frame_rate': f, 'voltage': v, 'offset': o, 'flyback_time': fb})
+        test_signal = []
+        nsamples = 0
+        for param in params:
+            test_signal.append(numpy.ones(0.1 * self.ao_sample_rate)*param['offset'])
+            t_up = 1.0/param['frame_rate'] - param['flyback_time']
+            test_signal.append(signal.wf_triangle(param['voltage'], t_up, param['flyback_time'], periods/param['frame_rate'], self.ao_sample_rate, offset = param['offset']))
+            nsamples += test_signal[-2].shape[0] + test_signal[-1].shape[0]
+        wf = numpy.concatenate(tuple(test_signal))
+        print wf.shape[0]/self.ao_sample_rate
+        measured = self.run_measurement(wf*self.voltage_correction_factor)
+        measured = measured[:wf.shape[0],0]
+        data = {}
+        data['waveform'] = wf
+        data['measured'] = measured
+        data['ao_sample_rate'] = self.ao_sample_rate
+        data['params'] = params
+        data['angle2voltage_factor'] = self.angle2voltage_factor
+        numpy.save('r:\\dataslow\\scanner_frq_domain_anal\\y_mirror.npy', utils.object2array(data))
+        pass
+        
+    def eval_y_scanner(self,filename):
+        self.load_measurement(filename)
+        res = []
+        plots = {}
+        figct = 1
+        for param in self.params:
+            res.append(param)
+            command = self.waveform[param['rising']:param['falling']]
+            measured = self.measured[param['rising']:param['falling']]
+            #linearity in scan range: this also gives information about the effect of flyback
+            accel = numpy.diff(numpy.diff(command))
+            accel = numpy.where(abs(accel)<1e-10,0,accel)
+            boundaries = numpy.nonzero(accel)[0][1::2]
+            command_mean = numpy.array(numpy.split(command,boundaries)[1::2]).mean(axis=0)
+            measured_mean = numpy.array(numpy.split(measured,boundaries)[1::2]).mean(axis=0)
+            res[-1]['command_mean'] = command_mean
+            res[-1]['measured_mean'] = measured_mean
+            import scipy.optimize
+            p0 = [1.0,0.0]
+            t = numpy.arange(measured_mean.shape[0])/float(self.ao_sample_rate)
+            coeff, var_matrix = scipy.optimize.curve_fit(linear, t, measured_mean, p0=p0)
+            res[-1]['measured'] = coeff
+            coeff, var_matrix = scipy.optimize.curve_fit(linear, t, command_mean, p0=p0)
+            res[-1]['command'] = coeff
+            
+            error = res[-1]['command']/res[-1]['measured']
+            error = numpy.where(error<1e-2,1.0,error)
+            res[-1]['error']=error
+            if not plots.has_key(param['flyback_time']):
+                plots[param['flyback_time']] = []
+            plots[param['flyback_time']].append(error)
+            figure(figct)
+            plot(command_mean)
+            plot(measured_mean)
+            title('{0}, {1}, {2}, {3},\n {4},{5}, {6}'.format(param['voltage'], param['offset'], param['frame_rate'], 1/param['flyback_time'], res[-1]['measured'], res[-1]['command'], res[-1]['error']))
+            savefig(os.path.join(self.outfolder,'{0}.png'.format(figct)))
+            figct +=1
+        
+        leg1 = []
+        leg2 = []
+        for fbtime in plots.keys():
+            figure(fgct)
+            dat= numpy.array(plots[fbtime])
+            plot(dat[:,0])
+            leg1.append('steepness, {0}'.format(1/fbtime))
+            figure(fgct+1)
+            plot(dat[:,1])
+            leg2.append('offset, {0}'.format(1/fbtime))
+        figure(fgct)
+        legend(leg1)
+        figure(fgct+1)
+        legend(leg2)
+        show()
+#            fgct+=2
+             
+        pass
             
 def sinus(x, *p):
     A, f, ph, o = p
@@ -853,7 +945,6 @@ def poly(x, *p):
     return numpy.array(res).sum(axis=0)
         
 def scanner_control_signal():
-    from visexpman.engine.generic import signal
     error = 10e-2
     f = 1500
     fs = 400e3
@@ -872,33 +963,12 @@ def scanner_control_signal():
     
 if __name__ == "__main__":
     s=ScannerIdentification()
+
     if False:
+        s.y_mirror_test()
         s.command_voltage_angle_characteristics()
-        s.frequency_domain_characteristics()
-    scanner_control_signal()
-#    s.eval_frequency_characteristics('r:\\dataslow\\scanner_angle_calib\\frequency_domain_characteristics.npy')
-    s.eval_frequency_characteristics('/mnt/rzws/dataslow/scanner_frq_domain_anal/frequency_domain_characteristics.npy')
-#    import mpl_toolkits.mplot3d.axes3d as p3
-#    x=numpy.linspace(0, 10, 10)
-#    y=numpy.linspace(5, 8, 10)
-#    x, y=numpy.meshgrid(x, y) 
-#    z=numpy.ones_like(x)  
-#    z[1, 1]=10
-#        
-#    fig=figure(203)
-#    ax = p3.Axes3D(fig)
-#    ax.plot_wireframe(x, y, z)
-#    ax.set_xlabel('x')
-#    ax.set_ylabel('y')
-#    ax.set_zlabel('z')
-#    show()
-    p='/mnt/datafast/debug/data/2013-06-18'
-#    p='V:\\debug\\data\\2013-06-18'
-#    calculate_bead_size(p)
-#    recordings2calibdata('V:\\debug\\data\\2013-06-02', 'V:\\debug\\out1')
-#    plot_delay_curve(generate_delay_curve())
-#    plot_delay_curve('V:\\debug\\out\\res_00000.hdf5')
-#    evaluate_videos()
-#    evaluate_calibdata()
-#    show()
-#    scanner_calib()
+#    s.frequency_domain_characteristics()
+#    scanner_control_signal()
+#    s.eval_frequency_characteristics('r:\\dataslow\\scanner_frq_domain_anal\\high_frequency_domain_characteristics.npy')
+#        s.eval_frequency_characteristics('/mnt/rzws/dataslow/scanner_frq_domain_anal/high_frequency_domain_characteristics.npy')
+    s.eval_y_scanner('/mnt/rzws/dataslow/scanner_frq_domain_anal/y_mirror.npy')
