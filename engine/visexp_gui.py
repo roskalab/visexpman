@@ -13,9 +13,9 @@ import re
 import copy
 import cPickle as pickle
 import scipy.ndimage
-import Image
-import ImageDraw
-import ImageFont
+from PIL import Image
+from PIL import ImageDraw
+from PIL import ImageFont
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -692,9 +692,11 @@ class VisionExperimentGui(QtGui.QWidget):
         if not isinstance(text, str):
             text = str(text)
         self.console_text  += text + '\n'
-        self.standard_io_widget.text_out.setPlainText(self.console_text)
-        self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
-#        print text
+        try:
+            self.standard_io_widget.text_out.setPlainText(self.console_text)
+            self.standard_io_widget.text_out.moveCursor(QtGui.QTextCursor.End)
+        except:
+            print text
         try:
             self.log.info(text)
         except:

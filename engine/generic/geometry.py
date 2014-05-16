@@ -693,7 +693,7 @@ def polygon2filled(polygon, color=None):
     '''Converts a polygon object into a list of coordinates of the entire polyon
     '''
     import Polygon,  Polygon.Utils
-    import Image, ImageDraw
+    from PIL import Image, ImageDraw
     pts2=numpy.round(numpy.array(Polygon.Utils.pointList(polygon)))
     li = Image.fromarray(numpy.zeros(numpy.max(pts2, axis=0)+2), mode='I')
     draw= ImageDraw.Draw(li)

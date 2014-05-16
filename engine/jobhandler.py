@@ -141,7 +141,7 @@ class CommandInterface(command_parser.CommandParser):
 #             while utils.is_file_open(self.mouse_file):
 #                 print 'Wait file'
 #                 time.sleep(0.2)
-            scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions')#sometimes this read fails with tables.isPyTablesFile(self.filename), None is returned
+            scan_regions = hdf5io.read_item(self.mouse_file, 'scan_regions',filelocking=False)#sometimes this read fails with tables.isPyTablesFile(self.filename), None is returned
             time.sleep(1.0)
             os.remove(self.mouse_file)
             self.log.info('scan regions read')
@@ -353,7 +353,7 @@ class CommandInterface(command_parser.CommandParser):
         self.copy_request_pending = False
         
     def _load_images(self):
-        image_hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.CONTEXT_PATH, 'image.hdf5'))
+        image_hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.CONTEXT_PATH, 'image.hdf5'),filelocking=False)
         f1 = image_hdf5_handler.findvar('f1')
         f2 = image_hdf5_handler.findvar('f2')
         image_hdf5_handler.close()

@@ -361,6 +361,20 @@ def find_content_in_folder(content, folder_name, file_filter):
             found_in_files.append(file)
     return found_in_files
     
+import os
+try:
+    import pwd
+except ImportError:
+    pass
+    
+def get_username():
+    import platform
+    if platform.system()=='Windows':
+        import getpass
+        return getpass.getuser()
+    else:
+        return pwd.getpwuid( os.getuid() )[ 0 ]
+    
     
 def generate_filename(path, insert_timestamp = False, last_tag = ''):
     '''
@@ -407,7 +421,7 @@ def convert_path_to_remote_machine_path(local_file_path, remote_machine_folder, 
 
 def check_png_hashes(fname,function,*args,**kwargs):
         '''Checks whether the function code and argument hashes exist in the png file and updates them if necessary'''
-        import Image 
+        from PIL import Image 
         from visexpA.engine.dataprocessors.generic import check_before_long_calculation
         fh=None;ah=None
         if os.path.exists(fname):

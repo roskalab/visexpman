@@ -3,7 +3,7 @@ import os
 import numpy
 import math
 import time
-import Image
+from PIL import Image
 import inspect
 import re
 

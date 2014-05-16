@@ -173,10 +173,10 @@ if 0:
             self.runnable = 'MovingGrating'
             self.pre_runnable = 'MovingGratingPre'
             self._create_parameters_from_locals(locals())
-if 0:
-    class ShortMovingGratingConfig(MovingGratingWithFlashConfig):
+if 1:
+    class ShortMovingGratingConfig(MovingGratingNoMarchingConfig):
         def _create_parameters(self):
-            MovingGratingWithFlashConfig._create_parameters(self)
+            MovingGratingNoMarchingConfig._create_parameters(self)
             self.ENABLE_FLASH = False
             #Timing
             self.NUMBER_OF_MARCHING_PHASES = 1

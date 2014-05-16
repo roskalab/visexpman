@@ -107,7 +107,7 @@ def check_fragment(path, fragment_hdf5_handle = None):#TODO: Move to importers
     import time
     scan_mode = file.parse_fragment_filename(os.path.split(path)[1])['scan_mode']
     if fragment_hdf5_handle == None:
-        fragment_handle = hdf5io.Hdf5io(path)
+        fragment_handle = hdf5io.Hdf5io(path,filelocking=False)
     else:
         fragment_handle = fragment_hdf5_handle
     nodes = fragment_handle.findvar(expected_top_level_nodes)
@@ -253,7 +253,7 @@ def add_auxiliary_rois(rois, roi_pattern_size, objective_position, objective_ori
         if debug:
             im[int(roi_center_in_pixels['row']), int(roi_center_in_pixels['col']), :] = 255
     if debug:
-        import Image
+        from PIL import Image
 #        im = im[100:, 100:, :]
         im = Image.fromarray(im)
         try:
@@ -276,7 +276,7 @@ class TestExperimentData(unittest.TestCase):
 #    @unittest.skip("")
     def test_01_read_merge_rois(self):
         path = '/mnt/databig/testdata/read_merge_rois/mouse_test_1-1-2012_1-1-2012_0_0.hdf5'
-        cells = hdf5io.read_item(path, 'cells')
+        cells = hdf5io.read_item(path, 'cells',filelocking=False)
         roi_locations, rois = read_merge_rois(cells, 'g2', 'scanned_2vessels_0_0', -130, 0, 80, 4)
         roi_locations, rois = add_auxiliary_rois(rois, 9, -130, -100, aux_roi_distance = 5.0)
         pass

@@ -102,7 +102,8 @@ def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  col
     pos : x, y position in pixels, center is 0, 0
     '''
     vertices = calculate_circle_vertices([diameter,  diameter],  resolution)
-    import Image,  ImageDraw,  numpy
+    from PIL import Image,  ImageDraw
+    import numpy
     image = Image.new('L',  image_size,  0)
     draw = ImageDraw.Draw(image)
     
@@ -787,9 +788,18 @@ def datetime_string():
 
 def date_string():
     now = time.localtime()
-    return ('%4i-%2i-%2i'%(now.tm_year,  now.tm_mon, now.tm_mday)).replace(' ', '0')
-    
-def time_stamp_to_hms(timestamp):
+    return ('{0:0=4}-{1:0=2}-{2:0=2}'.format(now.tm_year,  now.tm_mon, now.tm_mday))
+
+def truncate_timestamps(list_of_timestamps,  at_position):
+    '''From a list of floats representing timestamps, we calculates timestamps 
+    with least significant data truncated. E.g. to get timestamps that contain only
+   year_month_date but no hour, second, millisecond: set at_position=3
+   '''
+    timetuples = numpy.array([time.localtime(ts) for ts in list_of_timestamps])
+    truncated_timestamps= [time.mktime(tt[:at_position].tolist()+[0]*(9-at_position)) for tt in timetuples] #timestamps made from timetuples where only year month day differs, rest is 0
+    return truncated_timestamps
+
+def timestamp2hms(timestamp):
     time_struct = time.localtime(timestamp)
     return ('%2i:%2i:%2.3f'%(time_struct.tm_hour, time_struct.tm_min, time_struct.tm_sec + numpy.modf(timestamp)[0])).replace(' ', '0')
     
@@ -1006,11 +1016,17 @@ def pack_position(stagexyz, objective_z = None):
     return numpy.array([(0, stagexyz[0], stagexyz[1], stagexyz[2], objective_z_to_save)], [('um',numpy.float64), ('x',numpy.float64),('y',numpy.float64),('z_stage',numpy.float64), ('z',numpy.float64)])
     
 #== Others ==
+def chunks(l, n):
+    """ Yield successive n-sized chunks from l.
+    """
+    for i in xrange(0, len(l), n):
+        yield l[i:i+n]
+        
 def file_to_binary_array(path):
     if os.path.exists(path):
         return numpy.fromfile(str(path), dtype = numpy.uint8)        
-    else:
-        return numpy.zeros(2)
+    #else:
+     #   return numpy.zeros(2)
     
 def in_range(number,  range1,  range2, preceision = None):
     if preceision != None:

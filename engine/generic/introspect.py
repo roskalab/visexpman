@@ -21,6 +21,37 @@ def hash_variables(variables):
         return myhash.digest()
         
         
+class FauxTb(object):
+    def __init__(self, tb_frame, tb_lineno, tb_next):
+        self.tb_frame = tb_frame
+        self.tb_lineno = tb_lineno
+        self.tb_next = tb_next
+
+def current_stack(skip=0):
+    try: 1/0
+    except ZeroDivisionError:
+        f = sys.exc_info()[2].tb_frame
+    for i in xrange(skip + 2):
+        f = f.f_back
+    lst = []
+    while f is not None:
+        lst.append((f, f.f_lineno))
+        f = f.f_back
+    return lst
+
+def extend_traceback(tb, stack):
+    """Extend traceback with stack info."""
+    head = tb
+    for tb_frame, tb_lineno in stack:
+        head = FauxTb(tb_frame, tb_lineno, head)
+    return head
+
+def full_exc_info():
+    """Like sys.exc_info, but includes the full traceback."""
+    t, v, tb = sys.exc_info()
+    full_tb = extend_traceback(tb, current_stack(1))
+    return t, v, full_tb
+        
 class Finalizable(object):
     """
     Base class enabling the use a __finalize__ method without all the problems
@@ -210,8 +241,11 @@ def flatten(l, ltypes=(list, tuple)):
         i += 1
     return ltype(l)
 
-def list_of_empty_lists(n):
-    return [list() for _ in range(n)]
+def list_of_empty_mutables(n, prototype=list()):
+    return [copy.deepcopy(prototype) for _ in range(n)]
+
+def dict_of_empty_mutables(keys,prototype=list()):
+    return dict(zip(keys,list_of_empty_mutables(len(keys),prototype)))
     
 def traverse(obj,  attrchain):
     '''Walks trough the attribute chain starting from obj and returns the last element of the chain. E.g.
@@ -277,7 +311,10 @@ def list_type(item):
         if sum(hasattr(i0,'shape') and len(i0.dtype) == 0 for i0 in item)==len(item):
             response = 'list_of_arrays'
         if sum(hasattr(i0,'shape') and len(i0.dtype) > 0 for i0 in item)==len(item):
-            response = 'list_of_recarrays'
+            if all([i0.shape==item[0].shape for i0 in item]):
+                response = 'list_of_uniform_shaped_recarrays'
+            else:
+                response = 'list_of_recarrays'
     else:
         response=None
     return response

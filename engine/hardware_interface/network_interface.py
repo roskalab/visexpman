@@ -23,7 +23,10 @@ from visexpman.engine.generic import file
 import traceback
 import visexpman.users.zoltan.test.unit_test_runner as unit_test_runner
 from visexpman.engine.generic.introspect import list_type
-import zmq
+try:
+    import zmq
+except:
+    pass
 import simplejson
 import multiprocessing
 from multiprocessing import Process, Manager,  Event

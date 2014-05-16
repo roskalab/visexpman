@@ -40,7 +40,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
         self.stage_origin = numpy.zeros(3)
         if hasattr(self.config, 'CONTEXT_FILE'):
             try:
-                self.stage_origin = hdf5io.read_item(self.config.CONTEXT_FILE, 'stage_origin')
+                self.stage_origin = hdf5io.read_item(self.config.CONTEXT_FILE, 'stage_origin',filelocking=False)
             except:
                 self.log.info('Context file cannot be opened')
             if self.stage_origin == None:

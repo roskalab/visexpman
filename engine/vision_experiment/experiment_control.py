@@ -138,7 +138,7 @@ class ExperimentControl(object):
         if not os.path.exists(self.parameter_file):
             self.printl('Parameter file does NOT exists')
             return False
-        h = hdf5io.Hdf5io(self.parameter_file)
+        h = hdf5io.Hdf5io(self.parameter_file,filelocking=False)
         fields_to_load = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
         for field in fields_to_load:
             value = h.findvar(field)
@@ -447,7 +447,7 @@ class ExperimentControl(object):
         self.fragment_data = {}
         for fragment_file_name in self.filenames['local_fragments']:
             if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5':
-                self.fragment_files.append(hdf5io.Hdf5io(fragment_file_name))
+                self.fragment_files.append(hdf5io.Hdf5io(fragment_file_name,filelocking=False))
         if self.config.EXPERIMENT_FILE_FORMAT  == 'mat':
             pass
 

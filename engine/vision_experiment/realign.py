@@ -92,7 +92,7 @@ def realign_to_region(self, scan_region, config, protocol, printc, mes_interface
     self.printc('Move to region complete')
         
 def register_images(f1, f2, scale,  print_result = True):
-        import Image
+        from PIL import Image
 #        from visexpA.engine.dataprocessors import generic
 #        Image.fromarray(generic.normalize(f1,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f1.png')))
 #        Image.fromarray(generic.normalize(f2,  numpy.uint8)).save(file.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'f2.png')))
@@ -124,7 +124,7 @@ def register_images(f1, f2, scale,  print_result = True):
         return False
 
 def create_image_registration_data_file(f1, f2):
-        image_hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.CONTEXT_PATH, 'image.hdf5'))
+        image_hdf5_handler = hdf5io.Hdf5io(os.path.join(self.config.CONTEXT_PATH, 'image.hdf5'),filelocking=False)
         image_hdf5_handler.f1 = f1
         image_hdf5_handler.f2 = f2
         image_hdf5_handler.save(['f1', 'f2'], overwrite = True)
