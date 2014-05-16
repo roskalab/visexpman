@@ -530,6 +530,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
         PLATFORM = 'mes'
+#        PLATFORM = 'standalone'
         #=== Network ===
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.27.221'
         self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True

@@ -4,6 +4,8 @@ from visexpman.engine.generic import utils
 import os
 import numpy
 import time
+
+JITTER = 0.0
 if 0:
     class Led1min5x100msStimulationConfig(experiment.ExperimentConfig):
         def _create_parameters(self):
@@ -11,7 +13,7 @@ if 0:
             self.NUMBER_OF_FLASHES = 5.0
             self.FLASH_DURATION = 100e-3
             self.FLASH_AMPLITUDE = 10.0 #10.0
-            self.DELAY_BEFORE_FIRST_FLASH = 15.0
+            self.DELAY_BEFORE_FIRST_FLASH = 15
             self.runnable = 'LedStimulation'
             self.pre_runnable = 'LedPre'
             self._create_parameters_from_locals(locals())
@@ -155,9 +157,9 @@ class LedStimulation(experiment.Experiment):
         fragment_duration = self.fragment_durations[fragment_id]
         offsets = numpy.linspace(0, self.period_time * (number_of_flashes_in_fragment -1), number_of_flashes_in_fragment)
         if len(offsets)>1:
-            offsets[2] = offsets[2]-5.0 # add a little jitter to check if brain respons periodically and not to the acutual stimulation
+            offsets[2] = offsets[2]-JITTER # add a little jitter to check if brain respons periodically and not to the acutual stimulation
         if len(offsets)>3:
-            offsets[4] = offsets[4] +5.0 
+            offsets[4] = offsets[4] +JITTER
         time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
         self.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
         self.led_controller.start()

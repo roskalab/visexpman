@@ -64,6 +64,7 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.GRATING_STAND_TIME = 2.0 #post-moving-phase time
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]
         self.VELOCITIES = [1200.0]
         self.DUTY_CYCLES = [2.5] #white and blck bar ratio -> number of bars 
@@ -72,9 +73,14 @@ class MovingGratingConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'MovingGratingPre'
         self._create_parameters_from_locals(locals())
-        
+    
+    def _create_parameters_from_locals(self, locals,  check_path = True):
+        if len(locals['self'].DUTY_CYCLES)==1 and len(locals['self'].ORIENTATIONS)>1:
+            locals['self'].DUTY_CYCLES=locals['self'].DUTY_CYCLES*len(locals['self'].ORIENTATIONS)
+        experiment.ExperimentConfig._create_parameters_from_locals(self, locals)
 
-class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
+
+class MovingGratingNoMarchingConfig(MovingGratingConfig):
     def _create_parameters(self):
         #Timing
         self.NUMBER_OF_MARCHING_PHASES = 1
@@ -83,6 +89,7 @@ class MovingGratingNoMarchingConfig(experiment.ExperimentConfig):
         self.GRATING_STAND_TIME = 4.0
         #Grating parameters
         self.ORIENTATIONS = range(0, 360, 45)
+        self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1200.0]#1800
         self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
@@ -277,10 +284,14 @@ class MovingGratingSpeed300ums(MovingGratingNoMarchingConfig):
         MovingGratingNoMarchingConfig._create_parameters(self)
         self.VELOCITIES = [300.0]
         self.WHITE_BAR_WIDTHS = [300.0]
-        self.DUTY_CYCLES = [9.0]
-        self.REPEATS = 3
+        ddiag = self.machine_config.SCREEN_SIZE_UM['col']*1.414/self.WHITE_BAR_WIDTHS
+        dhoriz = self.machine_config.SCREEN_SIZE_UM['col']*1.03/self.WHITE_BAR_WIDTHS
+        dvert  = self.machine_config.SCREEN_SIZE_UM['row']*1.03/self.WHITE_BAR_WIDTHS
+        self.DUTY_CYCLES = [dhoriz, ddiag, dvert, ddiag, dhoriz, ddiag, dvert, ddiag]
+        self.STARTING_PHASES = [360/d1 for d1 in self.DUTY_CYCLES]
+        self.REPEATS = 2
         self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1
-        self.PAUSE_BEFORE_AFTER = 2.0 #very beginning and end waiting time
+        self.PAUSE_BEFORE_AFTER = 0.0 #very beginning and end waiting time
         self.GRATING_STAND_TIME = 0.0 #post-moving-phase time
         
 class MovingGratingSpeed800ums(MovingGratingNoMarchingConfig):
@@ -312,24 +323,26 @@ class MovingGrating(experiment.Experiment):
         for repeat in range(self.experiment_config.REPEATS):
             for velocity in self.experiment_config.VELOCITIES:
                 for white_bar_width in self.experiment_config.WHITE_BAR_WIDTHS:
-                    for duty_cycle in self.experiment_config.DUTY_CYCLES:
-#                        if repeat > 0:
+                    #if repeat > 0:
 #                            random.shuffle(orientations)
-                        for orientation in orientations:
-                            stimulus_unit = {}
-                            stimulus_unit['white_bar_width'] = white_bar_width
-                            stimulus_unit['velocity'] = velocity
-                            stimulus_unit['duty_cycle'] = duty_cycle
-                            stimulus_unit['orientation'] = orientation
-                            period_length = (duty_cycle + 1) * white_bar_width
-                            required_movement = period_length * self.experiment_config.NUMBER_OF_BAR_ADVANCE_OVER_POINT
-                            stimulus_unit['move_time'] = float(required_movement) / velocity
-                            #round it to the multiple of frame rate
-                            stimulus_unit['move_time'] = \
-                                        numpy.round(stimulus_unit['move_time'] * self.machine_config.SCREEN_EXPECTED_FRAME_RATE) / self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                            self.overall_duration += stimulus_unit['move_time'] + self.experiment_config.NUMBER_OF_MARCHING_PHASES * self.experiment_config.MARCH_TIME + self.experiment_config.GRATING_STAND_TIME
-                            self.stimulus_units.append(stimulus_unit)
-                    
+                    for o1 in range(len(orientations)):
+                        orientation = orientations[o1]
+                        duty_cycle = self.experiment_config.DUTY_CYCLES[o1]
+                        stimulus_unit = {}
+                        stimulus_unit['white_bar_width'] = white_bar_width
+                        stimulus_unit['velocity'] = velocity
+                        stimulus_unit['duty_cycle'] = duty_cycle
+                        stimulus_unit['orientation'] = orientation
+                        stimulus_unit['starting_phase']=self.experiment_config.STARTING_PHASES[o1]
+                        period_length = (duty_cycle + 1) * white_bar_width
+                        required_movement = period_length * self.experiment_config.NUMBER_OF_BAR_ADVANCE_OVER_POINT
+                        stimulus_unit['move_time'] = float(required_movement) / velocity
+                        #round it to the multiple of frame rate
+                        stimulus_unit['move_time'] = \
+                                    numpy.round(stimulus_unit['move_time'] * self.machine_config.SCREEN_EXPECTED_FRAME_RATE) / self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+                        self.overall_duration += stimulus_unit['move_time'] + self.experiment_config.NUMBER_OF_MARCHING_PHASES * self.experiment_config.MARCH_TIME + self.experiment_config.GRATING_STAND_TIME
+                        self.stimulus_units.append(stimulus_unit)
+                
         
 #         self.overall_duration *= len(self.experiment_config.ORIENTATIONS)
         self.period_time = self.overall_duration / self.experiment_config.REPEATS
@@ -378,14 +391,14 @@ class MovingGrating(experiment.Experiment):
                                     orientation = orientation, 
                                     velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
                                     duty_cycle = stimulus_unit['duty_cycle'],
-                                    starting_phase = phase)
+                                    starting_phase = phase+stimulus_unit['starting_phase'])
                 #Show moving grating
                 self.show_grating(duration = stimulus_unit['move_time'], 
                             profile = profile, 
                             orientation = orientation, 
                             velocity = stimulus_unit['velocity'], white_bar_width = stimulus_unit['white_bar_width'],
                             duty_cycle = stimulus_unit['duty_cycle'],
-                            starting_phase = self.marching_phases[-1]#1/(1+stimulus_unit['duty_cycle'])*360
+                            starting_phase = self.marching_phases[-1]+stimulus_unit['starting_phase'], 
                             )
                 #Show static grating
                 if self.experiment_config.GRATING_STAND_TIME>0:
@@ -393,7 +406,7 @@ class MovingGrating(experiment.Experiment):
                             profile = profile, 
                             orientation = orientation, 
                             velocity = 0, white_bar_width = stimulus_unit['white_bar_width'],
-                            duty_cycle = stimulus_unit['duty_cycle'])
+                            duty_cycle = stimulus_unit['duty_cycle'],starting_phase = self.marching_phases[0]+stimulus_unit['starting_phase'],)
                 #Save segment info to help synchronizing stimulus with measurement data
                 segment_info = {}
                 segment_info['fragment_id'] = fragment_id
@@ -402,6 +415,7 @@ class MovingGrating(experiment.Experiment):
                 segment_info['white_bar_width'] = stimulus_unit['white_bar_width']
                 segment_info['duty_cycle'] = stimulus_unit['duty_cycle']
                 segment_info['marching_phases'] = self.marching_phases
+                segment_info['starting_phases'] = self.experiment_config.STARTING_PHASES
                 segment_info['marching_start_frame'] = frame_counter
                 frame_counter += int(self.experiment_config.NUMBER_OF_MARCHING_PHASES * self.experiment_config.MARCH_TIME * self.machine_config.SCREEN_EXPECTED_FRAME_RATE)
                 segment_info['moving_start_frame'] = frame_counter
@@ -432,7 +446,7 @@ class MovingGratingPre(experiment.PreExperiment):
         self.show_grating(duration = 0, profile = profile,
                             orientation = self.experiment_config.ORIENTATIONS[0], 
                             velocity = 0, white_bar_width = self.experiment_config.WHITE_BAR_WIDTHS[0],
-                            duty_cycle = self.experiment_config.DUTY_CYCLES[0], part_of_drawing_sequence = True)
+                            duty_cycle = self.experiment_config.DUTY_CYCLES[0], part_of_drawing_sequence = True, starting_phase = self.experiment_config.STARTING_PHASES[0])
                           
 
 class PixelSizeCalibrationConfig(experiment.ExperimentConfig):

@@ -21,10 +21,12 @@ class SpotOnOffParameters(experiment.ExperimentConfig):
         self.WHITE = 0.999
         
   
-        self.runnable = 'SpotExperiment'        
+        self.runnable = 'FlashedImages'        
         self._create_parameters_from_locals(locals())
 
-class SpotExperiment(experiment.Experiment):
+
+    
+class FlashedImages(experiment.Experiment):
     def prepare(self):
         self.fragment_durations = self.experiment_config.BACKGROUND_TIME*self.experiment_config.REPETITIONS_ALL + (self.experiment_config.ON_TIME + self.experiment_config.OFF_TIME)*len(self.experiment_config.SPOT_CONTRAST_ON)*self.experiment_config.REPETITIONS_ALL
         
@@ -45,5 +47,5 @@ class SpotExperiment(experiment.Experiment):
             if self.abort:
                 break
             
-  
-                     
+class SpotExperiment(FlashedImages): #for legacy compatibility, experiments on 12.05.2014
+    pass
