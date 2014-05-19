@@ -1,4 +1,4 @@
-from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title, xlabel,  ylabel
+from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title, xlabel,  ylabel,subplot
 from visexpman.engine.hardware_interface import scanner_control
 from visexpA.engine.datahandlers import hdf5io
 try:
@@ -877,7 +877,7 @@ class ScannerIdentification(object):
         self.load_measurement(filename)
         res = []
         plots = {}
-        figct = 1
+        figct1 = 100
         for param in self.params:
             res.append(param)
             command = self.waveform[param['rising']:param['falling']]
@@ -899,35 +899,76 @@ class ScannerIdentification(object):
             res[-1]['command'] = coeff
             
             error = res[-1]['command']/res[-1]['measured']
-            error = numpy.where(error<1e-2,1.0,error)
+            error = numpy.where(error<1e-5,0.0,error)
             res[-1]['error']=error
-            if not plots.has_key(param['flyback_time']):
-                plots[param['flyback_time']] = {}
-                if not plots[param['flyback_time']].has_key(param['frame_rate']):
-                    plots[param['flyback_time']][param['frame_rate']] = {}
-                    if not plots[param['flyback_time']][param['frame_rate']].has_key(param['voltage']):
-                        plots[param['flyback_time']][param['frame_rate']][param['voltage']] = []
-            plots[param['flyback_time']][param['frame_rate']][param['voltage']].append(error)
-        
-        leg1 = []
-        leg2 = []
-        for fbtime in plots.keys():
-            for framerate in plots[fbtime].keys():
-                for v in plots[fbtime][framerate].keys():
-                    dat= numpy.array(plots[fbtime][framerate][v])
-                    figure(1)
-                    plot(dat[:,0])
-                    leg1.append('speed, {0}, {1}, {2}'.format(1/fbtime, framerate,v))
-                    figure(2)
-                    plot(dat[:,1])
-                    leg2.append('offset, {0}, {1}, {2}'.format(1/fbtime, framerate,v))
-                    
+            #Phase shift between command and measured
+            import scipy
+            import scipy.signal
+            shift = (res[-1]['command'][1]-res[-1]['measured'][1])/param['voltage']
+#            dt = numpy.arange(1-measured_mean.shape[0], measured_mean.shape[0])
+#            shift = dt[scipy.signal.correlate(measured_mean,command_mean).argmax()]
+#            shift = abs(scipy.ifft(scipy.fft(measured)*scipy.conj(scipy.fft(command)))).argmax()
+            diff = abs(command-measured)
+            threshold = diff.max()*0.5
+#            shift = numpy.where(diff> threshold, 1, 0).sum()/(command.shape[0]/command_mean.shape[0])
+#            shift = signal.shift_between_signals(command_mean,measured_mean,1000)
+            print shift, param['offset'], param['frame_rate'], 1/param['flyback_time'], param['voltage']
+            if not plots.has_key(param['offset']):
+                plots[param['offset']] = {}
+            if not plots[param['offset']].has_key(param['frame_rate']):
+                plots[param['offset']][param['frame_rate']] = {}
+            if not plots[param['offset']][param['frame_rate']].has_key(param['flyback_time']):
+                plots[param['offset']][param['frame_rate']][param['flyback_time']] = []
+            d = [param['voltage']]
+            d.extend(error.tolist())
+            d.append(shift)
+            plots[param['offset']][param['frame_rate']][param['flyback_time']].append(numpy.array(d))
+#            if (param['frame_rate'] == 5.0 and param['offset'] ==-1.0 and 1/param['flyback_time']==150.0 and abs(param['voltage'] - 0.5)<1e-2) or\
+#                (param['frame_rate'] == 20.0 and param['offset'] ==-1.0 and 1/param['flyback_time']==150.0 and abs(param['voltage'] - 0.5)<1e-2) or\
+#                (param['frame_rate'] == 10.0 and param['offset'] ==0.0 and 1/param['flyback_time']==150.0 and abs(param['voltage'] - 0.5)<1e-2) or\
+#                (param['frame_rate'] == 5.0 and param['offset'] ==1.0 and 1/param['flyback_time']==150.0 and abs(param['voltage'] - 0.5)<1e-2):
+#                    print 'a'
+#                
+#            if (param['frame_rate'] == 20.0 and param['offset'] ==1.0 and 1/param['flyback_time']==1500.0 and abs(param['voltage'] - 0.5)<1e-2):
+#                pass
+                
+            if param['offset'] == 1 and (param['frame_rate'] == 20.0 or param['frame_rate'] == 5.0) and abs(param['voltage'] - 3.16)<1e-2:
+                if 1/param['flyback_time']==1500 or 1/param['flyback_time']==150or 1/param['flyback_time']==750:
+                    figure(figct1)
+                    plot(command)
+                    plot(measured)
+                    title('{0} V, {1} V, {2} Hz, {3} Hz, {4}'.format(param['offset'], param['voltage'], param['frame_rate'], 1/param['flyback_time'], shift ))
+                    figct1 +=1
                     
             
-        figure(1)
-        legend(leg1)
+        figct = 1
+        leg1 = []
+        nplots = len(plots.keys())*len(plots[plots.keys()[0]].keys())
+        for v in plots.keys():
+            for framerate in plots[v].keys():
+                leg2 = []
+                for fbtime in plots[v][framerate].keys():
+                    dat= numpy.array(plots[v][framerate][fbtime])
+                    figure(2)
+                    plot(dat[:,0], dat[:,1])
+                    leg1.append('{0} Hz'.format(1/fbtime))
+                    figure(1)
+                    subplot(nplots/4, 4, figct)
+                    plot(dat[:,0], dat[:,3])
+                    leg2.append('{0} Hz'.format(1/fbtime))
+                figure(1)
+                title('{0} V, {1} Hz' .format(v,framerate))
+#                legend(leg2)
+                figct +=1
+                    
+                    
+        
         figure(2)
-        legend(leg2)
+        title('speed')
+#        legend(leg1)
+#        figure(2)
+#        title('offset')
+#        legend(leg2)
         show()
 #            fgct+=2
              
@@ -974,5 +1015,6 @@ if __name__ == "__main__":
 #    scanner_control_signal()
 #    s.eval_frequency_characteristics('r:\\dataslow\\scanner_frq_domain_anal\\high_frequency_domain_characteristics.npy')
 #        s.eval_frequency_characteristics('/mnt/rzws/dataslow/scanner_frq_domain_anal/high_frequency_domain_characteristics.npy')
+    s.eval_y_scanner('r:\\dataslow\\scanner_frq_domain_anal\\y_mirror.npy')
 #    s.eval_y_scanner('/mnt/rzws/dataslow/scanner_frq_domain_anal/y_mirror.npy')
-    s.eval_y_scanner('/home/zoltan/codes/data/y_mirror.npy')
+#    s.eval_y_scanner('/home/zoltan/codes/data/y_mirror.npy')

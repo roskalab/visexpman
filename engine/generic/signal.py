@@ -119,8 +119,9 @@ def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial
         plot(numpy.tile(intensity_profile,3),'o')
         show()
     return intensity_profile
-       
+    
 class TestSignal(unittest.TestCase):
+    
     def test_01_histogram_shift_1d(self):
         #generate test data
         numpy.testing.assert_equal(numpy.array([100,100,100,100,120,140,160,180,200,200],dtype=numpy.float),
