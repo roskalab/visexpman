@@ -120,6 +120,9 @@ def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial
         show()
     return intensity_profile
     
+def sinus_linear_range(f, fs, error):
+    pass
+    
 class TestSignal(unittest.TestCase):
     
     def test_01_histogram_shift_1d(self):

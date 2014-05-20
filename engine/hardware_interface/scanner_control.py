@@ -1649,6 +1649,7 @@ class TestScannerControl(unittest.TestCase):
         plot(pos_x)
         show()
         
+    @unittest.skip('')
     def test_17_rectangular_scan_timing(self):
         plot_enable = not False
         config = ScannerTestConfig()
@@ -1689,6 +1690,9 @@ class TestScannerControl(unittest.TestCase):
 #            legend(['scanner position',  'valid data'])
             xlabel('t [us]')
             show()
+            
+    def test_18_(self):
+        pass
 
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)

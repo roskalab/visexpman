@@ -990,19 +990,24 @@ def poly(x, *p):
         
 def scanner_control_signal():
     error = 10e-2
-    f = 1500
+    f = 1000
     fs = 400e3
     duration = 1.0/f
     a =1
-    xscanner = signal.wf_sin(a, f, duration, fs,phase = 0)
-    yscanner = signal.wf_sin(a, f/10, duration, fs,phase = 0)
+    t = numpy.arange(duration*fs+1)/fs
+    xscanner = signal.wf_sin(a, f, duration, fs,phase = 90)
+#    yscanner = signal.wf_sin(a, f/10, duration, fs,phase = 0)
     xlin = numpy.arange(xscanner.shape[0],dtype=numpy.float)*numpy.diff(xscanner)[0]
 #    plot(xlin)
-    plot(xscanner)
-    plot(yscanner)
+    plot(t, xscanner)
+    plot(t,numpy.pi*f*(t+numpy.pi/2)*2)
+#    plot(yscanner)
+    
 #    plot(abs(xscanner-xlin))
 #    plot(numpy.ones_like(xscanner)*error)
     samples_per_x_period = 2*numpy.where(numpy.ones_like(xscanner)*error-abs(xscanner-xlin)>0,1,0).sum()
+    print samples_per_x_period
+    show()
     pass
     
 if __name__ == "__main__":
@@ -1012,9 +1017,9 @@ if __name__ == "__main__":
         s.y_mirror_test()
         s.command_voltage_angle_characteristics()
 #    s.frequency_domain_characteristics()
-#    scanner_control_signal()
+    scanner_control_signal()
 #    s.eval_frequency_characteristics('r:\\dataslow\\scanner_frq_domain_anal\\high_frequency_domain_characteristics.npy')
 #        s.eval_frequency_characteristics('/mnt/rzws/dataslow/scanner_frq_domain_anal/high_frequency_domain_characteristics.npy')
-    s.eval_y_scanner('r:\\dataslow\\scanner_frq_domain_anal\\y_mirror.npy')
+#    s.eval_y_scanner('r:\\dataslow\\scanner_frq_domain_anal\\y_mirror.npy')
 #    s.eval_y_scanner('/mnt/rzws/dataslow/scanner_frq_domain_anal/y_mirror.npy')
 #    s.eval_y_scanner('/home/zoltan/codes/data/y_mirror.npy')
