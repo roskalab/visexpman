@@ -28,7 +28,7 @@ class SpotOnOffParameters(experiment.ExperimentConfig):
     
 class FlashedImages(experiment.Experiment):
     def prepare(self):
-        self.fragment_durations = self.experiment_config.BACKGROUND_TIME*self.experiment_config.REPETITIONS_ALL + (self.experiment_config.ON_TIME + self.experiment_config.OFF_TIME)*len(self.experiment_config.SPOT_CONTRAST_ON)*self.experiment_config.REPETITIONS_ALL
+        self.fragment_durations = 4+self.experiment_config.BACKGROUND_TIME*self.experiment_config.REPETITIONS_ALL + (self.experiment_config.ON_TIME + self.experiment_config.OFF_TIME)*len(self.experiment_config.SPOT_CONTRAST_ON)*self.experiment_config.REPETITIONS_ALL
         
     def run(self):
         for repetitions in range(self.experiment_config.REPETITIONS_ALL):

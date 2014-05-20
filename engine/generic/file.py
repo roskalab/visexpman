@@ -134,8 +134,17 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
     return BackgroundCopierClass(command_queue,postpone_seconds, thread,debug)
 
 def free_space(path):
-    s=os.statvfs(path)
-    return (s.f_bavail * s.f_frsize)
+    """ Return folder/drive free space (in bytes)
+    """
+    import platform
+    if platform.system() == 'Windows':
+        import ctypes
+        free_bytes = ctypes.c_ulonglong(0)
+        ctypes.windll.kernel32.GetDiskFreeSpaceExW(ctypes.c_wchar_p(folder), None, None, ctypes.pointer(free_bytes))
+        return free_bytes.value
+    else:
+        s=os.statvfs(path)
+        return (s.f_bavail * s.f_frsize)
 
 def file_open_by_other_process(filename):
     '''Checks whether the given file is open by any process'''
@@ -341,7 +350,69 @@ def listdir_fullpath(folder):
     for file in files:
         full_paths.append(os.path.join(folder,  file))
     return full_paths
-    
+
+def dirListing2(rootdir, pattern='*', excludenames=[]):
+    import fnmatch
+    matches = []
+    for root, dirnames, filenames in os.walk(rootdir):
+        if len([e for e in excludenames if e in root])>0: continue
+        for filename in fnmatch.filter(filenames, pattern):
+            if len([e for e in excludenames if e in filename])==0:
+                matches.append(os.path.join(root, filename))
+    return matches
+      
+def dirListing(directory='~', ext = '', prepend='', dflag = False, sortit = False,  noext=False,  excludenames = [], fullpath = False):
+    """Returns a list of directories. Set 'prepend' to the same as 'directory'
+    to get results relative to 'directory'. Set 'prepend' to another base path
+    to get results relative to that base path. If the subdirectories under
+    'prepend' do not exist, they will be created.
+    Set dflag=True if you only want directories be searched or returned. Otherwise only files will be returned.
+    Set noext=True if you want the file extensions cut (anything after the last dot)"""
+                #variables
+    dirs = [] #list of directories
+                #list of directories and files
+    lastmod = []
+    if ext=='' and sort == True:
+        raise ValueError("Recursive listing with sorting is not implemented")
+
+    if isinstance(ext,basestring):
+        ext = [ext]
+    ext = [ex[ex.find('.')+1:] for ex in ext] #remove . from extension if it is there
+    try:
+        listing = os.listdir(directory)
+        listing = [l1 for l1 in listing if sum([e in l1 for e in excludenames])==0]
+    except OSError:
+        return ''
+    if len(prepend)>0 and prepend[-1] != os.sep:
+        prepend = prepend + os.sep
+                #get just the directories
+    for x in listing:
+        if ext[0]!='%':
+            cext = next((ex for ex in ext if re.search(ex+'$',x) is not None), None)
+        else:
+            cext = 'dummy'
+        id = (os.path.isdir(directory+os.sep+x))
+        if id and (dflag == True or len(ext)==0):# just include the subdirectory in the result list
+            dirs.append(prepend+x)
+            lastmod.append(os.stat(os.path.join(directory,x))[8])
+        elif not id and cext is not None and len(cext) > 0 and not x[0] == '.':# and not id: # add matching files, exclude hidden files whose name starts with .
+            dirs.append(prepend+x)
+            lastmod.append(os.stat(os.path.join(directory,x))[8])
+        elif id or cext is None: # recursive call to look in subdirectories if dirname does not contain the extension
+            rdirs = dirListing(directory+os.sep+x, ext, prepend+x, dflag, sortit = sortit,  noext=noext,  excludenames = excludenames)
+            if not os.path.exists(prepend+x): # create directory
+                os.makedirs((prepend+x))
+            dirs.extend(rdirs[:])
+    if sortit:
+        from operator import itemgetter
+        dirs, modtimes = zip(*sorted(zip(dirs,lastmod), key=itemgetter(1)))
+    if noext: # remove extensions
+        dirs = [item[:item.rfind('.')] for item in dirs]
+    if fullpath:
+        dirs = [os.path.join(directory, fn) for fn in dirs]
+    return dirs
+
+
 def find_latest(path):
     number_of_digits = 5
     latest_date = 0

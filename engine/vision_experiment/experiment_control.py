@@ -447,7 +447,7 @@ class ExperimentControl(object):
         self.fragment_data = {}
         for fragment_file_name in self.filenames['local_fragments']:
             if self.config.EXPERIMENT_FILE_FORMAT  == 'hdf5':
-                self.fragment_files.append(hdf5io.Hdf5io(fragment_file_name,filelocking=False))
+                self.fragment_files.append(hdf5io.Hdf5io(fragment_file_name,self.config))
         if self.config.EXPERIMENT_FILE_FORMAT  == 'mat':
             pass
 

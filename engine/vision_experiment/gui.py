@@ -1613,6 +1613,7 @@ class MainPoller(Poller):
             self.parent.update_anesthesia_history()
             self.printc('Animal parameter file saved')
             
+            
     def add_to_anesthesia_history(self):
         if hasattr(self, 'mouse_file') and os.path.exists(self.mouse_file):
             if not hasattr(self, 'anesthesia_history'):

@@ -12,7 +12,9 @@ from visexpA.engine.datadisplay.imaged import imshow
 # convex hull (Graham scan by x-coordinate) and diameter of a set of points
 # David Eppstein, UC Irvine, 7 Mar 2002
 
-
+def get_closest(rcref,rcothers):
+    distances = [numpy.abs(rcref['col']-c['col'])+numpy.abs(rcref['row']-c['row']) for c in rcothers]
+    return numpy.argmin(distances)
 
 def orientation(p,q,r):
     '''Return positive if p-q-r are clockwise, neg if ccw, zero if colinear.'''

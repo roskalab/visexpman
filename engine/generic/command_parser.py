@@ -22,7 +22,7 @@ class CommandParser(object):
         self.function_call_list = []
         self.failsafe = failsafe
     
-    def parse(self):
+    def parse(self, one=False):
         display_message  = ''
         #gather messages from queues and parse them to function call format
         for queue in self.queue_in:
@@ -50,6 +50,10 @@ class CommandParser(object):
                     function_call['arguments'] = non_keyword_arguments
                     function_call['keyword_arguments'] = keyword_arguments
                     self.function_call_list.append(function_call)
+                if len(self.function_call_list) == 1 and one:
+                    break
+            if len(self.function_call_list) == 1 and one:
+                break
         #call functions
         self.function_call_results = []
         for function in self.function_call_list:

@@ -33,10 +33,11 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             
             MEASUREMENT_PLATFORM = 'mes', 'elphys', 'mea', 'smallapp'
            
-        '''        
+        '''
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
         
         self.enable_celery = True
+        self.temppath = tempfile.gettempdir()
         
         #parameter with range: list[0] - value, list[1] - range
         #path parameter: parameter name contains '_PATH'
