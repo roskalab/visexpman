@@ -560,14 +560,11 @@ def celery_available():
 def list_type(item):
     try: # is data convertible to numpy array of scalar (including string) values?
         item2=numpy.array(item)
-        if isinstance(item, (list, tuple)) and not hasattr(item2.dtype,'names'):#numpy.issctype(item2.dtype):
+        if isinstance(item, (list, tuple)) and item2.dtype.names is None:#numpy.issctype(item2.dtype):
             return 'arrayized'
-    except:
-        pass
+    except Exception as e:
+        print e
     if isinstance(item,(list,tuple)):
-        response='list'
-        #if sum(type(i0)==type(item[0]) for i0 in item)==len(item): # list where all elements have the same type
-           # response='list_of_values'
         if isinstance(item[0],(list,tuple)):
             response='list_of_lists'
         if sum(isinstance(i0,dict) for i0 in item)==len(item):
@@ -579,6 +576,8 @@ def list_type(item):
                 response = 'list_of_uniform_shaped_recarrays'
             else:
                 response = 'list_of_recarrays'
+        else:
+            raise RuntimeError('Unhandled object type in the list provided')
     else:
         response=None
     return response

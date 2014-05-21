@@ -226,7 +226,7 @@ def argsort(seq):
     #by ubuntu
     return sorted(range(len(seq)), key=seq.__getitem__)
     
-def nd(rcarray, squeeze=False, dim_order=None):
+def nd(rcarray, squeeze=False, dim_order=None,tuples=0):
     '''Convenience function to convert a recarray to nd array'''
     if dim_order is None: dim_order = [0, 1, 2]
     dim_names4current_data = dim_names0[:len(rcarray.dtype.names)]
@@ -235,8 +235,10 @@ def nd(rcarray, squeeze=False, dim_order=None):
         res = numpy.c_[[rcarray[f] for f in names_in_order]].T # take field by field in the default order
     else: # faster way
         res= rcarray.view((rcarray[rcarray.dtype.names[0]].dtype,len(rcarray.dtype.names)))
-    if squeeze:
+    if squeeze or rcarray.ndim==0:
         res=numpy.squeeze(res)
+    if tuples: #gives back list of tuples on which set operations can be performed
+        res = [tuple(item) for item in res]
     return res
 
 def rcd(raw):
@@ -255,6 +257,8 @@ def rcd_pack(raw, dim_order = [0, 1],**kwargs):
     order = argsort(dim_order)
     dim_order = sorted(dim_order)
     dim_names = [dim_names0[n] for n in dim_order] # sorted ensures that field ordering will always be as dim_names0, this way nd will always give [row,col] or [row,col,depth] ordered data
+    if isinstance(raw, (tuple, list)) and len(raw)==0: #empty list or tuple
+        return numpy.recarray((0,), dtype={'names':dim_names, 'formats':[object]*2}) #returned array should be iterable (though length 0)
     # handle case when input is a tuple having as many elements as dimensions (max 3)
     if (isinstance(raw,(list,tuple)) and ((len(raw) == len(dim_names)) and (type(raw[0])==int or type(raw[0])==float or type(raw[0]) == numpy.float64 or type(raw[0]) == numpy.float32 or type(raw[0]) == numpy.int32)) or (hasattr(raw,'ndim') and raw.ndim==1 and raw.size==len(dim_names))):
         nd = kwargs.get('nd',0)
@@ -270,8 +274,7 @@ def rcd_pack(raw, dim_order = [0, 1],**kwargs):
         raise TypeError('Input data dimension must be '+str(len(dim_names))+' Call rc_flatten if you want data to be flattened before conversion')
     if raw.ndim==2 and raw.shape[1]==len(dim_names): # convenience feature: user must not care if input shape is (2,x) or (x,2)  we convert to the required format (2,x)
         raw=raw.T
-    else:
-        raw= numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
+    raw= numpy.take(raw, order, axis=0) #rearrange the input data so that the order along dim0 is [row,col,depth]
     return numpy.array(zip(*[raw[index] for index in range(len(dim_order))]),dtype=dtype)
 
 def rc_add(operand1, operand2,  operation = '+'):
@@ -519,7 +522,8 @@ def keep_closest_ancestors(class_list,  required_ancestors):
     all_ancestors_closest = numpy.where(eligible.sum(axis=0) == len(required_ancestors))[0]
     if len(all_ancestors_closest)!=1:
         raise ValueError('There is no class in the list for which all of the required ancestors are closest to the child')
-    return class_list[all_ancestors_closest]
+    else:
+        return class_list[all_ancestors_closest[0]]
     
 def prepare_dynamic_class_instantiation(modules,  class_name):        
     """
