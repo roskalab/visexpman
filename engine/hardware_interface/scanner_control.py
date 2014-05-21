@@ -1692,6 +1692,49 @@ class TestScannerControl(unittest.TestCase):
             show()
             
     def test_18_(self):
+        #Next: overshoot, flash time, 
+        from visexpman.engine.generic import signal
+        from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
+        xflyback_scan=False
+        fmax = 1500
+        fsample = 400e3
+        maxerror = 5e-2
+        res = 2 #pixel/um
+        scan_area = utils.rc((100.0,100.0))
+        yflyback_time = 1e-3
+        xpixels = res*scan_area['col']
+        ypixels = res*scan_area['row']
+        for f in numpy.arange(1, fmax)[::-1]:
+            linear_range = signal.sinus_linear_range(f, fsample, maxerror)*2
+            if xpixels <= linear_range:
+                xperiod_samples = numpy.ceil((fsample/f)/4)*4
+                fxscanner = fsample/xperiod_samples
+                one_period_x_scanner_signal = signal.wf_sin(1,fxscanner,1.0/fxscanner,fsample,phase=90)[:-1]
+                mask = numpy.zeros_like(one_period_x_scanner_signal)
+                
+                mask[mask.shape[0]/4-xpixels/2:mask.shape[0]/4+xpixels/2]=1
+                mask[3*mask.shape[0]/4-xpixels/2:3*mask.shape[0]/4+xpixels/2]=1
+                
+                overshoot = one_period_x_scanner_signal.max()/(mask*one_period_x_scanner_signal).max()#in percent
+                flash_time = (one_period_x_scanner_signal.shape[0] - xpixels*2)#overall, split to two flashes
+                flash_duty_cycle = float(flash_time)/one_period_x_scanner_signal.shape[0]
+                yflyback_nperiods = numpy.ceil(yflyback_time/(1.0/fxscanner))
+                yflyback_time_corrected = yflyback_nperiods/fxscanner
+                if xflyback_scan:
+                    factor = 0.5
+                else:
+                    factor = 1.0
+                nxlines = ypixels*factor + yflyback_nperiods
+                t_up = (ypixels+0)/fxscanner
+                t_down = yflyback_time_corrected
+                ysignal = signal.wf_triangle(1.0, t_up, t_down, t_up +t_down, fsample, offset = -0.5)
+                xsignal = numpy.tile(one_period_x_scanner_signal,nxlines)
+                plot(ysignal)
+                plot(xsignal)
+                plot(numpy.tile(mask,nxlines))
+                show()
+                break
+                
         pass
 
     def _ramp(self):

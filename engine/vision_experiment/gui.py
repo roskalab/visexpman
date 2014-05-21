@@ -824,6 +824,7 @@ class ExperimentControl(gui.WidgetControl):
         '''
         Called by poller regularly, checks command queue and current experiment status and starts a new recording
         '''
+        
         #Do nothing if one experiment is prepering to run
         if  len([rec for rec in self.poller.animal_file.recordings if rec['status'] == 'preparing']) > 0:
             return
@@ -833,7 +834,7 @@ class ExperimentControl(gui.WidgetControl):
                 function_call = {'function': 'start_experiment', 'args': [self.poller.animal_file.recordings[i]]}
                 self.poller.send(function_call,connection='stim')
                 if self.config.PLATFORM == 'elphys_retinal_ca':
-                    self.poller.sockets['ca_imaging'].send(function_call)
+                    self.poller.send(function_call,connection='ca_imaging')
                 elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
                     raise NotImplementedError('')
                 self.poller.animal_file.recordings[i]['status'] = 'preparing'

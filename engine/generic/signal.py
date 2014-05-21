@@ -121,10 +121,14 @@ def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial
     return intensity_profile
     
 def sinus_linear_range(f, fs, error):
-    pass
+    a=2.0
+    s =  wf_sin(a, f, 0.25/f, fs)
+    t = time_series(0.25/f, fs)
+    linear = numpy.pi*2*t*f*a*0.5
+    e = linear-s
+    return numpy.nonzero(numpy.where(linear-s<error, 1, 0))[0].max()
     
 class TestSignal(unittest.TestCase):
-    
     def test_01_histogram_shift_1d(self):
         #generate test data
         numpy.testing.assert_equal(numpy.array([100,100,100,100,120,140,160,180,200,200],dtype=numpy.float),
@@ -226,6 +230,9 @@ class TestSignal(unittest.TestCase):
             
     def test_10_generate_natural_stimulus_intensity_profile(self):
         generate_natural_stimulus_intensity_profile(20.0, 300.0, 20.0,2.0)
+        
+    def test_11(self):
+        sinus_linear_range(1000, 400e3, 1e-2)
     
 if __name__=='__main__':
     unittest.main()

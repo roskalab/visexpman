@@ -2823,7 +2823,6 @@ class VisexpGuiPoller(Poller):
     def run_in_all_iterations(self):
         #### Calling functions all the time #### 
         self.experiment_control.check_experiment_queue()
-        
         #### Calling functions at lower repetition rate #### 
         if not hasattr(self, 'phase'):
             self.phase = 0

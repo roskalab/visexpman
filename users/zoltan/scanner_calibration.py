@@ -995,12 +995,13 @@ def scanner_control_signal():
     duration = 1.0/f
     a =1
     t = numpy.arange(duration*fs+1)/fs
-    xscanner = signal.wf_sin(a, f, duration, fs,phase = 90)
+    xscanner = signal.wf_sin(a, f, duration, fs,phase = 0*90)
 #    yscanner = signal.wf_sin(a, f/10, duration, fs,phase = 0)
     xlin = numpy.arange(xscanner.shape[0],dtype=numpy.float)*numpy.diff(xscanner)[0]
 #    plot(xlin)
     plot(t, xscanner)
-    plot(t,numpy.pi*f*(t+numpy.pi/2)*2)
+    plot(t,2*numpy.pi*f*(t-0*0.75*duration)*a/2)
+#    plot(t[:-1], numpy.diff(xscanner)*fs/1000)
 #    plot(yscanner)
     
 #    plot(abs(xscanner-xlin))
@@ -1009,6 +1010,8 @@ def scanner_control_signal():
     print samples_per_x_period
     show()
     pass
+    
+
     
 if __name__ == "__main__":
     s=ScannerIdentification()
