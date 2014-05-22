@@ -1696,11 +1696,14 @@ class TestScannerControl(unittest.TestCase):
         from visexpman.engine.generic.introspect import Timer
         constraints = {}
         constraints['enable_flybackscan']=False
-        constraints['um2voltage_scale']=1.0#includes voltage to angle factor
+        constraints['um2voltage_scale']=0.1#includes voltage to angle factor
         constraints['xmirror_max_frequency']=1500
         constraints['ymirror_flyback_time']=1e-3
         constraints['sample_frequency']=400e3
         constraints['max_linearity_error']=5e-2
+        constraints['phase_characteristics']=[-0.00074166, -0.00281492]
+        constraints['gain_characteristics']=[9.92747933e-01, 2.42763029e-06, -2.40619419e-08]
+        
         scan_configs = [
                                     [utils.rc((100,100)), 2, True, 400e3,5e-2],
                                     [utils.rc((100,100)), 2, False, 400e3,5e-2],
@@ -1714,7 +1717,7 @@ class TestScannerControl(unittest.TestCase):
                                     [utils.rc((128,128)), 2, False, 500e3,30e-2]
                                    ]
         for scan_size, resolution, constraints['enable_flybackscan'], constraints['sample_frequency'], constraints['max_linearity_error'] in scan_configs:
-            center = utils.rc((0,0))
+            center = utils.rc((1,10))
             xsignal,ysignal,valid_data_mask,signal_attributes =\
                             generate_scanner_signals(scan_size, resolution, center, constraints)
             self.assertGreaterEqual(signal_attributes['ymirror_flyback_time'],constraints['ymirror_flyback_time'])
@@ -1735,8 +1738,21 @@ class TestScannerControl(unittest.TestCase):
             self.assertAlmostEqual(numpy.where(numpy.diff(ysignal)>=0,1,0).sum()/constraints['sample_frequency'], 
                                                           1.0/signal_attributes['frame_rate'] - signal_attributes['ymirror_flyback_time'],
                                                           int(numpy.log10(constraints['sample_frequency']))-1)
-            
+            #test x scanner signal amplitude
+            masked_signal = numpy.roll(valid_data_mask,signal_attributes['phase_shift'])*xsignal
+            gain = constraints['gain_characteristics'][0] \
+                                            +constraints['gain_characteristics'][1] * signal_attributes['fxscanner'] + constraints['gain_characteristics'][2] * signal_attributes['fxscanner']**2
+            masked_signal = masked_signal[numpy.nonzero(masked_signal)[0]] 
+            self.assertAlmostEqual((masked_signal.max()-masked_signal.min())*gain/constraints['um2voltage_scale'], 
+                                                                          float(scan_size['col']), 5)
+            self.assertAlmostEqual(xsignal.mean()/constraints['um2voltage_scale'], center['col'],5)
+            #test y scanner signal amplitude
+            self.assertAlmostEqual((ysignal.max()-ysignal.min())/constraints['um2voltage_scale'], float(scan_size['row']), 5)
+            self.assertAlmostEqual(ysignal.mean()/constraints['um2voltage_scale'], center['row'],5)
             print ', '.join(['{0}={1}'.format(k, numpy.round(v, 3)) for k,v in signal_attributes.items()])
+            duty_cycle = 0.2
+            delay = 10e-6
+            generate_flash_trigger(valid_data_mask, duty_cycle, delay, signal_attributes, constraints)
 
 #        plot(ysignal)
 #        plot(xsignal)
@@ -1774,7 +1790,16 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
             mask[3*mask.shape[0]/4-xpixels/2:3*mask.shape[0]/4+xpixels/2]=1
             overshoot = one_period_x_scanner_signal.max()/(mask*one_period_x_scanner_signal).max()#in percent
             #x signal amplitude is increseased to fit the required amplitude into the linear range of the sinus wave
-            one_period_x_scanner_signal*=overshoot
+            one_period_x_scanner_signal *= overshoot
+            #correct x amplitude with gain at given frq
+            one_period_x_scanner_signal /= constraints['gain_characteristics'][0] \
+                                            +constraints['gain_characteristics'][1] * fxscanner + constraints['gain_characteristics'][2] * fxscanner**2
+            one_period_x_scanner_signal *= scan_size['col']*constraints['um2voltage_scale']
+            one_period_x_scanner_signal += center['col']*constraints['um2voltage_scale']
+            #Shift mask with phase
+            phase = constraints['phase_characteristics'][0] * fxscanner + constraints['phase_characteristics'][1]
+            phase_shift = int(numpy.round(phase/(numpy.pi*2)*one_period_x_scanner_signal.shape[0],0))
+            mask = numpy.roll(mask,-phase_shift)
             flash_time = (one_period_x_scanner_signal.shape[0] - xpixels*2)#overall, split to two flashes
             max_flash_duty_cycle = float(flash_time)/one_period_x_scanner_signal.shape[0]
             #y flyback time does not exceed ymirror_flyback_time
@@ -1790,12 +1815,13 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
             t_down = yflyback_time_corrected
             frame_rate = 1.0/(t_up+t_down)
             ysignal = signal.wf_triangle(1.0, t_up, t_down, t_up +t_down, constraints['sample_frequency'], offset = -0.5)
+            #scale y signal to voltage and add offset
+            ysignal *= scan_size['row']*constraints['um2voltage_scale']
+            ysignal += center['row']*constraints['um2voltage_scale']
             xsignal = numpy.tile(one_period_x_scanner_signal,nxlines)
             if ysignal.shape[0] != xsignal.shape[0]:
                 raise ScannerError('x and y signal length must be the same: {0}, {1}'.format(ysignal.shape[0], xsignal.shape[0]))
             valid_data_mask = numpy.tile(mask,nxlines)
-            #Shift mask with phase
-            #correct x amplitude with gain at given frq and overshoot            
             break
     signal_attributes = {}
     signal_attributes['ymirror_flyback_time'] = t_down
@@ -1803,12 +1829,33 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
     signal_attributes['max_flash_duty_cycle'] = max_flash_duty_cycle
     signal_attributes['frame_rate'] = frame_rate
     signal_attributes['fxscanner'] = fxscanner
+    signal_attributes['phase_shift'] = phase_shift
     return xsignal,ysignal,valid_data_mask,signal_attributes
 
-def generate_flash_trigger(mask, duty_cycle, delay):
+def generate_flash_trigger(mask, duty_cycle, delay, signal_attributes, constraints):
     '''
     From valid data mask generate trigger signal
+    If duty_cycle is 0.0, then maximal possible duty cycle is presented
     '''
+    if signal_attributes['max_flash_duty_cycle']<duty_cycle:
+        raise ScannerError('Requested duty cycle ({0:0.2f}) shall be below {1:0.2f}'.format(duty_cycle, signal_attributes['max_flash_duty_cycle']))
+    flash_samples = int(0.5 * duty_cycle/signal_attributes['fxscanner']*constraints['sample_frequency']) #flashed in two pulses
+    delay_samples = int(delay * constraints['sample_frequency'])
+    max_flash_samples =  0.5*int(numpy.round(signal_attributes['max_flash_duty_cycle']/signal_attributes['fxscanner']*constraints['sample_frequency'],0))
+    if max_flash_samples<flash_samples + delay_samples:
+        raise ScannerError('Not enough time for requested duty cycle and delay. Reduce duty cycle or delay')
+    if flash_samples == 0:
+        flash_samples = max_flash_samples - delay_samples
+    flash_trigger_signal = numpy.zeros_like(mask)
+    start_indexes = numpy.nonzero(numpy.where(numpy.diff(mask)<0,1,0))[0]+1+delay_samples
+    end_indexes = start_indexes + flash_samples
+    for i in range(start_indexes.shape[0]):
+        flash_trigger_signal[start_indexes[i]:end_indexes[i]]=1
+    return flash_trigger_signal
+    
+    
+
+    
 
 if __name__ == "__main__":
     unittest.main()

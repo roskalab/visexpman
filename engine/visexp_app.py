@@ -208,6 +208,12 @@ def run_stim(context, timeout = None):
     context['logger'].start()
     stim.run(timeout=timeout)
     
+def run_ca_imaging(context, timeout = None):
+    stim = CaImagingLoop(context['machine_config'], context['socket_queues']['ca_imaging'], context['command'], context['logger'])
+    context['logger'].start()
+    stim.run(timeout=timeout)
+    
+    
 def stimulation_tester(user, machine_config, experiment_config, **kwargs):
     '''
     Runs the provided experiment config and terminates
