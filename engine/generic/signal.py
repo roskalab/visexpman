@@ -126,7 +126,16 @@ def sinus_linear_range(f, fs, error):
     t = time_series(0.25/f, fs)
     linear = numpy.pi*2*t*f*a*0.5
     e = linear-s
-    return numpy.nonzero(numpy.where(linear-s<error, 1, 0))[0].max()
+    #multiplication with 2: range is to be extended to the negative direction
+    return 2*numpy.nonzero(numpy.where(linear-s<error, 1, 0))[0].max()
+
+def sinus_linear_range_slow(error):
+    def f(x, e):
+        return x - numpy.sin(x)-e
+    from scipy.optimize import fsolve
+    sol = fsolve(f, numpy.pi/4, args=(error))
+    #Between 0 and returned phase linearity error  is below specified
+    return sol[0]*2
     
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):

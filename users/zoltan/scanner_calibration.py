@@ -564,7 +564,7 @@ class ScannerIdentification(object):
         self.ao_channel_name = 'Dev1/ao1'
         self.ai_channel_name = 'Dev1/ai2'
         self.angle2voltage_factor = 0.66132089075664857    
-        self.voltage_correction_factor = self.angle2voltage_factor*2
+        self.voltage_correction_factor = self.angle2voltage_factor*2#2 is the 2 degree per volt
         
     def command_voltage_angle_characteristics(self):
         import random

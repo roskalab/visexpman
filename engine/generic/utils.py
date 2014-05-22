@@ -71,17 +71,9 @@ def resample_array(array, factor):
     Increases sampling rate of array with factor
     '''
     if factor == 1:
-        return array
+        return arrayutils.py
     else:
         return numpy.array([array]*int(factor)).flatten('F')
-
-def sinus_linear_range(error):
-    def f(x, e):
-        return x - numpy.sin(x)-e
-    from scipy.optimize import fsolve
-    sol = fsolve(f, numpy.pi/4, args=(error))
-    #Between 0 and returned phase linearity error  is below specified
-    return sol[0]
     
 def generate_lut(x, min = 0.0, max = 1.0, gamma = 1.0, brightness = 0.5, contrast = 0.0):
     max_ = max - contrast

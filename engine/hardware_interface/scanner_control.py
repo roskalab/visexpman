@@ -1691,51 +1691,58 @@ class TestScannerControl(unittest.TestCase):
             xlabel('t [us]')
             show()
             
-    def test_18_(self):
-        #Next: overshoot, flash time, 
-        from visexpman.engine.generic import signal
+    def test_18_scanner_signal(self):
         from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
-        xflyback_scan=False
-        fmax = 1500
-        fsample = 400e3
-        maxerror = 5e-2
-        res = 2 #pixel/um
-        scan_area = utils.rc((100.0,100.0))
-        yflyback_time = 1e-3
-        xpixels = res*scan_area['col']
-        ypixels = res*scan_area['row']
-        for f in numpy.arange(1, fmax)[::-1]:
-            linear_range = signal.sinus_linear_range(f, fsample, maxerror)*2
-            if xpixels <= linear_range:
-                xperiod_samples = numpy.ceil((fsample/f)/4)*4
-                fxscanner = fsample/xperiod_samples
-                one_period_x_scanner_signal = signal.wf_sin(1,fxscanner,1.0/fxscanner,fsample,phase=90)[:-1]
-                mask = numpy.zeros_like(one_period_x_scanner_signal)
-                
-                mask[mask.shape[0]/4-xpixels/2:mask.shape[0]/4+xpixels/2]=1
-                mask[3*mask.shape[0]/4-xpixels/2:3*mask.shape[0]/4+xpixels/2]=1
-                
-                overshoot = one_period_x_scanner_signal.max()/(mask*one_period_x_scanner_signal).max()#in percent
-                flash_time = (one_period_x_scanner_signal.shape[0] - xpixels*2)#overall, split to two flashes
-                flash_duty_cycle = float(flash_time)/one_period_x_scanner_signal.shape[0]
-                yflyback_nperiods = numpy.ceil(yflyback_time/(1.0/fxscanner))
-                yflyback_time_corrected = yflyback_nperiods/fxscanner
-                if xflyback_scan:
-                    factor = 0.5
-                else:
-                    factor = 1.0
-                nxlines = ypixels*factor + yflyback_nperiods
-                t_up = (ypixels+0)/fxscanner
-                t_down = yflyback_time_corrected
-                ysignal = signal.wf_triangle(1.0, t_up, t_down, t_up +t_down, fsample, offset = -0.5)
-                xsignal = numpy.tile(one_period_x_scanner_signal,nxlines)
-                plot(ysignal)
-                plot(xsignal)
-                plot(numpy.tile(mask,nxlines))
-                show()
-                break
-                
-        pass
+        from visexpman.engine.generic.introspect import Timer
+        constraints = {}
+        constraints['enable_flybackscan']=False
+        constraints['um2voltage_scale']=1.0#includes voltage to angle factor
+        constraints['xmirror_max_frequency']=1500
+        constraints['ymirror_flyback_time']=1e-3
+        constraints['sample_frequency']=400e3
+        constraints['max_linearity_error']=5e-2
+        scan_configs = [
+                                    [utils.rc((100,100)), 2, True, 400e3,5e-2],
+                                    [utils.rc((100,100)), 2, False, 400e3,5e-2],
+                                    [utils.rc((100,100)), 2, False, 400e3,1e-2],
+                                    [utils.rc((100,100)), 1, False, 500e3,5e-2],
+                                    [utils.rc((100,100)), 4, False, 100e3,1e-2],
+                                    [utils.rc((20,10)), 1, True, 400e3,1e-2],
+                                    [utils.rc((20,20)), 1, False, 400e3,1e-2],
+                                    [utils.rc((30,20)), 1, True, 400e3,5e-2],
+                                    [utils.rc((10,15)), 1, False, 100e3,5e-2],
+                                    [utils.rc((128,128)), 2, False, 500e3,30e-2]
+                                   ]
+        for scan_size, resolution, constraints['enable_flybackscan'], constraints['sample_frequency'], constraints['max_linearity_error'] in scan_configs:
+            center = utils.rc((0,0))
+            xsignal,ysignal,valid_data_mask,signal_attributes =\
+                            generate_scanner_signals(scan_size, resolution, center, constraints)
+            self.assertGreaterEqual(signal_attributes['ymirror_flyback_time'],constraints['ymirror_flyback_time'])
+            number_of_periods = numpy.where(numpy.diff(numpy.where(xsignal>xsignal.mean(),1,0))>0,1,0).sum()
+            xperiod_length = float(xsignal.shape[0])/number_of_periods
+            self.assertEqual(xperiod_length,xsignal.shape[0]/number_of_periods)
+            #check number of periods
+            if constraints['enable_flybackscan']:
+                factor = 0.5
+            else:
+                factor = 1.0
+            self.assertEqual(number_of_periods - (signal_attributes['ymirror_flyback_time']*constraints['sample_frequency'])/xperiod_length,
+                                                                                                         scan_size['row']*resolution*factor)
+            #check y signal
+            self.assertAlmostEqual(numpy.where(numpy.diff(ysignal)<0,1,0).sum()/constraints['sample_frequency'], 
+                                                    signal_attributes['ymirror_flyback_time'],
+                                                    int(numpy.log10(constraints['sample_frequency']))-1)
+            self.assertAlmostEqual(numpy.where(numpy.diff(ysignal)>=0,1,0).sum()/constraints['sample_frequency'], 
+                                                          1.0/signal_attributes['frame_rate'] - signal_attributes['ymirror_flyback_time'],
+                                                          int(numpy.log10(constraints['sample_frequency']))-1)
+            
+            print ', '.join(['{0}={1}'.format(k, numpy.round(v, 3)) for k,v in signal_attributes.items()])
+
+#        plot(ysignal)
+#        plot(xsignal)
+#        plot(valid_data_mask)
+#        show()
+
 
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)
@@ -1745,6 +1752,63 @@ class TestScannerControl(unittest.TestCase):
         waveform[:, -2] = numpy.zeros(2)
         waveform[:, -3] = numpy.zeros(2)
         return waveform.T
+
+class ScannerError(Exception):
+    '''
+    Raised when problem occurs something related to scanning
+    '''
+
+def generate_scanner_signals(scan_size, resolution, center, constraints):
+    from visexpman.engine.generic import signal
+    xpixels = resolution*scan_size['col']
+    ypixels = resolution*scan_size['row']
+    for f in numpy.arange(1, constraints['xmirror_max_frequency'])[::-1]:
+        linear_range = signal.sinus_linear_range(f, constraints['sample_frequency'], constraints['max_linearity_error'])
+        if xpixels <= linear_range:
+            xperiod_samples = numpy.ceil((constraints['sample_frequency']/f)/4)*4#period must be divided to four equal compartments
+            fxscanner = constraints['sample_frequency']/xperiod_samples
+            one_period_x_scanner_signal = signal.wf_sin(1,fxscanner,1.0/fxscanner,constraints['sample_frequency'],phase=90)[:-1]
+            #valid signal mask: two intervals in one period, around pi/2 and 3pi/2
+            mask = numpy.zeros_like(one_period_x_scanner_signal)
+            mask[mask.shape[0]/4-xpixels/2:mask.shape[0]/4+xpixels/2]=1
+            mask[3*mask.shape[0]/4-xpixels/2:3*mask.shape[0]/4+xpixels/2]=1
+            overshoot = one_period_x_scanner_signal.max()/(mask*one_period_x_scanner_signal).max()#in percent
+            #x signal amplitude is increseased to fit the required amplitude into the linear range of the sinus wave
+            one_period_x_scanner_signal*=overshoot
+            flash_time = (one_period_x_scanner_signal.shape[0] - xpixels*2)#overall, split to two flashes
+            max_flash_duty_cycle = float(flash_time)/one_period_x_scanner_signal.shape[0]
+            #y flyback time does not exceed ymirror_flyback_time
+            yflyback_nperiods = numpy.ceil(constraints['ymirror_flyback_time']/(1.0/fxscanner))
+            yflyback_time_corrected = yflyback_nperiods/fxscanner
+            if constraints['enable_flybackscan']:
+                factor = 0.5#two lines are scanned in one period
+            else:
+                factor = 1.0
+            #total number of periods of x mirror in one frame
+            nxlines = ypixels*factor + yflyback_nperiods
+            t_up = ypixels/(fxscanner/factor)
+            t_down = yflyback_time_corrected
+            frame_rate = 1.0/(t_up+t_down)
+            ysignal = signal.wf_triangle(1.0, t_up, t_down, t_up +t_down, constraints['sample_frequency'], offset = -0.5)
+            xsignal = numpy.tile(one_period_x_scanner_signal,nxlines)
+            if ysignal.shape[0] != xsignal.shape[0]:
+                raise ScannerError('x and y signal length must be the same: {0}, {1}'.format(ysignal.shape[0], xsignal.shape[0]))
+            valid_data_mask = numpy.tile(mask,nxlines)
+            #Shift mask with phase
+            #correct x amplitude with gain at given frq and overshoot            
+            break
+    signal_attributes = {}
+    signal_attributes['ymirror_flyback_time'] = t_down
+    signal_attributes['overshoot'] = overshoot
+    signal_attributes['max_flash_duty_cycle'] = max_flash_duty_cycle
+    signal_attributes['frame_rate'] = frame_rate
+    signal_attributes['fxscanner'] = fxscanner
+    return xsignal,ysignal,valid_data_mask,signal_attributes
+
+def generate_flash_trigger(mask, duty_cycle, delay):
+    '''
+    From valid data mask generate trigger signal
+    '''
 
 if __name__ == "__main__":
     unittest.main()
