@@ -6,6 +6,7 @@ from contextlib import contextmanager
 import inspect
 import time
 import re
+import sys
 import numpy
 import copy
 import hashlib
@@ -560,7 +561,7 @@ def celery_available():
 def list_type(item):
     try: # is data convertible to numpy array of scalar (including string) values?
         item2=numpy.array(item)
-        if isinstance(item, (list, tuple)) and item2.dtype.names is None:#numpy.issctype(item2.dtype):
+        if isinstance(item, (list, tuple)) and item2.dtype.names is None and item2.dtype !=object:#numpy.issctype(item2.dtype):
             return 'arrayized'
     except Exception as e:
         print e
