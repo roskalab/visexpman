@@ -6,6 +6,7 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 import pygame
 
+
 try:
     import Image
 except ImportError:
@@ -16,6 +17,19 @@ from visexpman.engine.generic import fileop
 DISPLAY_FRAME_RATE = False
 DISPLAY_FRAME_DELAY = False
 ALTERNATIVE_TIMING = False
+
+def get_screen_size():
+    import platform
+    if platform.system() == 'Windows':
+        import ctypes
+        user32 = ctypes.windll.user32
+        return utils.cr((user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)))
+    elif platform.system() == 'Linux':
+        import gtk
+        window = gtk.Window()
+        screen = window.get_screen()
+        return utils.cr((screen.get_width(),screen.get_height()))
+    
 
 class Screen(object):
     """
@@ -29,7 +43,7 @@ class Screen(object):
     - Helper functions: display text, image
     - 
     """
-    def __init__(self, configuration, graphics_mode = 'single_frame', init_mode = 'create_screen'):
+    def __init__(self, configuration, screen_resolution = None, graphics_mode = 'single_frame', init_mode = 'create_screen'):
         """
         The following actions are performed:
         (- Calculates pixel scaling parameters based on coordinate system type)
@@ -57,6 +71,10 @@ class Screen(object):
         
         Future: GAMMA, TEXT_COLOR
         """
+        if screen_resolution is None:
+            self.screen_resolution = configuration.SCREEN_RESOLUTION
+        else:
+            self.screen_resolution = screen_resolution
         self.init_mode = init_mode
         self.config = configuration
         self.mode = graphics_mode
@@ -102,7 +120,8 @@ class Screen(object):
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
         if self.config.FULLSCREEN:            
             flags = flags | pygame.FULLSCREEN
-        self.screen = pygame.display.set_mode((self.config.SCREEN_RESOLUTION['col'], self.config.SCREEN_RESOLUTION['row']), flags)
+        self.screen = pygame.display.set_mode((self.screen_resolution['col'], self.screen_resolution['row']), flags)
+        pygame.display.set_caption(utils.get_window_title(self.config))
 #            glxext_arb.glXSwapIntervalSGI(0)
         #Hide mouse cursor
         pygame.mouse.set_visible(not self.config.FULLSCREEN)
@@ -329,7 +348,7 @@ class Screen(object):
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
         glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
         glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
-        glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
+        glBindTexture(GL_TEXTURE_2D, self.image_texture_id)#TODO: Unnecessary?
         glColor3fv((1.0, 1.0, 1.0))
         texture_coordinates = numpy.array(
                              [
@@ -352,6 +371,39 @@ class Screen(object):
         glDisableClientState(GL_VERTEX_ARRAY)
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        
+    def render_image(self,image, position = utils.rc((0, 0))):
+        glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
+        vertices = numpy.array([
+                                [position['col'] + 0.5 * image.shape[1], position['row'] - 0.5 * image.shape[0]],
+                                [position['col'] + 0.5 * image.shape[1], position['row'] + 0.5 * image.shape[0]],
+                                [position['col'] - 0.5 * image.shape[1], position['row'] + 0.5 * image.shape[0]],
+                                [position['col'] - 0.5 * image.shape[1], position['row'] - 0.5 * image.shape[0]],
+                                ])
+        
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        dt = GL_FLOAT
+#        dt = GL_UNSIGNED_BYTE
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, image.shape[1], image.shape[0], 0, GL_RGB, dt, image)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        texture_coordinates = numpy.array(
+                             [
+                             [1.0, 1.0],
+                             [1.0, 0.0],
+                             [0.0, 0.0],
+                             [0.0, 1.0],
+                             ])
+        glTexCoordPointerf(texture_coordinates)
+        glColor3fv((1.0,1.0,1.0))
+        glDrawArrays(GL_POLYGON,  0, 4)
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)        
         
     def create_texture(self):
         pass

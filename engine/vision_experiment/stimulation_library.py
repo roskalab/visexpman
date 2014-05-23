@@ -1351,7 +1351,8 @@ class TestStimulationPatterns(unittest.TestCase):
         self.assertTrue(os.path.exists(videofile))
         self.assertGreater(os.path.getsize(videofile), 30e3)
         os.remove(videofile)
-        
+    
+    @unittest.skip('Funtion is not ready')
     def test_05_texture(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'TextureTestMachineConfig', 'TestTextureStimConfig', ENABLE_FRAME_CAPTURE = False)

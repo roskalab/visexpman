@@ -21,7 +21,49 @@ def experiment_choices(experiment_list):
     '''
     return '\n'.join([str(i)+' '+experiment_list[i][1].__name__ for i in range(len(experiment_list))])
     
-class VisionExperimentScreen(graphics.Screen):
+class CaImagingScreen(graphics.Screen):
+    '''
+    Graphical screen of ca-imaging application
+    '''
+    def __init__(self):
+        if self.config.FULLSCREEN:
+            screen_resolution = graphics.get_screen_size()
+        else:
+            screen_resolution = utils.cr((1000, 700))
+        graphics.Screen.__init__(self, self.config, screen_resolution = screen_resolution, graphics_mode = 'external')
+        self.clear_screen()
+        import numpy
+        im = numpy.ones((200,100,3),dtype=numpy.float)
+        im *=0.4
+        im[0,0,:]=1.0
+        im[0,5:6,1]=1.0
+        im[0,5:6,0]=0.0
+        im[0,5:6,2]=0.0
+        im[5:6,0,2]=1.0
+        im[5:6,0,:2]=0.0
+        im[:2,:,0]=1.0
+        im[-2:,:,0]=1.0
+        im[:,:2,0]=1.0
+        im[:,-2:,0]=1.0
+        for i in range(10):
+            im[:,10+i,1] = numpy.arange(im[:,10,1].shape[0],dtype=numpy.float)/im[:,10,1].shape[0]
+        
+        self.im = im
+#        import Image
+#        self.im = numpy.cast['float'](numpy.asarray(Image.open('/home/rz/rzws/codes/visexpman/data/images/default.bmp')))
+#        self.im.flags.writeable = True
+#        self.im/=255.0
+#        Image.fromarray(numpy.cast['uint8'](self.im*255)).show()
+        
+    def refresh(self):
+        self.clear_screen(color = colors.convert_color(0.0))
+        self.render_image(self.im)
+#        self.render_imagefile('/home/rz/rzws/codes/visexpman/data/images/default.bmp')
+        self.flip()
+    
+    
+    
+class StimulationScreen(graphics.Screen):
     '''
     graphics.Screen is amended with vision experiment specific features: menu&message displaying
     '''    
@@ -90,12 +132,12 @@ class VisionExperimentScreen(graphics.Screen):
         self.flip()
 
     
-class ScreenAndKeyboardHandler(VisionExperimentScreen):
+class ScreenAndKeyboardHandler(StimulationScreen):
     '''
     VisexpmanScreen is amended with keyboard handling
     '''
     def __init__(self):
-        VisionExperimentScreen.__init__(self)
+        StimulationScreen.__init__(self)
         self.command_domain = 'keyboard'
         import Queue
         self.keyboard_command_queue = Queue.Queue()

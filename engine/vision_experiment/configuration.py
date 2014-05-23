@@ -36,9 +36,6 @@ except:
 import tempfile
 import unittest
 
-import PyQt4.QtGui as QtGui
-import PyQt4.QtCore as QtCore
-
 from visexpman.users.test import unittest_aggregator
 
 class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
@@ -220,7 +217,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         GUI['GREEN_LABELING_SUGGESTIONS'].sort()
         GUI['RED_LABELING_SUGGESTIONS'] = ['','no', 'yes']
         GUI['INJECTION_TARGET_SUGGESTIONS'] = ['', 'V1', 'LGN', 'left retina', 'right retina']
-        GUI['MOUSE_STRAIN_SUGGESTIONS'] = ['', 'chatdtr', 'chattomato', 'rd1', 'bl6', 'chat', 'SCN1cre', 'chat tomato', 'c3h', 'grik4']
+        GUI['MOUSE_STRAIN_SUGGESTIONS'] = ['', 'chatdtr', 'rd1', 'bl6', 'chat', 'SCN1cre', 'chat tomato', 'c3h', 'grik4']
         GUI['MOUSE_STRAIN_SUGGESTIONS'].sort()
         GUI['GUI_REFRESH_PERIOD'] = 2.0
         GUI['EXPERIMENT_LOG_UPDATE_PERIOD'] = 60.0
@@ -366,13 +363,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
         CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = False
         STIMULATION_FILE_READY_TIMEOUT = [10.0,  [0.0, 100.0]]
-        if 'gui' in sys.argv[0] and QtCore.QCoreApplication.instance() is not None: #if gui is the main module
-            screen_size = QtGui.QDesktopWidget().screenGeometry()
-            self.GUI['GUI_SIZE'] = utils.rc((screen_size.height(), screen_size.width()))
-        else:
-            self.GUI['GUI_SIZE'] = utils.rc((1024, 1280))
-                
-        
+        self.GUI['GUI_SIZE'] = utils.rc((1024, 1280))
         self._create_parameters_from_locals(locals())
         
 class CorticalCaImagingConfig(VisionExperimentConfig):

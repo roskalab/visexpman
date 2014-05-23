@@ -1287,7 +1287,7 @@ class VisionExperimentGui(Qt.QMainWindow):
     def _set_window_title(self, animal_file=''):
         if not self.config.APPLICATION_NAMES.has_key(self.config.application_name):
             raise MachineConfigError('Unknown application name: {0}' .format(self.config.application_name))
-        self.setWindowTitle('{0} - {1} - {2} - {3}' .format(self.config.APPLICATION_NAMES[self.config.application_name], self.config.user, self.config.__class__.__name__, animal_file) )
+        self.setWindowTitle('{0} - {1}' .format(utils.get_window_title(self.config), animal_file) )
         
     def select_recording_item(self, row, state):
         self.central_widget.main_widget.recording_status.table.item(row,1).setSelected(state)

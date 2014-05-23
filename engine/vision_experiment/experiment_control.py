@@ -16,16 +16,42 @@ import shutil
 import copy
 
 import experiment_data
+import visexpman.engine
 from visexpman.engine.generic import log
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
+from visexpman.engine.generic import introspect
 from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.hardware_interface import instrument
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.hardware_interface import stage_control
 from visexpman.engine.hardware_interface import digital_io
-from visexpman.engine.vision_experiment.screen import is_key_pressed
+from visexpman.engine.vision_experiment.screen import is_key_pressed, CaImagingScreen, check_keyboard
 from visexpA.engine.datahandlers import hdf5io
+
+from visexpman.engine.generic.command_parser import ServerLoop
+from visexpman.engine.hardware_interface import scanner_control
+
+import unittest
+
+class CaImagingLoop(ServerLoop, CaImagingScreen):
+    def __init__(self, machine_config, socket_queues, command, log):
+        ServerLoop.__init__(self, machine_config, socket_queues, command, log)
+        CaImagingScreen.__init__(self)
+        
+    def application_callback(self):
+        '''
+        Watching keyboard commands and refreshing screen come here
+        '''
+        if self.exit:
+            return 'terminate'
+        for key_pressed in check_keyboard():
+            if key_pressed == self.config.KEYS['exit']:#Exit application
+                return 'terminate'
+        self.refresh()
+                
+    def test(self):
+        self.printl('test1')
 
 class Trigger(object):
     '''
@@ -865,3 +891,51 @@ class ExperimentControl1(object):
             self.log.info(str(message))
         return message
         
+class TestCaImaging(unittest.TestCase):
+    def setUp(self):
+        self.configname = 'GUITestConfig'
+        #Erase work folder, including context files
+        import visexpman.engine.vision_experiment.configuration
+        self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+        self.machine_config.application_name='ca_imaging'
+        self.machine_config.user = 'test'
+        fileop.cleanup_files(self.machine_config)
+        self.context = visexpman.engine.application_init(user = 'test', config = self.configname, application_name = 'ca_imaging')
+        self.dont_kill_processes = introspect.get_python_processes()
+        
+    def tearDown(self):
+        if hasattr(self, 'context'):
+            visexpman.engine.stop_application(self.context)
+        introspect.kill_python_processes(self.dont_kill_processes)
+        
+    def _send_commands_to_stim(self, commands):
+        from visexpman.engine.hardware_interface import queued_socket
+        import multiprocessing
+        client = queued_socket.QueuedSocket('{0}-{1} socket'.format('main_ui', 'ca_imaging'), 
+                                                                                    False, 
+                                                                                    10001,
+                                                                                    multiprocessing.Queue(), 
+                                                                                    multiprocessing.Queue(), 
+                                                                                    ip= '127.0.0.1',
+                                                                                    log=None)
+        client.start()
+        for command in commands:
+            client.send(command)
+        return client
+        
+    def test_01_ca_imaging_app(self):
+        from visexpman.engine.visexp_app import run_ca_imaging
+        commands = [{'function': 'test'}]
+#        commands.append({'function': 'exit_application'})
+        client = self._send_commands_to_stim(commands)
+        run_ca_imaging(self.context, timeout=None)
+        t0=time.time()
+        while True:
+            msg = client.recv()
+            if msg is not None or time.time() - t0>20.0:
+                break
+            time.sleep(1.0)
+        client.terminate()
+        
+if __name__=='__main__':
+    unittest.main()

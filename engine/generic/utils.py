@@ -94,6 +94,10 @@ def signal2binary(signal):
     '''
     return numpy.where(signal > numpy.histogram(signal, bins = 10)[1][-2],  True,  False)
 
+
+def get_window_title(config):
+    return '{0} - {1} - {2}' .format(config.APPLICATION_NAMES[config.application_name], config.user, config.__class__.__name__) 
+
 #== Coordinate geometry ==
 #TODO: check for redundant functions in this section
 def roi_center(roi):

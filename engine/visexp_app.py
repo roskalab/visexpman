@@ -14,18 +14,18 @@ import warnings
 import visexpman.engine
 from visexpman.engine.visexp_gui import VisionExperimentGui
 from visexpman.engine.generic.command_parser import ServerLoop
-from visexpman.engine.vision_experiment.screen import VisionExperimentScreen, check_keyboard
+from visexpman.engine.vision_experiment.screen import StimulationScreen, check_keyboard
+from visexpman.engine.vision_experiment import experiment_control
 from visexpman.engine.generic import introspect
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 from visexpA.engine.datahandlers import hdf5io
 
-class StimulationLoop(ServerLoop, VisionExperimentScreen):
+class StimulationLoop(ServerLoop, StimulationScreen):
     def __init__(self, machine_config, socket_queues, command, log):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
         self.load_stim_context()
-        VisionExperimentScreen.__init__(self)
-        self.exit=False
+        StimulationScreen.__init__(self)
         if not introspect.is_test_running():
             #Call measure framerate by putting a message into queue. 
             self.socket_queues['fromsocket'].put({'function': 'measure_frame_rate', 'kwargs' :{'duration':1.0, 'background_color': self.stim_context['background_color']}})
@@ -140,9 +140,6 @@ class StimulationLoop(ServerLoop, VisionExperimentScreen):
             raise HardwareError('Measured frame rate is out of acceptable range. Check projector\'s frame rate or graphics card settings.')        
         return frame_rate
         
-    def exit_application(self):
-        self.exit=True
-        
     def read(self,varname):
         if hasattr(self, varname):
             self.send({'data': [varname,getattr(self,varname)]})
@@ -209,7 +206,7 @@ def run_stim(context, timeout = None):
     stim.run(timeout=timeout)
     
 def run_ca_imaging(context, timeout = None):
-    stim = CaImagingLoop(context['machine_config'], context['socket_queues']['ca_imaging'], context['command'], context['logger'])
+    stim = experiment_control.CaImagingLoop(context['machine_config'], context['socket_queues']['ca_imaging'], context['command'], context['logger'])
     context['logger'].start()
     stim.run(timeout=timeout)
     

@@ -23,6 +23,7 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
         self.log_source_name = self.machine_config.application_name
         if hasattr(self.log, 'add_source'):
             self.log.add_source(self.log_source_name)
+        self.exit=False
             
     def printl(self, message, loglevel='info', stdio = True):
         '''
@@ -85,6 +86,9 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
             time.sleep(0.2)
         self.at_process_end()
         self.command.put('terminated')
+        
+    def exit_application(self):
+        self.exit=True
 
 class CommandParser(object):
     '''
