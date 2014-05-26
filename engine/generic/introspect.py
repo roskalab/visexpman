@@ -568,16 +568,18 @@ def list_type(item):
     if isinstance(item,(list,tuple)):
         if isinstance(item[0],(list,tuple)):
             response='list_of_lists'
-        if sum(isinstance(i0,dict) for i0 in item)==len(item):
+        elif sum(isinstance(i0,dict) for i0 in item)==len(item):
             response='list_of_dicts'
-        if sum(hasattr(i0,'shape') and len(i0.dtype) == 0 for i0 in item)==len(item):
+        elif sum(hasattr(i0,'shape') and len(i0.dtype) == 0 for i0 in item)==len(item):
             response = 'list_of_arrays'
-        if sum(hasattr(i0,'shape') and len(i0.dtype) > 0 for i0 in item)==len(item):
+        elif sum(hasattr(i0,'shape') and len(i0.dtype) > 0 for i0 in item)==len(item):
             if all([i0.shape==item[0].shape for i0 in item]):
                 response = 'list_of_uniform_shaped_recarrays'
             else:
                 response = 'list_of_recarrays'
         else:
+            import pdb
+            pdb.set_trace()
             raise RuntimeError('Unhandled object type in the list provided')
     else:
         response=None
