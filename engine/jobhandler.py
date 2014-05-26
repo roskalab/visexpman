@@ -236,7 +236,11 @@ class CommandInterface(command_parser.CommandParser):
             if os.path.exists(os.path.join(os.path.split(databig_path)[0], 'output', filename)):
                 shutil.rmtree(os.path.join(os.path.split(databig_path)[0], 'output', filename))
             else:
-                shutil.copytree(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'output', filename), os.path.join(os.path.split(databig_path)[0], 'output', filename))
+                plot_folder = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'output', filename)
+                if os.path.exists(plot_folder):
+                    shutil.copytree(plot_folder, os.path.join(os.path.split(databig_path)[0], 'output', filename))
+                else:
+                    self.printl('No soma rois found, no plots to copy')
         except:
             self.printl(traceback.format_exc())
             self.printl('Problem with copying to comparer folder {0},{1}, Jobhandler terminates.'.format(os.path.join(os.path.split(databig_path)[0], 'output', filename),
