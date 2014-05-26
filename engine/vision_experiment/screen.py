@@ -47,18 +47,12 @@ class CaImagingScreen(graphics.Screen):
         im[:,-2:,0]=1.0
         for i in range(10):
             im[:,10+i,1] = numpy.arange(im[:,10,1].shape[0],dtype=numpy.float)/im[:,10,1].shape[0]
-        
         self.im = im
-#        import Image
-#        self.im = numpy.cast['float'](numpy.asarray(Image.open('/home/rz/rzws/codes/visexpman/data/images/default.bmp')))
-#        self.im.flags.writeable = True
-#        self.im/=255.0
-#        Image.fromarray(numpy.cast['uint8'](self.im*255)).show()
         
     def refresh(self):
         self.clear_screen(color = colors.convert_color(0.0))
-        self.render_image(self.im)
-#        self.render_imagefile('/home/rz/rzws/codes/visexpman/data/images/default.bmp')
+        #Here comes the drawing of images, activity curves
+#        self.render_image(self.im)
         self.flip()
     
     

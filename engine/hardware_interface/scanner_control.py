@@ -1749,10 +1749,13 @@ class TestScannerControl(unittest.TestCase):
             #test y scanner signal amplitude
             self.assertAlmostEqual((ysignal.max()-ysignal.min())/constraints['um2voltage_scale'], float(scan_size['row']), 5)
             self.assertAlmostEqual(ysignal.mean()/constraints['um2voltage_scale'], center['row'],5)
-            print ', '.join(['{0}={1}'.format(k, numpy.round(v, 3)) for k,v in signal_attributes.items()])
+            if False:
+                print ', '.join(['{0}={1}'.format(k, numpy.round(v, 3)) for k,v in signal_attributes.items()])
             duty_cycle = 0.2
             delay = 10e-6
-            generate_flash_trigger(valid_data_mask, duty_cycle, delay, signal_attributes, constraints)
+            stimulus_flash_trigger_signal = generate_stimulus_flash_trigger(valid_data_mask, duty_cycle, delay, signal_attributes, constraints)
+            self.assertEqual((stimulus_flash_trigger_signal+valid_data_mask).max(), 1.0)#If more than 1, data and flash overlaps which is not acceptable
+            pass
 
 #        plot(ysignal)
 #        plot(xsignal)
@@ -1775,6 +1778,20 @@ class ScannerError(Exception):
     '''
 
 def generate_scanner_signals(scan_size, resolution, center, constraints):
+    '''
+    resolution: pixel/um
+    scan_size: height and width of scannable area in um and in row,col format (see utils.rc)
+    center: center of scannable area in um in row,col format
+    constraints: constraint parameters that should not be exceeded or should be considered
+        constraints['enable_flybackscan']=False
+        constraints['um2voltage_scale']=0.1#includes voltage to angle factor
+        constraints['xmirror_max_frequency']=1500Hz
+        constraints['ymirror_flyback_time']=1e-3
+        constraints['sample_frequency']=400e3
+        constraints['max_linearity_error']=5e-2
+        constraints['phase_characteristics']=[-0.00074166, -0.00281492]
+        constraints['gain_characteristics']=[9.92747933e-01, 2.42763029e-06, -2.40619419e-08]
+    '''
     from visexpman.engine.generic import signal
     xpixels = resolution*scan_size['col']
     ypixels = resolution*scan_size['row']
@@ -1832,7 +1849,7 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
     signal_attributes['phase_shift'] = phase_shift
     return xsignal,ysignal,valid_data_mask,signal_attributes
 
-def generate_flash_trigger(mask, duty_cycle, delay, signal_attributes, constraints):
+def generate_stimulus_flash_trigger(mask, duty_cycle, delay, signal_attributes, constraints):
     '''
     From valid data mask generate trigger signal
     If duty_cycle is 0.0, then maximal possible duty cycle is presented
@@ -1846,12 +1863,12 @@ def generate_flash_trigger(mask, duty_cycle, delay, signal_attributes, constrain
         raise ScannerError('Not enough time for requested duty cycle and delay. Reduce duty cycle or delay')
     if flash_samples == 0:
         flash_samples = max_flash_samples - delay_samples
-    flash_trigger_signal = numpy.zeros_like(mask)
+    stimulus_flash_trigger_signal = numpy.zeros_like(mask)
     start_indexes = numpy.nonzero(numpy.where(numpy.diff(mask)<0,1,0))[0]+1+delay_samples
     end_indexes = start_indexes + flash_samples
     for i in range(start_indexes.shape[0]):
-        flash_trigger_signal[start_indexes[i]:end_indexes[i]]=1
-    return flash_trigger_signal
+        stimulus_flash_trigger_signal[start_indexes[i]:end_indexes[i]]=1
+    return stimulus_flash_trigger_signal
     
     
 

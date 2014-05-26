@@ -375,8 +375,8 @@ class TestStim(unittest.TestCase):
             {'function': 'set_context_variable', 'args': ['screen_center', utils.rc((200,300))]},
             {'function': 'set_variable', 'args': ['show_text', False]},
             {'function': 'set_variable', 'args': ['bullseye_size', 100.0]},
-            {'function': 'set_variable', 'args': ['show_bullseye', True]},
-            {'function': 'read', 'args': ['stim_context']}])
+            {'function': 'set_variable', 'args': ['show_bullseye', True]},])
+            
         run_stim(self.context,timeout=10)
         client.terminate()
         captured_files = map(os.path.join, len(os.listdir(capture_path))*[capture_path], os.listdir(capture_path))

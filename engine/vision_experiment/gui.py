@@ -721,12 +721,12 @@ class ExperimentControl(gui.WidgetControl):
             'scanning_range' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text()), 
             'pixel_size' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text()), 
             'resolution_unit' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentText()), 
-            'scan_center' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Scan center'],
-            'trigger_width' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Trigger width'],
-            'trigger_delay' : self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner']['Trigger delay'],
             'status' : 'issued', 
             'id':str(int(numpy.round(time.time(), 2)*100)), 
                            }
+        #Copy values from machine parameters
+        for machine_parameter_name in self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner'].keys():
+            self.mandatory_parameters[stringop.to_variable_name(machine_parameter_name)] = self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner'][machine_parameter_name]
         
     def _parse_experiment_run_parameters(self):
         for pn in self.optional_parameters.keys():
@@ -736,12 +736,15 @@ class ExperimentControl(gui.WidgetControl):
                 self.optional_parameters[pn] = getattr(ref,vn)
             else:
                 del self.optional_parameters[pn]
+        #Parse parameters provided in x,y format
         for pn in ['scanning_range', 'scan_center'] :
             self.mandatory_parameters[pn] = stringop.str2params(self.mandatory_parameters[pn].split('#')[0])
             if len(self.mandatory_parameters[pn]) == 0:
                 self.poller.notify_user('WARNING', '{0} shall be provided in the following format: height, width'.format(stringop.to_title(pn)))
                 return False
-        for pn in ['pixel_size', 'trigger_width', 'trigger_delay']:
+            self.mandatory_parameters[pn] = utils.rc(tuple(self.mandatory_parameters[pn]))
+        #Parse numeric parameters
+        for pn in ['pixel_size', 'stimulus_flash_trigger_width', 'stimulus_flash_trigger_delay','maximal_x_line_linearity_error','analog_output_sampling_rate', 'analog_input_sampling_rate']:
             try:
                 self.mandatory_parameters[pn] = float(self.mandatory_parameters[pn].split('#')[0])
             except ValueError:
@@ -751,6 +754,13 @@ class ExperimentControl(gui.WidgetControl):
                                                                                    self.mandatory_parameters['experiment_name'], 
                                                                                    self.config, 
                                                                                    source=self.mandatory_parameters['experiment_config_source_code'])
+        #Parse boolean parameters:
+        for pn in ['enable_flyback_scan']:
+            try:
+                self.mandatory_parameters[pn] = bool(int(self.mandatory_parameters[pn].split('#')[0]))
+            except ValueError:
+                self.poller.notify_user('WARNING', '{0} shall be provided in boolean format (0 or 1): {1}'.format(stringop.to_title(pn),self.mandatory_parameters[pn]))
+                return False
         #Parse list item names to pmt names
         self.mandatory_parameters['recording_channels'] = [stringop.string_in_list(self.config.PMTS.keys(), channel_name, return_match = True, any_match = True) for channel_name in self.mandatory_parameters['recording_channels']]
         if len(self.mandatory_parameters['recording_channels'])==0:
@@ -761,6 +771,34 @@ class ExperimentControl(gui.WidgetControl):
             self.mandatory_parameters['animal_id'] = self.optional_parameters['animal_parameters']['id']
         self.mandatory_parameters['counter'] = '{0:0=3}'.format(len(self.poller.animal_file.recordings))
         return True
+        
+    def _check_scanning_parameters(self):
+        #!!!!!!!!!!!Continue here
+        #Parse parameters
+        if self.mandatory_parameters['resolution_unit'] == 'um/pixel':
+            self.mandatory_parameters['resolution'] = 1.0/self.mandatory_parameters['pixel_size']
+        elif self.mandatory_parameters['resolution_unit'] == 'pixel/um':
+            self.mandatory_parameters['resolution'] = self.mandatory_parameters['pixel_size']
+        elif self.mandatory_parameters['resolution_unit'] == 'us':
+            raise NotImplementedError('')
+        constraints = {}
+        constraints['enable_flybackscan']=self.mandatory_parameters['enable_flyback_scan']
+        constraints['um2voltage_scale']=self.config.POSITION_TO_SCANNER_VOLTAGE
+        constraints['xmirror_max_frequency']=self.config.XMIRROR_MAX_FREQUENCY
+        constraints['ymirror_flyback_time']=self.config.Y_MIRROR_MIN_FLYBACK_TIME
+        constraints['sample_frequency']=self.mandatory_parameters['analog_output_sampling_rate']
+        constraints['max_linearity_error']=self.mandatory_parameters['maximal_x_line_linearity_error']
+        constraints['phase_characteristics']=self.config.SCANNER_CHARACTERISTICS['PHASE']
+        constraints['gain_characteristics']=self.config.SCANNER_CHARACTERISTICS['GAIN']
+        #Generate scanner signals and data mask
+        xsignal,ysignal,valid_data_mask,signal_attributes =\
+                            scanner_control.generate_scanner_signals(utils.rc(tuple(parameters['scanning_range'])), 
+                                                                                resolution, 
+                                                                                utils.rc(tuple(parameters['scan_center'])), 
+                                                                                constraints)
+        #Generate stimulus strigger signal
+        stimulus_flash_trigger_signal = generate_stimulus_flash_trigger(mask, duty_cycle, delay, signal_attributes, constraints)
+        
         
     def add_experiment(self):
         '''
@@ -831,8 +869,8 @@ class ExperimentControl(gui.WidgetControl):
         #Take the oldest issued recording 
         for i in range(len(self.poller.animal_file.recordings)):
             if self.poller.animal_file.recordings[i]['status'] == 'issued':
-                function_call = {'function': 'start_experiment', 'args': [self.poller.animal_file.recordings[i]]}
-                self.poller.send(function_call,connection='stim')
+                function_call = {'function': 'start_imgaging', 'args': [self.poller.animal_file.recordings[i]]}
+#                self.poller.send(function_call,connection='stim')
                 if self.config.PLATFORM == 'elphys_retinal_ca':
                     self.poller.send(function_call,connection='ca_imaging')
                 elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
@@ -991,11 +1029,18 @@ class MachineParametersGroupbox(QtGui.QGroupBox):
         self.create_layout()
         self.machine_parameters = {}
         self.machine_parameters['scanner'] = {'Scan center':  '0, 0#Center of scanning, format: (row, col) [um]', 
-                                                                        'Trigger width': '0#Length of trigger pulse that switches on the stimulation device in us', 
-                                                                        'Trigger delay': '0#[us]'}
+                                                                        'Stimulus flash trigger width': '0#Length of trigger pulse that switches on the stimulation device in us', 
+                                                                        'Stimulus flash trigger delay': '0#[us]',
+                                                                        'Analog input sampling rate': '100000#[Hz]',
+                                                                        'Analog output sampling rate': '100000#[Hz]',
+                                                                        'Enable flyback scan': '0#If set to 1, x mirror\'s flyback movement is also used for data acquisition',
+                                                                        'Maximal x line linearity error':'5#[%], Increasing improves scan speed but causes distortion at the left and right edges of the image',
+                                                                        }
                                                                         
         self.machine_parameter_order = {}
-        self.machine_parameter_order['scanner'] = ['Scan center', 'Trigger width', 'Trigger delay']
+        self.machine_parameter_order['scanner'] = ['Maximal x line linearity error', 'Scan center', 
+                                            'Stimulus flash trigger width', 'Stimulus flash trigger delay', 'Enable flyback scan', 
+                                            'Analog input sampling rate', 'Analog output sampling rate']
 
     def create_widgets(self):
         self.table = {}

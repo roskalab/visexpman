@@ -2096,7 +2096,7 @@ class BehavioralTesterPoller(Poller):
         self.timeseries = []
         self.path = fileop.generate_filename(os.path.join(self.config.LOG_PATH, 'recording.txt'))
         try:
-            self.pi = digital_io.Photointerrrupter(config)
+            self.pi = digital_io.Photointerrupter(config)
             self.pi.start()
         except:
             pass

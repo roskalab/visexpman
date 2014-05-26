@@ -136,7 +136,7 @@ class Parameter(object):
                 print self.v
                 raise OutOfRangeParameterValue
         elif self._type == 'numeric':            
-            if range_ == None:                
+            if range_ == None:
                 raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
             elif len(range_) != 2:                
                 raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))

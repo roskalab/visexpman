@@ -14,6 +14,7 @@ import traceback
 import gc
 import shutil
 import copy
+import multiprocessing
 
 import experiment_data
 import visexpman.engine
@@ -26,6 +27,7 @@ from visexpman.engine.hardware_interface import instrument
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.hardware_interface import stage_control
 from visexpman.engine.hardware_interface import digital_io
+from visexpman.engine.hardware_interface import scanner_control
 from visexpman.engine.vision_experiment.screen import is_key_pressed, CaImagingScreen, check_keyboard
 from visexpA.engine.datahandlers import hdf5io
 
@@ -38,20 +40,77 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
     def __init__(self, machine_config, socket_queues, command, log):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
         CaImagingScreen.__init__(self)
+        self.limits = {}
+        self.limits['min_ao_voltage'] = -self.config.MAX_SCANNER_VOLTAGE
+        self.limits['max_ao_voltage'] = self.config.MAX_SCANNER_VOLTAGE
+        self.limits['min_ai_voltage'] = -self.config.MAX_PMT_VOLTAGE
+        self.limits['max_ai_voltage'] = self.config.MAX_PMT_VOLTAGE
+        self.limits['timeout'] = self.config.TWO_PHOTON_DAQ_TIMEOUT
+        self.logger_queue = self.log.get_queues()[self.config.application_name]
+        self.instrument_name = self.config.application_name
+        self.daq_queues = {'command': multiprocessing.Queue(), 
+                                                                            'response': multiprocessing.Queue(), 
+                                                                            'data': multiprocessing.Queue()}
+        self.imaging_started = False
         
     def application_callback(self):
         '''
-        Watching keyboard commands and refreshing screen come here
+        Watching keyboard commands, refreshing screen and saving data to file in case of experiment comes here
         '''
         if self.exit:
             return 'terminate'
         for key_pressed in check_keyboard():
             if key_pressed == self.config.KEYS['exit']:#Exit application
                 return 'terminate'
+        self.read_data()
         self.refresh()
+        
+    def read_data(self):
+        if hasattr(self, 'daq_process') and self.imaging_started is not False:
+            frame = self.daq_process.read_ai()
+            #TODO:
+            #Transform frame to image
+            #Save to file
+            
                 
     def test(self):
         self.printl('test1')
+        
+    def start_imaging(self, parameters):
+        self.imaging_started = None
+        return
+        #Generate scanner signals and data mask
+        xsignal,ysignal,valid_data_mask,signal_attributes =  scanner_control.generate_scanner_signals(parameters['scanning_range'], 
+                                                                                                    parameters['resolution'], parameters['scan_center'], parameters['scanner_constraints'])
+        #Generate stimulus strigger signal
+        stimulus_flash_trigger_signal = generate_stimulus_flash_trigger(mask, duty_cycle, delay, signal_attributes, constraints)
+        self.daq_process = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.logger_queue,
+                                ai_channels = self.config.TWO_PHOTON_PINOUT['PMT_ANALOG_INPUT_CHANNELS'],
+                                ao_channels= self.config.TWO_PHOTON_PINOUT['CA_IMAGING_SIGNAL_CHANNELS'],limits=self.limits)
+        self.daq_process.start()
+        self.imaging_started = aio.start_daq(ai_sample_rate = parameters['analog_input_sampling_rate'], ao_sample_rate = parameters['analog_output_sampling_rate'], 
+                      ao_waveform = waveforms, timeout = 30) 
+        
+        self.send({'update': ['imaging started', self.imaging_started]})
+        if self.imaging_started == 'timeout':
+            self.imaging_started = False
+        
+    def stop_imaging(self, parameters):
+        unread_data = self.daq_process.stop_daq()
+        self.imaging_started = False
+        self.daq_process.terminate()
+        self.send({'update': ['imaging stopped']})
+        #TODO:
+        #Gather all data and save to file
+        #Make sure that file is not open
+        #Notify man_ui that data imaging
+        self.send({'update': ['data saved', imaging_started]})
+        
+    def snap(self,parameters):
+        pass
+        
+        
+        
 
 class Trigger(object):
     '''
@@ -926,7 +985,7 @@ class TestCaImaging(unittest.TestCase):
     def test_01_ca_imaging_app(self):
         from visexpman.engine.visexp_app import run_ca_imaging
         commands = [{'function': 'test'}]
-#        commands.append({'function': 'exit_application'})
+        commands.append({'function': 'exit_application'})
         client = self._send_commands_to_stim(commands)
         run_ca_imaging(self.context, timeout=None)
         t0=time.time()
@@ -936,6 +995,45 @@ class TestCaImaging(unittest.TestCase):
                 break
             time.sleep(1.0)
         client.terminate()
+        self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower())
+        self.assertIn('test1', fileop.read_text_file(self.context['logger'].filename).lower())
+        
+    def test_02_run_imaging(self):
+        source = fileop.read_text_file(os.path.join(fileop.visexpman_package_path(), 'users', 'test', 'test_stimulus.py'))
+        experiment_names = ['GUITestExperimentConfig', 'TestCommonExperimentConfig']
+        parameters = {
+            'experiment_name': '',
+            'experiment_config_source_code' : source,
+            'cell_name': 'cell0', 
+            'stimulation_device' : '', 
+            'recording_channels' : ['SIDE'], 
+            'enable_scanner_synchronization' : False, 
+            'scanning_range' : [100.0, 100.0], 
+            'pixel_size' : 1.0, 
+            'resolution_unit' : 'um/pixel', 
+            'scan_center' : [0.0,0.0],
+            'trigger_width' : 0.0,
+            'trigger_delay' : 0.0,
+            'status' : 'preparing', 
+            'id':str(int(numpy.round(time.time(), 2)*100))}
+        commands = []
+        for experiment_name in experiment_names:
+            import copy
+            pars = copy.deepcopy(parameters)
+            pars['experiment_name'] = experiment_name
+            commands.append({'function': 'start_imaging', 'args': [pars]})
+        commands.append({'function': 'exit_application'})
+        client = self._send_commands_to_stim(commands)
+        from visexpman.engine.visexp_app import run_ca_imaging
+        run_ca_imaging(self.context, timeout=None)
+        t0=time.time()
+        while True:
+            msg = client.recv()
+            if msg is not None or time.time() - t0>20.0:
+                break
+            time.sleep(1.0)
+        client.terminate()
+        self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower())
         
 if __name__=='__main__':
     unittest.main()

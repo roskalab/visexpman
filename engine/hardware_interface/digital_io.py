@@ -22,7 +22,11 @@ class SerialPortDigitalIO(instrument.Instrument):
         self.clear_pins()
             
     def clear_pins(self):
-        for i in range(len(self.config.SERIAL_DIO_PORT)):
+        if isinstance(self.config.SERIAL_DIO_PORT, list):
+            n = len(self.config.SERIAL_DIO_PORT)
+        else:
+            n=1
+        for i in range(n):
             self.set_data_bit(i*2,0)
             self.set_data_bit(i*2+1,0)
         
@@ -52,7 +56,7 @@ class SerialPortDigitalIO(instrument.Instrument):
         if log:
             self.log_during_experiment('Serial DIO pin {0} set to {1}'.format(channel, value))
             
-class Photointerrrupter(threading.Thread):
+class Photointerrupter(threading.Thread):
     def __init__(self, config):
         threading.Thread.__init__(self)
         self.config=config
@@ -81,11 +85,10 @@ class Photointerrrupter(threading.Thread):
                     self.queues[id].put((now, self.state[id]))
             time.sleep(5e-3)
             
-
-            
+           
 class TestConfig(object):
     def __init__(self):
-        self.SERIAL_DIO_PORT = 'COM3'
+        self.SERIAL_DIO_PORT = 'COM4'
     
 class TestDigitalIO(unittest.TestCase):
     @unittest.skip('')
@@ -110,14 +113,15 @@ class TestDigitalIO(unittest.TestCase):
             s.set_data_bit(1, False)
             time.sleep(10e-3)
         s.release_instrument()
-        
+    
+    @unittest.skip('')    
     def test_03_test_photointerrupter(self):
         class Config():
             def __init__(self):
                 self.PHOTOINTERRUPTER_SERIAL_DIO_PORT = {'0': 'COM12'}
                 
         config = Config()
-        pi = Photointerrrupter(config)
+        pi = Photointerrupter(config)
         pi.start()
         time.sleep(10.0)
         pi.command_queue.put('TERMINATE')
@@ -127,6 +131,24 @@ class TestDigitalIO(unittest.TestCase):
             while not pi.queues[id].empty():
                 transition = pi.queues[id].get()
                 print transition[0] - pi.t0, transition[1]
+                
+    def test_04_pwm(self):
+        config = TestConfig()
+        s = SerialPortDigitalIO(config)
+        frq = 10.0
+        duty_cycle = 0.1
+        duration = 10.0
+        ton = 1.0/frq*duty_cycle
+        toff =1.0/frq*(1.0-duty_cycle)
+        print ton, toff,int(duration*frq)
+        from visexpman.engine.generic.introspect import Timer
+        with Timer(''):
+            for i in range(int(duration*frq)):
+                s.set_data_bit(1, True)
+                time.sleep(ton)
+                s.set_data_bit(1, False)
+                time.sleep(toff)
+        s.release_instrument()
 
 if __name__ == '__main__':
     unittest.main()

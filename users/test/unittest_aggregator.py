@@ -129,6 +129,7 @@ TEST_unittests = [
     'visexpman.engine.visexp_gui.testVisionExperimentGui',
     'visexpman.engine.visexp_app.TestStim',
     'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 
+    'visexpman.engine.vision_experiment.experiment_control.TestCaImaging', 
     'visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns', 
     'visexpman.engine.TestApplicationInit',
     'visexpman.engine.generic.parameter.testParameter',
@@ -138,6 +139,7 @@ TEST_unittests = [
     'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket',
     'visexpman.engine.hardware_interface.instrument.TestInstrument',
     'visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess',
+    'visexpman.engine.hardware_interface.scanner_control.TestScannerControl',
                 ]
                 
 TEST_priority_unittests = [

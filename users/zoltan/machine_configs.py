@@ -171,62 +171,14 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         self.COMMAND_RELAY_SERVER['ENABLE'] = not True
         self.COMMAND_RELAY_SERVER['TIMEOUT'] = 10.0
         self.BASE_PORT = 10000
-        self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
-            {
-            'GUI_STIM'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 5}}, 
-            'GUI_ANALYSIS'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 7}}, 
-            'GUI_IMAGING'  : {'GUI' : {'IP': 'localhost', 'PORT': self.BASE_PORT+8}, 'IMAGING' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 9}},
-            'STIM_IMAGING'  : {'STIM' : {'IP': 'localhost', 'PORT': self.BASE_PORT+10}, 'IMAGING' : {'IP': 'localhost', 'PORT': self.BASE_PORT + 11}},
-            }
+        
         COORDINATE_SYSTEM='center'
         ######################### Ca imaging specific ################################ 
         self.CA_IMAGING_START_DELAY = 5.0#NEW
         self.CA_IMAGING_START_TIMEOUT = 15.0
-        MAX_PMT_VOLTAGE = 8.0
-        SCANNER_START_STOP_TIME = 0.02
-        SCANNER_MAX_POSITION = 350.0
-        POSITION_TO_SCANNER_VOLTAGE = 2.0/128.0*(10.0/9.0)#10 um bead is 9 um
-        XMIRROR_OFFSET = 0*-64.0#um
-        YMIRROR_OFFSET = 0.0#um
-        SCANNER_SETTING_TIME = [3e-4, 1e-3]#This time constraint sets the speed of scanner (lenght of transient)
-        SCANNER_TRIGGER_CONFIG = {'offset': 0.0, 'pulse_width': 20.0e-6, 'amplitude':5.0, 'enable':False}
-        SINUS_CALIBRATION_MAX_LINEARITY_ERROR = 10e-2
-        CA_FRAME_TRIGGER_AMPLITUDE = 5.0
         PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'AI' : 0,'COLOR': 'RED', 'ENABLE': False}}
-        DAQ_CONFIG = [
-        {
-        'ANALOG_CONFIG' : 'aio',
-        'DAQ_TIMEOUT' : 5.0, 
-        'AO_SAMPLE_RATE' : 400000,
-        'AI_SAMPLE_RATE' : 400000,
-        'AO_CHANNEL' : 'Dev1/ao0:3',
-        'AI_CHANNEL' : 'Dev1/ai0:1',
-        'MAX_VOLTAGE' : 5.0,
-        'MIN_VOLTAGE' : -5.0,
-        'DURATION_OF_AI_READ' : 2.0,
-        'ENABLE' : True
-        },
-        {
-        'DAQ_TIMEOUT' : 1.0, 
-        'DO_CHANNEL' : unittest_aggregator.TEST_daq_device + '/port0/line0',
-        'ENABLE' : True
-        }, 
-        {#Ca sync, stim sync, elphys
-        'ANALOG_CONFIG' : 'ai',
-        'DAQ_TIMEOUT' : 3.0,
-        'SAMPLE_RATE' : 5000,
-        'AI_CHANNEL' : 'Dev1/ai0:2',
-        'MAX_VOLTAGE' : 10.0,
-        'MIN_VOLTAGE' : -10.0,
-        'DURATION_OF_AI_READ' : 2*self.MAXIMUM_RECORDING_DURATION,
-        'ENABLE' : True
-        },
-        ]
-        self.CAIMAGE_DISPLAY = {}
-        self.CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
-        self.CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = True
-        MAIN_IMAGE_SIZE = utils.rc((500,500))
+    
         self.GUI['GUI_SIZE'] =  utils.cr((1280,1024))
 #        self.GUI['GUI_SIZE'] =  utils.cr((1024,700))
 #        if os.name == 'nt':

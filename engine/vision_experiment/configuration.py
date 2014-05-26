@@ -324,46 +324,34 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         
         STIM_RECORDS_ANALOG_SIGNALS = False
         ELPHYS_SIGNAL_CHANNEL_INDEX = [0, [0, 10]]
+        self.GUI['GUI_SIZE'] = utils.rc((1024, 1280))
+        
+        ######### Calcium imaging #########
         MAX_PMT_VOLTAGE = [8.0,[0.0,15.0]]
-        SCANNER_MAX_SPEED = utils.rc((1e7, 1e7))#um/s
-        SCANNER_MAX_ACCELERATION = utils.rc((1e12, 1e12)) #um/s2
-        SCANNER_START_STOP_TIME = [0.02, [0.0, 1.0]]#Time to set scanner to initaial position or zero position
+        MAX_SCANNER_VOLTAGE = [10.0,[0.0,30.0]]
         SCANNER_MAX_POSITION = [350.0, [100.0, 500.0]]#Corresponds to maximal amplitude of scanner contol signal
         POSITION_TO_SCANNER_VOLTAGE = [2.0/128.0, [1e-5,1]]#Conversion rate between laser beam position and scanner control voltage
         XMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]#Offset of scanner signal cannot exceed 2 V
         YMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]
-        SCANNER_RAMP_TIME = [100.0e-3, [1e-4, 1.0]]#Time to move the scanners into initial position
-        SCANNER_HOLD_TIME = [30.0e-3, [1e-4, 1.0]] #Time to hold scanners on initial position
-        SCANNER_SETTING_TIME = [[3e-4, 1e-3],[[1e-6, 1e-6],[1.0, 1.0]]]#This time constraint sets the speed of scanner (lenght of transient)
-        SCANNER_TRIGGER_CONFIG = {'offset': 0.0, 'pulse_width': 20.0e-6, 'amplitude':5.0, 'enable':False}
-        SINUS_CALIBRATION_MAX_LINEARITY_ERROR = [10e-2,[1e-5,50e-2]]
-        CA_FRAME_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
+        STIMULATION_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
-        DAQ_CONFIG = [
-        {
-        'ANALOG_CONFIG' : 'aio',
-        'DAQ_TIMEOUT' : 5.0, 
-        'AO_SAMPLE_RATE' : 400000,
-        'AI_SAMPLE_RATE' : 400000,
-        'AO_CHANNEL' : 'Dev1/ao0:3',
-        'AI_CHANNEL' : 'Dev1/ai0:1',
-        'MAX_VOLTAGE' : 5.0,
-        'MIN_VOLTAGE' : -5.0,
-        'DURATION_OF_AI_READ' : 2.0,
-        'ENABLE' : False
-        },
-        {
-        'DAQ_TIMEOUT' : 1.0, 
-        'DO_CHANNEL' : 'Dev1/port0/line0',
-        'ENABLE' : False
-        }
-        ]
-        CAIMAGE_DISPLAY = {}
-        CAIMAGE_DISPLAY['VERTICAL_FLIP'] = False
-        CAIMAGE_DISPLAY['HORIZONTAL_FLIP'] = False
-        STIMULATION_FILE_READY_TIMEOUT = [10.0,  [0.0, 100.0]]
-        self.GUI['GUI_SIZE'] = utils.rc((1024, 1280))
+        TWO_PHOTON_PINOUT = {}
+        TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'] = 'Dev1/port0/line0',
+        TWO_PHOTON_PINOUT['PMT_ANALOG_INPUT_CHANNELS'] = 'Dev1/ai0:1'
+        TWO_PHOTON_PINOUT['CA_IMAGING_SIGNAL_CHANNELS'] = 'Dev1/ao0:3'
+        TWO_PHOTON_DAQ_TIMEOUT = [5.0, [0.1, 60.0]]
+        
+        #Scanner dynamics
+        XMIRROR_MAX_FREQUENCY = [1500.0, [50.0, 2200.0]]
+        Y_MIRROR_MIN_FLYBACK_TIME = [1e-3, [0.66e-3, 100e-3]]
+        SCANNER_CHARACTERISTICS = {}
+        SCANNER_CHARACTERISTICS['PHASE'] = [-0.00074166, -0.00281492]#A*f+B, in radians
+        SCANNER_CHARACTERISTICS['GAIN'] = [9.92747933e-01, 2.42763029e-06, -2.40619419e-08]#A+B*f+C*f**2, in PU
+        
+        CAIMAGE_DISPLAY_VERTICAL_FLIP = False
+        CAIMAGE_DISPLAY_HORIZONTAL_FLIP = False
+        
         self._create_parameters_from_locals(locals())
         
 class CorticalCaImagingConfig(VisionExperimentConfig):
