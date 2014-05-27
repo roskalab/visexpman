@@ -20,6 +20,7 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
 from visexpman.engine.vision_experiment import experiment
+from visexpman.engine.hardware_interface import scanner_control
 from visexpman.engine import ExperimentConfigError, AnimalFileError
 from visexpman.engine.generic import gui
 from visexpman.engine.generic import fileop
@@ -744,7 +745,7 @@ class ExperimentControl(gui.WidgetControl):
                 return False
             self.mandatory_parameters[pn] = utils.rc(tuple(self.mandatory_parameters[pn]))
         #Parse numeric parameters
-        for pn in ['pixel_size', 'stimulus_flash_trigger_width', 'stimulus_flash_trigger_delay','maximal_x_line_linearity_error','analog_output_sampling_rate', 'analog_input_sampling_rate']:
+        for pn in ['pixel_size', 'stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay','maximal_x_line_linearity_error','analog_output_sampling_rate', 'analog_input_sampling_rate']:
             try:
                 self.mandatory_parameters[pn] = float(self.mandatory_parameters[pn].split('#')[0])
             except ValueError:
@@ -771,16 +772,21 @@ class ExperimentControl(gui.WidgetControl):
             self.mandatory_parameters['animal_id'] = self.optional_parameters['animal_parameters']['id']
         self.mandatory_parameters['counter'] = '{0:0=3}'.format(len(self.poller.animal_file.recordings))
         return True
+            
+    def _check_scan_parameters(self):
+        '''
+        Checks ca imaging related parameters, constructs the command signal and warns user if something is wrong with it
         
-    def _check_scanning_parameters(self):
-        #!!!!!!!!!!!Continue here
-        #Parse parameters
+        This operation could be initiated by value changes in corresponding widgets. It might run for longer times and that would slow down the whole application
+        '''
+        #!!!!!Continue here: 
+        #Convert parameters
         if self.mandatory_parameters['resolution_unit'] == 'um/pixel':
             self.mandatory_parameters['resolution'] = 1.0/self.mandatory_parameters['pixel_size']
         elif self.mandatory_parameters['resolution_unit'] == 'pixel/um':
             self.mandatory_parameters['resolution'] = self.mandatory_parameters['pixel_size']
         elif self.mandatory_parameters['resolution_unit'] == 'us':
-            raise NotImplementedError('')
+            raise NotImplementedError('Select different pixel size unit')
         constraints = {}
         constraints['enable_flybackscan']=self.mandatory_parameters['enable_flyback_scan']
         constraints['um2voltage_scale']=self.config.POSITION_TO_SCANNER_VOLTAGE
@@ -792,12 +798,26 @@ class ExperimentControl(gui.WidgetControl):
         constraints['gain_characteristics']=self.config.SCANNER_CHARACTERISTICS['GAIN']
         #Generate scanner signals and data mask
         xsignal,ysignal,valid_data_mask,signal_attributes =\
-                            scanner_control.generate_scanner_signals(utils.rc(tuple(parameters['scanning_range'])), 
-                                                                                resolution, 
-                                                                                utils.rc(tuple(parameters['scan_center'])), 
+                            scanner_control.generate_scanner_signals(self.mandatory_parameters['scanning_range'], 
+                                                                                self.mandatory_parameters['resolution'], 
+                                                                                self.mandatory_parameters['scan_center'], 
                                                                                 constraints)
         #Generate stimulus strigger signal
-        stimulus_flash_trigger_signal = generate_stimulus_flash_trigger(mask, duty_cycle, delay, signal_attributes, constraints)
+        stimulus_flash_trigger_signal = scanner_control.generate_stimulus_flash_trigger(valid_data_mask, self.mandatory_parameters['stimulus_flash_trigger_duty_cycle'], 
+                                                                                                                    self.mandatory_parameters['stimulus_flash_trigger_delay'], 
+                                                                                                                    signal_attributes, constraints)
+        for k,v in signal_attributes.items():
+            if k =='one_period_x_scanner_signal' or k == 'one_period_valid_data_mask':
+                continue
+            else:
+                self.printc('{0}: {1}'.format(stringop.to_title(k), v))
+        
+    def check_scan_parameters(self):
+        self._get_experiment_run_parameters()
+        if not self._parse_experiment_run_parameters():
+            return
+        self._check_scan_parameters()
+        #TODO: display results 
         
         
     def add_experiment(self):
@@ -807,6 +827,7 @@ class ExperimentControl(gui.WidgetControl):
         self._get_experiment_run_parameters()
         if not self._parse_experiment_run_parameters():
             return
+        self._check_scan_parameters()
         self.poller.animal_file.recordings.append(self.mandatory_parameters)
         if hasattr(self.poller.animal_file, 'filename'):
             hdf5io.save_item(self.poller.animal_file.filename, 'recordings', utils.object2array(self.poller.animal_file.recordings), self.config, overwrite = True)
@@ -1029,17 +1050,17 @@ class MachineParametersGroupbox(QtGui.QGroupBox):
         self.create_layout()
         self.machine_parameters = {}
         self.machine_parameters['scanner'] = {'Scan center':  '0, 0#Center of scanning, format: (row, col) [um]', 
-                                                                        'Stimulus flash trigger width': '0#Length of trigger pulse that switches on the stimulation device in us', 
+                                                                        'Stimulus flash trigger duty cycle': '100#[%]100% means that the flash is on during the whole flyback of the x mirror', 
                                                                         'Stimulus flash trigger delay': '0#[us]',
                                                                         'Analog input sampling rate': '100000#[Hz]',
                                                                         'Analog output sampling rate': '100000#[Hz]',
                                                                         'Enable flyback scan': '0#If set to 1, x mirror\'s flyback movement is also used for data acquisition',
-                                                                        'Maximal x line linearity error':'5#[%], Increasing improves scan speed but causes distortion at the left and right edges of the image',
+                                                                        'Maximal x line linearity error':'5#[%], Increase: better scan speed but more distortion at the left and right edges.\nKeep it below 15 %.',
                                                                         }
                                                                         
         self.machine_parameter_order = {}
         self.machine_parameter_order['scanner'] = ['Maximal x line linearity error', 'Scan center', 
-                                            'Stimulus flash trigger width', 'Stimulus flash trigger delay', 'Enable flyback scan', 
+                                            'Stimulus flash trigger duty cycle', 'Stimulus flash trigger delay', 'Enable flyback scan', 
                                             'Analog input sampling rate', 'Analog output sampling rate']
 
     def create_widgets(self):
@@ -1049,11 +1070,13 @@ class MachineParametersGroupbox(QtGui.QGroupBox):
         self.table['scanner'].setFixedWidth(450)
         self.table['scanner'].setFixedHeight(550)
         self.table['scanner'].setColumnWidth(0, 250)
+        self.check_scan_parameters_button = QtGui.QPushButton('Check scan parameters', self)
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.scanner_section_title, 0, 0, 1, 1)
-        self.layout.addWidget(self.table['scanner'], 1, 0, 1, 1)
+        self.layout.addWidget(self.check_scan_parameters_button, 1, 0, 1, 1)
+        self.layout.addWidget(self.table['scanner'], 2, 0, 1, 2)
         self.setLayout(self.layout)
 
 class FlowmeterControl(QtGui.QGroupBox):

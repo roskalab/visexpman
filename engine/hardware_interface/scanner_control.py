@@ -1867,6 +1867,8 @@ def generate_stimulus_flash_trigger(mask, duty_cycle, delay, signal_attributes, 
     From valid data mask generate trigger signal
     If duty_cycle is 1.0, then maximal possible duty cycle is presented but delay is applyed too.
     '''
+    if duty_cycle >1:
+        raise RuntimeError('Duty cycle shall be between 0.0...1.0')
     mask = signal_attributes['one_period_valid_data_mask']#calculate it for one period
     if signal_attributes['max_flash_duty_cycle']<duty_cycle and duty_cycle<1.0:
         raise ScannerError('Requested duty cycle ({0:0.2f}) shall be below {1:0.2f}'.format(duty_cycle, signal_attributes['max_flash_duty_cycle']))

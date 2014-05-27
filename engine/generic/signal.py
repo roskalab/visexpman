@@ -238,7 +238,11 @@ class TestSignal(unittest.TestCase):
         
             
     def test_10_generate_natural_stimulus_intensity_profile(self):
-        generate_natural_stimulus_intensity_profile(20.0, 300.0, 20.0,2.0)
+        profile = generate_natural_stimulus_intensity_profile(20.0, 300.0, 20.0,2.0)
+        if 1:
+            from pylab import plot,show
+            plot(profile)
+            show()
         
     def test_11(self):
         sinus_linear_range(1000, 400e3, 1e-2)

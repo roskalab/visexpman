@@ -3275,7 +3275,8 @@ class Timer(object):
 
 def celery_available():
     try:
-        import celery
+        if False:
+            import celery
         ct=celery.task.control.ping()
         if len(ct)>0:
             return True # at least 1 worker is alive
