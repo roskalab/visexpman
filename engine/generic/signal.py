@@ -120,6 +120,37 @@ def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial
         show()
     return intensity_profile
     
+def natural_distribution_morse(duration, sample_time, occurence_of_longest_period = 1.0, n0 = 10):
+    '''
+    Longest period shall occur once, therefore
+    A/((n0+n-1)*ts) = m (I.), where n is the number of different periods, ts is the sample time, A is the constant in the A/x distribution of periods
+                                            n0: minimal period/ts, m: occurence of longest period
+    
+    number of periods where its length is ts: A/(n0*ts), duration of periods with this length: A/(n0*ts)*(n0*ts) = A
+    for (n0+1)*ts: A/((n0+1)*ts) 
+    ...
+    
+    A/((n0+n-1)*ts) = m (I.)
+    t = A*n, where t is the duration of the stimulus (II.), t determines the number of different period values
+    A = t/n
+    t/n = m*ts*(n0+n-1)
+    n**2+(n0-1)*n-t/(m*ts) = 0
+    n12=(-n0+1 +/- sqrt((n0-1)**2+4*t/(m*ts)))/2
+    n=(-n0+1 + sqrt((n0-1)**2+4*t/(m*ts)))/2
+    '''
+    n=(-n0+1 + numpy.sqrt((n0-1.0)**2+4*duration/(occurence_of_longest_period*sample_time)))/2
+    n = int(numpy.ceil(n))
+    A = duration/n
+    periods = numpy.arange(n0,n0+n)*sample_time
+    occurence_of_periods =  numpy.round(A/periods,0)
+    #Generate pool of periods
+    pool = []
+    for i in range(n):
+        pool.extend([periods[i]]*occurence_of_periods[i])
+    import random
+    random.shuffle(pool)
+    return pool, n, periods[-1]
+    
 def sinus_linear_range(f, fs, error):
     a=2.0
     s =  wf_sin(a, f, 0.25/f, fs)
@@ -239,13 +270,21 @@ class TestSignal(unittest.TestCase):
             
     def test_10_generate_natural_stimulus_intensity_profile(self):
         profile = generate_natural_stimulus_intensity_profile(20.0, 300.0, 20.0,2.0)
-        if 1:
+        if 0:
             from pylab import plot,show
             plot(profile)
             show()
-        
-    def test_11(self):
+            
+    def test_11_sinus_linear_range(self):
         sinus_linear_range(1000, 400e3, 1e-2)
-    
+        
+    def test_12_natural_morse(self):
+        sample_time = 1e-2
+        duration = 60.0 #s
+        occurence_of_longest_period = 1.0
+        n0 = 10
+        v = natural_distribution_morse(duration, sample_time, occurence_of_longest_period = 1.0, n0 = 10)
+        pass
+
 if __name__=='__main__':
     unittest.main()
