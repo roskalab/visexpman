@@ -1739,12 +1739,16 @@ class TestScannerControl(unittest.TestCase):
                                                           1.0/signal_attributes['frame_rate'] - signal_attributes['ymirror_flyback_time'],
                                                           int(numpy.log10(constraints['sample_frequency']))-1)
             #test x scanner signal amplitude
-            masked_signal = numpy.roll(valid_data_mask,signal_attributes['phase_shift'])*xsignal
+            masked_signal = numpy.roll(valid_data_mask,signal_attributes['phase_shift'])*xsignal#shift back to match with x signal
             gain = constraints['gain_characteristics'][0] \
                                             +constraints['gain_characteristics'][1] * signal_attributes['fxscanner'] + constraints['gain_characteristics'][2] * signal_attributes['fxscanner']**2
-            masked_signal = masked_signal[numpy.nonzero(masked_signal)[0]] 
+            masked_signal = masked_signal[numpy.nonzero(masked_signal)[0]]
+            if constraints['enable_flybackscan']:
+                decimal_places = 5
+            else:
+                decimal_places = -1
             self.assertAlmostEqual((masked_signal.max()-masked_signal.min())*gain/constraints['um2voltage_scale'], 
-                                                                          float(scan_size['col']), 5)
+                                                                          float(scan_size['col']), decimal_places)
             self.assertAlmostEqual(xsignal.mean()/constraints['um2voltage_scale'], center['col'],5)
             #test y scanner signal amplitude
             self.assertAlmostEqual((ysignal.max()-ysignal.min())/constraints['um2voltage_scale'], float(scan_size['row']), 5)
@@ -1755,11 +1759,16 @@ class TestScannerControl(unittest.TestCase):
             delay = 10e-6
             stimulus_flash_trigger_signal = generate_stimulus_flash_trigger(valid_data_mask, duty_cycle, delay, signal_attributes, constraints)
             self.assertEqual((stimulus_flash_trigger_signal+valid_data_mask).max(), 1.0)#If more than 1, data and flash overlaps which is not acceptable
-            pass
-
+            stimulus_flash_trigger_signal = generate_stimulus_flash_trigger(valid_data_mask, 1.0, delay, signal_attributes, constraints)
+            self.assertEqual((stimulus_flash_trigger_signal+valid_data_mask).max(), 1.0)#If more than 1, data and flash overlaps which is not acceptable
+            stimulus_flash_trigger_signal = generate_stimulus_flash_trigger(valid_data_mask, 1.0, 0.0, signal_attributes, constraints)
+            self.assertEqual((stimulus_flash_trigger_signal+valid_data_mask).max(), 1.0)#If more than 1, data and flash overlaps which is not acceptable
+            self.assertEqual((valid_data_mask+stimulus_flash_trigger_signal).sum(),stimulus_flash_trigger_signal.shape[0])#100% duty cycle, no delay: data mask and trigger signal covers the whole time
+            
 #        plot(ysignal)
 #        plot(xsignal)
 #        plot(valid_data_mask)
+#        plot(stimulus_flash_trigger_signal)
 #        show()
 
 
@@ -1804,7 +1813,8 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
             #valid signal mask: two intervals in one period, around pi/2 and 3pi/2
             mask = numpy.zeros_like(one_period_x_scanner_signal)
             mask[mask.shape[0]/4-xpixels/2:mask.shape[0]/4+xpixels/2]=1
-            mask[3*mask.shape[0]/4-xpixels/2:3*mask.shape[0]/4+xpixels/2]=1
+            if constraints['enable_flybackscan']:
+                mask[3*mask.shape[0]/4-xpixels/2:3*mask.shape[0]/4+xpixels/2]=1
             overshoot = one_period_x_scanner_signal.max()/(mask*one_period_x_scanner_signal).max()#in percent
             #x signal amplitude is increseased to fit the required amplitude into the linear range of the sinus wave
             one_period_x_scanner_signal *= overshoot
@@ -1816,7 +1826,7 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
             #Shift mask with phase
             phase = constraints['phase_characteristics'][0] * fxscanner + constraints['phase_characteristics'][1]
             phase_shift = int(numpy.round(phase/(numpy.pi*2)*one_period_x_scanner_signal.shape[0],0))
-            mask = numpy.roll(mask,-phase_shift)
+            mask = numpy.roll(mask,-phase_shift)#shift valid data mask with phase shift
             flash_time = (one_period_x_scanner_signal.shape[0] - xpixels*2)#overall, split to two flashes
             max_flash_duty_cycle = float(flash_time)/one_period_x_scanner_signal.shape[0]
             #y flyback time does not exceed ymirror_flyback_time
@@ -1847,28 +1857,40 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
     signal_attributes['frame_rate'] = frame_rate
     signal_attributes['fxscanner'] = fxscanner
     signal_attributes['phase_shift'] = phase_shift
+    signal_attributes['one_period_x_scanner_signal'] = one_period_x_scanner_signal
+    signal_attributes['one_period_valid_data_mask'] = mask
+    signal_attributes['nxlines'] = nxlines
     return xsignal,ysignal,valid_data_mask,signal_attributes
 
 def generate_stimulus_flash_trigger(mask, duty_cycle, delay, signal_attributes, constraints):
     '''
     From valid data mask generate trigger signal
-    If duty_cycle is 0.0, then maximal possible duty cycle is presented
+    If duty_cycle is 1.0, then maximal possible duty cycle is presented but delay is applyed too.
     '''
-    if signal_attributes['max_flash_duty_cycle']<duty_cycle:
+    mask = signal_attributes['one_period_valid_data_mask']#calculate it for one period
+    if signal_attributes['max_flash_duty_cycle']<duty_cycle and duty_cycle<1.0:
         raise ScannerError('Requested duty cycle ({0:0.2f}) shall be below {1:0.2f}'.format(duty_cycle, signal_attributes['max_flash_duty_cycle']))
-    flash_samples = int(0.5 * duty_cycle/signal_attributes['fxscanner']*constraints['sample_frequency']) #flashed in two pulses
+    if constraints['enable_flybackscan']:
+        factor = 0.5
+    else:
+        factor = 1.0
+    flash_samples = int(factor * duty_cycle/signal_attributes['fxscanner']*constraints['sample_frequency']) #flashed in two pulses if flyback enabled
     delay_samples = int(delay * constraints['sample_frequency'])
-    max_flash_samples =  0.5*int(numpy.round(signal_attributes['max_flash_duty_cycle']/signal_attributes['fxscanner']*constraints['sample_frequency'],0))
-    if max_flash_samples<flash_samples + delay_samples:
+    max_flash_samples =  int(factor*(mask.shape[0]-mask.sum()))
+    if max_flash_samples<flash_samples + delay_samples and duty_cycle<1.0:
         raise ScannerError('Not enough time for requested duty cycle and delay. Reduce duty cycle or delay')
-    if flash_samples == 0:
+    if duty_cycle == 1.0:#If 1.0 duty cycle is provided, trunckate flash samples
         flash_samples = max_flash_samples - delay_samples
+    #Shift temporarily the mask to the beginning of the first valid data interval
+    shift = numpy.nonzero(numpy.diff(mask))[0][0]
     stimulus_flash_trigger_signal = numpy.zeros_like(mask)
-    start_indexes = numpy.nonzero(numpy.where(numpy.diff(mask)<0,1,0))[0]+1+delay_samples
+    start_indexes = (numpy.nonzero(numpy.diff(mask))[0]-shift)[1::2]+delay_samples#Starts one sample later after last data valid pixel
     end_indexes = start_indexes + flash_samples
     for i in range(start_indexes.shape[0]):
         stimulus_flash_trigger_signal[start_indexes[i]:end_indexes[i]]=1
-    return stimulus_flash_trigger_signal
+    #Shift mask back
+    stimulus_flash_trigger_signal = numpy.roll(stimulus_flash_trigger_signal,shift+1)
+    return numpy.tile(stimulus_flash_trigger_signal, signal_attributes['nxlines'])
     
     
 
