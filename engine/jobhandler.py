@@ -395,21 +395,23 @@ class CommandInterface(command_parser.CommandParser):
                         runtime = result.get()
                     elif not False:
                         runtime = 0
-                        create = ['roi_curves','soma_rois_manual_info']#'rawdata_mask',
-                        export = ['roi_curves'] 
-                        h = hdf5io.iopen(full_fragment_path,self.analysis_config)
-                        if h is not None:
-                            for c in create:
-                                self.printl('create_'+c)
-                                h.perform_create_and_save(c,overwrite=True,force=True,path=h.h5fpath)
-                            for e in export:
-                                self.printl('export_'+e)
-                                getattr(h,'export_'+e)()
-                            h.close()
+                        excluded_experiments = ['natural','receptive']
+                        if len([True for excluded_experiment in excluded_experiments if excluded_experiment.lower() in full_fragment_path.lower()]) == 0:
+                            create = ['roi_curves','soma_rois_manual_info']#'rawdata_mask',
+                            export = ['roi_curves'] 
+                            h = hdf5io.iopen(full_fragment_path,self.analysis_config)
+                            if h is not None:
+                                for c in create:
+                                    self.printl('create_'+c)
+                                    h.perform_create_and_save(c,overwrite=True,force=True,path=h.h5fpath)
+                                for e in export:
+                                    self.printl('export_'+e)
+                                    getattr(h,'export_'+e)()
+                                h.close()
+                        else:
+                            self.printl('No online analysis for this type of experiment')
                     else:
                         runtime=0
-                        
-                        
                     file.set_file_dates(full_fragment_path, file_info)
                     if len(sys.argv) > 3 and sys.argv[3] == 'EXPORT_SYNC_DATA_TO_MAT':
                         self.printl('Saving sync data to mat file')
@@ -471,122 +473,6 @@ class CommandInterface(command_parser.CommandParser):
     def exit(self):
         self.queue_out.put('SOCclose_connectionEOCstop_clientEOP')
         return 'exit'
-        
-class LowPriorityProcessor(QtCore.QThread, command_parser.CommandParser):
-    '''
-    The following error comes up if printl method is taken from Commandhandler thread and log is passed to command_parser.CommandParser)'s constructor
-    Exception AttributeError: AttributeError("'_DummyThread' object has no attribute '_Thread__block'",) in <module 'threading' from '/usr/lib/python2.7/threading.py'> ignored
-    '''
-    def __init__(self, config, queues, log = None, printl = None):
-#        self.printl = printl
-        self.queues = queues
-        self.config = config
-        user = 'daniel'
-        import visexpA.engine.configuration
-        self.analysis_config = utils.fetch_classes('visexpA.users.'+user, classname='Config', required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
-        command_parser.CommandParser.__init__(self, self.queues['low_priority_processor']['in'], self.queues['low_priority_processor']['out'], log = None)
-        #self.zeromq_pusher = network_interface.ZeroMQPusher(5501, type='pubsub')
-        QtCore.QThread.__init__(self)
-#        multiprocessing.Process.__init__(self)
-
-    def run(self):
-        self.setPriority(QtCore.QThread.LowPriority)
-        self.printl('Low priority processor started')
-        while True:
-            result = self.parse()
-            if result[0] == 'close':
-                break
-            time.sleep(0.1)
-            
-    def printl(self, message, to_queue = True):
-        if to_queue:
-            self.queues['gui']['out'].put(message)
-        message = str(message).replace('SOC', '').replace('EOC', '').replace('EOP', '')
-        print utils.datetime_string() + ' ' + message
-
-   ##################### Interface functions #############################    
-    def close(self):
-        return 'close'
-            
-    def check_and_preprocess_fragment(self, id = None):
-        '''
-        '''
-        try:
-            full_fragment_path = file.get_measurement_file_path_from_id(id, self.config)
-            #Make a copy
-            if BACKGROUND_COPIER:
-                if not os.path.ismount('/mnt/tape'):
-                    print '!!! Tape not mounted, measurement data is not backed up !!!'
-                else:
-                    filename = full_fragment_path
-#                    self.background_copier_command_queue.put((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), tape_path))
-#                    self.background_copier_command_queue.put((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename).replace('.hdf5','.mat'), tape_path.replace('.hdf5','.mat')))
-            #Run mesextractor with fragment check
-            if self.config.ENABLE_MESEXTRACTOR and not full_fragment_path is None:
-                self.printl('MESExtractor started: {0}'.format(fragment_name_to_short_string(os.path.split(full_fragment_path)[1])))
-                file_info = os.stat(full_fragment_path)
-                # tell file_pool to close the file and freeze it until jobhandler is done with it:
-               #self.zeromq_pusher.send((('close', full_fragment_path)))
-                #self.zeromq_pusher.send((('suspend', full_fragment_path)))
-                mes_extractor = importers.MESExtractor(full_fragment_path, config = self.config, queue_out = self.queues['low_priority_processor']['out'])
-                data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True)
-                file.set_file_dates(full_fragment_path, file_info)
-                self.queues['low_priority_processor']['out'].put('SOCmesextractor_readyEOCid={0}EOP' .format(id))
-            else:
-                self.printl('MESExtractor skipped')
-        except:
-            self.printl(traceback.format_exc())
-
-    def find_cells(self, id = None):
-        try:
-            if self.config.ENABLE_CELL_DETECTION:
-                full_fragment_path = file.get_measurement_file_path_from_id(id, self.config)
-                if full_fragment_path is not None:
-                    fragment_path = os.path.split(full_fragment_path)[1]
-                    self.printl('Start finding cells: {0}'.format(fragment_name_to_short_string(fragment_path)))
-                    file_info = os.stat(full_fragment_path)
-                    if hasattr(self.config, 'GAMMA_CORRECTION'):
-                        import copy
-                        config = copy.deepcopy(self.config)
-                        config.GAMMA_CORRECTION = 0
-                    else:
-                        config=self.config
-                    if False:
-                        result = analysis.cell_centers_from_fragment.delay(full_fragment_path, config, STATIC)
-                        runtime = result.get()
-                    elif not False:
-                        runtime = 0
-                        create = ['roi_curves','soma_rois_manual_info']#'rawdata_mask',
-                        export = ['roi_curves'] 
-                        h = hdf5io.iopen(full_fragment_path,self.analysis_config)
-                        if h is not None:
-                            for c in create:
-                                self.printl('create_'+c)
-                                h.perform_create_and_save(c,overwrite=True,force=True,path=h.h5fpath)
-                            for e in export:
-                                self.printl('export_'+e)
-                                getattr(h,'export_'+e)()
-                            h.close()
-                    else:
-                        runtime=0
-                        
-                        
-                    file.set_file_dates(full_fragment_path, file_info)
-                    if len(sys.argv) > 3 and sys.argv[3] == 'EXPORT_SYNC_DATA_TO_MAT':
-                        self.printl('Saving sync data to mat file')
-                        from visexpA.users.zoltan import converters
-                        converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal'],  outtag = 'sync', outdir = os.path.split(full_fragment_path)[0])
-                    elif len(sys.argv) > 3 and sys.argv[3] == 'EXPORT_DATA_TO_MAT':
-                        self.printl('Saving data to mat file')
-                        from visexpA.users.zoltan import converters
-                        converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
-                    self.queues['low_priority_processor']['out'].put('SOCfind_cells_readyEOCid={0},runtime={1}EOP'.format(id, runtime))
-                else:
-                    self.printl('Not existing ID: {0}'.format(id))
-            else:
-                self.printl('Cell detection skipped')
-        except:
-            self.printl(traceback.format_exc())
 
 def fragment_name_to_short_string(filename):
     parts = file.parse_fragment_filename(filename)
@@ -630,8 +516,6 @@ if __name__=='__main__':
     elif len(sys.argv)<3:
         print 'Command line parameters: username machine_config_name,  for example: daniel RcMicroscopeConfig'
     else:
-        if not introspect.celery_available():
-            print 'Celery not running'
         print sys.argv[1:]
         Jobhandler(sys.argv[1], sys.argv[2]).run()
     print 'jobhandler all done'

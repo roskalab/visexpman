@@ -509,6 +509,8 @@ class ExperimentControl(object):
                                     'machine_config': experiment_data.pickle_config(self.config), 
                                     'experiment_config': experiment_data.pickle_config(self.experiment_config), 
                                     }
+        if self.user_data != {}:
+            data_to_file['user_data'] = self.user_data
         if self.config.EXPERIMENT_FILE_FORMAT == 'hdf5':
             data_to_file['experiment_log'] = numpy.fromstring(pickle.dumps(self.log.log_dict), numpy.uint8)
             stimulus_frame_info = {}

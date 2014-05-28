@@ -73,6 +73,7 @@ class Experiment(stimulation_library.StimulationSequences):
         self.experiment_name = self.__class__.__name__.split('_')[0]
         self.experiment_config_name = self.experiment_config.__class__.__name__
         self.name_tag = self.experiment_config_name.replace('Config', '').replace('config', '')
+        self.user_data = {}
         self.prepare()
         stimulation_library.Stimulations.__init__(self, self.machine_config, application_log)
 
@@ -125,8 +126,6 @@ class Experiment(stimulation_library.StimulationSequences):
         '''
         self.<<variable names>> will ba saved to self.user_data (experiment_specific_data)
         '''
-        if not hasattr(self, 'user_data'):
-            self.user_data = {}
         for v in variable_names:
             self.user_data[v] = getattr(self,v)
 

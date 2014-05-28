@@ -5,12 +5,12 @@ import os
 import numpy
 import time
 
-class NaturalIntensityChangeConfig(experiment.ExperimentConfig):
+class NaturalIntensityProfileConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.MAX_AMPLITUDE = 0.5#V
         self.DURATION = 30.0
         self.REPEATS = 3
-        self.MAX_FREQUENCY = 10.0
+        self.MAX_FREQUENCY = 100.0
         self.runnable = 'NaturalLedStimulation'
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
@@ -24,13 +24,14 @@ class NaturalLedStimulation(experiment.Experiment):
         self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(self.experiment_config.DURATION, 1.0, 
                                                     1.0/self.experiment_config.MAX_FREQUENCY, 
                                                     1.0/self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'])*self.experiment_config.MAX_AMPLITUDE
-        self.fragment_durations = [self.experiment_config.DURATION]
+        self.intensity_profile = numpy.append(self.intensity_profile, 0.0)
+        self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS]
         self.save_variables(['intensity_profile'])#Save to make it available for analysis
     
     def run(self, fragment_id = 0):
         self.show_fullscreen(color = 0.0, duration = 0.0)
-        for rep in range(self.experiment_control.REPEATS):
-            self.led_controller.set(self.intensity_profile)
+        for rep in range(self.experiment_config.REPEATS):
+            self.led_controller.set(self.intensity_profile,None)
             self.led_controller.start()
         
 class NaturalMorseConfig(experiment.ExperimentConfig):
@@ -51,8 +52,8 @@ class LedMorseStimulation(experiment.Experiment):
         self.timing = signal.natural_distribution_morse(self.experiment_config.DURATION, 
                         1.0/self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'],
                         occurence_of_longest_period = 1.0, 
-                        n0 = int((self.experiment_config.SHORTEST_PULSE)/ 1.0/self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE']))[0]
-        self.fragment_durations = [self.experiment_config.DURATION]
+                        n0 = int(self.experiment_config.SHORTEST_PULSE/( 1.0/self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'])))[0]
+        self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS]
         timing_in_samples = numpy.array(self.timing)*self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE']
         state = False
         self.waveform = numpy.array([])
@@ -61,11 +62,14 @@ class LedMorseStimulation(experiment.Experiment):
             if not state:
                 samples *= 0.0
             state = not state
-            numpy.append(self.waveform,samples)
+            self.waveform = numpy.append(self.waveform,samples)
+        self.waveform = numpy.append(self.waveform, 0.0)
         self.save_variables(['timing', 'waveform'])#Save to make it available for analysis
+        self.printl('Minimal time: {0} ms, maximal time: {1} ms'.format(min(self.timing)*1000,max(self.timing)*1000))
     
     def run(self, fragment_id = 0):
         self.show_fullscreen(color = 0.0, duration = 0.0)
-        for rep in range(self.experiment_control.REPEATS):
-            self.led_controller.set(self.waveform)
+        for rep in range(self.experiment_config.REPEATS):
+            self.led_controller.set(self.waveform,None)
             self.led_controller.start()
+        
