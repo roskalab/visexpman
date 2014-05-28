@@ -668,16 +668,19 @@ class AnalogPulse(AnalogIO):
         
             if command == 'set':
                 if self.state == 'ready' or self.state == 'set':
-                    pulse_configs = numpy.array(parameters[0])
-                    duration = parameters[1]
-                    waveform = []                    
-                    if pulse_configs.shape[0] != self.number_of_ao_channels:
-                        raise RuntimeError('Analog output channel number mismatch.')
-                    for pulse_config in pulse_configs:
-                        channel_waveform = utils.generate_pulse_train(pulse_config[0], pulse_config[1], pulse_config[2], duration, sample_rate = self.ao_sample_rate)
-                        channel_waveform[-1] = 0.0
-                        waveform.append(channel_waveform)
-                    waveform = numpy.array(waveform).transpose()
+                    if isinstance(pulse_configs,list):
+                        pulse_configs = numpy.array(parameters[0])
+                        duration = parameters[1]
+                        waveform = []                    
+                        if pulse_configs.shape[0] != self.number_of_ao_channels:
+                            raise RuntimeError('Analog output channel number mismatch.')
+                        for pulse_config in pulse_configs:
+                            channel_waveform = utils.generate_pulse_train(pulse_config[0], pulse_config[1], pulse_config[2], duration, sample_rate = self.ao_sample_rate)
+                            channel_waveform[-1] = 0.0
+                            waveform.append(channel_waveform)
+                        waveform = numpy.array(waveform).transpose()
+                    elif hasattr(pulse_configs,'dtype'):#Workaround for loading a waveform instead of a series of pulses
+                        waveform = pulse_configs
                     self.waveform = waveform
                     self.state = 'set'
             elif command == 'start':

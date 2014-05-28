@@ -118,6 +118,14 @@ class Experiment(stimulation_library.StimulationSequences):
 #         if hasattr(self, 'log'):
 #             self.log.info(str(message))
         
+    def save_variables(self,variable_names):
+        '''
+        self.<<variable names>> will ba saved to self.user_data (experiment_specific_data)
+        '''
+        if not hasattr(self, 'user_data'):
+            self.user_data = {}
+        for v in variable_names:
+            self.user_data[v] = getattr(self,v)
 
 class PreExperiment(Experiment):
     '''

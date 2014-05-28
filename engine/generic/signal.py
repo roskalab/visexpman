@@ -152,6 +152,7 @@ def natural_distribution_morse(duration, sample_time, occurence_of_longest_perio
     for i in range(n):
         pool.extend([periods[i]]*occurence_of_periods[i])
     import random
+    random.seed(0)
     random.shuffle(pool)
     return pool, n, periods[-1]
     
