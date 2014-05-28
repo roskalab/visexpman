@@ -86,13 +86,17 @@ def generate_random_angles(n, p = 3559, q = 3571, x0 = 17):
         v.append(xn/float(p*q))
     return numpy.array(v)*2*numpy.pi - numpy.pi
     
-def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period,spatial_resolution, intensity_levels = 255):
+def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels = 255):
     '''
     duration: duration of stimulus
     speed: um/s
     minimal_spatial_period: um
-    spatial resolution is determined from pixel2um config parameter
-    
+    spatial resolution is determined from pixel2um config parameter, width of 1 pixel wide bar
+    Usage in time domain:
+        duration is duration
+        speed =1, duration * speed gives the overall time of the stimulation
+        minimal_spatial_period: minimal time period
+        spatial_resolution: duration of 1 sample in seconds
     '''
     spatial_range = duration * speed
     if minimal_spatial_period < 5 * spatial_resolution:
