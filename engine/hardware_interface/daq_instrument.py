@@ -668,7 +668,7 @@ class AnalogPulse(AnalogIO):
         
             if command == 'set':
                 if self.state == 'ready' or self.state == 'set':
-                    if isinstance(pulse_configs,list):
+                    if isinstance(parameters[0],list):
                         pulse_configs = numpy.array(parameters[0])
                         duration = parameters[1]
                         waveform = []                    
@@ -679,9 +679,9 @@ class AnalogPulse(AnalogIO):
                             channel_waveform[-1] = 0.0
                             waveform.append(channel_waveform)
                         waveform = numpy.array(waveform).transpose()
-                    elif hasattr(pulse_configs,'dtype'):#Workaround for loading a waveform instead of a series of pulses
-                        waveform = pulse_configs
-                    self.waveform = waveform
+                    elif hasattr(parameters[0],'dtype'):#Workaround for loading a waveform instead of a series of pulses
+                        waveform = numpy.cast['float64'](numpy.reshape(parameters[0],(1,parameters[0].shape[0])))
+                    self.waveform = waveform.transpose()
                     self.state = 'set'
             elif command == 'start':
                 if self.state == 'set':
