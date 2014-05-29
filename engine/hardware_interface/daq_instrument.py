@@ -362,7 +362,7 @@ class AnalogPulse(AnalogIO):
                             channel_waveform = utils.generate_pulse_train(pulse_config[0], pulse_config[1], pulse_config[2], duration, sample_rate = self.ao_sample_rate)
                             channel_waveform[-1] = 0.0
                             waveform.append(channel_waveform)
-                        waveform = numpy.array(waveform).transpose()
+                        waveform = numpy.array(waveform)
                     elif hasattr(parameters[0],'dtype'):#Workaround for loading a waveform instead of a series of pulses
                         waveform = numpy.cast['float64'](numpy.reshape(parameters[0],(1,parameters[0].shape[0])))
                     self.waveform = waveform.transpose()
