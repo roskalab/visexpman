@@ -104,8 +104,10 @@ def generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial
     spatial_frequencies = numpy.arange(1.0/spatial_range, 1.0/minimal_spatial_period+1.0/spatial_range, 1.0/spatial_range)
     amplitudes = 1.0/spatial_frequencies
     phases = generate_random_angles(spatial_frequencies.shape[0])
-    intensity_profile = numpy.zeros(int(spatial_range/spatial_resolution))
-    s = numpy.arange(0, spatial_range, spatial_resolution)
+    #Since the number fo samples have to be integer, the spatial resolution is slightly modified
+    modified_spatial_resolution = float(spatial_range/spatial_resolution)/int(spatial_range/spatial_resolution)*spatial_resolution
+    intensity_profile = numpy.zeros(numpy.round(spatial_range/modified_spatial_resolution))
+    s = numpy.arange(0, spatial_range, modified_spatial_resolution)
     for harmonic in range(spatial_frequencies.shape[0]):
         intensity_profile += amplitudes[harmonic]*numpy.sin(2*numpy.pi*s*spatial_frequencies[harmonic] + phases[harmonic])
         if abs(intensity_profile[0]-intensity_profile[-1])/intensity_profile.max()>1e-3:

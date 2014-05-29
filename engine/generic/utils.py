@@ -14,9 +14,6 @@ import copy
 import select
 import subprocess
 import cPickle as pickle
-if os.name == 'nt':
-    import win32process
-    import win32api
 
 import file
 

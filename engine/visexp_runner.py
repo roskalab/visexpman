@@ -48,6 +48,10 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         #== Fetch experiment classes ==
         if self.config.user != 'undefined':
             self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
+            if hasattr(self.config, 'PREFERRED_STIMULI'):
+                if len(self.config.PREFERRED_STIMULI)>10:
+                    raise RuntimeError('Number of PREFERRED_STIMULI should not exceed 10')
+                self.experiment_config_list = [expconf for expconf in self.experiment_config_list if expconf[1].__name__ in self.config.PREFERRED_STIMULI]
         else:
             #In case of SafestartConfig, no experiment configs are loaded
             #TODO: Create some default experiments (mostly visual stimulation) linked to SafestartConfig
@@ -104,7 +108,7 @@ class VisionExperimentRunner(command_handler.CommandHandler):
                 if now - last_log_time > 10.0:
                     last_log_time = now
                     self.log.info('main loop alive')
-                if now - last_stage_read > 60.0:#DEBUG
+                if now - last_stage_read > 60.0 and self.config.PLATFORM == 'mes':#DEBUG
                     last_stage_read = now
                     self.stage('read',togui=False)
                 #To avoid race condition
@@ -120,6 +124,34 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         #Finish log
         self.log.info('Visexpman quit')
         self.log.flush()
+        
+    def run_experiment(self, user_experiment_config = None, **kwargs):
+        utils.is_keyword_in_queue(self.queues['gui']['in'], 'abort', keep_in_queue = False)
+        context = {}
+        context['stage_origin'] = numpy.zeros(3)
+        for experiment_config in self.experiment_config_list:
+            if not user_experiment_config is None:
+                if (isinstance(user_experiment_config,  str) and user_experiment_config == experiment_config[1].__name__) or \
+                        (not isinstance(user_experiment_config,  str)  and experiment_config[1].__name__ == user_experiment_config.__class__.__name__):
+                    self.experiment_config = experiment_config[1](self.config, self.queues, self.connections, self.log)
+                    #Copy experiment config values
+                    if not isinstance(user_experiment_config, str):
+                        for attr in dir(user_experiment_config):
+                            if attr == attr.upper():
+                                setattr(self.experiment_config, attr, getattr(user_experiment_config, attr))
+                                if hasattr(user_experiment_config, attr +'_p'):
+                                    setattr(self.experiment_config, attr+'_p', getattr(user_experiment_config, attr +'_p'))
+                    self.experiment_config.runnable.prepare()
+                    result = self.experiment_config.runnable.run_experiment(context, **kwargs)
+                    self.close()
+                    return result
+            else:
+                if experiment_config[1].__name__ == self.config.EXPERIMENT_CONFIG:
+                    self.experiment_config = experiment_config[1](self.config, self.queues, self.connections, self.log)
+                    self.experiment_config.runnable.prepare()
+                    result = self.experiment_config.runnable.run_experiment(context, **kwargs)
+                    self.close()
+                    return result
         
     def __del__(self): #To avoid unit test warning
         pass

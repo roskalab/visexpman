@@ -112,8 +112,12 @@ class MovingGratingAdrian(MovingGratingNoMarchingConfig):
         if self.ENABLE_RANDOM_ORDER:
             import random
             random.shuffle(self.ORIENTATIONS)
-        
-        
+            
+class MovingGratingSpatialFrequencySweep(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.WHITE_BAR_WIDTHS = [100.0, 300.0, 500.0]
+        self.ORIENTATIONS = range(0, 360, 90)
         
 class MovingGratingNoMarchingBlackPreConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -487,3 +491,30 @@ class PixelSizeCalibration(experiment.Experiment):
 #Support for old config classes
 class GratingConfig(MovingGratingConfig):
     pass
+
+class MyFFGratingsConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPEATS = int(10.0*0.1)
+        self.PAUSE = 0
+        self.GRATING_SIZE = 100
+        self.DUTY_CYCLE = 1.0
+        self.DURATION = 10.0*.2
+        self.SPEEDS = 102*2
+        self.FULLFIELD_ORIENTATIONS = range(0,360,90)
+        self.runnable='MyFFGratingsExp'
+
+class MyFFGratingsExp(experiment.Experiment):
+    def prepare(self):
+        self.fragment_durations = [((self.experiment_config.DURATION*len(self.experiment_config.FULLFIELD_ORIENTATIONS)) + self.experiment_config.PAUSE) * self.experiment_config.REPEATS]
+    
+    def run(self):
+        for rep in range(self.experiment_config.REPEATS):
+            self.show_fullscreen(duration = self.experiment_config.PAUSE, color = 0)
+            for ori in self.experiment_config.FULLFIELD_ORIENTATIONS:
+                self.show_grating(duration = self.experiment_config.DURATION,  
+                        white_bar_width = self.experiment_config.GRATING_SIZE,  
+                        orientation = ori,  
+                        velocity =self.experiment_config.SPEEDS,
+                        color_contrast = 1.0,  
+                        color_offset = 0.5,
+                        duty_cycle = self.experiment_config.DUTY_CYCLE)

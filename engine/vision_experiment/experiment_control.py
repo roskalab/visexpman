@@ -46,6 +46,8 @@ class ExperimentControl(object):
         '''
         self.application_log = application_log
         self.config = config
+        if self.config.PLATFORM == 'standalone':
+            self.id = str(int(time.time()))
         if not hasattr(self, 'number_of_fragments'):
             self.number_of_fragments = 1
         if not issubclass(self.__class__,experiment.PreExperiment): #In case of preexperiment, fragment durations is not expected
@@ -132,7 +134,8 @@ class ExperimentControl(object):
         
     def _load_experiment_parameters(self):
         if not self.parameters.has_key('id'):
-            self.printl('Measurement ID is NOT provided')
+            if not hasattr(self, 'id'):#in case it is a standalone experiment don't show message
+                self.printl('Measurement ID is NOT provided')
             return False
         self.parameter_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.parameters['id']+'.hdf5')
         if not os.path.exists(self.parameter_file):
@@ -165,7 +168,7 @@ class ExperimentControl(object):
         self.stimulus_frame_info = []
         self.start_time = time.time()
         self.filenames = {}
-        if not self._load_experiment_parameters():
+        if not self._load_experiment_parameters() and self.config.PLATFORM == 'mes':
             self.abort = True
         self._initialize_experiment_log()
         self._initialize_devices()
@@ -281,6 +284,9 @@ class ExperimentControl(object):
             self.parallel_port.set_data_bit(self.config.ACQUISITION_TRIGGER_PIN, 1)
             return True
         elif self.config.PLATFORM == 'standalone':
+            if hasattr(self, 'fragment_durations'):
+                self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
+                self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
             return True
         return False
 
@@ -368,7 +374,11 @@ class ExperimentControl(object):
         '''
         All the devices are initialized here, that allow rerun like operations
         '''
-        self.parallel_port = instrument.ParallelPort(self.config, self.log, self.start_time)
+        if hasattr(self.config, 'SERIAL_DIO_PORT') and self.config.PLATFORM != 'mes':
+            from visexpman.engine.hardware_interface import digital_io
+            self.parallel_port = digital_io.SerialPortDigitalIO(self.config, self.log, self.start_time)
+        else:
+            self.parallel_port = instrument.ParallelPort(self.config, self.log, self.start_time)
         self.filterwheels = []
         if hasattr(self.config, 'FILTERWHEEL_SERIAL_PORT'):
             self.number_of_filterwheels = len(self.config.FILTERWHEEL_SERIAL_PORT)
@@ -379,8 +389,8 @@ class ExperimentControl(object):
             self.filterwheels.append(instrument.Filterwheel(self.config, self.log, self.start_time, id =id))
         self.led_controller = daq_instrument.AnalogPulse(self.config, self.log, self.start_time, id = 1)#TODO: config shall be analog pulse specific, if daq enabled, this is always called
         self.analog_input = None #This is instantiated at the beginning of each fragment
-        self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
         if self.config.PLATFORM == 'mes':
+            self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
 
     def _close_devices(self):
@@ -389,7 +399,8 @@ class ExperimentControl(object):
             for filterwheel in self.filterwheels:
                 filterwheel.release_instrument()
         self.led_controller.release_instrument()
-        self.stage.release_instrument()
+        if hasattr(self,'stage'):
+            self.stage.release_instrument()
 
 
     ############### File handling ##################
@@ -518,7 +529,7 @@ class ExperimentControl(object):
                 stimulus_frame_info = self.stimulus_frame_info
             if hasattr(self, 'animal_parameters'):
                 data_to_file['animal_parameters'] = self.animal_parameters
-            else:
+            elif self.config.PLATFORM != 'standalone':
                 self.printl('NO animal parameters saved')
             if self.config.PLATFORM == 'mes':
                 data_to_file['mes_data_path'] = os.path.split(self.filenames['mes_fragments'][fragment_id])[-1]
