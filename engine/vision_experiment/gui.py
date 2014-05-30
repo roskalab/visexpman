@@ -2105,13 +2105,16 @@ class MainPoller(Poller):
             del h.parameters['laser_intensities']
         if h.parameters.has_key('objective_positions'):
             del h.parameters['objective_positions']
-        h.scan_regions = copy.deepcopy(self.scan_regions)
-        h.scan_regions = {self.experiment_parameters['region_name'] : h.scan_regions[self.experiment_parameters['region_name']]}#Keep only current scan region
-        if h.scan_regions[self.experiment_parameters['region_name']].has_key('process_status'):
-            del h.scan_regions[self.experiment_parameters['region_name']]['process_status']#remove the continously increasing and unnecessary node
+        if self.config.PLATFORM == 'mes':
+            h.scan_regions = copy.deepcopy(self.scan_regions)
+            h.scan_regions = {self.experiment_parameters['region_name'] : h.scan_regions[self.experiment_parameters['region_name']]}#Keep only current scan region
+            if h.scan_regions[self.experiment_parameters['region_name']].has_key('process_status'):
+                del h.scan_regions[self.experiment_parameters['region_name']]['process_status']#remove the continously increasing and unnecessary node
         h.animal_parameters = copy.deepcopy(self.animal_parameters)
         h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
-        fields_to_save = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
+        fields_to_save = ['parameters', 'animal_parameters', 'anesthesia_history']
+        if self.config.PLATFORM == 'mes':
+            fields_to_save.append('scan_regions')
         if self.experiment_parameters['scan_mode'] == 'xz':
             h.xz_config = copy.deepcopy(self.xz_config)
             h.rois = copy.deepcopy(self.rois)

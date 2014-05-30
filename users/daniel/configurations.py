@@ -688,7 +688,6 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [400.0, [0, 1000]] #mm
         SCREEN_PIXEL_WIDTH = [0.375, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         SCREEN_RESOLUTION = utils.cr([1280, 800])
-        FULLSCREEN = True
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
         COORDINATE_SYSTEM='ulcorner'
@@ -701,22 +700,23 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         MAXIMUM_RECORDING_DURATION = [900, [0, 10000]] #100
         PLATFORM = 'standalone'
         #=== Network ===
-        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
-        self.COMMAND_RELAY_SERVER['ENABLE'] = False
+        ip = '172.27.27.236'
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = ip
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = True
+        self.COMMAND_RELAY_SERVER['ENABLE'] = True
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP_FROM_TABLE'] = True
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
             {
-            'GUI_MES'  : {'GUI' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.4', 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
-            'STIM_MES'  : {'STIM' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.3', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
-            'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.3',  'PORT': self.BASE_PORT + 5}}, 
-            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '192.168.2.4', 'LOCAL_IP': '192.168.2.2', 'PORT': self.BASE_PORT + 7}}, 
+            'GUI_MES'  : {'GUI' : {'IP': ip, 'LOCAL_IP': ip, 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
+            'STIM_MES'  : {'STIM' : {'IP': ip, 'LOCAL_IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
+            'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': ip, 'LOCAL_IP': '',  'PORT': self.BASE_PORT + 5}}, 
+            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': ip, 'LOCAL_IP': '192.168.2.2', 'PORT': self.BASE_PORT + 7}}, 
             }
         self.COMMAND_RELAY_SERVER['SERVER_IP'] = {\
-                     'GUI_MES': ['192.168.2.4','192.168.2.4'],
-                     'STIM_MES': ['192.168.2.4',''],
-                     'GUI_STIM': ['', '192.168.2.4'],
-                     'GUI_ANALYSIS'  : ['', '192.168.2.4'],
+                     'GUI_MES': [ip,ip],
+                     'STIM_MES': [ip,''],
+                     'GUI_STIM': ['', ip],
+                     'GUI_ANALYSIS'  : ['', ip],
                      }        
         #=== hardware ===
         ENABLE_PARALLEL_PORT =  False
@@ -813,6 +813,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         self.PREFERRED_STIMULI = ['MovingGratingNoMarchingConfig', 'MovingGratingAdrian', 'MovingGratingSpatialFrequencySweep', 'MyFFGratingsConfig',
                             'LedKamill2Config', 'ReceptiveFieldExploreConfig',
                             'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie']
+        FULLSCREEN = True
         self._create_parameters_from_locals(locals())
 
 
