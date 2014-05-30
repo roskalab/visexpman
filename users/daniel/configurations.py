@@ -816,7 +816,6 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         FULLSCREEN = True
         self._create_parameters_from_locals(locals())
 
-
 if __name__ == "__main__":
     pass
     
