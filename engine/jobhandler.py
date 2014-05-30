@@ -109,7 +109,11 @@ class CommandInterface(command_parser.CommandParser):
         command_parser.CommandParser.__init__(self, [self.queues['gui']['in'], self.queues['low_priority_processor']['out']], self.queues['gui']['out'], log = log)
         user = 'daniel'
         import visexpA.engine.configuration
-        self.analysis_config = utils.fetch_classes('visexpA.users.'+user, classname='Config', required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
+        if len(sys.argv)==3:
+            aconfigname = sys.argv[3]
+        else:
+            aconfigname = 'Config'
+        self.analysis_config = utils.fetch_classes('visexpA.users.'+user, classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
         self.copy_request_pending = False
         self.copy_request_time = 0
         self.sent_to_mesextractor = []
