@@ -159,7 +159,7 @@ class Parameter(object):
                         raise OutOfRangeParameterValue
             else:
                 if not(range_[0] <= self.v and range_[1] >= self.v):
-                    raise OutOfRangeParameterValue
+                    raise OutOfRangeParameterValue('range {0}, value: {1}'.format(range_, self.v))
         else:
             raise RuntimeError('Invalid parameter range: {0}, value: {1}'.format(range_, self.v))
                 
