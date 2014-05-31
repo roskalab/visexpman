@@ -42,7 +42,7 @@ else:
 BACKGROUND_COPIER = True
 
 class Jobhandler(object):
-    def __init__(self, user, config_class):
+    def __init__(self, user, config_class, **kwargs):
         '''
         Jobhandler application runs all the computational intensive and analysis related tasks during running experiment.
         '''
@@ -59,6 +59,7 @@ class Jobhandler(object):
         self.queues['low_priority_processor']['in'] = Queue.PriorityQueue()#Fragment check and mesextractor has higher priority
         self.queues['low_priority_processor']['out'] = Queue.PriorityQueue()
         self.command_handler = CommandInterface(self.config, self.queues, log = self.log)
+        self.command_handler.kwargs = kwargs
         if False:
             self.lowpridp= LowPriorityProcessor(self.config, self.queues, self.log, printl = self.command_handler.printl)
             self.lowpridp.background_copier_command_queue = self.command_handler.background_copier_command_queue
@@ -351,7 +352,7 @@ class CommandInterface(command_parser.CommandParser):
                     for source, target in self.not_copied_to_tape:
                         print '{0} to {1}' .format(source, target)
 
-    def check_and_preprocess_fragment(self, id = None):
+    def check_and_preprocess_fragment(self, id = None, force_recreate = False):
         '''
         '''
         try:
@@ -371,8 +372,8 @@ class CommandInterface(command_parser.CommandParser):
                 # tell file_pool to close the file and freeze it until jobhandler is done with it:
                #self.zeromq_pusher.send((('close', full_fragment_path)))
                 #self.zeromq_pusher.send((('suspend', full_fragment_path)))
-                mes_extractor = importers.MESExtractor(full_fragment_path, config = self.config, queue_out = self.queues['low_priority_processor']['out'])
-                data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True)
+                mes_extractor = importers.MESExtractor(full_fragment_path, config = self.config, queue_out = self.queues['low_priority_processor']['out'])                
+                data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = force_recreate)
                 file.set_file_dates(full_fragment_path, file_info)
                 self.queues['low_priority_processor']['out'].put('SOC_mesextractor_readyEOCid={0}EOP' .format(id))
             else:
@@ -417,11 +418,14 @@ class CommandInterface(command_parser.CommandParser):
                     else:
                         runtime=0
                     file.set_file_dates(full_fragment_path, file_info)
-                    if len(sys.argv) > 3 and sys.argv[3] == 'EXPORT_SYNC_DATA_TO_MAT':
+                    
+                    if len(sys.argv) > 3:
+                        self.kwargs['export'] = sys.argv[3]
+                    if self.kwargs['export'] == 'EXPORT_SYNC_DATA_TO_MAT':
                         self.printl('Saving sync data to mat file')
                         from visexpA.users.zoltan import converters
-                        converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal'],  outtag = 'sync', outdir = os.path.split(full_fragment_path)[0])
-                    elif len(sys.argv) > 3 and sys.argv[3] == 'EXPORT_DATA_TO_MAT':
+                        converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal', 'idnode'],  outtag = 'sync', outdir = os.path.split(full_fragment_path)[0])
+                    elif self.kwargs['export'] == 'EXPORT_DATA_TO_MAT':
                         self.printl('Saving data to mat file')
                         from visexpA.users.zoltan import converters
                         converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
@@ -484,6 +488,7 @@ def fragment_name_to_short_string(filename):
     
 class TestJobhandler(unittest.TestCase):
    
+    @unittest.skip('')
     def test_01_task_finished(self):
         import zmq
         from visexpman.users.zoltan.test import unit_test_runner
@@ -513,6 +518,19 @@ class TestJobhandler(unittest.TestCase):
         
         pass
     
+    def test_02_process_folder(self):
+        datafolder = '/mnt/datafast/debug/new'
+        
+        mouse_file = os.path.join(datafolder, [fn for fn in os.listdir(datafolder) if 'mouse_' in fn][0])
+        scan_regions = hdf5io.read_item(mouse_file, 'scan_regions',filelocking=False)
+        jh = Jobhandler('daniel', 'RcMicroscopeSetup', export = 'EXPORT_SYNC_DATA_TO_MAT')
+        for k, v in scan_regions.items():
+            if 'mast' in k: continue
+            for id in [id for id in v['process_status'].keys() if 'Natural' in v['process_status'][id]['info']['stimulus'] ]:
+                jh.command_handler.check_and_preprocess_fragment(id,force_recreate = True)
+                jh.command_handler.find_cells(id)
+        jh.close()
+        
 
 if __name__=='__main__':
     if len(sys.argv)==1:
