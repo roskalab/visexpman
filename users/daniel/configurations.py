@@ -707,13 +707,13 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP_FROM_TABLE'] = True
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
             {
-            'GUI_MES'  : {'GUI' : {'IP': ip, 'LOCAL_IP': ip, 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
+            'GUI_MES'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
             'STIM_MES'  : {'STIM' : {'IP': ip, 'LOCAL_IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
             'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': ip, 'LOCAL_IP': '',  'PORT': self.BASE_PORT + 5}}, 
             'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': ip, 'LOCAL_IP': '192.168.2.2', 'PORT': self.BASE_PORT + 7}}, 
             }
         self.COMMAND_RELAY_SERVER['SERVER_IP'] = {\
-                     'GUI_MES': [ip,ip],
+                     'GUI_MES': ['',''],
                      'STIM_MES': [ip,''],
                      'GUI_STIM': ['', ip],
                      'GUI_ANALYSIS'  : ['', ip],
@@ -761,7 +761,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
-                    'SAMPLE_RATE' : 5000,
+                    'SAMPLE_RATE' : 10000,
                     'AI_CHANNEL' : 'Dev1/ai0:3',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,

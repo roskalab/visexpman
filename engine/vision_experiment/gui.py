@@ -2025,7 +2025,8 @@ class MainPoller(Poller):
     def start_experiment(self):
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
-        self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
+        if self.config.PLATFORM == 'mes':
+            self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
         region_name = self.parent.get_current_region_name()
         if len(region_name)>0:
             self.experiment_parameters['region_name'] = region_name
@@ -2110,11 +2111,12 @@ class MainPoller(Poller):
             h.scan_regions = {self.experiment_parameters['region_name'] : h.scan_regions[self.experiment_parameters['region_name']]}#Keep only current scan region
             if h.scan_regions[self.experiment_parameters['region_name']].has_key('process_status'):
                 del h.scan_regions[self.experiment_parameters['region_name']]['process_status']#remove the continously increasing and unnecessary node
-        h.animal_parameters = copy.deepcopy(self.animal_parameters)
-        h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
-        fields_to_save = ['parameters', 'animal_parameters', 'anesthesia_history']
         if self.config.PLATFORM == 'mes':
-            fields_to_save.append('scan_regions')
+            h.animal_parameters = copy.deepcopy(self.animal_parameters)
+            h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
+        fields_to_save = ['parameters']
+        if self.config.PLATFORM == 'mes':
+            fields_to_save.extend(['scan_regions', 'animal_parameters', 'anesthesia_history'])
         if self.experiment_parameters['scan_mode'] == 'xz':
             h.xz_config = copy.deepcopy(self.xz_config)
             h.rois = copy.deepcopy(self.rois)

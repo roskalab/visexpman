@@ -142,7 +142,9 @@ class ExperimentControl(object):
             self.printl('Parameter file does NOT exists')
             return False
         h = hdf5io.Hdf5io(self.parameter_file,filelocking=False)
-        fields_to_load = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
+        fields_to_load = ['parameters']
+        if self.config.PLATFORM == 'mes':
+            fields_to_load.append(['scan_regions', 'animal_parameters', 'anesthesia_history'])
         for field in fields_to_load:
             value = h.findvar(field)
             if value is None:

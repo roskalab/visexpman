@@ -96,10 +96,19 @@ class VisionExperimentGui(QtGui.QWidget):
         self.image_tab.addTab(self.overview_widget, 'Overview')
         self.standard_io_widget = gui.StandardIOWidget(self, self.config)
         experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
+               
+        
+            
+        
         experiment_config_names = []
         for experiment_config in experiment_config_list:
             experiment_config_names.append(experiment_config[1].__name__)
         experiment_config_names.sort()
+        if hasattr(self.config, 'PREFERRED_STIMULI'):
+            preferred = [expconf for expconf in experiment_config_names if expconf in self.config.PREFERRED_STIMULI]
+            if 0:
+                preferred.extend([expconf for expconf in experiment_config_names if expconf not in self.config.PREFERRED_STIMULI])
+            experiment_config_names = preferred
         self.main_widget.experiment_control_groupbox.experiment_name.addItems(QtCore.QStringList(experiment_config_names))
         try:
             self.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(experiment_config_names.index(self.config.EXPERIMENT_CONFIG))
