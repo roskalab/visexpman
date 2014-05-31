@@ -317,6 +317,8 @@ class Screen(object):
         '''
         #TODO: image resizing
         im = Image.open(path)
+        if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION=='down':
+            im = im.transpose(Image.FLIP_TOP_BOTTOM)
         im = im.convert('RGBX')
         self.image_size = im.size
         ix, iy, image = im.size[0], im.size[1], im.tostring('raw', 'RGBX', 0, -1)        

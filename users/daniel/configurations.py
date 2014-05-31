@@ -687,8 +687,8 @@ class AoMicroscopeSetup(VisionExperimentConfig):
        
         SCREEN_DISTANCE_FROM_MOUSE_EYE = [400.0, [0, 1000]] #mm
         SCREEN_PIXEL_WIDTH = [0.375, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
-        SCREEN_RESOLUTION = utils.cr([1280, 800])
         SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_RESOLUTION = utils.cr([1280, 800])
         SCREEN_MAX_FRAME_RATE = 60.0
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
@@ -814,6 +814,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                             'LedKamill2Config', 'ReceptiveFieldExploreConfig',
                             'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie']
         FULLSCREEN = True
+#        SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])
         self._create_parameters_from_locals(locals())
 
 if __name__ == "__main__":

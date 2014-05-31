@@ -378,7 +378,10 @@ class ExperimentControl(object):
         '''
         if hasattr(self.config, 'SERIAL_DIO_PORT') and self.config.PLATFORM != 'mes':
             from visexpman.engine.hardware_interface import digital_io
-            self.parallel_port = digital_io.SerialPortDigitalIO(self.config, self.log, self.start_time)
+            try:
+                self.parallel_port = digital_io.SerialPortDigitalIO(self.config, self.log, self.start_time)
+            except:
+                pass
         else:
             self.parallel_port = instrument.ParallelPort(self.config, self.log, self.start_time)
         self.filterwheels = []
@@ -396,7 +399,8 @@ class ExperimentControl(object):
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
 
     def _close_devices(self):
-        self.parallel_port.release_instrument()
+        if hasattr(self, 'parallel_port'):
+            self.parallel_port.release_instrument()
         if self.config.OS == 'win':
             for filterwheel in self.filterwheels:
                 filterwheel.release_instrument()

@@ -7,7 +7,8 @@ import time
 
 class NaturalMovie(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.FILENAME = ''
+        self.FILENAME = 'c:\\Data\\images'
+        self.FRAME_RATE=1.0
         self.runnable = 'NaturalMovieExperiment'
         self._create_parameters_from_locals(locals())
 
@@ -102,7 +103,13 @@ class LedMorseStimulation(experiment.Experiment):
         
 class NaturalMovieExperiment(experiment.Experiment):
     def prepare(self):
-        self.fragment_durations = []
+        self.fragment_durations = [len(os.listdir(self.experiment_config.FILENAME))/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]
         
     def run(self):
-        pass
+        if self.experiment_config.FRAME_RATE == self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
+            duration = 0
+        elif self.experiment_config.FRAME_RATE == self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
+            raise RuntimeError('This frame rate is not possible')
+        else:
+            duration = 1.0/self.experiment_config.FRAME_RATE
+        self.show_image(self.experiment_config.FILENAME,duration)
