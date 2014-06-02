@@ -46,7 +46,7 @@ class Jobhandler(object):
         '''
         Jobhandler application runs all the computational intensive and analysis related tasks during running experiment.
         '''
-        self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig)[0][1]()
+        self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct=False)[0][1]()
         self.queues = {}
         self.queues['gui'] = {}
         self.queues['gui']['out'] = Queue.Queue()
@@ -424,7 +424,7 @@ class CommandInterface(command_parser.CommandParser):
                     if self.kwargs['export'] == 'EXPORT_SYNC_DATA_TO_MAT':
                         self.printl('Saving sync data to mat file')
                         from visexpA.users.zoltan import converters
-                        converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal', 'idnode'],  outtag = 'sync', outdir = os.path.split(full_fragment_path)[0])
+                        converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal', 'idnode'],  outtag = 'sync', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
                     elif self.kwargs['export'] == 'EXPORT_DATA_TO_MAT':
                         self.printl('Saving data to mat file')
                         from visexpA.users.zoltan import converters
@@ -524,6 +524,7 @@ class TestJobhandler(unittest.TestCase):
         mouse_file = os.path.join(datafolder, [fn for fn in os.listdir(datafolder) if 'mouse_' in fn][0])
         scan_regions = hdf5io.read_item(mouse_file, 'scan_regions',filelocking=False)
         jh = Jobhandler('daniel', 'RcMicroscopeSetup', export = 'EXPORT_SYNC_DATA_TO_MAT')
+#        jh = Jobhandler('daniel', 'JobhandllerConfig', export = 'EXPORT_SYNC_DATA_TO_MAT')
         for k, v in scan_regions.items():
             if 'mast' in k: continue
             for id in [id for id in v['process_status'].keys() if 'Natural' in v['process_status'][id]['info']['stimulus'] ]:

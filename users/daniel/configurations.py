@@ -645,6 +645,18 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         
 class VS3DUS(RcMicroscopeSetup):
     pass
+    
+class JobhandlerConfig(RcMicroscopeSetup):
+    '''
+    Visual stimulation machine of 3D microscope setup
+    '''
+    def _set_user_parameters(self):
+        RcMicroscopeSetup._set_user_parameters(self)
+        self.EXPERIMENT_DATA_PATH = '/mnt/datafast/debug/new'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
+        
+
 
 if __name__ == "__main__":
     pass

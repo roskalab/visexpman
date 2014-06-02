@@ -24,9 +24,9 @@ class NaturalLedStimulation(experiment.Experiment):
         self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(self.experiment_config.DURATION, 1.0, 
                                                     1.0/self.experiment_config.MAX_FREQUENCY, 
                                                     1.0/self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'])*self.experiment_config.MAX_AMPLITUDE
-        self.intensity_profile = numpy.append(self.intensity_profile, 0.0)
         self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS]
         self.save_variables(['intensity_profile'])#Save to make it available for analysis
+        self.intensity_profile = numpy.append(self.intensity_profile, 0.0)
     
     def run(self, fragment_id = 0):
         self.show_fullscreen(color = 0.0, duration = 0.0)
