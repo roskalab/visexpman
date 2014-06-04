@@ -41,7 +41,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
             self.vaf = 1
         else:
-            self.vaf = -1
+            self.vaf = -16666666666666666666
         if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
             self.haf = 1
         else:
@@ -113,7 +113,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 if len(cmd)>0:
                     self.keyboard_commands.put(cmd[0])
                 return False
-        
+
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
         '''
         Saves:
@@ -309,18 +309,36 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 start_position = (10,10)
                 show_image('directory_path',  0.0,  start_position,  formula)             
         '''
-        self.screen.render_imagefile(path, position = position)
-        if duration == 0.0:
-            if flip:
-                self._flip(trigger = True)        
+        #Generate log messages
+        flips_per_frame = duration/(1.0/self.config.SCREEN_EXPECTED_FRAME_RATE)
+        if flips_per_frame != numpy.round(flips_per_frame):
+            raise RuntimeError('This duration is not possible, it should be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE')                
+        self.log_on_flip_message_initial = 'show_image(' + str(path)+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(size)  + ', ' + ')'
+        self.log_on_flip_message_continous = 'show_shape'
+        self._save_stimulus_frame_info(inspect.currentframe())
+        if os.path.isdir(path):
+            for fn in os.listdir(path):
+                self._show_image(os.path.join(path,fn),duration,position,flip)
+            self.screen.clear_screen()
+            self._flip(trigger = False)
         else:
-            n_frames = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
-            for i in range(n_frames):
-                if flip:
-                    self._flip_and_block_trigger(i, n_frames, True, block_trigger)
-                if self.abort:
-                    break
+            self._show_image(path,duration,position,flip)
+        self._save_stimulus_frame_info(inspect.currentframe())
         
+    def _show_image(self,path,duration,position,flip):
+        if duration == 0.0:
+            nframe=1
+        else:
+            nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
+        for i in range(nframes):
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.screen.render_imagefile(path, position = utils.rc_add(position,
+                        utils.rc_multiply_with_constant(self.machine_config.SCREEN_CENTER, self.config.SCREEN_UM_TO_PIXEL_SCALE)))
+            if flip:
+                self._flip(trigger = True)
+            if self.abort:
+                break
+    
 #        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
 #        if os.path.isdir(path) == True:
 #            #when content of directory is to be shown
@@ -1281,8 +1299,11 @@ class StimulationSequences(Stimulations):
                 self.measure_light_power(c)
                 if self.check_abort_pressed():
                     break
-                    
+
     def measure_light_power(self, reference_intensity):
+        '''
+        Placeholder for light power measurement. This shall be implemented in the experiment class
+        '''
         pass
         
     def moving_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0,block_trigger = False):

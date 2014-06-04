@@ -52,6 +52,7 @@ class ProjectorCalibrationSetup(VisionExperimentConfig):
         self.LIGHT_METER = {}
         self.LIGHT_METER['ENABLE'] = True
         self.LIGHT_METER['AVERAGING'] = 200
+        self.LIGHT_METER['TIMEOUT'] = 5
         
         gamma_correction_path = os.path.join(CALIBRATION_OUTPUT_PATH, 'gamma.hdf5')
         if os.path.exists(gamma_correction_path) and getattr(argparser.parse_args(), 'check_calibration'):
