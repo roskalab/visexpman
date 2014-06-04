@@ -1176,7 +1176,13 @@ class VisionExperimentGui(Qt.QMainWindow):
         
     def update_machine_parameters(self):
         self.central_widget.parameters_groupbox.table['scanner'].blockSignals(True)
-        self.central_widget.parameters_groupbox.table['scanner'].set_values(self.central_widget.parameters_groupbox.machine_parameters['scanner'], 
+        formatted = {}
+        for k,v in self.central_widget.parameters_groupbox.machine_parameters['scanner'].items():
+            if isinstance(v,list):
+                formatted[k] = '#'.join(v)
+            else:
+                formatted[k] = v
+        self.central_widget.parameters_groupbox.table['scanner'].set_values(formatted, 
                                                                             self.central_widget.parameters_groupbox.machine_parameter_order['scanner'])
         self.central_widget.parameters_groupbox.table['scanner'].blockSignals(False)
         

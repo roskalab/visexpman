@@ -141,7 +141,7 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
         FULLSCREEN = not True
-        paths = ['/home/zoltan/Downloads/work','/mnt/rznb/data', '/mnt/rzws/experiment_data','/mnt/datafast/debug/data', 'r:\\experiment_data', 'v:\\debug\\data']
+        paths = ['/mnt/rznb/data', '/mnt/rzws/experiment_data','/mnt/datafast/debug/data', 'r:\\experiment_data', 'v:\\debug\\data', '/tmp']
         for path in paths:
             if os.path.exists(path):
                 self.root_folder = path
@@ -149,7 +149,7 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
-        DATA_STORAGE_PATH = fileop.select_folder_exists(['/mnt/datafast/debug/animalfiles','v:\\debug\\animalfiles', '/home/zoltan/Downloads', '/mnt/rzws/dataslow'])
+        DATA_STORAGE_PATH = fileop.select_folder_exists(['/mnt/datafast/debug/animalfiles','v:\\debug\\animalfiles', '/mnt/rzws/dataslow', '/tmp'])
         CONTEXT_PATH = self.root_folder
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         #### experiment specific ####

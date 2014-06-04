@@ -751,6 +751,7 @@ class ExperimentControl(gui.WidgetControl):
             except ValueError:
                 self.poller.notify_user('WARNING', '{0} shall be provided in numeric format: {1}'.format(stringop.to_title(pn),self.mandatory_parameters[pn]))
                 return False
+        self.mandatory_parameters['stimulus_flash_trigger_duty_cycle'] *= 1e-2
         self.mandatory_parameters['duration'] = experiment.get_experiment_duration(
                                                                                    self.mandatory_parameters['experiment_name'], 
                                                                                    self.config, 
