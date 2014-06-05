@@ -1155,6 +1155,13 @@ class VisionExperimentGui(Qt.QMainWindow):
         
     def machine_parameter_table_content_changed(self):
         self.central_widget.parameters_groupbox.machine_parameters['scanner'] = self.central_widget.parameters_groupbox.table['scanner'].get_values()
+        formatted = {}
+        for k,v in self.central_widget.parameters_groupbox.machine_parameters['scanner'].items():
+            if isinstance(v,list):
+                formatted[k] = '#'.join(v)
+            else:
+                formatted[k] = v
+        self.central_widget.parameters_groupbox.machine_parameters['scanner'] = formatted
     
     ################# Update widgets #################### 
     def update_recording_status(self):
@@ -1177,12 +1184,7 @@ class VisionExperimentGui(Qt.QMainWindow):
     def update_machine_parameters(self):
         self.central_widget.parameters_groupbox.table['scanner'].blockSignals(True)
         formatted = {}
-        for k,v in self.central_widget.parameters_groupbox.machine_parameters['scanner'].items():
-            if isinstance(v,list):
-                formatted[k] = '#'.join(v)
-            else:
-                formatted[k] = v
-        self.central_widget.parameters_groupbox.table['scanner'].set_values(formatted, 
+        self.central_widget.parameters_groupbox.table['scanner'].set_values(self.central_widget.parameters_groupbox.machine_parameters['scanner'], 
                                                                             self.central_widget.parameters_groupbox.machine_parameter_order['scanner'])
         self.central_widget.parameters_groupbox.table['scanner'].blockSignals(False)
         

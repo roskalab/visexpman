@@ -751,7 +751,11 @@ class ExperimentControl(gui.WidgetControl):
             except ValueError:
                 self.poller.notify_user('WARNING', '{0} shall be provided in numeric format: {1}'.format(stringop.to_title(pn),self.mandatory_parameters[pn]))
                 return False
+        if self.mandatory_parameters['analog_output_sampling_rate'] > self.mandatory_parameters['analog_input_sampling_rate']:
+            self.poller.notify_user('WARNING', 'Analog input sampling rate cannot be less than analog output sampling rate')
+            return False
         self.mandatory_parameters['stimulus_flash_trigger_duty_cycle'] *= 1e-2
+        self.mandatory_parameters['maximal_x_line_linearity_error'] *= 1e-2
         self.mandatory_parameters['duration'] = experiment.get_experiment_duration(
                                                                                    self.mandatory_parameters['experiment_name'], 
                                                                                    self.config, 
@@ -774,13 +778,12 @@ class ExperimentControl(gui.WidgetControl):
         self.mandatory_parameters['counter'] = '{0:0=3}'.format(len(self.poller.animal_file.recordings))
         return True
             
-    def _check_scan_parameters(self):
+    def _calculate_and_check_scan_parameters(self):
         '''
         Checks ca imaging related parameters, constructs the command signal and warns user if something is wrong with it
         
         This operation could be initiated by value changes in corresponding widgets. It might run for longer times and that would slow down the whole application
         '''
-        #!!!!!Continue here: 
         #Convert parameters
         if self.mandatory_parameters['resolution_unit'] == 'um/pixel':
             self.mandatory_parameters['resolution'] = 1.0/self.mandatory_parameters['pixel_size']
@@ -798,28 +801,33 @@ class ExperimentControl(gui.WidgetControl):
         constraints['phase_characteristics']=self.config.SCANNER_CHARACTERISTICS['PHASE']
         constraints['gain_characteristics']=self.config.SCANNER_CHARACTERISTICS['GAIN']
         #Generate scanner signals and data mask
-        xsignal,ysignal,valid_data_mask,signal_attributes =\
+        xsignal,ysignal,frame_trigger_signal, valid_data_mask,signal_attributes =\
                             scanner_control.generate_scanner_signals(self.mandatory_parameters['scanning_range'], 
                                                                                 self.mandatory_parameters['resolution'], 
                                                                                 self.mandatory_parameters['scan_center'], 
                                                                                 constraints)
         #Generate stimulus strigger signal
-        stimulus_flash_trigger_signal = scanner_control.generate_stimulus_flash_trigger(valid_data_mask, self.mandatory_parameters['stimulus_flash_trigger_duty_cycle'], 
+        stimulus_flash_trigger_signal, signal_attributes['real_duty_cycle'] = scanner_control.generate_stimulus_flash_trigger(
+                                                                                                                    valid_data_mask, 
+                                                                                                                    self.mandatory_parameters['stimulus_flash_trigger_duty_cycle'], 
                                                                                                                     self.mandatory_parameters['stimulus_flash_trigger_delay'], 
-                                                                                                                    signal_attributes, constraints)
+                                                                                                                    signal_attributes, 
+                                                                                                                    constraints)
         for k,v in signal_attributes.items():
             if k =='one_period_x_scanner_signal' or k == 'one_period_valid_data_mask':
                 continue
             else:
                 self.printc('{0}: {1}'.format(stringop.to_title(k), v))
+        scanning_attributes = {}
+        for pn in ['xsignal', 'ysignal', 'stimulus_flash_trigger_signal', 'frame_trigger_signal', 'valid_data_mask', 'signal_attributes', 'constraints']:
+            scanning_attributes[pn] = locals()[pn]
+        return scanning_attributes
         
     def check_scan_parameters(self):
         self._get_experiment_run_parameters()
         if not self._parse_experiment_run_parameters():
             return
-        self._check_scan_parameters()
-        #TODO: display results 
-        
+        scanning_attributes = self._calculate_and_check_scan_parameters()
         
     def add_experiment(self):
         '''
@@ -828,7 +836,7 @@ class ExperimentControl(gui.WidgetControl):
         self._get_experiment_run_parameters()
         if not self._parse_experiment_run_parameters():
             return
-        self._check_scan_parameters()
+        self.mandatory_parameters['scanning_attributes'] = self._calculate_and_check_scan_parameters()
         self.poller.animal_file.recordings.append(self.mandatory_parameters)
         if hasattr(self.poller.animal_file, 'filename'):
             hdf5io.save_item(self.poller.animal_file.filename, 'recordings', utils.object2array(self.poller.animal_file.recordings), self.config, overwrite = True)

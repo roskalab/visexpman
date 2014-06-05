@@ -21,8 +21,14 @@ class LoggingError(Exception):
 def log2str(msg):
     msg_out = copy.deepcopy(msg)
     #Experiment config source code is not logged
-    if utils.safe_has_key(msg_out, 'args') and isinstance(msg_out['args'], list) and utils.safe_has_key(msg_out['args'][0], 'experiment_config_source_code'):
-        msg_out['args'][0]['experiment_config_source_code'] = 'Not logged'
+    if utils.safe_has_key(msg_out, 'args') and isinstance(msg_out['args'], list):
+        if utils.safe_has_key(msg_out['args'][0], 'experiment_config_source_code'):
+            msg_out['args'][0]['experiment_config_source_code'] = 'Not logged'
+        if utils.safe_has_key(msg_out['args'][0], 'scanning_attributes'):
+            for vn in ['xsignal', 'ysignal', 'frame_trigger_signal', 'valid_data_mask', 
+                        'stimulus_flash_trigger_signal', 'one_period_valid_data_mask', 
+                        'one_period_x_scanner_signal']:
+                msg_out['args'][0]['scanning_attributes'][vn] = 'Not logged'
     return str(msg_out)
     
 class LoggerHelper(object):

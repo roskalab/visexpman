@@ -1705,6 +1705,7 @@ class TestScannerControl(unittest.TestCase):
         constraints['gain_characteristics']=[9.92747933e-01, 2.42763029e-06, -2.40619419e-08]
         
         scan_configs = [
+                                    [utils.rc((100,100)), 1, False, 100e3,5e-2],
                                     [utils.rc((100,100)), 2, True, 400e3,5e-2],
                                     [utils.rc((100,100)), 2, False, 400e3,5e-2],
                                     [utils.rc((100,100)), 2, False, 400e3,1e-2],
@@ -1718,7 +1719,7 @@ class TestScannerControl(unittest.TestCase):
                                    ]
         for scan_size, resolution, constraints['enable_flybackscan'], constraints['sample_frequency'], constraints['max_linearity_error'] in scan_configs:
             center = utils.rc((1,10))
-            xsignal,ysignal,valid_data_mask,signal_attributes =\
+            xsignal,ysignal,frame_trigger_signal, valid_data_mask,signal_attributes =\
                             generate_scanner_signals(scan_size, resolution, center, constraints)
             self.assertGreaterEqual(signal_attributes['ymirror_flyback_time'],constraints['ymirror_flyback_time'])
             number_of_periods = numpy.where(numpy.diff(numpy.where(xsignal>xsignal.mean(),1,0))>0,1,0).sum()
@@ -1753,18 +1754,20 @@ class TestScannerControl(unittest.TestCase):
             #test y scanner signal amplitude
             self.assertAlmostEqual((ysignal.max()-ysignal.min())/constraints['um2voltage_scale'], float(scan_size['row']), 5)
             self.assertAlmostEqual(ysignal.mean()/constraints['um2voltage_scale'], center['row'],5)
+            #check frame trigger signal
+            self.assertLess(constraints['sample_frequency']*constraints['ymirror_flyback_time'], 
+                             frame_trigger_signal.shape[0]-frame_trigger_signal.sum())
             if False:
                 print ', '.join(['{0}={1}'.format(k, numpy.round(v, 3)) for k,v in signal_attributes.items()])
             duty_cycle = 0.2
             delay = 10e-6
-            stimulus_flash_trigger_signal = generate_stimulus_flash_trigger(valid_data_mask, duty_cycle, delay, signal_attributes, constraints)
+            stimulus_flash_trigger_signal, rdc = generate_stimulus_flash_trigger(valid_data_mask, duty_cycle, delay, signal_attributes, constraints)
             self.assertEqual((stimulus_flash_trigger_signal+valid_data_mask).max(), 1.0)#If more than 1, data and flash overlaps which is not acceptable
-            stimulus_flash_trigger_signal = generate_stimulus_flash_trigger(valid_data_mask, 1.0, delay, signal_attributes, constraints)
+            stimulus_flash_trigger_signal, rdc = generate_stimulus_flash_trigger(valid_data_mask, 1.0, delay, signal_attributes, constraints)
             self.assertEqual((stimulus_flash_trigger_signal+valid_data_mask).max(), 1.0)#If more than 1, data and flash overlaps which is not acceptable
-            stimulus_flash_trigger_signal = generate_stimulus_flash_trigger(valid_data_mask, 1.0, 0.0, signal_attributes, constraints)
+            stimulus_flash_trigger_signal, rdc = generate_stimulus_flash_trigger(valid_data_mask, 1.0, 0.0, signal_attributes, constraints)
             self.assertEqual((stimulus_flash_trigger_signal+valid_data_mask).max(), 1.0)#If more than 1, data and flash overlaps which is not acceptable
             self.assertEqual((valid_data_mask+stimulus_flash_trigger_signal).sum(),stimulus_flash_trigger_signal.shape[0])#100% duty cycle, no delay: data mask and trigger signal covers the whole time
-            
 #        plot(ysignal)
 #        plot(xsignal)
 #        plot(valid_data_mask)
@@ -1842,6 +1845,8 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
             t_down = yflyback_time_corrected
             frame_rate = 1.0/(t_up+t_down)
             ysignal = signal.wf_triangle(1.0, t_up, t_down, t_up +t_down, constraints['sample_frequency'], offset = -0.5)
+            frame_trigger_signal = numpy.zeros_like(ysignal)
+            frame_trigger_signal[:int(constraints['sample_frequency']*t_up)] = 1.0
             #scale y signal to voltage and add offset
             ysignal *= scan_size['row']*constraints['um2voltage_scale']
             ysignal += center['row']*constraints['um2voltage_scale']
@@ -1860,12 +1865,13 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
     signal_attributes['one_period_x_scanner_signal'] = one_period_x_scanner_signal
     signal_attributes['one_period_valid_data_mask'] = mask
     signal_attributes['nxlines'] = nxlines
-    return xsignal,ysignal,valid_data_mask,signal_attributes
+    return xsignal,ysignal,frame_trigger_signal,valid_data_mask,signal_attributes
 
 def generate_stimulus_flash_trigger(mask, duty_cycle, delay, signal_attributes, constraints):
     '''
     From valid data mask generate trigger signal
     If duty_cycle is 1.0, then maximal possible duty cycle is presented but delay is applyed too.
+    0.5 duty cycle means 50% time during the whole scanning is used for flashing the stimulus
     '''
     if duty_cycle >1:
         raise RuntimeError('Duty cycle shall be between 0.0...1.0')
@@ -1892,11 +1898,9 @@ def generate_stimulus_flash_trigger(mask, duty_cycle, delay, signal_attributes, 
         stimulus_flash_trigger_signal[start_indexes[i]:end_indexes[i]]=1
     #Shift mask back
     stimulus_flash_trigger_signal = numpy.roll(stimulus_flash_trigger_signal,shift+1)
-    return numpy.tile(stimulus_flash_trigger_signal, signal_attributes['nxlines'])
-    
-    
-
-    
+    stimulus_flash_trigger_signal = numpy.tile(stimulus_flash_trigger_signal, signal_attributes['nxlines'])
+    real_duty_cycle = float(stimulus_flash_trigger_signal.sum())/float(stimulus_flash_trigger_signal.shape[0])
+    return stimulus_flash_trigger_signal, real_duty_cycle
 
 if __name__ == "__main__":
     unittest.main()

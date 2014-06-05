@@ -339,7 +339,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         TWO_PHOTON_PINOUT = {}
         TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'] = 'Dev1/port0/line0',
         TWO_PHOTON_PINOUT['PMT_ANALOG_INPUT_CHANNELS'] = 'Dev1/ai0:1'
-        TWO_PHOTON_PINOUT['CA_IMAGING_SIGNAL_CHANNELS'] = 'Dev1/ao0:3'
+        TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'] = 'Dev1/ao0:3'
         TWO_PHOTON_DAQ_TIMEOUT = [5.0, [0.1, 60.0]]
         
         #Scanner dynamics

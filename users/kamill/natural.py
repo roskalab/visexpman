@@ -8,7 +8,7 @@ import time
 class NaturalMovie(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.FILENAME = 'c:\\Data\\images'
-        self.FRAME_RATE=1.0
+        self.FRAME_RATE=self.machine_config.SCREEN_EXPECTED_FRAME_RATE
         self.runnable = 'NaturalMovieExperiment'
         self._create_parameters_from_locals(locals())
 
