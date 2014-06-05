@@ -5,6 +5,22 @@ import os
 import numpy
 import time
 
+class NaturalMovie(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.FILENAME = 'c:\\Data\\images'
+        self.FRAME_RATE=1.0
+        self.runnable = 'NaturalMovieExperiment'
+        self._create_parameters_from_locals(locals())
+
+class NaturalBarsConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.SPEED = 300.0#um/s
+        self.REPEATS = 2#5
+        self.DIRECTIONS = range(0,360,90)
+        self.DURATION = 30.0
+        self.runnable = 'NaturalBarsExperiment'
+        self._create_parameters_from_locals(locals())
+        
 class NaturalIntensityProfileConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.MAX_AMPLITUDE = 0.5#V
@@ -14,25 +30,6 @@ class NaturalIntensityProfileConfig(experiment.ExperimentConfig):
         self.runnable = 'NaturalLedStimulation'
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
-
-
-class NaturalLedStimulation(experiment.Experiment):
-    '''
-    Flashes externally connected blue led controller by generating analog control signals using daq analog output
-    '''
-    def prepare(self):
-        self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(self.experiment_config.DURATION, 1.0, 
-                                                    1.0/self.experiment_config.MAX_FREQUENCY, 
-                                                    1.0/self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'])*self.experiment_config.MAX_AMPLITUDE
-        self.intensity_profile = numpy.append(self.intensity_profile, 0.0)
-        self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS]
-        self.save_variables(['intensity_profile'])#Save to make it available for analysis
-    
-    def run(self, fragment_id = 0):
-        self.show_fullscreen(color = 0.0, duration = 0.0)
-        for rep in range(self.experiment_config.REPEATS):
-            self.led_controller.set(self.intensity_profile,None)
-            self.led_controller.start()
         
 class NaturalMorseConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -43,7 +40,7 @@ class NaturalMorseConfig(experiment.ExperimentConfig):
         self.runnable = 'LedMorseStimulation'
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
-        
+
 class LedMorseStimulation(experiment.Experiment):
     '''
     Flashes externally connected blue led controller by generating analog control signals using daq analog output
@@ -73,3 +70,20 @@ class LedMorseStimulation(experiment.Experiment):
             self.led_controller.set(self.waveform,None)
             self.led_controller.start()
         
+class NaturalLedStimulation(experiment.Experiment):
+    '''
+    Flashes externally connected blue led controller by generating analog control signals using daq analog output
+    '''
+    def prepare(self):
+        self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(self.experiment_config.DURATION, 1.0, 
+                                                    1.0/self.experiment_config.MAX_FREQUENCY, 
+                                                    1.0/self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'])*self.experiment_config.MAX_AMPLITUDE
+        self.intensity_profile = numpy.append(self.intensity_profile, 0.0)
+        self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS]
+        self.save_variables(['intensity_profile'])#Save to make it available for analysis
+    
+    def run(self, fragment_id = 0):
+        self.show_fullscreen(color = 0.0, duration = 0.0)
+        for rep in range(self.experiment_config.REPEATS):
+            self.led_controller.set(self.intensity_profile,None)
+            self.led_controller.start()

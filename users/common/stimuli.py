@@ -221,3 +221,29 @@ class PixelSizeCalibration(experiment.Experiment):
                 if pattern == 2:
                     pattern = 0
                 self.command_buffer = ''
+
+class NaturalMovieExperiment(experiment.Experiment):
+    def prepare(self):
+        self.fragment_durations = [len(os.listdir(self.experiment_config.FILENAME))/float(self.machine_config.SCREEN_EXPECTED_FRAME_RATE)]
+        
+    def run(self):
+        if self.experiment_config.FRAME_RATE == self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
+            duration = 0
+        elif self.experiment_config.FRAME_RATE == self.machine_config.SCREEN_EXPECTED_FRAME_RATE:
+            raise RuntimeError('This frame rate is not possible')
+        else:
+            duration = 1.0/self.experiment_config.FRAME_RATE
+        self.show_image(self.experiment_config.FILENAME,duration)
+
+class NaturalBarsExperiment(experiment.Experiment):
+    def prepare(self):
+        self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS*len(self.experiment_config.DIRECTIONS)]
+        
+    def run(self):
+        for rep in range(self.experiment_config.REPEATS):
+            if self.abort:
+                break
+            for directions in self.experiment_config.DIRECTIONS:
+                if self.abort:
+                    break
+                self.show_natural_bars(speed = self.experiment_config.SPEED, duration=self.experiment_config.DURATION, minimal_spatial_period = None, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, intensity_levels = 255, direction = directions)
