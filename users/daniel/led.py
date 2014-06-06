@@ -101,7 +101,7 @@ if 0:
             self.PAUSE_BETWEEN_FLASHES = 30.0 #10.0
             self.NUMBER_OF_FLASHES = 3.0
             self.FLASH_DURATION = 100e-3
-            self.FLASH_AMPLITUDE = 0.4 #10.0
+            self.FLASH_AMPLITUDE = 0.5 #10.0
             self.DELAY_BEFORE_FIRST_FLASH = 30.0
             self.runnable = 'LedStimulation'
             self.pre_runnable = 'LedPre'
@@ -114,6 +114,54 @@ class LedKamill2Config(experiment.ExperimentConfig):
         self.NUMBER_OF_FLASHES = 3.0
         self.FLASH_DURATION = 5.0
         self.FLASH_AMPLITUDE = 2.0 #max 10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class LedKamillExploreConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.BEEP_AT_EXPERIMENT_START_STOP = True
+        self.PAUSE_BETWEEN_FLASHES = 30.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 5.0
+        self.FLASH_AMPLITUDE = [0.02, 2.0] #max 10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+
+class LedKamill10mWConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.BEEP_AT_EXPERIMENT_START_STOP = True
+        self.PAUSE_BETWEEN_FLASHES = 30.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 5.0
+        self.FLASH_AMPLITUDE = 2.0 #max 10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+               
+class LedKamill1mWConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.BEEP_AT_EXPERIMENT_START_STOP = True
+        self.PAUSE_BETWEEN_FLASHES = 30.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 5.0
+        self.FLASH_AMPLITUDE = 0.2 #max 10.0
+        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.runnable = 'LedStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+        
+class LedKamill100uWConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.BEEP_AT_EXPERIMENT_START_STOP = True
+        self.PAUSE_BETWEEN_FLASHES = 30.0
+        self.NUMBER_OF_FLASHES = 3.0
+        self.FLASH_DURATION = 5
+        self.FLASH_AMPLITUDE = 0.045 #max 10.0
         self.DELAY_BEFORE_FIRST_FLASH = 10.0
         self.runnable = 'LedStimulation'
         self.pre_runnable = 'LedPre'
@@ -141,11 +189,19 @@ class LedStimulation(experiment.Experiment):
     Flashes externally connected blue led controller by generating analog control signals using daq analog output
     '''
     def prepare(self):
-        self.period_time = self.experiment_config.FLASH_DURATION + self.experiment_config.PAUSE_BETWEEN_FLASHES
+        if not isinstance(self.experiment_config.FLASH_AMPLITUDE, list):
+            self.flash_amplitudes = [self.experiment_config.FLASH_AMPLITUDE]
+        else:
+            self.flash_amplitudes = self.experiment_config.FLASH_AMPLITUDE
+        if not isinstance(self.experiment_config.FLASH_DURATION, list):
+            self.flash_durations = [self.experiment_config.FLASH_DURATION]
+        else:
+            self.flash_durations = self.experiment_config.FLASH_DURATION
+        self.period_time = sum([(fd + self.experiment_config.PAUSE_BETWEEN_FLASHES) for fd in self.flash_durations])
 #        self.stimulus_duration = self.experiment_config.NUMBER_OF_FLASHES * self.period_time
 #        self.fragment_durations, self.fragment_repeats = timing.schedule_fragments(self.period_time, self.experiment_config.NUMBER_OF_FLASHES, self.machine_config.MAXIMUM_RECORDING_DURATION)
         self.fragment_repeats = [self.experiment_config.NUMBER_OF_FLASHES]
-        self.fragment_durations = [self.experiment_config.DELAY_BEFORE_FIRST_FLASH + self.experiment_config.NUMBER_OF_FLASHES*self.period_time]
+        self.fragment_durations = [(self.experiment_config.DELAY_BEFORE_FIRST_FLASH + self.experiment_config.NUMBER_OF_FLASHES*self.period_time)*len(self.flash_amplitudes)]
         self.number_of_fragments = len(self.fragment_durations)
     
     def run(self, fragment_id = 0):
@@ -161,13 +217,22 @@ class LedStimulation(experiment.Experiment):
         if len(offsets)>3:
             offsets[4] = offsets[4] +JITTER
         time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
-        self.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
-        self.led_controller.start()
-        for i in range(int(numpy.ceil(fragment_duration))):
-            if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
+        for flash_duration in self.flash_durations:
+            for flash_amplitude in self.flash_amplitudes:
+#                self.printl((flash_duration, flash_amplitude))
+                duration = fragment_duration/len(self.flash_amplitudes)
+                self.led_controller.set([[offsets, flash_duration, flash_amplitude]], duration)
+                self.led_controller.start()
+                for i in range(int(numpy.ceil(duration))):
+                    if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
+                        self.abort = True
+                        break
+                    else:
+                        time.sleep(1.0)
+                if self.abort:
+                    break
+            if self.abort:
                 break
-            else:
-                time.sleep(1.0)
         if hasattr(self.experiment_config, 'BEEP_AT_EXPERIMENT_START_STOP') and self.experiment_config.BEEP_AT_EXPERIMENT_START_STOP:
             import winsound
             winsound.PlaySound('ExitWindows',winsound.SND_ALIAS)

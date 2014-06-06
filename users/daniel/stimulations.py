@@ -8,9 +8,9 @@ import shutil
 import random
 
 if 0:
-    class CurtainConfig(experiment.ExperimentConfig):
+    class CurtainConfigNoGrating(experiment.ExperimentConfig):
         def _create_parameters(self):
-            self.SPEED = 250.0
+            self.SPEED = 300.0
             self.DIRECTIONS = range(0,360,45)
             self.REPEATS = 3
             self.runnable = 'CurtainExperiment'
@@ -26,6 +26,7 @@ if 0:
             for rep in range(self.experiment_config.REPEATS):
                 for d in self.experiment_config.DIRECTIONS:
                     self.moving_curtain(self.experiment_config.SPEED, color = 1.0, direction=d, background_color = 0.0, pause = 0.0)
+            self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = 0)
 
 
 class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
