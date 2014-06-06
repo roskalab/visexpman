@@ -44,6 +44,31 @@ class NaturalMorseConfig(experiment.ExperimentConfig):
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
         
+class LedWaveformConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.VOLTAGES = [0, 3, 0]
+        self.TIMINGS = [1000,  1000, 1000]
+        self.REPEATS = 1
+        self.runnable = 'LedWaveformStimulation'
+        self.pre_runnable = 'LedPre'
+        self._create_parameters_from_locals(locals())
+
+        
+class LedWaveformStimulation(experiment.Experiment):
+    def prepare(self):
+        self.waveform = numpy.array([])
+        for i in range(len(self.experiment_config.TIMINGS)):
+            samples = numpy.ones(self.experiment_config.TIMINGS[i]/1000.0*self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'])
+            samples *= self.experiment_config.VOLTAGES[i]
+            self.waveform = numpy.append(self.waveform,samples)
+        self.fragment_durations = [self.waveform.shape[0]/float(self.machine_config.DAQ_CONFIG[1]['SAMPLE_RATE'])]
+        
+    def run(self, fragment_id = 0):
+        self.show_fullscreen(color = 0.0, duration = 0.0)
+        for rep in range(self.experiment_config.REPEATS):
+            self.led_controller.set(self.waveform,None)
+            self.led_controller.start()
+        
 class LedMorseStimulation(experiment.Experiment):
     '''
     Flashes externally connected blue led controller by generating analog control signals using daq analog output

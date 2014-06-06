@@ -400,7 +400,7 @@ class CommandInterface(command_parser.CommandParser):
                         runtime = result.get()
                     elif not False:
                         runtime = 0
-                        excluded_experiments = ['natural','receptive']
+                        excluded_experiments = ['natural','receptive',  'waveform']
                         if len([True for excluded_experiment in excluded_experiments if excluded_experiment.lower() in full_fragment_path.lower()]) == 0:
                             create = ['roi_curves','soma_rois_manual_info']#'rawdata_mask',
                             export = ['roi_curves'] 
