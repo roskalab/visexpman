@@ -21,5 +21,5 @@ if __name__=='__main__':
     for f in os.listdir(folder):
         if 'mp4' in f:
             video2stimulus_frames(os.path.join(folder,f))
-            break
+#            break
             
