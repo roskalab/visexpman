@@ -5,6 +5,15 @@ import os
 import numpy
 import time
 
+class NaturalBarsConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.SPEED = 300.0#um/s
+        self.REPEATS = 2#5
+        self.DIRECTIONS = range(0,360,90)
+        self.DURATION = 30.0
+        self.runnable = 'NaturalBarsExperiment'
+        self._create_parameters_from_locals(locals())
+
 class NaturalIntensityProfileConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.MAX_AMPLITUDE = 0.5#V
@@ -15,6 +24,18 @@ class NaturalIntensityProfileConfig(experiment.ExperimentConfig):
         self.pre_runnable = 'LedPre'
         self._create_parameters_from_locals(locals())
 
+class NaturalBarsExperiment(experiment.Experiment):
+    def prepare(self):
+        self.fragment_durations = [self.experiment_config.DURATION*self.experiment_config.REPEATS*len(self.experiment_config.DIRECTIONS)]
+        
+    def run(self):
+        for rep in range(self.experiment_config.REPEATS):
+            if self.abort:
+                break
+            for directions in self.experiment_config.DIRECTIONS:
+                if self.abort:
+                    break
+                self.show_natural_bars(speed = self.experiment_config.SPEED, duration=self.experiment_config.DURATION, minimal_spatial_period = None, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, intensity_levels = 255, direction = directions)
 
 class NaturalLedStimulation(experiment.Experiment):
     '''
