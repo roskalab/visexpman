@@ -327,7 +327,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         
     def _show_image(self,path,duration,position,flip):
         if duration == 0.0:
-            nframe=1
+            nframes=1
         else:
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
         for i in range(nframes):
