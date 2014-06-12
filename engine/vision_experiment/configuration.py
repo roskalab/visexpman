@@ -187,6 +187,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         ENABLE_PARALLEL_PORT = False
         ACQUISITION_TRIGGER_PIN = [0,  PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PIN_RANGE]
+        BLOCK_TRIGGER_PIN = [1, PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         #filterwheel settings
         ENABLE_FILTERWHEEL = False

@@ -271,7 +271,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         
     def _show_image(self,path,duration,position,flip):
         if duration == 0.0:
-            nframe=1
+            nframes=1
         else:
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
         for i in range(nframes):
@@ -757,11 +757,17 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         cut_off_ratio = display_area_adjusted[0]/profile_length
         profile_length = int(profile_length)
         waveform_duty_cycle = 1.0 / (1.0 + duty_cycle)
+#        color_contrast_adjusted[1] *=0
+#        color_contrast_adjusted[2] *=0
+#        color_offset_adjusted[1] *=0
+#        color_offset_adjusted[2] *=0
         stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle)
         stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], profile_length, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, waveform_duty_cycle)
         stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], profile_length, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, waveform_duty_cycle)
         stimulus_profile = numpy.array([[stimulus_profile_r],  [stimulus_profile_g],  [stimulus_profile_b]])
         stimulus_profile = stimulus_profile.transpose()
+        if hasattr(self.config, 'COLOR_MASK'):
+            stimulus_profile *= self.config.COLOR_MASK
         if hasattr(self.config, 'GAMMA_CORRECTION'):
             stimulus_profile = self.config.GAMMA_CORRECTION(stimulus_profile)
         

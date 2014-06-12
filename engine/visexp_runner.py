@@ -49,8 +49,8 @@ class VisionExperimentRunner(command_handler.CommandHandler):
         if self.config.user != 'undefined':
             self.experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
             if hasattr(self.config, 'PREFERRED_STIMULI'):
-                if len(self.config.PREFERRED_STIMULI)>10:
-                    raise RuntimeError('Number of PREFERRED_STIMULI should not exceed 10')
+#                if len(self.config.PREFERRED_STIMULI)>10:
+#                    raise RuntimeError('Number of PREFERRED_STIMULI should not exceed 10')
                 self.experiment_config_list = [expconf for expconf in self.experiment_config_list if expconf[1].__name__ in self.config.PREFERRED_STIMULI]
         else:
             #In case of SafestartConfig, no experiment configs are loaded

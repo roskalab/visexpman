@@ -92,7 +92,7 @@ class MovingGratingNoMarchingConfig(MovingGratingConfig):
         self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
         self.WHITE_BAR_WIDTHS = [300.0]#300
         self.VELOCITIES = [1200.0]#1800
-        self.DUTY_CYCLES = [3.0] #put 1.0 to a different config
+        self.DUTY_CYCLES = [3.0] #put 3.0 to a different config
         self.REPEATS = 2
         self.PAUSE_BEFORE_AFTER = 5.0
         self.runnable = 'MovingGrating'
@@ -364,6 +364,7 @@ class MovingGrating(experiment.Experiment):
 
     def run(self, fragment_id = 0):
         import sys
+        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
         if '--MICROLED'in sys.argv:
             self.config.STIMULUS2MEMORY = True
         #Flash
@@ -397,6 +398,7 @@ class MovingGrating(experiment.Experiment):
                                     duty_cycle = stimulus_unit['duty_cycle'],
                                     starting_phase = phase+stimulus_unit['starting_phase'])
                 #Show moving grating
+                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
                 self.show_grating(duration = stimulus_unit['move_time'], 
                             profile = profile, 
                             orientation = orientation, 
@@ -404,6 +406,7 @@ class MovingGrating(experiment.Experiment):
                             duty_cycle = stimulus_unit['duty_cycle'],
                             starting_phase = self.marching_phases[-1]+stimulus_unit['starting_phase'], 
                             )
+                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
                 #Show static grating
                 if self.experiment_config.GRATING_STAND_TIME>0:
                     self.show_grating(duration = self.experiment_config.GRATING_STAND_TIME, 

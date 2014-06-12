@@ -708,20 +708,21 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         self.COMMAND_RELAY_SERVER['CONNECTION_MATRIX'] = \
             {
             'GUI_MES'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
-            'STIM_MES'  : {'STIM' : {'IP': ip, 'LOCAL_IP': 'localhost', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
+            'STIM_MES'  : {'STIM' : {'IP': ip, 'LOCAL_IP': '', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
             'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': ip, 'LOCAL_IP': '',  'PORT': self.BASE_PORT + 5}}, 
             'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': ip, 'LOCAL_IP': '192.168.2.2', 'PORT': self.BASE_PORT + 7}}, 
             }
         self.COMMAND_RELAY_SERVER['SERVER_IP'] = {\
                      'GUI_MES': ['',''],
-                     'STIM_MES': [ip,''],
+                     'STIM_MES': ['',''],
                      'GUI_STIM': ['', ip],
                      'GUI_ANALYSIS'  : ['', ip],
                      }        
         #=== hardware ===
         ENABLE_PARALLEL_PORT =  False
         SERIAL_DIO_PORT = 'COM4'
-        ACQUISITION_TRIGGER_PIN = 1
+#        ACQUISITION_TRIGGER_PIN = 1
+        BLOCK_TRIGGER_PIN = 1
         FRAME_TRIGGER_PIN = 0
         FRAME_TRIGGER_PULSE_WIDTH = 1e-3
         #=== stage ===
@@ -761,7 +762,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
-                    'SAMPLE_RATE' : 10000,
+                    'SAMPLE_RATE' : 40000,
                     'AI_CHANNEL' : 'Dev1/ai0:3',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,
@@ -812,8 +813,10 @@ class AoMicroscopeSetup(VisionExperimentConfig):
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
         self.PREFERRED_STIMULI = ['MovingGratingNoMarchingConfig', 'MovingGratingAdrian', 'MovingGratingSpatialFrequencySweep', 'MyFFGratingsConfig',
                             'LedKamill2Config', 'ReceptiveFieldExploreConfig',
-                            'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie']
+                            'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie',
+                            'NaturalMovieSv1', 'NaturalMovieSv2']
         FULLSCREEN = True
+        self.COLOR_MASK = [0.0, 0.0, 1.0]
 #        SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])
         self._create_parameters_from_locals(locals())
 

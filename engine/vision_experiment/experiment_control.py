@@ -288,6 +288,9 @@ class ExperimentControl(object):
         elif self.config.PLATFORM == 'standalone':
             if hasattr(self, 'fragment_durations'):
                 self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
+                #TMP0612
+#                pf = os.path.join(self.config.EXPERIMENT_DATA_PATH, 'test.mat')
+#                scan_start_success, line_scan_path = self.mes_interface.start_line_scan(parameter_file = pf, timeout = self.config.MES_TIMEOUT)
                 self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
             return True
         return False
@@ -397,6 +400,8 @@ class ExperimentControl(object):
         if self.config.PLATFORM == 'mes':
             self.stage = stage_control.AllegraStage(self.config, self.log, self.start_time)
             self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
+        #TMP0612
+#        self.mes_interface = mes_interface.MesInterface(self.config, self.queues, self.connections, log = self.log)
 
     def _close_devices(self):
         if hasattr(self, 'parallel_port'):

@@ -149,6 +149,7 @@ class LedStimulation(experiment.Experiment):
         self.number_of_fragments = len(self.fragment_durations)
     
     def run(self, fragment_id = 0):
+        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
         if hasattr(self.experiment_config, 'BEEP_AT_EXPERIMENT_START_STOP') and self.experiment_config.BEEP_AT_EXPERIMENT_START_STOP:
             import winsound
             winsound.PlaySound('SystemHand',winsound.SND_ALIAS)
@@ -162,7 +163,9 @@ class LedStimulation(experiment.Experiment):
             offsets[4] = offsets[4] +JITTER
         time.sleep(self.experiment_config.DELAY_BEFORE_FIRST_FLASH)
         self.led_controller.set([[offsets, self.experiment_config.FLASH_DURATION, self.experiment_config.FLASH_AMPLITUDE]], fragment_duration)
+        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
         self.led_controller.start()
+        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
         for i in range(int(numpy.ceil(fragment_duration))):
             if utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
                 break

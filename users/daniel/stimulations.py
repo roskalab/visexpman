@@ -31,14 +31,14 @@ if 0:
 class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'
-        self.COLORS = [1.0]
-        self.BACKGROUND_COLOR = 0
-        self.SHAPE_SIZE = 400.0
+        self.COLORS = [1.0, 0.0]
+        self.BACKGROUND_COLOR = 0.25
+        self.SHAPE_SIZE = 300.0
         self.MESH_XY = utils.rc((4,6))
         self.ON_TIME = 0.5*2
-        self.OFF_TIME = 0.5*2
+        self.OFF_TIME = 1.5*2
         self.PAUSE_BEFORE_AFTER = 2.0
-        self.REPEATS = 3
+        self.REPEATS = 1
         self.ENABLE_ZOOM = False 
         self.SELECTED_POSITION = 1
         self.ZOOM_MESH_XY = utils.rc((3,3))
@@ -81,16 +81,19 @@ class ReceptiveFieldExplore(experiment.Experiment):
         self.fragment_durations = [self.fragment_durations]
             
     def run(self):
+        self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
         self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.PAUSE_BEFORE_AFTER)
         for position_color in self.positions:
             if self.abort:
                 break
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
             self.show_shape(shape = self.experiment_config.SHAPE,
                                     size = self.shape_size,
                                     color = position_color[1],
                                     background_color = self.experiment_config.BACKGROUND_COLOR,
                                     duration = self.experiment_config.ON_TIME,
                                     pos = position_color[0])
+            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
                                     
             self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.OFF_TIME)
         self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.PAUSE_BEFORE_AFTER-self.experiment_config.OFF_TIME)
