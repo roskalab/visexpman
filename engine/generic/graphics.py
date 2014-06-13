@@ -311,7 +311,7 @@ class Screen(object):
         #Restore original color
         glColor4fv(current_color)
         
-    def render_imagefile(self, path, position = utils.rc((0, 0))):
+    def render_imagefile(self, path, position = utils.rc((0, 0)), stretch=1.0):
         '''
         Renders an image file on screen with its original size.
         '''
@@ -340,10 +340,10 @@ class Screen(object):
                              [0.0, 1.0],
                              ])
         vertices = numpy.array([
-                                [position['col'] + 0.5 * self.image_size[0], position['row'] + 0.5 * self.image_size[1]], 
-                                [position['col'] + 0.5 * self.image_size[0], position['row'] - 0.5 * self.image_size[1]], 
-                                [position['col'] - 0.5 * self.image_size[0], position['row'] - 0.5 * self.image_size[1]], 
-                                [position['col'] - 0.5 * self.image_size[0], position['row'] + 0.5 * self.image_size[1]],                                 
+                                [position['col'] + 0.5 * self.image_size[0]*stretch, position['row'] + 0.5 * self.image_size[1]*stretch], 
+                                [position['col'] + 0.5 * self.image_size[0]*stretch, position['row'] - 0.5 * self.image_size[1]*stretch], 
+                                [position['col'] - 0.5 * self.image_size[0]*stretch, position['row'] - 0.5 * self.image_size[1]*stretch], 
+                                [position['col'] - 0.5 * self.image_size[0]*stretch, position['row'] + 0.5 * self.image_size[1]*stretch],                                 
                                 ])
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
         glTexCoordPointerf(texture_coordinates)

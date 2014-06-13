@@ -226,7 +226,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if count:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
-    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, flip = True):
+    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, stretch=1.0, flip = True):
         '''
         Two use cases are handled here:
             - showing individual image files
@@ -262,14 +262,14 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         self._save_stimulus_frame_info(inspect.currentframe())
         if os.path.isdir(path):
             for fn in os.listdir(path):
-                self._show_image(os.path.join(path,fn),duration,position,flip)
+                self._show_image(os.path.join(path,fn),duration,position,stretch,flip)
             self.screen.clear_screen()
             self._flip(trigger = False)
         else:
             self._show_image(path,duration,position,flip)
         self._save_stimulus_frame_info(inspect.currentframe())
         
-    def _show_image(self,path,duration,position,flip):
+    def _show_image(self,path,duration,position,stretch,flip):
         if duration == 0.0:
             nframes=1
         else:
@@ -277,7 +277,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         for i in range(nframes):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.screen.render_imagefile(path, position = utils.rc_add(position,
-                        utils.rc_multiply_with_constant(self.machine_config.SCREEN_CENTER, self.config.SCREEN_UM_TO_PIXEL_SCALE)))
+                        utils.rc_multiply_with_constant(self.machine_config.SCREEN_CENTER, self.config.SCREEN_UM_TO_PIXEL_SCALE)),stretch=stretch)
             if flip:
                 self._flip(trigger = True)
             if self.abort:

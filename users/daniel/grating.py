@@ -113,6 +113,20 @@ class MovingGratingAdrian(MovingGratingNoMarchingConfig):
             import random
             random.shuffle(self.ORIENTATIONS)
             
+class MovingGratingAdrianQuickSearch(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.GRATING_STAND_TIME = 0.0#after
+        self.MARCH_TIME = 0.0#before
+        self.PAUSE_BEFORE_AFTER = 1.0
+        self.REPEATS = 18
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+        self.ENABLE_RANDOM_ORDER = True
+        self.VELOCITIES = [1800.0]
+        if self.ENABLE_RANDOM_ORDER:
+            import random
+            random.shuffle(self.ORIENTATIONS)
+            
 class MovingGratingSpatialFrequencySweep(MovingGratingNoMarchingConfig):
     def _create_parameters(self):
         MovingGratingNoMarchingConfig._create_parameters(self)
@@ -136,19 +150,20 @@ class MovingGratingNoMarchingBlackPreConfig(experiment.ExperimentConfig):
         self.runnable = 'MovingGrating'
         self.pre_runnable = 'BlackPre'
         self._create_parameters_from_locals(locals())
-if 0:       
-    class MovingGratingWithFlashConfig(MovingGratingNoMarchingConfig):
-        def _create_parameters(self):
-            MovingGratingNoMarchingConfig._create_parameters(self)
-            #Flash config
-            self.ENABLE_FLASH = True
-            self.FLASH_DURATION = 0.1
-            self.TIMING = [2.0, self.FLASH_DURATION, 7.0, self.FLASH_DURATION, 7.0]
-            self.FLASH_REPEATS = 1
-            self.BLACK = 0.0
-            self.WHITE = 1.0
-            self.PAUSE_BEFORE_AFTER = 12.0
-            
+
+class MovingGratingWithFlashConfig(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        #Flash config
+        self.ENABLE_FLASH = True
+        self.FLASH_DURATION = 0.1
+        self.TIMING = [2.0, self.FLASH_DURATION, 7.0, self.FLASH_DURATION, 7.0]
+        self.FLASH_REPEATS = 1
+        self.BLACK = 0.0
+        self.WHITE = 1.0
+        self.PAUSE_BEFORE_AFTER = 12.0
+
+if 0: 
     class MovingGratingSineConfig(MovingGratingNoMarchingConfig):
         def _create_parameters(self):
             MovingGratingNoMarchingConfig._create_parameters(self)

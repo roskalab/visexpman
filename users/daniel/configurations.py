@@ -811,12 +811,13 @@ class AoMicroscopeSetup(VisionExperimentConfig):
             from visexpA.engine.datahandlers import hdf5io
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
-        self.PREFERRED_STIMULI = ['MovingGratingNoMarchingConfig', 'MovingGratingAdrian', 'MovingGratingSpatialFrequencySweep', 'MyFFGratingsConfig',
+        self.PREFERRED_STIMULI = ['MovingGratingWithFlashConfig','MovingGratingAdrianQuickSearch', 'MovingGratingNoMarchingConfig', 'MovingGratingAdrian', 'MovingGratingSpatialFrequencySweep', 'MyFFGratingsConfig',
                             'LedKamill2Config', 'ReceptiveFieldExploreConfig',
                             'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie',
-                            'NaturalMovieSv1', 'NaturalMovieSv2']
+                            'NaturalMovieSv1', 'NaturalMovieSv2','NaturalMovieSv1Blue', 'NaturalMovieSv2Blue']
         FULLSCREEN = True
         self.COLOR_MASK = [0.0, 0.0, 1.0]
+        self.TRIGGER_MES = False
 #        SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])
         self._create_parameters_from_locals(locals())
 

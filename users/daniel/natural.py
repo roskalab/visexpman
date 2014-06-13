@@ -12,6 +12,7 @@ class NaturalMovie(experiment.ExperimentConfig):
         self.FILENAME = 'c:\\Data\\spont_falco_moving_frames'
 #        self.FILENAME = 'c:\\Data\\stimulated_falco_sound_frames'
         self.FRAME_RATE=60.0
+        self.STRETCH = 1.0
         self.runnable = 'NaturalMovieExperiment'
         self._create_parameters_from_locals(locals())
         
@@ -19,6 +20,7 @@ class NaturalMovieSv1(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.FILENAME = 'c:\\Data\\nn.3707-sv1_frames'
         self.FRAME_RATE=60.0
+        self.STRETCH = 1.7
         self.runnable = 'NaturalMovieExperiment'
         self._create_parameters_from_locals(locals())
         
@@ -26,6 +28,23 @@ class NaturalMovieSv2(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.FILENAME = 'c:\\Data\\nn.3707-sv2_frames'
         self.FRAME_RATE=60.0
+        self.STRETCH = 1.7
+        self.runnable = 'NaturalMovieExperiment'
+        self._create_parameters_from_locals(locals())
+        
+class NaturalMovieSv1Blue(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.FILENAME = 'c:\\Data\\nn.3707-sv1_frames_blue'
+        self.FRAME_RATE=60.0
+        self.STRETCH = 1.7
+        self.runnable = 'NaturalMovieExperiment'
+        self._create_parameters_from_locals(locals())
+        
+class NaturalMovieSv2Blue(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.FILENAME = 'c:\\Data\\nn.3707-sv2_frames_blue'
+        self.FRAME_RATE=60.0
+        self.STRETCH = 1.7
         self.runnable = 'NaturalMovieExperiment'
         self._create_parameters_from_locals(locals())
 
@@ -140,5 +159,5 @@ class NaturalMovieExperiment(experiment.Experiment):
         else:
             duration = 1.0/self.experiment_config.FRAME_RATE
         self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1)
-        self.show_image(self.experiment_config.FILENAME,duration)
+        self.show_image(self.experiment_config.FILENAME,duration,stretch=self.experiment_config.STRETCH)
         self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
