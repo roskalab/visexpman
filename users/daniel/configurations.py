@@ -513,7 +513,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
             SCREEN_MAX_FRAME_RATE = 1/50e-3
             ULED_SERIAL_PORT = 'COM4'
         else:
-            SCREEN_DISTANCE_FROM_MOUSE_EYE = [320.0, [0, 300]] #mm
+            SCREEN_DISTANCE_FROM_MOUSE_EYE = [320.0, [0, 300]] #mm 
             SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
             SCREEN_RESOLUTION = utils.cr([800, 600])
             FULLSCREEN = True
@@ -524,7 +524,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         
         #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm HERE YOU CAN ADJUST SCREEN  - MOUSE EYE DISTANCE
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
