@@ -12,6 +12,7 @@ import copy
 import hashlib
 ## {{{ http://code.activestate.com/recipes/519621/ (r4)
 import weakref
+import subprocess
 
 @contextmanager
 def nostderr():
@@ -31,7 +32,17 @@ def hash_variables(variables):
             myhash.update(cPickle.dumps(v))
         return myhash.digest()
         
-        
+def kill_child_processes(parent_pid, sig='SIGTERM'):
+        ps_command = subprocess.Popen("ps -o pid --ppid %d --noheaders" % parent_pid, shell=True, stdout=subprocess.PIPE)
+        ps_output = ps_command.stdout.read()
+        retcode = ps_command.wait()
+        assert retcode == 0, "ps command returned %d" % retcode
+        for pid_str in ps_output.split("\n")[:-1]:
+            try:
+                os.kill(int(pid_str), getattr(signal, sig))
+            except:
+                pass
+
 class FauxTb(object):
     def __init__(self, tb_frame, tb_lineno, tb_next):
         self.tb_frame = tb_frame

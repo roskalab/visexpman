@@ -112,8 +112,8 @@ class LedKamill2Config(experiment.ExperimentConfig):
         self.BEEP_AT_EXPERIMENT_START_STOP = True
         self.PAUSE_BETWEEN_FLASHES = 30.0
         self.NUMBER_OF_FLASHES = 3.0
-        self.FLASH_DURATION = 5.0
-        self.FLASH_AMPLITUDE = 2.0 #max 10.0
+        self.FLASH_DURATION = 1.0
+        self.FLASH_AMPLITUDE = 0.2 #max 10.0
         self.DELAY_BEFORE_FIRST_FLASH = 10.0
         self.runnable = 'LedStimulation'
         self.pre_runnable = 'LedPre'
