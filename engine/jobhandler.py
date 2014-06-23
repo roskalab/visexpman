@@ -110,7 +110,7 @@ class CommandInterface(command_parser.CommandParser):
         command_parser.CommandParser.__init__(self, [self.queues['gui']['in'], self.queues['low_priority_processor']['out']], self.queues['gui']['out'], log = log)
         user = 'daniel'
         import visexpA.engine.configuration
-        if len(sys.argv)==3:
+        if len(sys.argv)==4:
             aconfigname = sys.argv[3]
         else:
             aconfigname = 'Config'
@@ -421,14 +421,14 @@ class CommandInterface(command_parser.CommandParser):
                     
                     if len(sys.argv) > 3:
                         self.kwargs['export'] = sys.argv[3]
-                    if self.kwargs['export'] == 'EXPORT_SYNC_DATA_TO_MAT':
-                        self.printl('Saving sync data to mat file')
-                        from visexpA.users.zoltan import converters
-                        converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal', 'idnode'],  outtag = 'sync', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
-                    elif self.kwargs['export'] == 'EXPORT_DATA_TO_MAT':
-                        self.printl('Saving data to mat file')
-                        from visexpA.users.zoltan import converters
-                        converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
+                        if self.kwargs['export'] == 'EXPORT_SYNC_DATA_TO_MAT':
+                            self.printl('Saving sync data to mat file')
+                            from visexpA.users.zoltan import converters
+                            converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal', 'idnode'],  outtag = 'sync', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
+                        elif self.kwargs['export'] == 'EXPORT_DATA_TO_MAT':
+                            self.printl('Saving data to mat file')
+                            from visexpA.users.zoltan import converters
+                            converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
                     self.queues['low_priority_processor']['out'].put('SOC_find_cells_readyEOCid={0},runtime={1}EOP'.format(id, runtime))
                 else:
                     self.printl('Not existing ID: {0}'.format(id))
