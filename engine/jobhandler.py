@@ -110,7 +110,8 @@ class CommandInterface(command_parser.CommandParser):
         command_parser.CommandParser.__init__(self, [self.queues['gui']['in'], self.queues['low_priority_processor']['out']], self.queues['gui']['out'], log = log)
         user = 'daniel'
         import visexpA.engine.configuration
-        if len(sys.argv)==4:
+        #TODO: use argparse
+        if len(sys.argv) == 4 and sys.argv[3] != 'EXPORT_SYNC_DATA_TO_MAT' and sys.argv[3] != 'EXPORT_DATA_TO_MAT':
             aconfigname = sys.argv[3]
         else:
             aconfigname = 'Config'
@@ -235,6 +236,7 @@ class CommandInterface(command_parser.CommandParser):
         exit = False
         try:
             shutil.copy(os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), databig_path)
+            #TODO use argparse
             if len(sys.argv) > 3 and sys.argv[3] == 'EXPORT_DATA_TO_MAT':
                 p1=os.path.join(self.config.EXPERIMENT_DATA_PATH, filename)
                 shutil.copy(p1.replace('.hdf5', '_mat.mat'), databig_path.replace('.hdf5', '_mat.mat'))
