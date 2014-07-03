@@ -55,7 +55,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
                     if not self.isthread:
                         p = psutil.Process(os.getpid())
                         #self.message_out_queue.put('Bg pid:{0}, parentpid:{1}, current parentpid{2}'.format(p.pid,self.parentpid,p.parent.pid))
-                        if p.parent.pid!=self.parentpid:
+                        if p.parent().pid!=self.parentpid:
                             if debug:
                                 self.logfile.write( 'Parent died?')
                             self.close()

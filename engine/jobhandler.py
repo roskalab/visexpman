@@ -58,7 +58,11 @@ class Jobhandler(object):
         self.queues['low_priority_processor']['in'] = Queue.Queue()#Fragment check and mesextractor has higher priority
         self.queues['low_priority_processor']['in'] = Queue.PriorityQueue()#Fragment check and mesextractor has higher priority
         self.queues['low_priority_processor']['out'] = Queue.PriorityQueue()
-        self.command_handler = CommandInterface(self.config, self.queues, log = self.log)
+        if kwargs.has_key('zmq'):
+            zmq = kwargs['zmq']
+        else:
+            zmq=True
+        self.command_handler = CommandInterface(self.config, self.queues, log = self.log,zmq=zmq)
         self.command_handler.kwargs = kwargs
         if False:
             self.lowpridp= LowPriorityProcessor(self.config, self.queues, self.log, printl = self.command_handler.printl)
@@ -104,7 +108,7 @@ class CommandInterface(command_parser.CommandParser):
     This is the command processor class of the jobhandler application. Receives commands from network interface (GUI) and processes them.
     Processing measurement data is done automatically by asking a copy of the mouse file. Then it is checked for unprocessed measurements.
     '''
-    def __init__(self, config, queues, log = None):
+    def __init__(self, config, queues, log = None, zmq=True):
         self.config = config
         self.queues = queues
         command_parser.CommandParser.__init__(self, [self.queues['gui']['in'], self.queues['low_priority_processor']['out']], self.queues['gui']['out'], log = log)
@@ -120,7 +124,9 @@ class CommandInterface(command_parser.CommandParser):
         self.copy_request_time = 0
         self.sent_to_mesextractor = []
         self.sent_to_find_cells = []
-        self.zeromq_pusher = network_interface.ZeroMQPusher(5500, type='PUSH')
+        self.zmq=zmq
+        if zmq:
+            self.zeromq_pusher = network_interface.ZeroMQPusher(5500, type='PUSH')
         self._check_freespace()
         self.not_copied_to_tape = []
         if BACKGROUND_COPIER:
@@ -293,7 +299,8 @@ class CommandInterface(command_parser.CommandParser):
         time.sleep(0.3)
         self.queues['gui']['out'].put('SOCfind_cells_readyEOC{0}EOP'.format(id))
         print 'sending msg:'+databig_path
-        self.zeromq_pusher.send((('add_and_sync', databig_path, ), ), False) #also opens the file
+        if self.zmq:
+            self.zeromq_pusher.send((('add_and_sync', databig_path, ), ), False) #also opens the file
         
     def _generate_copypath(self, filename):
         try:
@@ -382,6 +389,8 @@ class CommandInterface(command_parser.CommandParser):
                 self.printl('MESExtractor skipped')
         except:
             self.printl(traceback.format_exc())
+            return False
+        return True
 
     def find_cells(self, id = None):
         try:
@@ -423,14 +432,16 @@ class CommandInterface(command_parser.CommandParser):
                     
                     if len(sys.argv) > 3:
                         self.kwargs['export'] = sys.argv[3]
-                        if self.kwargs['export'] == 'EXPORT_SYNC_DATA_TO_MAT':
-                            self.printl('Saving sync data to mat file')
-                            from visexpA.users.zoltan import converters
-                            converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal', 'idnode'],  outtag = 'sync', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
-                        elif self.kwargs['export'] == 'EXPORT_DATA_TO_MAT':
-                            self.printl('Saving data to mat file')
-                            from visexpA.users.zoltan import converters
-                            converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
+                    else:
+                        self.kwargs['export'] = None
+                    if self.kwargs['export'] == 'EXPORT_SYNC_DATA_TO_MAT':
+                        self.printl('Saving sync data to mat file')
+                        from visexpA.users.zoltan import converters
+                        converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal', 'idnode'],  outtag = 'sync', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
+                    elif self.kwargs['export'] == 'EXPORT_DATA_TO_MAT':
+                        self.printl('Saving data to mat file')
+                        from visexpA.users.zoltan import converters
+                        converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
                     self.queues['low_priority_processor']['out'].put('SOC_find_cells_readyEOCid={0},runtime={1}EOP'.format(id, runtime))
                 else:
                     self.printl('Not existing ID: {0}'.format(id))
@@ -520,20 +531,95 @@ class TestJobhandler(unittest.TestCase):
         
         pass
     
+    @unittest.skip('')
     def test_02_process_folder(self):
-        datafolder = '/mnt/datafast/debug/new'
-        
-        mouse_file = os.path.join(datafolder, [fn for fn in os.listdir(datafolder) if 'mouse_' in fn][0])
-        scan_regions = hdf5io.read_item(mouse_file, 'scan_regions',filelocking=False)
-        jh = Jobhandler('daniel', 'RcMicroscopeSetup', export = 'EXPORT_SYNC_DATA_TO_MAT')
+        datafolder = '/mnt/databig/debug/adrian/epo0129'
+        mousefile=[fn for fn in os.listdir(datafolder) if 'mouse_' in fn]
+        if len(mousefile)>0:
+            mouse_file = os.path.join(datafolder, mousefile[0])            
+            scan_regions = hdf5io.read_item(mouse_file, 'scan_regions',filelocking=False)
+        else:
+            ids = [fn.replace('.hdf5','').split('_')[-2] for fn in os.listdir(datafolder) if '.hdf5' in fn]
+            scan_regions = {}
+        jh = Jobhandler('daniel', 'RcMicroscopeSetup', export = 'EXPORT_DATA_TO_MAT',zmq=False)
+        jh.config.EXPERIMENT_DATA_PATH = datafolder
 #        jh = Jobhandler('daniel', 'JobhandllerConfig', export = 'EXPORT_SYNC_DATA_TO_MAT')
-        for k, v in scan_regions.items():
-            if 'mast' in k: continue
-            for id in [id for id in v['process_status'].keys() if 'Natural' in v['process_status'][id]['info']['stimulus'] ]:
-                jh.command_handler.check_and_preprocess_fragment(id,force_recreate = True)
-                jh.command_handler.find_cells(id)
+        if scan_regions == {}:
+            for id in ids:
+                try:
+                    if jh.command_handler.check_and_preprocess_fragment(id,force_recreate = True):
+                        jh.command_handler.find_cells(id)
+                except:
+                    import traceback
+                    print traceback.print_exc()
+                
+                
+        else:
+            for k, v in scan_regions.items():
+                if 'mast' in k: continue
+                if  not v.has_key('process_status'): continue
+                for id in [id for id in v['process_status'].keys() if  True or'Natural' in v['process_status'][id]['info']['stimulus'] ]:
+                    jh.command_handler.check_and_preprocess_fragment(id,force_recreate = True)
+                    jh.command_handler.find_cells(id)
         jh.close()
         
+    def test_03_no_jh_analysis(self):
+        datafolder = '/mnt/databig/debug/kamill/rc/20140625rd1fix'
+#        datafolder = '/mnt/databig/debug/kamill/rc/20140624rd1'#NOT RUN
+#        datafolder = '/mnt/databig/debug/kamill/rc/20140623rd1'#NOT RUN
+        ids = [fn.replace('.hdf5','').split('_')[-2] for fn in os.listdir(datafolder) if '.hdf5' in fn and os.path.exists(os.path.join(datafolder, fn.replace('.hdf5','.mat')))]
+        self.config = utils.fetch_classes('visexpman.users.daniel', classname = 'RcMicroscopeSetup', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct=False)[0][1]()
+        self.config.EXPERIMENT_DATA_PATH = datafolder
+        aconfigname = 'Config'
+        import visexpA.engine.configuration
+        self.analysis_config = utils.fetch_classes('visexpA.users.daniel', classname=aconfigname, required_ancestors=visexpA.engine.configuration.Config,direct=False)[0][1]()
+        ct = 0
+        f =open(file.generate_filename('/mnt/databig/debug/evallog.txt'), 'wt')
+        f.write(datafolder)
+        f.write('\r\n')
+        for id in ids:
+            try:
+                ct +=1
+                full_fragment_path = file.get_measurement_file_path_from_id(id, self.config)
+                txt = '{0}/{1}, {2}'.format(ct, len(ids),full_fragment_path)
+                f.write(txt+'\r\n')
+                print txt
+                file_info = os.stat(full_fragment_path)
+                
+                mes_extractor = importers.MESExtractor(full_fragment_path, config = self.config)                
+                data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = False)
+                mes_extractor.hdfhandler.close()
+                print 'mesextractor done'
+                
+                excluded_experiments = ['natural','receptive',  'waveform', 'naturalbars']
+                if len([True for excluded_experiment in excluded_experiments if excluded_experiment.lower() in full_fragment_path.lower()]) == 0:
+                    create = ['roi_curves','soma_rois_manual_info']#'rawdata_mask',
+                    export = ['roi_curves'] 
+                    h = hdf5io.iopen(full_fragment_path,self.analysis_config)
+                    if h is not None:
+                        for c in create:
+                            print 'create_'+c
+                            h.perform_create_and_save(c,overwrite=True,force=True,path=h.h5fpath)
+                        for e in export:
+                            print 'export_'+e
+                            getattr(h,'export_'+e)()
+                        h.close()
+                        file.set_file_dates(full_fragment_path, file_info)
+                else:
+                    print 'No online analysis for this type of experiment'
+                print 'Saving sync data to mat file'
+                from visexpA.users.zoltan import converters
+                #Kamill
+                converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal', 'idnode'],  outtag = '_sync', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
+                #Adrian
+#                converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
+                
+            except:
+                import traceback
+                txt= traceback.format_exc()
+                f.write(txt+'\r\n')
+                print txt
+        f.close()
 
 if __name__=='__main__':
     if len(sys.argv)==1:
