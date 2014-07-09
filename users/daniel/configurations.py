@@ -814,8 +814,9 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         self.PREFERRED_STIMULI = ['MovingGratingWithFlashConfig','MovingGratingAdrianQuickSearch', 'MovingGratingNoMarchingConfig', 'MovingGratingAdrian', 'MovingGratingSpatialFrequencySweep', 'MyFFGratingsConfig',
                             'LedKamill2Config', 'ReceptiveFieldExploreConfig',
                             'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie',
-                            'NaturalMovieSv1', 'NaturalMovieSv2','NaturalMovieSv1Blue', 'NaturalMovieSv2Blue']
-        FULLSCREEN = True
+                            'NaturalMovieSv1', 'NaturalMovieSv2','NaturalMovieSv1Blue', 'NaturalMovieSv2Blue','KamillMovingGratingNoMarchingConfig','KamillMovingBars300','KamillMovingBarsTest',
+                            'KamillMovingBars1000','KamillMovingBars300unidir','ColorFlashConfig', 'ColorTestConfig']
+        FULLSCREEN = not True
         self.COLOR_MASK = [0.0, 0.0, 1.0]
         self.TRIGGER_MES = False
 #        SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])

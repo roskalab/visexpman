@@ -6,22 +6,65 @@ import os.path
 import os
 import shutil
 import random
+
+class KamillMovingBarsTest(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.SHAPE = 'rect'
+        self.SHAPE_COLOR = 0.999 
+        self.SHAPE_BACKGROUND = 0.0
+        self.SHAPE_SIZE = utils.rc((4000, 1000)) #um
+        self.DIRECTIONS = range(0,360,45)#degree [0, 180, 45, 225, 90, 270, 135, 315
+        self.SPEED = 300 #um/s
+        self.PAUSE_BETWEEN_DIRECTIONS =2
+        self.REPETITIONS_ALL = 1 #s
+        
+        self.runnable = 'MovingShapeExperiment'        
+        self._create_parameters_from_locals(locals())
             
-class MovingShapeParameters(experiment.ExperimentConfig):
+class KamillMovingBars300(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'
         self.SHAPE_COLOR = 0.999 
         self.SHAPE_BACKGROUND = 0.0
         self.SHAPE_SIZE = utils.rc((2500, 300)) #um
-        self.DIRECTIONS = [0, 180, 45, 225, 90, 270, 135, 315] #degree [0, 180, 45, 225, 90, 270, 135, 315
-        self.SPEED = 800 #um/s
+        self.DIRECTIONS = [0, 90, 180, 270] #degree [0, 180, 45, 225, 90, 270, 135, 315
+        self.SPEED = 100 #um/s
         self.PAUSE_BETWEEN_DIRECTIONS =2
         self.REPETITIONS_ALL = 3 #s
         
         self.runnable = 'MovingShapeExperiment'        
         self._create_parameters_from_locals(locals())
+     
 
-class MovingShapeExperiment(experiment.Experiment):
+class KamillMovingBars300unidir(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.SHAPE = 'rect'
+        self.SHAPE_COLOR = 0.999 
+        self.SHAPE_BACKGROUND = 0.0
+        self.SHAPE_SIZE = utils.rc((2500, 300)) #um
+        self.DIRECTIONS = [0, 90] #degree [0, 180, 45, 225, 90, 270, 135, 315
+        self.SPEED = 100 #um/s
+        self.PAUSE_BETWEEN_DIRECTIONS =10
+        self.REPETITIONS_ALL = 5 #s
+        
+        self.runnable = 'MovingShapeExperiment'        
+        self._create_parameters_from_locals(locals())
+
+class KamillMovingBars1000(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.SHAPE = 'rect'
+        self.SHAPE_COLOR = 0.999 
+        self.SHAPE_BACKGROUND = 0.0
+        self.SHAPE_SIZE = utils.rc((2500, 1000)) #um
+        self.DIRECTIONS = [0, 90, 180, 270] #degree [0, 180, 45, 225, 90, 270, 135, 315
+        self.SPEED = 100 #um/s
+        self.PAUSE_BETWEEN_DIRECTIONS =2
+        self.REPETITIONS_ALL = 3 #s
+        
+        self.runnable = 'MovingShapeExperiment'        
+        self._create_parameters_from_locals(locals())
+        
+class KamillMovingShapeExperiment(experiment.Experiment):
     def prepare(self):
         #calculate movement path
         if hasattr(self.experiment_config.SHAPE_SIZE, 'dtype'):
@@ -33,8 +76,8 @@ class MovingShapeExperiment(experiment.Experiment):
         nframes = 0
         for direction in self.experiment_config.DIRECTIONS:
             if self.machine_config.COORDINATE_SYSTEM == 'ulcorner':
-                start_point = utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(direction)) + self.machine_config.SCREEN_CENTER['col'], -0.5 * self.movement * numpy.sin(numpy.radians(direction)) + self.machine_config.SCREEN_CENTER['col']))
-                end_point = utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(direction - 180.0)) + self.machine_config.SCREEN_CENTER['col'], -0.5 * self.movement * numpy.sin(numpy.radians(direction - 180.0)) + self.machine_config.SCREEN_CENTER['col']))
+                start_point = utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(direction)) + self.machine_config.SCREEN_CENTER['col'], 0.5 * self.movement * numpy.sin(numpy.radians(direction)) + self.machine_config.SCREEN_CENTER['col']))
+                end_point = utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(direction - 180.0)) + self.machine_config.SCREEN_CENTER['col'], 0.5 * self.movement * numpy.sin(numpy.radians(direction - 180.0)) + self.machine_config.SCREEN_CENTER['col']))
             elif self.machine_config.COORDINATE_SYSTEM == 'center':
                 start_point = utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(direction)), 0.5 * self.movement * numpy.sin(numpy.radians(direction))))
                 end_point = utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(direction - 180.0))))

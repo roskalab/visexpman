@@ -290,18 +290,28 @@ class ExperimentControl(object):
                 self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
                 self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
                 #TMP0612
-                line_scan_path_on_mes = os.path.join(self.config.EXPERIMENT_DATA_PATH, self.id+'.mat')
-#                if self.config.TRIGGER_MES:
-#                    self.queues['mes']['out'].put('SOCacquire_line_scanEOC{0}EOP' .format(line_scan_path_on_mes))
-#                    time.sleep(1.0)
-#                    t0=time.time()
-#                    while True:
-#                        if not self.queues['mes']['in'].empty():
-#                           if self.queues['mes']['in'].get() == 'SOCacquire_line_scanEOCstartedEOP':
-#                               break
-#                        if abs(t0-time.time())>self.config.MES_TIMEOUT*2:
-#                            return False
-#                        time.sleep(1.0)
+                line_scan_path_on_mes = os.path.join(self.config.EXPERIMENT_DATA_PATH, os.path.split(self.filenames['local_fragments'][fragment_id])[1].replace('.hdf5', '.mat'))
+                if self.config.TRIGGER_MES:
+                    self.queues['mes']['out'].put('SOCacquire_line_scanEOC{0}EOP' .format(line_scan_path_on_mes))
+                    if self.mes_record_time>60:
+                        time.sleep(10.0)
+#                    if not self.queues['mes']['in'].empty():
+#                        self.printl(self.queues['mes']['in'].get())
+                    t0=time.time()
+                    while True:
+                        if not self.queues['mes']['in'].empty():
+                            msg = self.queues['mes']['in'].get()
+                            self.printl(msg)
+                            if msg == 'SOCacquire_line_scanEOCstartedEOP':
+                                time.sleep(1.0)
+                                break
+                            elif 'error' in msg:
+                                self.printl(msg)
+                                return False
+                        if abs(t0-time.time())>30.0:
+                            self.printl('AOD/MES did not start')
+                            return False
+                        time.sleep(1.0)
 
 #                from visexpman.engine.hardware import network_interface
 #                network_interface.wait_for_response(self.queues['mes']['in'], 'SOCacquire_line_scanEOCstartedEOP', timeout = self.config.MES_TIMEOUT, 

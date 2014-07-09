@@ -79,8 +79,9 @@ class VisionExperimentGui(QtGui.QWidget):
     def create_gui(self):
         self.main_widget = gui.MainWidget(self, self.config)
         self.animal_parameters_widget = gui.AnimalParametersWidget(self, self.config)
-        self.images_widget = gui.ImagesWidget(self, self.config)
-        self.overview_widget = gui.OverviewWidget(self, self.config)
+        if self.config.PLATFORM == 'mes' or True:
+            self.images_widget = gui.ImagesWidget(self, self.config)
+            self.overview_widget = gui.OverviewWidget(self, self.config)
         self.roi_widget = gui.RoiWidget(self, self.config)
         self.common_widget = gui.CommonWidget(self, self.config)
         self.helpers_widget = gui.HelpersWidget(self, self.config)
@@ -91,9 +92,10 @@ class VisionExperimentGui(QtGui.QWidget):
         self.main_tab.addTab(self.helpers_widget, 'Helpers')
         self.main_tab.setCurrentIndex(0)
         #Image tab
-        self.image_tab = QtGui.QTabWidget(self)
-        self.image_tab.addTab(self.images_widget, 'Regions')
-        self.image_tab.addTab(self.overview_widget, 'Overview')
+        if self.config.PLATFORM == 'mes' or True:
+            self.image_tab = QtGui.QTabWidget(self)
+            self.image_tab.addTab(self.images_widget, 'Regions')
+            self.image_tab.addTab(self.overview_widget, 'Overview')
         self.standard_io_widget = gui.StandardIOWidget(self, self.config)
         experiment_config_list = utils.fetch_classes('visexpman.users.' + self.config.user,  required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig, direct = False)
                
@@ -120,7 +122,8 @@ class VisionExperimentGui(QtGui.QWidget):
         self.layout.addWidget(self.main_tab, 0, 0, 1, 1)
         self.layout.addWidget(self.common_widget, 1, 0, 1, 1)
         self.layout.addWidget(self.standard_io_widget, 2, 0, 1, 1)
-        self.layout.addWidget(self.image_tab, 0, 1, 5, 1)
+        if self.config.PLATFORM == 'mes' or True:
+            self.layout.addWidget(self.image_tab, 0, 1, 5, 1)
         self.layout.setRowStretch(3, 3)
         self.layout.setColumnStretch(2, 1)
         self.setLayout(self.layout)
@@ -360,6 +363,8 @@ class VisionExperimentGui(QtGui.QWidget):
             self.update_combo_box_list(self.main_widget.scan_region_groupbox.scan_regions_combobox, [])
             
     def update_scan_regions(self, selected_region = None):
+        if self.config.PLATFORM != 'mes' and False:
+            return
         if selected_region is None:
             selected_region = self.get_current_region_name()
         no_scale = utils.rc((1.0, 1.0))

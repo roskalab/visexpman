@@ -178,7 +178,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 
     #== Various visual patterns ==
     
-    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True):
+    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, frame_trigger = True):
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
@@ -194,7 +194,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if duration == 0.0:
             self.log_on_flip_message = self.log_on_flip_message_initial
             if flip:
-                self._flip(trigger = True, count = count)
+                self._flip(trigger = frame_trigger, count = count)
         elif duration == -1.0:
             i = 0
             while not self.abort:
@@ -205,7 +205,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
-                    self._flip(trigger = True, count = count)
+                    self._flip(trigger = frame_trigger, count = count)
                 i += 1
         else:
             for i in range(int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)):
@@ -217,7 +217,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
-                    self._flip(trigger = True)
+                    self._flip(trigger = frame_trigger)
                 if self.abort:
                     break
                     
@@ -1041,6 +1041,7 @@ class StimulationSequences(Stimulations):
             self.show_fullscreen(duration = pause, color = color, save_frame_info = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
+       
 #class FlashConfig(experiment.ExperimentConfig):
 #    def _create_parameters(self):
 #        #Timing        
