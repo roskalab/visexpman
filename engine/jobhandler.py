@@ -28,7 +28,6 @@ from visexpman.engine.vision_experiment import configuration
 from visexpA.engine.dataprocessors import itk_image_registration
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datahandlers import matlabfile
-from visexpA.users.zoltan import fragment_process
 from visexpA.engine.datahandlers import importers
 from visexpman.engine.generic import introspect
 from visexpA.engine.component_guesser import rawname2cachedname
@@ -564,7 +563,7 @@ class TestJobhandler(unittest.TestCase):
         jh.close()
         
     def test_03_no_jh_analysis(self):
-        datafolder = '/mnt/databig/debug/kamill/rc/20140625rd1fix'
+        datafolder = '/mnt/databig/debug/utra/natural_bars'
 #        datafolder = '/mnt/databig/debug/kamill/rc/20140624rd1'#NOT RUN
 #        datafolder = '/mnt/databig/debug/kamill/rc/20140623rd1'#NOT RUN
         ids = [fn.replace('.hdf5','').split('_')[-2] for fn in os.listdir(datafolder) if '.hdf5' in fn and os.path.exists(os.path.join(datafolder, fn.replace('.hdf5','.mat')))]
@@ -587,7 +586,7 @@ class TestJobhandler(unittest.TestCase):
                 file_info = os.stat(full_fragment_path)
                 
                 mes_extractor = importers.MESExtractor(full_fragment_path, config = self.config)                
-                data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = False)
+                data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = not False)
                 mes_extractor.hdfhandler.close()
                 print 'mesextractor done'
                 
