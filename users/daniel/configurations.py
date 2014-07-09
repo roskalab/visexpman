@@ -815,8 +815,8 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                             'LedKamill2Config', 'ReceptiveFieldExploreConfig',
                             'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie',
                             'NaturalMovieSv1', 'NaturalMovieSv2','NaturalMovieSv1Blue', 'NaturalMovieSv2Blue','KamillMovingGratingNoMarchingConfig','KamillMovingBars300','KamillMovingBarsTest',
-                            'KamillMovingBars1000','KamillMovingBars300unidir','ColorFlashConfig', 'ColorTestConfig']
-        FULLSCREEN = not True
+                            'KamillMovingBars1000','KamillMovingBars300unidir','ColorFlashConfigUP', 'ColorFlashConfigDown','ColorTestConfig']
+        FULLSCREEN = True
         self.COLOR_MASK = [0.0, 0.0, 1.0]
         self.TRIGGER_MES = False
 #        SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])

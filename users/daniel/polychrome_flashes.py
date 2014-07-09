@@ -12,14 +12,14 @@ import random
 
 class ColorTestConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.WAVELENGTH_MIN = 450
-        self.WAVELENGTH_MAX = 600
-        self.WAVELENGTH_STEP = 25
+        self.WAVELENGTH_MIN = 600
+        self.WAVELENGTH_MAX = 400
+        self.WAVELENGTH_STEP = -25
         
         self.PAUSE_BETWEEN_FLASHES = 2.0
-        self.NUMBER_OF_FLASHES = 2
+        self.NUMBER_OF_FLASHES = 1
         self.FLASH_DURATION = 1.0
-        self.FLASH_AMPLITUDE = 0.1 #max 1.0
+        self.FLASH_AMPLITUDE = 1.0 #max 1.0
         self.DELAY_BEFORE_FIRST_FLASH = 5.0
         
         self.OFF_WAVELENGTH = 680.0
@@ -27,14 +27,31 @@ class ColorTestConfig(experiment.ExperimentConfig):
         self.runnable = 'PolychromeFlash'
         self._create_parameters_from_locals(locals())
 
-class ColorFlashConfig(experiment.ExperimentConfig):
+class ColorFlashConfigUP(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.WAVELENGTH_MIN = 500
-        self.WAVELENGTH_MAX = 600
-        self.WAVELENGTH_STEP = 50
+        self.WAVELENGTH_MIN = 450
+        self.WAVELENGTH_MAX = 530
+        self.WAVELENGTH_STEP = 10
         
-        self.PAUSE_BETWEEN_FLASHES = 30.0
-        self.NUMBER_OF_FLASHES = 3.0
+        self.PAUSE_BETWEEN_FLASHES = 15.0
+        self.NUMBER_OF_FLASHES = 1.0
+        self.FLASH_DURATION = 5.0
+        self.FLASH_AMPLITUDE = 0.2 #max 1.0
+        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        
+        self.OFF_WAVELENGTH = 680.0
+        self.RESTING_WAVELENGTH = 680.0
+        self.runnable = 'PolychromeFlash'
+        self._create_parameters_from_locals(locals())
+        
+class ColorFlashConfigDown(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.WAVELENGTH_MIN = 530
+        self.WAVELENGTH_MAX = 450
+        self.WAVELENGTH_STEP = -10
+        
+        self.PAUSE_BETWEEN_FLASHES = 10.0
+        self.NUMBER_OF_FLASHES = 1.0
         self.FLASH_DURATION = 1.0
         self.FLASH_AMPLITUDE = 0.2 #max 1.0
         self.DELAY_BEFORE_FIRST_FLASH = 10.0
