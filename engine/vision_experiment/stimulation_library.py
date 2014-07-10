@@ -1012,6 +1012,45 @@ class StimulationSequences(Stimulations):
         '''
         pass
         
+    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0, block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
+        '''
+        shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
+        '''
+        
+        #TODO:
+#        if hasattr(self, 'screen_center'):
+#            pos_with_offset = utils.rc_add(pos, self.screen_center)
+#        else:
+#            pos_with_offset = pos
+        self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')')
+        if not (isinstance(speeds, list) or hasattr(speeds,'dtype')):
+            speeds = [speeds]
+        if hasattr(size, 'dtype'):
+            shape_size = max(size['row'], size['col'])
+        else:
+            shape_size = size
+        if shape_starts_from_edge:
+            self.movement = max(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) + shape_size
+        else:
+            self.movement = min(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe())
+        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
+        for spd in speeds:
+            for direction in directions:
+                end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.config.SCREEN_CENTER, operation = '+')
+                start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
+                spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+                self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size,  block_trigger = block_trigger, save_frame_info = False, enable_centering = False)
+                if pause > 0:
+                    self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
+                if self.abort:
+                    break
+        self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+
+        
     def moving_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0, noshow=False):
         if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
             self.vaf = 1
