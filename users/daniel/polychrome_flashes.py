@@ -16,7 +16,7 @@ class ColorTestConfig(experiment.ExperimentConfig):
         self.WAVELENGTH_MAX = 400
         self.WAVELENGTH_STEP = -25
         
-        self.PAUSE_BETWEEN_FLASHES = 2.0
+        self.PAUSE_BETWEEN_FLASHES = 20.0
         self.NUMBER_OF_FLASHES = 1
         self.FLASH_DURATION = 1.0
         self.FLASH_AMPLITUDE = 1.0 #max 1.0
@@ -35,9 +35,9 @@ class ColorFlashConfigUP(experiment.ExperimentConfig):
         
         self.PAUSE_BETWEEN_FLASHES = 15.0
         self.NUMBER_OF_FLASHES = 1.0
-        self.FLASH_DURATION = 5.0
-        self.FLASH_AMPLITUDE = 0.2 #max 1.0
-        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.FLASH_DURATION = 2.0
+        self.FLASH_AMPLITUDE = 0.1 #max 1.0
+        self.DELAY_BEFORE_FIRST_FLASH = 15.0
         
         self.OFF_WAVELENGTH = 680.0
         self.RESTING_WAVELENGTH = 680.0
@@ -50,11 +50,11 @@ class ColorFlashConfigDown(experiment.ExperimentConfig):
         self.WAVELENGTH_MAX = 450
         self.WAVELENGTH_STEP = -10
         
-        self.PAUSE_BETWEEN_FLASHES = 10.0
+        self.PAUSE_BETWEEN_FLASHES = 15.0
         self.NUMBER_OF_FLASHES = 1.0
-        self.FLASH_DURATION = 1.0
-        self.FLASH_AMPLITUDE = 0.2 #max 1.0
-        self.DELAY_BEFORE_FIRST_FLASH = 10.0
+        self.FLASH_DURATION = 2.0
+        self.FLASH_AMPLITUDE = 0.1 #max 1.0
+        self.DELAY_BEFORE_FIRST_FLASH = 15.0
         
         self.OFF_WAVELENGTH = 680.0
         self.RESTING_WAVELENGTH = 680.0
