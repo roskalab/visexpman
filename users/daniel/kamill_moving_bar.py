@@ -18,7 +18,7 @@ class KamillMovingBarsTest(experiment.ExperimentConfig):
         self.PAUSE_BETWEEN_DIRECTIONS =2
         self.REPETITIONS_ALL = 1 #s
         
-        self.runnable = 'MovingShapeExperiment'        
+        self.runnable = 'MovingShapeExperimentOpt'        
         self._create_parameters_from_locals(locals())
             
 class KamillMovingBars300(experiment.ExperimentConfig):
@@ -32,7 +32,7 @@ class KamillMovingBars300(experiment.ExperimentConfig):
         self.PAUSE_BETWEEN_DIRECTIONS =2
         self.REPETITIONS_ALL = 3 #s
         
-        self.runnable = 'MovingShapeExperiment'        
+        self.runnable = 'MovingShapeExperimentOpt'        
         self._create_parameters_from_locals(locals())
      
 
@@ -47,7 +47,7 @@ class KamillMovingBars300unidir(experiment.ExperimentConfig):
         self.PAUSE_BETWEEN_DIRECTIONS =10
         self.REPETITIONS_ALL = 5 #s
         
-        self.runnable = 'MovingShapeExperiment'        
+        self.runnable = 'MovingShapeExperimentOpt'        
         self._create_parameters_from_locals(locals())
 
 class KamillMovingBars1000(experiment.ExperimentConfig):
@@ -61,8 +61,20 @@ class KamillMovingBars1000(experiment.ExperimentConfig):
         self.PAUSE_BETWEEN_DIRECTIONS =2
         self.REPETITIONS_ALL = 3 #s
         
-        self.runnable = 'MovingShapeExperiment'        
+        self.runnable = 'MovingShapeExperimentOpt'        
         self._create_parameters_from_locals(locals())
+        
+class MovingShapeExperimentOpt(experiment.Experiment):
+    def run(self):
+        for repetition in range(self.experiment_config.REPETITIONS_ALL):
+            self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
+                          speeds = self.experiment_config.SPEEDS,
+                          directions = self.experiment_config.DIRECTIONS,
+                          shape = 'rect',
+                          color = self.experiment_config.SHAPE_COLOR,
+                          background_color = self.experiment_config.SHAPE_BACKGROUND,
+                          pause = self.experiment_config.PAUSE_BETWEEN_DIRECTIONS)
+
         
 class KamillMovingShapeExperiment(experiment.Experiment):
     def prepare(self):
