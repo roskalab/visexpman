@@ -1,54 +1,31 @@
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
-import time
-import numpy
-import os.path
-import os
-import shutil
+from visexpman.users.daniel import grating
 import random
-
-class ReceptiveFieldExploreAutosizeConfig(experiment.ExperimentConfig):
-    def _create_parameters(self):
-        self.AUTOSIZE_SHAPE = True
-        self.SHAPE = 'rect'
-        self.COLORS = [1.0, 0.0]
-        self.BACKGROUND_COLOR = 0.25
-        self.SHAPE_SIZE = 300.0
-        self.MESH_XY = utils.rc((4,6))
-        self.ON_TIME = 0.5*2
-        self.OFF_TIME = 0.5*6
-        self.PAUSE_BEFORE_AFTER = 2.0
-        self.REPEATS = 3
-        self.ENABLE_ZOOM = False
-        self.ENABLE_ELECTRODE_ROI = True
-        self.SELECTED_POSITION = 1
-        self.ZOOM_MESH_XY = utils.rc((3,3))
-        self.ENABLE_RANDOM_ORDER = True
-        self.runnable='ReceptiveFieldExplore'
-        self.pre_runnable='BlackPre'
-        self._create_parameters_from_locals(locals())
-
+import numpy
+        
 class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'
-        self.COLORS = [1.0, 0.0]
-        self.BACKGROUND_COLOR = 0.25
-        self.SHAPE_SIZE = 300.0
-        self.MESH_XY = utils.rc((4,6))
-        self.ON_TIME = 0.5*2
-        self.OFF_TIME = 0.5*6
+        self.ENABLE_ELECTRODE_ROI = True
+        self.COLORS = [0.0, 1.0]
+        self.BACKGROUND_COLOR = 0.5
+        self.SHAPE_SIZE = 100.0
+        self.MESH_XY = utils.rc((int(self.machine_config.SCREEN_SIZE_UM['row']/self.SHAPE_SIZE),int(self.machine_config.SCREEN_SIZE_UM['col']/self.SHAPE_SIZE)))
+        self.ON_TIME = 1.5
+        self.OFF_TIME = 0.0
         self.PAUSE_BEFORE_AFTER = 2.0
-        self.REPEATS = 3
+        self.REPEATS = 1
+        self.REPEAT_EACH = 4
         self.ENABLE_ZOOM = False
         self.SELECTED_POSITION = 1
         self.ZOOM_MESH_XY = utils.rc((3,3))
-        self.ENABLE_RANDOM_ORDER = True
+        self.ENABLE_RANDOM_ORDER = False
         self.runnable='ReceptiveFieldExplore'
-        self.pre_runnable='BlackPre'
         self._create_parameters_from_locals(locals())
         
 class ReceptiveFieldExplore(experiment.Experiment):
-    def calculate_positions(self, display_range, center, repeats, mesh_xy, colors=None):
+    def calculate_positions(self, display_range, center, repeats, mesh_xy, colors=None, repeat_each = 1):
         positions = []
         step = {}
         for axis in ['row', 'col']:
@@ -57,11 +34,15 @@ class ReceptiveFieldExplore(experiment.Experiment):
             for row in range(mesh_xy['row']):
                 for col in range(mesh_xy['col']):
                     position = utils.rc(((row+0.5) * step['row']+center['row'], (col+0.5)* step['col']+center['col']))
-                    if colors is None:
-                        positions.append(position)
-                    else:
-                        for color in colors:
-                            positions.append([position, color])
+                    if self.machine_config.COORDINATE_SYSTEM == 'center':
+                        position['row'] = position['row'] - 0.5*display_range['row']
+                        position['col'] = position['col'] - 0.5*display_range['col']
+                    for rep_each in range(repeat_each):
+                        if colors is None:
+                            positions.append(position)
+                        else:
+                            for color in colors:
+                                positions.append([position, color])
         return positions, utils.rc((step['row'],step['col']))
     
     def prepare(self):
@@ -73,19 +54,19 @@ class ReceptiveFieldExplore(experiment.Experiment):
             self.shape_size = display_range
         elif self.experiment_config.ENABLE_ELECTRODE_ROI:
             from visexpman.users.antonia.electrode_id_reader import read_electrode_coordinates
-            center,size = read_electrode_coordinates(self.machine_config.SCREEN_UM_TO_PIXEL_SCALE)
-            size = utils.rc((size[0], size[1]))
-            center = utils.rc((center[0], center[1]))
-            self.positions, display_range = self.calculate_positions(size, center, 1, self.experiment_config.MESH_XY)
-            self.shape_size = utils.rc((size['row']/self.MESH_XY['row'],size['col']/self.MESH_XY['col']))
+            center,size = read_electrode_coordinates()
+            mesh_xy = utils.rc((int(numpy.ceil(size['row']/self.experiment_config.SHAPE_SIZE)),int(numpy.ceil(size['col']/self.experiment_config.SHAPE_SIZE))))
+            print size, self.experiment_config.SHAPE_SIZE, mesh_xy
+            self.positions, display_range = self.calculate_positions(size, center, 1, mesh_xy, self.experiment_config.COLORS)
+            self.shape_size = self.experiment_config.SHAPE_SIZE
         else:
-            self.positions, display_range = self.calculate_positions(self.machine_config.SCREEN_SIZE_UM, utils.rc((0,0)), self.experiment_config.REPEATS, self.experiment_config.MESH_XY, self.experiment_config.COLORS)
+            self.positions, display_range = self.calculate_positions(self.machine_config.SCREEN_SIZE_UM, utils.rc((0,0)), self.experiment_config.REPEATS, self.experiment_config.MESH_XY, self.experiment_config.COLORS, self.experiment_config.REPEAT_EACH)
             self.shape_size = self.experiment_config.SHAPE_SIZE
         if self.experiment_config.ENABLE_RANDOM_ORDER:
             import random
             random.shuffle(self.positions)
-        self.fragment_durations = len(self.positions)* (self.experiment_config.ON_TIME + self.experiment_config.OFF_TIME) + 2*self.experiment_config.PAUSE_BEFORE_AFTER
-        self.fragment_durations = [self.fragment_durations]
+        self.fragment_durations = [len(self.positions)*(self.experiment_config.ON_TIME+self.experiment_config.OFF_TIME)+self.experiment_config.PAUSE_BEFORE_AFTER*2]
+        print self.fragment_durations, len(self.positions), self.experiment_config.MESH_XY
             
     def run(self):
         self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.PAUSE_BEFORE_AFTER)
@@ -100,4 +81,3 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                     pos = position_color[0])
             self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.OFF_TIME)
         self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.PAUSE_BEFORE_AFTER-self.experiment_config.OFF_TIME)
-             

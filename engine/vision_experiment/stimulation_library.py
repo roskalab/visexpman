@@ -587,9 +587,9 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         nshapes = n_checkers['row']*n_checkers['col']
         if not hasattr(box_size, 'dtype'):
             box_size = utils.rc((box_size, box_size))
-        shape_size = numpy.array([numpy.ones(nshapes*nframes)*box_size['row'], numpy.ones(nshapes*nframes)*box_size['col']]).T
+        shape_size = numpy.array([numpy.ones(nshapes)*box_size['row'], numpy.ones(nshapes)*box_size['col']]).T
         grid_positions = numpy.array(numpy.meshgrid(numpy.linspace(-(n_checkers['row']-1)/2.0, (n_checkers['row']-1)/2.0, n_checkers['row'])*box_size['row'], numpy.linspace(-(n_checkers['col']-1)/2.0, (n_checkers['col']-1)/2.0, n_checkers['col'])*box_size['col']),dtype=numpy.float).T
-        shape_positions = utils.rc(numpy.array([numpy.array(grid_positions[:,:,0].flatten().tolist()*nframes), numpy.array(grid_positions[:,:,1].flatten().tolist()*nframes)]))
+        shape_positions = utils.rc(numpy.array([numpy.array(grid_positions[:,:,0].flatten().tolist()), numpy.array(grid_positions[:,:,1].flatten().tolist())]))
         color_adjusted = color[:,::-1,:,:]
         self.show_shapes('rectangle', shape_size, shape_positions, nshapes, 
                     duration = duration, 
@@ -934,7 +934,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             vertices = numpy.array([[0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5]])
         else:
             raise RuntimeError('Unknown shape: {0}'.format(shape))
-        n_frames = len(shape_positions) / nshapes
+        if are_same_shapes_over_frames:
+            n_frames = color.shape[0]
+        else:
+            n_frames = len(shape_positions) / nshapes
         self.log_on_flip_message_initial += ' n_frames = ' + str(n_frames)
         n_vertices = len(vertices)        
         if are_same_shapes_over_frames:
@@ -956,10 +959,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             n_frames_per_pattern = 1
         else:
             n_frames_per_pattern = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
-        if hasattr(color, 'dtype') and hasattr(self.config, 'GAMMA_CORRECTION'):
-            color_corrected = self.config.GAMMA_CORRECTION(color)
-        else:
-            color_corrected = color
+#         if hasattr(color, 'dtype') and hasattr(self.config, 'GAMMA_CORRECTION'):
+#             color_corrected = self.config.GAMMA_CORRECTION(color)
+#         else:
+        color_corrected = color
         if background_color != None:
             background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
             converted_background_color = colors.convert_color(background_color, self.config)
@@ -1237,7 +1240,7 @@ class StimulationSequences(Stimulations):
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
-    def white_noise(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None):
+    def white_noise(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):
         '''
         pixel_size : in um
         flickering_frequency: pattern change frequency, 0: max frame rate
@@ -1270,8 +1273,9 @@ class StimulationSequences(Stimulations):
                 color[indexes] = colors[r_i]
         elif len(colors) == 2:
             indexes = numpy.nonzero(randmask[0])
-            import random
-            random.seed(0)
+            if set_seed:
+                import random
+                random.seed(0)
             for pattern_i in range(int(npatterns)):
                 rows = [random.choice(indexes[0]) for i in range(n_on_pixels)]
                 cols = [random.choice(indexes[1]) for i in range(n_on_pixels)]
