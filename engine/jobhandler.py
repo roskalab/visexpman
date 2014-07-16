@@ -563,7 +563,7 @@ class TestJobhandler(unittest.TestCase):
         jh.close()
         
     def test_03_no_jh_analysis(self):
-        datafolder = '/mnt/databig/debug/utra/natural_bars'
+        datafolder = '/mnt/databig/debug/kamill/rc/nb'
 #        datafolder = '/mnt/databig/debug/kamill/rc/20140624rd1'#NOT RUN
 #        datafolder = '/mnt/databig/debug/kamill/rc/20140623rd1'#NOT RUN
         ids = [fn.replace('.hdf5','').split('_')[-2] for fn in os.listdir(datafolder) if '.hdf5' in fn and os.path.exists(os.path.join(datafolder, fn.replace('.hdf5','.mat')))]
