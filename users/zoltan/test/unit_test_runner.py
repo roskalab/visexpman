@@ -50,23 +50,25 @@ TEST_enable_network = not TEST_test
 TEST_pixel_difference_threshold = 50.0
 
 if TEST_os == 'nt':
+    TEST_test_data_folder = 'u:\\software_test\\ref_data'
+    TEST_working_folder = 'u:\\software_test\\working'
     TEST_reference_frames_folder = 'v:\\data\\test\\frames_win'
     TEST_reference_mat_file = 'v:\\data\\test\\mes\\line_scan_parameters.mat'
     TEST_reference_z_stack_file = 'v:\\data\\test\\mes\\z_stack_ref.mat'
     TEST_reference_data_folder = 'v:\\data\\test'
     TEST_com_port = 'COM4'
-    TEST_working_folder = 'v:\\unit_test_output'
     TEST_valid_file = 'c:\\windows\\win.ini'
     TEST_invalid_file = 'c:\\windows'
     TEST_stage_com_port = 'COM1'
     TEST_goniometer_com_port = 'COM9'
 elif TEST_os == 'posix':
+    TEST_test_data_folder = '/mnt/databig/software_test/ref_data'
+    TEST_working_folder = '/mnt/databig/software_test/working'
     TEST_reference_frames_folder = '/home/zoltan/visexp/data/test/frames'
     TEST_reference_mat_file = '/home/zoltan/visexp/data/test/mes/line_scan_parameters.mat'
     TEST_reference_z_stack_file = '/home/zoltan/visexp/data/test/mes/z_stack_ref.mat'
     TEST_reference_data_folder = '/mnt/rzws/data/test'
     TEST_com_port = '/dev/ttyUSB0'
-    TEST_working_folder = '/home/zoltan/visexp/unit_test_output'
     TEST_valid_file = '/home/zoltan/visexp/codes/development/visexpman/engine/__init__.py'
     TEST_invalid_file = '/home'
     TEST_stage_com_port = ''
@@ -84,8 +86,7 @@ elif TEST_os == 'osx':
 #== Hardware config during test ==
 TEST_filterwheel_enable  = True #If set to False, many tests fail.
 TEST_daq_device = 'Dev1'
-TEST_test_data_folder = '/mnt/databig/software_test/ref_data'
-TEST_working_folder = '/mnt/databig/software_test/working'
+
 
 def prepare_test_data(modulename, clean_working_dir = True):
     ref_folder = os.path.join(TEST_test_data_folder, modulename)

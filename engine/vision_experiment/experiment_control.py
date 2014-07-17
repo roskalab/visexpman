@@ -243,6 +243,8 @@ class ExperimentControl(object):
             if not self._pre_post_experiment_scan(is_pre=True):
                 return False
         # Start ai recording
+        import gc
+        gc.collect()
         self.analog_input = daq_instrument.AnalogIO(self.config, self.log, self.start_time)
         if self.analog_input.start_daq_activity():
             self.printl('Analog signal recording started')

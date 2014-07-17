@@ -67,13 +67,14 @@ class KamillMovingBars1000(experiment.ExperimentConfig):
 class MovingShapeExperimentOpt(experiment.Experiment):
     def run(self):
         for repetition in range(self.experiment_config.REPETITIONS_ALL):
-            self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
-                          speeds = self.experiment_config.SPEEDS,
-                          directions = self.experiment_config.DIRECTIONS,
-                          shape = 'rect',
-                          color = self.experiment_config.SHAPE_COLOR,
-                          background_color = self.experiment_config.SHAPE_BACKGROUND,
-                          pause = self.experiment_config.PAUSE_BETWEEN_DIRECTIONS)
+            for dir in self.experiment_config.DIRECTIONS:
+                self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
+                              speeds = self.experiment_config.SPEED,
+                              directions = [dir],
+                              shape = 'rect',
+                              color = self.experiment_config.SHAPE_COLOR,
+                              background_color = self.experiment_config.SHAPE_BACKGROUND,
+                              pause = self.experiment_config.PAUSE_BETWEEN_DIRECTIONS)
 
         
 class KamillMovingShapeExperiment(experiment.Experiment):

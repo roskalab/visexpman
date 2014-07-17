@@ -96,9 +96,10 @@ class ReceptiveFieldExplore(experiment.Experiment):
             self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0)
                                     
             self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.OFF_TIME)
-        self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.PAUSE_BEFORE_AFTER-self.experiment_config.OFF_TIME)
-             
-
+        if self.experiment_config.PAUSE_BEFORE_AFTER-self.experiment_config.OFF_TIME<0:
+            self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR)
+        else:
+            self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.PAUSE_BEFORE_AFTER-self.experiment_config.OFF_TIME)            
             
 class StimParam(experiment.ExperimentConfig):
     def _create_parameters(self):

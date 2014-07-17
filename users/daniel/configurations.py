@@ -762,7 +762,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                     {
                     'ANALOG_CONFIG' : 'ai', #'ai', 'ao', 'aio', 'undefined'
                     'DAQ_TIMEOUT' : 3.0,
-                    'SAMPLE_RATE' : 40000,
+                    'SAMPLE_RATE' : 30000,
                     'AI_CHANNEL' : 'Dev1/ai0:3',
                     'MAX_VOLTAGE' : 10.0,
                     'MIN_VOLTAGE' : -10.0,

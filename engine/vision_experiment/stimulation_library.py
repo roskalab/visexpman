@@ -41,6 +41,16 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         glBindTexture(GL_TEXTURE_2D, self.grating_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         
+        #Calculate axis factors
+        if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
+            self.vaf = 1
+        else:
+            self.vaf = -1
+        if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
+            self.haf = 1
+        else:
+            self.has = -1
+        
         self.delayed_frame_counter = 0 #counts how many frames were delayed
         self.log_on_flip_message = ''
         self.elapsed_time = 0
@@ -178,11 +188,11 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 
     #== Various visual patterns ==
     
-    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, frame_trigger = True):
+    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, frame_trigger = True,save_frame_info=True):
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
-        if count:
+        if count and save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
@@ -223,7 +233,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                     
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
-        if count:
+        if count and save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
     def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, stretch=1.0, flip = True):
@@ -380,7 +390,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 #            if self.stimulation_control.abort_stimulus():
 #                break
 
-    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True):
+    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True,save_frame_info=True):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
         If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
@@ -388,7 +398,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         #Generate log messages
         self.log_on_flip_message_initial = 'show_shape(' + str(shape)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color)  + ', ' + str(background_color)  + ', ' + str(orientation)  + ', ' + str(size)  + ', ' + str(ring_size) + ')'
         self.log_on_flip_message_continous = 'show_shape'
-        self._save_stimulus_frame_info(inspect.currentframe())
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe())
         #Calculate number of frames
         n_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         if n_frames == 0:
@@ -477,7 +488,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         #Restore original background color
         if background_color != None:            
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
 #                    
 #    def show_checkerboard(self,   n_checkers,  duration = 0.0,  pos = (0,  0),  color = [],  box_size = (0, 0), flip = True):
@@ -1041,7 +1053,7 @@ class StimulationSequences(Stimulations):
                 end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.config.SCREEN_CENTER, operation = '+')
                 start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
                 spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size,  block_trigger = block_trigger, save_frame_info = False, enable_centering = False)
+                self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size,  save_frame_info = False)
                 if pause > 0:
                     self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
                 if self.abort:
