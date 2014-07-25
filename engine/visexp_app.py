@@ -137,7 +137,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         self.printl('Runtime: {0:.2f} s, measured frame rate: {1:.2f} Hz, expected frame rate: {2} Hz'.format(runtime, frame_rate, self.config.SCREEN_EXPECTED_FRAME_RATE))
         if abs(frame_rate-self.config.SCREEN_EXPECTED_FRAME_RATE)>self.config.FRAME_RATE_TOLERANCE:
             from visexpman.engine import HardwareError
-            raise HardwareError('Measured frame rate is out of acceptable range. Check projector\'s frame rate or graphics card settings.')        
+            raise HardwareError('Measured frame rate ({0:1.2f}) is out of acceptable range. Check projector\'s frame rate or graphics card settings.'.format(frame_rate))
         return frame_rate
         
     def read(self,varname):
@@ -209,8 +209,7 @@ def run_ca_imaging(context, timeout = None):
     stim = experiment_control.CaImagingLoop(context['machine_config'], context['socket_queues']['ca_imaging'], context['command'], context['logger'])
     context['logger'].start()
     stim.run(timeout=timeout)
-    
-    
+
 def stimulation_tester(user, machine_config, experiment_config, **kwargs):
     '''
     Runs the provided experiment config and terminates

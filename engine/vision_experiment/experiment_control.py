@@ -106,7 +106,8 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         #Notify man_ui that data imaging
         self.send({'update': ['data saved', imaging_started]})
         
-    def snap(self,parameters):
+    def snap_ca_image(self,parameters):
+        self.printl(parameters.keys())
         pass
         
         

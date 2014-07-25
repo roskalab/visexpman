@@ -155,9 +155,12 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
             self.limits['timeout'] = 3.0
         self.running = False
         
-    def _configure_timing(self):    
+    def _configure_timing(self, finite_samples = False):    
         if self.enable_ao:
-            self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_ContSamps
+            if finite_samples:
+                self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_ContSamps
+            else:
+                self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_FiniteSamps
             self.analog_output.CfgSampClkTiming("OnboardClock",
                                         self.ao_sample_rate,
                                         DAQmxConstants.DAQmx_Val_Rising,
@@ -256,8 +259,8 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
                 self.number_of_ai_samples = int(self.number_of_ao_samples * float(self.ai_sample_rate) / float(self.ao_sample_rate))
         else:
             self.number_of_ai_samples = int(self.ai_record_time * self.ai_sample_rate)
-            
-        self._configure_timing() #this cannot be done during init because the lenght of the signal is not known before waveform is set
+        self.finite_samples = kwargs.get('finite_samples', False)
+        self._configure_timing(self.finite_samples) #this cannot be done during init because the lenght of the signal is not known before waveform is set
         if self.enable_ao:
             self._write_waveform()
             self.analog_output.StartTask()
@@ -275,6 +278,10 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         if not self.running:
             self.queues['response'].put(['Not running, cannot be stopped', ])
         aborted = kwargs.has_key('aborted') and kwargs['aborted']
+        if self.enable_ao and not aborted and self.finite_samples:
+            #Timeout is daq timeout + duration of waveform    
+            self.analog_output.WaitUntilTaskDone(self.limits['timeout'] + float(self.ao_waveform.shape[1])/self.ao_sample_rate)
+            self.ai_data = self_read_ai()
         if self.enable_ao:
             self.analog_output.StopTask()
         if self.enable_ai:
@@ -282,6 +289,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         self.running = False
         self.printl('Daq stopped, ai frames: {0}'.format(self.ai_frames))
         self.queues['response'].put(['stop', self.ai_frames])
+        return self.ai_data
         
     def _set_digital_output(self, **kwargs):
         set_digital_line(kwargs['channel'], kwargs['value'])
@@ -301,9 +309,10 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
             pass
         ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
         ##self.ai_raw_data = self.ai_data
-        ai_data = ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose()
-        self.queues['data'].put(copy.deepcopy(ai_data))
+        ai_data = copy.deepcopy(ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose())
+        self.queues['data'].put(ai_data)
         self.ai_frames += 1
+        return ai_data
 
     def run(self):
         if platform.system() != 'Windows':
@@ -1573,7 +1582,7 @@ class TestAnalogIOProcess(unittest.TestCase):
         for wf in [numpy.repeat(self.test_waveform,2),0.5*self.test_waveform,numpy.repeat(-0.2*self.test_waveform,3)]:
             self._aio_restarted(self.logqueue, wf)
             
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
     def test_08_short_waveform(self):
         from pylab import plot, show
         self.logger.start()
@@ -1603,6 +1612,22 @@ class TestAnalogIOProcess(unittest.TestCase):
         map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
         for el in [self.expected_logs, self.ai_expected_logs]:
             map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
-        
+            
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+    def test_09_nonprocess_aio(self):
+        from pylab import plot, show
+        self.logger.start()
+        sample_rate = 100000
+        waveform = numpy.linspace(0,1,10000)
+        aio = AnalogIOProcess(self.instrument_name, self.queues, self.logqueue,
+                                        ai_channels = 'Dev1/ai0:1',
+                                        ao_channels='Dev1/ao2:3')
+        aio._create_tasks()
+        aio._start(ai_sample_rate = sample_rate, ao_sample_rate = sample_rate, 
+                      ao_waveform = numpy.tile(waveform,2).reshape((2, waveform.shape[0])),
+                      timeout = 30)
+        ai_data = aio._stop()
+        aio._close_tasks()
+
 if __name__ == '__main__':
     unittest.main()

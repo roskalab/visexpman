@@ -1108,6 +1108,7 @@ class VisionExperimentGui(Qt.QMainWindow):
                                   [self.central_widget.main_widget.recording_status.remove, 'experiment_control.remove_experiment'],
                                   [self.central_widget.main_widget.recording_status.set_state, 'experiment_control.set_experiment_state'],
                                   [self.central_widget.parameters_groupbox.check_scan_parameters_button, 'experiment_control.check_scan_parameters'],
+                                  [self.central_widget.images.snap, 'experiment_control.snap_ca_image'],
                                   ]
         for item in widget2poller_function:
             gui_generic.connect_and_map_signal(self, item[0],item[1])

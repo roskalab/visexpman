@@ -2681,7 +2681,6 @@ class VisexpGuiPoller(Poller):
         self.init_variables()
         self.load_context()
         self.init_widget_handlers()#Depends on context values
-        self.init_network()
         
     def init_variables(self):
         self.queues = {}
@@ -2792,22 +2791,6 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('close_app'),  self.parent.close_app)
         self.connect(self, QtCore.SIGNAL('select_recording_item'),  self.parent.select_recording_item)
         self.connect(self, QtCore.SIGNAL('select_experiment_log_entry'),  self.parent.select_experiment_log_entry)
-
-    def init_network(self):
-        self.connections = {}
-        self.command_relay_server = network_interface.CommandRelayServer(self.config)
-        self.queues['imaging'] = {}
-        self.queues['imaging']['out'] = Queue.Queue()
-        self.queues['imaging']['in'] = Queue.Queue()
-        self.connections['imaging'] = network_interface.start_client(self.config, 'GUI', 'GUI_IMAGING', self.queues['imaging']['in'], self.queues['imaging']['out'])
-        self.queues['stim'] = {}
-        self.queues['stim']['out'] = Queue.Queue()
-        self.queues['stim']['in'] = Queue.Queue()
-        self.connections['stim'] = network_interface.start_client(self.config, 'GUI', 'GUI_STIM', self.queues['stim']['in'], self.queues['stim']['out'])
-        self.queues['analysis'] = {}
-        self.queues['analysis']['out'] = Queue.Queue()
-        self.queues['analysis']['in'] = Queue.Queue()
-        self.connections['analysis'] = network_interface.start_client(self.config, 'GUI', 'GUI_ANALYSIS', self.queues['analysis']['in'], self.queues['analysis']['out'])
         
     def update_network_connection_status(self):
         #Check for network connection status
@@ -2858,7 +2841,20 @@ class VisexpGuiPoller(Poller):
 #            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
 
     def handle_commands(self):
-        pass
+        '''
+        Reads and relays data from network queues
+        '''
+        for connection_name in self.socket_queues.keys():
+            q = self.socket_queues[connection_name]['fromsocket']
+#            if connection_name == 'ca_imaging':
+#                status = self.socket_queues[connection_name]['in'].empty(),self.socket_queues[connection_name]['out'].empty()
+#                if not status[0] or not status[1]:
+#                    self.printc([self.queues[connection_name]['in'].empty(),self.queues[connection_name]['out'].empty()])
+            if q.empty():
+                continue
+            msg = q.get()
+            if isinstance(msg,str):
+                self.printc(msg)
 #        try:
 #            for k, queue in self.queues.items():                
 #                if hasattr(queue, 'has_key') and queue.has_key('in') and not queue['in'].empty():
@@ -2957,8 +2953,7 @@ class VisexpGuiPoller(Poller):
     def close(self):
         for conn_name in self.queues.keys():
             self.queues[conn_name]['out'].put('SOCclose_connectionEOCstop_clientEOP')
-        time.sleep(0.5)                
-        self.command_relay_server.shutdown_servers()
+        time.sleep(0.5)
         self.save_context()
         time.sleep(3.0)
         

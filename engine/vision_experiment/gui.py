@@ -828,6 +828,7 @@ class ExperimentControl(gui.WidgetControl):
         if not self._parse_experiment_run_parameters():
             return
         scanning_attributes = self._calculate_and_check_scan_parameters()
+        return scanning_attributes
         
     def add_experiment(self):
         '''
@@ -911,7 +912,14 @@ class ExperimentControl(gui.WidgetControl):
                 break
         
     def start_experiment(self, parameters):
+        #TODO: is this method really necessary???????????????
         self.printc('Experiment started. Duration is {0} seconds, expected to finish at {1}.'.format(parameters['duration'][0], utils.timestamp2hm(time.time() + parameters['duration'][0])))
+        
+    def snap_ca_image(self):
+        scanning_attributes = self.check_scan_parameters()
+        function_call = {'function': 'snap_ca_image', 'args': [scanning_attributes]}
+        self.poller.send(function_call,connection='ca_imaging')
+        
 
 class ExperimentParametersGroupBox(QtGui.QGroupBox):
     '''
@@ -1355,7 +1363,7 @@ class ImagesWidget(QtGui.QWidget):
 
         self.snap = QtGui.QPushButton('Snap', self)
         self.imagefilter = gui.LabeledComboBox(self, 'Filter', items = ['median_filter', 'fft bandfilter'])
-        self.imagechannel = gui.LabeledComboBox(self, 'Channel', items = self.config.PMTS.keys())
+        self.imagechannel = gui.LabeledComboBox(self, 'Display channel', items = self.config.PMTS.keys())
         
         self.v=QtGui.QGraphicsView(self)
         scene = QtGui.QGraphicsScene(self.v)

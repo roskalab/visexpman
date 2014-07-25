@@ -16,7 +16,7 @@ class QueuedSocketHelpers(object):
     def __init__(self,socket_queues):
         self.socket_queues=socket_queues
         
-    def recv(self,connection=None):
+    def recv(self, connection=None):
         if connection == None:
             queue = self.socket_queues['fromsocket']
         else:
@@ -24,7 +24,7 @@ class QueuedSocketHelpers(object):
         if not queue.empty():
             return queue.get()
 
-    def send(self,msg,connection=None):
+    def send(self,msg, connection=None):
         if connection == None:
             queue = self.socket_queues['tosocket']
         else:
