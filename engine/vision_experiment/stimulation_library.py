@@ -832,7 +832,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         profile_length = period * repetitions
         cut_off_ratio = display_area_adjusted[0]/profile_length
         profile_length = int(profile_length)
-        waveform_duty_cycle = 1.0 / (1.0 + duty_cycle)
+        waveform_duty_cycle = 1.0 / (1.0 + duty_cycle)#???/cut_off_ratio
         stimulus_profile_r = utils.generate_waveform(profile_adjusted[0], profile_length, period, color_contrast_adjusted[0], color_offset_adjusted[0], starting_phase, waveform_duty_cycle)
         stimulus_profile_g = utils.generate_waveform(profile_adjusted[1], profile_length, period, color_contrast_adjusted[1], color_offset_adjusted[1], starting_phase, waveform_duty_cycle)
         stimulus_profile_b = utils.generate_waveform(profile_adjusted[2], profile_length, period, color_contrast_adjusted[2], color_offset_adjusted[2], starting_phase, waveform_duty_cycle)
@@ -869,6 +869,13 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                              [0.0, 1.0],
                              [0.0, 0.0],
                              [cut_off_ratio, 0.0],
+                             ])
+        texture_coordinates = numpy.array(
+                             [
+                             [1.0, cut_off_ratio],
+                             [0.0, cut_off_ratio],
+                             [0.0, 0.0],
+                             [1.0, 0.0],
                              ])
 
         glTexCoordPointerf(texture_coordinates)
