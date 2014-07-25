@@ -680,7 +680,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
             self.TAPE_PATH = '/mnt/tape/hillier/invivocortex/TwoPhoton'
         else:
             DATABIG_PATH = 'u:\\data'
-        #CAPTURE_PATH = os.path.join(v_drive_folder, 'captured')
+        CAPTURE_PATH = 'c:\\Data\\capture'
 
         #=== screen ===
         import sys
@@ -815,7 +815,7 @@ class AoMicroscopeSetup(VisionExperimentConfig):
                             'LedKamill2Config', 'ReceptiveFieldExploreConfig',
                             'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie',
                             'NaturalMovieSv1', 'NaturalMovieSv2','NaturalMovieSv1Blue', 'NaturalMovieSv2Blue','KamillMovingGratingNoMarchingConfig','KamillMovingBars300','KamillMovingBarsTest',
-                            'KamillMovingBars1000','KamillMovingBars300unidir','ColorFlashConfigUP', 'ColorFlashConfigDown','ColorTestConfig']
+                            'KamillMovingBars1000','KamillMovingBars300unidir','ColorFlashConfigUP', 'ColorFlashConfigDown','ColorTestConfig', 'ProjectorFlashConfig']
         FULLSCREEN = True
         self.COLOR_MASK = [0.0, 0.0, 1.0]
         self.TRIGGER_MES = False

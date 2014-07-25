@@ -232,26 +232,18 @@ if 1:
             
     class KamillMovingGratingNoMarchingConfig(MovingGratingConfig):
         def _create_parameters(self):
-            #Flash config
-            self.ENABLE_FLASH = True
-            self.FLASH_DURATION = 5.0
-            self.TIMING = [30.0, self.FLASH_DURATION, 30.0, self.FLASH_DURATION, 30.0, self.FLASH_DURATION, 30.0]
-            self.FLASH_REPEATS = 1
-            self.BLACK = 0.0
-            self.WHITE = 1.0
-            self.PAUSE_BEFORE_AFTER = 1.0
             #Timing
             self.NUMBER_OF_MARCHING_PHASES = 1
-            self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+            self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 5
             self.MARCH_TIME =0.0
             self.GRATING_STAND_TIME = 0.0
             #Grating parameters
             self.ORIENTATIONS = range(0, 360, 45)
             self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
             self.WHITE_BAR_WIDTHS = [300.0]#300
-            self.VELOCITIES = [300.0]#1800
-            self.DUTY_CYCLES = [1.0] #put 3.0 to a different config
-            self.REPEATS = 2
+            self.VELOCITIES = [1800.0]#1800
+            self.DUTY_CYCLES = [5.0] #put 3.0 to a different config
+            self.REPEATS = 1
             self.PAUSE_BEFORE_AFTER = 0.0
             self.runnable = 'MovingGrating'
     #        self.pre_runnable = 'MovingGratingPre'
