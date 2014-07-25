@@ -799,7 +799,7 @@ def truncate_timestamps(list_of_timestamps,  at_position):
     with least significant data truncated. E.g. to get timestamps that contain only
    year_month_date but no hour, second, millisecond: set at_position=3
    '''
-    timetuples = numpy.array([time.localtime(ts) for ts in list_of_timestamps])
+    timetuples = numpy.array([time.localtime(float(ts)) for ts in list_of_timestamps])
     truncated_timestamps= [time.mktime(tt[:at_position].tolist()+[0]*(9-at_position)) for tt in timetuples] #timestamps made from timetuples where only year month day differs, rest is 0
     return truncated_timestamps
 
