@@ -158,9 +158,10 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
     def _configure_timing(self, finite_samples = False):    
         if self.enable_ao:
             if finite_samples:
-                self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_ContSamps
-            else:
                 self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_FiniteSamps
+            else:
+                self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_ContSamps
+            
             self.analog_output.CfgSampClkTiming("OnboardClock",
                                         self.ao_sample_rate,
                                         DAQmxConstants.DAQmx_Val_Rising,
@@ -281,7 +282,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         if self.enable_ao and not aborted and self.finite_samples:
             #Timeout is daq timeout + duration of waveform    
             self.analog_output.WaitUntilTaskDone(self.limits['timeout'] + float(self.ao_waveform.shape[1])/self.ao_sample_rate)
-            self.ai_data = self_read_ai()
+            self.ai_data = self._read_ai()
         if self.enable_ao:
             self.analog_output.StopTask()
         if self.enable_ai:
@@ -1496,10 +1497,10 @@ class TestAnalogIOProcess(unittest.TestCase):
         self.assertAlmostEqual(data1[0].shape[0]*data1[0].shape[1]/float(aio_binning_factor1*self.ao_sample_rate), duration1, delta = 0.5)
         self.assertAlmostEqual(data2[0].shape[0]*data2[0].shape[1]/float(self.ao_sample_rate2*aio_binning_factor2), duration2, delta = 0.5)
         #Compare generated and acquired waveforms
-        numpy.testing.assert_allclose(data1[0][:,:,0].mean(axis=0)[1:], numpy.repeat(test_waveform,aio_binning_factor1)[:-1], 0, 1e-3)
-        numpy.testing.assert_allclose(data2[0][:,:,0].mean(axis=0)[1:], numpy.repeat(-test_waveform,aio_binning_factor2)[:-1], 0, 1e-3)
-        numpy.testing.assert_allclose(data1[0][:,:,1].mean(axis=0), numpy.repeat(test_waveform,aio_binning_factor1), 0, 1e-3)
-        numpy.testing.assert_allclose(data2[0][:,:,1].mean(axis=0), numpy.repeat(-test_waveform,aio_binning_factor2), 0, 1e-3)
+        numpy.testing.assert_allclose(data1[0][:,:,0].mean(axis=0)[1:], numpy.repeat(test_waveform,aio_binning_factor1)[:-1], 0, 2e-3)
+        numpy.testing.assert_allclose(data2[0][:,:,0].mean(axis=0)[1:], numpy.repeat(-test_waveform,aio_binning_factor2)[:-1], 0, 2e-3)
+        numpy.testing.assert_allclose(data1[0][:,:,1].mean(axis=0), numpy.repeat(test_waveform,aio_binning_factor1), 0, 2e-3)
+        numpy.testing.assert_allclose(data2[0][:,:,1].mean(axis=0), numpy.repeat(-test_waveform,aio_binning_factor2), 0, 2e-3)
     
     def test_01_parse_channel_string(self):
         channels_strings = ['Dev1/ao0:2', 'Dev2/ao1', 'Dev3/ai2:3']
@@ -1618,16 +1619,18 @@ class TestAnalogIOProcess(unittest.TestCase):
         from pylab import plot, show
         self.logger.start()
         sample_rate = 100000
-        waveform = numpy.linspace(0,1,10000)
+        waveform = numpy.tile(numpy.linspace(0,1,10000),2)
         aio = AnalogIOProcess(self.instrument_name, self.queues, self.logqueue,
                                         ai_channels = 'Dev1/ai0:1',
                                         ao_channels='Dev1/ao2:3')
         aio._create_tasks()
         aio._start(ai_sample_rate = sample_rate, ao_sample_rate = sample_rate, 
                       ao_waveform = numpy.tile(waveform,2).reshape((2, waveform.shape[0])),
-                      timeout = 30)
+                      finite_samples=True,timeout = 30)
         ai_data = aio._stop()
         aio._close_tasks()
+        numpy.testing.assert_allclose(ai_data[:,0][1:], waveform[:-1], 0, 5e-3)
+        numpy.testing.assert_allclose(ai_data[:,1], waveform, 0, 1e-2)
 
 if __name__ == '__main__':
     unittest.main()
