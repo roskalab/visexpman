@@ -156,20 +156,13 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         
         #### Network ####
-        self.CONNECTIONS['stim']['ip']['stim'] = '127.0.0.1'
-        self.CONNECTIONS['stim']['ip']['main_ui'] = '127.0.0.1'
-        self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = '127.0.0.1'
-        self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = '127.0.0.1'
-        self.CONNECTIONS['analysis']['ip']['analysis'] = '127.0.0.1'
-        self.CONNECTIONS['analysis']['ip']['main_ui'] = '127.0.0.1'
+        self.CONNECTIONS['stim']['ip']['stim'] = None
+        self.CONNECTIONS['stim']['ip']['main_ui'] = '172.27.26.39'
+        self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = '172.27.26.39'#bind to specific network card
+        self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = '172.27.26.39'
+        self.CONNECTIONS['analysis']['ip']['analysis'] = None
+        self.CONNECTIONS['analysis']['ip']['main_ui'] = '172.27.26.39'
 
-        if os.name != 'nt':
-            self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
-        else:
-            self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = '172.27.26.32'
-        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = not True
-        self.COMMAND_RELAY_SERVER['ENABLE'] = not True
-        self.COMMAND_RELAY_SERVER['TIMEOUT'] = 10.0
         self.BASE_PORT = 10000
         
         COORDINATE_SYSTEM='center'

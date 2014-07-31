@@ -875,7 +875,10 @@ class ExperimentControl(gui.WidgetControl):
         self.printc('{0} removed from experiment queue.'.format(self._modify_experiment_item(self._remove_experiment)))
         
     def _set_experiment_state(self, entry):
-        self.poller.animal_file.recordings[self.poller.animal_file.recordings.index(entry)]['status'] = str(self.status_widget.new_state.currentText())
+        for i in range(len(self.poller.animal_file.recordings)):
+            if self.poller.animal_file.recordings[i]['id'] == entry['id']:#id is unique identifier
+                self.poller.animal_file.recordings[i]['status'] = str(self.status_widget.new_state.currentText())
+                break
         
     def set_experiment_state(self):
         self.printc('{0}\'s state updated.'.format(self._modify_experiment_item(self._set_experiment_state)))
@@ -917,6 +920,9 @@ class ExperimentControl(gui.WidgetControl):
         
     def snap_ca_image(self):
         scanning_attributes = self.check_scan_parameters()
+        scanning_attributes = {'scanning_attributes':scanning_attributes}#To make it compatible with experiment start data structure
+        scanning_attributes['analog_input_sampling_rate'] = self.mandatory_parameters['analog_input_sampling_rate']
+        scanning_attributes['analog_output_sampling_rate'] = self.mandatory_parameters['analog_output_sampling_rate']
         function_call = {'function': 'snap_ca_image', 'args': [scanning_attributes]}
         self.poller.send(function_call,connection='ca_imaging')
         

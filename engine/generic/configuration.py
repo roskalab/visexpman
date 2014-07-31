@@ -74,25 +74,25 @@ class Config(object):
                 if PRINT_PAR_NAMES:
                     print k, v
                 if self.ignore_range:
-                    setattr(self, k + '_p',  parameter.Parameter(v,  check_range = False))
+                    setattr(self, k + '_p',  parameter.Parameter(v,  check_range = False,name=k))
                 elif isinstance(v,  list):
                     if len(v)==2 and ((isinstance(v[1], (list, tuple)) and v[1][0] !='not_range') or v[1]==None):
-                        setattr(self,  k + '_p',  parameter.Parameter(v[0],  range_ = v[1]))
+                        setattr(self,  k + '_p',  parameter.Parameter(v[0],  range_ = v[1],name=k))
                     elif len(v) == 1: #when no range is provided (list of strings or dictionaries) # why we do this???
                         setattr(self,  k + '_p',  parameter.Parameter(v))
                     elif len(v)==2 and isinstance(v[1], (list, tuple)) and v[1][0] =='not_range':
                         # in theory such data would not be used as data
                         # for the rare case when parameter is a two element list, seond element is a 4 element list with first element 'not_range', meaning that second element is also data and should be treated as data
                         v[1] = v[1][1:] # remove helper string
-                        setattr(self,  k + '_p',  parameter.Parameter(v))
+                        setattr(self,  k + '_p',  parameter.Parameter(v,name=k))
                     else:
-                        setattr(self,  k + '_p',  parameter.Parameter(v))                        
+                        setattr(self,  k + '_p',  parameter.Parameter(v,name=k))                        
                 elif '_PATH' in k: #"PATH" is encoded into variable name
-                    setattr(self,  k + '_p',  parameter.Parameter(v, is_path = check_path))
+                    setattr(self,  k + '_p',  parameter.Parameter(v, is_path = check_path,name=k))
                 elif '_FILE' in k: #variable name ends with _FILE
-                    setattr(self,  k + '_p',  parameter.Parameter(v, is_file = check_path))
+                    setattr(self,  k + '_p',  parameter.Parameter(v, is_file = check_path,name=k))
                 else:
-                    setattr(self,  k + '_p', parameter.Parameter(v))
+                    setattr(self,  k + '_p', parameter.Parameter(v,name=k))
         self._create_parameter_aliases()
 
     def _set_parameters_from_locals(self,  locals):

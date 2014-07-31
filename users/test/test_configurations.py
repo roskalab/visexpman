@@ -494,6 +494,7 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
         
     def _set_user_parameters(self):
         from visexpman.users.test import unittest_aggregator
+        INSERT_FLIP_DELAY = not True
         self.root_folder = fileop.select_folder_exists(unittest_aggregator.TEST_working_folder)
         LOG_PATH = os.path.join(self.root_folder, 'log')
         EXPERIMENT_LOG_PATH = LOG_PATH        

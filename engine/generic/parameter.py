@@ -47,7 +47,8 @@ class Parameter(object):
     - set
     '''
     
-    def __init__(self,  value,  range_ = None,  is_path = False, is_file=False,check_range = True):
+    def __init__(self,  value,  range_ = None,  is_path = False, is_file=False,check_range = True, name = ''):
+        self.name = name
         self.v = None
         self.range_ = range_
         self._detect_type(value, range_ = range_,  is_path = is_path,  is_file=is_file)
@@ -102,7 +103,7 @@ class Parameter(object):
                 self._type = 'enumerated'
         
         if exceptionType != None:
-            raise exceptionType(value)
+            raise exceptionType((value,self.name))
         else:
             self.v = value
             

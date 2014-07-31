@@ -141,7 +141,7 @@ def start_sockets(appname, config, log):
     if appname == 'main_ui':
         for server_name in config.CONNECTIONS.keys():
             sockets[server_name] = QueuedSocket('{0}-{1} socket'.format(appname, server_name), 
-                                                                                    False, 
+                                                                                    False, #client started
                                                                                     config.CONNECTIONS[server_name]['port'],
                                                                                     multiprocessing.Queue(), 
                                                                                     multiprocessing.Queue(), 
@@ -149,7 +149,7 @@ def start_sockets(appname, config, log):
                                                                                     log=log)
     else:
         sockets[appname] = QueuedSocket('{0}-{1} socket'.format(appname, 'main_ui'), 
-                                                                                    True, 
+                                                                                    True, #server started
                                                                                     config.CONNECTIONS[appname]['port'],
                                                                                     multiprocessing.Queue(), 
                                                                                     multiprocessing.Queue(), 

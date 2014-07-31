@@ -2748,7 +2748,7 @@ class VisexpGuiPoller(Poller):
                     context['widgets'][varname] = str(context['widgets'][varname])
                 elif isinstance(context['widgets'][varname], list):#Qlistwidget selected rows
                     context['widgets'][varname] = [s.row() for s in context['widgets'][varname]]
-        hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(context), self.config,  overwrite = True)
+        hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(context), self.config, overwrite = True)
                                  
     def init_widget_handlers(self):
         '''
@@ -2967,6 +2967,7 @@ class VisexpGuiPoller(Poller):
         self.printc('Test {0}'.format(self.testmode))
         if self.testmode==0:#Just for creating context file/quickly starting up the gui
             self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.setCurrentIndex(2)
+            time.sleep(1)
             self.emit(QtCore.SIGNAL('close_app'))
         elif self.testmode==1:
             if not hasattr(self, 'test_phase'):
@@ -3041,6 +3042,7 @@ class VisexpGuiPoller(Poller):
                 animal_param_table.cellWidget(2, 1).setDate(QtCore.QDate(2012, 1, 1))
                 animal_param_table.cellWidget(6, 1).setEditText('secondstrain')
                 self.animal_file.save_animal_parameters()
+            time.sleep(1)
             self.emit(QtCore.SIGNAL('close_app'))
         elif self.testmode == 6:
             self.parent.central_widget.main_tab.setCurrentIndex(2)
@@ -3057,6 +3059,7 @@ class VisexpGuiPoller(Poller):
             animal_param_table.setItem(0, 1, QtGui.QTableWidgetItem('test1'))
             animal_param_table.cellWidget(7, 1).setEditText('label1')
             self.animal_file.update()
+            time.sleep(1)
             self.emit(QtCore.SIGNAL('close_app'))
         elif self.testmode == 7 or self.testmode == 8 or self.testmode ==  9 or self.testmode ==  10:
             if self.testmode == 9 or self.testmode ==  10:
@@ -3117,7 +3120,7 @@ class VisexpGuiPoller(Poller):
                 while len(self.parent.central_widget.experiment_log_groupbox.log.selectedItems()) != 2:
                     time.sleep(0.1)
                 self.experiment_log.remove()
-                time.sleep(1.0)
+            time.sleep(1.0)
             self.emit(QtCore.SIGNAL('close_app'))
         elif self.testmode == 11:
             self.parent.central_widget.main_tab.setCurrentIndex(2)
@@ -3131,6 +3134,7 @@ class VisexpGuiPoller(Poller):
             elif self.test_phase == 1:
                 APP_CLOSE_TIMEOUT = 10.0
                 if time.time()-self.filemovetime>APP_CLOSE_TIMEOUT:
+                    time.sleep(1)
                     self.emit(QtCore.SIGNAL('close_app'))
         elif self.testmode == 12:
             self.parent.central_widget.main_tab.setCurrentIndex(2)
@@ -3147,7 +3151,7 @@ class VisexpGuiPoller(Poller):
             self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.setText('cell')
             self.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.setCurrentIndex(2)
             self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.setText('100, 100')
-            time.sleep(0.4)
+            time.sleep(1)
             self.emit(QtCore.SIGNAL('close_app'))
         elif self.testmode == 13 or self.testmode == 14:
             if self.testmode == 14:
@@ -3182,6 +3186,7 @@ class VisexpGuiPoller(Poller):
             self.emit(QtCore.SIGNAL('select_recording_item'), 1, True)
             time.sleep(1)
             self.experiment_control.remove_experiment()
+            time.sleep(1)
             self.emit(QtCore.SIGNAL('close_app'))
             
     ##### Relaying signals #####

@@ -1314,6 +1314,7 @@ def run_cortical_gui():
     app.exec_()   
     
 import unittest
+import platform
 class testVisionExperimentGui(unittest.TestCase):
     
     def setUp(self):
@@ -1334,18 +1335,13 @@ class testVisionExperimentGui(unittest.TestCase):
         
     def _read_context(self):
         fn = fileop.get_context_filename(self.machine_config)
-        t0=time.time()
-        while True:
+        if platform.system() == 'Windows':
+            h = hdf5io.Hdf5io(fn,filelocking=False)
+            h.close()#Making sure that file is closed
+        if os.path.exists(fn):
             time.sleep(1.0)
-            try:
-                if os.path.exists(fn):
-                    time.sleep(1.0)
-                    context = utils.array2object(hdf5io.read_item(fn, 'context', filelocking=False))
-                    return context
-            except:
-               pass
-            if time.time()-t0>60:
-                break
+            context = utils.array2object(hdf5io.read_item(fn, 'context', filelocking=False))
+            return context
     
     def _create_animal_parameter_file(self, id):
         '''
@@ -1557,9 +1553,11 @@ class testVisionExperimentGui(unittest.TestCase):
 #        run_main_ui(context)
 #        visexpman.engine.stop_application(context)
         contexts = []
-        contexts.append(self._read_context())
+        context = self._read_context()
+        contexts.append(context)
         self._call_gui(0)
-        contexts.append(self._read_context())
+        context = self._read_context()
+        contexts.append(context)
         expected_values = ('animal_id1_12_12-12-2012_12-12-2012_L0R0.hdf5',
         2,
         'cell',
@@ -1609,6 +1607,7 @@ class testVisionExperimentGui(unittest.TestCase):
                     recordings[0]['recording_channels'], 
                     recordings[0]['scan_center'], 
                     ), self.test_13_14_expected_values)
+        
                     
 if __name__ == '__main__':
     unittest.main()
