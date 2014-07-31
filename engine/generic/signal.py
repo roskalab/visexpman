@@ -67,7 +67,7 @@ def wf_triangle(a, t_up, t_down, duration, fs, offset = 0):
     nsample_up = t_up*fs
     nsample_down = t_down*fs
     triangle = numpy.concatenate((numpy.linspace(a/nsample_up, a, nsample_up), numpy.linspace(a-a/nsample_down, 0, nsample_down)))
-    sig = numpy.zeros(int(fs*duration))
+    sig = numpy.zeros(int(numpy.round(fs*duration)))
     triangle = numpy.tile(triangle, sig.shape[0]/triangle.shape[0])
     sig[:triangle.shape[0]] = triangle
     return sig+offset

@@ -1715,7 +1715,8 @@ class TestScannerControl(unittest.TestCase):
                                     [utils.rc((20,20)), 1, False, 400e3,1e-2],
                                     [utils.rc((30,20)), 1, True, 400e3,5e-2],
                                     [utils.rc((10,15)), 1, False, 100e3,5e-2],
-                                    [utils.rc((128,128)), 2, False, 500e3,30e-2]
+                                    [utils.rc((128,128)), 2, False, 500e3,30e-2],
+                                    [utils.rc((100,100)), 1, True, 300e3,5e-2]
                                    ]
         for scan_size, resolution, constraints['enable_flybackscan'], constraints['sample_frequency'], constraints['max_linearity_error'] in scan_configs:
             center = utils.rc((1,10))
