@@ -1775,6 +1775,9 @@ class TestScannerControl(unittest.TestCase):
 #        plot(stimulus_flash_trigger_signal)
 #        show()
 
+    def test_19_reconstruct_signal(self):
+        pass
+
 
     def _ramp(self):
         waveform = numpy.linspace(0.0, 1.0, 10000)
@@ -1888,7 +1891,7 @@ def generate_stimulus_flash_trigger(mask, duty_cycle, delay, signal_attributes, 
     max_flash_samples =  int(factor*(mask.shape[0]-mask.sum()))
     if max_flash_samples<flash_samples + delay_samples and duty_cycle<1.0:
         raise ScannerError('Not enough time for requested duty cycle and delay. Reduce duty cycle or delay')
-    if duty_cycle == 1.0:#If 1.0 duty cycle is provided, trunckate flash samples
+    if duty_cycle == 1.0:#If 1.0 duty cycle is provided, truncate flash samples
         flash_samples = max_flash_samples - delay_samples
     #Shift temporarily the mask to the beginning of the first valid data interval
     shift = numpy.nonzero(numpy.diff(mask))[0][0]
@@ -1898,7 +1901,7 @@ def generate_stimulus_flash_trigger(mask, duty_cycle, delay, signal_attributes, 
     for i in range(start_indexes.shape[0]):
         stimulus_flash_trigger_signal[start_indexes[i]:end_indexes[i]]=1
     #Shift mask back
-    stimulus_flash_trigger_signal = numpy.roll(stimulus_flash_trigger_signal,shift+1)
+    stimulus_flash_trigger_signal = numpy.roll(stimulus_flash_trigger_signal, shift+1)
     stimulus_flash_trigger_signal = numpy.tile(stimulus_flash_trigger_signal, signal_attributes['nxlines'])
     real_duty_cycle = float(stimulus_flash_trigger_signal.sum())/float(stimulus_flash_trigger_signal.shape[0])
     return stimulus_flash_trigger_signal, real_duty_cycle

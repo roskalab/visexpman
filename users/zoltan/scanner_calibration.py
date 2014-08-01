@@ -12,7 +12,10 @@ from visexpman.engine.generic import utils
 import time
 import numpy
 from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.hardware_interface import camera_interface
+try:
+    from visexpman.engine.hardware_interface import camera_interface
+except:
+    pass
 from visexpman.engine.generic import configuration
 from visexpman.engine.generic import fileop
 from visexpman.engine.generic import signal
@@ -44,7 +47,7 @@ class TestConfig(configuration.Config):
         ]
         self._create_parameters_from_locals(locals())
 
-class ScannerCalibration(camera_interface.ImagingSourceCamera, daq_instrument.AnalogIO):
+class ScannerCalibration(daq_instrument.AnalogIO):
     def __init__(self, config):
         camera_interface.ImagingSourceCamera.__init__(self, config)
         daq_instrument.AnalogIO.__init__(self, config)

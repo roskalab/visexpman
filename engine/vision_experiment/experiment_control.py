@@ -120,7 +120,10 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                       finite_samples=True,timeout = 30)
         ai_data = aio._stop()
         aio._close_tasks()
+        data2save = {'parameters':parameters,'ai_data':ai_data}
+        numpy.save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH,'2psnap.npy')),utils.object2array(data2save))
         self.printl('Done')
+        
 #        self.printl(parameters.keys())
 #        import pdb
 #        pdb.set_trace()

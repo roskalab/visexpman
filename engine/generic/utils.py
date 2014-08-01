@@ -220,7 +220,7 @@ def calculate_circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  en
     if output_list:
         vertices = []
     else:
-        n_vertices_arc = (end_angle - start_angle) * resolution + 1
+        n_vertices_arc = int((end_angle - start_angle) * resolution + 1)
         if abs(start_angle - end_angle) < 360 and arc_slice:
             n_vertices = n_vertices_arc + 1
         else:
@@ -690,8 +690,7 @@ version_paths = {
     'subprocess' : 'standard', 
     'numpy': 'version.version', 
     'scipy': 'version.version', 
-    'Image': 'VERSION', 
-    'ImageDraw': 'Image.VERSION', 
+    'PIL': 'VERSION', 
     'tables': '__version__', 
     'serial': 'VERSION', 
     'parallel': 'VERSION', 

@@ -169,7 +169,7 @@ class ExperimentLog(gui.WidgetControl):
             self.printc('Please provide log data')
             return
         self.poller.animal_file.log.append(new_entry)
-        hdf5io.save_item(self.poller.animal_file.filename, 'log', utils.object2array(self.poller.animal_file.log), self.config, overwrite = True)
+        hdf5io.save_item(self.poller.animal_file.filename, 'log', utils.object2array(self.poller.animal_file.log), self.config, overwrite = True,filelocking=False)
         self.poller.update_experiment_log()
         self.printc('Log entry saved')
         
@@ -190,7 +190,7 @@ class ExperimentLog(gui.WidgetControl):
         #Remove item(s) from table widget
         for item in self.widget.log.selectedItems():
             self.widget.log.removeRow(item.row())
-        hdf5io.save_item(self.poller.animal_file.filename, 'log', utils.object2array(self.poller.animal_file.log), self.config, overwrite = True)
+        hdf5io.save_item(self.poller.animal_file.filename, 'log', utils.object2array(self.poller.animal_file.log), self.config, overwrite = True,filelocking=False)
         self.printc('Selected log entry removed')
 
 class AnimalParametersGroupbox(QtGui.QGroupBox):
@@ -365,7 +365,7 @@ class AnimalFile(gui.WidgetControl):
         return os.path.join(fileop.get_user_experiment_data_folder(self.config), fileop.generate_animal_filename(animal_parameters))
         
     def _animal_parameters2file(self):
-        h=hdf5io.Hdf5io(self.filename,self.config)
+        h=hdf5io.Hdf5io(self.filename,self.config,filelocking=False)
         h.animal_parameters = utils.object2array(copy.deepcopy(self.animal_parameters))
         h.save('animal_parameters')
         h.close()
@@ -437,7 +437,7 @@ class AnimalFile(gui.WidgetControl):
             return
         if not os.path.exists(self.filename):
             return
-        h=hdf5io.Hdf5io(self.filename,self.config)
+        h=hdf5io.Hdf5io(self.filename,self.config,filelocking=False)
         self._init_variables()
         for variable_name in self.variable_names:
             h.load(variable_name)
@@ -754,8 +754,9 @@ class ExperimentControl(gui.WidgetControl):
         if self.mandatory_parameters['analog_output_sampling_rate'] > self.mandatory_parameters['analog_input_sampling_rate']:
             self.poller.notify_user('WARNING', 'Analog input sampling rate cannot be less than analog output sampling rate')
             return False
-        self.mandatory_parameters['stimulus_flash_trigger_duty_cycle'] *= 1e-2
-        self.mandatory_parameters['maximal_x_line_linearity_error'] *= 1e-2
+        self.mandatory_parameters['stimulus_flash_trigger_delay'] *= 1e-6#us to second
+        self.mandatory_parameters['stimulus_flash_trigger_duty_cycle'] *= 1e-2#percent to PU
+        self.mandatory_parameters['maximal_x_line_linearity_error'] *= 1e-2#percent to PU
         self.mandatory_parameters['duration'] = experiment.get_experiment_duration(
                                                                                    self.mandatory_parameters['experiment_name'], 
                                                                                    self.config, 

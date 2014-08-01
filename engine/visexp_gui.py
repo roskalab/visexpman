@@ -1608,6 +1608,9 @@ class testVisionExperimentGui(unittest.TestCase):
                     recordings[0]['scan_center'], 
                     ), self.test_13_14_expected_values)
         
+#    def test_15(self):
+#        for i in range(8):
+#            self._call_gui(15)
                     
 if __name__ == '__main__':
     unittest.main()
