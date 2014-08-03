@@ -1776,7 +1776,25 @@ class TestScannerControl(unittest.TestCase):
 #        show()
 
     def test_19_reconstruct_signal(self):
-        pass
+        from pylab import plot, show
+        folder = '/mnt/rzws/dataslow/2pimages'
+        for fn in os.listdir(folder):
+            data = utils.array2object(numpy.load(os.path.join(folder,fn)))
+            ai_data=data['ai_data']
+            parameters=data['parameters']
+            scanning_attributes = parameters['scanning_attributes']
+            binning_factor = int(numpy.round(parameters['analog_input_sampling_rate']/parameters['analog_output_sampling_rate']))
+            binned = numpy.zeros((ai_data.shape[0]/binning_factor, ai_data.shape[1]))
+            frames = []
+            for ch_i in range(ai_data.shape[1]):
+                binned[:,ch_i] = ai_data[:,ch_i].reshape(ai_data.shape[0]/binning_factor,binning_factor).mean(axis=1)
+                indexes = numpy.nonzero(numpy.diff(scanning_attributes['valid_data_mask']))[0]
+                lines=numpy.split(binned[:,ch_i],indexes)[1::2]
+                frame = numpy.array(lines)
+                frames.append(frame)
+            
+            pass
+            
 
 
     def _ramp(self):

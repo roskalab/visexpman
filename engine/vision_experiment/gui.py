@@ -922,8 +922,9 @@ class ExperimentControl(gui.WidgetControl):
     def snap_ca_image(self):
         scanning_attributes = self.check_scan_parameters()
         scanning_attributes = {'scanning_attributes':scanning_attributes}#To make it compatible with experiment start data structure
-        scanning_attributes['analog_input_sampling_rate'] = self.mandatory_parameters['analog_input_sampling_rate']
-        scanning_attributes['analog_output_sampling_rate'] = self.mandatory_parameters['analog_output_sampling_rate']
+        fields = ['stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay', 'scanning_range', 'recording_channels', 'analog_input_sampling_rate', 'analog_output_sampling_rate', 'resolution']
+        for field in fields:
+            scanning_attributes[field] = self.mandatory_parameters[field]
         function_call = {'function': 'snap_ca_image', 'args': [scanning_attributes]}
         self.poller.send(function_call,connection='ca_imaging')
         
