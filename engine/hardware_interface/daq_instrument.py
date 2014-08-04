@@ -1427,8 +1427,8 @@ class TestDaqInstruments(unittest.TestCase):
 class TestAnalogIOProcess(unittest.TestCase):
     '''
     Expected connections:
-    AO2 - AI0
-    AO3 - AI1
+    AO0 - AI0
+    AO1 - AI1
     '''
     def setUp(self):
         import multiprocessing
@@ -1458,8 +1458,8 @@ class TestAnalogIOProcess(unittest.TestCase):
         
     def tearDown(self):
         if unittest_aggregator.TEST_daq:
-            set_voltage('Dev1/ao2', 0)
-            set_voltage('Dev1/ao3', 0)
+            set_voltage('Dev1/ao0', 0)
+            set_voltage('Dev1/ao1', 0)
         if self.logger.is_alive():
             self.logger.terminate()
             
@@ -1470,7 +1470,7 @@ class TestAnalogIOProcess(unittest.TestCase):
         duration2 = 8.0
         aio = AnalogIOProcess(self.instrument_name, self.queues, logger,
                                 ai_channels = 'Dev1/ai0:1',
-                                ao_channels='Dev1/ao2:3')
+                                ao_channels='Dev1/ao0:1')
         self.test_waveform2ch = numpy.tile(test_waveform,2).reshape((2, test_waveform.shape[0]))
         self.test_waveform22ch = -self.test_waveform2ch
         processes = [aio,logger]
@@ -1498,9 +1498,9 @@ class TestAnalogIOProcess(unittest.TestCase):
         self.assertAlmostEqual(data2[0].shape[0]*data2[0].shape[1]/float(self.ao_sample_rate2*aio_binning_factor2), duration2, delta = 0.5)
         #Compare generated and acquired waveforms
         numpy.testing.assert_allclose(data1[0][:,:,0].mean(axis=0)[1:], numpy.repeat(test_waveform,aio_binning_factor1)[:-1], 0, 2e-3)
-        numpy.testing.assert_allclose(data2[0][:,:,0].mean(axis=0)[1:], numpy.repeat(-test_waveform,aio_binning_factor2)[:-1], 0, 2e-3)
-        numpy.testing.assert_allclose(data1[0][:,:,1].mean(axis=0), numpy.repeat(test_waveform,aio_binning_factor1), 0, 2e-3)
-        numpy.testing.assert_allclose(data2[0][:,:,1].mean(axis=0), numpy.repeat(-test_waveform,aio_binning_factor2), 0, 2e-3)
+        numpy.testing.assert_allclose(data2[0][:,:,0].mean(axis=0)[1:], numpy.repeat(-test_waveform,aio_binning_factor2)[:-1], 0, 3e-3)
+        numpy.testing.assert_allclose(data1[0][:,:,1].mean(axis=0), numpy.repeat(test_waveform,aio_binning_factor1), 0, 5e-3)
+        numpy.testing.assert_allclose(data2[0][:,:,1].mean(axis=0), numpy.repeat(-test_waveform,aio_binning_factor2), 0, 5e-3)
     
     def test_01_parse_channel_string(self):
         channels_strings = ['Dev1/ao0:2', 'Dev2/ao1', 'Dev3/ai2:3']
@@ -1515,8 +1515,8 @@ class TestAnalogIOProcess(unittest.TestCase):
             
     @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
     def test_02_set_voltage(self):
-        set_voltage('Dev1/ao2', 3)
-        set_voltage('Dev1/ao2', 0)
+        set_voltage('Dev1/ao0', 3)
+        set_voltage('Dev1/ao0', 0)
         
     @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
     def test_03_set_do_line(self):
@@ -1538,7 +1538,7 @@ class TestAnalogIOProcess(unittest.TestCase):
     def test_05_single_ai_channel(self):
         #Setting 3 V on analog output 3
         voltage = 3.0
-        set_voltage('Dev1/ao3', voltage)
+        set_voltage('Dev1/ao1', voltage)
         #Sampling analog input starts
         ai_record_time = 5.0
         ai_sample_rate = 1000000
@@ -1565,7 +1565,7 @@ class TestAnalogIOProcess(unittest.TestCase):
     def test_06_aio_start_without_params(self):
         aio = AnalogIOProcess('test aio', self.queues, self.logger,
                                 ai_channels = 'Dev1/ai0:1',
-                                ao_channels='Dev1/ao2:3')
+                                ao_channels='Dev1/ao0:1')
         processes = [aio,self.logger]
         [p.start() for p in processes]
         aio.start_daq(timeout = 10.0) 
@@ -1594,7 +1594,7 @@ class TestAnalogIOProcess(unittest.TestCase):
             for rep in range(3):
                 aio = AnalogIOProcess(self.instrument_name, self.queues, self.logqueue,
                                         ai_channels = 'Dev1/ai0:1',
-                                        ao_channels='Dev1/ao2:3')
+                                        ao_channels='Dev1/ao0:1')
                 aio.start()
                 aio.start_daq(ai_sample_rate = sample_rate, ao_sample_rate = sample_rate, 
                               ao_waveform = numpy.tile(waveform,2).reshape((2, waveform.shape[0])),
@@ -1604,7 +1604,7 @@ class TestAnalogIOProcess(unittest.TestCase):
                 aio.terminate()
                 self.assertGreaterEqual(data[0].shape[0]*data[0].shape[1]/float(sample_rate), duration)
                 self.assertAlmostEqual(data[0].shape[0]*data[0].shape[1]/float(sample_rate), duration, delta = 0.3)
-                numpy.testing.assert_allclose(data[0][:,:,1].flatten(), numpy.tile(waveform,data[1]), 0, 1e-2)
+                numpy.testing.assert_allclose(data[0][:,:,1].flatten(), numpy.tile(waveform,data[1]), 0, 2e-2)
             if not True:
                 plot(data[0][:,:,1].flatten())
                 plot(numpy.tile(waveform,data[1]))
@@ -1622,15 +1622,15 @@ class TestAnalogIOProcess(unittest.TestCase):
         waveform = numpy.tile(numpy.linspace(0,1,10000),2)
         aio = AnalogIOProcess(self.instrument_name, self.queues, self.logqueue,
                                         ai_channels = 'Dev1/ai0:1',
-                                        ao_channels='Dev1/ao2:3')
+                                        ao_channels='Dev1/ao0:1')
         aio._create_tasks()
         aio._start(ai_sample_rate = sample_rate, ao_sample_rate = sample_rate, 
                       ao_waveform = numpy.tile(waveform,2).reshape((2, waveform.shape[0])),
                       finite_samples=True,timeout = 30)
         ai_data = aio._stop()
         aio._close_tasks()
-        numpy.testing.assert_allclose(ai_data[:,0][1:], waveform[:-1], 0, 5e-3)
-        numpy.testing.assert_allclose(ai_data[:,1], waveform, 0, 1e-2)
+        numpy.testing.assert_allclose(ai_data[:,0][1:], waveform[:-1], 0, 1e-2)
+        numpy.testing.assert_allclose(ai_data[:,1], waveform, 0, 2e-2)
 
 if __name__ == '__main__':
     unittest.main()

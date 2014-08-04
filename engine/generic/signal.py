@@ -55,7 +55,7 @@ def greyscale(im, weights = numpy.array([1.0, 1.0, 1.0])):
        
 ############## Waveform generation ##############
 def time_series(duration, fs):
-    return numpy.linspace(0, duration, duration*fs+1)
+    return numpy.linspace(0, duration, int(numpy.round(duration*fs))+1)
 
 def wf_sin(a, f, duration, fs, phase = 0, offset = 0):
     t = time_series(duration, fs)
@@ -64,8 +64,8 @@ def wf_sin(a, f, duration, fs, phase = 0, offset = 0):
 def wf_triangle(a, t_up, t_down, duration, fs, offset = 0):
     if t_up + t_down > duration:
         raise ValueError('t_up and t_down must be less than duration')
-    nsample_up = t_up*fs
-    nsample_down = t_down*fs
+    nsample_up = int(numpy.round(t_up*fs))
+    nsample_down = int(numpy.round(t_down*fs))
     triangle = numpy.concatenate((numpy.linspace(a/nsample_up, a, nsample_up), numpy.linspace(a-a/nsample_down, 0, nsample_down)))
     sig = numpy.zeros(int(numpy.round(fs*duration)))
     triangle = numpy.tile(triangle, sig.shape[0]/triangle.shape[0])

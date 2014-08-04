@@ -1716,7 +1716,8 @@ class TestScannerControl(unittest.TestCase):
                                     [utils.rc((30,20)), 1, True, 400e3,5e-2],
                                     [utils.rc((10,15)), 1, False, 100e3,5e-2],
                                     [utils.rc((128,128)), 2, False, 500e3,30e-2],
-                                    [utils.rc((100,100)), 1, True, 300e3,5e-2]
+                                    [utils.rc((100,100)), 1, True, 300e3,5e-2],
+                                    [utils.rc((10,10)), 5, False, 250e3,5e-2]
                                    ]
         for scan_size, resolution, constraints['enable_flybackscan'], constraints['sample_frequency'], constraints['max_linearity_error'] in scan_configs:
             center = utils.rc((1,10))
@@ -1762,11 +1763,11 @@ class TestScannerControl(unittest.TestCase):
                 print ', '.join(['{0}={1}'.format(k, numpy.round(v, 3)) for k,v in signal_attributes.items()])
             duty_cycle = 0.2
             delay = 10e-6
-            stimulus_flash_trigger_signal, rdc = generate_stimulus_flash_trigger(valid_data_mask, duty_cycle, delay, signal_attributes, constraints)
+            stimulus_flash_trigger_signal, rdc = generate_stimulus_flash_trigger(duty_cycle, delay, signal_attributes, constraints)
             self.assertEqual((stimulus_flash_trigger_signal+valid_data_mask).max(), 1.0)#If more than 1, data and flash overlaps which is not acceptable
-            stimulus_flash_trigger_signal, rdc = generate_stimulus_flash_trigger(valid_data_mask, 1.0, delay, signal_attributes, constraints)
+            stimulus_flash_trigger_signal, rdc = generate_stimulus_flash_trigger(1.0, delay, signal_attributes, constraints)
             self.assertEqual((stimulus_flash_trigger_signal+valid_data_mask).max(), 1.0)#If more than 1, data and flash overlaps which is not acceptable
-            stimulus_flash_trigger_signal, rdc = generate_stimulus_flash_trigger(valid_data_mask, 1.0, 0.0, signal_attributes, constraints)
+            stimulus_flash_trigger_signal, rdc = generate_stimulus_flash_trigger(1.0, 0.0, signal_attributes, constraints)
             self.assertEqual((stimulus_flash_trigger_signal+valid_data_mask).max(), 1.0)#If more than 1, data and flash overlaps which is not acceptable
             self.assertEqual((valid_data_mask+stimulus_flash_trigger_signal).sum(),stimulus_flash_trigger_signal.shape[0])#100% duty cycle, no delay: data mask and trigger signal covers the whole time
 #        plot(ysignal)
@@ -1777,23 +1778,30 @@ class TestScannerControl(unittest.TestCase):
 
     def test_19_reconstruct_signal(self):
         from pylab import plot, show
-        folder = '/mnt/rzws/dataslow/2pimages'
+        from PIL import Image
+        from visexpman.engine.generic import signal,introspect
+        from visexpman.users.test import unittest_aggregator
+        folder = os.path.join(unittest_aggregator.TEST_data, 'two-photon-snapshots', 'data')
         for fn in os.listdir(folder):
+#            print fn
             data = utils.array2object(numpy.load(os.path.join(folder,fn)))
             ai_data=data['ai_data']
             parameters=data['parameters']
-            scanning_attributes = parameters['scanning_attributes']
-            binning_factor = int(numpy.round(parameters['analog_input_sampling_rate']/parameters['analog_output_sampling_rate']))
-            binned = numpy.zeros((ai_data.shape[0]/binning_factor, ai_data.shape[1]))
-            frames = []
-            for ch_i in range(ai_data.shape[1]):
-                binned[:,ch_i] = ai_data[:,ch_i].reshape(ai_data.shape[0]/binning_factor,binning_factor).mean(axis=1)
-                indexes = numpy.nonzero(numpy.diff(scanning_attributes['valid_data_mask']))[0]
-                lines=numpy.split(binned[:,ch_i],indexes)[1::2]
-                frame = numpy.array(lines)
-                frames.append(frame)
-            
+            sh0=0
+            ai_data_shifted = numpy.roll(ai_data,sh0)#simulate phase shift
+            frames = signal2image(ai_data_shifted, parameters)
+#            Image.fromarray(numpy.cast['uint8'](255*signal.scale(frames[0]))).show()
+            #Shift between consecutive lines
+#            ref=frames[0][0,0]
+#            shift1 = numpy.nonzero(numpy.diff(numpy.where(frames[0][1]>ref,1,0)))[0][0]
+#            shift2 = numpy.nonzero(numpy.diff(numpy.where(frames[0][1]<ref,1,0)))[0][0]
+#            print shift1,shift2
+#                Image.fromarray(numpy.cast['uint8'](255*signal.scale(frames[1]))).show()
+#            plot(ai_data[:,0])
+#            plot(ai_data[:,1])
+#            show()
             pass
+            
             
 
 
@@ -1810,6 +1818,50 @@ class ScannerError(Exception):
     '''
     Raised when problem occurs something related to scanning
     '''
+
+def signal2image(ai_data, parameters):
+    '''
+    Transforms ai_data to a two dimensional image per channel. 
+    From the acquired waveform (ai_data) the valid and invalid data are separeted by using valid_data_mask from parameters
+    '''
+    scanning_attributes = parameters['scanning_attributes']
+    binning_factor = int(numpy.round(parameters['analog_input_sampling_rate']/parameters['analog_output_sampling_rate']))
+    binned = numpy.zeros((ai_data.shape[0]/binning_factor, ai_data.shape[1]))
+    frames = []
+    for ch_i in range(ai_data.shape[1]):
+        binned[:,ch_i] = ai_data[:,ch_i].reshape(ai_data.shape[0]/binning_factor,binning_factor).mean(axis=1)
+        if False:#Method 1, longer runtime
+            indexes = numpy.nonzero(numpy.diff(scanning_attributes['valid_data_mask']))[0]
+            lines=numpy.split(binned[:,ch_i],indexes)[1::2]
+            frame = numpy.array(lines)
+        else:
+            indexes = numpy.nonzero(numpy.diff(scanning_attributes['signal_attributes']['one_period_valid_data_mask']))[0]+1
+            if indexes.shape[0] ==3 and scanning_attributes['signal_attributes']['one_period_valid_data_mask'][-1] == 1:
+                #If end of valid range is at period end (numpy.diff cannot detect it)
+                indexes = numpy.append(indexes, scanning_attributes['signal_attributes']['one_period_valid_data_mask'].shape[0])
+            valid_x_lines = int(scanning_attributes['signal_attributes']['nxlines'] - scanning_attributes['signal_attributes']['yflyback_nperiods'])
+            linelenght = scanning_attributes['signal_attributes']['one_period_valid_data_mask'].shape[0]
+            binned_without_flyback =  binned[:linelenght*valid_x_lines,ch_i].reshape(valid_x_lines,linelenght)
+            if scanning_attributes['constraints']['enable_flybackscan']:
+                frame=numpy.zeros((2*valid_x_lines,scanning_attributes['signal_attributes']['one_period_valid_data_mask'].sum()/2))
+                frame[0::2,:] = binned_without_flyback[:,indexes[0]:indexes[1]]
+                frame[1::2,:] = numpy.fliplr(binned_without_flyback[:,indexes[2]:indexes[3]])
+            else:
+                frame = binned_without_flyback[:,indexes[0]:indexes[1]]
+        frames.append(frame)
+        #calculate grid
+        valid_data_mask_phase_shifted_back = numpy.roll(scanning_attributes['signal_attributes']['one_period_valid_data_mask'],scanning_attributes['signal_attributes']['phase_shift'])
+        indexes_valid_data = numpy.nonzero(numpy.diff(valid_data_mask_phase_shifted_back))[0]
+        valid_data_xscanner_signal = scanning_attributes['signal_attributes']['one_period_x_scanner_signal'][indexes_valid_data[0]:indexes_valid_data[1]][::-1]
+#        x_grid_min = parameters['scan_center']['row']-0.5*parameters['scanning_range']['row']
+#        x_grid_max = parameters['scan_center']['row']+0.5*parameters['scanning_range']['row']
+#        y_grid_min = parameters['scan_center']['col']-0.5*parameters['scanning_range']['col']
+#        y_grid_max = parameters['scan_center']['col']+0.5*parameters['scanning_range']['col']
+        #TODO: Shift gridline spacing with the nonlinearity of sinus (user can disable it)
+    return frames
+    
+
+    
 
 def generate_scanner_signals(scan_size, resolution, center, constraints):
     '''
@@ -1850,17 +1902,17 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
             one_period_x_scanner_signal += center['col']*constraints['um2voltage_scale']
             #Shift mask with phase
             phase = constraints['phase_characteristics'][0] * fxscanner + constraints['phase_characteristics'][1]
-            phase_shift = int(numpy.round(phase/(numpy.pi*2)*one_period_x_scanner_signal.shape[0],0))
-            mask = numpy.roll(mask,-phase_shift)#shift valid data mask with phase shift
-            flash_time = (one_period_x_scanner_signal.shape[0] - xpixels*2)#overall, split to two flashes
-            max_flash_duty_cycle = float(flash_time)/one_period_x_scanner_signal.shape[0]
-            #y flyback time does not exceed ymirror_flyback_time
-            yflyback_nperiods = numpy.ceil(constraints['ymirror_flyback_time']/(1.0/fxscanner))
-            yflyback_time_corrected = yflyback_nperiods/fxscanner
+            phase_shift = int(numpy.round(phase/(numpy.pi*2)*one_period_x_scanner_signal.shape[0],0))#phase shift of pmt signal to mirro control signal
+            mask = numpy.roll(mask,-phase_shift)#shift valid data mask with phase shift. At signal reconstruction the valid data mask will tell which items of the recorded stream are part of the image
             if constraints['enable_flybackscan']:
                 factor = 0.5#two lines are scanned in one period
             else:
                 factor = 1.0
+            flash_time = (one_period_x_scanner_signal.shape[0] - xpixels/factor)#overall, split to two flashes
+            max_flash_duty_cycle = float(flash_time)/one_period_x_scanner_signal.shape[0]
+            #y flyback time does not exceed ymirror_flyback_time
+            yflyback_nperiods = numpy.ceil(constraints['ymirror_flyback_time']/(1.0/fxscanner))
+            yflyback_time_corrected = yflyback_nperiods/fxscanner
             #total number of periods of x mirror in one frame
             nxlines = ypixels*factor + yflyback_nperiods
             t_up = ypixels/(fxscanner/factor)
@@ -1874,7 +1926,7 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
             ysignal += center['row']*constraints['um2voltage_scale']
             xsignal = numpy.tile(one_period_x_scanner_signal,nxlines)
             if ysignal.shape[0] != xsignal.shape[0]:
-                raise ScannerError('x and y signal length must be the same: {0}, {1}'.format(ysignal.shape[0], xsignal.shape[0]))
+                raise ScannerError('x and y signal length must be the same: {0}, {1}. Adjust a little on resolution or scan range.'.format(ysignal.shape[0], xsignal.shape[0]))
             valid_data_mask = numpy.tile(mask,nxlines)
             break
     signal_attributes = {}
@@ -1887,9 +1939,10 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
     signal_attributes['one_period_x_scanner_signal'] = one_period_x_scanner_signal
     signal_attributes['one_period_valid_data_mask'] = mask
     signal_attributes['nxlines'] = nxlines
+    signal_attributes['yflyback_nperiods'] = yflyback_nperiods
     return xsignal,ysignal,frame_trigger_signal,valid_data_mask,signal_attributes
 
-def generate_stimulus_flash_trigger(mask, duty_cycle, delay, signal_attributes, constraints):
+def generate_stimulus_flash_trigger(duty_cycle, delay, signal_attributes, constraints):
     '''
     From valid data mask generate trigger signal
     If duty_cycle is 1.0, then maximal possible duty cycle is presented but delay is applyed too.

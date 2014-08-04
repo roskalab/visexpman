@@ -809,7 +809,6 @@ class ExperimentControl(gui.WidgetControl):
                                                                                 constraints)
         #Generate stimulus strigger signal
         stimulus_flash_trigger_signal, signal_attributes['real_duty_cycle'] = scanner_control.generate_stimulus_flash_trigger(
-                                                                                                                    valid_data_mask, 
                                                                                                                     self.mandatory_parameters['stimulus_flash_trigger_duty_cycle'], 
                                                                                                                     self.mandatory_parameters['stimulus_flash_trigger_delay'], 
                                                                                                                     signal_attributes, 
@@ -922,7 +921,7 @@ class ExperimentControl(gui.WidgetControl):
     def snap_ca_image(self):
         scanning_attributes = self.check_scan_parameters()
         scanning_attributes = {'scanning_attributes':scanning_attributes}#To make it compatible with experiment start data structure
-        fields = ['stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay', 'scanning_range', 'recording_channels', 'analog_input_sampling_rate', 'analog_output_sampling_rate', 'resolution']
+        fields = ['stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay', 'scanning_range', 'scan_center', 'recording_channels', 'analog_input_sampling_rate', 'analog_output_sampling_rate', 'resolution']
         for field in fields:
             scanning_attributes[field] = self.mandatory_parameters[field]
         function_call = {'function': 'snap_ca_image', 'args': [scanning_attributes]}

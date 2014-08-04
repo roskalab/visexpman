@@ -66,8 +66,6 @@ TEST_osuser = getpass.getuser()
 if TEST_os == 'Darwin':
     TEST_os = 'OSX'
 ################# Test parameters ####################
-#For running automated tests, network operations have to be disabled for visexp_runner
-#TEST_enable_network = not TEST_test
 #The maximal number of pixels that can differ from the reference frame at the testing the rendering of visual stimulation patterns
 #TEST_pixel_difference_threshold = 50.0
 
@@ -77,9 +75,6 @@ TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/home/rz/D
 #if TEST_os == 'nt':
 #    TEST_test_data_folder = 'u:\\software_test\\ref_data'
 #    TEST_working_folder =  'u:\\software_test\\working'
-#    TEST_results_folder = 'u:\\software_test\\results'
-#    TEST_valid_file = 'c:\\windows\\win.ini'
-#    TEST_invalid_file = 'c:\\windows'
 #    
 #    TEST_reference_frames_folder = 'v:\\data\\test\\frames_win'
 #    TEST_reference_mat_file = 'v:\\data\\test\\mes\\line_scan_parameters.mat'
@@ -96,9 +91,6 @@ TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/home/rz/D
 #        root = '/mnt/databig/'
 #    TEST_test_data_folder = os.path.join(root, 'software_test/ref_data')
 #    TEST_working_folder = os.path.join(root, 'software_test/working')
-#    TEST_results_folder = os.path.join(root, 'software_test/results')
-#    TEST_valid_file = '/mnt/datafast/context/image.hdf5'
-#    TEST_invalid_file = '/home'
 #    
 #    TEST_reference_frames_folder = '/home/zoltan/visexp/data/test/frames'
 #    TEST_reference_mat_file = '/home/zoltan/visexp/data/test/mes/line_scan_parameters.mat'
@@ -113,14 +105,11 @@ TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/home/rz/D
 #    TEST_reference_frames_folder = '/Users/rz/visexpman/data/test_data/reference_frames_osx'
 #    TEST_com_port = ''
 #    TEST_working_folder = '/Users/rz/visexpman/data/test'
-#    TEST_valid_file = '/Users/rz/test_stimulus.py'
-#    TEST_invalid_file = '/Users/unittest_aggregator.py'
 #    TEST_stage_com_port = ''
 #    TEST_goniometer_com_port = ''
 
 
 #== Hardware config during test ==
-#TEST_filterwheel_enable  = True #If set to False, many tests fail.
 TEST_daq_device = 'Dev1'
 
 ################# Enable unit tests  ####################
@@ -188,7 +177,8 @@ def select_path_exists(paths, dirs = True):
         if os.path.exists(path) and ((os.path.isdir(path) and dirs) or (not os.path.isdir(path) and not dirs)):
             return path
             
-TEST_valid_file = select_path_exists(['/mnt/datafast/context/image.hdf5', 'v:\\context\\image.hdf5','/etc/fstab'],dirs=False)
+TEST_data = select_path_exists(['/mnt/rzws/test_data', 'r:\\test_data', '/home/rz/Downloads/test_data', 'c:\\temp'])
+TEST_valid_file = select_path_exists(['/mnt/rzws/codes/visexpman/__init__.py', '/etc/fstab', 'r:\\codes\\visexpman\\__init__.py'],dirs=False)
 if TEST_valid_file is None:
     raise IOError('TEST_valid_file parameter incorrect')
 TEST_invalid_file = '/home'
@@ -253,7 +243,7 @@ class ShowTestProgress(threading.Thread):
                 else:
                     test_name = lines[-1]
                     test_name = test_name.split(' ')[0]
-                sys.stdout.write('\r=========== {0}/{1} ===========\t{2}'.format(len(lines) - (start_line+1),self.ntests,test_name))
+                sys.stdout.write('\r=========== {0}/{1} ===========\t{2}            '.format(len(lines) - (start_line+1),self.ntests,test_name))
                 sys.stdout.flush()
             if tests_finished:
                 break

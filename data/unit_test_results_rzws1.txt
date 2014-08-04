@@ -10,6 +10,7 @@ python_version: 2.7.3
 TEST_consider_frame_rate = False
 TEST_daq = False
 TEST_daq_device = Dev1
+TEST_data = /mnt/rzws/test_data
 TEST_delete_files = False
 TEST_filterwheel = False
 TEST_goniometer = False
@@ -31,7 +32,7 @@ TEST_stim = False
 TEST_test = True
 TEST_uled = False
 TEST_unittests = ['visexpman.engine.visexp_gui.testVisionExperimentGui', 'visexpman.engine.visexp_app.TestStim', 'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 'visexpman.engine.vision_experiment.experiment_control.TestCaImaging', 'visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns', 'visexpman.engine.TestApplicationInit', 'visexpman.engine.generic.parameter.testParameter', 'visexpman.engine.generic.fileop.TestFileops', 'visexpman.engine.generic.log.TestLog', 'visexpman.engine.generic.signal.TestSignal', 'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket', 'visexpman.engine.hardware_interface.instrument.TestInstrument', 'visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess', 'visexpman.engine.hardware_interface.scanner_control.TestScannerControl']
-TEST_valid_file = /mnt/datafast/context/image.hdf5
+TEST_valid_file = /mnt/rzws/codes/visexpman/__init__.py
 TEST_working_folder = ['/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', '/tmp', 'c:\\temp']
 
 ################# Test results ####################
@@ -168,8 +169,8 @@ test_03_multiple_servers (visexpman.engine.hardware_interface.queued_socket.Test
 test_08_short_waveform (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
 
 ----------------------------------------------------------------------
-Ran 131 tests in 646.271s
+Ran 131 tests in 646.879s
 
 OK (skipped=30)
 
-2014-07-31 17:33:42.212790
+2014-08-04 17:36:42.905044
