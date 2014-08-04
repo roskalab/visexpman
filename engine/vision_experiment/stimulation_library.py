@@ -16,6 +16,7 @@ import experiment_control
 from visexpman.engine.generic import graphics #Not used
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import colors
+from visexpman.engine.generic import signal
 from visexpman.engine.vision_experiment import screen
 from visexpA.engine.datadisplay import videofile
 
@@ -275,7 +276,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if count and save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
-    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, flip = True, block_trigger = False):
+    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, stretch=1.0, flip = True, block_trigger = False):
         '''
         Two use cases are handled here:
             - showing individual image files
@@ -302,18 +303,36 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
                 start_position = (10,10)
                 show_image('directory_path',  0.0,  start_position,  formula)             
         '''
-        self.screen.render_imagefile(path, position = position)
-        if duration == 0.0:
-            if flip:
-                self._flip(trigger = True)        
+        #Generate log messages
+        flips_per_frame = duration/(1.0/self.config.SCREEN_EXPECTED_FRAME_RATE)
+        if flips_per_frame != numpy.round(flips_per_frame):
+            raise RuntimeError('This duration is not possible, it should be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE')                
+        self.log_on_flip_message_initial = 'show_image(' + str(path)+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(size)  + ', ' + ')'
+        self.log_on_flip_message_continous = 'show_shape'
+        self._save_stimulus_frame_info(inspect.currentframe())
+        if os.path.isdir(path):
+            for fn in os.listdir(path):
+                self._show_image(os.path.join(path,fn),duration,position,stretch,flip)
+            self.screen.clear_screen()
+            self._flip(trigger = False)
         else:
-            n_frames = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
-            for i in range(n_frames):
-                if flip:
-                    self._flip_and_block_trigger(i, n_frames, True, block_trigger)
-                if self.abort:
-                    break
+            self._show_image(path,duration,position,flip)
+        self._save_stimulus_frame_info(inspect.currentframe())
         
+    def _show_image(self,path,duration,position,stretch,flip):
+        if duration == 0.0:
+            nframes=1
+        else:
+            nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
+        for i in range(nframes):
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            self.screen.render_imagefile(path, position = utils.rc_add(position,
+                        utils.rc_multiply_with_constant(self.machine_config.SCREEN_CENTER, self.config.SCREEN_UM_TO_PIXEL_SCALE)),stretch=stretch)
+            if flip:
+                self._flip(trigger = True)
+            if self.abort:
+                break
+    
 #        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
 #        if os.path.isdir(path) == True:
 #            #when content of directory is to be shown
@@ -974,6 +993,84 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
+    def show_natural_bars(self, speed = 300, repeats = 1, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, save_frame_info =True):
+        if spatial_resolution is None:
+            spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
+        if minimal_spatial_period is None:
+            minimal_spatial_period = 10 * spatial_resolution
+        self.log_on_flip_message_initial = 'show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')'
+        self.log_on_flip_message_continous = 'show_natural_bars'
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
+        self.intensity_profile = numpy.tile(self.intensity_profile, repeats)
+        if hasattr(self.machine_config, 'GAMMA_CORRECTION'):
+            self.intensity_profile = self.machine_config.GAMMA_CORRECTION(self.intensity_profile)
+        intensity_profile_length = self.intensity_profile.shape[0]
+        if self.intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
+            self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
+        alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
+        texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
+        diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
+        diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']#Because of different orienations, the stimulus size corresponds to the screen width
+        alpha =numpy.pi/4
+        angles = numpy.array([alpha, numpy.pi - alpha, alpha + numpy.pi, -alpha])
+        angles = angles + direction*numpy.pi/180.0
+        vertices = 0.5 * diagonal * numpy.array([numpy.cos(angles), numpy.sin(angles)])
+        vertices = vertices.transpose()
+        if self.config.COORDINATE_SYSTEM == 'ulcorner':
+            vertices += self.config.SCREEN_UM_TO_PIXEL_SCALE*numpy.array([self.machine_config.SCREEN_CENTER['col'], self.machine_config.SCREEN_CENTER['col']])
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        texture_coordinates = numpy.array(
+                             [
+                             [1.0, 1.0],
+                             [0.0, 1.0],
+                             [0.0, 0.0],
+                             [1.0, 0.0],
+                             ])
+        glTexCoordPointerf(texture_coordinates)
+        ds = float(speed*self.config.SCREEN_UM_TO_PIXEL_SCALE)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+#        t0=time.time()
+        texture_pointer = 0
+        frame_counter = 0
+        while True:
+            start_index = int(texture_pointer)
+            end_index = int(start_index + self.config.SCREEN_RESOLUTION['col'])
+            if end_index > alltexture.shape[0]:
+                end_index -= alltexture.shape[0]
+            if start_index < end_index:
+                texture = alltexture[start_index:end_index]
+            else:
+                texture = numpy.zeros_like(texture)
+                texture[:-end_index] = alltexture[start_index:]
+                texture[-end_index:] = alltexture[:end_index]
+            if start_index >= intensity_profile_length:
+                break
+            texture_pointer += ds
+            frame_counter += 1
+            glTexImage2D(GL_TEXTURE_2D, 0, 3, texture.shape[0], texture.shape[1], 0, GL_RGB, GL_FLOAT, texture)
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv((1.0,1.0,1.0))
+            glDrawArrays(GL_POLYGON,  0, 4)
+            self._flip(trigger = True)    
+            if self.abort:
+                break
+#        dt=(time.time()-t0)
+#        print self.frame_counter/dt,dt,self.frame_counter,texture_pointer
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)
+        if save_frame_info:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+    
+
 class StimulationSequences(Stimulations):
     '''
     Stimulation sequences, helpers
