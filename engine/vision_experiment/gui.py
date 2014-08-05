@@ -22,11 +22,7 @@ from visexpA.engine.datadisplay.plot import Qt4Plot
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.hardware_interface import scanner_control
 from visexpman.engine import ExperimentConfigError, AnimalFileError
-from visexpman.engine.generic import gui
-from visexpman.engine.generic import fileop
-from visexpman.engine.generic import stringop
-from visexpman.engine.generic import introspect
-from visexpman.engine.generic import utils
+from visexpman.engine.generic import gui,fileop,stringop,introspect,utils
 
 BUTTON_HIGHLIGHT = 'color: red'#TODO: this has to be eliminated
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
@@ -1352,6 +1348,115 @@ class RoiWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
 ################### Image display #######################
+class DisplayConfigurationGroupbox(QtGui.QGroupBox):
+    def __init__(self, parent, default_name):
+        QtGui.QGroupBox.__init__(self, '', parent)
+        self.default_name = default_name
+        self.config = parent.config
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        self.name = gui.LabeledInput(self, 'Name')
+        self.name.input.setText(self.default_name)
+        self.enable = QtGui.QCheckBox(self)
+        display_channels_list= ['ALL', 'IR camera']
+        display_channels_list.extend(self.config.PMTS.keys())
+        self.channel_select = gui.LabeledComboBox(self, 'Channel', display_channels_list)
+        default_options = ['raw']
+        smo = ['3x3 median filter', 'histogram shift', 'histogram equalize']
+        smo.extend(default_options)
+        smo.reverse()
+        self.snap_mode_options = gui.LabeledComboBox(self, 'Snap', smo)
+        self.snap_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. Filters are applied separately on each channel.')
+        rmo = ['MIP']
+        rmo.extend(default_options)
+        rmo.reverse()
+        self.recording_mode_options = gui.LabeledComboBox(self, 'Recording', rmo)
+        self.recording_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. MIP: maximum intensity projection')
+        self.gridline_select = gui.LabeledComboBox(self, 'Gridline', ['off', 'sparse', 'dense', 'scanner nonlienarity'])
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.enable, 0, 0)
+        self.layout.addWidget(self.name, 0, 1)
+        self.layout.addWidget(self.channel_select, 1, 0,1,2)
+        self.layout.addWidget(self.snap_mode_options, 2, 0,1,2)
+        self.layout.addWidget(self.recording_mode_options, 3, 0,1,2)
+        self.layout.addWidget(self.gridline_select, 4, 0,1,2)
+        self.setLayout(self.layout)
+        
+class CaImagingVisualisationControlWidget(QtGui.QWidget):
+    '''
+    Container of Ca Image display configurations (max 6), display selection, plot source selector and the plot itself
+    
+    Advanced filter configuration widgets could be added later
+    '''
+    def __init__(self, parent):
+        QtGui.QWidget.__init__(self, parent)
+        self.config = parent.config
+        self.create_widgets()
+        self.create_layout()
+        
+    def create_widgets(self):
+        self.display_configs = []
+        self.snap = QtGui.QPushButton('Snap', self)
+        for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
+            self.display_configs.append(DisplayConfigurationGroupbox(self, str(i)))
+            self.display_configs[-1].setFixedWidth(200)
+            self.display_configs[-1].setFixedHeight(250)
+        self.select_display =  gui.LabeledComboBox(self, 'Select diplay', map(str, range(self.config.MAX_CA_IMAGE_DISPLAYS)))
+        self.select_display.setToolTip('Select display for tuning advanced filter parameters')
+        self.select_plot = gui.LabeledComboBox(self, 'Select plot', ['histogram ', 'Ca activity'])
+            
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        index = 0
+        self.layout.addWidget(self.snap, 0, 0)
+        for row in range(2):
+            for col in range(self.config.MAX_CA_IMAGE_DISPLAYS/2):
+                self.layout.addWidget(self.display_configs[index], row+1, 2*col,1,2)
+                index += 1
+        self.layout.addWidget(self.select_display, 3, 0)
+        self.layout.addWidget(self.select_plot, 4, 0)
+        self.setLayout(self.layout)
+        
+class CaImagingVisualisationControl(gui.WidgetControl):
+    def __init__(self, poller, config, widget):
+        gui.WidgetControl.__init__(self, poller, config, widget)
+        self.display_configuration = {}
+        
+    def generate_display_configuration(self, force_send=False):
+        display_configuration = {}
+        for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
+            if self.widget.display_configs[i].enable.checkState()==2:#If enabled
+                name = str(self.widget.display_configs[i].name.input.text())
+                if display_configuration.has_key(name):
+                    self.poller.notify_user('WARNING', '{0} display name is redundant'.format(name))
+                    return
+                display_configuration[name] = {}
+                for n in ['channel_select', 'snap_mode_options', 'recording_mode_options', 'gridline_select']:
+                    display_configuration[name][n] = str(getattr(self.widget.display_configs[i], n).input.currentText())
+        #Check if configuration has changed
+        send = False
+        if len(self.display_configuration.keys()) != len(display_configuration.keys()):
+            send = True
+        else:
+            for k in display_configuration.keys():
+                for kk in display_configuration[k]:
+                    if display_configuration[k][kk] != self.display_configuration[k][kk]:
+                        send=True
+                        break
+                if send:
+                    break
+        self.display_configuration = copy.deepcopy(display_configuration)
+        if send or force_send:#If changed, send the display configuration to ca_imaging
+            function_call = {'function': 'set_variable', 'args': ['display_configuration', display_configuration]}
+            self.poller.send(function_call,connection='ca_imaging')
+            self.printc('Ca imaging display updated')
+            
+        
+
 class ImagesWidget(QtGui.QWidget):
     '''
     Depends on platform
@@ -1364,21 +1469,20 @@ class ImagesWidget(QtGui.QWidget):
         
         
     def create_widgets(self):
-#        return        
-#        import pyqtgraph as pg
-
-
         self.snap = QtGui.QPushButton('Snap', self)
         self.imagefilter = gui.LabeledComboBox(self, 'Filter', items = ['median_filter', 'fft bandfilter'])
-        self.imagechannel = gui.LabeledComboBox(self, 'Display channel', items = self.config.PMTS.keys())
+        display_channels_list= ['ALL']
+        display_channels_list.extend(self.config.PMTS.keys())
+        self.imagechannel = gui.LabeledComboBox(self, 'Display channel', items = display_channels_list)
         
-        self.v=QtGui.QGraphicsView(self)
-        scene = QtGui.QGraphicsScene(self.v)
-        self.v.setScene(scene)
-        
-        img = numpy.random.random((200,100, 3))
-        scene.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage(img, img.shape[1], img.shape[0], 3*img.shape[1], QtGui.QImage.Format_RGB888)))
-        self.v.scale(1, 1)
+        if False:
+            self.v=QtGui.QGraphicsView(self)
+            scene = QtGui.QGraphicsScene(self.v)
+            self.v.setScene(scene)
+            
+            img = numpy.random.random((200,100, 3))
+            scene.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage(img, img.shape[1], img.shape[0], 3*img.shape[1], QtGui.QImage.Format_RGB888)))
+            self.v.scale(1, 1)
         
 #        scene.addLine(0, 0, 1000, 1000)
 
@@ -1438,7 +1542,8 @@ class ImagesWidget(QtGui.QWidget):
         self.layout.addWidget(self.snap, 0, 0)
         self.layout.addWidget(self.imagechannel, 0, 1)
         self.layout.addWidget(self.imagefilter, 0, 2)
-        self.layout.addWidget(self.v, 1, 0, 1, 3)
+        if False:
+            self.layout.addWidget(self.v, 1, 0, 1, 3)
         self.layout.addWidget(self.plot, 2, 0, 1, 3)
         self.layout.addWidget(self.max, 3, 0, 1, 1)
         self.layout.addWidget(self.min, 3, 1, 1, 1)

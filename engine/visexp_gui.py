@@ -1000,7 +1000,7 @@ class CentralWidget(QtGui.QWidget):
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setFixedHeight(self.config.GUI['GUI_SIZE']['row']*0.7)
         self.main_tab.setMaximumWidth(self.config.GUI['GUI_SIZE']['col']*0.6)
-        self.images = gui.ImagesWidget(self)
+        self.ca_displays = gui.CaImagingVisualisationControlWidget(self)
         self.text_out = QtGui.QTextEdit(self)
         self.text_out.setPlainText('')
         self.text_out.setReadOnly(True)
@@ -1010,7 +1010,7 @@ class CentralWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.main_tab, 0, 0, 1, 1)
-        self.layout.addWidget(self.images, 0, 1, 1, 1)
+        self.layout.addWidget(self.ca_displays, 0, 1, 1, 1)
         self.layout.addWidget(self.text_out, 1,  0, 1, 2)
         self.setLayout(self.layout)
 
@@ -1108,10 +1108,26 @@ class VisionExperimentGui(Qt.QMainWindow):
                                   [self.central_widget.main_widget.recording_status.remove, 'experiment_control.remove_experiment'],
                                   [self.central_widget.main_widget.recording_status.set_state, 'experiment_control.set_experiment_state'],
                                   [self.central_widget.parameters_groupbox.check_scan_parameters_button, 'experiment_control.check_scan_parameters'],
-                                  [self.central_widget.images.snap, 'experiment_control.snap_ca_image'],
+                                  [self.central_widget.ca_displays.snap, 'experiment_control.snap_ca_image'],
                                   ]
+        
         for item in widget2poller_function:
             gui_generic.connect_and_map_signal(self, item[0],item[1])
+        
+        #display config changed    
+        function_link = 'visualisation_control.generate_display_configuration'
+        display_config_changed_signals = []
+        for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
+            parent_widget = self.central_widget.ca_displays.display_configs[i]
+            display_config_changed_signals.append([parent_widget.enable, function_link, 'stateChanged'])
+            display_config_changed_signals.append([parent_widget.name.input, function_link, 'textEdited'])
+            display_config_changed_signals.append([parent_widget.channel_select.input, function_link, 'currentIndexChanged'])
+            display_config_changed_signals.append([parent_widget.snap_mode_options.input, function_link, 'currentIndexChanged'])
+            display_config_changed_signals.append([parent_widget.recording_mode_options.input, function_link, 'currentIndexChanged'])
+            display_config_changed_signals.append([parent_widget.gridline_select.input, function_link, 'currentIndexChanged'])
+        for item in display_config_changed_signals:
+            gui_generic.connect_and_map_signal(self, item[0],item[1], item[2])
+            
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
         
     def block_widgets(self,  block):

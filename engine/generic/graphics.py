@@ -6,11 +6,7 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 import pygame
 
-
-try:
-    import Image
-except ImportError:
-    from PIL import Image
+from PIL import Image
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 
@@ -374,13 +370,13 @@ class Screen(object):
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         
-    def render_image(self,image, position = utils.rc((0, 0))):
+    def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0):
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
         vertices = numpy.array([
-                                [position['col'] + 0.5 * image.shape[1], position['row'] - 0.5 * image.shape[0]],
-                                [position['col'] + 0.5 * image.shape[1], position['row'] + 0.5 * image.shape[0]],
-                                [position['col'] - 0.5 * image.shape[1], position['row'] + 0.5 * image.shape[0]],
-                                [position['col'] - 0.5 * image.shape[1], position['row'] - 0.5 * image.shape[0]],
+                                [position['col'] + 0.5 * image.shape[1]*stretch, position['row'] - 0.5 * image.shape[0]*stretch],
+                                [position['col'] + 0.5 * image.shape[1]*stretch, position['row'] + 0.5 * image.shape[0]*stretch],
+                                [position['col'] - 0.5 * image.shape[1]*stretch, position['row'] + 0.5 * image.shape[0]*stretch],
+                                [position['col'] - 0.5 * image.shape[1]*stretch, position['row'] - 0.5 * image.shape[0]*stretch],
                                 ])
         
         glEnableClientState(GL_VERTEX_ARRAY)

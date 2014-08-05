@@ -3411,7 +3411,11 @@ def string2objectreference(self, reference_string):
         for item in items[2:]:
             if '[' in item:
                 reference = getattr(reference, item.split('[')[0])
-                reference = reference[item.split('[')[1].replace(']',  '').replace('\'','') ]
+                if '\'' in item:
+                    index_key = item.split('[')[1].replace(']',  '').replace('\'','') 
+                else:
+                    index_key = int(item.split('[')[1].replace(']',''))
+                reference = reference[index_key]
             else:
                 reference = getattr(reference, item)
         return reference

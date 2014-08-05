@@ -1782,6 +1782,8 @@ class TestScannerControl(unittest.TestCase):
         from visexpman.engine.generic import signal,introspect
         from visexpman.users.test import unittest_aggregator
         folder = os.path.join(unittest_aggregator.TEST_data, 'two-photon-snapshots', 'data')
+        PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
+                            'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
         for fn in os.listdir(folder):
 #            print fn
             data = utils.array2object(numpy.load(os.path.join(folder,fn)))
@@ -1789,7 +1791,7 @@ class TestScannerControl(unittest.TestCase):
             parameters=data['parameters']
             sh0=0
             ai_data_shifted = numpy.roll(ai_data,sh0)#simulate phase shift
-            frames = signal2image(ai_data_shifted, parameters)
+            frames = signal2image(ai_data_shifted, parameters, PMTS)
 #            Image.fromarray(numpy.cast['uint8'](255*signal.scale(frames[0]))).show()
             #Shift between consecutive lines
 #            ref=frames[0][0,0]
@@ -1819,7 +1821,7 @@ class ScannerError(Exception):
     Raised when problem occurs something related to scanning
     '''
 
-def signal2image(ai_data, parameters):
+def signal2image(ai_data, parameters, pmt_config):
     '''
     Transforms ai_data to a two dimensional image per channel. 
     From the acquired waveform (ai_data) the valid and invalid data are separeted by using valid_data_mask from parameters
@@ -1849,16 +1851,34 @@ def signal2image(ai_data, parameters):
             else:
                 frame = binned_without_flyback[:,indexes[0]:indexes[1]]
         frames.append(frame)
-        #calculate grid
-        valid_data_mask_phase_shifted_back = numpy.roll(scanning_attributes['signal_attributes']['one_period_valid_data_mask'],scanning_attributes['signal_attributes']['phase_shift'])
-        indexes_valid_data = numpy.nonzero(numpy.diff(valid_data_mask_phase_shifted_back))[0]
-        valid_data_xscanner_signal = scanning_attributes['signal_attributes']['one_period_x_scanner_signal'][indexes_valid_data[0]:indexes_valid_data[1]][::-1]
+    #Colorize channels
+    colorized_frame = numpy.zeros((frame.shape[0],frame.shape[1],3))
+    for color_channel_assignment in [[pmt_config[ch]['COLOR'],pmt_config[ch]['CHANNEL']] for ch in parameters['recording_channels']]:
+        if len(parameters['recording_channels']) == 1:
+            frame_index = 0
+        else:
+            frame_index = color_channel_assignment[1]
+        if color_channel_assignment[0] == 'RED':
+            colorized_frame[:,:,0] = frames[frame_index]
+        elif color_channel_assignment[0] == 'GREEN':
+            colorized_frame[:,:,1] = frames[frame_index]
+        elif color_channel_assignment[0] == 'BLUE':
+            colorized_frame[:,:,2] = frames[frame_index]
+        else:
+            raise NotImlementedError('')
+        
+    #calculate grid
+    valid_data_mask_phase_shifted_back = numpy.roll(scanning_attributes['signal_attributes']['one_period_valid_data_mask'],scanning_attributes['signal_attributes']['phase_shift'])
+    indexes_valid_data = numpy.nonzero(numpy.diff(valid_data_mask_phase_shifted_back))[0]
+    valid_data_xscanner_signal = scanning_attributes['signal_attributes']['one_period_x_scanner_signal'][indexes_valid_data[0]:indexes_valid_data[1]][::-1]
 #        x_grid_min = parameters['scan_center']['row']-0.5*parameters['scanning_range']['row']
 #        x_grid_max = parameters['scan_center']['row']+0.5*parameters['scanning_range']['row']
 #        y_grid_min = parameters['scan_center']['col']-0.5*parameters['scanning_range']['col']
 #        y_grid_max = parameters['scan_center']['col']+0.5*parameters['scanning_range']['col']
-        #TODO: Shift gridline spacing with the nonlinearity of sinus (user can disable it)
-    return frames
+    #TODO: Shift gridline spacing with the nonlinearity of sinus (user can disable it)
+        
+        
+    return colorized_frame
     
 
     

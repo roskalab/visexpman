@@ -89,6 +89,12 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
         
     def exit_application(self):
         self.exit=True
+        
+    def set_variable(self,varname, value):
+        if not hasattr(self, varname):
+            self.send('{0} variable does not exists'.format(varname))
+        else:
+            setattr(self, varname, value)
 
 class CommandParser(object):
     '''

@@ -147,10 +147,12 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         EXPERIMENT_DATA_PATH = self.root_folder
         DATA_STORAGE_PATH = fileop.select_folder_exists(['/mnt/datafast/debug/animalfiles','v:\\debug\\animalfiles', '/mnt/rzws/dataslow', '/tmp'])
         CONTEXT_PATH = self.root_folder
+        CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
+        os.mkdir(CAPTURE_PATH)
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
-        
+        ENABLE_FRAME_CAPTURE = not True
         #### Network ####
         self.CONNECTIONS['stim']['ip']['stim'] = None
         self.CONNECTIONS['stim']['ip']['main_ui'] = '172.27.26.39'
@@ -165,8 +167,8 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         ######################### Ca imaging specific ################################ 
         self.CA_IMAGING_START_DELAY = 5.0#NEW
         self.CA_IMAGING_START_TIMEOUT = 15.0
-        PMTS = {'TOP': {'AI': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
-                            'SIDE': {'AI' : 0,'COLOR': 'RED', 'ENABLE': False}}
+        PMTS = {'TOP': {'CHANNEL': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
+                            'SIDE': {'CHANNEL' : 0,'COLOR': 'RED', 'ENABLE': False}}
     
         self.GUI['GUI_SIZE'] =  utils.cr((1280,1024))
 #        self.GUI['GUI_SIZE'] =  utils.cr((1024,700))

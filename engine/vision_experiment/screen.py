@@ -2,15 +2,10 @@ import pygame
 import copy
 import socket
 import time
+import numpy
 
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import colors
-from visexpman.engine.generic import graphics
-from visexpman.engine.generic import fileop
-try:
-    import Image
-except ImportError:
-    from PIL import Image
+from visexpman.engine.generic import utils,colors,graphics,fileop
+from PIL import Image
 
 from OpenGL.GL import *#TODO: perhaps this is not necessary
 from OpenGL.GLUT import *
@@ -29,30 +24,50 @@ class CaImagingScreen(graphics.Screen):
         if self.config.FULLSCREEN:
             screen_resolution = graphics.get_screen_size()
         else:
-            screen_resolution = utils.cr((1000, 700))
+            screen_resolution = utils.cr((800, 600))
         graphics.Screen.__init__(self, self.config, screen_resolution = screen_resolution, graphics_mode = 'external')
         self.clear_screen()
-        import numpy
-        im = numpy.ones((200,100,3),dtype=numpy.float)
-        im *=0.4
-        im[0,0,:]=1.0
-        im[0,5:6,1]=1.0
-        im[0,5:6,0]=0.0
-        im[0,5:6,2]=0.0
-        im[5:6,0,2]=1.0
-        im[5:6,0,:2]=0.0
-        im[:2,:,0]=1.0
-        im[-2:,:,0]=1.0
-        im[:,:2,0]=1.0
-        im[:,-2:,0]=1.0
-        for i in range(10):
-            im[:,10+i,1] = numpy.arange(im[:,10,1].shape[0],dtype=numpy.float)/im[:,10,1].shape[0]
-        self.im = im
+        self.display_configuration = {}
+#        import numpy
+#        im = numpy.ones((200,100,3),dtype=numpy.float)
+#        im *=0.4
+#        im[0,0,:]=1.0
+#        im[0,5:6,1]=1.0
+#        im[0,5:6,0]=0.0
+#        im[0,5:6,2]=0.0
+#        im[5:6,0,2]=1.0
+#        im[5:6,0,:2]=0.0
+#        im[:2,:,0]=1.0
+#        im[-2:,:,0]=1.0
+#        im[:,:2,0]=1.0
+#        im[:,-2:,0]=1.0
+#        for i in range(10):
+#            im[:,10+i,1] = numpy.arange(im[:,10,1].shape[0],dtype=numpy.float)/im[:,10,1].shape[0]
+#        self.im = im
         
     def refresh(self):
         self.clear_screen(color = colors.convert_color(0.0))
-        #Here comes the drawing of images, activity curves
-#        self.render_image(self.im)
+        number_of_displays = len(self.display_configuration.keys())
+        spacing = 10
+        if number_of_displays>0 :
+            self.imsize = utils.rc((0,0))
+            if number_of_displays < 4:
+                nrows = 1
+                ncols = number_of_displays
+            else:
+                nrows = 2
+                ncols = int(numpy.ceil(number_of_displays/nrows))
+            self.imsize['row'] = (self.screen_resolution['row']-nrows*spacing)/nrows
+            self.imsize['col'] = (self.screen_resolution['col']-ncols*spacing)/ncols
+            stretch = float(min( self.imsize['row'], self.imsize['col']))/max(self.images['snap'].shape)
+            for col in range(ncols):
+                for row in range(nrows):
+                    if self.images.has_key('snap'):
+                        #CONTINUE HERE
+                        pos = utils.rc(((row-0.5*nrows)*(self.imsize['row']+spacing), col*(self.imsize['col']+spacing)))
+                        self.render_image(self.images['snap'], position = pos, stretch = stretch)
+            #Here comes the drawing of images, activity curves
+    #        self.render_image(self.im)
         self.flip()
     
     

@@ -35,6 +35,21 @@ def parse_channel_string(channels):
         nchannels = channel_indexes[1]-channel_indexes[0]+1
     return device_name, nchannels, channel_indexes
     
+    
+def ai_channels2daq_channel_string(channels, daq_device):
+    '''
+    List of channel indexes/strings is converted to daq string
+    '''
+    if len(channels)==1:
+        return '{0}/ai{1}'.format(daq_device,channels[0])
+    elif len(channels)==2:
+        return '{0}/ai{1}:{2}'.format(daq_device,channels[0],channels[1])
+    else:
+        if abs(numpy.diff(channels).max()) != 1:
+            raise DaqInstrumentError('Only channels in consecutive order are supported: {0}'.format(channels))
+        return '{0}/ai{1}:{2}'.format(daq_device,min(channels),max(channels))
+        
+    
 def set_digital_line(channel, value):
     digital_output = PyDAQmx.Task()
     digital_output.CreateDOChan(channel,'do', DAQmxConstants.DAQmx_Val_ChanPerLine)

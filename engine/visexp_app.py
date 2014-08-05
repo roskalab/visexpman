@@ -155,12 +155,6 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         else:
             self.stim_context[varname] = value
             
-    def set_variable(self,varname, value):
-        if not hasattr(self, varname):
-            self.send('{0} variable does not exists'.format(varname))
-        else:
-            setattr(self, varname, value)
-            
     def set_filterwheel(self, channel, filter):
         raise NotImplementedError('')
         

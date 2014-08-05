@@ -2711,6 +2711,13 @@ class VisexpGuiPoller(Poller):
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentIndex', 
                                           ]
+        for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
+            self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].enable.checkState'.format(i))
+            self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].name.input.text'.format(i))
+            self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].channel_select.input.currentIndex'.format(i))
+            self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].snap_mode_options.input.currentIndex'.format(i))
+            self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].recording_mode_options.input.currentIndex'.format(i))
+            self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].gridline_select.input.currentIndex'.format(i))
                                           
     def load_context(self):
         self.context = {}
@@ -2773,6 +2780,7 @@ class VisexpGuiPoller(Poller):
         #Init machine parameters
         if self.context['variables'].has_key('self.parent.central_widget.parameters_groupbox.machine_parameters'):
             self.parent.central_widget.parameters_groupbox.machine_parameters = self.context['variables']['self.parent.central_widget.parameters_groupbox.machine_parameters']
+        self.visualisation_control = gui.CaImagingVisualisationControl(self, self.config, self.parent.central_widget.ca_displays)
 
     def connect_signals(self):
         self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
@@ -2844,17 +2852,30 @@ class VisexpGuiPoller(Poller):
         '''
         Reads and relays data from network queues
         '''
-        for connection_name in self.socket_queues.keys():
-            q = self.socket_queues[connection_name]['fromsocket']
-#            if connection_name == 'ca_imaging':
-#                status = self.socket_queues[connection_name]['in'].empty(),self.socket_queues[connection_name]['out'].empty()
-#                if not status[0] or not status[1]:
-#                    self.printc([self.queues[connection_name]['in'].empty(),self.queues[connection_name]['out'].empty()])
-            if q.empty():
-                continue
-            msg = q.get()
-            if isinstance(msg,str):
-                self.printc(msg)
+        try:
+            for connection_name in self.socket_queues.keys():
+                q = self.socket_queues[connection_name]['fromsocket']
+    #            if connection_name == 'ca_imaging':
+    #                status = self.socket_queues[connection_name]['in'].empty(),self.socket_queues[connection_name]['out'].empty()
+    #                if not status[0] or not status[1]:
+    #                    self.printc([self.queues[connection_name]['in'].empty(),self.queues[connection_name]['out'].empty()])
+                if q.empty():
+                    continue
+                msg = q.get()
+                if isinstance(msg,str):
+                    self.printc(msg)
+                elif hasattr(msg, 'has_key') and msg.has_key('function'):
+                    function_name = msg['function']
+                    args = msg['args']
+                    if function_name == 'remote_call':
+                        introspect.string2objectreference(self, args[0])(*args[1])
+                    elif function_name == 'read_variable':#NOT TESTED
+                        function_call = {'function': 'set_variable', 'args': [args[0], introspect.string2objectreference(self,args[0])]}
+                        self.send(function_call,connection='ca_imaging')
+        except:
+            self.printc(traceback.format_exc())
+                    
+                    
 #        try:
 #            for k, queue in self.queues.items():                
 #                if hasattr(queue, 'has_key') and queue.has_key('in') and not queue['in'].empty():

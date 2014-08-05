@@ -18,21 +18,12 @@ import multiprocessing
 
 import experiment_data
 import visexpman.engine
-from visexpman.engine.generic import log
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
-from visexpman.engine.generic import introspect
-from visexpman.engine.hardware_interface import mes_interface
-from visexpman.engine.hardware_interface import instrument
-from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.hardware_interface import stage_control
-from visexpman.engine.hardware_interface import digital_io
-from visexpman.engine.hardware_interface import scanner_control
+from visexpman.engine.generic import log,utils,fileop,introspect,signal
+from visexpman.engine.hardware_interface import mes_interface,instrument,daq_instrument,stage_control,digital_io,scanner_control
 from visexpman.engine.vision_experiment.screen import is_key_pressed, CaImagingScreen, check_keyboard
 from visexpA.engine.datahandlers import hdf5io
 
 from visexpman.engine.generic.command_parser import ServerLoop
-from visexpman.engine.hardware_interface import scanner_control
 
 from visexpman.users.test import unittest_aggregator
 import unittest
@@ -53,6 +44,9 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                                                                             'response': multiprocessing.Queue(), 
                                                                             'data': multiprocessing.Queue()}
         self.imaging_started = False
+        self.load_image_context()
+        #Request for sending display_configuration
+        self.send({'function': 'remote_call', 'args': ['self.visualisation_control.generate_display_configuration', [True]]})
         
     def application_callback(self):
         '''
@@ -76,6 +70,19 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                 
     def test(self):
         self.printl('test1')
+        
+    def load_image_context(self):
+        '''
+        Loads ca imaging application's context
+        '''
+        context_filename = fileop.get_context_filename(self.config)
+        if os.path.exists(context_filename):
+            self.images = utils.array2object(hdf5io.read_item(context_filename, 'context', self.config))
+        else:
+            self.images = {}
+            
+    def save_image_context(self):
+        hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(self.images), self.config,  overwrite = True)
         
     def _pack_waveform(self,parameters):
         waveforms = numpy.array([parameters['scanning_attributes']['xsignal'], 
@@ -111,8 +118,11 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         self.send({'update': ['data saved', imaging_started]})
         
     def snap_ca_image(self,parameters):
+        '''
+        Snap a single two photon image
+        '''
         aio = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.logger_queue,
-                                ai_channels = self.config.TWO_PHOTON_PINOUT['PMT_ANALOG_INPUT_CHANNELS'],
+                                ai_channels = daq_instrument.ai_channels2daq_channel_string(*self._pmtchannels2indexes(parameters['recording_channels'])),
                                 ao_channels= self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'],limits=self.limits)
         aio._create_tasks()
         aio._start(ai_sample_rate = parameters['analog_input_sampling_rate'], ao_sample_rate = parameters['analog_output_sampling_rate'], 
@@ -122,6 +132,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         aio._close_tasks()
         data2save = {'parameters':parameters,'ai_data':ai_data}
         numpy.save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH,'2psnap.npy')),utils.object2array(data2save))
+        self.images['snap'] = signal.scale(scanner_control.signal2image(ai_data, parameters, self.config.PMTS))
         self.printl('Done')
         
 #        self.printl(parameters.keys())
@@ -129,8 +140,15 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
 #        pdb.set_trace()
 #        pass
         
+    def _pmtchannels2indexes(self,recording_channels):
+        daq_device = self.config.TWO_PHOTON_PINOUT['PMT_ANALOG_INPUT_CHANNELS'].split('/')[0]
+        channel_indexes = [self.config.PMTS[ch]['CHANNEL'] for ch in recording_channels]
+        channel_indexes.sort()
+        return channel_indexes, daq_device
         
-        
+    def at_process_end(self):
+        self.save_image_context()
+        self.close_screen()
 
 class Trigger(object):
     '''
@@ -1029,10 +1047,10 @@ class TestCaImaging(unittest.TestCase):
             'stimulation_device' : '', 
             'recording_channels' : ['SIDE'], 
             'enable_scanner_synchronization' : False, 
-            'scanning_range' : [100.0, 100.0], 
-            'pixel_size' : 1.0, 
+            'scanning_range' : utils.rc((100.0, 100.0)),
+            'resolution' : 1.0, 
             'resolution_unit' : 'um/pixel', 
-            'scan_center' : [0.0,0.0],
+            'scan_center' : utils.rc((0.0, 0.0)),
             'trigger_width' : 0.0,
             'trigger_delay' : 0.0,
             'status' : 'preparing', 
@@ -1059,6 +1077,70 @@ class TestCaImaging(unittest.TestCase):
             time.sleep(1.0)
         client.terminate()
         self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower())
+        
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+    def test_03_snap(self):
+        experiment_names = ['GUITestExperimentConfig', 'TestCommonExperimentConfig']
+        parameters = {
+            'experiment_name': '',
+            'recording_channels' : ['SIDE', 'TOP'], 
+            'enable_scanner_synchronization' : False, 
+            'scanning_range' : utils.rc((100.0, 100.0)),
+            'resolution' : 1.0, 
+            'resolution_unit' : 'um/pixel', 
+            'scan_center' : utils.rc((0.0, 0.0)),
+            'trigger_width' : 0.0,
+            'trigger_delay' : 0.0,
+            'status' : 'preparing', 
+            'id':str(int(numpy.round(time.time(), 2)*100)),
+            'analog_input_sampling_rate': 100000,
+            'analog_output_sampling_rate': 100000,
+            'stimulus_flash_trigger_duty_cycle' : 0.5, 
+            'stimulus_flash_trigger_delay' : 0.0, }
+        constraints = {}
+        constraints['enable_flybackscan']=False
+        constraints['um2voltage_scale']=self.machine_config.POSITION_TO_SCANNER_VOLTAGE
+        constraints['xmirror_max_frequency']=self.machine_config.XMIRROR_MAX_FREQUENCY
+        constraints['ymirror_flyback_time']=self.machine_config.Y_MIRROR_MIN_FLYBACK_TIME
+        constraints['sample_frequency']=parameters['analog_output_sampling_rate']
+        constraints['max_linearity_error']=5e-2
+        constraints['phase_characteristics']=self.machine_config.SCANNER_CHARACTERISTICS['PHASE']
+        constraints['gain_characteristics']=self.machine_config.SCANNER_CHARACTERISTICS['GAIN']
+        #Generate scanner signals and data mask
+        xsignal,ysignal,frame_trigger_signal, valid_data_mask,signal_attributes =\
+                            scanner_control.generate_scanner_signals(parameters['scanning_range'], 
+                                                                                parameters['resolution'], 
+                                                                                parameters['scan_center'], 
+                                                                                constraints)
+        #Generate stimulus strigger signal
+        stimulus_flash_trigger_signal, signal_attributes['real_duty_cycle'] = scanner_control.generate_stimulus_flash_trigger(
+                                                                                                                    parameters['stimulus_flash_trigger_duty_cycle'], 
+                                                                                                                    parameters['stimulus_flash_trigger_delay'], 
+                                                                                                                    signal_attributes, 
+                                                                                                                    constraints)
+        scanning_attributes = {}
+        for pn in ['xsignal', 'ysignal', 'stimulus_flash_trigger_signal', 'frame_trigger_signal', 'valid_data_mask', 'signal_attributes', 'constraints']:
+            scanning_attributes[pn] = locals()[pn]
+        parameters['scanning_attributes'] = scanning_attributes
+            
+        commands = []
+        for experiment_name in experiment_names:
+            import copy
+            pars = copy.deepcopy(parameters)
+            pars['experiment_name'] = experiment_name
+            commands.append({'function': 'snap_ca_image', 'args': [pars]})
+        commands.append({'function': 'exit_application'})
+        client = self._send_commands_to_stim(commands)
+        from visexpman.engine.visexp_app import run_ca_imaging
+        run_ca_imaging(self.context, timeout=None)
+        t0=time.time()
+        while True:
+            msg = client.recv()
+            if msg is not None or time.time() - t0>20.0:
+                break
+            time.sleep(1.0)
+        client.terminate()
+        self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower().replace('max_linearity_error',''))
         
 if __name__=='__main__':
     unittest.main()

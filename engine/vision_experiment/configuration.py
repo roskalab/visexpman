@@ -349,6 +349,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         SCANNER_CHARACTERISTICS['PHASE'] = [-0.00074166, -0.00281492]#A*f+B, in radians
         SCANNER_CHARACTERISTICS['GAIN'] = [9.92747933e-01, 2.42763029e-06, -2.40619419e-08]#A+B*f+C*f**2, in PU
         
+        MAX_CA_IMAGE_DISPLAYS = [4, [1, 10]]
         CAIMAGE_DISPLAY_VERTICAL_FLIP = False
         CAIMAGE_DISPLAY_HORIZONTAL_FLIP = False
         
