@@ -76,14 +76,17 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
     def run(self,timeout = None):
         t0 = time.time()
         while True:
-            self.fetch_next_call()
-            if not self.command.empty() and self.command.get() == 'terminate':
-                break
-            if timeout is not None and timeout < time.time()-t0:
-                break
-            if self.application_callback() == 'terminate':
-                break
-            time.sleep(0.2)
+            try:
+                self.fetch_next_call()
+                if not self.command.empty() and self.command.get() == 'terminate':
+                    break
+                if timeout is not None and timeout < time.time()-t0:
+                    break
+                if self.application_callback() == 'terminate':
+                    break
+                time.sleep(0.2)
+            except:
+                self.printl(traceback.format_exc())
         self.at_process_end()
         self.command.put('terminated')
         

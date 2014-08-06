@@ -337,10 +337,10 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
         TWO_PHOTON_PINOUT = {}
-        TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'] = 'Dev1/port0/line0',
+        TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'] = 'Dev1/port0/line0'
         TWO_PHOTON_PINOUT['PMT_ANALOG_INPUT_CHANNELS'] = 'Dev1/ai0:1'
         TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'] = 'Dev1/ao0:3'
-        TWO_PHOTON_DAQ_TIMEOUT = [5.0, [0.1, 60.0]]
+        TWO_PHOTON_DAQ_TIMEOUT = [10.0, [0.1, 60.0]]
         
         #Scanner dynamics
         XMIRROR_MAX_FREQUENCY = [1500.0, [50.0, 2200.0]]

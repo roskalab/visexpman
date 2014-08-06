@@ -197,8 +197,9 @@ def read_electrode_coordinates():
         filename = file.read_text_file(path)
         data = file.read_text_file(os.path.join(os.path.join(os.path.split(visexpman.__file__)[0], 'users', 'antonia', 'electrode_configuration_coordinates'), filename))
         data = map(float, data.split(','))
-        center = utils.rc((data[0],data[1]))
-        size = utils.rc((data[2],data[3]))
+        center = utils.cr((data[0],data[1]))
+        size = utils.cr((data[2],data[3]))
+        return center, size
     except:
         import visexpman.engine.vision_experiment.configuration
         config = utils.fetch_classes('visexpman.users.antonia', classname = 'MEASetup', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
@@ -236,6 +237,34 @@ def nrk2elek():
         f=open(os.path.join(path,nrk2).replace('.nrk2', '.txt'), 'wt')
         f.write('{0},{1},{2},{3}'.format(center[0], center[1], size[0],size[1]))
         f.close()
+       
+        
+def read_single_electrode_coordinate():
+    from visexpman.engine.generic import utils,file
+    import visexpman.engine.vision_experiment.configuration
+    config = utils.fetch_classes('visexpman.users.antonia', classname = 'MEASetup', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+    um2pixel_scale = config.SCREEN_UM_TO_PIXEL_SCALE
+    import os.path
+    path = os.path.join(os.path.join(os.path.split(visexpman.__file__)[0], 'users', 'antonia'), 'elek.txt')
+    try:
+        ids = map(int,file.read_text_file(path).split(','))
+    except:
+        return numpy.array([[0,0]])
+    return numpy.array(f_list_calcul(f_listof_elcoord_digger(ids)))/um2pixel_scale
+    
+def read_receptive_field_centers():
+    import visexpman
+    import visexpman.engine.vision_experiment.configuration
+    from visexpman.engine.generic import utils,file
+    from scipy.io import loadmat
+    config = utils.fetch_classes('visexpman.users.antonia', classname = 'MEASetup', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
+    path = file.read_text_file(os.path.join(os.path.join(os.path.split(visexpman.__file__)[0], 'users', 'antonia'), 'selected_receptive_field_list.txt'))
+    pixel_coordinates = loadmat(path)['RFcenters']
+    #Convert centered origin coordinate system
+    pixel_coordinates_centered = pixel_coordinates - numpy.array([config.SCREEN_RESOLUTION['col']*0.5, config.SCREEN_RESOLUTION['row']*0.5])
+    pixel_coordinates_centered[:,1] *=-1
+    um_coordinates = pixel_coordinates_centered/config.SCREEN_UM_TO_PIXEL_SCALE
+    return um_coordinates
     
 if __name__ == "__main__":  
     nrk2elek() 

@@ -176,6 +176,8 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
 #            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
         self._create_parameters_from_locals(locals())
 
+
+
 class JobhandlerTestConfig(configuration.VisionExperimentConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####

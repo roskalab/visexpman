@@ -59,6 +59,9 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                 return 'terminate'
         self.read_data()
         self.refresh()
+        #Make sure that laser shutter is closed
+        if not self.imaging_started:
+            daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
         
     def read_data(self):
         if hasattr(self, 'daq_process') and self.imaging_started is not False:
@@ -84,11 +87,13 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
     def save_image_context(self):
         hdf5io.save_item(fileop.get_context_filename(self.config), 'context', utils.object2array(self.images), self.config,  overwrite = True)
         
-    def _pack_waveform(self,parameters):
+    def _pack_waveform(self,parameters,xy_scanner_only=False):
         waveforms = numpy.array([parameters['scanning_attributes']['xsignal'], 
                                 parameters['scanning_attributes']['ysignal'],
                                 parameters['scanning_attributes']['stimulus_flash_trigger_signal'],
                                 parameters['scanning_attributes']['frame_trigger_signal']])
+        if xy_scanner_only:
+            waveforms *= numpy.array([[1,1,0,0]]).T
         return waveforms
         
     def start_imaging(self, parameters):
@@ -125,15 +130,23 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                                 ai_channels = daq_instrument.ai_channels2daq_channel_string(*self._pmtchannels2indexes(parameters['recording_channels'])),
                                 ao_channels= self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'],limits=self.limits)
         aio._create_tasks()
+        #Open shutter
+        daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 1)
+        #Generate waveform and start data acquisition
         aio._start(ai_sample_rate = parameters['analog_input_sampling_rate'], ao_sample_rate = parameters['analog_output_sampling_rate'], 
-                      ao_waveform = self._pack_waveform(parameters),
+                      ao_waveform = self._pack_waveform(parameters,xy_scanner_only=True),
                       finite_samples=True,timeout = 30)
         ai_data = aio._stop()
+        #Close shutter
+        daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
         aio._close_tasks()
+        #Set all analog outputs to 0V
+        daq_instrument.set_voltage(self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
         data2save = {'parameters':parameters,'ai_data':ai_data}
         numpy.save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH,'2psnap.npy')),utils.object2array(data2save))
         self.images['snap'] = signal.scale(scanner_control.signal2image(ai_data, parameters, self.config.PMTS))
         self.printl('Done')
+        
         
 #        self.printl(parameters.keys())
 #        import pdb

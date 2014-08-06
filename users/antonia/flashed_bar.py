@@ -11,12 +11,12 @@ import copy
 class FlashedBarParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'
-        self.SHAPE_COLORS = [0.999 ]
+        self.SHAPE_COLORS = [0.0 ]
         self.BACKGROUND_COLOR = 0.5
-        self.FLASH_TIME = 1.0
-        self.BACKGROUND_TIME = 1.0*0
-        self.SHAPE_SIZE = utils.rc((2500, 300)) #um
-        self.REPETITIONS_ALL = 5 #s
+        self.FLASH_TIME = 0.1 #.015#   1/60 s is the time resolution
+        self.BACKGROUND_TIME = 1.0
+        self.SHAPE_SIZE = utils.rc((2500, 133)) #um
+        self.REPETITIONS_ALL = 10 #s
         self.STEP_SIZE = 33#um
         self.NUMBER_OF_POSITIONS = 7
         self.POSITIONS = self.REPETITIONS_ALL * numpy.arange(-self.NUMBER_OF_POSITIONS*self.STEP_SIZE, (self.NUMBER_OF_POSITIONS+1)*self.STEP_SIZE, self.STEP_SIZE).tolist()

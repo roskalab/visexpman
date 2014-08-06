@@ -49,7 +49,7 @@ class CaImagingScreen(graphics.Screen):
         self.clear_screen(color = colors.convert_color(0.0))
         number_of_displays = len(self.display_configuration.keys())
         spacing = 10
-        if number_of_displays>0 :
+        if number_of_displays>0 and self.images.has_key('snap'):
             self.imsize = utils.rc((0,0))
             if number_of_displays < 4:
                 nrows = 1
@@ -64,7 +64,7 @@ class CaImagingScreen(graphics.Screen):
                 for row in range(nrows):
                     if self.images.has_key('snap'):
                         #CONTINUE HERE
-                        pos = utils.rc(((row-0.5*nrows)*(self.imsize['row']+spacing), col*(self.imsize['col']+spacing)))
+                        pos = utils.rc(((row-0.5*(nrows-1))*(self.imsize['row']+spacing), (col-0.5*(ncols-1))*(self.imsize['col']+spacing)))
                         self.render_image(self.images['snap'], position = pos, stretch = stretch)
             #Here comes the drawing of images, activity curves
     #        self.render_image(self.im)

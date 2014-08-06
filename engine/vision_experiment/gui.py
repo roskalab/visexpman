@@ -1070,7 +1070,7 @@ class MachineParametersGroupbox(QtGui.QGroupBox):
         self.create_layout()
         self.machine_parameters = {}
         self.machine_parameters['scanner'] = {'Scan center':  '0, 0#Center of scanning, format: (row, col) [um]', 
-                                                                        'Stimulus flash trigger duty cycle': '100#[%]100% means that the flash is on during the whole flyback of the x mirror', 
+                                                                        'Stimulus flash trigger duty cycle': '100#[%] 100% means that the flash is on during the whole flyback of the x mirror', 
                                                                         'Stimulus flash trigger delay': '0#[us]',
                                                                         'Analog input sampling rate': '100000#[Hz]',
                                                                         'Analog output sampling rate': '100000#[Hz]',

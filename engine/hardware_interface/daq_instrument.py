@@ -186,7 +186,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
             self.analog_input.CfgSampClkTiming("OnboardClock",
                                         self.ai_sample_rate,
                                         DAQmxConstants.DAQmx_Val_Rising,
-                                        DAQmxConstants.DAQmx_Val_ContSamps,
+                                        self.ao_sampling_mode,
                                         self.number_of_ai_samples)
                                             
     def _create_tasks(self):
@@ -322,7 +322,8 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
                                         DAQmxTypes.byref(self.read),
                                         None)
         except PyDAQmx.DAQError:
-            pass
+            import traceback
+            print traceback.format_exc()
         ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
         ##self.ai_raw_data = self.ai_data
         ai_data = copy.deepcopy(ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose())
