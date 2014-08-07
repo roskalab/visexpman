@@ -1009,8 +1009,8 @@ class CentralWidget(QtGui.QWidget):
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.main_tab, 0, 0, 1, 1)
-        self.layout.addWidget(self.ca_displays, 0, 1, 1, 1)
+        self.layout.addWidget(self.main_tab, 0, 0, 1, 3)
+        self.layout.addWidget(self.ca_displays, 0, 3, 1, 1)
         self.layout.addWidget(self.text_out, 1,  0, 1, 2)
         self.setLayout(self.layout)
 

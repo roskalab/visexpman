@@ -57,11 +57,10 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         for key_pressed in check_keyboard():
             if key_pressed == self.config.KEYS['exit']:#Exit application
                 return 'terminate'
+            elif key_pressed == self.KEYS['snap']:
+                self.snap_ca_image(self.snap_ca_parameters)
         self.read_data()
         self.refresh()
-        #Make sure that laser shutter is closed
-        if not self.imaging_started:
-            daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
         
     def read_data(self):
         if hasattr(self, 'daq_process') and self.imaging_started is not False:
@@ -126,27 +125,32 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         '''
         Snap a single two photon image
         '''
-        aio = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.logger_queue,
-                                ai_channels = daq_instrument.ai_channels2daq_channel_string(*self._pmtchannels2indexes(parameters['recording_channels'])),
-                                ao_channels= self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'],limits=self.limits)
-        aio._create_tasks()
-        #Open shutter
-        daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 1)
-        #Generate waveform and start data acquisition
-        aio._start(ai_sample_rate = parameters['analog_input_sampling_rate'], ao_sample_rate = parameters['analog_output_sampling_rate'], 
-                      ao_waveform = self._pack_waveform(parameters,xy_scanner_only=True),
-                      finite_samples=True,timeout = 30)
-        ai_data = aio._stop()
-        #Close shutter
-        daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
-        aio._close_tasks()
-        #Set all analog outputs to 0V
-        daq_instrument.set_voltage(self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
-        data2save = {'parameters':parameters,'ai_data':ai_data}
-        numpy.save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH,'2psnap.npy')),utils.object2array(data2save))
-        self.images['snap'] = signal.scale(scanner_control.signal2image(ai_data, parameters, self.config.PMTS))
-        self.printl('Done')
-        
+        try:
+            self.snap_ca_parameters = parameters
+            aio = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.logger_queue,
+                                    ai_channels = daq_instrument.ai_channels2daq_channel_string(*self._pmtchannels2indexes(parameters['recording_channels'])),
+                                    ao_channels= self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'],limits=self.limits)
+            aio._create_tasks()
+            #Open shutter
+            daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 1)
+            #Generate waveform and start data acquisition
+            aio._start(ai_sample_rate = parameters['analog_input_sampling_rate'], ao_sample_rate = parameters['analog_output_sampling_rate'], 
+                          ao_waveform = self._pack_waveform(parameters,xy_scanner_only=True),
+                          finite_samples=True,timeout = 30)
+            ai_data = aio._stop()
+            #Close shutter
+            daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
+            aio._close_tasks()
+            #Set all analog outputs to 0V
+            daq_instrument.set_voltage(self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
+            data2save = {'parameters':parameters,'ai_data':ai_data}
+            numpy.save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH,'2psnap.npy')),utils.object2array(data2save))
+            self.images['snap'] = signal.scale(scanner_control.signal2image(ai_data, parameters, self.config.PMTS))
+            self.printl('Done')
+        except:
+            #Make sure that laser shutter is closed
+            daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
+            self.printl(traceback.format_exc())
         
 #        self.printl(parameters.keys())
 #        import pdb

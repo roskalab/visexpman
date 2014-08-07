@@ -353,6 +353,10 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         CAIMAGE_DISPLAY_VERTICAL_FLIP = False
         CAIMAGE_DISPLAY_HORIZONTAL_FLIP = False
         
+        
+        self.KEYS['snap'] = 'enter'
+        self.KEYS['live_start_stop'] = 'space'
+        
         self._create_parameters_from_locals(locals())
         
 class CorticalCaImagingConfig(VisionExperimentConfig):
