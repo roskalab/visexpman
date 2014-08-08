@@ -57,8 +57,14 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         for key_pressed in check_keyboard():
             if key_pressed == self.config.KEYS['exit']:#Exit application
                 return 'terminate'
-            elif key_pressed == self.KEYS['snap']:
-                self.snap_ca_image(self.snap_ca_parameters)
+            elif key_pressed == self.config.KEYS['snap']:
+                if hasattr(self, 'snap_ca_parameters'):
+                    self.snap_ca_image(self.snap_ca_parameters)
+                else:
+                    raise NotImplementedError('')
+            else:
+                print key_pressed
+                
         self.read_data()
         self.refresh()
         
@@ -1116,6 +1122,7 @@ class TestCaImaging(unittest.TestCase):
             'stimulus_flash_trigger_delay' : 0.0, }
         constraints = {}
         constraints['enable_flybackscan']=False
+        constraints['enable_scanner_phase_characteristics']=True
         constraints['um2voltage_scale']=self.machine_config.POSITION_TO_SCANNER_VOLTAGE
         constraints['xmirror_max_frequency']=self.machine_config.XMIRROR_MAX_FREQUENCY
         constraints['ymirror_flyback_time']=self.machine_config.Y_MIRROR_MIN_FLYBACK_TIME

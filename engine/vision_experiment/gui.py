@@ -758,7 +758,7 @@ class ExperimentControl(gui.WidgetControl):
                                                                                    self.config, 
                                                                                    source=self.mandatory_parameters['experiment_config_source_code'])
         #Parse boolean parameters:
-        for pn in ['enable_flyback_scan']:
+        for pn in ['enable_flyback_scan', 'enable_scanner_phase_characteristics']:
             try:
                 self.mandatory_parameters[pn] = bool(int(self.mandatory_parameters[pn].split('#')[0]))
             except ValueError:
@@ -790,6 +790,7 @@ class ExperimentControl(gui.WidgetControl):
             raise NotImplementedError('Select different pixel size unit')
         constraints = {}
         constraints['enable_flybackscan']=self.mandatory_parameters['enable_flyback_scan']
+        constraints['enable_scanner_phase_characteristics']=self.mandatory_parameters['enable_scanner_phase_characteristics']
         constraints['um2voltage_scale']=self.config.POSITION_TO_SCANNER_VOLTAGE
         constraints['xmirror_max_frequency']=self.config.XMIRROR_MAX_FREQUENCY
         constraints['ymirror_flyback_time']=self.config.Y_MIRROR_MIN_FLYBACK_TIME
@@ -1076,12 +1077,14 @@ class MachineParametersGroupbox(QtGui.QGroupBox):
                                                                         'Analog output sampling rate': '100000#[Hz]',
                                                                         'Enable flyback scan': '0#If set to 1, x mirror\'s flyback movement is also used for data acquisition',
                                                                         'Maximal x line linearity error':'5#[%], Increase: better scan speed but more distortion at the left and right edges.\nKeep it below 15 %.',
+                                                                        'Enable scanner phase characteristics': '1#1=enable'
                                                                         }
                                                                         
         self.machine_parameter_order = {}
-        self.machine_parameter_order['scanner'] = ['Maximal x line linearity error', 'Scan center', 
+        self.machine_parameter_order['scanner'] = ['Scan center', 
                                             'Stimulus flash trigger duty cycle', 'Stimulus flash trigger delay', 'Enable flyback scan', 
-                                            'Analog input sampling rate', 'Analog output sampling rate']
+                                            'Maximal x line linearity error',
+                                            'Analog input sampling rate', 'Analog output sampling rate', 'Enable scanner phase characteristics']
 
     def create_widgets(self):
         self.table = {}
@@ -1444,7 +1447,11 @@ class CaImagingVisualisationControl(gui.WidgetControl):
         else:
             for k in display_configuration.keys():
                 for kk in display_configuration[k]:
-                    if display_configuration[k][kk] != self.display_configuration[k][kk]:
+                    try:
+                        if display_configuration[k][kk] != self.display_configuration[k][kk]:
+                            send=True
+                            break
+                    except KeyError:
                         send=True
                         break
                 if send:

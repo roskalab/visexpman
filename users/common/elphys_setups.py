@@ -39,7 +39,7 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         self.CA_IMAGING_START_TIMEOUT = 15.0
         PMTS = {'TOP': {'CHANNEL': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 0,'COLOR': 'RED', 'ENABLE': False}}
-    
+        POSITION_TO_SCANNER_VOLTAGE = 1.0/128.0
         self.GUI['GUI_SIZE'] =  utils.cr((1280,1024))
 #        self.GUI['GUI_SIZE'] =  utils.cr((1024,700))
 #        if os.name == 'nt':

@@ -170,18 +170,19 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
             self.limits['timeout'] = 3.0
         self.running = False
         
-    def _configure_timing(self, finite_samples = False):    
+    def _configure_timing(self, finite_samples = False):
+        self.finite_samples = finite_samples
+        if finite_samples:
+            self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_FiniteSamps
+        else:
+            self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_ContSamps
         if self.enable_ao:
-            if finite_samples:
-                self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_FiniteSamps
-            else:
-                self.ao_sampling_mode = DAQmxConstants.DAQmx_Val_ContSamps
-            
             self.analog_output.CfgSampClkTiming("OnboardClock",
                                         self.ao_sample_rate,
                                         DAQmxConstants.DAQmx_Val_Rising,
                                         self.ao_sampling_mode,
                                         self.number_of_ao_samples)
+                                        
         if self.enable_ai:
             self.analog_input.CfgSampClkTiming("OnboardClock",
                                         self.ai_sample_rate,
@@ -322,8 +323,9 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
                                         DAQmxTypes.byref(self.read),
                                         None)
         except PyDAQmx.DAQError:
-            import traceback
-            print traceback.format_exc()
+            if self.finite_samples:
+                import traceback
+                print traceback.format_exc()
         ai_data = self.ai_data[:self.read.value * self.number_of_ai_channels]
         ##self.ai_raw_data = self.ai_data
         ai_data = copy.deepcopy(ai_data.flatten('F').reshape((self.number_of_ai_channels, self.read.value)).transpose())
@@ -1449,8 +1451,8 @@ class TestAnalogIOProcess(unittest.TestCase):
     def setUp(self):
         import multiprocessing
         from visexpman.engine.generic import log
-        self.logile = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_daq_test_{0}.txt'.format(int(1000*time.time())))
-        self.logger = log.Logger(filename=self.logile)
+        self.logfile = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder), 'log_daq_test_{0}.txt'.format(int(1000*time.time())))
+        self.logger = log.Logger(filename=self.logfile)
         self.instrument_name = 'test aio'
         self.logger.add_source(self.instrument_name)
         self.logqueue = self.logger.get_queues()[self.instrument_name]
@@ -1503,9 +1505,9 @@ class TestAnalogIOProcess(unittest.TestCase):
         data2 = aio.stop_daq()
         aio.terminate()
         time.sleep(0.5)#Wait till log flushed to file
-        map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
+        map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logfile)])
         for el in [self.expected_logs, self.ai_expected_logs, self.ao_expected_logs]:
-            map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
+            map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logfile)])
         #Check if two channel data is aquired
         self.assertEqual(data1[0].shape[2],2)
         self.assertEqual(data2[0].shape[2],2)
@@ -1569,9 +1571,9 @@ class TestAnalogIOProcess(unittest.TestCase):
         data = aio.stop_daq()
         aio.terminate()
         time.sleep(0.5)
-        map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
+        map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logfile)])
         for el in [self.expected_logs, self.ai_expected_logs]:
-            map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
+            map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logfile)])
         #constant 3 V is expected in data
         numpy.testing.assert_allclose(data[0].mean(), voltage, 0, 1e-3)
         numpy.testing.assert_allclose(data[0].max()-data[0].min(), 0.0, 0, 1e-2*voltage)
@@ -1586,7 +1588,7 @@ class TestAnalogIOProcess(unittest.TestCase):
         [p.start() for p in processes]
         aio.start_daq(timeout = 10.0) 
         aio.terminate()
-        self.assertIn('DaqInstrumentError', fileop.read_text_file(self.logile))
+        self.assertIn('DaqInstrumentError', fileop.read_text_file(self.logfile))
         
     @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
     def test_07_aio_process_run_twice(self):
@@ -1626,9 +1628,9 @@ class TestAnalogIOProcess(unittest.TestCase):
                 plot(numpy.tile(waveform,data[1]))
                 show()
         #check log
-        map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logile)])
+        map(self.assertNotIn, self.not_expected_logs, len(self.not_expected_logs)*[fileop.read_text_file(self.logfile)])
         for el in [self.expected_logs, self.ai_expected_logs]:
-            map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logile)])
+            map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logfile)])
             
     @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
     def test_09_nonprocess_aio(self):

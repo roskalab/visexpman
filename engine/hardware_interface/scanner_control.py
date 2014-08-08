@@ -1696,6 +1696,7 @@ class TestScannerControl(unittest.TestCase):
         from visexpman.engine.generic.introspect import Timer
         constraints = {}
         constraints['enable_flybackscan']=False
+        constraints['enable_scanner_phase_characteristics']=True
         constraints['um2voltage_scale']=0.1#includes voltage to angle factor
         constraints['xmirror_max_frequency']=1500
         constraints['ymirror_flyback_time']=1e-3
@@ -1916,13 +1917,17 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
             #x signal amplitude is increseased to fit the required amplitude into the linear range of the sinus wave
             one_period_x_scanner_signal *= overshoot
             #correct x amplitude with gain at given frq
-            one_period_x_scanner_signal /= constraints['gain_characteristics'][0] \
+            if constraints['enable_scanner_phase_characteristics']:
+                one_period_x_scanner_signal /= constraints['gain_characteristics'][0] \
                                             +constraints['gain_characteristics'][1] * fxscanner + constraints['gain_characteristics'][2] * fxscanner**2
             one_period_x_scanner_signal *= scan_size['col']*constraints['um2voltage_scale']
             one_period_x_scanner_signal += center['col']*constraints['um2voltage_scale']
-            #Shift mask with phase
-            phase = constraints['phase_characteristics'][0] * fxscanner + constraints['phase_characteristics'][1]
-            phase_shift = int(numpy.round(phase/(numpy.pi*2)*one_period_x_scanner_signal.shape[0],0))#phase shift of pmt signal to mirro control signal
+            if constraints['enable_scanner_phase_characteristics']:
+                #Shift mask with phase
+                phase = constraints['phase_characteristics'][0] * fxscanner + constraints['phase_characteristics'][1]
+                phase_shift = int(numpy.round(phase/(numpy.pi*2)*one_period_x_scanner_signal.shape[0],0))#phase shift of pmt signal to mirro control signal
+            else:
+                phase_shift = 0
             mask = numpy.roll(mask,-phase_shift)#shift valid data mask with phase shift. At signal reconstruction the valid data mask will tell which items of the recorded stream are part of the image
             if constraints['enable_flybackscan']:
                 factor = 0.5#two lines are scanned in one period

@@ -135,7 +135,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = 'TestCaImaging.test_03_snap'
+TEST_single_unittest = ''#TestAnalogIOProcess.test_05_single_ai_channel'
 
 def get_python_processes():
     pids = []

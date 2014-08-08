@@ -2983,7 +2983,7 @@ class VisexpGuiPoller(Poller):
                     or self.testmode is None:
             return
         self.test_run=True
-        wait=0.01
+        wait=0.1
         animal_param_table = self.parent.central_widget.animal_parameters_groupbox.table
         import PyQt4.QtGui as QtGui
         self.printc('Test {0}'.format(self.testmode))
