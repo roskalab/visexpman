@@ -238,7 +238,10 @@ def nd(rcarray, squeeze=False, dim_order=None,tuples=0):
     if squeeze or rcarray.ndim==0:
         res=numpy.squeeze(res)
     if tuples: #gives back list of tuples on which set operations can be performed
-        res = [tuple(item) for item in res]
+        if rcarray.ndim==0:
+            res = tuple(res)
+        else:
+            res = [tuple(item) for item in res]
     return res
 
 def rcd(raw):
