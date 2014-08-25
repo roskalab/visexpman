@@ -356,6 +356,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         
         self.KEYS['snap'] = 'return'
         self.KEYS['live_start_stop'] = 'space'
+        self.KEYS['transfer_function'] = 't'
         
         self._create_parameters_from_locals(locals())
         

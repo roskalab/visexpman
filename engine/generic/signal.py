@@ -175,6 +175,27 @@ def sinus_linear_range_slow(error):
     #Between 0 and returned phase linearity error  is below specified
     return sol[0]*2
     
+def sweep_sin(amplitudes, frqs, nperiods, sample_rate):
+    waveform = numpy.array([])
+    boundaries = numpy.array([])
+    af = []
+    for amplitude in amplitudes:
+        for f in frqs:
+            sig = wf_sin(amplitude, f, float(nperiods)/f, sample_rate)
+            waveform = numpy.concatenate((waveform,sig))
+            boundary = numpy.zeros_like(sig)
+            boundary[0] = 1
+            boundary[-1] = -1
+            boundaries = numpy.concatenate((boundaries,boundary))
+            af.append([amplitude, f])
+    return waveform,boundaries,af
+    
+def find_bead_center_and_width(curve):
+    h=numpy.histogram(curve)
+    threshold = (h[1][h[0].argmax()] + h[1][h[0].argmax()+1])*0.5
+    edges = numpy.nonzero(numpy.diff(numpy.where(curve>threshold,1,0)))[0]
+    return edges.mean(), edges.max()-edges.min(),threshold#center,bead size
+    
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
         #generate test data
@@ -291,7 +312,20 @@ class TestSignal(unittest.TestCase):
         occurence_of_longest_period = 1.0
         n0 = 10
         v = natural_distribution_morse(duration, sample_time, occurence_of_longest_period = 1.0, n0 = 10)
-        pass
+    
+    def test_13_sinesweep(self):
+        ao_sample_rate = 500000
+        amplitudes = [1.0, 2.0]
+        frq = numpy.arange(100,1500,100)
+        frq = numpy.insert(frq, 0, 10)
+        nperiods = 10
+        waveform,boundaries,af = sweep_sin(amplitudes, frq, nperiods, ao_sample_rate)
+        if 1:
+            from pylab import plot,show
+            plot(waveform)
+            plot(boundaries)
+            show()
+    
 
 if __name__=='__main__':
     unittest.main()

@@ -356,10 +356,10 @@ class Screen(object):
                              [0.0, 1.0],
                              ])
         vertices = numpy.array([
-                                [position['col'] + 0.5 * self.image_size[0]*stretch, position['row'] + 0.5 * self.image_size[1]*stretch], 
-                                [position['col'] + 0.5 * self.image_size[0]*stretch, position['row'] - 0.5 * self.image_size[1]*stretch], 
-                                [position['col'] - 0.5 * self.image_size[0]*stretch, position['row'] - 0.5 * self.image_size[1]*stretch], 
-                                [position['col'] - 0.5 * self.image_size[0]*stretch, position['row'] + 0.5 * self.image_size[1]*stretch],                                 
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * self.image_size[0]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * self.image_size[1]*stretch], 
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * self.image_size[0]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * self.image_size[1]*stretch], 
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * self.image_size[0]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * self.image_size[1]*stretch], 
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * self.image_size[0]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * self.image_size[1]*stretch],                                 
                                 ])
         glEnableClientState(GL_TEXTURE_COORD_ARRAY)
         glTexCoordPointerf(texture_coordinates)
@@ -373,10 +373,10 @@ class Screen(object):
     def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0):
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
         vertices = numpy.array([
-                                [position['col'] + 0.5 * image.shape[1]*stretch, position['row'] - 0.5 * image.shape[0]*stretch],
-                                [position['col'] + 0.5 * image.shape[1]*stretch, position['row'] + 0.5 * image.shape[0]*stretch],
-                                [position['col'] - 0.5 * image.shape[1]*stretch, position['row'] + 0.5 * image.shape[0]*stretch],
-                                [position['col'] - 0.5 * image.shape[1]*stretch, position['row'] - 0.5 * image.shape[0]*stretch],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[0]*stretch],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[0]*stretch],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[0]*stretch],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[0]*stretch],
                                 ])
         
         glEnableClientState(GL_VERTEX_ARRAY)

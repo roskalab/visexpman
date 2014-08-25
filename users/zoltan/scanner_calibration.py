@@ -1,10 +1,7 @@
-from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title, xlabel,  ylabel,subplot
+from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title, xlabel,  ylabel,subplot,imshow,suptitle,text
 from visexpman.engine.hardware_interface import scanner_control
 from visexpA.engine.datahandlers import hdf5io
-try:
-    import Image
-except ImportError:
-    from PIL import Image
+from PIL import Image
 from visexpA.engine.dataprocessors.generic import normalize
 import os
 import os.path
@@ -1012,18 +1009,259 @@ def scanner_control_signal():
     samples_per_x_period = 2*numpy.where(numpy.ones_like(xscanner)*error-abs(xscanner-xlin)>0,1,0).sum()
     print samples_per_x_period
     show()
-    pass
+    pass   
     
+def check_distortion_over_space():
+    folder = '/mnt/rzws/production/rei-setup/distortion_over_space'
+    from visexpman.users.zoltan.machine_configs import CaImagingTestConfig
+    from visexpman.engine.generic import colors
+    config = CaImagingTestConfig()
+    categorized = {}
+    for fn in os.listdir(folder):
+        if not 'npy' in fn:
+            continue
+        data = utils.array2object(numpy.load(os.path.join(folder, fn)))
+        ai_data = data['ai_data']
+        parameters = data['parameters']
+        resolution = parameters['resolution']
+        phase_gain_correction = parameters['scanning_attributes']['constraints']['enable_scanner_phase_characteristics']
+        fxscanner = parameters['scanning_attributes']['signal_attributes']['fxscanner']
+        image = signal.scale(scanner_control.signal2image(ai_data, parameters, config.PMTS))
+        if not categorized.has_key(resolution):
+            categorized[resolution] = {}
+        if not categorized[resolution].has_key(phase_gain_correction):
+            categorized[resolution][phase_gain_correction] = []
+        
+        from skimage import filter
+        threshold = filter.threshold_otsu(image[:,:,0])
+        mask = image>filter.threshold_otsu(image[:,:,0])
+        indexes = numpy.nonzero(mask)
+        mask[indexes[0].mean(),indexes[1].mean(),1] = 1.0
+        xpos = indexes[1].mean()/resolution
+        xsize = (indexes[1].max()-indexes[1].min())/resolution
+        #biggest diameter
+        maxdist = 0
+        for i in range(indexes[0].shape[0]):
+            for j in range(i+1,indexes[0].shape[0]):
+                dist = numpy.sqrt((indexes[0][i]-indexes[0][j])**2+(indexes[1][i]-indexes[1][j])**2)
+                if dist > maxdist:
+                    maxdist = dist
+        
+        categorized[resolution][phase_gain_correction].append([xpos,maxdist/resolution])
+        colors.imshow(mask,False).save(os.path.join(folder, '{2}-{1}-{0}.png'.format(fn.split('.')[0], phase_gain_correction, resolution)))
+    pass
+    fig = figure()
+    fig.text(0.5, 0.93, 'Two photon scanning distortion')
+    figct = 1
+    for k in categorized.keys():
+        s = fig.add_subplot(2, len(categorized.keys())/2+1,figct)
+        for ena in [False,True]:
+            d = numpy.array(categorized[k][ena])
+            plot(d[:,0][numpy.argsort(d[:,0])], d[:,1][numpy.argsort(d[:,0])])
+        title('{0} pixel/um'.format(k))
+        xlabel('position [um]')
+        ylabel('object maximal diameter [um]')
+        legend(['no','phase/gain correction enabled'])
+        figct += 1
+        
+    show()
+        
+        
+            
+            
+        
+#        colors.imshow(image,False).save(os.path.join(folder, '{2}-{1}-{0}.png'.format(fn.split('.')[0], phase_gain_correction, resolution)))
 
+       
+def calculate_transfer_function():
+    '''
+    Bead snapshots evalueated. Bead size tells the x scanner's gain frequency dependency. Also the ratio of the vertical and horizontal size of the bead tells the gain characteristics
+    Phase is calculated by tracing the position of certain beads over different resolutions (x scanner frequencies
+    '''
+    folder = '/mnt/rzws/production/rei-setup/resolution-dependency/1'
+    
+    from visexpman.users.zoltan.machine_configs import CaImagingTestConfig
+    from visexpman.engine.generic import colors
+    config = CaImagingTestConfig()
+    plot_data = {}
+    categorized = {}
+    for fn in os.listdir(folder):
+        if not 'npy' in fn:
+            continue
+        data = utils.array2object(numpy.load(os.path.join(folder, fn)))
+        ai_data = data['ai_data']
+        parameters = data['parameters']
+        resolution = parameters['resolution']
+        phase_gain_correction = parameters['scanning_attributes']['constraints']['enable_scanner_phase_characteristics']
+        fxscanner = parameters['scanning_attributes']['signal_attributes']['fxscanner']
+        phase_gain_correction = parameters['scanning_attributes']['constraints']['enable_scanner_phase_characteristics']
+        radius = 10.0*resolution#10 um
+        if not phase_gain_correction:
+            #Shift ai_data according to phase shift making sure that the data points belonging to the linear part of the sine wave are part of the image
+            phase = parameters['scanning_attributes']['constraints']['phase_characteristics'][0] * fxscanner + parameters['scanning_attributes']['constraints']['phase_characteristics'][1]
+            phase_shift = int(numpy.round(phase/(numpy.pi*2)*parameters['scanning_attributes']['signal_attributes']['one_period_x_scanner_signal'].shape[0],0))
+            ai_data = numpy.roll(ai_data,phase_shift)
+        else:
+            phase_shift = 0
+        image = signal.scale(scanner_control.signal2image(ai_data, parameters, config.PMTS))
+        from skimage import filter
+        from skimage.transform import hough_circle
+        from skimage.feature import peak_local_max
+        from skimage.morphology import closing, square,dilation
+        from skimage.measure import label
+        bw = image[:,:,0]>filter.threshold_otsu(image[:,:,0])
+        indexes = numpy.nonzero(bw)
+        center = indexes[0].mean(),indexes[1].mean()
+        image[center[0],center[1],1]=1
+        #Determine bead horizontal size
+        size_horizontal_pix = (indexes[1].max()-indexes[1].min())
+        size_horizontal = size_horizontal_pix/resolution
+        size_vertical = (indexes[0].max()-indexes[0].min())/resolution
+        position_x = (center[1]-phase_shift)/resolution#phase_shift is not accurate yet and we would like to analyse the position bead
+        size_ratio = size_horizontal/size_vertical
+        phase = 2*numpy.pi*center[1]/parameters['scanning_attributes']['signal_attributes']['one_period_x_scanner_signal'].shape[0]
+        nsamples_in_period = parameters['scanning_attributes']['signal_attributes']['one_period_x_scanner_signal'].shape[0]
+        xamplitude = parameters['scanning_attributes']['xsignal'].max()-parameters['scanning_attributes']['xsignal'].min()
+        if not categorized.has_key(phase_gain_correction):
+            categorized[phase_gain_correction] = []
+        categorized[phase_gain_correction].append([fxscanner, position_x, size_horizontal, size_ratio, resolution,size_vertical, phase,size_horizontal_pix,nsamples_in_period,resolution,xamplitude])
+        if not phase_gain_correction:
+            colors.imshow(image,False).save(os.path.join(folder, '{2}-{1}-{0}.png'.format(fn.split('.')[0], phase_gain_correction, resolution)))
+        continue
+    for en in [False,True]:
+        figct = (int(en)+1)*10
+        categorized[en] = numpy.array(categorized[en])
+        index_sorted = numpy.argsort(categorized[en][:,0])
+        frqs = categorized[en][:,0][index_sorted]
+        position_x = categorized[en][:,1][index_sorted]
+        size_horizontal = categorized[en][:,2][index_sorted]
+        size_ratio = categorized[en][:,3][index_sorted]
+        size_vertical = categorized[en][:,5][index_sorted]
+        phase = categorized[en][:,6][index_sorted]
+        size_horizontal_pix = categorized[en][:,7][index_sorted]
+        nsamples_in_period = categorized[en][:,8][index_sorted]
+        resolutions = categorized[en][:,9][index_sorted]
+        xamplitude = categorized[en][:,10][index_sorted]
+        figure(figct)
+        plot(frqs,position_x-position_x[0],'-o')
+        plot(frqs,size_horizontal/size_horizontal[0])
+        plot(frqs,size_horizontal_pix)
+        plot(frqs,size_ratio)
+        plot(frqs,size_vertical/size_vertical[0])
+        legend(['pos x', 'size', 'pix size','size ratio','size_vertical'])
+        title(frqs)
+        figure(figct+1)
+        #Calculate gain
+        gain = frqs/frqs[0]*size_horizontal_pix/size_horizontal_pix[0]*xamplitude[0]/xamplitude
+        plot(frqs,gain,'-o')
+        plot(frqs,phase-phase[0],'-o')
+        legend(['gain', 'phase'])
+        figure(figct+2)
+        plot(frqs,size_horizontal_pix/size_horizontal_pix[0])
+        plot(frqs,frqs/frqs[0])
+#        break
+        
+        
+
+    
+        
+#        min_area = (0.75*radius)**2*numpy.pi
+#        max_area = (1.5*radius)**2*numpy.pi
+#        threshold = filter.threshold_otsu(image[:,:,0])
+##        calc = numpy.where(image>threshold,1.0,0.0)
+#        calc = closing(image[:,:,0] > threshold, square(3))
+#        labeled = label(image[:,:,0] > threshold)
+#        labeled = dilation(numpy.cast['uint8'](labeled), square(3))
+#        mask = numpy.where(labeled==0,0,0.3)
+##        image[:,:,2]=mask
+#        
+#        colors = colors.random_colors(labeled.max())
+#        calc = numpy.zeros_like(image)
+#        for i in range(labeled.max()):
+#            indexes= numpy.nonzero(numpy.where(labeled==i,1,0))
+#            #select single beads
+#            if indexes[0].shape[0] < max_area:
+#                calc[indexes[0],indexes[1]] = colors[i]
+        
+        
+        
+#        edges = filter.canny(image[:,:,0], sigma=resolution, low_threshold=None, high_threshold=None)
+#        edges = closing(edges, square(3))
+#        radius = 10.0*resolution
+#        hough_radii = numpy.arange(int(0.9*radius), int(3*radius), 1)
+#        hough_res = hough_circle(edges, hough_radii)
+#
+#        centers = []
+#        accums = []
+#        radii = []
+#        for radius, h in zip(hough_radii, hough_res):
+#            # For each radius, extract two circles
+#            peaks = peak_local_max(h, num_peaks=20)
+#            centers.extend(peaks)
+#            accums.extend(h[peaks[:, 0], peaks[:, 1]])
+#            radii.extend([radius, radius])
+#            for peak in peaks:
+#                image[peak[0],peak[1],1] = 1.0
+#                edges[peak[0],peak[1]] = 0.5
+
+      
+#        calc = edges
+#        plot_data[fxscanner] = {}
+#        plot_data[fxscanner]['image'] = image
+#        plot_data[fxscanner]['calc'] = calc
+#        plot_data[fxscanner]['resolution'] = resolution
+#        plot_data[fxscanner]['scanning_range'] = parameters['scanning_range']
+#        break
+#    frqs = plot_data.keys()
+#    frqs.sort()
+#    fig = figure()
+#    fig.text(0.5, 0.93, os.path.split(folder)[1])
+#    for i in range(len(frqs)):
+#        s = fig.add_subplot(2, len(frqs)+1,1+2*i)
+#        imshow(plot_data[frqs[i]]['image'])#, extent = [0,1,1,0])
+#        s = fig.add_subplot(2, len(frqs)+1,1+2*i+1)
+#        h,bins = numpy.histogram(plot_data[frqs[i]]['image'])
+#        threshold = filter.threshold_otsu(plot_data[frqs[i]]['image'][:,:,0])
+#        imshow(plot_data[frqs[i]]['calc'])
+#        title('{0:1.0f} Hz, {1} pixel/um'.format(frqs[i], plot_data[frqs[i]]['resolution']))
+    show()
+    
+def organize_scanner_calib_data(data):
+    #TMP:
+    if not data.has_key('amplitude_frequency'):
+        data['amplitude_frequency'] = []
+        for a in data['amplitudes']:
+            data['amplitude_frequency'].extend([[a,f] for f in data['frq']])
+    #Cut up waveform
+    ai_data = data['ai_data'].flatten()
+    start = numpy.nonzero(numpy.where(data['boundaries']==1,1,0))[0]
+    end = numpy.nonzero(numpy.where(data['boundaries']==-1,1,0))[0]
+    organized_data = []
+    for s, e, af in zip(start,end, data['amplitude_frequency']):
+        wf = ai_data[s:e]
+        scanner_signal = data['waveformx'][s:s+(e-s)/data['nperiods']]
+        wf = wf[:wf.shape[0]/data['nperiods']*data['nperiods']].reshape((data['nperiods'],wf.shape[0]/data['nperiods']))
+        wf = wf[2:,:]#drop first two periods
+        wf = wf.mean(axis=0)
+        t = signal.time_series(1.0/af[1],data['ao_sample_rate'])[:-1]
+        organized_data.append([t,wf,scanner_signal,af[0],af[1]])
+    return organized_data
+    
     
 if __name__ == "__main__":
+    p='r:\\production\\rei-setup\\calib_00009.npy'
+    p='/mnt/rzws/production/rei-setup/calib_00009.npy'
+    data = utils.array2object(numpy.load(p))
+    od = organize_scanner_calib_data(data)
     s=ScannerIdentification()
-
+#    check_distortion_over_space()
+    if False:
+        calculate_transfer_function()
     if False:
         s.y_mirror_test()
         s.command_voltage_angle_characteristics()
 #    s.frequency_domain_characteristics()
-    scanner_control_signal()
+#    scanner_control_signal()
 #    s.eval_frequency_characteristics('r:\\dataslow\\scanner_frq_domain_anal\\high_frequency_domain_characteristics.npy')
 #        s.eval_frequency_characteristics('/mnt/rzws/dataslow/scanner_frq_domain_anal/high_frequency_domain_characteristics.npy')
 #    s.eval_y_scanner('r:\\dataslow\\scanner_frq_domain_anal\\y_mirror.npy')
