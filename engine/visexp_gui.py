@@ -423,10 +423,7 @@ class CorticalVisionExperimentGui(QtGui.QWidget):
             if self.config.SHOW_OVERVIEW:
                 self.show_image(image, 'overview', scale, origin = utils.rc((0, 0)))
             #Update region info
-            if scan_regions[selected_region].has_key('add_date'):
-                region_add_date = scan_regions[selected_region]['add_date']
-            else:
-                region_add_date = 'unknown'
+            region_add_date = scan_regions[selected_region].get('add_date','unknown')
             self.main_widget.scan_region_groupbox.region_info.setText('{3}\n{0:.2f}, {1:.2f}, {2:.2f}' 
                                                                       .format(scan_regions[selected_region]['position']['x'][0], scan_regions[selected_region]['position']['y'][0], 
                                                                               scan_regions[selected_region]['position']['z'][0], region_add_date))

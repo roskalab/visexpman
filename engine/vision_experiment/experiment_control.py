@@ -743,10 +743,7 @@ class ExperimentControl1(object):
             objective_position = self.objective_position
         else:
             objective_position = ''
-        if self.parameters.has_key('region_name'):
-            region_name = self.parameters['region_name']
-        else:
-            region_name = ''
+        region_name = self.parameters.get('region_name', '')
         local_folder = 'd:\\tmp'
         if not os.path.exists(local_folder):
             local_folder = tempfile.mkdtemp()

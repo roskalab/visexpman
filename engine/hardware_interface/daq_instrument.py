@@ -98,10 +98,7 @@ class AnalogIoHelpers(object):
     def start_daq(self, **kwargs):
         self.queues['command'].put(['start', kwargs])
         t0 = time.time()
-        if kwargs.has_key('timeout'):
-            timeout = kwargs['timeout']
-        else:
-            timeout = 30.0
+        timeout = kwargs.get('timeout', 30.0)
         while True:
             if not self.queues['response'].empty():
                 return self.queues['response'].get()[0]

@@ -45,14 +45,9 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
             return False
         if not hasattr(self, message['function']):
             return False
-        if message.has_key('args'):
-            args = message['args']
-        else:
-            args = []
-        if message.has_key('kwargs'):
-            kwargs = message['kwargs']
-        else:
-            kwargs = {}
+        
+        args = message.get('args', [])
+        kwargs = message.get('args', {})
         try:
             getattr(self, message['function'])(*args, **kwargs)
             return True
