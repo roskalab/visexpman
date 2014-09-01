@@ -1247,12 +1247,71 @@ def organize_scanner_calib_data(data):
         organized_data.append([t,wf,scanner_signal,af[0],af[1]])
     return organized_data
     
+def calculate_transfer_function(od):
+    ct = 1+int(numpy.random.random()*100000)
+    amplitudes = []
+    for odi in od:        
+        t = odi[0][:odi[1].shape[0]]
+        bead_profile = odi[1]
+        mask = numpy.zeros_like(bead_profile)
+        mask[int(0.25*mask.shape[0]):int(0.75*mask.shape[0])] = 1.0
+        bead_profile *= mask
+        h = numpy.histogram(bead_profile, bins = 10)
+        threshold = h[1][h[0].argmax()+1]
+        indexes = numpy.nonzero(numpy.where(bead_profile>threshold, 1,0))[0]
+        phase = indexes.min()/float(bead_profile.shape[0])*2*numpy.pi
+        t2 = indexes.max()-indexes.min()#only number of samples not converted to time dimension
+        odi.append(phase)
+        odi.append(indexes.max()-indexes.min())
+        if 0:
+            figure(ct)
+            plot(t,numpy.ones_like(mask)*threshold)
+            plot(t,bead_profile)
+            plot(t,odi[2])
+            title((odi[3],odi[4]))
+            savefig(fileop.generate_filename('/tmp/f.png'))
+        if odi[3] not in amplitudes:
+            amplitudes.append(odi[3])
+        ct +=1
+    for a in amplitudes:
+        frqs = []
+        phases = []
+        pulse_widths = []
+        for odi in od:
+            if odi[3] == a:
+                frqs.append(odi[4])
+                phases.append(odi[-2])
+                pulse_widths.append(odi[-1])
+        phases = numpy.array(phases)
+        phases -= phases[0]
+        pulse_widths = numpy.array(pulse_widths, dtype=numpy.float)
+        frqs = numpy.array(frqs, dtype=numpy.float)
+        #gain is calulated as follows: g = t1*f1/(f2*t2). 
+        gains = (frqs[0]*pulse_widths[0])/(frqs*pulse_widths)
+        figure(ct)
+        plot(frqs, phases, 'x-')
+        legend(['phase'])
+        title(a)
+        savefig(fileop.generate_filename('/tmp/f.png'))
+        figure(ct+1)
+        plot(frqs, gains, 'x-')
+        legend(['gain'])
+        title(a)
+        savefig(fileop.generate_filename('/tmp/f.png'))
+        ct += 2
+    
+#Bead width to gain
+#The change in the steepness of the linear part of the sine wave describes the change in gain
+#
     
 if __name__ == "__main__":
     p='r:\\production\\rei-setup\\calib_00009.npy'
     p='/mnt/rzws/production/rei-setup/calib_00009.npy'
-    data = utils.array2object(numpy.load(p))
-    od = organize_scanner_calib_data(data)
+    p=['/home/rz/codes/data/calib_00024.npy', '/home/rz/codes/data/calib_00025.npy']
+    for pi in p:
+        data = utils.array2object(numpy.load(pi))
+        od = organize_scanner_calib_data(data)
+        calculate_transfer_function(od)
     s=ScannerIdentification()
 #    check_distortion_over_space()
     if False:
