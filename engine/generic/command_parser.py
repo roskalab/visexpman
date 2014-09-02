@@ -47,7 +47,7 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
             return False
         
         args = message.get('args', [])
-        kwargs = message.get('args', {})
+        kwargs = message.get('kwargs', {})
         try:
             getattr(self, message['function'])(*args, **kwargs)
             return True

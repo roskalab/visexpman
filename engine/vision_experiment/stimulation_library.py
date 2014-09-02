@@ -332,8 +332,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
         for i in range(nframes):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            self.screen.render_imagefile(path, position = utils.rc_add(position,
-                        utils.rc_multiply_with_constant(self.machine_config.SCREEN_CENTER, self.config.SCREEN_UM_TO_PIXEL_SCALE)),stretch=stretch)
+            self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
             if flip:
                 self._flip(trigger = True)
             if self.abort:

@@ -24,7 +24,6 @@ from visexpman.engine.hardware_interface import scanner_control
 from visexpman.engine import ExperimentConfigError, AnimalFileError
 from visexpman.engine.generic import gui,fileop,stringop,introspect,utils
 
-BUTTON_HIGHLIGHT = 'color: red'#TODO: this has to be eliminated
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
                 

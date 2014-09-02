@@ -320,7 +320,7 @@ class TestSignal(unittest.TestCase):
         frq = numpy.insert(frq, 0, 10)
         nperiods = 10
         waveform,boundaries,af = sweep_sin(amplitudes, frq, nperiods, ao_sample_rate)
-        if 1:
+        if 0:
             from pylab import plot,show
             plot(waveform)
             plot(boundaries)
