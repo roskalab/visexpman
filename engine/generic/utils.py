@@ -26,7 +26,7 @@ if os.name == 'nt':
         import win32api
     except ImportError:
         pass
-
+ENABLE_COMPRESSION=not False
 import fileop
 import introspect
 import platform
@@ -824,13 +824,22 @@ def list_stdlib():
 
 #object <-> numpy array
 def object2str(obj):
-    return compressor.compress(pickle.dumps(obj, 2),6)
+    if ENABLE_COMPRESSION:
+        return compressor.compress(pickle.dumps(obj, 2),6)
+    else:
+        return pickle.dumps(obj, 2)
 
 def str2object(string):
-    return pickle.loads(compressor.decompress(string))
+    if ENABLE_COMPRESSION:
+        return pickle.loads(compressor.decompress(string))
+    else:
+        return pickle.loads(string)
 
 def array2object(numpy_array):
-    return pickle.loads(compressor.decompress(numpy_array.tostring()))
+    if ENABLE_COMPRESSION:
+        return pickle.loads(compressor.decompress(numpy_array.tostring()))
+    else:
+        return pickle.loads(numpy_array.tostring())
     
 def object2array(obj):
     return numpy.fromstring(object2str(obj), numpy.uint8)

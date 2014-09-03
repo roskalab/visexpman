@@ -123,6 +123,7 @@ TEST_unittests = [
     'visexpman.engine.TestApplicationInit',
     'visexpman.engine.generic.parameter.testParameter',
     'visexpman.engine.generic.fileop.TestFileops',
+    'visexpman.engine.generic.utils.TestUtils',
     'visexpman.engine.generic.log.TestLog',
     'visexpman.engine.generic.signal.TestSignal',
     'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket',
