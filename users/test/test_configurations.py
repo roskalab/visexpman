@@ -550,3 +550,12 @@ class TextureTestMachineConfig(GUITestConfig):
     def _set_user_parameters(self):
         GUITestConfig._set_user_parameters(self)
         self.SCREEN_RESOLUTION = utils.cr([300, 300])
+
+class LaserBeamTestMachineConfig(GUITestConfig):
+    def _set_user_parameters(self):
+        GUITestConfig._set_user_parameters(self)
+        self.LASER_BEAM_CONTROL = {}
+        self.LASER_BEAM_CONTROL['CHANNELS'] = '/Dev1/ao2:3'
+        self.LASER_BEAM_CONTROL['SAMPLE_RATE'] = 100000
+        self.LASER_BEAM_CONTROL['MIRROR_SCREEN_DISTANCE'] = 6.0#cm
+        self.LASER_BEAM_CONTROL['ANGLE2VOLTAGE_FACTOR'] = 0.06#Manually calibrated

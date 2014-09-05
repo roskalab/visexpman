@@ -65,7 +65,7 @@ class ExperimentConfig(Config):
         self.runnable.cleanup()
 
 
-class Experiment(stimulation_library.StimulationSequences):
+class Experiment(stimulation_library.AdvancedStimulation):
     '''
     The usage of experiment fragments assumes the existence of number_of_fragments variable
     The following variable is saved to the output file: self.experiment_specific_data

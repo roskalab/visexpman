@@ -63,29 +63,36 @@ def set_digital_line(channel, value):
     digital_output.ClearTask()
     
 def set_voltage(channel, voltage):
-    sample_per_channel = 10
+    set_waveform(channel, numpy.ones((parse_channel_string(channel)[1], 10))*voltage,1000)
+    
+def set_waveform(channels,waveform,sample_rate = 100000):
+    '''
+    Waveform: first dimension channels, second: samples
+    '''
+    sample_per_channel = waveform.shape[1]
+    wf_duration = float(sample_per_channel)/sample_rate
     analog_output = PyDAQmx.Task()
-    analog_output.CreateAOVoltageChan(channel,
+    analog_output.CreateAOVoltageChan(channels,
                                         'ao',
-                                        voltage-1,
-                                        voltage+1,
+                                        -10.0,
+                                        10.0,
                                         DAQmxConstants.DAQmx_Val_Volts,
                                         None)
     analog_output.CfgSampClkTiming("OnboardClock",
-                                        1000,
+                                        sample_rate,
                                         DAQmxConstants.DAQmx_Val_Rising,
                                         DAQmxConstants.DAQmx_Val_FiniteSamps,
                                         sample_per_channel)
-                                                            
+
     analog_output.WriteAnalogF64(sample_per_channel,
                                 False,
-                                1.0,
+                                wf_duration+1.0,
                                 DAQmxConstants.DAQmx_Val_GroupByChannel,
-                                numpy.ones((parse_channel_string(channel)[1], sample_per_channel))*voltage,
+                                waveform,
                                 None,
                                 None)
     analog_output.StartTask()
-    analog_output.WaitUntilTaskDone(1.0)
+    analog_output.WaitUntilTaskDone(wf_duration+1.0)
     analog_output.StopTask()                            
     analog_output.ClearTask()
     
@@ -1532,6 +1539,8 @@ class TestAnalogIOProcess(unittest.TestCase):
     def test_02_set_voltage(self):
         set_voltage('Dev1/ao0', 3)
         set_voltage('Dev1/ao0', 0)
+        set_voltage('Dev1/ao0:1', 3)
+        set_voltage('Dev1/ao0:1', 0)
         
     @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')        
     def test_03_set_do_line(self):
@@ -1646,6 +1655,12 @@ class TestAnalogIOProcess(unittest.TestCase):
         aio._close_tasks()
         numpy.testing.assert_allclose(ai_data[:,0][1:], waveform[:-1], 0, 1e-2)
         numpy.testing.assert_allclose(ai_data[:,1], waveform, 0, 2e-2)
+        
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+    def test_10_set_waveform(self):
+        waveform = numpy.linspace(0,2,10000)[:,None].T
+        set_waveform('Dev1/ao0',waveform,sample_rate = 100000)
+        set_voltage('Dev1/ao0',0)
 
 if __name__ == '__main__':
     unittest.main()

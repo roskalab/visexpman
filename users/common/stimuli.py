@@ -247,3 +247,7 @@ class NaturalBarsExperiment(experiment.Experiment):
                 if self.abort:
                     break
                 self.show_natural_bars(speed = self.experiment_config.SPEED, duration=self.experiment_config.DURATION, minimal_spatial_period = None, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, intensity_levels = 255, direction = directions)
+
+class LaserBeamStimulus(experiment.Experiment):
+    def run(self):
+        self.point_laser_beam(self.experiment_config.POSITIONS, self.experiment_config.JUMP_TIME, self.experiment_config.HOLD_TIME)
