@@ -1782,6 +1782,8 @@ class TestScannerControl(unittest.TestCase):
         from PIL import Image
         from visexpman.engine.generic import signal,introspect
         from visexpman.users.test import unittest_aggregator
+        if unittest_aggregator.TEST_data is None:
+            return
         folder = os.path.join(unittest_aggregator.TEST_data, 'two-photon-snapshots', 'data')
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
