@@ -524,7 +524,7 @@ class RcMicroscopeSetup(VisionExperimentConfig):
         
         #=== experiment specific ===
         IMAGE_PROJECTED_ON_RETINA = False
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = [290.0, [0, 300]] #mm
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [140.0, [0, 300]] #mm
         SCREEN_PIXEL_WIDTH = [0.56, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         degrees = 10.0*1/300 # 300 um on the retina corresponds to 10 visual degrees.  
         SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180*degrees)*SCREEN_DISTANCE_FROM_MOUSE_EYE[0]/SCREEN_PIXEL_WIDTH[0] #1 um on the retina is this many pixels on the screen        
@@ -685,10 +685,10 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         #=== screen ===
         import sys
        
-        SCREEN_DISTANCE_FROM_MOUSE_EYE = [400.0, [0, 1000]] #mm
+        SCREEN_DISTANCE_FROM_MOUSE_EYE = [120.0, [0, 1000]] #mm
         SCREEN_PIXEL_WIDTH = [0.375, [0, 0.99]] # mm, must be measured by hand (depends on how far the projector is from the screen)
         SCREEN_EXPECTED_FRAME_RATE = 60.0
-        SCREEN_RESOLUTION = utils.cr([1280, 800])
+        SCREEN_RESOLUTION = utils.cr([1366, 768])
         SCREEN_MAX_FRAME_RATE = 60.0
         COORDINATE_SYSTEM='ulcorner'
         ENABLE_FRAME_CAPTURE = False
@@ -805,19 +805,19 @@ class AoMicroscopeSetup(VisionExperimentConfig):
         IMAGING_CHANNELS = 'from_animal_parameter'#'default'#'both', 'from_animal_parameter'
         DEFAULT_PMT_CHANNEL = 'pmtUGraw'#This needs to be set to pmtURraw if scan region xy and xz images are to be acquired using red pmt
         BLACK_SCREEN_DURING_PRE_SCAN = True
-        TEXT_COLOR = [0.3,0.0,0.0]
+        TEXT_COLOR = [0.0,0.0,0.0]
         gamma_corr_filename = os.path.join(CONTEXT_PATH, 'gamma_ao_cortical.hdf5')
         if os.path.exists(gamma_corr_filename):
             from visexpA.engine.datahandlers import hdf5io
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
         self.PREFERRED_STIMULI = ['MovingGratingWithFlashConfig','MovingGratingAdrianQuickSearch', 'MovingGratingNoMarchingConfig', 'MovingGratingAdrian', 'MovingGratingSpatialFrequencySweep', 'MyFFGratingsConfig',
-                            'LedKamill2Config', 'ReceptiveFieldExploreConfig',
+                            'LedKamill2Config', 'ReceptiveFieldExploreConfig', 'ReceptiveFieldExploreAutosizeConfig',
                             'NaturalBarsConfig', 'NaturalIntensityProfileConfig', 'NaturalMorseConfig', 'NaturalMovie',
                             'NaturalMovieSv1', 'NaturalMovieSv2','NaturalMovieSv1Blue', 'NaturalMovieSv2Blue','KamillMovingGratingNoMarchingConfig','KamillMovingBars300','KamillMovingBarsTest',
                             'KamillMovingBars1000','KamillMovingBars300unidir','ColorFlashConfigUP', 'ColorFlashConfigDown','ColorTestConfig', 'ProjectorFlashConfig']
-        FULLSCREEN = True
-        self.COLOR_MASK = [0.0, 0.0, 1.0]
+        FULLSCREEN = not True
+        self.COLOR_MASK = [1.0, 1.0, 1.0]
         self.TRIGGER_MES = False
 #        SCREEN_RESOLUTION = utils.cr([1280/2, 800/2])
         self._create_parameters_from_locals(locals())

@@ -119,10 +119,10 @@ class MovingGratingAdrianQuickSearch(MovingGratingNoMarchingConfig):
         self.GRATING_STAND_TIME = 0.0#after
         self.MARCH_TIME = 0.0#before
         self.PAUSE_BEFORE_AFTER = 1.0
-        self.REPEATS = 18
-        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 3
+        self.REPEATS = 60
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 1.5#Change this to reduce stim time
         self.ENABLE_RANDOM_ORDER = True
-        self.VELOCITIES = [1800.0]
+        self.VELOCITIES = [2400.0]
         if self.ENABLE_RANDOM_ORDER:
             import random
             random.shuffle(self.ORIENTATIONS)
@@ -233,16 +233,16 @@ if 1:
     class KamillMovingGratingNoMarchingConfig(MovingGratingConfig):
         def _create_parameters(self):
             #Timing
-            self.NUMBER_OF_MARCHING_PHASES = 1
-            self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 5
-            self.MARCH_TIME =0.0
+            self.NUMBER_OF_MARCHING_PHASES = 5
+            self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 8
+            self.MARCH_TIME =2.0
             self.GRATING_STAND_TIME = 0.0
             #Grating parameters
             self.ORIENTATIONS = range(0, 360, 45)
             self.STARTING_PHASES = [0]*len(self.ORIENTATIONS)
             self.WHITE_BAR_WIDTHS = [300.0]#300
-            self.VELOCITIES = [1800.0]#1800
-            self.DUTY_CYCLES = [5.0] #put 3.0 to a different config
+            self.VELOCITIES = [1500.0]#1800
+            self.DUTY_CYCLES = [3.0] #put 3.0 to a different config
             self.REPEATS = 1
             self.PAUSE_BEFORE_AFTER = 0.0
             self.runnable = 'MovingGrating'

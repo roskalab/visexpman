@@ -27,12 +27,34 @@ if 0:
                 for d in self.experiment_config.DIRECTIONS:
                     self.moving_curtain(self.experiment_config.SPEED, color = 1.0, direction=d, background_color = 0.0, pause = 0.0)
 
+            
+class ReceptiveFieldExploreAutosizeConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.AUTOSIZE_SHAPE = True
+        self.SHAPE = 'rect'
+        self.COLORS = [1.0]
+        self.BACKGROUND_COLOR = 0.0
+        self.SHAPE_SIZE = 300.0
+        self.MESH_XY = utils.rc((4,8))
+        self.ON_TIME = 0.5*2
+        self.OFF_TIME = 0.5*6
+        self.PAUSE_BEFORE_AFTER = 2.0
+        self.REPEATS = 3
+        self.ENABLE_ZOOM = False 
+        self.SELECTED_POSITION = 1
+        self.ZOOM_MESH_XY = utils.rc((3,3))
+        self.ENABLE_RANDOM_ORDER = True
+        if self.AUTOSIZE_SHAPE:
+            self.SHAPE_SIZE = utils.rc((self.machine_config.SCREEN_SIZE_UM['row']/self.MESH_XY['row'],self.machine_config.SCREEN_SIZE_UM['col']/self.MESH_XY['col']))
+        self.runnable='ReceptiveFieldExplore'
+        self.pre_runnable='BlackPre'
+        self._create_parameters_from_locals(locals())
 
 class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'
-        self.COLORS = [1.0, 0.0]
-        self.BACKGROUND_COLOR = 0.25
+        self.COLORS = [1.0]
+        self.BACKGROUND_COLOR = 0.0
         self.SHAPE_SIZE = 300.0
         self.MESH_XY = utils.rc((4,6))
         self.ON_TIME = 0.5*2
