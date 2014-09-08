@@ -17,6 +17,15 @@ from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.users.test import unittest_aggregator
 from visexpman.users.common import stimuli
 
+class LaserBeamStimulusConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        rep =3
+        self.POSITIONS = utils.rc(0.8*numpy.tile(numpy.array([[0,0], [-0.5,0],[-1,0],[-2,0],[0,0], [0,-0.5],[0,-1],[0,-2]]).flatten(),rep).reshape((8*rep,2)))
+        self.JUMP_TIME = 0.05
+        self.HOLD_TIME = 3.0
+        self.runnable = 'LaserBeamStimulus'
+        self._create_parameters_from_locals(locals())
+
 class TestTextureStimConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'TestTextureStim'

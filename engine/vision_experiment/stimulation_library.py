@@ -1094,7 +1094,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
-class StimulationSequences(Stimulations):
+class AdvancedStimulation(Stimulations):
     '''
     Stimulation sequences, helpers
     '''
@@ -1333,6 +1333,43 @@ class StimulationSequences(Stimulations):
             self.show_fullscreen(duration = pause, color = color, save_frame_info = False, frame_trigger = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
+    def point_laser_beam(self, positions, jump_time, hold_time):
+        '''
+        positions is an row,col array, mm dimension
+        jump_time: time of jump detween positions
+        hold_time: duration of holding the leaser beam in one position
+        scanner voltage = atan(position/distance)/angle2voltage_factor
+        '''
+        if self.config.OS == 'Linux':#Not supported
+            return
+        #Check expected machine config parameters
+        if not hasattr(self.machine_config, 'LASER_BEAM_CONTROL'):
+            raise MachineConfigError('LASER_BEAM_CONTROL parameter is missing from machine config')
+        channels = self.machine_config.LASER_BEAM_CONTROL['CHANNELS']
+        sample_rate = self.machine_config.LASER_BEAM_CONTROL['SAMPLE_RATE']
+        mirror_screen_distance = self.machine_config.LASER_BEAM_CONTROL['MIRROR_SCREEN_DISTANCE']
+        angle2voltage_factor = self.machine_config.LASER_BEAM_CONTROL['ANGLE2VOLTAGE_FACTOR']
+        
+        #convert positions to voltage
+        
+        voltages = numpy.arctan(numpy.array([positions['row'], positions['col']])/mirror_screen_distance)/angle2voltage_factor
+        voltages = utils.rc(numpy.concatenate((numpy.zeros((2,1)),voltages,numpy.zeros((2,1))),axis=1))
+            
+        from visexpman.engine.hardware_interface import daq_instrument
+        waveform = utils.rc(numpy.zeros((2,0)))
+        for pos_i in range(voltages.shape[0]-1):
+            chunk = []
+            for axis in ['row', 'col']:
+                transient = numpy.linspace(voltages[pos_i][axis],voltages[pos_i+1][axis], int(jump_time*sample_rate))
+                hold = numpy.ones(int(hold_time*sample_rate))*voltages[pos_i+1][axis]
+                chunk.append(numpy.concatenate((transient,hold)))
+            waveform = numpy.append(waveform, utils.rc(numpy.array(chunk)))
+        waveform = utils.nd(waveform).T
+        if not -5<waveform.all()<5:
+            from visexpman.engine.hardware_interface.scanner_control import ScannerError
+            raise ScannerError('Position(s) are beyond the scanner\'s operational range')
+        daq_instrument.set_waveform(channels,waveform,sample_rate = sample_rate)
+        
 class TestStimulationPatterns(unittest.TestCase):
 
 #    @unittest.skip('')
@@ -1372,7 +1409,7 @@ class TestStimulationPatterns(unittest.TestCase):
         context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = export,
                 STIM2VIDEO = export, OUT_PATH = '/mnt/rzws/dataslow/natural_stimulus',
                 EXPORT_INTENSITY_PROFILE = export,
-                DURATION = 20.0, REPEATS = 5, DIRECTIONS = range(0, 360, 90), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
+                DURATION = 10.0, REPEATS = 3, DIRECTIONS = range(0, 360, 90), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
 
     @unittest.skipIf(unittest_aggregator.TEST_os != 'Linux',  'Supported only on Linux')    
     def test_04_export2video(self):
@@ -1387,6 +1424,11 @@ class TestStimulationPatterns(unittest.TestCase):
     def test_05_texture(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'TextureTestMachineConfig', 'TestTextureStimConfig', ENABLE_FRAME_CAPTURE = False)
+        
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+    def test_06_point_laser_beam(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfig')
 
 if __name__ == "__main__":
     unittest.main()

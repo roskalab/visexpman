@@ -136,7 +136,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = ''#TestStim.test_03_presscommands'
+TEST_single_unittest = ''#TestStimulationPatterns.test_06_point_laser_beam'
 
 def get_python_processes():
     pids = []
