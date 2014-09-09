@@ -173,10 +173,10 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         
     def record_tranfer_function(self):
         ao_sample_rate = 500000
-        amplitudes = [1.0, 2.0, 4.0]
-        frq = numpy.arange(20,1500,100)
+        amplitudes = [1.0, 1.5, 2.0, 3.0, 4.0]
+        frq = numpy.arange(25,1500,25)
         frq = numpy.insert(frq, 0, 10)
-        nperiods = 10
+        nperiods = 20
         xoffset = -0.65*0
         yoffset = 0.585*0
         waveformx,boundaries,amplitude_frequency = signal.sweep_sin(amplitudes, frq, nperiods, ao_sample_rate)

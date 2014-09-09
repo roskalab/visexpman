@@ -1073,7 +1073,7 @@ def check_distortion_over_space():
 #        colors.imshow(image,False).save(os.path.join(folder, '{2}-{1}-{0}.png'.format(fn.split('.')[0], phase_gain_correction, resolution)))
 
        
-def calculate_transfer_function():
+def calculate_transfer_function1():
     '''
     Bead snapshots evalueated. Bead size tells the x scanner's gain frequency dependency. Also the ratio of the vertical and horizontal size of the bead tells the gain characteristics
     Phase is calculated by tracing the position of certain beads over different resolutions (x scanner frequencies
@@ -1159,75 +1159,9 @@ def calculate_transfer_function():
         figure(figct+2)
         plot(frqs,size_horizontal_pix/size_horizontal_pix[0])
         plot(frqs,frqs/frqs[0])
-#        break
-        
-        
-
-    
-        
-#        min_area = (0.75*radius)**2*numpy.pi
-#        max_area = (1.5*radius)**2*numpy.pi
-#        threshold = filter.threshold_otsu(image[:,:,0])
-##        calc = numpy.where(image>threshold,1.0,0.0)
-#        calc = closing(image[:,:,0] > threshold, square(3))
-#        labeled = label(image[:,:,0] > threshold)
-#        labeled = dilation(numpy.cast['uint8'](labeled), square(3))
-#        mask = numpy.where(labeled==0,0,0.3)
-##        image[:,:,2]=mask
-#        
-#        colors = colors.random_colors(labeled.max())
-#        calc = numpy.zeros_like(image)
-#        for i in range(labeled.max()):
-#            indexes= numpy.nonzero(numpy.where(labeled==i,1,0))
-#            #select single beads
-#            if indexes[0].shape[0] < max_area:
-#                calc[indexes[0],indexes[1]] = colors[i]
-        
-        
-        
-#        edges = filter.canny(image[:,:,0], sigma=resolution, low_threshold=None, high_threshold=None)
-#        edges = closing(edges, square(3))
-#        radius = 10.0*resolution
-#        hough_radii = numpy.arange(int(0.9*radius), int(3*radius), 1)
-#        hough_res = hough_circle(edges, hough_radii)
-#
-#        centers = []
-#        accums = []
-#        radii = []
-#        for radius, h in zip(hough_radii, hough_res):
-#            # For each radius, extract two circles
-#            peaks = peak_local_max(h, num_peaks=20)
-#            centers.extend(peaks)
-#            accums.extend(h[peaks[:, 0], peaks[:, 1]])
-#            radii.extend([radius, radius])
-#            for peak in peaks:
-#                image[peak[0],peak[1],1] = 1.0
-#                edges[peak[0],peak[1]] = 0.5
-
-      
-#        calc = edges
-#        plot_data[fxscanner] = {}
-#        plot_data[fxscanner]['image'] = image
-#        plot_data[fxscanner]['calc'] = calc
-#        plot_data[fxscanner]['resolution'] = resolution
-#        plot_data[fxscanner]['scanning_range'] = parameters['scanning_range']
-#        break
-#    frqs = plot_data.keys()
-#    frqs.sort()
-#    fig = figure()
-#    fig.text(0.5, 0.93, os.path.split(folder)[1])
-#    for i in range(len(frqs)):
-#        s = fig.add_subplot(2, len(frqs)+1,1+2*i)
-#        imshow(plot_data[frqs[i]]['image'])#, extent = [0,1,1,0])
-#        s = fig.add_subplot(2, len(frqs)+1,1+2*i+1)
-#        h,bins = numpy.histogram(plot_data[frqs[i]]['image'])
-#        threshold = filter.threshold_otsu(plot_data[frqs[i]]['image'][:,:,0])
-#        imshow(plot_data[frqs[i]]['calc'])
-#        title('{0:1.0f} Hz, {1} pixel/um'.format(frqs[i], plot_data[frqs[i]]['resolution']))
     show()
     
 def organize_scanner_calib_data(data):
-    #TMP:
     if not data.has_key('amplitude_frequency'):
         data['amplitude_frequency'] = []
         for a in data['amplitudes']:
@@ -1241,8 +1175,17 @@ def organize_scanner_calib_data(data):
         wf = ai_data[s:e]
         scanner_signal = data['waveformx'][s:s+(e-s)/data['nperiods']]
         wf = wf[:wf.shape[0]/data['nperiods']*data['nperiods']].reshape((data['nperiods'],wf.shape[0]/data['nperiods']))
+        from visexpman.engine.generic import colors
+        mask = numpy.zeros_like(wf)
+        mask[:,wf.shape[1]*0.25:wf.shape[1]*0.75]=1
+        im = wf*mask/14.0
+        im = numpy.where(im<0,0,im)
+        im = colors.imshow(im, False)
+        size = 200
+        im.resize((int(size*af[0]), size)).save(fileop.generate_filename('/tmp/{0:.0f}V_{1:0=5}Hz.png'.format(af[0], int(af[1]))))
         wf = wf[2:,:]#drop first two periods
-        wf = wf.mean(axis=0)
+#        wf = wf.mean(axis=0)
+        wf = wf[0]
         t = signal.time_series(1.0/af[1],data['ao_sample_rate'])[:-1]
         organized_data.append([t,wf,scanner_signal,af[0],af[1]])
     return organized_data
@@ -1263,12 +1206,12 @@ def calculate_transfer_function(od):
         t2 = indexes.max()-indexes.min()#only number of samples not converted to time dimension
         odi.append(phase)
         odi.append(indexes.max()-indexes.min())
-        if 0:
+        if 1:
             figure(ct)
             plot(t,numpy.ones_like(mask)*threshold)
             plot(t,bead_profile)
             plot(t,odi[2])
-            title((odi[3],odi[4]))
+            title((odi[3],odi[4], odi[-1], numpy.round(float(odi[-1])/mask.shape[0]*odi[3],4)))
             savefig(fileop.generate_filename('/tmp/f.png'))
         if odi[3] not in amplitudes:
             amplitudes.append(odi[3])
@@ -1290,28 +1233,30 @@ def calculate_transfer_function(od):
         gains = (frqs[0]*pulse_widths[0])/(frqs*pulse_widths)
         figure(ct)
         plot(frqs, phases, 'x-')
-        legend(['phase'])
-        title(a)
-        savefig(fileop.generate_filename('/tmp/f.png'))
+    
         figure(ct+1)
         plot(frqs, gains, 'x-')
-        legend(['gain'])
-        title(a)
-        savefig(fileop.generate_filename('/tmp/f.png'))
-        ct += 2
+    figure(ct) 
+    title('phase')
+    legend(amplitudes)
+    savefig(fileop.generate_filename('/tmp/f.png'))
+    figure(ct+1) 
+    title('gain')
+    legend(amplitudes)
+    savefig(fileop.generate_filename('/tmp/f.png'))
+    
     
 #Bead width to gain
 #The change in the steepness of the linear part of the sine wave describes the change in gain
 #
     
 if __name__ == "__main__":
-    p='r:\\production\\rei-setup\\calib_00009.npy'
-    p='/mnt/rzws/production/rei-setup/calib_00009.npy'
-    p=['/home/rz/codes/data/calib_00024.npy', '/home/rz/codes/data/calib_00025.npy']
+    p=['/home/rz/codes/data/transfer-function/calib_00033.npy', '/home/rz/codes/data/transfer-function/calib_00036.npy']
     for pi in p:
         data = utils.array2object(numpy.load(pi))
         od = organize_scanner_calib_data(data)
         calculate_transfer_function(od)
+        break
     s=ScannerIdentification()
 #    check_distortion_over_space()
     if False:
