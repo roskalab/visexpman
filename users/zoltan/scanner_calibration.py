@@ -1181,11 +1181,11 @@ def organize_scanner_calib_data(data):
         im = wf*mask/14.0
         im = numpy.where(im<0,0,im)
         im = colors.imshow(im, False)
-        size = 200
-        im.resize((int(size*af[0]), size)).save(fileop.generate_filename('/tmp/{0:.0f}V_{1:0=5}Hz.png'.format(af[0], int(af[1]))))
-        wf = wf[2:,:]#drop first two periods
+        size = 300
+        im.resize((int(size*af[0]), size)).save('/tmp/eval/i{0:.0f}V_{1:0=5}Hz.png'.format(af[0], int(af[1])))
+#        wf = wf[2:,:]#drop first two periods
 #        wf = wf.mean(axis=0)
-        wf = wf[0]
+#        wf = wf[0]
         t = signal.time_series(1.0/af[1],data['ao_sample_rate'])[:-1]
         organized_data.append([t,wf,scanner_signal,af[0],af[1]])
     return organized_data
@@ -1194,34 +1194,58 @@ def calculate_transfer_function(od):
     ct = 1+int(numpy.random.random()*100000)
     amplitudes = []
     for odi in od:        
-        t = odi[0][:odi[1].shape[0]]
+        t = odi[0][:odi[1].shape[1]]
         bead_profile = odi[1]
-        mask = numpy.zeros_like(bead_profile)
+        mask = numpy.zeros_like(bead_profile[0])
         mask[int(0.25*mask.shape[0]):int(0.75*mask.shape[0])] = 1.0
+        phases=[]
+        t2s=[]
         bead_profile *= mask
+        import scipy.signal
+        bead_profile = scipy.signal.wiener(bead_profile)
+        #TODO: noise level varies over frq and amp, this shall be filtered out. (Bin size of histogram shall be also fixed)
+#        bin_size = 
         h = numpy.histogram(bead_profile, bins = 10)
         threshold = h[1][h[0].argmax()+1]
-        indexes = numpy.nonzero(numpy.where(bead_profile>threshold, 1,0))[0]
-        phase = indexes.min()/float(bead_profile.shape[0])*2*numpy.pi
-        t2 = indexes.max()-indexes.min()#only number of samples not converted to time dimension
-        odi.append(phase)
-        odi.append(indexes.max()-indexes.min())
+        for bp in bead_profile:
+            import scipy.ndimage
+            #segment curve and seelct the biggest one
+            labels,n=scipy.ndimage.measurements.label(numpy.where(bp>threshold, 1,0))
+            h,bins = numpy.histogram(labels,n)
+            if h.shape[0]==1:
+                peak_label = 1
+            else:
+                peak_label=h[1:].argmax()+1#0s are ignored
+            peak = numpy.where(labels==peak_label,1,0)
+            indexes = numpy.nonzero(peak)[0]
+            phase = indexes.mean()/float(bp.shape[0])*2*numpy.pi#center of peak
+            phase = bp.argmax()/float(bp.shape[0])*2*numpy.pi#maximum point is considered to be the position of the bead
+            t2 = indexes.max()-indexes.min()#only number of samples not converted to time dimension
+            t2s.append(t2)
+            phases.append(phase)
+        odi.append(numpy.array(phases).mean())
+        odi.append(numpy.array(t2s).mean())
         if 1:
             figure(ct)
-            plot(t,numpy.ones_like(mask)*threshold)
-            plot(t,bead_profile)
-            plot(t,odi[2])
+            tr=t/t.max()*numpy.pi*2            
+            plot(tr,numpy.ones_like(mask)*threshold)
+            plot(tr,odi[2])
+            for bp in bead_profile:
+                plot(tr,bp)
             title((odi[3],odi[4], odi[-1], numpy.round(float(odi[-1])/mask.shape[0]*odi[3],4)))
-            savefig(fileop.generate_filename('/tmp/f.png'))
+            savefig('/tmp/eval/p{0:.0f}V_{1:0=5}Hz.png'.format(odi[3], int(odi[4])))
         if odi[3] not in amplitudes:
             amplitudes.append(odi[3])
         ct +=1
+    exclude = [[1.0, 1025],[1.0,1425],[2.0,725],[2,925],[2,1025],[2,1125],[2,1325],[2,1425],[4,725],[4,925],[4,1025],[4,1125],[4,1325],[4,1425]]
     for a in amplitudes:
         frqs = []
         phases = []
         pulse_widths = []
         for odi in od:
             if odi[3] == a:
+#                if len([excl for excl in exclude if excl == [a,odi[4]]])>0:
+#                    continue
                 frqs.append(odi[4])
                 phases.append(odi[-2])
                 pulse_widths.append(odi[-1])
@@ -1233,17 +1257,17 @@ def calculate_transfer_function(od):
         gains = (frqs[0]*pulse_widths[0])/(frqs*pulse_widths)
         figure(ct)
         plot(frqs, phases, 'x-')
-    
         figure(ct+1)
         plot(frqs, gains, 'x-')
+        print a, numpy.array([frqs,gains,phases]).T
     figure(ct) 
     title('phase')
     legend(amplitudes)
-    savefig(fileop.generate_filename('/tmp/f.png'))
+    savefig('/tmp/eval/phase.png')
     figure(ct+1) 
     title('gain')
     legend(amplitudes)
-    savefig(fileop.generate_filename('/tmp/f.png'))
+    savefig('/tmp/eval/gain.png')
     
     
 #Bead width to gain
@@ -1251,7 +1275,7 @@ def calculate_transfer_function(od):
 #
     
 if __name__ == "__main__":
-    p=['/home/rz/codes/data/transfer-function/calib_00033.npy', '/home/rz/codes/data/transfer-function/calib_00036.npy']
+    p=['/mnt/rzws/production/rei-setup/transfer-function/calib_00033.npy', '/mnt/rzws/production/rei-setup/transfer-function/calib_00036.npy']
     for pi in p:
         data = utils.array2object(numpy.load(pi))
         od = organize_scanner_calib_data(data)
