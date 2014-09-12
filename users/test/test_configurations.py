@@ -559,3 +559,4 @@ class LaserBeamTestMachineConfig(GUITestConfig):
         self.LASER_BEAM_CONTROL['SAMPLE_RATE'] = 100000
         self.LASER_BEAM_CONTROL['MIRROR_SCREEN_DISTANCE'] = 6.0#cm
         self.LASER_BEAM_CONTROL['ANGLE2VOLTAGE_FACTOR'] = 0.06#Manually calibrated
+        self.LASER_BEAM_CONTROL['MAX_SCANNER_VOLTAGE'] = 5.0#V

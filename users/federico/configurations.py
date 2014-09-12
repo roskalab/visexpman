@@ -106,6 +106,49 @@ class ProtocolDevelopment(VisionExperimentConfig):
                                     'next': {'key': 'n', 'domain': ['running experiment']},}
         
         self._create_parameters_from_locals(locals())
+
+class LizardBehavioral(VisionExperimentConfig):
+    '''
+    Windows development machine
+    '''
+    def _set_user_parameters(self):        
+        EXPERIMENT_CONFIG = 'LaserBeamStimulusConfig'
+        root_folder = 'c:\\Data'
+        LOG_PATH = root_folder
+        EXPERIMENT_LOG_PATH = LOG_PATH        
+        EXPERIMENT_DATA_PATH = root_folder
+        EXPERIMENT_FILE_FORMAT = 'mat'
+        #=== screen ===
+        FULLSCREEN = False
+        SCREEN_RESOLUTION = utils.cr([1024, 768])
+        COORDINATE_SYSTEM='ulcorner'
+        ENABLE_FRAME_CAPTURE =  False
+        SCREEN_EXPECTED_FRAME_RATE = 60.0
+        SCREEN_MAX_FRAME_RATE = 60.0        
+        
+        #=== experiment specific ===
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+        PLATFORM = 'standalone'
+
+        #=== Network ===
+        self.COMMAND_RELAY_SERVER['RELAY_SERVER_IP'] = 'localhost'
+        self.COMMAND_RELAY_SERVER['CLIENTS_ENABLE'] = False
+        #=== hardware ===
+        ENABLE_PARALLEL_PORT = False
+        ACQUISITION_TRIGGER_PIN = 2
+        FRAME_TRIGGER_PIN = 0
+        FRAME_TRIGGER_PULSE_WIDTH = 1e-3
+        
+        self.LASER_BEAM_CONTROL = {}
+        self.LASER_BEAM_CONTROL['CHANNELS'] = '/Dev1/ao0:1'
+        self.LASER_BEAM_CONTROL['SAMPLE_RATE'] = 100000
+        self.LASER_BEAM_CONTROL['MIRROR_SCREEN_DISTANCE'] = 25.0#cm
+        self.LASER_BEAM_CONTROL['ANGLE2VOLTAGE_FACTOR'] = 0.06#Manually calibrated
+        self.LASER_BEAM_CONTROL['MAX_SCANNER_VOLTAGE'] = 5.0#V
+        
+        self._create_parameters_from_locals(locals())
+
+
         
         
 if __name__ == "__main__":

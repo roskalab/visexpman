@@ -250,4 +250,7 @@ class NaturalBarsExperiment(experiment.Experiment):
 
 class LaserBeamStimulus(experiment.Experiment):
     def run(self):
-        self.point_laser_beam(self.experiment_config.POSITIONS, self.experiment_config.JUMP_TIME, self.experiment_config.HOLD_TIME)
+        for i in range(self.experiment_config.REPEATS):
+            if self.abort:
+                break
+            self.point_laser_beam(self.experiment_config.POSITIONS, self.experiment_config.JUMP_TIME, self.experiment_config.HOLD_TIME)

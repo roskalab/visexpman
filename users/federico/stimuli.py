@@ -54,3 +54,14 @@ class IntrinsicProtocol(experiment.Experiment):
                 pos = position,
                 duty_cycle = self.experiment_config.DUTY_CYCLE)
             self.show_fullscreen(color = 0.0, duration=self.experiment_config.PAUSE)
+
+class LaserBeamStimulusConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        rep =3
+        jump = 8
+        self.POSITIONS = utils.rc(numpy.array([[jump,-1*jump],[jump, jump],[-1*jump,-1*jump],[-1*jump,jump]]))
+        self.JUMP_TIME = 0.0004
+        self.HOLD_TIME = 1
+        self.REPEATS = 3
+        self.runnable = 'LaserBeamStimulus'
+        self._create_parameters_from_locals(locals())

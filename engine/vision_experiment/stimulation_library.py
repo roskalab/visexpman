@@ -14,9 +14,7 @@ from OpenGL.GLUT import *
 
 import command_handler
 import experiment_control
-from visexpman.engine.generic import graphics
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import colors
+from visexpman.engine.generic import graphics,utils,colors,fileop
 from visexpman.engine.vision_experiment import screen
 from visexpman.engine.generic import signal
 from visexpman.users.test import unittest_aggregator
@@ -1365,7 +1363,7 @@ class AdvancedStimulation(Stimulations):
                 chunk.append(numpy.concatenate((transient,hold)))
             waveform = numpy.append(waveform, utils.rc(numpy.array(chunk)))
         waveform = utils.nd(waveform).T
-        if not -5<waveform.all()<5:
+        if abs(waveform).max()>self.machine_config.LASER_BEAM_CONTROL['MAX_SCANNER_VOLTAGE']:
             from visexpman.engine.hardware_interface.scanner_control import ScannerError
             raise ScannerError('Position(s) are beyond the scanner\'s operational range')
         daq_instrument.set_waveform(channels,waveform,sample_rate = sample_rate)
@@ -1429,6 +1427,13 @@ class TestStimulationPatterns(unittest.TestCase):
     def test_06_point_laser_beam(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfig')
+
+    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+    def test_07_point_laser_beam_out_of_range(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfigOutOfRange')
+        self.assertIn('ScannerError', fileop.read_text_file(context['logger'].filename))
+
 
 if __name__ == "__main__":
     unittest.main()
