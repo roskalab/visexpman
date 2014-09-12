@@ -438,6 +438,10 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
         If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
         color: 2d numpy array: duration is ignored and the first dimension will be the number of intensities displayed
+        
+        Examples:
+        flash on  right half of screen self.show_shape(shape='rect', pos = utils.rc((0, self.config.SCREEN_SIZE_UM['col']/4)), size = utils.rc((self.config.SCREEN_SIZE_UM['row'],self.config.SCREEN_SIZE_UM['col']/2)), color = self.color, duration = self.experiment_config.FLASH_DURATION,background_color=0.0)
+        
         '''
         #Generate log messages
         self.log_on_flip_message_initial = 'show_shape(' + str(shape)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color)  + ', ' + str(background_color)  + ', ' + str(orientation)  + ', ' + str(size)  + ', ' + str(ring_size) + ')'

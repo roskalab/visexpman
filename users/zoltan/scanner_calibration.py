@@ -1182,13 +1182,22 @@ def organize_scanner_calib_data(data):
         im = numpy.where(im<0,0,im)
         im = colors.imshow(im, False)
         size = 300
-        im.resize((int(size*af[0]), size)).save('/tmp/eval/i{0:.0f}V_{1:0=5}Hz.png'.format(af[0], int(af[1])))
+        if 0:
+            im.resize((int(size*af[0]), size)).save('/tmp/eval/i{0:.0f}V_{1:0=5}Hz.png'.format(af[0], int(af[1])))
 #        wf = wf[2:,:]#drop first two periods
 #        wf = wf.mean(axis=0)
 #        wf = wf[0]
         t = signal.time_series(1.0/af[1],data['ao_sample_rate'])[:-1]
         organized_data.append([t,wf,scanner_signal,af[0],af[1]])
     return organized_data
+    
+def linear0(x, *p):
+    A = p
+    return A*x+0
+    
+def linear1(x, *p):
+    A = p
+    return A*x+1
     
 def calculate_transfer_function(od):
     ct = 1+int(numpy.random.random()*100000)
@@ -1204,18 +1213,16 @@ def calculate_transfer_function(od):
         import scipy.signal
         bead_profile = scipy.signal.wiener(bead_profile)
         #TODO: noise level varies over frq and amp, this shall be filtered out. (Bin size of histogram shall be also fixed)
-#        bin_size = 
+        bin_size = 1e-2
+        nbins = int((bead_profile.max()-bead_profile.min())/bin_size)
         h = numpy.histogram(bead_profile, bins = 10)
         threshold = h[1][h[0].argmax()+1]
         for bp in bead_profile:
             import scipy.ndimage
             #segment curve and seelct the biggest one
             labels,n=scipy.ndimage.measurements.label(numpy.where(bp>threshold, 1,0))
-            h,bins = numpy.histogram(labels,n)
-            if h.shape[0]==1:
-                peak_label = 1
-            else:
-                peak_label=h[1:].argmax()+1#0s are ignored
+            h = numpy.bincount(labels)
+            peak_label=h[1:].argmax()+1#0s are ignored
             peak = numpy.where(labels==peak_label,1,0)
             indexes = numpy.nonzero(peak)[0]
             phase = indexes.mean()/float(bp.shape[0])*2*numpy.pi#center of peak
@@ -1223,8 +1230,9 @@ def calculate_transfer_function(od):
             t2 = indexes.max()-indexes.min()#only number of samples not converted to time dimension
             t2s.append(t2)
             phases.append(phase)
-        odi.append(numpy.array(phases).mean())
-        odi.append(numpy.array(t2s).mean())
+#        print odi[3],odi[4],t2s
+        odi.append(numpy.array(phases[1:]).mean())
+        odi.append(numpy.array(t2s[1:]).mean())
         if 1:
             figure(ct)
             tr=t/t.max()*numpy.pi*2            
@@ -1237,15 +1245,12 @@ def calculate_transfer_function(od):
         if odi[3] not in amplitudes:
             amplitudes.append(odi[3])
         ct +=1
-    exclude = [[1.0, 1025],[1.0,1425],[2.0,725],[2,925],[2,1025],[2,1125],[2,1325],[2,1425],[4,725],[4,925],[4,1025],[4,1125],[4,1325],[4,1425]]
     for a in amplitudes:
         frqs = []
         phases = []
         pulse_widths = []
         for odi in od:
             if odi[3] == a:
-#                if len([excl for excl in exclude if excl == [a,odi[4]]])>0:
-#                    continue
                 frqs.append(odi[4])
                 phases.append(odi[-2])
                 pulse_widths.append(odi[-1])
@@ -1255,18 +1260,29 @@ def calculate_transfer_function(od):
         frqs = numpy.array(frqs, dtype=numpy.float)
         #gain is calulated as follows: g = t1*f1/(f2*t2). 
         gains = (frqs[0]*pulse_widths[0])/(frqs*pulse_widths)
+
+        import scipy.optimize
+        p0 = [0.6/1400]
+        phase_coeff, var_matrix = scipy.optimize.curve_fit(linear0, frqs, phases, p0=p0)
+        
+        p0 = [-0.6/1400]
+        gain_coeff, var_matrix = scipy.optimize.curve_fit(linear1, frqs, gains, p0=p0)
         figure(ct)
         plot(frqs, phases, 'x-')
+        plot(frqs, phase_coeff[0]*frqs)
         figure(ct+1)
         plot(frqs, gains, 'x-')
-        print a, numpy.array([frqs,gains,phases]).T
+        plot(frqs, gain_coeff[0]*frqs+1)
+        print a, phase_coeff, gain_coeff#numpy.array([frqs,gains,phases]).T
+    leg = amplitudes*2
+    leg.sort()
     figure(ct) 
     title('phase')
-    legend(amplitudes)
+    legend(leg)
     savefig('/tmp/eval/phase.png')
     figure(ct+1) 
     title('gain')
-    legend(amplitudes)
+    legend(leg)
     savefig('/tmp/eval/gain.png')
     
     
@@ -1276,7 +1292,7 @@ def calculate_transfer_function(od):
     
 if __name__ == "__main__":
     p=['/mnt/rzws/production/rei-setup/transfer-function/calib_00033.npy', '/mnt/rzws/production/rei-setup/transfer-function/calib_00036.npy']
-    for pi in p:
+    for pi in p[1:]:
         data = utils.array2object(numpy.load(pi))
         od = organize_scanner_calib_data(data)
         calculate_transfer_function(od)
