@@ -1411,7 +1411,7 @@ class TestStimulationPatterns(unittest.TestCase):
         context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = export,
                 STIM2VIDEO = export, OUT_PATH = '/mnt/rzws/dataslow/natural_stimulus',
                 EXPORT_INTENSITY_PROFILE = export,
-                DURATION = 10.0, REPEATS = 3, DIRECTIONS = range(0, 360, 90), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
+                DURATION = 3.0, REPEATS = 2, DIRECTIONS = range(0, 360, 180), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
 
     @unittest.skipIf(unittest_aggregator.TEST_os != 'Linux',  'Supported only on Linux')    
     def test_04_export2video(self):

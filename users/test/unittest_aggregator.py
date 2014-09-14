@@ -30,6 +30,7 @@ if TEST_test:
     argparser.add_argument('--short', help='Run shorter tests.', action='store_true')
     argparser.add_argument('--frame_rate', help='Consider frame rate at visexp_runner tests.', action='store_true')
     argparser.add_argument('--delete_files', help='Delete files generated during test.', action='store_true')
+    argparser.add_argument('--repeat', help='Repeat the unit tests.', default=1)
 
     TEST_no_user_action = getattr(argparser.parse_args(), 'no_user_action')
     TEST_daq = getattr(argparser.parse_args(), 'daq')
@@ -44,6 +45,7 @@ if TEST_test:
     TEST_consider_frame_rate = getattr(argparser.parse_args(), 'frame_rate')
     TEST_short = getattr(argparser.parse_args(), 'short')
     TEST_delete_files = getattr(argparser.parse_args(), 'delete_files')
+    TEST_repeat = int(getattr(argparser.parse_args(), 'repeat'))
 else:
     TEST_no_user_action = False
     TEST_daq = False
@@ -58,6 +60,7 @@ else:
     TEST_consider_frame_rate = False
     TEST_short = False
     TEST_delete_files = False
+    TEST_repeat = 1
 
 TEST_os = platform.system()
 TEST_machine_info = platform.uname()
@@ -136,7 +139,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = 'TestStimulationPatterns.test_07_point_laser_beam_out_of_range'
+TEST_single_unittest = ''#TestStimulationPatterns.test_07_point_laser_beam_out_of_range'
 
 def get_python_processes():
     pids = []
@@ -327,6 +330,7 @@ class UnitTestRunner(object):
         reordered_unittests.extend(priority_unittests)
         import random
         random.seed(0)
+        other_unittests = TEST_repeat*other_unittests
         random.shuffle(other_unittests)
         reordered_unittests.extend(other_unittests)
         for test_method in reordered_unittests:

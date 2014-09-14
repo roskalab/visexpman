@@ -208,7 +208,7 @@ def stimulation_tester(user, machine_config, experiment_config, **kwargs):
     '''
     Runs the provided experiment config and terminates
     '''
-    context = visexpman.engine.application_init(user = user, config = machine_config, application_name = 'stim')
+    context = visexpman.engine.application_init(user = user, config = machine_config, application_name = 'stim',enable_sockets=False)
     for k,v in kwargs.items():
         setattr(context['machine_config'], k, v)
     if context['machine_config'].ENABLE_FRAME_CAPTURE:

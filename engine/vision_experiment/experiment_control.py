@@ -172,37 +172,47 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         return channel_indexes, daq_device
         
     def record_tranfer_function(self):
-        ao_sample_rate = 500000
+        ao_sample_rate = 2000000
         amplitudes = [1.0, 1.5, 2.0, 3.0, 4.0,4.5]
-        frq = numpy.arange(25,1500,25)
+        frq = numpy.arange(50,1400,50)
+        frq = numpy.insert(frq, 0, 25)
         frq = numpy.insert(frq, 0, 10)
-        nperiods = 20
+        nperiods =  10
         xoffset = -0.65*0
         yoffset = 0.585*0
-        waveformx,boundaries,amplitude_frequency = signal.sweep_sin(amplitudes, frq, nperiods, ao_sample_rate)
-        waveform = numpy.zeros((4,waveformx.shape[0]))
-        waveform[0] = waveformx+xoffset
-        waveform[1] = yoffset
-        aio = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.logger_queue,
-                                    ai_channels = 'Dev1/ai0',
-                                    ao_channels= self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'],limits=self.limits)
-        aio._create_tasks()
-        #Open shutter
-        daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 1)
-        #Generate waveform and start data acquisition
-        aio._start(ai_sample_rate = ao_sample_rate, ao_sample_rate = ao_sample_rate, 
-                      ao_waveform = waveform,
-                      finite_samples=True,timeout = 30)
         self.printl('Started')
-        ai_data = aio._stop()
-        #Close shutter
-        daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
-        aio._close_tasks()
-        data2save = {}
-        vn = ['ao_sample_rate', 'amplitudes', 'frq', 'nperiods', 'xoffset','xoffset','waveformx', 'boundaries','ai_data','amplitude_frequency']
-        for v in vn:
-            data2save[v] = locals()[v]
-        numpy.save(fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH,'calib.npy')),utils.object2array(data2save))
+        for amplitude in amplitudes:
+            with introspect.Timer(''):
+                self.printl('Preparing, {0} V'.format(amplitude))
+                waveformx,boundaries,amplitude_frequency = signal.sweep_sin([amplitude], frq, nperiods, ao_sample_rate)
+                waveform = numpy.zeros((2,waveformx.shape[0]),dtype=numpy.float64)
+                waveform[0] = waveformx+xoffset
+                waveform[1] = yoffset
+                aio = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.logger_queue,
+                                            ai_channels = 'Dev1/ai0',
+                                            ao_channels= 'Dev1/ao0:1',limits=self.limits)
+    #                                        ao_channels= self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'],limits=self.limits)
+                aio._create_tasks()
+                #Open shutter
+                daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 1)
+                #Generate waveform and start data acquisition
+                aio._start(ai_sample_rate = ao_sample_rate, ao_sample_rate = ao_sample_rate, 
+                              ao_waveform = waveform,
+                              finite_samples=True,timeout = 30)
+                self.printl('Recording')
+                ai_data = aio._stop()
+                #Close shutter
+                daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
+                aio._close_tasks()
+                data2save = {}
+                vn = ['ao_sample_rate', 'amplitude', 'frq', 'nperiods', 'xoffset','xoffset','waveformx', 'boundaries','ai_data','amplitude_frequency']
+                for v in vn:
+                    data2save[v] = locals()[v]
+                fn=os.path.join(tempfile.gettempdir(), 'c.npy')
+                numpy.save(fn,utils.object2array(data2save))
+                shutil.move(fn,os.path.join(self.config.EXPERIMENT_DATA_PATH,'calib_{0:.1f}.npy'.format(amplitude)))
+        self.printl('Done')
+        return
         from visexpman.users.zoltan.scanner_calibration import organize_scanner_calib_data
         from pylab import plot,show,figure,title
         #Cut up data to 
@@ -219,15 +229,15 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             mask = numpy.zeros_like(wf)
             mask[mask.shape[0]/4:mask.shape[0]/4*3]=1.0
             wf*=mask
-            center,size,threshold=signal.find_bead_center_and_width(wf)
+#            center,size,threshold=signal.find_bead_center_and_width(wf)
             s = fig.add_subplot(3, len(od)/3+1,1+ct)
             plot(wf)
             plot(scanner)
-            title((f,center/wf.shape[0],float(size)/wf.shape[0]))
+            title((f))
             ct += 1
 #            break
         self.printl('Done')
-        show()
+#        show()
         
     def at_process_end(self):
         self.save_image_context()

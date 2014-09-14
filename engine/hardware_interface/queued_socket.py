@@ -133,7 +133,7 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
         if hasattr(self.log, 'info'):
             self.log.info('process ended', self.socket_name)
 
-def start_sockets(appname, config, log):
+def start_sockets(appname, config, log, enable_sockets):
     '''
     Starts sockets depending on config.CONNECTIONS and appname.
     '''
@@ -155,7 +155,7 @@ def start_sockets(appname, config, log):
                                                                                     multiprocessing.Queue(), 
                                                                                     ip = config.CONNECTIONS[appname]['ip'][appname],
                                                                                     log=log)
-    if not ((introspect.is_test_running() and platform.system()=='Windows') and '--testmode' in sys.argv):
+    if not ((introspect.is_test_running() and platform.system()=='Windows') and '--testmode' in sys.argv) and enable_sockets:
         [s.start() for s in sockets.values()]#Not run when unittests of gui are executed on windows platform
     return sockets
     
@@ -275,7 +275,7 @@ class TestQueuedSocket(unittest.TestCase):
         for appname in appnames:
             config.application_name = appname
             logger = log.Logger(filename=fileop.get_logfilename(config), remote_logpath = config.REMOTE_LOG_PATH)
-            sockets = start_sockets(appname, config, log=logger)#Unit under test
+            sockets = start_sockets(appname, config, log=logger, enable_sockets = True)#Unit under test
             logger.start()
             time.sleep(4.0)
             stop_sockets(sockets)

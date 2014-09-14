@@ -19,19 +19,19 @@ from visexpman.users.common import stimuli
 
 class LaserBeamStimulusConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
-        rep =3
-        self.POSITIONS = utils.rc(0.8*numpy.tile(numpy.array([[0,0], [-0.5,0],[-1,0],[-2,0],[0,0], [0,-0.5],[0,-1],[0,-2]]).flatten(),rep).reshape((8*rep,2)))
+        self.REPEATS =2
+        self.POSITIONS = utils.rc(0.8*numpy.array([[0,0], [-0.5,0],[-1,0],[-2,0],[0,0], [0,-0.5],[0,-1],[0,-2]]))
         self.JUMP_TIME = 0.05
-        self.HOLD_TIME = 3.0
+        self.HOLD_TIME = 0.5
         self.runnable = 'LaserBeamStimulus'
         self._create_parameters_from_locals(locals())
         
 class LaserBeamStimulusConfigOutOfRange(experiment.ExperimentConfig):
     def _create_parameters(self):
-        rep =3
-        self.POSITIONS = utils.rc(100.0*numpy.tile(numpy.array([[0,0], [-0.5,0],[-1,0],[-2,0],[0,0], [0,-0.5],[0,-1],[0,-2]]).flatten(),rep).reshape((8*rep,2)))
+        self.REPEATS =2
+        self.POSITIONS = utils.rc(100.0*numpy.array([[0,0], [-0.5,0],[-1,0],[-2,0],[0,0], [0,-0.5],[0,-1],[0,-2]]))
         self.JUMP_TIME = 0.05
-        self.HOLD_TIME = 3.0
+        self.HOLD_TIME = 0.5
         self.runnable = 'LaserBeamStimulus'
         self._create_parameters_from_locals(locals())
 

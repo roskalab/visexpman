@@ -111,7 +111,7 @@ def application_init(**kwargs):
     else:
         logger.add_source(machine_config.application_name)
     #Set up network connections
-    sockets = queued_socket.start_sockets(machine_config.application_name, machine_config, logger)
+    sockets = queued_socket.start_sockets(machine_config.application_name, machine_config, logger, kwargs.get('enable_sockets', True))
     if machine_config.PLATFORM == 'rc_cortical' or machine_config.PLATFORM == 'ac_cortical' :
         raise NotImplementedError('Here comes the initialization of MES non zmq sockets')
     if utils.get_key(kwargs, 'log_start') :
@@ -130,10 +130,7 @@ def stop_application(context):
     #Terminate sockets
     queued_socket.stop_sockets(context['sockets'])
     #Terminate logger process
-    
     context['logger'].terminate()
-#    except:
-#        pass
     
 import unittest
 class TestApplicationInit(unittest.TestCase):

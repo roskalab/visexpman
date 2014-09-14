@@ -26,7 +26,7 @@ if os.name == 'nt':
         import win32api
     except ImportError:
         pass
-ENABLE_COMPRESSION=not False
+ENABLE_COMPRESSION=False
 import fileop
 import introspect
 import platform
