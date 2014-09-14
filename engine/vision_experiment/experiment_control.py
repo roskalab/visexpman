@@ -172,6 +172,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         return channel_indexes, daq_device
         
     def record_tranfer_function(self):
+        from pylab import plot,show,figure,title
         ao_sample_rate = 2000000
         amplitudes = [1.0, 1.5, 2.0, 3.0, 4.0,4.5]
         frq = numpy.arange(50,1400,50)
@@ -181,6 +182,10 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         xoffset = -0.65*0
         yoffset = 0.585*0
         self.printl('Started')
+        fns = []
+#        amplitudes = amplitudes[3:]
+#        frq = frq[:5]
+        plotdata = {}
         for amplitude in amplitudes:
             with introspect.Timer(''):
                 self.printl('Preparing, {0} V'.format(amplitude))
@@ -205,39 +210,71 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                 daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
                 aio._close_tasks()
                 data2save = {}
+                ai_data = numpy.cast['float32'](ai_data)
+                waveformx = numpy.cast['float32'](waveformx)
                 vn = ['ao_sample_rate', 'amplitude', 'frq', 'nperiods', 'xoffset','xoffset','waveformx', 'boundaries','ai_data','amplitude_frequency']
                 for v in vn:
                     data2save[v] = locals()[v]
                 fn=os.path.join(tempfile.gettempdir(), 'c.npy')
+                self.printl('Saving data')
                 numpy.save(fn,utils.object2array(data2save))
-                shutil.move(fn,os.path.join(self.config.EXPERIMENT_DATA_PATH,'calib_{0:.1f}.npy'.format(amplitude)))
+                fns.append(os.path.join(self.config.EXPERIMENT_DATA_PATH, 'calib_{0:.1f}.npy'.format(amplitude)))
+                shutil.move(fn,fns[-1])
+            si = numpy.nonzero(numpy.where(boundaries==1,1,0))[0][0]
+            ei = numpy.nonzero(numpy.where(boundaries==-1,1,0))[0][0]/nperiods
+            hsi = numpy.nonzero(numpy.where(boundaries==1,1,0))[0][-1]
+            hei = hsi+(waveformx.shape[0] - hsi)/nperiods
+            import pdb
+#            pdb.set_trace()
+            first_rec = copy.deepcopy(ai_data[si:ei])
+            first_scan = copy.deepcopy(waveformx[si:ei])
+            last_rec = copy.deepcopy(ai_data[hsi:hei])
+            last_scan = copy.deepcopy(waveformx[hsi:hei])
+            plotdata[amplitude] = [first_rec,first_scan, last_rec, last_scan]
         self.printl('Done')
+        ct=0
+        for k,v in plotdata.items():
+            figure(ct)
+            plot(v[0])
+            plot(v[1])
+            title((k, 'lowest frq'))
+            figure(ct+1)
+            plot(v[2])
+            plot(v[3])
+            title((k, 'highest frq'))
+            ct+=2
+        show()
         return
         from visexpman.users.zoltan.scanner_calibration import organize_scanner_calib_data
         from pylab import plot,show,figure,title
-        #Cut up data to 
-        od = organize_scanner_calib_data(data2save)[::2]
+        import pdb
+        pdb.set_trace()
         fig = figure()
         ct = 0
-        for odi in od:
-            t = odi[0]
-            wf = odi[1]
-            scanner = odi[2]
-            a = odi[3]
-            f = odi[4]
+        for fn in fns:
+            data = utils.array2object(numpy.load(fn))
+            #Cut up data to 
+            od = organize_scanner_calib_data(data)
+            od = od[:1]
+            t = od[0][0]
+            wf = od[0][1]
+            scanner = od[0][2]
+            a = od[0][3]
+            f = od[0][4]
             t = t[:wf.shape[0]]
             mask = numpy.zeros_like(wf)
             mask[mask.shape[0]/4:mask.shape[0]/4*3]=1.0
             wf*=mask
+            wf = wf[0]
 #            center,size,threshold=signal.find_bead_center_and_width(wf)
-            s = fig.add_subplot(3, len(od)/3+1,1+ct)
+            s = fig.add_subplot(3, len(fns)/3+1,1+ct)
             plot(wf)
             plot(scanner)
             title((f))
             ct += 1
 #            break
-        self.printl('Done')
-#        show()
+        self.printl('plot done')
+        show()
         
     def at_process_end(self):
         self.save_image_context()
