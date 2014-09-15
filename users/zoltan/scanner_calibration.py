@@ -1199,9 +1199,17 @@ def linear1(x, *p):
     A = p
     return A*x+1
     
+def gain_estimator(x, *p):
+    return (p[0]*x[1]+p[1])*x[0]+1.0
+    
+def phase_estimator(x,*p):
+    f=x[0]
+    a=x[1]
+    return (p[0]*a+p[1])*f**2+(p[2]*a**2+p[3]*a+p[4])*f+(p[5]*a+p[6])
+
 def calculate_transfer_function(od):
     ct = 1+int(numpy.random.random()*100000)
-    amplitudes = []
+    amplitude = od[0][3]
     for odi in od:        
         t = odi[0][:odi[1].shape[1]]
         bead_profile = odi[1]
@@ -1210,9 +1218,9 @@ def calculate_transfer_function(od):
         phases=[]
         t2s=[]
         bead_profile *= mask
-        import scipy.signal
-        bead_profile = scipy.signal.wiener(bead_profile)
-        #TODO: noise level varies over frq and amp, this shall be filtered out. (Bin size of histogram shall be also fixed)
+        #Wiener filtering did not help too much
+#        import scipy.signal
+#        bead_profile = scipy.signal.wiener(bead_profile)
         bin_size = 1e-2
         nbins = int((bead_profile.max()-bead_profile.min())/bin_size)
         h = numpy.histogram(bead_profile, bins = 10)
@@ -1230,10 +1238,9 @@ def calculate_transfer_function(od):
             t2 = indexes.max()-indexes.min()#only number of samples not converted to time dimension
             t2s.append(t2)
             phases.append(phase)
-#        print odi[3],odi[4],t2s
         odi.append(numpy.array(phases[1:]).mean())
         odi.append(numpy.array(t2s[1:]).mean())
-        if 1:
+        if 0:
             figure(ct)
             tr=t/t.max()*numpy.pi*2            
             plot(tr,numpy.ones_like(mask)*threshold)
@@ -1242,61 +1249,102 @@ def calculate_transfer_function(od):
                 plot(tr,bp)
             title((odi[3],odi[4], odi[-1], numpy.round(float(odi[-1])/mask.shape[0]*odi[3],4)))
             savefig('/tmp/eval/p{0:.0f}V_{1:0=5}Hz.png'.format(odi[3], int(odi[4])))
-        if odi[3] not in amplitudes:
-            amplitudes.append(odi[3])
         ct +=1
-    for a in amplitudes:
-        frqs = []
-        phases = []
-        pulse_widths = []
-        for odi in od:
-            if odi[3] == a:
-                frqs.append(odi[4])
-                phases.append(odi[-2])
-                pulse_widths.append(odi[-1])
-        phases = numpy.array(phases)
-        phases -= phases[0]
-        pulse_widths = numpy.array(pulse_widths, dtype=numpy.float)
-        frqs = numpy.array(frqs, dtype=numpy.float)
-        #gain is calulated as follows: g = t1*f1/(f2*t2). 
-        gains = (frqs[0]*pulse_widths[0])/(frqs*pulse_widths)
-
+    frqs = []
+    phases = []
+    pulse_widths = []
+    for odi in od:
+            frqs.append(odi[4])
+            phases.append(odi[-2])
+            pulse_widths.append(odi[-1])
+    phases = numpy.array(phases)
+    phases -= phases[0]
+    pulse_widths = numpy.array(pulse_widths, dtype=numpy.float)
+    frqs = numpy.array(frqs, dtype=numpy.float)
+    #gain is calulated as follows: g = t1*f1/(f2*t2). 
+    gains = (frqs[0]*pulse_widths[0])/(frqs*pulse_widths)
+    return amplitude, frqs, phases, gains
+    
+def estimate_phase_and_gain_correction(folders, pref):
+    params = []
+    ct=0
+    for folder in folders:
+        name =os.path.split(folder)[1]
+        fns = os.listdir(folder)
+        fns.sort()
+        legend_text=[]
+        phase_coeffs=[]
+        gain_coeffs=[]
+        gains_tab = []
+        phases_tab = []
+        for fn in fns:
+            fn=os.path.join(folder,fn)
+            data = utils.array2object(numpy.load(fn))
+            od = organize_scanner_calib_data(data)
+            amplitude, frqs, phases, gains = calculate_transfer_function(od)
+            gains_tab.append(numpy.array([frqs,numpy.ones_like(frqs)*amplitude,gains]))
+            phases_tab.append(numpy.array([frqs,numpy.ones_like(frqs)*amplitude,phases]))
+            legend_text.extend([amplitude])
+            if 1:
+                figure(ct+1)
+                plot(frqs, phases)
+                figure(ct+2)
+                plot(frqs, gains)
+        if 1:
+            figure(ct+1)
+            title('phase at different scanner voltages ' + name)
+            legend(legend_text)
+            savefig('/tmp/phase_{0}.png'.format(name))
+            figure(ct+2)
+            title('gain at different scanner voltages ' + name)
+            legend(legend_text)
+            savefig('/tmp/gain_{0}.png'.format(name))
+        gains_tab = numpy.concatenate(gains_tab,axis=1)
+        phases_tab = numpy.concatenate(phases_tab,axis=1)
+        #Estimate gain
         import scipy.optimize
-        p0 = [0.6/1400]
-        phase_coeff, var_matrix = scipy.optimize.curve_fit(linear0, frqs, phases, p0=p0)
-        
-        p0 = [-0.6/1400]
-        gain_coeff, var_matrix = scipy.optimize.curve_fit(linear1, frqs, gains, p0=p0)
-        figure(ct)
-        plot(frqs, phases, 'x-')
-        plot(frqs, phase_coeff[0]*frqs)
-        figure(ct+1)
-        plot(frqs, gains, 'x-')
-        plot(frqs, gain_coeff[0]*frqs+1)
-        print a, phase_coeff, gain_coeff#numpy.array([frqs,gains,phases]).T
-    leg = amplitudes*2
-    leg.sort()
-    figure(ct) 
-    title('phase')
-    legend(leg)
-    savefig('/tmp/eval/phase.png')
-    figure(ct+1) 
-    title('gain')
-    legend(leg)
-    savefig('/tmp/eval/gain.png')
-    
-    
-#Bead width to gain
-#The change in the steepness of the linear part of the sine wave describes the change in gain
-#
+        p0 = pref[:2]
+        gain_coeff, var_matrix = scipy.optimize.curve_fit(gain_estimator, gains_tab[:2], gains_tab[-1], p0=p0)
+        figure(ct+3)
+        plot(gains_tab[-1])
+        plot(gain_estimator(gains_tab[:2],*list(gain_coeff)))
+        plot(gain_estimator(gains_tab[:2],*list(pref[:2])))
+        legend(['measured', 'estimated', 'estimated from pref'])
+        t='gain estimation ' +name
+        title(t)
+        savefig(os.path.join('/tmp',t+'.png'))
+        #estimate phase
+        p0 = pref[2:]
+        phase_coeff, var_matrix = scipy.optimize.curve_fit(phase_estimator, phases_tab[:2], phases_tab[-1], p0=p0)
+        figure(ct+4)
+        plot(phases_tab[-1])
+        plot(phase_estimator(phases_tab[:2],*list(phase_coeff)))
+        plot(phase_estimator(phases_tab[:2],*list(pref[2:])))
+        legend(['measured', 'estimated', 'estimated from pref'])
+        t='phase estimation ' + name
+        title(t)
+        savefig(os.path.join('/tmp',t+'.png'))
+        print name,numpy.concatenate((gain_coeff,phase_coeff))
+        params.append(numpy.concatenate((gain_coeff,phase_coeff)))
+        ct+=4
+    figure(ct+1)
+    plot(numpy.array(params).T)
+    legend([os.path.split(f)[1] for f in folders])
+    figure(ct+2)
+    plot(numpy.array(params))
+    figure(ct+3)
+    plot(numpy.array(params)/numpy.array(params).mean(axis=0))
     
 if __name__ == "__main__":
-    p=['/mnt/rzws/production/rei-setup/transfer-function/calib_00033.npy', '/mnt/rzws/production/rei-setup/transfer-function/calib_00036.npy']
-    for pi in p[1:]:
-        data = utils.array2object(numpy.load(pi))
-        od = organize_scanner_calib_data(data)
-        calculate_transfer_function(od)
-        break
+    root = '/mnt/rzws/production/rei-setup/transfer-function/20140914'
+    folders = ['/mnt/rzws/production/rei-setup/transfer-function/20140914/6', '/mnt/rzws/production/rei-setup/transfer-function/20140914/920nm', '/mnt/rzws/production/rei-setup/transfer-function/20140914/920nm_1','/mnt/rzws/production/rei-setup/transfer-function/20140914/920nm_2']
+    folders = map(os.path.join, len(os.listdir(root))*[root],os.listdir(root))
+    folders.sort()
+    
+    pref = [ -1.12765460e-04,  -2.82919056e-06,   9.50324884e-08,  -1.43226725e-07,
+                        1.50117389e-05,  -1.41414186e-04,   5.90072950e-04,   5.40402050e-03,  -1.18021600e-02]
+    estimate_phase_and_gain_correction(folders, pref)
+    
     s=ScannerIdentification()
 #    check_distortion_over_space()
     if False:
