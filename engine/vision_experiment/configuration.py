@@ -343,11 +343,13 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         TWO_PHOTON_DAQ_TIMEOUT = [10.0, [0.1, 60.0]]
         
         #Scanner dynamics
-        XMIRROR_MAX_FREQUENCY = [1500.0, [50.0, 2200.0]]
+        XMIRROR_MAX_FREQUENCY = [1400.0, [50.0, 2200.0]]
         Y_MIRROR_MIN_FLYBACK_TIME = [1e-3, [0.66e-3, 100e-3]]
+        #These values will be overridden by setup configs
         SCANNER_CHARACTERISTICS = {}
-        SCANNER_CHARACTERISTICS['PHASE'] = [-0.00074166, -0.00281492]#A*f+B, in radians
-        SCANNER_CHARACTERISTICS['GAIN'] = [9.92747933e-01, 2.42763029e-06, -2.40619419e-08]#A+B*f+C*f**2, in PU
+        SCANNER_CHARACTERISTICS['GAIN'] = [-1.12765460e-04,  -2.82919056e-06]#(p1+p2*A)*f+1, in PU
+        SCANNER_CHARACTERISTICS['PHASE'] = \
+                    [9.50324884e-08,  -1.43226725e-07, 1.50117389e-05,  -1.41414186e-04,   5.90072950e-04,   5.40402050e-03,  -1.18021600e-02]#(p1*a+p2)*f**2+(p3*a**2+p4*a+p5)*f+(p6*a+p7), in radians
         
         MAX_CA_IMAGE_DISPLAYS = [4, [1, 10]]
         CAIMAGE_DISPLAY_VERTICAL_FLIP = False

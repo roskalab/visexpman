@@ -1238,16 +1238,19 @@ def calculate_transfer_function(od):
             t2 = indexes.max()-indexes.min()#only number of samples not converted to time dimension
             t2s.append(t2)
             phases.append(phase)
+        peaks=numpy.array(phases)*float(bp.shape[0])/2/numpy.pi
         odi.append(numpy.array(phases[1:]).mean())
         odi.append(numpy.array(t2s[1:]).mean())
-        if 0:
+        if 1:
             figure(ct)
             tr=t/t.max()*numpy.pi*2            
-            plot(tr,numpy.ones_like(mask)*threshold)
-            plot(tr,odi[2])
+#            plot(tr,numpy.ones_like(mask)*threshold)
+#            plot(tr,odi[2])
+            plot(odi[2])
             for bp in bead_profile:
-                plot(tr,bp)
-            title((odi[3],odi[4], odi[-1], numpy.round(float(odi[-1])/mask.shape[0]*odi[3],4)))
+#                plot(tr,bp)
+                plot(bp)
+            title('{0:.0f} V {1:} Hz, peak position: {2:.1f} std: {3:.1f} %, {4:.2f}'.format(odi[3],odi[4],peaks.mean(), 100*peaks.std()/peaks.mean(), numpy.array(phases).mean()))
             savefig('/tmp/eval/p{0:.0f}V_{1:0=5}Hz.png'.format(odi[3], int(odi[4])))
         ct +=1
     frqs = []
@@ -1282,6 +1285,7 @@ def estimate_phase_and_gain_correction(folders, pref):
             data = utils.array2object(numpy.load(fn))
             od = organize_scanner_calib_data(data)
             amplitude, frqs, phases, gains = calculate_transfer_function(od)
+            continue
             gains_tab.append(numpy.array([frqs,numpy.ones_like(frqs)*amplitude,gains]))
             phases_tab.append(numpy.array([frqs,numpy.ones_like(frqs)*amplitude,phases]))
             legend_text.extend([amplitude])
@@ -1335,7 +1339,44 @@ def estimate_phase_and_gain_correction(folders, pref):
     figure(ct+3)
     plot(numpy.array(params)/numpy.array(params).mean(axis=0))
     
+def read_test_snapshots():
+    folder='/mnt/rzws/production/rei-setup/image_shift/snapshots'
+    ct=0
+    phase_shift ={}
+    phase_shift[1]=72
+    phase_shift[2]=64
+    phase_shift[2.5]=62
+    phase_shift[3]=61
+    phase_shift[4]=59
+    for fn in os.listdir(folder):
+        fn=os.path.join(folder,fn)
+        data = utils.array2object(numpy.load(fn))
+        PMTS = {'TOP': {'CHANNEL': 1,  'COLOR': 'GREEN', 'ENABLE': True}, 
+                            'SIDE': {'CHANNEL' : 0,'COLOR': 'RED', 'ENABLE': False}}
+        data['parameters']['scanning_attributes']['signal_attributes']['one_period_valid_data_mask']=numpy.roll(data['parameters']['scanning_attributes']['signal_attributes']['one_period_valid_data_mask'],phase_shift[data['parameters']['resolution']])
+        image=scanner_control.signal2image(data['ai_data'], data['parameters'], PMTS)
+        section = numpy.roll(image[image.shape[0]*0.7,:,0],-phase_shift[data['parameters']['resolution']])
+        figure(ct)
+        imshow(image[:,:,0],cmap='gray')
+#        plot(section)
+#        plot(data['parameters']['scanning_attributes']['valid_data_mask'])
+#        plot(numpy.roll(data['parameters']['scanning_attributes']['valid_data_mask'],phase_shift[data['parameters']['resolution']]))
+#        plot(data['ai_data'])
+#        plot(numpy.roll(data['ai_data'],-phase_shift[data['parameters']['resolution']]))
+#        legend(['mask','shifted mask','aidata', 'shifted ai data'])
+        
+        t='{0:0=5} Hz {1:.1f} V, {2} pixel um, {3}'.format(int(data['parameters']['scanning_attributes']['signal_attributes']['fxscanner']),data['parameters']['scanning_attributes']['xsignal'].max()-data['parameters']['scanning_attributes']['xsignal'].min(),data['parameters']['resolution'],
+                                                                                                    section.argmax())
+        title(t)
+        savefig(os.path.join(os.path.split(folder)[0],t+'.png'))
+        ct+=1
+        print data['parameters']['scanning_range'],data['parameters']['resolution']
+    pass
+    
+    
+    
 if __name__ == "__main__":
+    read_test_snapshots()
     root = '/mnt/rzws/production/rei-setup/transfer-function/20140914'
     folders = ['/mnt/rzws/production/rei-setup/transfer-function/20140914/6', '/mnt/rzws/production/rei-setup/transfer-function/20140914/920nm', '/mnt/rzws/production/rei-setup/transfer-function/20140914/920nm_1','/mnt/rzws/production/rei-setup/transfer-function/20140914/920nm_2']
     folders = map(os.path.join, len(os.listdir(root))*[root],os.listdir(root))
@@ -1343,7 +1384,7 @@ if __name__ == "__main__":
     
     pref = [ -1.12765460e-04,  -2.82919056e-06,   9.50324884e-08,  -1.43226725e-07,
                         1.50117389e-05,  -1.41414186e-04,   5.90072950e-04,   5.40402050e-03,  -1.18021600e-02]
-    estimate_phase_and_gain_correction(folders, pref)
+    estimate_phase_and_gain_correction(folders[-1:], pref)
     
     s=ScannerIdentification()
 #    check_distortion_over_space()

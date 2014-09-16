@@ -1694,16 +1694,17 @@ class TestScannerControl(unittest.TestCase):
     def test_18_scanner_signal(self):
         from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title
         from visexpman.engine.generic.introspect import Timer
+        from visexpman.users.zoltan import scanner_calibration
         constraints = {}
         constraints['enable_flybackscan']=False
         constraints['enable_scanner_phase_characteristics']=True
-        constraints['um2voltage_scale']=0.1#includes voltage to angle factor
-        constraints['xmirror_max_frequency']=1500
+        constraints['um2voltage_scale']=1.0/128.0#includes voltage to angle factor
+        constraints['xmirror_max_frequency']=1400
         constraints['ymirror_flyback_time']=1e-3
-        constraints['sample_frequency']=400e3
+        constraints['sample_frequency']=1000e3
         constraints['max_linearity_error']=5e-2
-        constraints['phase_characteristics']=[-0.00074166, -0.00281492]
-        constraints['gain_characteristics']=[9.92747933e-01, 2.42763029e-06, -2.40619419e-08]
+        constraints['phase_characteristics']=[9.50324884e-08,  -1.43226725e-07, 1.50117389e-05,  -1.41414186e-04,   5.90072950e-04,   5.40402050e-03,  -1.18021600e-02]
+        constraints['gain_characteristics']=[-1.12765460e-04,  -2.82919056e-06]
         
         scan_configs = [
                                     [utils.rc((100,100)), 1, False, 100e3,5e-2],
@@ -1718,10 +1719,11 @@ class TestScannerControl(unittest.TestCase):
                                     [utils.rc((10,15)), 1, False, 100e3,5e-2],
                                     [utils.rc((128,128)), 2, False, 500e3,30e-2],
                                     [utils.rc((100,100)), 1, True, 300e3,5e-2],
-                                    [utils.rc((10,10)), 5, False, 250e3,5e-2]
+                                    [utils.rc((10,10)), 5, False, 250e3,5e-2],
+                                    [utils.rc((100,100)), 2, False, 1000e3,5e-2]
                                    ]
         for scan_size, resolution, constraints['enable_flybackscan'], constraints['sample_frequency'], constraints['max_linearity_error'] in scan_configs:
-            center = utils.rc((1,10))
+            center = utils.rc((1*0,10*0))
             xsignal,ysignal,frame_trigger_signal, valid_data_mask,signal_attributes =\
                             generate_scanner_signals(scan_size, resolution, center, constraints)
             self.assertGreaterEqual(signal_attributes['ymirror_flyback_time'],constraints['ymirror_flyback_time'])
@@ -1743,9 +1745,8 @@ class TestScannerControl(unittest.TestCase):
                                                           1.0/signal_attributes['frame_rate'] - signal_attributes['ymirror_flyback_time'],
                                                           int(numpy.log10(constraints['sample_frequency']))-1)
             #test x scanner signal amplitude
-            masked_signal = numpy.roll(valid_data_mask,signal_attributes['phase_shift'])*xsignal#shift back to match with x signal
-            gain = constraints['gain_characteristics'][0] \
-                                            +constraints['gain_characteristics'][1] * signal_attributes['fxscanner'] + constraints['gain_characteristics'][2] * signal_attributes['fxscanner']**2
+            masked_signal = numpy.roll(valid_data_mask,-signal_attributes['phase_shift'])*xsignal#shift back to match with x signal
+            gain = scanner_calibration.gain_estimator([signal_attributes['fxscanner'],scan_size['col']*constraints['um2voltage_scale']],*constraints['gain_characteristics'])
             masked_signal = masked_signal[numpy.nonzero(masked_signal)[0]]
             if constraints['enable_flybackscan']:
                 decimal_places = 5
@@ -1919,18 +1920,23 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
             #x signal amplitude is increseased to fit the required amplitude into the linear range of the sinus wave
             one_period_x_scanner_signal *= overshoot
             #correct x amplitude with gain at given frq
-            if constraints['enable_scanner_phase_characteristics']:
-                one_period_x_scanner_signal /= constraints['gain_characteristics'][0] \
-                                            +constraints['gain_characteristics'][1] * fxscanner + constraints['gain_characteristics'][2] * fxscanner**2
+            from visexpman.users.zoltan import scanner_calibration
+            if constraints['enable_scanner_phase_characteristics'] or False:
+                gain = scanner_calibration.gain_estimator([fxscanner,scan_size['col']*constraints['um2voltage_scale']],*constraints['gain_characteristics'])
+                one_period_x_scanner_signal /= gain#constraints['gain_characteristics'][0] \
+                                            #+constraints['gain_characteristics'][1] * fxscanner + constraints['gain_characteristics'][2] * fxscanner**2
+            else:
+                gain=1.0
             one_period_x_scanner_signal *= scan_size['col']*constraints['um2voltage_scale']
             one_period_x_scanner_signal += center['col']*constraints['um2voltage_scale']
             if constraints['enable_scanner_phase_characteristics']:
                 #Shift mask with phase
-                phase = constraints['phase_characteristics'][0] * fxscanner + constraints['phase_characteristics'][1]
+                phase = scanner_calibration.phase_estimator([fxscanner,scan_size['col']*constraints['um2voltage_scale']],*constraints['phase_characteristics'])
                 phase_shift = int(numpy.round(phase/(numpy.pi*2)*one_period_x_scanner_signal.shape[0],0))#phase shift of pmt signal to mirro control signal
+                print phase,one_period_x_scanner_signal.shape
             else:
                 phase_shift = 0
-            mask = numpy.roll(mask,-phase_shift)#shift valid data mask with phase shift. At signal reconstruction the valid data mask will tell which items of the recorded stream are part of the image
+            mask = numpy.roll(mask,phase_shift)#shift valid data mask with phase shift. At signal reconstruction the valid data mask will tell which items of the recorded stream are part of the image
             if constraints['enable_flybackscan']:
                 factor = 0.5#two lines are scanned in one period
             else:
@@ -1963,6 +1969,7 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
     signal_attributes['frame_rate'] = frame_rate
     signal_attributes['fxscanner'] = fxscanner
     signal_attributes['phase_shift'] = phase_shift
+    signal_attributes['gain'] = gain
     signal_attributes['one_period_x_scanner_signal'] = one_period_x_scanner_signal
     signal_attributes['one_period_valid_data_mask'] = mask
     signal_attributes['nxlines'] = nxlines
