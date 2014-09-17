@@ -1698,7 +1698,7 @@ class TestScannerControl(unittest.TestCase):
         constraints = {}
         constraints['enable_flybackscan']=False
         constraints['enable_scanner_phase_characteristics']=True
-        constraints['um2voltage_scale']=1.0/128.0#includes voltage to angle factor
+        constraints['scanner_position_to_voltage']=1.0/128.0#includes voltage to angle factor
         constraints['xmirror_max_frequency']=1400
         constraints['ymirror_flyback_time']=1e-3
         constraints['sample_frequency']=1000e3
@@ -1746,18 +1746,18 @@ class TestScannerControl(unittest.TestCase):
                                                           int(numpy.log10(constraints['sample_frequency']))-1)
             #test x scanner signal amplitude
             masked_signal = numpy.roll(valid_data_mask,-signal_attributes['phase_shift'])*xsignal#shift back to match with x signal
-            gain = scanner_calibration.gain_estimator([signal_attributes['fxscanner'],scan_size['col']*constraints['um2voltage_scale']],*constraints['gain_characteristics'])
+            gain = scanner_calibration.gain_estimator([signal_attributes['fxscanner'],scan_size['col']*constraints['scanner_position_to_voltage']],*constraints['gain_characteristics'])
             masked_signal = masked_signal[numpy.nonzero(masked_signal)[0]]
             if constraints['enable_flybackscan']:
                 decimal_places = 5
             else:
                 decimal_places = -1
-            self.assertAlmostEqual((masked_signal.max()-masked_signal.min())*gain/constraints['um2voltage_scale'], 
+            self.assertAlmostEqual((masked_signal.max()-masked_signal.min())*gain/constraints['scanner_position_to_voltage'], 
                                                                           float(scan_size['col']), decimal_places)
-            self.assertAlmostEqual(xsignal.mean()/constraints['um2voltage_scale'], center['col'],5)
+            self.assertAlmostEqual(xsignal.mean()/constraints['scanner_position_to_voltage'], center['col'],5)
             #test y scanner signal amplitude
-            self.assertAlmostEqual((ysignal.max()-ysignal.min())/constraints['um2voltage_scale'], float(scan_size['row']), 5)
-            self.assertAlmostEqual(ysignal.mean()/constraints['um2voltage_scale'], center['row'],5)
+            self.assertAlmostEqual((ysignal.max()-ysignal.min())/constraints['scanner_position_to_voltage'], float(scan_size['row']), 5)
+            self.assertAlmostEqual(ysignal.mean()/constraints['scanner_position_to_voltage'], center['row'],5)
             #check frame trigger signal
             self.assertLess(constraints['sample_frequency']*constraints['ymirror_flyback_time'], 
                              frame_trigger_signal.shape[0]-frame_trigger_signal.sum())
@@ -1894,7 +1894,7 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
     center: center of scannable area in um in row,col format
     constraints: constraint parameters that should not be exceeded or should be considered
         constraints['enable_flybackscan']=False
-        constraints['um2voltage_scale']=0.1#includes voltage to angle factor
+        constraints['scanner_position_to_voltage']=0.1#includes voltage to angle factor
         constraints['xmirror_max_frequency']=1500Hz
         constraints['ymirror_flyback_time']=1e-3
         constraints['sample_frequency']=400e3
@@ -1921,19 +1921,18 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
             one_period_x_scanner_signal *= overshoot
             #correct x amplitude with gain at given frq
             from visexpman.users.zoltan import scanner_calibration
-            if constraints['enable_scanner_phase_characteristics'] or False:
-                gain = scanner_calibration.gain_estimator([fxscanner,scan_size['col']*constraints['um2voltage_scale']],*constraints['gain_characteristics'])
+            if constraints['enable_scanner_phase_characteristics']:
+                gain = scanner_calibration.gain_estimator([fxscanner,scan_size['col']*constraints['scanner_position_to_voltage']],*constraints['gain_characteristics'])
                 one_period_x_scanner_signal /= gain#constraints['gain_characteristics'][0] \
                                             #+constraints['gain_characteristics'][1] * fxscanner + constraints['gain_characteristics'][2] * fxscanner**2
             else:
                 gain=1.0
-            one_period_x_scanner_signal *= scan_size['col']*constraints['um2voltage_scale']
-            one_period_x_scanner_signal += center['col']*constraints['um2voltage_scale']
+            one_period_x_scanner_signal *= scan_size['col']*constraints['scanner_position_to_voltage']
+            one_period_x_scanner_signal += center['col']*constraints['scanner_position_to_voltage']
             if constraints['enable_scanner_phase_characteristics']:
                 #Shift mask with phase
-                phase = scanner_calibration.phase_estimator([fxscanner,scan_size['col']*constraints['um2voltage_scale']],*constraints['phase_characteristics'])
+                phase = scanner_calibration.phase_estimator([fxscanner,scan_size['col']*constraints['scanner_position_to_voltage']],*constraints['phase_characteristics'])
                 phase_shift = int(numpy.round(phase/(numpy.pi*2)*one_period_x_scanner_signal.shape[0],0))#phase shift of pmt signal to mirro control signal
-                print phase,one_period_x_scanner_signal.shape
             else:
                 phase_shift = 0
             mask = numpy.roll(mask,phase_shift)#shift valid data mask with phase shift. At signal reconstruction the valid data mask will tell which items of the recorded stream are part of the image
@@ -1955,8 +1954,8 @@ def generate_scanner_signals(scan_size, resolution, center, constraints):
             frame_trigger_signal = numpy.zeros_like(ysignal)
             frame_trigger_signal[:int(constraints['sample_frequency']*t_up)] = 1.0
             #scale y signal to voltage and add offset
-            ysignal *= scan_size['row']*constraints['um2voltage_scale']
-            ysignal += center['row']*constraints['um2voltage_scale']
+            ysignal *= scan_size['row']*constraints['scanner_position_to_voltage']
+            ysignal += center['row']*constraints['scanner_position_to_voltage']
             xsignal = numpy.tile(one_period_x_scanner_signal,nxlines)
             if ysignal.shape[0] != xsignal.shape[0]:
                 raise ScannerError('x and y signal length must be the same: {0}, {1}. Adjust a little on resolution or scan range.'.format(ysignal.shape[0], xsignal.shape[0]))

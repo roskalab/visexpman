@@ -2809,7 +2809,7 @@ class VisexpGuiPoller(Poller):
             if self.ping(timeout=1.0, connection=remote_node_name):
                 connected_nodes += remote_node_name + ' '
                 n_connected += 1
-        self.parent.central_widget.main_widget.network_status.setText('Network connections: {2} {0}/{1}'.format(n_connected, n_connections, connected_nodes))
+        self.parent.central_widget.network_status.setText('Network connections: {2} {0}/{1}'.format(n_connected, n_connections, connected_nodes))
             
     def run_in_all_iterations(self):
         #### Calling functions all the time #### 

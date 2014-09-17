@@ -145,7 +145,7 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
-        DATA_STORAGE_PATH = fileop.select_folder_exists(['/mnt/datafast/debug/animalfiles','v:\\debug\\animalfiles', '/mnt/rzws/dataslow', '/tmp'])
+        DATA_STORAGE_PATH = fileop.select_folder_exists(['/mnt/datafast/debug/animalfiles','v:\\debug\\animalfiles', '/mnt/rzws/dataslow', '/tmp', 'C:\\temp'])
         CONTEXT_PATH = self.root_folder
         CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
         os.mkdir(CAPTURE_PATH)

@@ -998,6 +998,7 @@ class CentralWidget(QtGui.QWidget):
         self.main_tab.setFixedHeight(self.config.GUI['GUI_SIZE']['row']*0.7)
         self.main_tab.setMaximumWidth(self.config.GUI['GUI_SIZE']['col']*0.6)
         self.ca_displays = gui.CaImagingVisualisationControlWidget(self)
+        self.network_status = QtGui.QLabel('', self)
         self.text_out = QtGui.QTextEdit(self)
         self.text_out.setPlainText('')
         self.text_out.setReadOnly(True)
@@ -1008,7 +1009,8 @@ class CentralWidget(QtGui.QWidget):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.main_tab, 0, 0, 1, 3)
         self.layout.addWidget(self.ca_displays, 0, 3, 1, 1)
-        self.layout.addWidget(self.text_out, 1,  0, 1, 2)
+        self.layout.addWidget(self.network_status, 1,  0, 1, 2)
+        self.layout.addWidget(self.text_out, 2,  0, 1, 2)
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
@@ -1106,6 +1108,8 @@ class VisionExperimentGui(Qt.QMainWindow):
                                   [self.central_widget.main_widget.recording_status.set_state, 'experiment_control.set_experiment_state'],
                                   [self.central_widget.parameters_groupbox.check_scan_parameters_button, 'experiment_control.check_scan_parameters'],
                                   [self.central_widget.ca_displays.snap, 'experiment_control.snap_ca_image'],
+                                  [self.central_widget.ca_displays.live_scan_start, 'experiment_control.live_scan_start'],
+                                  [self.central_widget.ca_displays.live_scan_stop, 'experiment_control.live_scan_stop'],
                                   ]
         
         for item in widget2poller_function:

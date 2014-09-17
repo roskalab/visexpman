@@ -740,7 +740,7 @@ class ExperimentControl(gui.WidgetControl):
                 return False
             self.mandatory_parameters[pn] = utils.rc(tuple(self.mandatory_parameters[pn]))
         #Parse numeric parameters
-        for pn in ['pixel_size', 'stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay','maximal_x_line_linearity_error','analog_output_sampling_rate', 'analog_input_sampling_rate']:
+        for pn in ['pixel_size', 'stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay','maximal_x_line_linearity_error','analog_output_sampling_rate', 'analog_input_sampling_rate', 'scanner_position_to_voltage']:
             try:
                 self.mandatory_parameters[pn] = float(self.mandatory_parameters[pn].split('#')[0])
             except ValueError:
@@ -790,7 +790,7 @@ class ExperimentControl(gui.WidgetControl):
         constraints = {}
         constraints['enable_flybackscan']=self.mandatory_parameters['enable_flyback_scan']
         constraints['enable_scanner_phase_characteristics']=self.mandatory_parameters['enable_scanner_phase_characteristics']
-        constraints['um2voltage_scale']=self.config.POSITION_TO_SCANNER_VOLTAGE
+        constraints['scanner_position_to_voltage']=self.mandatory_parameters['scanner_position_to_voltage']
         constraints['xmirror_max_frequency']=self.config.XMIRROR_MAX_FREQUENCY
         constraints['ymirror_flyback_time']=self.config.Y_MIRROR_MIN_FLYBACK_TIME
         constraints['sample_frequency']=self.mandatory_parameters['analog_output_sampling_rate']
@@ -811,7 +811,7 @@ class ExperimentControl(gui.WidgetControl):
                                                                                                                     constraints)
         for k,v in signal_attributes.items():
             if k =='one_period_x_scanner_signal' or k == 'one_period_valid_data_mask':
-                continue
+                continue#Do not print arrays on console
             else:
                 self.printc('{0}: {1}'.format(stringop.to_title(k), v))
         scanning_attributes = {}
@@ -914,14 +914,31 @@ class ExperimentControl(gui.WidgetControl):
         #TODO: is this method really necessary???????????????
         self.printc('Experiment started. Duration is {0} seconds, expected to finish at {1}.'.format(parameters['duration'][0], utils.timestamp2hm(time.time() + parameters['duration'][0])))
         
+    def live_scan_start(self):
+        '''
+        
+        '''
+        function_call = {'function': 'live_scan_start', 'args': [self._prepare_non_experiment_scan()]}
+        self.poller.send(function_call,connection='ca_imaging')
+        
+    def live_scan_stop(self):
+        self.poller.send({'function': 'live_scan_stop'},connection='ca_imaging')
+        
     def snap_ca_image(self):
+        function_call = {'function': 'snap_ca_image', 'args': [self._prepare_non_experiment_scan()]}
+        self.poller.send(function_call,connection='ca_imaging')
+        
+    def _prepare_non_experiment_scan(self):
+        '''
+        Collects and checks parameters for non experiment scanning (two photon snapshot, live scan or z stack)
+        '''
         scanning_attributes = self.check_scan_parameters()
         scanning_attributes = {'scanning_attributes':scanning_attributes}#To make it compatible with experiment start data structure
         fields = ['stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay', 'scanning_range', 'scan_center', 'recording_channels', 'analog_input_sampling_rate', 'analog_output_sampling_rate', 'resolution']
         for field in fields:
             scanning_attributes[field] = self.mandatory_parameters[field]
-        function_call = {'function': 'snap_ca_image', 'args': [scanning_attributes]}
-        self.poller.send(function_call,connection='ca_imaging')
+        return scanning_attributes
+        
         
 
 class ExperimentParametersGroupBox(QtGui.QGroupBox):
@@ -1072,18 +1089,19 @@ class MachineParametersGroupbox(QtGui.QGroupBox):
         self.machine_parameters['scanner'] = {'Scan center':  '0, 0#Center of scanning, format: (row, col) [um]', 
                                                                         'Stimulus flash trigger duty cycle': '100#[%] 100% means that the flash is on during the whole flyback of the x mirror', 
                                                                         'Stimulus flash trigger delay': '0#[us]',
-                                                                        'Analog input sampling rate': '100000#[Hz]',
-                                                                        'Analog output sampling rate': '100000#[Hz]',
+                                                                        'Analog input sampling rate': '200000#[Hz]',
+                                                                        'Analog output sampling rate': '200000#[Hz]',
                                                                         'Enable flyback scan': '0#If set to 1, x mirror\'s flyback movement is also used for data acquisition',
                                                                         'Maximal x line linearity error':'5#[%], Increase: better scan speed but more distortion at the left and right edges.\nKeep it below 15 %.',
-                                                                        'Enable scanner phase characteristics': '1#1=enable'
+                                                                        'Enable scanner phase characteristics': '1#1=enable',
+                                                                        'Scanner position to voltage': '0.007#Conversion factor between scanner voltage and scanning range'
                                                                         }
                                                                         
         self.machine_parameter_order = {}
-        self.machine_parameter_order['scanner'] = ['Scan center', 
+        self.machine_parameter_order['scanner'] = ['Scan center', 'Maximal x line linearity error',
+                                            'Analog input sampling rate', 'Analog output sampling rate',
                                             'Stimulus flash trigger duty cycle', 'Stimulus flash trigger delay', 'Enable flyback scan', 
-                                            'Maximal x line linearity error',
-                                            'Analog input sampling rate', 'Analog output sampling rate', 'Enable scanner phase characteristics']
+                                            'Enable scanner phase characteristics','Scanner position to voltage']
 
     def create_widgets(self):
         self.table = {}
@@ -1402,6 +1420,8 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
         
     def create_widgets(self):
         self.display_configs = []
+        self.live_scan_start = QtGui.QPushButton('Live scan start', self)
+        self.live_scan_stop = QtGui.QPushButton('Live scan stop', self)
         self.snap = QtGui.QPushButton('Snap', self)
         for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
             self.display_configs.append(DisplayConfigurationGroupbox(self, str(i)))
@@ -1414,7 +1434,9 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         index = 0
-        self.layout.addWidget(self.snap, 0, 0)
+        self.layout.addWidget(self.live_scan_start, 0, 0)
+        self.layout.addWidget(self.live_scan_stop, 0, 1)
+        self.layout.addWidget(self.snap, 0, 2)
         for row in range(2):
             for col in range(self.config.MAX_CA_IMAGE_DISPLAYS/2):
                 self.layout.addWidget(self.display_configs[index], row+1, 2*col,1,2)
@@ -1601,7 +1623,6 @@ class MainWidget(QtGui.QWidget):
         self.experiment_parameters.setFixedWidth(400)
         self.experiment_parameters.setFixedHeight(250)
         self.experiment_parameters.values.setColumnWidth(0, 200)
-        self.network_status = QtGui.QLabel('', self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -1609,7 +1630,6 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 2, 1)
         self.layout.addWidget(self.recording_status, 0, 1, 2, 1)
         self.layout.addWidget(self.experiment_parameters, 2, 1, 1, 1)
-        self.layout.addWidget(self.network_status, 3, 0, 1, 1)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)

@@ -111,7 +111,11 @@ class Logger(multiprocessing.Process,LoggerHelper):
                     str2file += self._entry2text(entry)
                     break
         self.file.write(str2file)
-        self.file.flush()
+        try:
+            self.file.flush()#Happens for unknown reason
+        except:
+            import traceback
+            print traceback.format_exc()
                 
     def _entry2text(self, entry):
         return '{0} {1}/{2}\t{3}\n'.format(utils.timestamp2ymdhms(entry[0]), entry[1], entry[2], entry[3])

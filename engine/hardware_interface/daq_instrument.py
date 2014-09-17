@@ -123,7 +123,7 @@ class AnalogIoHelpers(object):
             if time.time()-t0>timeout:
                 return 'timeout'
             if not self.queues['response'].empty():
-                response = self.queues['response'].get()
+                response = self.queues['response'].get(timeout = 5)
                 nframes = response[1]
                 data = []
                 for i in range(nframes - self.n_ai_reads):
@@ -281,6 +281,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         else:
             self.number_of_ai_samples = int(self.ai_record_time * self.ai_sample_rate)
         self.finite_samples = kwargs.get('finite_samples', False)
+        self.printl('Daq started with parameters: {0}'.format(kwargs))
         self._configure_timing(self.finite_samples) #this cannot be done during init because the lenght of the signal is not known before waveform is set
         if self.enable_ao:
             self._write_waveform()
@@ -1661,6 +1662,6 @@ class TestAnalogIOProcess(unittest.TestCase):
         waveform = numpy.linspace(0,2,10000)[:,None].T
         set_waveform('Dev1/ao0',waveform,sample_rate = 100000)
         set_voltage('Dev1/ao0',0)
-
+        
 if __name__ == '__main__':
     unittest.main()
