@@ -46,10 +46,18 @@ class CaImagingScreen(graphics.Screen):
 #        self.im = im
         
     def refresh(self):
+        '''
+        Images to be displayed must be in a 0..1 range
+        '''
         self.clear_screen(color = colors.convert_color(0.0))
         number_of_displays = len(self.display_configuration.keys())
         spacing = 10
         if number_of_displays>0 and self.images.has_key('snap'):
+            #Draw frame
+            self.images['snap'][0,:,:]=0.3
+            self.images['snap'][-1,:,:]=0.3
+            self.images['snap'][:,0,:]=0.3
+            self.images['snap'][:,-1,:]=0.3
             self.imsize = utils.rc((0,0))
             if number_of_displays < 4:
                 nrows = 1

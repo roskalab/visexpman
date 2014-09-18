@@ -57,9 +57,11 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         for key_pressed in check_keyboard():
             if key_pressed == self.config.KEYS['exit']:#Exit application
                 if self.imaging_started:
+                    self.printl('Terminate running imaging')
                     self.stop_imaging(self.imaging_parameters)
                 if hasattr(self, 'daq_process') and self.daq_process.is_alive():
                     self.daq_process.terminate()
+                    self.printl('Daq process terminated')
                 return 'terminate'
             elif key_pressed == self.config.KEYS['snap']:
                 if hasattr(self, 'imaging_parameters'):
@@ -71,8 +73,10 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             elif key_pressed == self.config.KEYS['live_start_stop']:
                 if not hasattr(self, 'imaging_parameters'):
                     self.printl('Imaging parameters are not available. Initiate imaging from main_ui')
+                elif self.imaging_started:
+                    self.live_scan_stop()
                 else:
-                    self.live_scan(self.imaging_parameters)
+                    self.live_scan_start(self.imaging_parameters)
             else:
                 print key_pressed
                 
@@ -85,13 +89,14 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         '''
         if hasattr(self, 'daq_process') and self.imaging_started is not False and hasattr(self, 'imaging_parameters'):
             while True:
-                frame = copy.deepcopy(self.daq_process.read_ai())
+                frame = self.daq_process.read_ai()
                 if frame is None:
                     break
                 else:
                     #Transform frame to image
-                    self.images['snap'] = scanner_control.signal2image(frame, copy.deepcopy(self.imaging_parameters), self.config.PMTS)/self.config.MAX_PMT_VOLTAGE
+                    self.images['snap'] = scanner_control.signal2image(frame, self.imaging_parameters, self.config.PMTS)/self.config.MAX_PMT_VOLTAGE
                     self.frame_ct+=1
+#                    self.printl(self.images['snap'].mean())
 #                print self.images['snap'].mean()
 #                print self.images['snap'].shape,self.images['snap'].mean(),self.images['snap'].max(),self.images['snap'].min(),self.images['snap'].dtype
 #                numpy.save('r:\\dataslow\\temp\\im.npy', self.images['snap'])
@@ -123,7 +128,10 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             waveforms *= numpy.array([[1,1,0,0]]).T
         return waveforms
         
-    def start_imaging(self, parameters):
+    def live_scan_start(self, parameters):
+        if self.imaging_started:
+            self.printl('Live scan already running')
+            return
         self.frame_ct=0
         self.imaging_parameters = parameters
         self.imaging_started = None
@@ -136,49 +144,65 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         imaging_started_result = self.daq_process.start_daq(ai_sample_rate = parameters['analog_input_sampling_rate'], ao_sample_rate = parameters['analog_output_sampling_rate'], 
                       ao_waveform = self._pack_waveform(parameters), timeout = 30)
         self.t0=time.time()
+        #Opening shutter when scanners are moving
+        daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 1)
         self.send({'update': ['imaging started', imaging_started_result]})
         self.printl('Imaging started')
         if imaging_started_result == 'timeout':
             self.imaging_started = False
         else:
             self.imaging_started = imaging_started_result
+#        self.printl(parameters['scanning_attributes']['signal_attributes']['nxlines'])
         
-    def stop_imaging(self, parameters):
+    def live_scan_stop(self):
+        if not self.imaging_started:
+            self.printl('Live scan is not running')
         t2=time.time()
-        unread_data = self.daq_process.stop_daq()
-        self.imaging_started = False
-        self.daq_process.terminate()
-        self.printl('Imaging stopped')
-        self.send({'update': ['imaging stopped']})
-        print unread_data[0].shape,unread_data[1],self.frame_ct,(t2-self.t0) * parameters['scanning_attributes']['signal_attributes']['frame_rate']
+        #Closing shutter before terminating scanning
+        daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
+        try:
+            parameters = self.imaging_parameters
+            unread_data = self.daq_process.stop_daq()
+            if isinstance(unread_data ,str):
+                self.printl(unread_data)
+            else:
+                self.printl('unread data shape: {0}, acquired frames {1} read frames {2}, expected number of frames {3}'.format(unread_data[0].shape,
+                                unread_data[1],
+                                self.frame_ct, 
+                                (t2-self.t0) * parameters['scanning_attributes']['signal_attributes']['frame_rate']))
+                #Check if all frames have been acquired
+                if unread_data[0].shape[0] + self.frame_ct != unread_data[1] or\
+                    unread_data[1] < (t2-self.t0) * parameters['scanning_attributes']['signal_attributes']['frame_rate']:
+                    self.printl('WARNING: Some frames are lost')
+        except:
+            self.printl(traceback.format_exc())
+        finally:
+            self.imaging_started = False
+            self.daq_process.terminate()
+            #Wait till process terminates
+            while self.daq_process.is_alive():
+                time.sleep(0.1)
+            #Set scanner voltages to 0V
+            daq_instrument.set_voltage(self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
+            self.printl('Imaging stopped')
+            self.send({'update': ['imaging stopped']})
         
-        #Check if all frames have been acquired
-        if unread_data[0].shape[0] + self.frame_ct != unread_data[1] or\
-            unread_data[1] < (t2-self.t0) * parameters['scanning_attributes']['signal_attributes']['frame_rate']:
-            self.printl('Some frames are lost')
+        
+        
         #TODO:
         #Gather all data and save to file
         #Make sure that file is not open
         #Notify man_ui that data imaging
 #        self.send({'update': ['data saved', imaging_started]})
         
-    def live_scan_start(self,parameters):
-        if self.imaging_started:
-            self.printl('Live scan already running')
-        else:
-            self.start_imaging(parameters)
-            
-    def live_scan_stop(self):
-        if self.imaging_started:
-            self.stop_imaging(self.imaging_parameters)
-        else:
-            self.printl('Live scan is not running')
-        
     def snap_ca_image(self,parameters):
         '''
         Snap a single two photon image
         '''
         #TODO: rename this function
+        if self.imaging_started:
+            self.printl('Live scan already running')
+            return
         try:
             self.imaging_parameters = parameters
             aio = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.logger_queue,
@@ -202,8 +226,8 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             fnfinal=fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH,'2psnap.npy'))
             numpy.save(fntmp,utils.object2array(data2save))
             shutil.move(fntmp,fnfinal)
-            self.images['snap'] = signal.scale(scanner_control.signal2image(ai_data, parameters, self.config.PMTS))
-            self.printl('Done')
+            self.images['snap'] = scanner_control.signal2image(ai_data, parameters, self.config.PMTS)/self.config.MAX_PMT_VOLTAGE
+            self.printl('Snap done')
         except:
             #Make sure that laser shutter is closed
             daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)

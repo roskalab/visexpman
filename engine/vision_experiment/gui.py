@@ -1094,7 +1094,7 @@ class MachineParametersGroupbox(QtGui.QGroupBox):
                                                                         'Enable flyback scan': '0#If set to 1, x mirror\'s flyback movement is also used for data acquisition',
                                                                         'Maximal x line linearity error':'5#[%], Increase: better scan speed but more distortion at the left and right edges.\nKeep it below 15 %.',
                                                                         'Enable scanner phase characteristics': '1#1=enable',
-                                                                        'Scanner position to voltage': '0.007#Conversion factor between scanner voltage and scanning range'
+                                                                        'Scanner position to voltage': '0.013#Conversion factor between scanner voltage and scanning range, voltage=size*factor'
                                                                         }
                                                                         
         self.machine_parameter_order = {}

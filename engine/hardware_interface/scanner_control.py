@@ -1835,7 +1835,7 @@ def signal2image(ai_data, parameters, pmt_config):
     binned = numpy.zeros((ai_data.shape[0]/binning_factor, ai_data.shape[1]))
     frames = []
     for ch_i in range(ai_data.shape[1]):
-        binned[:,ch_i] = ai_data[:,ch_i].reshape(ai_data.shape[0]/binning_factor,binning_factor).mean(axis=1)
+        binned[:,ch_i] = ai_data[:,ch_i].reshape((ai_data.shape[0]/binning_factor,binning_factor)).mean(axis=1)
         if False:#Method 1, longer runtime
             indexes = numpy.nonzero(numpy.diff(scanning_attributes['valid_data_mask']))[0]
             lines=numpy.split(binned[:,ch_i],indexes)[1::2]
@@ -1847,7 +1847,9 @@ def signal2image(ai_data, parameters, pmt_config):
                 indexes = numpy.append(indexes, scanning_attributes['signal_attributes']['one_period_valid_data_mask'].shape[0])
             valid_x_lines = int(scanning_attributes['signal_attributes']['nxlines'] - scanning_attributes['signal_attributes']['yflyback_nperiods'])
             linelenght = scanning_attributes['signal_attributes']['one_period_valid_data_mask'].shape[0]
-            binned_without_flyback =  binned[:linelenght*valid_x_lines,ch_i].reshape(valid_x_lines,linelenght)
+            if 0:
+                print binned[:linelenght*valid_x_lines,ch_i].shape,(valid_x_lines,linelenght)
+            binned_without_flyback =  binned[:linelenght*valid_x_lines,ch_i].reshape((valid_x_lines,linelenght))
             if scanning_attributes['constraints']['enable_flybackscan']:
                 frame=numpy.zeros((2*valid_x_lines,scanning_attributes['signal_attributes']['one_period_valid_data_mask'].sum()/2))
                 frame[0::2,:] = binned_without_flyback[:,indexes[0]:indexes[1]]
@@ -1880,7 +1882,6 @@ def signal2image(ai_data, parameters, pmt_config):
 #        y_grid_min = parameters['scan_center']['col']-0.5*parameters['scanning_range']['col']
 #        y_grid_max = parameters['scan_center']['col']+0.5*parameters['scanning_range']['col']
     #TODO: Shift gridline spacing with the nonlinearity of sinus (user can disable it)
-        
         
     return colorized_frame
     

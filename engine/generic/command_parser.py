@@ -79,10 +79,11 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
                     break
                 if self.application_callback() == 'terminate':
                     break
-                time.sleep(0.2)
+                time.sleep(0.1)#This delay might influence the performance of live scanning
             except:
                 self.printl(traceback.format_exc())
         self.at_process_end()
+        self.printl('Server loop ends')
         self.command.put('terminated')
         
     def exit_application(self):
