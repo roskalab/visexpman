@@ -103,6 +103,8 @@ class Logger(multiprocessing.Process,LoggerHelper):
             while not source.empty():
                 entries.append(source.get())
                 timestamps.append(entries[-1][0])
+        if len(timestamps)==0:
+            return
         #Sort by time
         timestamps.sort()
         str2file = ''
@@ -110,6 +112,7 @@ class Logger(multiprocessing.Process,LoggerHelper):
             for entry in entries:
                 if entry[0] == timestamp:
                     str2file += self._entry2text(entry)
+                    entries.remove(entry)
                     break
         self.file.write(str2file)
         try:
@@ -225,6 +228,7 @@ class TestLog(unittest.TestCase):
         p.info('test2')
         time.sleep(1)
         p.warning('test3')
+        p.info('test4')
         time.sleep(1)
         p.terminate()
         logged_text = fileop.read_text_file(p.filename)
@@ -232,12 +236,13 @@ class TestLog(unittest.TestCase):
         filelist['logfiles'] = fileop.listdir_fullpath(self.machine_config.LOG_PATH)
         for k, v in filelist.items():
             filelist[k] = [os.path.split(i)[1] for i in v]
-        self.assertEqual(len(logged_text.split('INFO'))-1, 2)
+        self.assertEqual(len(logged_text.split('INFO'))-1, 3)
         self.assertEqual(len(logged_text.split('WARNING'))-1, 1)
-        self.assertEqual(len(logged_text.split('\n'))-1, 3)
+        self.assertEqual(len(logged_text.split('\n'))-1, 4)
         self.assertIn('test1', logged_text)
         self.assertIn('test2', logged_text)
         self.assertIn('test3', logged_text)
+        self.assertIn('test4', logged_text)
         
     def tearDown(self):
         pass
