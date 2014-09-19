@@ -1788,7 +1788,11 @@ class TestScannerControl(unittest.TestCase):
         folder = os.path.join(unittest_aggregator.TEST_data, 'two-photon-snapshots', 'data')
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
-        for fn in os.listdir(folder):
+        fns=os.listdir(folder)
+        fns.sort()
+        if len(fns)==0:
+            print 'No test data for testing signal2image'
+        for fn in fns:
 #            print fn
             data = utils.array2object(numpy.load(os.path.join(folder,fn)))
             ai_data=data['ai_data']
@@ -1830,28 +1834,27 @@ def signal2image(ai_data, parameters, pmt_config):
     Transforms ai_data to a two dimensional image per channel. 
     From the acquired waveform (ai_data) the valid and invalid data are separeted by using valid_data_mask from parameters
     '''
-    scanning_attributes = parameters['scanning_attributes']
     binning_factor = int(numpy.round(parameters['analog_input_sampling_rate']/parameters['analog_output_sampling_rate']))
     binned = numpy.zeros((ai_data.shape[0]/binning_factor, ai_data.shape[1]))
     frames = []
     for ch_i in range(ai_data.shape[1]):
         binned[:,ch_i] = ai_data[:,ch_i].reshape((ai_data.shape[0]/binning_factor,binning_factor)).mean(axis=1)
         if False:#Method 1, longer runtime
-            indexes = numpy.nonzero(numpy.diff(scanning_attributes['valid_data_mask']))[0]
+            indexes = numpy.nonzero(numpy.diff(parameters['valid_data_mask']))[0]
             lines=numpy.split(binned[:,ch_i],indexes)[1::2]
             frame = numpy.array(lines)
         else:
-            indexes = numpy.nonzero(numpy.diff(scanning_attributes['signal_attributes']['one_period_valid_data_mask']))[0]+1
-            if indexes.shape[0] ==3 and scanning_attributes['signal_attributes']['one_period_valid_data_mask'][-1] == 1:
+            indexes = numpy.nonzero(numpy.diff(parameters['one_period_valid_data_mask']))[0]+1
+            if indexes.shape[0] ==3 and parameters['one_period_valid_data_mask'][-1] == 1:
                 #If end of valid range is at period end (numpy.diff cannot detect it)
-                indexes = numpy.append(indexes, scanning_attributes['signal_attributes']['one_period_valid_data_mask'].shape[0])
-            valid_x_lines = int(scanning_attributes['signal_attributes']['nxlines'] - scanning_attributes['signal_attributes']['yflyback_nperiods'])
-            linelenght = scanning_attributes['signal_attributes']['one_period_valid_data_mask'].shape[0]
+                indexes = numpy.append(indexes, parameters['one_period_valid_data_mask'].shape[0])
+            valid_x_lines = int(parameters['nxlines'] - parameters['yflyback_nperiods'])
+            linelenght = parameters['one_period_valid_data_mask'].shape[0]
             if 0:
                 print binned[:linelenght*valid_x_lines,ch_i].shape,(valid_x_lines,linelenght)
             binned_without_flyback =  binned[:linelenght*valid_x_lines,ch_i].reshape((valid_x_lines,linelenght))
-            if scanning_attributes['constraints']['enable_flybackscan']:
-                frame=numpy.zeros((2*valid_x_lines,scanning_attributes['signal_attributes']['one_period_valid_data_mask'].sum()/2))
+            if parameters['enable_flybackscan']:
+                frame=numpy.zeros((2*valid_x_lines,parameters['one_period_valid_data_mask'].sum()/2))
                 frame[0::2,:] = binned_without_flyback[:,indexes[0]:indexes[1]]
                 frame[1::2,:] = numpy.fliplr(binned_without_flyback[:,indexes[2]:indexes[3]])
             else:
@@ -1874,9 +1877,9 @@ def signal2image(ai_data, parameters, pmt_config):
             raise NotImlementedError('')
         
     #calculate grid
-    valid_data_mask_phase_shifted_back = numpy.roll(scanning_attributes['signal_attributes']['one_period_valid_data_mask'],scanning_attributes['signal_attributes']['phase_shift'])
+    valid_data_mask_phase_shifted_back = numpy.roll(parameters['one_period_valid_data_mask'],parameters['phase_shift'])
     indexes_valid_data = numpy.nonzero(numpy.diff(valid_data_mask_phase_shifted_back))[0]
-    valid_data_xscanner_signal = scanning_attributes['signal_attributes']['one_period_x_scanner_signal'][indexes_valid_data[0]:indexes_valid_data[1]][::-1]
+    valid_data_xscanner_signal = parameters['one_period_x_scanner_signal'][indexes_valid_data[0]:indexes_valid_data[1]][::-1]
 #        x_grid_min = parameters['scan_center']['row']-0.5*parameters['scanning_range']['row']
 #        x_grid_max = parameters['scan_center']['row']+0.5*parameters['scanning_range']['row']
 #        y_grid_min = parameters['scan_center']['col']-0.5*parameters['scanning_range']['col']

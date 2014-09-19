@@ -814,17 +814,17 @@ class ExperimentControl(gui.WidgetControl):
                 continue#Do not print arrays on console
             else:
                 self.printc('{0}: {1}'.format(stringop.to_title(k), v))
-        scanning_attributes = {}
-        for pn in ['xsignal', 'ysignal', 'stimulus_flash_trigger_signal', 'frame_trigger_signal', 'valid_data_mask', 'signal_attributes', 'constraints']:
-            scanning_attributes[pn] = locals()[pn]
-        return scanning_attributes
+        for pn in ['xsignal', 'ysignal', 'stimulus_flash_trigger_signal', 'frame_trigger_signal', 'valid_data_mask']:
+            self.mandatory_parameters[pn] = locals()[pn]
+        self.mandatory_parameters.update(constraints)
+        self.mandatory_parameters.update(signal_attributes)
+        return self.mandatory_parameters
         
     def check_scan_parameters(self):
         self._get_experiment_run_parameters()
         if not self._parse_experiment_run_parameters():
             return
-        scanning_attributes = self._calculate_and_check_scan_parameters()
-        return scanning_attributes
+        return self._calculate_and_check_scan_parameters()
         
     def add_experiment(self):
         '''
@@ -918,27 +918,15 @@ class ExperimentControl(gui.WidgetControl):
         '''
         
         '''
-        function_call = {'function': 'live_scan_start', 'args': [self._prepare_non_experiment_scan()]}
+        function_call = {'function': 'live_scan_start', 'args': [self.check_scan_parameters()]}
         self.poller.send(function_call,connection='ca_imaging')
         
     def live_scan_stop(self):
         self.poller.send({'function': 'live_scan_stop'},connection='ca_imaging')
         
     def snap_ca_image(self):
-        function_call = {'function': 'snap_ca_image', 'args': [self._prepare_non_experiment_scan()]}
+        function_call = {'function': 'snap_ca_image', 'args': [self.check_scan_parameters()]}
         self.poller.send(function_call,connection='ca_imaging')
-        
-    def _prepare_non_experiment_scan(self):
-        '''
-        Collects and checks parameters for non experiment scanning (two photon snapshot, live scan or z stack)
-        '''
-        scanning_attributes = self.check_scan_parameters()
-        scanning_attributes = {'scanning_attributes':scanning_attributes}#To make it compatible with experiment start data structure
-        fields = ['stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay', 'scanning_range', 'scan_center', 'recording_channels', 'analog_input_sampling_rate', 'analog_output_sampling_rate', 'resolution']
-        for field in fields:
-            scanning_attributes[field] = self.mandatory_parameters[field]
-        return scanning_attributes
-        
         
 
 class ExperimentParametersGroupBox(QtGui.QGroupBox):
