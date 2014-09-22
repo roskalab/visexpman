@@ -157,6 +157,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
     def live_scan_stop(self):
         if not self.imaging_started:
             self.printl('Live scan is not running')
+            return
         t2=time.time()
         #Closing shutter before terminating scanning
         daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
@@ -181,7 +182,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             self.daq_process.terminate()
             #Wait till process terminates
             while self.daq_process.is_alive():
-                time.sleep(0.1)
+                time.sleep(0.2)
             #Set scanner voltages to 0V
             daq_instrument.set_voltage(self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
             self.printl('Imaging stopped')
@@ -1254,10 +1255,10 @@ class TestCaImaging(unittest.TestCase):
                                                                                                                     parameters['stimulus_flash_trigger_delay'], 
                                                                                                                     signal_attributes, 
                                                                                                                     constraints)
-        scanning_attributes = {}
-        for pn in ['xsignal', 'ysignal', 'stimulus_flash_trigger_signal', 'frame_trigger_signal', 'valid_data_mask', 'signal_attributes', 'constraints']:
-            scanning_attributes[pn] = locals()[pn]
-        parameters['scanning_attributes'] = scanning_attributes
+        for pn in ['xsignal', 'ysignal', 'stimulus_flash_trigger_signal', 'frame_trigger_signal', 'valid_data_mask']:
+            parameters[pn] = locals()[pn]
+        parameters.update(constraints)
+        parameters.update(signal_attributes)
         self.parameters=parameters
         
     def test_01_ca_imaging_app(self):
@@ -1295,8 +1296,10 @@ class TestCaImaging(unittest.TestCase):
             'trigger_delay' : 0.0,
             'status' : 'preparing', 
             'id':str(int(numpy.round(time.time(), 2)*100)),
-            'scanning_attributes': {'xsignal':numpy.ones(10000),'ysignal':numpy.ones(10000),'stimulus_flash_trigger_signal':numpy.ones(10000),
-                        'frame_trigger_signal':numpy.ones(10000)},
+            'xsignal':numpy.ones(10000),
+            'ysignal':numpy.ones(10000),
+            'stimulus_flash_trigger_signal':numpy.ones(10000),
+            'frame_trigger_signal':numpy.ones(10000),
             'analog_input_sampling_rate': 10000,
             'analog_output_sampling_rate': 10000,}
         commands = []
@@ -1318,16 +1321,16 @@ class TestCaImaging(unittest.TestCase):
         client.terminate()
         self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower())
         
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+    @unittest.skipIf(not unittest_aggregator.TEST_daq or True, 'Daq tests disabled')
     def test_03_snap_and_live_imaging(self):
         commands = []
+#        commands.append({'function': 'live_scan_start', 'args': [self.parameters]})
+#        commands.append({'function': 'live_scan_stop'})
+        commands.append({'function': 'snap_ca_image', 'args': [copy.deepcopy(self.parameters)]})
+#        commands.append({'function': 'live_scan_stop'})
         commands.append({'function': 'live_scan_start', 'args': [self.parameters]})
         commands.append({'function': 'live_scan_stop'})
-        commands.append({'function': 'snap_ca_image', 'args': [copy.deepcopy(self.parameters)]})
-        commands.append({'function': 'live_scan_stop'})
-        commands.append({'function': 'live_scan_start', 'args': [self.parameters]})
-        commands.append({'function': 'live_scan_stop'})
-        commands.append({'function': 'snap_ca_image', 'args': [copy.deepcopy(self.parameters)]})
+#        commands.append({'function': 'snap_ca_image', 'args': [copy.deepcopy(self.parameters)]})
         commands.append({'function': 'exit_application'})
         client = self._send_commands_to_stim(commands)
         from visexpman.engine.visexp_app import run_ca_imaging
@@ -1340,7 +1343,7 @@ class TestCaImaging(unittest.TestCase):
             time.sleep(1.0)
         client.terminate()
         time.sleep(2)
-#        self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower().replace('max_linearity_error',''))
+        self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower().replace('max_linearity_error',''))
         
 #    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
 #    def test_04_live_scan(self):

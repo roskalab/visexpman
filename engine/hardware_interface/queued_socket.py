@@ -5,9 +5,7 @@ import platform
 import traceback
 import unittest
 import sys
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import log
-from visexpman.engine.generic import introspect
+from visexpman.engine.generic import utils,log,introspect
 
 class QueuedSocketHelpers(object):
     '''
@@ -75,7 +73,7 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                 if state:
                     break
                 time.sleep(0.1)
-            self.join()
+            self.join()                
         
     def _connect(self):
         self.context = zmq.Context()
@@ -107,7 +105,7 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                     message_str = utils.object2str(message)
                     #This blocks the process if remote peer is not connected.
                     #Receiving messages is blocked too which resumes only when remote peer is available.
-                    #If this does not happen, Process.terminate() terimates the process.
+                    #If this does not happen, Process.terminate() terminates the process.
                     self.socket.send(message_str)
                     if hasattr(self.log, 'info'):
                         self.log.info('sent: ' + log.log2str(message),self.socket_name)
@@ -122,7 +120,7 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                         self.socket_queues['fromsocket'].put(message)
                 except zmq.ZMQError:
                     pass#Nothing has received
-                if not self.command.empty() and self.command.get()=='terminate':
+                if not self.command.empty() and self.command.get() =='terminate':
                     break
                 time.sleep(self.loop_wait)
             except:

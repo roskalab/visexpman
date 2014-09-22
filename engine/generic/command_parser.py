@@ -83,7 +83,7 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
             except:
                 self.printl(traceback.format_exc())
         self.at_process_end()
-        self.printl('Server loop ends')
+        print 'Server loop ends'#TMP
         self.command.put('terminated')
         
     def exit_application(self):

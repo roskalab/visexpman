@@ -35,6 +35,7 @@ class InstrumentProcess(multiprocessing.Process, log.LoggerHelper):
             
     def terminate(self):
         self.queues['command'].put('terminate')
+        self.join()
             
     def printl(self,msg, loglevel='info'):
         if hasattr(self.log, loglevel):

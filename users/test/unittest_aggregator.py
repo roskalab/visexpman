@@ -119,9 +119,9 @@ TEST_daq_device = 'Dev1'
 
 TEST_unittests = [
     'visexpman.engine.visexp_gui.testVisionExperimentGui',
-    'visexpman.engine.visexp_app.TestStim',
-    'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 
     'visexpman.engine.vision_experiment.experiment_control.TestCaImaging', 
+    'visexpman.engine.visexp_app.TestStim',    
+    'visexpman.engine.vision_experiment.experiment.testExperimentHelpers',     
     'visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns', 
     'visexpman.engine.TestApplicationInit',
     'visexpman.engine.generic.parameter.testParameter',
@@ -139,7 +139,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = ''#TestAnalogIOProcess.test_11_high_speed_aio'
+TEST_single_unittest = ''#TestAnalogIOProcess.test_11_non_process_aio_then_process_aio'
 
 def get_python_processes():
     pids = []

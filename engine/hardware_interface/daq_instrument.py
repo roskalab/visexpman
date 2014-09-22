@@ -363,6 +363,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         except:
             import traceback
             self.printl(traceback.format_exc(), 'error')
+        self.printl('aio process ended')
         
 class DigitalIO(instrument.Instrument):
     def init_instrument(self):
@@ -1476,7 +1477,7 @@ class TestAnalogIOProcess(unittest.TestCase):
         
         self.expected_logs = ['test aio', 'Daq started with parameters', 'Daq stopped']
         self.ai_expected_logs = ['Analog input task created', 'Analog input task finished']
-        self.ao_expected_logs = ['Analog output task created', 'Analog output task finished', 'Analog input task finished']
+        self.ao_expected_logs = ['Analog output task created', 'Analog output task finished']
         self.not_expected_logs = ['WARNING', 'ERROR', 'default']
         
     def tearDown(self):
@@ -1524,6 +1525,7 @@ class TestAnalogIOProcess(unittest.TestCase):
         numpy.testing.assert_allclose(data2[0][:,:,0].mean(axis=0)[1:], numpy.repeat(-test_waveform,aio_binning_factor2)[:-1], 0, 3e-3)
         numpy.testing.assert_allclose(data1[0][:,:,1].mean(axis=0), numpy.repeat(test_waveform,aio_binning_factor1), 0, 5e-3)
         numpy.testing.assert_allclose(data2[0][:,:,1].mean(axis=0), numpy.repeat(-test_waveform,aio_binning_factor2), 0, 5e-3)
+        return aio
     
     def test_01_parse_channel_string(self):
         channels_strings = ['Dev1/ao0:2', 'Dev2/ao1', 'Dev3/ai2:3']
@@ -1639,7 +1641,7 @@ class TestAnalogIOProcess(unittest.TestCase):
         for el in [self.expected_logs, self.ai_expected_logs]:
             map(self.assertIn, el, len(el)*[fileop.read_text_file(self.logfile)])
             
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+    @unittest.skipIf(not unittest_aggregator.TEST_daq, 'Daq tests disabled')
     def test_09_nonprocess_aio(self):
         from pylab import plot, show
         self.logger.start()
@@ -1657,11 +1659,31 @@ class TestAnalogIOProcess(unittest.TestCase):
         numpy.testing.assert_allclose(ai_data[:,0][1:], waveform[:-1], 0, 1e-2)
         numpy.testing.assert_allclose(ai_data[:,1], waveform, 0, 2e-2)
         
-    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
+    @unittest.skipIf(not unittest_aggregator.TEST_daq, 'Daq tests disabled')
     def test_10_set_waveform(self):
         waveform = numpy.linspace(0,2,10000)[:,None].T
         set_waveform('Dev1/ao0',waveform,sample_rate = 100000)
         set_voltage('Dev1/ao0',0)
+        
+    @unittest.skipIf(not unittest_aggregator.TEST_daq or True, 'Daq tests disabled')
+    def test_11_non_process_aio_then_process_aio(self):
+        sample_rate = 100000
+        waveform = numpy.tile(numpy.linspace(0,1,10000),2)
+        aio = AnalogIOProcess(self.instrument_name, self.queues, self.logqueue,
+                                        ai_channels = 'Dev1/ai0:1',
+                                        ao_channels='Dev1/ao0:1')
+        aio._create_tasks()
+        aio._start(ai_sample_rate = sample_rate, ao_sample_rate = sample_rate, 
+                      ao_waveform = numpy.tile(waveform,2).reshape((2, waveform.shape[0])),
+                      finite_samples=True,timeout = 30)
+        ai_data = aio._stop()
+        aio._close_tasks()
+        PyDAQmx.DAQmxResetDevice('Dev1')
+        time.sleep(2)
+        numpy.testing.assert_allclose(ai_data[:,0][1:], waveform[:-1], 0, 1e-2)
+        numpy.testing.assert_allclose(ai_data[:,1], waveform, 0, 2e-2)
+        aio=self._aio_restarted(self.logger, self.test_waveform)
+        
         
 if __name__ == '__main__':
     unittest.main()
