@@ -511,8 +511,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             converted_background_color = colors.convert_color(background_color, self.config)
             glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
         else:
-            converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)        
-        
+            converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         first_flip = False
