@@ -139,7 +139,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = ''#TestAnalogIOProcess.test_11_non_process_aio_then_process_aio'
+TEST_single_unittest = 'TestAnalogIOProcess.test_12_analog_control'
 
 def get_python_processes():
     pids = []

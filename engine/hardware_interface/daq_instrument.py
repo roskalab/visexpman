@@ -22,7 +22,77 @@ class DaqInstrumentError(Exception):
     '''
     Raised when Daq related error detected
     '''
-    
+
+class ControlLoop():
+    def __init__(self):
+        pass
+        
+    def run(self):
+        nsamples = 10
+        nsamples1 = 1000
+        analog_output = PyDAQmx.Task()
+        analog_output.CreateAOVoltageChan('/Dev1/ao0',
+                                        'ao',
+                                        -10.0,
+                                        10.0,
+                                        DAQmxConstants.DAQmx_Val_Volts,
+                                        None)
+                                        
+        analog_input = PyDAQmx.Task()
+        analog_input.CreateAIVoltageChan('/Dev1/ai0',
+                                                        'ai',
+                                                            DAQmxConstants.DAQmx_Val_RSE,
+                                                            -10.0,
+                                                            10.0,
+                                                            DAQmxConstants.DAQmx_Val_Volts,
+                                                            None)
+        read = DAQmxTypes.int32()
+        analog_input.CfgSampClkTiming("OnboardClock",
+                                        1000,
+                                        DAQmxConstants.DAQmx_Val_Rising,
+                                        DAQmxConstants.DAQmx_Val_ContSamps,
+                                        nsamples)
+                                        
+        analog_input.StartTask()
+        analog_output.StartTask()
+        data=[]
+        vref = 5.0
+        t0=time.time()
+        error=0.0
+        while True:
+            ai_data = numpy.zeros(nsamples, dtype=numpy.float64)
+            analog_input.ReadAnalogF64(nsamples,
+                                        0.2,
+                                        DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                        ai_data,
+                                        nsamples,
+                                        DAQmxTypes.byref(read),
+                                        None)
+            data.append(copy.deepcopy(ai_data))
+#            error = vref - ai_data[-1]
+            now = time.time()
+            if now-t0>=3.0:
+                break
+            elif now-t0>=1.05:
+                error = 0.0
+            elif now-t0>=1.0:
+                error = 5.0
+            analog_output.WriteAnalogF64(1,True,10.0,
+                                DAQmxConstants.DAQmx_Val_GroupByChannel,
+                                numpy.ones(1)*error,
+                                None,
+                                None)
+            pass
+            
+        analog_output.StopTask()
+        analog_input.StopTask()
+        analog_input.ClearTask()
+        analog_output.ClearTask()
+        from pylab import plot,show
+        plot(numpy.array(data).flatten())
+        show()
+        
+
 def parse_channel_string(channels):
     '''
     Returns channel indexes, device name, channel type
@@ -221,7 +291,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
                 except PyDAQmx.DAQError:
                     pass
             self.read = DAQmxTypes.int32()
-            ai_device_name, self.number_of_ai_channels, ai_channel_indexes = parse_channel_string(self.ai_channels)
+            #ai_device_name, self.number_of_ai_channels, ai_channel_indexes = parse_channel_string(self.ai_channels)
             self.printl('Analog input task created')
             
     def _close_tasks(self):
@@ -1448,6 +1518,8 @@ class TestDaqInstruments(unittest.TestCase):
         waveform[-1] = [0.0, 0.0]
         return numpy.round(waveform, 2)
         
+
+        
 class TestAnalogIOProcess(unittest.TestCase):
     '''
     Expected connections:
@@ -1683,6 +1755,13 @@ class TestAnalogIOProcess(unittest.TestCase):
         numpy.testing.assert_allclose(ai_data[:,0][1:], waveform[:-1], 0, 1e-2)
         numpy.testing.assert_allclose(ai_data[:,1], waveform, 0, 2e-2)
         aio=self._aio_restarted(self.logger, self.test_waveform)
+        
+    @unittest.skipIf(not unittest_aggregator.TEST_daq, 'Daq tests disabled')
+    def test_12_analog_control(self):
+        ControlLoop().run()
+        
+        
+
         
         
 if __name__ == '__main__':
