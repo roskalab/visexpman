@@ -291,7 +291,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
                 except PyDAQmx.DAQError:
                     pass
             self.read = DAQmxTypes.int32()
-            #ai_device_name, self.number_of_ai_channels, ai_channel_indexes = parse_channel_string(self.ai_channels)
+            ai_device_name, self.number_of_ai_channels, ai_channel_indexes = parse_channel_string(self.ai_channels)
             self.printl('Analog input task created')
             
     def _close_tasks(self):
