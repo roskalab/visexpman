@@ -1,24 +1,28 @@
+import zipfile
 from pylab import *
 import time,numpy
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.generic import utils, log,fileop,introspect
+from visexpman.engine.vision_experiment.screen import is_key_pressed,check_keyboard
 import multiprocessing
 import os.path
 import tables
 from visexpA.engine.datahandlers.datatypes import ImageData
 from visexpA.engine.datahandlers.hdf5io import Hdf5io
+import pygame
+import tempfile
 
-
-if __name__ == "__main__":
+def measure():
     with introspect.Timer(''):
         #Sampling analog input starts
         folder = 'r:\\dataslow\\measurements\\electrode_current_temperature'
+        folder = 'c:\\Data'
         ai_channels = 'Dev1/ai3:5'
-        ai_channels = 'Dev1/ai0:2'
+        ai_channels = 'Dev1/ai1:3'
         ai_record_time = 0.2
-        ai_sample_rate = 300000
+        ai_sample_rate = 30000
         complevel = 0
-        
+        pygame.display.set_mode((200, 200), pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL)
         device_name, nchannels, channel_indexes = daq_instrument.parse_channel_string(ai_channels)
         
         h = ImageData(fileop.generate_filename(os.path.join(folder, 'data.hdf5')), filelocking=False)
@@ -34,19 +38,22 @@ if __name__ == "__main__":
         logger.start()
         aio.start_daq(ai_sample_rate = ai_sample_rate,ai_record_time = 3.0, timeout = 10) 
         print 'recording...'
-        print 'press enter twice to terminate'
+        print 'press enter to terminate'
         data = []
         i=0
         t0=time.time()
         with introspect.Timer(''):
-            while not utils.enter_hit():
+            while True:
                 r=aio.read_ai()
                 if r is not None:
+                    print r[-1,:]
                     raw_data.append(numpy.cast['float32'](r))
                 i+=1
-                if time.time()-t0>30.0:
-                    break
+#                if time.time()-t0>10.0:
+#                    break
                 time.sleep(0.1)
+                if is_key_pressed('return'):
+                    break
         print 'stopping...'
 
         data1 = aio.stop_daq()
@@ -55,15 +62,117 @@ if __name__ == "__main__":
         aio.terminate()
         logger.terminate()
         h.close()
-        print 'done'
-        import zipfile
+        print 'zipping'
         zipfile_handler = zipfile.ZipFile(h.filename.replace('.hdf5','.zip'), 'a',compression=zipfile.ZIP_DEFLATED)
         zipfile_handler.write(h.filename, os.path.split(h.filename)[1])
         zipfile_handler.close()
-        h=Hdf5io(h.filename,filelocking=False)
-        h.load('raw_data')
-        print h.raw_data.shape[0]/float(ai_sample_rate)
-#        plot(h.raw_data[:1000],'x-')
-        h.close()
-#        show()
+        if time.time()-t0<100.0:
+            print 'check file'
+            h=Hdf5io(h.filename,filelocking=False)
+            h.load('raw_data')
+            print h.raw_data.shape[0]/float(ai_sample_rate)
+            plot(h.raw_data,'-')
+            h.close()
+        pygame.quit()
+        print 'done'
+        show()
         pass
+
+def evaluate():
+    '''
+    Data order: voltage command, current, temperature
+    '''
+    folder = '/mnt/rzws/measurements/electrode_current_temperature'
+    folder = '/tmp/test'
+    current_scale = 0.5 #mV/pA, 750 mV at 1500 pA
+    voltage_command_scale = 0.1 #100 mV/V
+    ai_sample_rate = 30000
+    fs = os.listdir(folder)
+    fs.sort()
+    figct = 1
+    for f in fs:
+        if 'zip' not in f:
+            continue
+        print f
+        f=os.path.join(folder,f)
+        z = zipfile.ZipFile(f)
+        extracted_file = z.extract(os.path.split(f)[1].replace('zip','hdf5'), tempfile.gettempdir())
+        h=Hdf5io(extracted_file, filelocking=False)
+        h.load('raw_data')
+        import copy
+        data = copy.deepcopy(h.raw_data)
+        h.close()
+        os.remove(extracted_file)
+        z.close()
+        #convert data to physical units:
+        scale = numpy.array([voltage_command_scale, current_scale*1e3,10.0])
+        data *= scale
+        voltage_command = data[:,0]
+        electrode_current = data[:,1]
+        temperature = data[:,2]
+        t = numpy.arange(voltage_command.shape[0],dtype=numpy.float)/ai_sample_rate
+#        plot(t[:1e5],voltage_command[:1e5])
+        from scipy.signal import wiener,medfilt
+        #Find out when voltage pulses took place
+        filtered_voltage_command = (medfilt(voltage_command,[5]))
+        edges = numpy.nonzero(numpy.where(abs(numpy.diff(filtered_voltage_command))>5e-3,1,0))[0]
+        on_pulses = []
+        for i in range(1,edges.shape[0]-1):
+            prev_interval = [edges[i-1]+1,edges[i]-1]
+            if prev_interval[1]-prev_interval[0]<1:
+                continue
+            current_interval = [edges[i]+1,edges[i+1]-1]
+            if current_interval[1]-current_interval[0]<1:
+                continue
+            current_interval_voltage = filtered_voltage_command[current_interval[0]:current_interval[1]].mean()
+            if filtered_voltage_command[prev_interval[0]:prev_interval[1]].mean() < current_interval_voltage:
+                on_pulses.append([current_interval,current_interval_voltage])
+        results = []
+        removable_items = []
+        for i in range(len(on_pulses)):
+            on_pulse = on_pulses[i]
+            boundaries = on_pulse[0]
+            voltage = voltage_command[boundaries[0]:boundaries[1]].mean()
+            current = electrode_current[boundaries[0]+0.1*(boundaries[1]-boundaries[0]):boundaries[1]].mean()
+            temperature_ = temperature[boundaries[0]:boundaries[1]].mean()
+            resistance = voltage/(current*1e-12)
+            if i>1:
+                if voltage*0.5>results[i-1][0] and results[i-1][0]<0.5*results[i-2][0]:
+                    removable_items.append(i-1)
+            results.append([voltage,current,temperature_,resistance])
+        results = [results[i] for i in range(len(results)) if i not in removable_items]
+        results = numpy.array(results)
+        if '006' in f:
+            results = results[200:3300,:]
+        elif '008' in f:
+            results = results[110:,:]
+            
+        voltage = results[:,0]*1000#mV
+        current = results[:,1]/1000#nA
+        temperature = results[:,2]#Celsius
+        resistance = results[:,3]/1e6#MOhm
+        figure(figct)
+        figct +=1
+        plot(voltage)
+        plot(current)
+        plot(temperature)
+        legend(['voltage','current','temperature'])
+        title(os.path.split(f)[1])
+        figure(figct)
+        figct +=1
+        plot(temperature)
+#        plot(current*100)
+        plot(resistance)
+#        plot(temperature/resistance)
+        legend(['temperature', 'resistance'])
+        title(os.path.split(f)[1])
+        #Notes: at cooling there is some fluctuance in resistance
+        #1. plot raw current values with temperature to see if it is true
+        #2. cut out temp up and temp down sections and make a plot(temp, resistance)
+            
+    show()
+        
+
+if __name__ == "__main__":
+    evaluate()
+    
