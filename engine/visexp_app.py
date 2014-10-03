@@ -14,11 +14,10 @@ import warnings
 import visexpman.engine
 from visexpman.engine.visexp_gui import VisionExperimentGui
 from visexpman.engine.generic.command_parser import ServerLoop
-from visexpman.engine.vision_experiment.screen import StimulationScreen, check_keyboard
+from visexpman.engine.vision_experiment.screen import StimulationScreen
 from visexpman.engine.vision_experiment import experiment_control
-from visexpman.engine.generic import introspect
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
+from visexpman.engine.generic.graphics import check_keyboard
+from visexpman.engine.generic import utils,fileop,introspect
 from visexpA.engine.datahandlers import hdf5io
 
 class StimulationLoop(ServerLoop, StimulationScreen):

@@ -141,11 +141,11 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
     def _set_user_parameters(self):
         #### paths/data handling ####
         FULLSCREEN = not True
-        self.root_folder = fileop.select_folder_exists(['/mnt/rznb/data', '/mnt/rzws/experiment_data','/mnt/datafast/debug/data', 'r:\\experiment_data', 'v:\\debug\\data', '/tmp'])
+        self.root_folder = fileop.select_folder_exists(['/mnt/rzws/experiment_data','r:\\experiment_data', '/tmp'])
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH        
         EXPERIMENT_DATA_PATH = self.root_folder
-        DATA_STORAGE_PATH = fileop.select_folder_exists(['/mnt/datafast/debug/animalfiles','v:\\debug\\animalfiles', '/mnt/rzws/dataslow', '/tmp', 'C:\\temp'])
+        DATA_STORAGE_PATH = fileop.select_folder_exists([ '/mnt/rzws/dataslow', '/tmp', 'C:\\temp'])
         CONTEXT_PATH = self.root_folder
         CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
         os.mkdir(CAPTURE_PATH)

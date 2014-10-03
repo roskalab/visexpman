@@ -135,6 +135,20 @@ class TestNaturalStimExp(experiment.Experiment):
             from pylab import plot, savefig
             plot(self.intensity_profile)
             savefig(os.path.join(self.machine_config.OUT_PATH, 'intensity_profile.png'))
+            
+            
+class TestMovingShapeConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPETITIONS = 1
+        self.SHAPE_SIZE = utils.rc((100,200))
+        self.DIRECTIONS = [0,45,90]
+        self.SPEEDS = [1500,2500]
+        self.SHAPE_CONTRAST = 0.5
+        self.SHAPE_BACKGROUND = 0.1
+        self.SHAPE = 'rect'
+        self.PAUSE_BETWEEN_DIRECTIONS = 0.1
+        self.runnable = 'MovingShapeExperiment'
+        self._create_parameters_from_locals(locals())
 
 class Pointing2NotExistingConfig(experiment.ExperimentConfig):
     def _create_parameters(self):

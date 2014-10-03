@@ -73,7 +73,7 @@ if TEST_os == 'Darwin':
 #TEST_pixel_difference_threshold = 50.0
 
 TEST_working_folder = ['/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', '/tmp', 'c:\\temp']
-TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/home/rz/Downloads', 'c:\\temp']
+TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/tmp', 'c:\\temp']
 
 #if TEST_os == 'nt':
 #    TEST_test_data_folder = 'u:\\software_test\\ref_data'
@@ -139,7 +139,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = 'TestAnalogIOProcess.test_12_analog_control'
+TEST_single_unittest = ''#TestStimulationPatterns.test_02_moving_shape'#TestAnalogIOProcess.test_12_analog_control'
 
 def get_python_processes():
     pids = []
