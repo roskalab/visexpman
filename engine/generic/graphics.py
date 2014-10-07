@@ -501,6 +501,20 @@ class Screen(object):
         
     def user_keyboard_handler(self, key_pressed):
         pass
+        
+def check_keyboard():
+    '''
+    Get pressed key
+    '''        
+    keys_pressed = []
+    for event in pygame.event.get():
+        if event.type == pygame.KEYDOWN:
+            key_pressed = pygame.key.name(event.key)                
+            keys_pressed.append(key_pressed)
+    return keys_pressed
+    
+def is_key_pressed(key):
+    return key in check_keyboard()
 
 if __name__ == "__main__": 
     pass

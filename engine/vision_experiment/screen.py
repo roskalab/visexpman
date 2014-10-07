@@ -148,7 +148,7 @@ class StimulationScreen(graphics.Screen):
         #TODO: call  prerun method of pre experiment if exists
         self.flip()
 
-    
+#OBSOLETE
 class ScreenAndKeyboardHandler(StimulationScreen):
     '''
     VisexpmanScreen is amended with keyboard handling
@@ -193,7 +193,7 @@ class ScreenAndKeyboardHandler(StimulationScreen):
         '''
         Registers pressed key and generates command string for command handler.
         '''
-        return self._parse_keyboard_command(check_keyboard(),  domain)
+        return self._parse_keyboard_command(graphics.check_keyboard(),  domain)
         
 
     def user_interface_handler(self):
@@ -205,20 +205,6 @@ class ScreenAndKeyboardHandler(StimulationScreen):
         #Send command to queue
         if command != None:
             self.keyboard_command_queue.put(command)
-
-def check_keyboard():
-    '''
-    Get pressed key
-    '''        
-    keys_pressed = []
-    for event in pygame.event.get():
-        if event.type == pygame.KEYDOWN:
-            key_pressed = pygame.key.name(event.key)                
-            keys_pressed.append(key_pressed)
-    return keys_pressed
-    
-def is_key_pressed(key):
-    return key in check_keyboard()
     
 if __name__ == "__main__":
     pass

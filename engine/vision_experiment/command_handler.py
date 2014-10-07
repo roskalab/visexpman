@@ -20,7 +20,7 @@ from visexpA.engine.datahandlers import hdf5io
 
 find_experiment_class_name = re.compile('class (.+)\(experiment.Experiment\)')
 find_experiment_config_class_name = re.compile('class (.+)\(experiment.ExperimentConfig\)')
-
+#OBSOLETE
 class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandler):
     '''
     Handles all the commands related to vision experiment manager (aka stimulation software, visexp_runner). Commands are received from keyboard and network

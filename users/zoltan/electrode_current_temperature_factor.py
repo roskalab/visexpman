@@ -1,9 +1,9 @@
 import zipfile
-from pylab import *
+from pylab import plot,show,title,figure,legend
 import time,numpy
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.generic import utils, log,fileop,introspect
-from visexpman.engine.vision_experiment.screen import is_key_pressed,check_keyboard
+from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard
 import multiprocessing
 import os.path
 import tables

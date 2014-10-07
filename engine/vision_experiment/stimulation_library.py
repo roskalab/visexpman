@@ -101,7 +101,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         Check keyboard, returns True if abort key sensed. 
         Other commands are saved to keyboard command queue
         '''
-        for command in screen.check_keyboard(): #Here only commands with running experiment domain are considered
+        for command in graphics.check_keyboard(): #Here only commands with running experiment domain are considered
             if command == self.config.KEYS['abort']:
                 self.printl('Abort pressed')
                 self.abort = True
@@ -1209,6 +1209,35 @@ class AdvancedStimulation(Stimulations):
     def moving_grating_stimulus(self):
         pass
         
+    def moving_shape_trajectory(self, size, speeds, directions,pause=0.0,shape_starts_from_edge=False):
+        '''
+        Calculates moving shape trajectory and total duration of stimulus
+        '''
+        if not (isinstance(speeds, list) or hasattr(speeds,'dtype')):
+            speeds = [speeds]
+        if hasattr(size, 'dtype'):
+            shape_size = max(size['row'], size['col'])
+        else:
+            shape_size = size
+        if shape_starts_from_edge:
+            self.movement = max(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) + shape_size
+        else:
+            self.movement = min(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
+        trajectory_directions = []
+        trajectories = []
+        nframes = 0
+        for spd in speeds:
+            for direction in directions:
+                end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.config.SCREEN_CENTER, operation = '+')
+                start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
+                spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+                trajectories.append(utils.calculate_trajectory(start_point,  end_point,  spatial_resolution))
+                nframes += trajectories[-1].shape[0]
+                trajectory_directions.append(direction)
+        duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + len(speeds)*len(directions)*pause
+        return trajectories, trajectory_directions, duration
+        
+        
     def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0, block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
         '''
         shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
@@ -1220,32 +1249,24 @@ class AdvancedStimulation(Stimulations):
 #        else:
 #            pos_with_offset = pos
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')')
-        if not (isinstance(speeds, list) or hasattr(speeds,'dtype')):
-            speeds = [speeds]
-        if hasattr(size, 'dtype'):
-            shape_size = max(size['row'], size['col'])
-        else:
-            shape_size = size
-        if shape_starts_from_edge:
-            self.movement = max(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) + shape_size
-        else:
-            self.movement = min(self.config.SCREEN_SIZE_UM['row'], self.config.SCREEN_SIZE_UM['col']) - shape_size # ref to machine conf which was started
+        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,pause,shape_starts_from_edge)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
-        for spd in speeds:
-            for direction in directions:
-                end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.config.SCREEN_CENTER, operation = '+')
-                start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.config.SCREEN_CENTER, operation = '+')
-                spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                self.show_shape(shape = shape,  pos = utils.calculate_trajectory(start_point,  end_point,  spatial_resolution),  color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size,  block_trigger = block_trigger, save_frame_info = False, enable_centering = False)
-                if pause > 0:
-                    self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
-                if self.abort:
-                    break
+        for block in range(len(trajectories)):
+            self.show_shape(shape = shape,  pos = trajectories[block], 
+                            color = color,  background_color = background_color, 
+                            orientation =self.vaf*trajectory_directions[block] , size = size,  
+                            block_trigger = block_trigger, save_frame_info = False, 
+                            enable_centering = False)
+            if pause > 0:
+                self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
+            if self.abort:
+                break
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        return duration
         
     def white_noise(self, duration, pixel_size = utils.rc((1,1)), flickering_frequency = 0, colors = [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]], n_on_pixels = None, set_seed = True):
         '''
@@ -1378,8 +1399,28 @@ class TestStimulationPatterns(unittest.TestCase):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', ENABLE_FRAME_CAPTURE = not True)
 
+
+    def test_02_moving_shape(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        from visexpman.users.test.test_stimulus import TestMovingShapeConfig
+        context = stimulation_tester('test', 'GUITestConfig', 'TestMovingShapeConfig', ENABLE_FRAME_CAPTURE = True)
+        ec = TestMovingShapeConfig(context['machine_config'])
+        calculated_duration = float(fileop.read_text_file(context['logger'].filename).split('\n')[0].split(' ')[-1])
+        captured_files = map(os.path.join, len(os.listdir(context['machine_config'].CAPTURE_PATH))*[context['machine_config'].CAPTURE_PATH],os.listdir(context['machine_config'].CAPTURE_PATH))
+        captured_files.sort()
+        #remove menu frames (red)
+        stim_frames = [captured_file for captured_file in captured_files if not (numpy.asarray(Image.open(captured_file))[:,:,0].sum() > 0 and numpy.asarray(Image.open(captured_file))[:,:,1:].sum() == 0)]
+        #Check pause durations
+        overall_intensity = [numpy.asarray(Image.open(f)).sum() for f in stim_frames]
+        edges = numpy.nonzero(numpy.diff(abs(utils.signal2binary(overall_intensity))))[0]
+        
+        pauses = numpy.diff(edges[1:-1])[::2]/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE)
+        numpy.testing.assert_equal(pauses, numpy.ones_like(pauses)*0.1)
+        #TODO: check captured files: shape size, speed
+        self.assertEqual((len(stim_frames)-2)/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE), calculated_duration)
+
 #    @unittest.skip('')
-    def test_02_natural_stim_spectrum(self):
+    def test_03_natural_stim_spectrum(self):
         from visexpman.engine.visexp_app import stimulation_tester
         from PIL import Image
         from visexpman.engine.generic import fileop
@@ -1404,7 +1445,7 @@ class TestStimulationPatterns(unittest.TestCase):
         #TODO: test for checking 1/x spectrum
 
     @unittest.skip('')
-    def test_03_natural_export(self):
+    def test_04_natural_export(self):
         export = True
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = export,
@@ -1413,7 +1454,7 @@ class TestStimulationPatterns(unittest.TestCase):
                 DURATION = 3.0, REPEATS = 2, DIRECTIONS = range(0, 360, 180), SPEED=300,SCREEN_PIXEL_TO_UM_SCALE = 1.0, SCREEN_UM_TO_PIXEL_SCALE = 1.0)
 
     @unittest.skipIf(unittest_aggregator.TEST_os != 'Linux',  'Supported only on Linux')    
-    def test_04_export2video(self):
+    def test_05_export2video(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'GUITestConfig', 'TestVideoExportConfig', ENABLE_FRAME_CAPTURE = True)
         videofile = os.path.join(context['machine_config'].EXPERIMENT_DATA_PATH, 'out.mp4')
@@ -1422,17 +1463,17 @@ class TestStimulationPatterns(unittest.TestCase):
         os.remove(videofile)
     
     @unittest.skip('Funtion is not ready')
-    def test_05_texture(self):
+    def test_06_texture(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'TextureTestMachineConfig', 'TestTextureStimConfig', ENABLE_FRAME_CAPTURE = False)
         
     @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
-    def test_06_point_laser_beam(self):
+    def test_07_point_laser_beam(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfig')
 
     @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
-    def test_07_point_laser_beam_out_of_range(self):
+    def test_08_point_laser_beam_out_of_range(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfigOutOfRange')
         self.assertIn('ScannerError', fileop.read_text_file(context['logger'].filename))
