@@ -19,8 +19,9 @@ def measure():
         folder = 'c:\\Data'
         ai_channels = 'Dev1/ai3:5'
         ai_channels = 'Dev1/ai1:3'
-        ai_record_time = 0.2
+        ai_record_time = 0.02
         ai_sample_rate = 30000
+#        ai_sample_rate = 3000000
         complevel = 0
         pygame.display.set_mode((200, 200), pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL)
         device_name, nchannels, channel_indexes = daq_instrument.parse_channel_string(ai_channels)
@@ -51,7 +52,7 @@ def measure():
                 i+=1
 #                if time.time()-t0>10.0:
 #                    break
-                time.sleep(0.1)
+                time.sleep(ai_record_time*0.5)
                 if is_key_pressed('return'):
                     break
         print 'stopping...'
@@ -84,12 +85,14 @@ def evaluate():
     '''
     folder = '/mnt/rzws/measurements/electrode_current_temperature'
     folder = '/tmp/test'
+#    folder = 'c:\\temp\\test'
     current_scale = 0.5 #mV/pA, 750 mV at 1500 pA
     voltage_command_scale = 0.1 #100 mV/V
     ai_sample_rate = 30000
     fs = os.listdir(folder)
     fs.sort()
     figct = 1
+    legendtxt=[]
     for f in fs:
         if 'zip' not in f:
             continue
@@ -146,7 +149,8 @@ def evaluate():
             results = results[200:3300,:]
         elif '008' in f:
             results = results[110:,:]
-            
+        if 0:
+            numpy.savetxt(f.replace('zip','txt'), results, '%10.5f')
         voltage = results[:,0]*1000#mV
         current = results[:,1]/1000#nA
         temperature = results[:,2]#Celsius
@@ -169,10 +173,56 @@ def evaluate():
         #Notes: at cooling there is some fluctuance in resistance
         #1. plot raw current values with temperature to see if it is true
         #2. cut out temp up and temp down sections and make a plot(temp, resistance)
+#        cut_indexes = numpy.nonzero(numpy.where(voltage>15,1,0))[0]
+#        temperature = temperature[cut_indexes]
+#        resistance = resistance[cut_indexes]
+#        if temperature.shape[0]==0:
+#            continue
+        #1e-3
+        #5e-3, 10e-3
+        if '008' in f:
+            boundaries = [600,2300,2950,6600,6990,8250,9100,12900]
+        elif '007' in f:
+            boundaries = [0,1450,2800, 6200]
+        elif '006' in f:
+            boundaries = [0,2500]
+        for intervali in range(len(boundaries)/2):
+            boundary=boundaries[2*intervali:2*intervali+2]
+            t_interval = temperature[boundary[0]:boundary[1]]
+            r_interval = resistance[boundary[0]:boundary[1]]
+            temps = numpy.arange(t_interval.min(), t_interval.max(),0.1)
+            resistance_sorted = []
+            resistance_sorted_std = []
             
+            
+            for step in range(temps.shape[0]-1):
+                indexes = numpy.nonzero(numpy.where(t_interval>temps[step],1,0) * numpy.where(t_interval<=temps[step+1],1,0))[0]
+                resistance_sorted.append(r_interval[indexes].mean())
+                resistance_sorted_std.append(r_interval[indexes].std())
+            if intervali%2 ==0:
+                tag='heating'
+            else:
+                tag='cooling'
+            figure(100)
+            plot(temps[:-1],resistance_sorted)
+            legendtxt.append('{0}, {1}, {2:.0f} mV'.format(os.path.split(f)[1],tag, voltage[boundary[0]+1]))
+#            figure(figct)
+#            figct +=1
+#            title('{0}, temp-resistance [MOhm], {1}'.format(os.path.split(f)[1],intervali))
+#            plot(temps[:-1],resistance_sorted)
+        
+        
+        
+        
+    figure(100)
+    legend(legendtxt)
+    xlabel('temperature [Celsius degree]')
+    ylabel('resistance [MOhm]')
+    title('Temperature dependency of electrode resistance')
     show()
         
 
 if __name__ == "__main__":
+#    measure()
     evaluate()
     
