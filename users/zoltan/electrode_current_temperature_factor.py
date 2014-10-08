@@ -17,17 +17,16 @@ def measure():
         #Sampling analog input starts
         folder = 'r:\\dataslow\\measurements\\electrode_current_temperature'
         folder = 'c:\\Data'
-        ai_channels = 'Dev1/ai3:5'
         ai_channels = 'Dev1/ai1:3'
         ai_record_time = 0.02
         ai_sample_rate = 30000
 #        ai_sample_rate = 3000000
-        complevel = 0
+        complevel = 9
         pygame.display.set_mode((200, 200), pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL)
         device_name, nchannels, channel_indexes = daq_instrument.parse_channel_string(ai_channels)
         
         h = ImageData(fileop.generate_filename(os.path.join(folder, 'data.hdf5')), filelocking=False)
-        raw_data = h.h5f.create_earray(h.h5f.root, 'raw_data', tables.Float32Atom((nchannels,)), (0,),filters=tables.Filters(complevel=complevel, complib='lzo', shuffle = 1), expectedrows=int(ai_record_time * ai_sample_rate))
+        raw_data = h.h5f.create_earray(h.h5f.root, 'raw_data', tables.Float32Atom((nchannels,)), (0,),filters=tables.Filters(complevel=complevel, complib='blosc', shuffle = 1), expectedrows=int(ai_record_time * ai_sample_rate))
         
         logfile = fileop.generate_filename(os.path.join(folder, 'log_recorder.txt'))
         logger = log.Logger(filename=logfile)
@@ -63,10 +62,11 @@ def measure():
         aio.terminate()
         logger.terminate()
         h.close()
-        print 'zipping'
-        zipfile_handler = zipfile.ZipFile(h.filename.replace('.hdf5','.zip'), 'a',compression=zipfile.ZIP_DEFLATED)
-        zipfile_handler.write(h.filename, os.path.split(h.filename)[1])
-        zipfile_handler.close()
+        if 0:
+            print 'zipping'
+            zipfile_handler = zipfile.ZipFile(h.filename.replace('.hdf5','.zip'), 'a',compression=zipfile.ZIP_DEFLATED)
+            zipfile_handler.write(h.filename, os.path.split(h.filename)[1])
+            zipfile_handler.close()
         if time.time()-t0<100.0:
             print 'check file'
             h=Hdf5io(h.filename,filelocking=False)
@@ -93,19 +93,26 @@ def evaluate():
     fs.sort()
     figct = 1
     legendtxt=[]
+    zipped = len([f for f in fs if 'zip' in f])>0
     for f in fs:
-        if 'zip' not in f:
+        if 'zip' not in f and zipped:
             continue
         print f
         f=os.path.join(folder,f)
-        z = zipfile.ZipFile(f)
-        extracted_file = z.extract(os.path.split(f)[1].replace('zip','hdf5'), tempfile.gettempdir())
+        if zipped:
+            z = zipfile.ZipFile(f)
+            extracted_file = z.extract(os.path.split(f)[1].replace('zip','hdf5'), tempfile.gettempdir())
+        else:
+            if 'hdf5' not in f:
+                continue
+            extracted_file = f
         h=Hdf5io(extracted_file, filelocking=False)
         h.load('raw_data')
         import copy
         data = copy.deepcopy(h.raw_data)
         h.close()
-        os.remove(extracted_file)
+        if zipped:
+            os.remove(extracted_file)
         z.close()
         #convert data to physical units:
         scale = numpy.array([voltage_command_scale, current_scale*1e3,10.0])
