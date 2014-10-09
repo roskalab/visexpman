@@ -501,6 +501,31 @@ class Screen(object):
         
     def user_keyboard_handler(self, key_pressed):
         pass
+
+    def draw_L(self, size,position):
+        width = 0.25*size
+        lenght1=size
+        lenght2=0.5 * size
+        vertices = numpy.array([
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + lenght1 - 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + lenght1 - 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + lenght2 - 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + lenght2 - 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width],
+                                
+                                
+                                ])
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glDrawArrays(GL_POLYGON,  0, 6)
+        glDisableClientState(GL_VERTEX_ARRAY)        
         
 def check_keyboard():
     '''
