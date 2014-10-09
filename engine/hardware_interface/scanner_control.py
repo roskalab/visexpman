@@ -1557,7 +1557,7 @@ class TestScannerControl(unittest.TestCase):
     @unittest.skip('Run only for debug purposes')
     def test_13_run_twophoton(self):
         import time
-        import Image
+        from PIL import Image
         from visexpA.engine.dataprocessors.generic import normalize
         plot_enable = not False
         config = ScannerTestConfig()

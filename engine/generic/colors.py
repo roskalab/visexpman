@@ -1,7 +1,7 @@
 #This modules contains all the (stimulus) color related conversion, manipulation function
 #From utils all the color related functions shall be moved to here
 import numpy
-import Image
+from PIL import Image
 
 def imshow(ima, show=True):
     im = Image.fromarray(numpy.cast['uint8'](255*(ima - ima.min())/(ima.max()-ima.min())))

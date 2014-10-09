@@ -286,7 +286,7 @@ class MesInterface(object):
                                 image = matlabfile.read_two_photon_image(two_photon_image_path)
                                 result = True
                             os.remove(two_photon_image_path)
-#        import Image
+#        from PIL import Image
 #        im = numpy.cast['uint8'](image['pmtUGraw']/2)
 #        im  = Image.fromarray(im)
 #        im.save('v:\\debug\\data\\2p.png')

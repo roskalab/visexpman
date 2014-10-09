@@ -1,7 +1,7 @@
 import numpy
-import Image
-import ImageDraw
-import ImageFont
+from PIL import Image
+from PIL import ImageDraw
+from PIL import ImageFont
 import os
 from visexpA.engine.dataprocessors import generic
 import unittest

@@ -7,7 +7,7 @@ from visexpman.engine.generic import utils
 from visexpman.engine.generic import colors
 from visexpman.engine.generic import graphics
 from visexpman.engine.generic import file
-import Image
+from PIL import Image
 
 from OpenGL.GL import *#TODO: perhaps this is not necessary
 from OpenGL.GLUT import *
@@ -54,12 +54,12 @@ class VisionExperimentScreen(graphics.Screen):
                 self.bullseye_size_in_pixel = int(float(self.bullseye_size) * self.config.SCREEN_UM_TO_PIXEL_SCALE)
                 bullseye_path = file.get_tmp_file('bmp')
                 im = Image.open(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'))
-                im = im.resize((self.bullseye_size_in_pixel, self.bullseye_size_in_pixel))
+                im = im.resize((self.bullseye_size_in_pixel, self.bullseye_size_in_pixel))                
                 try:
                     im.save(bullseye_path)
                     self.render_imagefile(bullseye_path, position = utils.rc_multiply_with_constant(self.screen_center, self.config.SCREEN_UM_TO_PIXEL_SCALE))
                 except:
-                    pass
+                    self.draw_L(self.bullseye_size_in_pixel,utils.rc_multiply_with_constant(self.screen_center, self.config.SCREEN_UM_TO_PIXEL_SCALE))
         
     def _show_menu(self, flip = False):
         '''

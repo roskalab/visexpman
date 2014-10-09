@@ -6,7 +6,7 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 import pygame
 
-import Image
+from PIL import Image
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
 
@@ -319,7 +319,7 @@ class Screen(object):
             im = im.transpose(Image.FLIP_TOP_BOTTOM)
         im = im.convert('RGBX')
         self.image_size = im.size
-        ix, iy, image = im.size[0], im.size[1], im.tostring('raw', 'RGBX', 0, -1)        
+        ix, iy, image = im.size[0], im.size[1], im.tostring('raw', 'RGBX', 0, -1)
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         glTexImage2D(GL_TEXTURE_2D, 0, 3, ix, iy, 0, GL_RGBA, GL_UNSIGNED_BYTE, image)
@@ -351,6 +351,39 @@ class Screen(object):
         glDisableClientState(GL_VERTEX_ARRAY)
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        
+    def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0):
+        glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
+        vertices = numpy.array([
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[0]*stretch],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[0]*stretch],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[0]*stretch],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[0]*stretch],
+                                ])
+        
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        dt = GL_FLOAT
+#        dt = GL_UNSIGNED_BYTE
+        glTexImage2D(GL_TEXTURE_2D, 0, 3, image.shape[1], image.shape[0], 0, GL_RGB, dt, image)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
+        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
+        glEnable(GL_TEXTURE_2D)
+        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+        texture_coordinates = numpy.array(
+                             [
+                             [1.0, 1.0],
+                             [1.0, 0.0],
+                             [0.0, 0.0],
+                             [0.0, 1.0],
+                             ])
+        glTexCoordPointerf(texture_coordinates)
+        glColor3fv((1.0,1.0,1.0))
+        glDrawArrays(GL_POLYGON,  0, 4)
+        glDisable(GL_TEXTURE_2D)
+        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        glDisableClientState(GL_VERTEX_ARRAY)        
         
     def create_texture(self):
         pass
@@ -450,6 +483,32 @@ class Screen(object):
         
     def user_keyboard_handler(self, key_pressed):
         pass
+        
+    def draw_L(self, size,position):
+        width = 0.25*size
+        lenght1=size
+        lenght2=0.5 * size
+        vertices = numpy.array([
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + lenght1 - 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + lenght1 - 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + lenght2 - 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * width],
+                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + lenght2 - 0.5 * width, 
+                                    position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * width],
+                                
+                                
+                                ])
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        glDrawArrays(GL_POLYGON,  0, 6)
+        glDisableClientState(GL_VERTEX_ARRAY)        
+    
 
 if __name__ == "__main__": 
     pass

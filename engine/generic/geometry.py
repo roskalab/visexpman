@@ -2,7 +2,7 @@ from __future__ import generators
 import numpy
 import unittest
 import utils
-import Image
+from PIL import Image
 from visexpman.engine.generic.utils import nan2value
 from scipy.ndimage.interpolation import shift, rotate
 from visexpman.engine.generic.utils import nd, rc, cr
@@ -834,7 +834,7 @@ def polygon2filled(polygon, color=None):
     '''Converts a polygon object into a list of coordinates of the entire polyon
     '''
     import Polygon,  Polygon.Utils
-    import Image, ImageDraw
+    from PIL import Image, ImageDraw
     pts2=numpy.round(numpy.array(Polygon.Utils.pointList(polygon)))
     li = Image.fromarray(numpy.zeros(numpy.max(pts2, axis=0)+2), mode='I')
     draw= ImageDraw.Draw(li)

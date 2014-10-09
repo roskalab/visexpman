@@ -3,7 +3,7 @@ import numpy
 from scipy.ndimage.morphology import binary_erosion,  binary_dilation
 from numpy.random import shuffle as nshuffle
 from numpy.random import random_integers
-import Image
+from PIL import Image
 omap_b =[]
 
 def calib(gridpoints,  cfg,  dot_area, dot_coord, dots_per_size, allowed_white_area_variation):
@@ -121,7 +121,7 @@ def circle_coord(diameter,  resolution = 1.0,  image_size = None,  color = 1.0, 
     color: color of circle, greyscale, range 0...1
     pos : x, y position in pixels, center is 0, 0
     '''
-    import Image,  ImageDraw,  numpy
+    from PIL import Image,  ImageDraw,  numpy
     from bresenham import circle_arc
     vertices = utils.calculate_circle_vertices([diameter,  diameter],  resolution)
     if image_size is None:

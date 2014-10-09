@@ -1,7 +1,7 @@
 from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title, xlabel,  ylabel
 from visexpman.engine.hardware_interface import scanner_control
 from visexpA.engine.datahandlers import hdf5io
-import Image
+from PIL import Image
 from visexpA.engine.dataprocessors.generic import normalize
 import os
 import os.path

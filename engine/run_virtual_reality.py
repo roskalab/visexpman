@@ -9,7 +9,7 @@
 #import generic.utils
 #import time
 #import numpy
-#import Image
+#from PIL import Image
 #import sys
 #sys.path.append('..')
 #import users.zoltan.configurations

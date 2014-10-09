@@ -13,16 +13,16 @@ import re
 import copy
 import cPickle as pickle
 import scipy.ndimage
-import Image
-import ImageDraw
-import ImageFont
+from PIL import Image
+from PIL import ImageDraw
+from PIL import ImageFont
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
 import visexpman
-from visexpA.engine.datadisplay import imaged
+from visexpA.engine.datadisplay from PIL import Imaged
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration

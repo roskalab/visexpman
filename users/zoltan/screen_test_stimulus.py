@@ -96,7 +96,7 @@ class ScreenTest(experiment.Experiment):
             for col in range(self.experiment_config.N_COLS):
                 image[row*rectsize['row']:(row+1)*rectsize['row'],col*rectsize['col']:(col+1)*rectsize['col'],:]  = numpy.cast['uint8'](255*numpy.array(self.experiment_config.COLORS[color_index]))
                 color_index+=1
-        import Image
+        from PIL import Image
         #Find out file index
         captured_files = file.listdir_fullpath(self.machine_config.CAPTURE_PATH)
         captured_files.sort()

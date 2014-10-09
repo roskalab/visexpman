@@ -1,6 +1,6 @@
 import numpy
-import Image
-import ImageDraw
+from PIL import Image
+from PIL import ImageDraw
 
 #class AngularAmplificationMirrror(object):
 #    """

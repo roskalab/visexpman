@@ -143,7 +143,7 @@ def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  col
     pos : x, y position in pixels, center is 0, 0
     '''
     vertices = calculate_circle_vertices([diameter,  diameter],  resolution)
-    import Image,  ImageDraw,  numpy
+    from PIL import Image,  ImageDraw,  numpy
     image = Image.new('L',  image_size,  0)
     draw = ImageDraw.Draw(image)
     
