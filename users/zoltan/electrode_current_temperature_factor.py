@@ -1,5 +1,5 @@
 import zipfile
-from pylab import plot,show,title,figure,legend
+from pylab import plot,show,title,figure,legend,xlabel,ylabel
 import time,numpy
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.generic import utils, log,fileop,introspect
@@ -143,9 +143,18 @@ def evaluate():
             on_pulse = on_pulses[i]
             boundaries = on_pulse[0]
             voltage = voltage_command[boundaries[0]:boundaries[1]].mean()
+            if i ==0:
+                baseline_first_index = boundaries[0]/2
+            else:
+                baseline_first_index = on_pulses[i-1][0][1]+0.25*(boundaries[0]-on_pulses[i-1][0][1])
+            current_baseline = electrode_current[baseline_first_index:boundaries[0]-1].mean()
             current = electrode_current[boundaries[0]+0.1*(boundaries[1]-boundaries[0]):boundaries[1]].mean()
+            current -= current_baseline
             temperature_ = temperature[boundaries[0]:boundaries[1]].mean()
-            resistance = voltage/(current*1e-12)
+            if current==0:
+                resistance = 0
+            else:
+                resistance = voltage/(current*1e-12)
             if i>1:
                 if voltage*0.5>results[i-1][0] and results[i-1][0]<0.5*results[i-2][0]:
                     removable_items.append(i-1)
@@ -162,21 +171,22 @@ def evaluate():
         current = results[:,1]/1000#nA
         temperature = results[:,2]#Celsius
         resistance = results[:,3]/1e6#MOhm
-        figure(figct)
-        figct +=1
-        plot(voltage)
-        plot(current)
-        plot(temperature)
-        legend(['voltage','current','temperature'])
-        title(os.path.split(f)[1])
-        figure(figct)
-        figct +=1
-        plot(temperature)
-#        plot(current*100)
-        plot(resistance)
-#        plot(temperature/resistance)
-        legend(['temperature', 'resistance'])
-        title(os.path.split(f)[1])
+        if 1:
+            figure(figct)
+            figct +=1
+            plot(voltage)
+            plot(current)
+            plot(temperature)
+            legend(['voltage','current','temperature'])
+            title(os.path.split(f)[1])
+            figure(figct)
+            figct +=1
+            plot(temperature)
+    #        plot(current*100)
+            plot(resistance)
+    #        plot(temperature/resistance)
+            legend(['temperature', 'resistance'])
+            title(os.path.split(f)[1])
         #Notes: at cooling there is some fluctuance in resistance
         #1. plot raw current values with temperature to see if it is true
         #2. cut out temp up and temp down sections and make a plot(temp, resistance)
@@ -227,6 +237,9 @@ def evaluate():
     ylabel('resistance [MOhm]')
     title('Temperature dependency of electrode resistance')
     show()
+    import pdb
+#    pdb.set_trace()
+    pass
     
 def evaluate1():
     f = '/home/rz/codes/data/electrode_current_temperature/20141010/data_00003.hdf5'
@@ -245,5 +258,5 @@ def evaluate1():
 
 if __name__ == "__main__":
 #    measure()
-    evaluate1()
+    evaluate()
     
