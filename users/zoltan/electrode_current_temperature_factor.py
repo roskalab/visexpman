@@ -139,6 +139,7 @@ def evaluate():
                 on_pulses.append([current_interval,current_interval_voltage])
         results = []
         removable_items = []
+        print 'analyse pulses'
         for i in range(len(on_pulses)):
             on_pulse = on_pulses[i]
             boundaries = on_pulse[0]
@@ -159,6 +160,7 @@ def evaluate():
                 if voltage*0.5>results[i-1][0] and results[i-1][0]<0.5*results[i-2][0]:
                     removable_items.append(i-1)
             results.append([voltage,current,temperature_,resistance])
+        print 'pulse analysis done'
         results = [results[i] for i in range(len(results)) if i not in removable_items]
         results = numpy.array(results)
         if '006' in f:
@@ -171,7 +173,7 @@ def evaluate():
         current = results[:,1]/1000#nA
         temperature = results[:,2]#Celsius
         resistance = results[:,3]/1e6#MOhm
-        if 1:
+        if 0:
             figure(figct)
             figct +=1
             plot(voltage)
@@ -255,8 +257,43 @@ def evaluate1():
     electrode_current = data[:,1]
     temperature = data[:,2]
     pass
+    
+def poly(x, *p):
+    res = []
+    for o in range(len(p)):
+        res .append(p[o]*x**o)
+    return numpy.array(res).sum(axis=0)
+    
+def fit():
+    f = '/home/rz/codes/data/electrode_current_temperature/aggregated.hdf5'
+    h=Hdf5io(f,filelocking=False)
+    legendtxt = h.findvar('legendtxt')
+    rt_curves = h.findvar('rt_curves')
+    h.close()
+    figct=1
+    for c in rt_curves:
+        figure(0)
+        plot(c[0],c[1])
+        figure(figct)
+        plot(c[0],c[1])
+        p0=[40,-1]
+        import scipy.optimize
+        coeff, var_matrix = scipy.optimize.curve_fit(poly, numpy.array(c[0]), numpy.array(c[1]), p0=p0)
+        plot(c[0],poly(numpy.array(c[0]), *coeff))
+        plot(numpy.arange(10,45,1), poly(numpy.arange(10,45,1), 40,-0.44), 'x-')
+        title(legendtxt[figct-1]+', {0:.3f} + {1:.3f}*T'.format(coeff[0],coeff[1]))
+        xlabel('temperature [Celsius degree]')
+        ylabel('resistance [MOhm]')
+        figct+=1
+    figure(0)
+    plot(numpy.arange(10,45,1), poly(numpy.arange(10,45,1), 40,-0.44), 'x-')
+    legend(legendtxt)
+    xlabel('temperature [Celsius degree]')
+    ylabel('resistance [MOhm]')
+    show()
 
 if __name__ == "__main__":
 #    measure()
-    evaluate()
+#    evaluate()
+    fit()
     
