@@ -227,9 +227,23 @@ def evaluate():
     ylabel('resistance [MOhm]')
     title('Temperature dependency of electrode resistance')
     show()
-        
+    
+def evaluate1():
+    f = '/home/rz/codes/data/electrode_current_temperature/20141010/data_00003.hdf5'
+    current_scale = 0.5 #mV/pA, 750 mV at 1500 pA
+    voltage_command_scale = 0.1 #100 mV/V
+    ai_sample_rate = 30000    
+    h=Hdf5io(f, filelocking=False)
+    h.load('raw_data')
+    print h.raw_data.shape
+    data = copy.deepcopy(h.raw_data)
+    h.close()
+    voltage_command = data[:,0]
+    electrode_current = data[:,1]
+    temperature = data[:,2]
+    pass
 
 if __name__ == "__main__":
 #    measure()
-    evaluate()
+    evaluate1()
     
