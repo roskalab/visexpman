@@ -52,7 +52,7 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
                     [9.50324884e-08,  -1.43226725e-07, 1.50117389e-05,  -1.41414186e-04,   5.90072950e-04,   5.40402050e-03,  -1.18021600e-02]#(p1*a+p2)*f**2+(p3*a**2+p4*a+p5)*f+(p6*a+p7), in radians
         self._create_parameters_from_locals(locals())
 
-class TamasSetupConfig(ElphysConfig):
+class TamasSetupConfig(ElphysRetinalCaImagingConfig):
     '''
     '''
     def _set_user_parameters(self):
@@ -73,7 +73,7 @@ class TamasSetupConfig(ElphysConfig):
         INSERT_FLIP_DELAY = True
         SCREEN_EXPECTED_FRAME_RATE = 60.0
         SCREEN_MAX_FRAME_RATE = 60.0
-        SCREEN_UM_TO_PIXEL_SCALE = 3.0
+        SCREEN_UM_TO_PIXEL_SCALE = 0.377
         #SCREEN_PIXEL_WIDTH = 0.5#mm 200 pixels = 100 mm
         
         #=== hardware ===

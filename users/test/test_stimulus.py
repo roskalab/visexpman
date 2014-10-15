@@ -17,6 +17,16 @@ from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.users.test import unittest_aggregator
 from visexpman.users.common import stimuli
 
+
+class TestShowGratingPars(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'TestShowGratingExp'
+        self._create_parameters_from_locals(locals())
+        
+class TestShowGratingExp(experiment.Experiment):
+    def run(self):
+        self.show_grating(duration=10,velocity=2000,white_bar_width=100)
+
 class LaserBeamStimulusConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.REPEATS =2

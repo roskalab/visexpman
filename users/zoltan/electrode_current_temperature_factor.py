@@ -230,6 +230,6 @@ def evaluate():
         
 
 if __name__ == "__main__":
-#    measure()
-    evaluate()
+    measure()
+#    evaluate()
     
