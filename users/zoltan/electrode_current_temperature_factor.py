@@ -1,5 +1,5 @@
 import zipfile
-from pylab import plot,show,title,figure,legend
+from pylab import plot,show,title,figure,legend,xlabel,ylabel
 import time,numpy
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.generic import utils, log,fileop,introspect
@@ -139,17 +139,28 @@ def evaluate():
                 on_pulses.append([current_interval,current_interval_voltage])
         results = []
         removable_items = []
+        print 'analyse pulses'
         for i in range(len(on_pulses)):
             on_pulse = on_pulses[i]
             boundaries = on_pulse[0]
             voltage = voltage_command[boundaries[0]:boundaries[1]].mean()
+            if i ==0:
+                baseline_first_index = boundaries[0]/2
+            else:
+                baseline_first_index = on_pulses[i-1][0][1]+0.25*(boundaries[0]-on_pulses[i-1][0][1])
+            current_baseline = electrode_current[baseline_first_index:boundaries[0]-1].mean()
             current = electrode_current[boundaries[0]+0.1*(boundaries[1]-boundaries[0]):boundaries[1]].mean()
+            current -= current_baseline
             temperature_ = temperature[boundaries[0]:boundaries[1]].mean()
-            resistance = voltage/(current*1e-12)
+            if current==0:
+                resistance = 0
+            else:
+                resistance = voltage/(current*1e-12)
             if i>1:
                 if voltage*0.5>results[i-1][0] and results[i-1][0]<0.5*results[i-2][0]:
                     removable_items.append(i-1)
             results.append([voltage,current,temperature_,resistance])
+        print 'pulse analysis done'
         results = [results[i] for i in range(len(results)) if i not in removable_items]
         results = numpy.array(results)
         if '006' in f:
@@ -162,21 +173,22 @@ def evaluate():
         current = results[:,1]/1000#nA
         temperature = results[:,2]#Celsius
         resistance = results[:,3]/1e6#MOhm
-        figure(figct)
-        figct +=1
-        plot(voltage)
-        plot(current)
-        plot(temperature)
-        legend(['voltage','current','temperature'])
-        title(os.path.split(f)[1])
-        figure(figct)
-        figct +=1
-        plot(temperature)
-#        plot(current*100)
-        plot(resistance)
-#        plot(temperature/resistance)
-        legend(['temperature', 'resistance'])
-        title(os.path.split(f)[1])
+        if 0:
+            figure(figct)
+            figct +=1
+            plot(voltage)
+            plot(current)
+            plot(temperature)
+            legend(['voltage','current','temperature'])
+            title(os.path.split(f)[1])
+            figure(figct)
+            figct +=1
+            plot(temperature)
+    #        plot(current*100)
+            plot(resistance)
+    #        plot(temperature/resistance)
+            legend(['temperature', 'resistance'])
+            title(os.path.split(f)[1])
         #Notes: at cooling there is some fluctuance in resistance
         #1. plot raw current values with temperature to see if it is true
         #2. cut out temp up and temp down sections and make a plot(temp, resistance)
@@ -227,9 +239,62 @@ def evaluate():
     ylabel('resistance [MOhm]')
     title('Temperature dependency of electrode resistance')
     show()
-        
+    import pdb
+#    pdb.set_trace()
+    pass
+    
+def evaluate1():
+    f = '/home/rz/codes/data/electrode_current_temperature/20141010/data_00003.hdf5'
+    current_scale = 0.5 #mV/pA, 750 mV at 1500 pA
+    voltage_command_scale = 0.1 #100 mV/V
+    ai_sample_rate = 30000    
+    h=Hdf5io(f, filelocking=False)
+    h.load('raw_data')
+    print h.raw_data.shape
+    data = copy.deepcopy(h.raw_data)
+    h.close()
+    voltage_command = data[:,0]
+    electrode_current = data[:,1]
+    temperature = data[:,2]
+    pass
+    
+def poly(x, *p):
+    res = []
+    for o in range(len(p)):
+        res .append(p[o]*x**o)
+    return numpy.array(res).sum(axis=0)
+    
+def fit():
+    f = '/home/rz/codes/data/electrode_current_temperature/aggregated.hdf5'
+    h=Hdf5io(f,filelocking=False)
+    legendtxt = h.findvar('legendtxt')
+    rt_curves = h.findvar('rt_curves')
+    h.close()
+    figct=1
+    for c in rt_curves:
+        figure(0)
+        plot(c[0],c[1])
+        figure(figct)
+        plot(c[0],c[1])
+        p0=[40,-1]
+        import scipy.optimize
+        coeff, var_matrix = scipy.optimize.curve_fit(poly, numpy.array(c[0]), numpy.array(c[1]), p0=p0)
+        plot(c[0],poly(numpy.array(c[0]), *coeff))
+        plot(numpy.arange(10,45,1), poly(numpy.arange(10,45,1), 40,-0.44), 'x-')
+        title(legendtxt[figct-1]+', {0:.3f} + {1:.3f}*T'.format(coeff[0],coeff[1]))
+        xlabel('temperature [Celsius degree]')
+        ylabel('resistance [MOhm]')
+        figct+=1
+    figure(0)
+    plot(numpy.arange(10,45,1), poly(numpy.arange(10,45,1), 40,-0.44), 'x-')
+    legend(legendtxt)
+    xlabel('temperature [Celsius degree]')
+    ylabel('resistance [MOhm]')
+    show()
 
 if __name__ == "__main__":
-    measure()
+#    measure()
 #    evaluate()
+    fit()
+
     

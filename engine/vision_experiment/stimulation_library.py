@@ -1018,6 +1018,47 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
+    def show_grating_non_texture(self,duration,width,speed,orientation,duty_cycle,contrast=1.0,background=0.0):
+        width_pix = width*self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
+        speed_pixel=speed*self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
+        #Calculate display area
+        da_height = 2*self.config.SCREEN_RESOLUTION['col']*numpy.cos(numpy.arctan2(self.config.SCREEN_RESOLUTION['col'],self.config.SCREEN_RESOLUTION['row']))
+        da_width = numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2+self.config.SCREEN_RESOLUTION['col']**2)
+        period_length = numpy.round(width_pix*(1+duty_cycle))
+        phase_range = numpy.arange(period_length)
+        nperiods_s = numpy.ceil(da_width/period_length)
+        da_width = nperiods_s*period_length
+        #calculate vertices
+        edges_col = numpy.repeat(numpy.arange(nperiods_s)*period_length,2)
+        edges_col[1::2]+=width_pix
+        edges_row  = numpy.ones(nperiods_s*2)*self.config.SCREEN_RESOLUTION['row']/2
+        up_row = da_height/2*numpy.cos(numpy.radians(orientation))
+        up_col = -da_height/2*numpy.sin(numpy.radians(orientation))
+        down_row = -da_height/2*numpy.cos(numpy.radians(orientation))
+        down_col = da_height/2*numpy.sin(numpy.radians(orientation))
+        cols = numpy.array([edges_col + up_col,edges_col + down_col]).T.flatten()
+        rows = numpy.array([edges_row + up_row,edges_row + down_row]).T.flatten()
+        vertices_one_frame = numpy.array([rows,cols]).T
+        vertices = numpy.tile(vertices,phase_range.shape[0])+phase_range
+        glEnableClientState(GL_VERTEX_ARRAY)
+        phase = 0
+        nframes=duration*self.config.SCREEN_EXPECTED_FRAME_RATE
+        color_converted = colors.convert_color(contrast, self.config)
+        for frame_i in range(nframes):
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
+            glVertexPointerf(vertices[phase*vertices_one_frame.shape[0]:(phase+1)*vertices_one_frame.shape[0]])
+            phase +=1
+            if phase >= period_length:
+                phase = 0
+            glColor3fv(color_converted)
+            for stripe_i in range(nperiods_s):
+                glDrawArrays(GL_POLYGON, stripe_i * 4, 4)
+            self.log_on_flip_message = ''
+            self._flip_and_block_trigger(frame_i, nframes, True)
+            if self.abort:
+                break
+            
+            
     def show_natural_bars(self, speed = 300, repeats = 5, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, save_frame_info =True, block_trigger = False):
         if spatial_resolution is None:
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
