@@ -524,6 +524,11 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
                                              [0.5, 25.0], 
                                              [1.0, 100.0],])
         self._create_parameters_from_locals(locals())
+        
+class GUITestConfigPix(GUITestConfig):
+    def _set_user_parameters(self):
+        GUITestConfig._set_user_parameters(self)
+        self.SCREEN_UM_TO_PIXEL_SCALE = 1.0
 
 class AppInitTest4Config(GUITestConfig):
     def _set_user_parameters(self):

@@ -148,6 +148,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         FLIP_EXECUTION_TIME = [0*1e-3, [-1.0, 1.0]]
         ENABLE_FRAME_CAPTURE = False
         STIMULUS2MEMORY = False
+        MEASURE_FRAME_RATE = False
         
         ########  Coordinate system selection ########
         COORDINATE_SYSTEM = ['undefined', ['ulcorner','center', 'undefined']] 

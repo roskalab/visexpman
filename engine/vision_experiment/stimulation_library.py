@@ -1,3 +1,4 @@
+import pdb
 import os.path
 import os
 import numpy
@@ -321,7 +322,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self._flip(trigger = False)
         else:
             self._show_image(path,duration,position,flip)
-        self._save_stimulus_frame_info(inspect.currentframe())
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
     def _show_image(self,path,duration,position,stretch,flip):
         if duration == 0.0:
@@ -1018,45 +1019,79 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-    def show_grating_non_texture(self,duration,width,speed,orientation,duty_cycle,contrast=1.0,background=0.0):
-        width_pix = width*self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
-        speed_pixel=speed*self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
+    def show_grating_non_texture(self,duration,width,speed,orientation,duty_cycle,contrast=1.0,background_color=0.0):
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        swap_row_col=False
+        reverse_phases = False
+        if orientation == 90:
+            orientation = 0
+            swap_row_col=True
+        elif orientation > 90 and orientation < 270:
+            reverse_phases = True
+        elif orientation == 270:
+            reverse_phases = True
+            swap_row_col=True
+            orientation = 0
+        background_color_saved = glGetFloatv(GL_COLOR_CLEAR_VALUE)
+        converted_background_color = colors.convert_color(background_color, self.config)
+        glClearColor(converted_background_color[0], converted_background_color[1], converted_background_color[2], 0.0)
+        width_pix = width*self.machine_config.SCREEN_PIXEL_TO_UM_SCALE/numpy.cos(numpy.radians(orientation%90))
+        speed_pixel=speed*self.machine_config.SCREEN_PIXEL_TO_UM_SCALE/self.config.SCREEN_EXPECTED_FRAME_RATE
         #Calculate display area
         da_height = 2*self.config.SCREEN_RESOLUTION['col']*numpy.cos(numpy.arctan2(self.config.SCREEN_RESOLUTION['col'],self.config.SCREEN_RESOLUTION['row']))
         da_width = numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2+self.config.SCREEN_RESOLUTION['col']**2)
         period_length = numpy.round(width_pix*(1+duty_cycle))
-        phase_range = numpy.arange(period_length)
-        nperiods_s = numpy.ceil(da_width/period_length)
+        if reverse_phases:
+            phase_range = numpy.arange(period_length,0,-1)
+        else:
+            phase_range = numpy.arange(period_length)
+        nperiods_s = int(numpy.ceil(da_width/period_length))*2
         da_width = nperiods_s*period_length
         #calculate vertices
-        edges_col = numpy.repeat(numpy.arange(nperiods_s)*period_length,2)
+        edges_col = numpy.repeat(numpy.arange(-0.5*nperiods_s,0.5*nperiods_s)*period_length,2)
         edges_col[1::2]+=width_pix
-        edges_row  = numpy.ones(nperiods_s*2)*self.config.SCREEN_RESOLUTION['row']/2
+        edges_row  = numpy.zeros_like(edges_col)
         up_row = da_height/2*numpy.cos(numpy.radians(orientation))
         up_col = -da_height/2*numpy.sin(numpy.radians(orientation))
         down_row = -da_height/2*numpy.cos(numpy.radians(orientation))
         down_col = da_height/2*numpy.sin(numpy.radians(orientation))
         cols = numpy.array([edges_col + up_col,edges_col + down_col]).T.flatten()
         rows = numpy.array([edges_row + up_row,edges_row + down_row]).T.flatten()
-        vertices_one_frame = numpy.array([rows,cols]).T
-        vertices = numpy.tile(vertices,phase_range.shape[0])+phase_range
+        cols_with_phases=numpy.tile(cols,phase_range.shape[0])+numpy.repeat(phase_range,cols.shape[0])
+        rows_with_phases=numpy.tile(rows,phase_range.shape[0])+numpy.repeat(0*phase_range,rows.shape[0])
+        if swap_row_col:
+            vertices = numpy.array([rows_with_phases,cols_with_phases]).T
+        else:
+            vertices = numpy.array([cols_with_phases,rows_with_phases]).T
+        #Modify order of vertices
+        import copy
+        part1=copy.deepcopy(vertices[3::4])
+        part2=copy.deepcopy(vertices[2::4])
+        vertices[2::4] = part1
+        vertices[3::4] = part2
+#        pdb.set_trace()
+        nvertices_per_frame = cols.shape[0]
         glEnableClientState(GL_VERTEX_ARRAY)
         phase = 0
-        nframes=duration*self.config.SCREEN_EXPECTED_FRAME_RATE
+        nframes=int(duration*self.config.SCREEN_EXPECTED_FRAME_RATE)
         color_converted = colors.convert_color(contrast, self.config)
         for frame_i in range(nframes):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)            
-            glVertexPointerf(vertices[phase*vertices_one_frame.shape[0]:(phase+1)*vertices_one_frame.shape[0]])
-            phase +=1
+            phase_int = int(phase)
+#            pdb.set_trace()
+            glVertexPointerf(vertices[phase_int*nvertices_per_frame:(phase_int+1)*nvertices_per_frame])
+            phase += speed_pixel
             if phase >= period_length:
-                phase = 0
+                phase -= period_length
             glColor3fv(color_converted)
             for stripe_i in range(nperiods_s):
                 glDrawArrays(GL_POLYGON, stripe_i * 4, 4)
             self.log_on_flip_message = ''
-            self._flip_and_block_trigger(frame_i, nframes, True)
+            self._flip_and_block_trigger(frame_i, nframes, True, False)
             if self.abort:
                 break
+        glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
             
     def show_natural_bars(self, speed = 300, repeats = 5, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, save_frame_info =True, block_trigger = False):
@@ -1518,7 +1553,11 @@ class TestStimulationPatterns(unittest.TestCase):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'LaserBeamTestMachineConfig', 'LaserBeamStimulusConfigOutOfRange')
         self.assertIn('ScannerError', fileop.read_text_file(context['logger'].filename))
-
+        
+    def test_09_show_grating_non_texture(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        from visexpman.users.test.test_stimulus import TestMovingShapeConfig
+        context = stimulation_tester('test', 'GUITestConfigPix', 'TestNTGratingConfig', ENABLE_FRAME_CAPTURE = False)
 
 if __name__ == "__main__":
     unittest.main()

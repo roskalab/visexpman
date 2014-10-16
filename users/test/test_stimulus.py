@@ -17,6 +17,18 @@ from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.users.test import unittest_aggregator
 from visexpman.users.common import stimuli
 
+class TestNTGratingConfig(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.runnable = 'TestNTGratingExp'
+        self._create_parameters_from_locals(locals())
+
+class TestNTGratingExp(experiment.Experiment):
+    def run(self):
+        for o in range(0,360,45):
+            self.show_grating_non_texture(3,100,100,o,2,contrast=1.0,background_color=0.0)
+            break
+        
+
 
 class TestShowGratingPars(experiment.ExperimentConfig):
     def _create_parameters(self):

@@ -25,8 +25,8 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
         self.load_stim_context()
         StimulationScreen.__init__(self)
-        if not introspect.is_test_running():
-            #Call measure framerate by putting a message into queue. 
+        if not introspect.is_test_running() and machine_config.MEASURE_FRAME_RATE:
+            #Call measure framerate by putting a message into queue.
             self.socket_queues['fromsocket'].put({'function': 'measure_frame_rate', 'kwargs' :{'duration':1.0, 'background_color': self.stim_context['background_color']}})
 
     def load_stim_context(self):
