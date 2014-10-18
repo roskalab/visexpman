@@ -47,7 +47,82 @@ class MyIntrinsicProtocol(IntrinsicProtocol):
         IntrinsicProtocol.run(self)
                     
 #################################################                  
+class Behavioral_4cm_4mmpersec(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPEATS = 1
+        self.GRATING_SIZE = 4
+        self.DURATION = 30.0
+        self.SPEEDS = 0.4
+        self.DUTY_CYCLE = 1.0
+        self.PAUSE = 0
+        self.FULLFIELD_ORIENTATIONS = [0]
+        self.runnable='MyFFGratingsExp'
+
+class Behavioral_4cm_4mmpersec_180deg(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPEATS = 1
+        self.GRATING_SIZE = 4
+        self.DURATION = 30.0
+        self.SPEEDS = 0.4
+        self.DUTY_CYCLE = 1.0
+        self.PAUSE = 0
+        self.FULLFIELD_ORIENTATIONS = [180]
+        self.runnable='MyFFGratingsExp'
+
+class Behavioral_4cm_10mmpersec(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPEATS = 1
+        self.GRATING_SIZE = 4
+        self.DURATION = 30.0
+        self.SPEEDS = 1.0
+        self.DUTY_CYCLE = 1.0
+        self.PAUSE = 0
+        self.FULLFIELD_ORIENTATIONS = [0]
+        self.runnable='MyFFGratingsExp'
+
+class Behavioral_4cm_10mmpersec_180deg(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPEATS = 1
+        self.GRATING_SIZE = 4
+        self.DURATION = 30.0
+        self.SPEEDS = 1.0
+        self.DUTY_CYCLE = 1.0
+        self.PAUSE = 0
+        self.FULLFIELD_ORIENTATIONS = [180]
+        self.runnable='MyFFGratingsExp'
+
+
+
 cycles = 10
+class Behavioral_20cm_8sec(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPEATS = 1
+        self.GRATING_SIZE = 20
+        self.CYCLE_DURATION = 8
+        self.NCYCLES = cycles
+        
+        self.DURATION = self.NCYCLES * self.CYCLE_DURATION
+        self.SPEEDS = 2*self.GRATING_SIZE/self.CYCLE_DURATION
+        self.DUTY_CYCLE = 1.0
+        self.PAUSE = 0
+        self.FULLFIELD_ORIENTATIONS = [0]
+        self.runnable='MyFFGratingsExp'
+
+class Behavioral_20cm_8sec_180deg(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPEATS = 1
+        self.GRATING_SIZE = 20
+        self.CYCLE_DURATION = 8
+        self.NCYCLES = cycles
+        
+        self.DURATION = self.NCYCLES * self.CYCLE_DURATION
+        self.SPEEDS = 2*self.GRATING_SIZE/self.CYCLE_DURATION
+        self.DUTY_CYCLE = 1.0
+        self.PAUSE = 0
+        self.FULLFIELD_ORIENTATIONS = [180]
+        self.runnable='MyFFGratingsExp'
+
+
 class Behavioral_10cm_4sec(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.REPEATS = 1
@@ -60,6 +135,20 @@ class Behavioral_10cm_4sec(experiment.ExperimentConfig):
         self.DUTY_CYCLE = 1.0
         self.PAUSE = 0
         self.FULLFIELD_ORIENTATIONS = [0]
+        self.runnable='MyFFGratingsExp'
+
+class Behavioral_10cm_4sec_180deg(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPEATS = 1
+        self.GRATING_SIZE = 10
+        self.CYCLE_DURATION = 4
+        self.NCYCLES = cycles
+        
+        self.DURATION = self.NCYCLES * self.CYCLE_DURATION
+        self.SPEEDS = 2*self.GRATING_SIZE/self.CYCLE_DURATION
+        self.DUTY_CYCLE = 1.0
+        self.PAUSE = 0
+        self.FULLFIELD_ORIENTATIONS = [180]
         self.runnable='MyFFGratingsExp'
 
 class Behavioral_6cm_4sec(experiment.ExperimentConfig):
@@ -81,6 +170,20 @@ class Behavioral_10cm_3sec(experiment.ExperimentConfig):
         self.REPEATS = 1
         self.GRATING_SIZE = 10
         self.CYCLE_DURATION = 3
+        self.NCYCLES = cycles
+        
+        self.DURATION = self.NCYCLES * self.CYCLE_DURATION
+        self.SPEEDS = 2*self.GRATING_SIZE/self.CYCLE_DURATION
+        self.DUTY_CYCLE = 1.0
+        self.PAUSE = 0
+        self.FULLFIELD_ORIENTATIONS = [0]
+        self.runnable='MyFFGratingsExp'
+        
+class Behavioral_10cm_2sec(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.REPEATS = 1
+        self.GRATING_SIZE = 10
+        self.CYCLE_DURATION = 2
         self.NCYCLES = cycles
         
         self.DURATION = self.NCYCLES * self.CYCLE_DURATION
