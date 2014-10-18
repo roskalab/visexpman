@@ -94,6 +94,7 @@ def evaluate():
     figct = 1
     legendtxt=[]
     zipped = len([f for f in fs if 'zip' in f])>0
+    hout=Hdf5io('/tmp/out.hdf5',filelocking=False)
     for f in fs:
         if 'zip' not in f and zipped:
             continue
@@ -179,6 +180,7 @@ def evaluate():
             plot(voltage)
             plot(current)
             plot(temperature)
+            
             legend(['voltage','current','temperature'])
             title(os.path.split(f)[1])
             figure(figct)
@@ -205,10 +207,12 @@ def evaluate():
             boundaries = [0,1450,2800, 6200]
         elif '006' in f:
             boundaries = [0,2500]
+        hout.data={}
         for intervali in range(len(boundaries)/2):
             boundary=boundaries[2*intervali:2*intervali+2]
             t_interval = temperature[boundary[0]:boundary[1]]
             r_interval = resistance[boundary[0]:boundary[1]]
+            i_interval = current[boundary[0]:boundary[1]]
             temps = numpy.arange(t_interval.min(), t_interval.max(),0.1)
             resistance_sorted = []
             resistance_sorted_std = []
@@ -225,19 +229,22 @@ def evaluate():
             figure(100)
             plot(temps[:-1],resistance_sorted)
             legendtxt.append('{0}, {1}, {2:.0f} mV'.format(os.path.split(f)[1],tag, voltage[boundary[0]+1]))
+            hout.data[legendtxt[-1]]={}
+            hout.data[legendtxt[-1]]['t']=t_interval
+            hout.data[legendtxt[-1]]['r']=r_interval
+            hout.data[legendtxt[-1]]['i']=i_interval
 #            figure(figct)
 #            figct +=1
 #            title('{0}, temp-resistance [MOhm], {1}'.format(os.path.split(f)[1],intervali))
 #            plot(temps[:-1],resistance_sorted)
-        
-        
-        
         
     figure(100)
     legend(legendtxt)
     xlabel('temperature [Celsius degree]')
     ylabel('resistance [MOhm]')
     title('Temperature dependency of electrode resistance')
+    hout.save('data')
+    hout.close()
     show()
     import pdb
 #    pdb.set_trace()
@@ -274,8 +281,13 @@ def fit():
     for c in rt_curves:
         figure(0)
         plot(c[0],c[1])
+        figure(100)
+        plot(1/numpy.array(c[0]),numpy.log(1/numpy.array(c[1])))
+        xlabel('1/temperature [Celsius degree]')
+        ylabel('ln(1/resistance) [MOhm]')
         figure(figct)
         plot(c[0],c[1])
+        
         p0=[40,-1]
         import scipy.optimize
         coeff, var_matrix = scipy.optimize.curve_fit(poly, numpy.array(c[0]), numpy.array(c[1]), p0=p0)
@@ -294,7 +306,7 @@ def fit():
 
 if __name__ == "__main__":
 #    measure()
-#    evaluate()
-    fit()
+    evaluate()
+#    fit()
 
     
