@@ -52,12 +52,12 @@ class CaImagingScreen(graphics.Screen):
         self.clear_screen(color = colors.convert_color(0.0))
         number_of_displays = len(self.display_configuration.keys())
         spacing = 10
-        if number_of_displays>0 and self.images.has_key('snap'):
+        if number_of_displays>0 and self.images.has_key('display'):
             #Draw frame
-            self.images['snap'][0,:,:]=0.3
-            self.images['snap'][-1,:,:]=0.3
-            self.images['snap'][:,0,:]=0.3
-            self.images['snap'][:,-1,:]=0.3
+            self.images['display'][0,:,:]=0.3
+            self.images['display'][-1,:,:]=0.3
+            self.images['display'][:,0,:]=0.3
+            self.images['display'][:,-1,:]=0.3
             self.imsize = utils.rc((0,0))
             if number_of_displays < 4:
                 nrows = 1
@@ -67,13 +67,13 @@ class CaImagingScreen(graphics.Screen):
                 ncols = int(numpy.ceil(number_of_displays/nrows))
             self.imsize['row'] = (self.screen_resolution['row']-nrows*spacing)/nrows
             self.imsize['col'] = (self.screen_resolution['col']-ncols*spacing)/ncols
-            stretch = float(min( self.imsize['row'], self.imsize['col']))/max(self.images['snap'].shape)
+            stretch = float(min( self.imsize['row'], self.imsize['col']))/max(self.images['display'].shape)
             for col in range(ncols):
                 for row in range(nrows):
-                    if self.images.has_key('snap'):
+                    if self.images.has_key('display'):
                         #CONTINUE HERE
                         pos = utils.rc(((row-0.5*(nrows-1))*(self.imsize['row']+spacing), (col-0.5*(ncols-1))*(self.imsize['col']+spacing)))
-                        self.render_image(self.images['snap'], position = pos, stretch = stretch)
+                        self.render_image(self.images['display'], position = pos, stretch = stretch)
             #Here comes the drawing of images, activity curves
     #        self.render_image(self.im)
         self.flip()

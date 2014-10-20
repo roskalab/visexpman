@@ -1862,6 +1862,7 @@ def signal2image(ai_data, parameters, pmt_config):
         frames.append(frame)
     #Colorize channels
     colorized_frame = numpy.zeros((frame.shape[0],frame.shape[1],3))
+    frame = numpy.array(frames)
     for color_channel_assignment in [[pmt_config[ch]['COLOR'],pmt_config[ch]['CHANNEL']] for ch in parameters['recording_channels']]:
         if len(parameters['recording_channels']) == 1:
             frame_index = 0
@@ -1886,7 +1887,7 @@ def signal2image(ai_data, parameters, pmt_config):
 #        y_grid_max = parameters['scan_center']['col']+0.5*parameters['scanning_range']['col']
     #TODO: Shift gridline spacing with the nonlinearity of sinus (user can disable it)
         
-    return colorized_frame
+    return colorized_frame, frame
     
 
     

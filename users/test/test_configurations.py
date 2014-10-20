@@ -504,6 +504,7 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
         REMOTE_LOG_PATH = os.path.join(self.root_folder, 'remote_log')
         folders = [EXPERIMENT_DATA_PATH, DATA_STORAGE_PATH, LOG_PATH, REMOTE_LOG_PATH]
         fileop.mkdir_notexists(folders, remove_if_exists=self.clear_files)
+        EXPERIMENT_FILE_FORMAT = 'hdf5'
 #        import time
 #        while True:
 #            time.sleep(1)

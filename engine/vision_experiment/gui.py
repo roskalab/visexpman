@@ -717,8 +717,9 @@ class ExperimentControl(gui.WidgetControl):
             'scanning_range' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text()), 
             'pixel_size' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text()), 
             'resolution_unit' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentText()), 
-            'status' : 'issued', 
+            'status' : 'issued',
             'id':str(int(numpy.round(time.time(), 2)*100)), 
+            'save2file' : (self.poller.parent.central_widget.ca_displays.save2file.input.checkState()==2)
                            }
         #Copy values from machine parameters
         for machine_parameter_name in self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner'].keys():
@@ -1411,6 +1412,7 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
         self.live_scan_start = QtGui.QPushButton('Live scan start', self)
         self.live_scan_stop = QtGui.QPushButton('Live scan stop', self)
         self.snap = QtGui.QPushButton('Snap', self)
+        self.save2file = gui.LabeledCheckBox(self, 'Save to file')
         for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
             self.display_configs.append(DisplayConfigurationGroupbox(self, str(i)))
             self.display_configs[-1].setFixedWidth(200)
@@ -1424,7 +1426,8 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
         index = 0
         self.layout.addWidget(self.live_scan_start, 0, 0)
         self.layout.addWidget(self.live_scan_stop, 0, 1)
-        self.layout.addWidget(self.snap, 0, 2)
+        self.layout.addWidget(self.save2file, 0, 2)
+        self.layout.addWidget(self.snap, 0, 3)
         for row in range(2):
             for col in range(self.config.MAX_CA_IMAGE_DISPLAYS/2):
                 self.layout.addWidget(self.display_configs[index], row+1, 2*col,1,2)

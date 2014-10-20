@@ -508,8 +508,8 @@ def get_recording_filename(config, parameters, prefix):
         prefix = prefix + '_'
     return prefix + get_recording_name(config, parameters, '_')+'.'+config.EXPERIMENT_FILE_FORMAT
 
-def get_recording_path(parameters, config):
-    return os.path.join(get_user_experiment_data_folder(config), get_recording_filename(config, parameters))
+def get_recording_path(parameters, config, prefix = ''):
+    return os.path.join(get_user_experiment_data_folder(config), get_recording_filename(config, parameters, prefix))
     
 ################# Not fileop related ####################
 
