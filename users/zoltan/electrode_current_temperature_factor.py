@@ -16,7 +16,7 @@ def measure():
     with introspect.Timer(''):
         #Sampling analog input starts
         folder = 'r:\\dataslow\\measurements\\electrode_current_temperature'
-        folder = 'c:\\Data'
+        folder = 'c:\\Data'        
         ai_channels = 'Dev1/ai1:3'
         ai_record_time = 0.02
         ai_sample_rate = 30000
@@ -85,7 +85,7 @@ def evaluate():
     '''
     folder = '/mnt/rzws/measurements/electrode_current_temperature'
     folder = '/tmp/test'
-#    folder = 'c:\\temp\\test'
+    folder = 'c:\\temp'
     current_scale = 0.5 #mV/pA, 750 mV at 1500 pA
     voltage_command_scale = 0.1 #100 mV/V
     ai_sample_rate = 30000
@@ -94,7 +94,8 @@ def evaluate():
     figct = 1
     legendtxt=[]
     zipped = len([f for f in fs if 'zip' in f])>0
-    hout=Hdf5io('/tmp/out.hdf5',filelocking=False)
+    hout=Hdf5io('/mnt/rzws/temp/out.hdf5',filelocking=False)
+    hout.data={}
     for f in fs:
         if 'zip' not in f and zipped:
             continue
@@ -160,7 +161,7 @@ def evaluate():
             if i>1:
                 if voltage*0.5>results[i-1][0] and results[i-1][0]<0.5*results[i-2][0]:
                     removable_items.append(i-1)
-            results.append([voltage,current,temperature_,resistance])
+            results.append([voltage,current,temperature_,resistance,current_baseline])
         print 'pulse analysis done'
         results = [results[i] for i in range(len(results)) if i not in removable_items]
         results = numpy.array(results)
@@ -172,6 +173,7 @@ def evaluate():
             numpy.savetxt(f.replace('zip','txt'), results, '%10.5f')
         voltage = results[:,0]*1000#mV
         current = results[:,1]/1000#nA
+        current_baseline = results[:,4]/1000#nA
         temperature = results[:,2]#Celsius
         resistance = results[:,3]/1e6#MOhm
         if 0:
@@ -207,12 +209,12 @@ def evaluate():
             boundaries = [0,1450,2800, 6200]
         elif '006' in f:
             boundaries = [0,2500]
-        hout.data={}
         for intervali in range(len(boundaries)/2):
             boundary=boundaries[2*intervali:2*intervali+2]
             t_interval = temperature[boundary[0]:boundary[1]]
             r_interval = resistance[boundary[0]:boundary[1]]
             i_interval = current[boundary[0]:boundary[1]]
+            i_b_interval = current_baseline[boundary[0]:boundary[1]]
             temps = numpy.arange(t_interval.min(), t_interval.max(),0.1)
             resistance_sorted = []
             resistance_sorted_std = []
@@ -233,6 +235,7 @@ def evaluate():
             hout.data[legendtxt[-1]]['t']=t_interval
             hout.data[legendtxt[-1]]['r']=r_interval
             hout.data[legendtxt[-1]]['i']=i_interval
+            hout.data[legendtxt[-1]]['ib']=i_b_interval
 #            figure(figct)
 #            figct +=1
 #            title('{0}, temp-resistance [MOhm], {1}'.format(os.path.split(f)[1],intervali))
@@ -303,10 +306,82 @@ def fit():
     xlabel('temperature [Celsius degree]')
     ylabel('resistance [MOhm]')
     show()
+    
+def arrhenius():
+    p='c:\\temp\\out.hdf5'
+    h=Hdf5io(p,filelocking=False)
+    h.load('data')
+    p0=[40,-1]
+    import scipy.optimize
+    ct=0
+    for n,d in h.data.items():
+#        ct+=1
+        figure(ct)
+#        if '20' in n:
+#            
+#        else:
+#            figure(2)
+        figure(1)
+        plot(1/d['t'],numpy.log(d['i']))
+        figure(2)
+        plot(d['t'],d['ib'])
+#        coeff, var_matrix = scipy.optimize.curve_fit(poly, numpy.array(c[0]), numpy.array(c[1]), p0=p0)
+#        title(n)
+    figure(1)
+    legend(h.data.keys())
+    figure(2)
+    legend(h.data.keys())
+    show()
+    
+def plot_rawdata():
+    folder = 'c:\\temp'
+    current_scale = 0.5 #mV/pA, 750 mV at 1500 pA
+    voltage_command_scale = 0.1 #100 mV/V
+    ai_sample_rate = 30000
+    fs = os.listdir(folder)
+    fs.sort()
+    figct = 1
+    legendtxt=[]
+    zipped = len([f for f in fs if 'zip' in f])>0
+    figct = 1
+    for f in fs:
+        if 'zip' not in f and zipped:
+            continue
+        print f
+        f=os.path.join(folder,f)
+        if zipped:
+            z = zipfile.ZipFile(f)
+            extracted_file = z.extract(os.path.split(f)[1].replace('zip','hdf5'), tempfile.gettempdir())
+        else:
+            if 'hdf5' not in f:
+                continue
+            extracted_file = f
+        h=Hdf5io(extracted_file, filelocking=False)
+        h.load('raw_data')
+        import copy
+        data = copy.deepcopy(h.raw_data)
+        h.close()
+        if zipped:
+            os.remove(extracted_file)
+        z.close()
+        #convert data to physical units:
+        scale = numpy.array([voltage_command_scale, current_scale*1e3,10.0])
+        data *= scale
+        voltage_command = data[:,0]
+        electrode_current = data[:,1]
+        temperature = data[:,2]
+        figure(figct)
+        plot(electrode_current)
+        plot(temperature)
+        figct+=1
+        title(f)
+    show()
 
 if __name__ == "__main__":
-#    measure()
-    evaluate()
+#    plot_rawdata()
+#    arrhenius()
+    measure()
+#    evaluate()
 #    fit()
 
     
