@@ -253,25 +253,104 @@ def evaluate():
 #    pdb.set_trace()
     pass
     
+def variable_transformation(data, target, target_resolution):
+    bins = numpy.arange(target.min(),target.max(),target_resolution)
+    transformed = []
+    for i in range(bins.shape[0]-1):
+        transformed.append(data[numpy.nonzero(numpy.where(target>bins[i],1,0)*numpy.where(target<bins[i+1],1,0))[0]].mean())
+    return bins[:-1]+0.5*target_resolution, numpy.array(transformed)
+        
+def electrode_current_calc(t, *p):
+    import scipy.constants
+    Ea = p[1]
+    A = p[0]
+    return A*numpy.exp(-Ea/(scipy.constants.R*t))
+   
 def evaluate1():
-    f = '/home/rz/codes/data/electrode_current_temperature/20141010/data_00003.hdf5'
-    current_scale = 0.5 #mV/pA, 750 mV at 1500 pA
+    import scipy.constants
+    f = '/tmp/test'
+    current_scale = 0.5*2 #mV/pA, 750 mV at 1500 pA
     voltage_command_scale = 0.1 #100 mV/V
-    ai_sample_rate = 30000    
-    h=Hdf5io(f, filelocking=False)
-    h.load('raw_data')
-    print h.raw_data.shape
-    data = copy.deepcopy(h.raw_data)
-    h.close()
-    voltage_command = data[:,0]
-    electrode_current = data[:,1]
-    temperature = data[:,2]
-    pass
+    ai_sample_rate = 30000
+    i0 = -500#pA
+    t0 = scipy.constants.C2K(24.0)
+    figct=1
+    l = []
+    coeffs = []
+    for fi in fileop.listdir_fullpath(f):
+        h=Hdf5io(fi, filelocking=False)
+        h.load('raw_data')
+        import copy
+        data = copy.deepcopy(h.raw_data)
+        data *= numpy.array([voltage_command_scale, current_scale*1e3,10.0])
+        h.close()
+        voltage_command = data[:,0]
+        electrode_current = data[:,1]
+        temperature = scipy.constants.C2K(data[:,2])
+        if '00001' in fi:
+            boundaries = [17757, 177472, 209415, 266129, 534274, 575917, 686876, 747984]
+#        elif '00002'in fi:
+#            boundaries = [25323, 127036, 147210, 315330]
+        else:
+#            figure(figct+100)
+#            plot(voltage_command[::100])
+#            plot(electrode_current[::100])
+#            plot(temperature[::100])
+#            legend(['voltage_command','electrode_current','temperature'])
+#            title(fi)
+            continue
+        boundaries = numpy.array(boundaries)*100
+        hh=numpy.histogram(voltage_command)
+        voltage = numpy.round(hh[1][hh[0].argmax()]*1000,-1)
+        figure(figct)
+        plot(voltage_command[::100])
+        plot(electrode_current[::100])
+        plot(temperature[::100])
+        legend(['voltage_command','electrode_current','temperature'])
+        title('{0}, {1} mV' .format(fi,voltage))
+        figct+=1
+        
+        for ii in range(boundaries.shape[0]/2):
+            t, i = variable_transformation(electrode_current[boundaries[ii*2]:boundaries[ii*2+1]], temperature[boundaries[ii*2]:boundaries[ii*2+1]], 1)
+            figure(0)
+            k=i/i0
+            plot(1.0/t,numpy.log(k))
+            l.append('{0}, {1}, {2} mV'.format(fi, ii%2, voltage))
+            import scipy.optimize
+            p0 = [1, -4000.0]
+            coeff, var_matrix = scipy.optimize.curve_fit(poly, 1/t, numpy.log(i/i0), p0=p0)
+            coeffs.append(coeff)
+#            try:
+#                coeff, var_matrix = scipy.optimize.curve_fit(electrode_current_calc, t, k, p0=[1,3.84e3*scipy.constants.calorie])
+#                print coeff[1]/scipy.constants.calorie/1e3
+#                figure(300+figct)
+#                plot(t, k)
+#                plot(t, electrode_current_calc(t, *coeff))
+#            except:
+#                pass
+            figct+=1
+            
+    coeff_ = numpy.array(coeffs).mean(axis=0)
+    print -numpy.array(coeffs)[:,1]* scipy.constants.R/scipy.constants.calorie/1e3
+    Ea = -coeff_[1] * scipy.constants.R
+    Ea_cal = Ea/scipy.constants.calorie/1e3
+    print Ea_cal
+    figure(0)
+    t=scipy.constants.C2K(numpy.arange(20,50,1))
+    plot(1/t,poly(1/t,*coeff_),'x-')
+    l.append('fit')
+    legend(l)
+    xlabel('1/temperature [K]')
+    ylabel('ln(i/i0), where i0=500 pA at 297 K')
+    
+    
+    
+    show()
     
 def poly(x, *p):
     res = []
     for o in range(len(p)):
-        res .append(p[o]*x**o)
+        res.append(p[o]*x**o)
     return numpy.array(res).sum(axis=0)
     
 def fit():
@@ -380,8 +459,8 @@ def plot_rawdata():
 if __name__ == "__main__":
 #    plot_rawdata()
 #    arrhenius()
-    measure()
-#    evaluate()
+#    measure()
+    evaluate1()
 #    fit()
 
     
