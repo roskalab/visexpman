@@ -266,13 +266,14 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         if self.imaging_parameters['save2file']:
             self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.imaging_parameters, self.config, prefix = 'ca'),filelocking=False)
             self.datafile.imaging_parameters = copy.deepcopy(self.imaging_parameters)
-            self.image_size = (self.imaging_parameters['scanning_range']['row'] * self.imaging_parameters['resolution'],self.imaging_parameters['scanning_range']['col'] * self.imaging_parameters['resolution'])
+            self.image_size = (len(self.imaging_parameters['recording_channels']), self.imaging_parameters['scanning_range']['row'] * self.imaging_parameters['resolution'],self.imaging_parameters['scanning_range']['col'] * self.imaging_parameters['resolution'])
             datacompressor = tables.Filters(complevel=9, complib='blosc', shuffle = 1)
-            self.rawdata = self.datafile.h5f.create_earray(self.datafile.h5f.root, 'rawdata', tables.Float32Atom(self.image_size), 
+            self.raw_data = self.datafile.h5f.create_earray(self.datafile.h5f.root, 'raw_data', tables.Float32Atom(self.image_size), 
                     (0,),filters=datacompressor)
         
     def _close_datafile(self,data=None):
         if self.imaging_parameters['save2file']:
+            self.printl('Saved frames at the end of imaging: {0}'.format(data[0].shape[0]))
             if data is not None:
                 for frame in data[0]:
                     self._save_data(scanner_control.signal2image(frame, self.imaging_parameters, self.config.PMTS)[1])
@@ -283,7 +284,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         
     def _save_data(self,frame):
         if self.imaging_parameters['save2file']:
-            self.rawdata.append(frame)
+            self.raw_data.append(numpy.array([frame]))
         
         
     def record_tranfer_function(self):
@@ -1383,6 +1384,7 @@ class TestCaImaging(unittest.TestCase):
         time.sleep(0.1)
         p3['id'] = str(int(numpy.round(time.time(), 2)*100))
         commands.append({'function': 'live_scan_start', 'args': [p3]})
+        commands.extend([{'function': 'dummy'} for i in range(10)])
         commands.append({'function': 'live_scan_stop'})
         p4=copy.deepcopy(self.parameters)
         time.sleep(0.1)
@@ -1410,15 +1412,29 @@ class TestCaImaging(unittest.TestCase):
                     (len(self.parameters['recording_channels']),
                     self.parameters['scanning_range']['row']*self.parameters['resolution'],
                     self.parameters['scanning_range']['col']*self.parameters['resolution']))
-        pass
-                #CONTINUE HERE: check image content
-#        numpy.save('r:\\temp\\s.npy',image_context['save'])
-#        numpy.save('r:\\temp\\d.npy',image_context['display'])
-#        
-#        for v in image_context.values():
-#            print v.shape
-        #Check content of images
-        #Check content of recorded file, check their number
+        self.assertLess(abs(image_context['save'][0].std(axis=0)).max(), 10e-3)#no big difference between lines
+        self.assertLess(abs(image_context['save'][1].std(axis=1)).max(), 10e-3)#no big difference between columns
+        self.assertLess(numpy.diff(image_context['save'][0,0,:]).max(),0)#The intensity in each line decreases
+        self.assertGreater(numpy.diff(image_context['save'][1,:,0]).min(),0)#The intensity in each column increase
+        #saved and displayed images should be the same
+        numpy.testing.assert_equal(image_context['display'][:,:,1]*self.context['machine_config'].MAX_PMT_VOLTAGE,image_context['save'][0,:,:])
+        numpy.testing.assert_equal(image_context['display'][:,:,0]*self.context['machine_config'].MAX_PMT_VOLTAGE,image_context['save'][1,:,:])
+        datafiles = fileop.listdir_fullpath(fileop.get_user_experiment_data_folder( self.context['machine_config']))
+        datafiles.sort()
+        self.assertEqual(numpy.array(map(os.path.getsize,datafiles)).argmax(),2)
+        #check content of datafiles
+        for datafile in datafiles:
+            print datafile
+            h=hdf5io.Hdf5io(datafile,filelocking=False)
+            saved_parameters = h.findvar('imaging_parameters')
+            nframes = h.findvar('frame_ct')
+            self.assertTrue(isinstance(saved_parameters,dict))
+            h.load('raw_data')
+            self.assertEqual(h.raw_data.shape[1], len(self.parameters['recording_channels']))#Check if number of recorded channels is correct            
+            for frame in h.raw_data:
+                numpy.testing.assert_almost_equal(frame[0],image_context['save'][0,:,:],1)
+                numpy.testing.assert_almost_equal(frame[1],image_context['save'][1,:,:],1)
+            h.close()
         
 #    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
 #    def test_04_live_scan(self):

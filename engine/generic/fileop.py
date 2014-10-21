@@ -182,10 +182,7 @@ def copy(src, dst, update=1):
 
 def listdir_fullpath(folder):
     files = os.listdir(folder)
-    full_paths = []
-    for file in files:
-        full_paths.append(os.path.join(folder,  file))
-    return full_paths
+    return map(os.path.join, len(files)*[folder],files)
     
 def find_latest(path):
     number_of_digits = 5
