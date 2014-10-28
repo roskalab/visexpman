@@ -9,9 +9,7 @@ import unittest
 import threading
 import copy
 from visexpman.users.test import unittest_aggregator
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
-from visexpman.engine.generic import stringop
+from visexpman.engine.generic import utils,fileop,stringop
 
 class LoggingError(Exception):
     '''
@@ -28,8 +26,6 @@ def log2str(msg):
                         'stimulus_flash_trigger_signal', 'one_period_valid_data_mask', 'one_period_x_scanner_signal']:
             if utils.safe_has_key(msg_out['args'][0], vn):
                 msg_out['args'][0][vn] = 'Not logged'
-                
-            
     return str(msg_out)
     
 class LoggerHelper(object):
@@ -122,7 +118,7 @@ class Logger(multiprocessing.Process,LoggerHelper):
             print traceback.format_exc()
                 
     def _entry2text(self, entry):
-        return '{0} {1}/{2}\t{3}\n'.format(utils.timestamp2ymdhms(entry[0]), entry[1], entry[2], entry[3])
+        return '{0}.{4} {1}/{2}\t{3}\n'.format(utils.timestamp2ymdhms(entry[0]), entry[1], entry[2], entry[3],int(entry[0]*10)%10)
         
         
     def upload_logfiles(self):
