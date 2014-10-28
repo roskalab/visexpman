@@ -764,8 +764,10 @@ class ExperimentControl(gui.WidgetControl):
             except ValueError:
                 self.poller.notify_user('WARNING', '{0} shall be provided in boolean format (0 or 1): {1}'.format(stringop.to_title(pn),self.mandatory_parameters[pn]))
                 return False
-        #Parse list item names to pmt names
-        self.mandatory_parameters['recording_channels'] = [stringop.string_in_list(self.config.PMTS.keys(), channel_name, return_match = True, any_match = True) for channel_name in self.mandatory_parameters['recording_channels']]
+        #Parse list item names to pmt names, remove electrophysiology channel from list
+        self.mandatory_parameters['record_electrophysiology_signal'] = len([channel_name for channel_name in self.mandatory_parameters['recording_channels'] if 'electrophysiology' not in channel_name.lower()]) == 1
+        self.mandatory_parameters['recording_channels'] = \
+            [stringop.string_in_list(self.config.PMTS.keys(), channel_name, return_match = True, any_match = True) for channel_name in self.mandatory_parameters['recording_channels'] if 'electrophysiology' not in channel_name.lower()]
         if len(self.mandatory_parameters['recording_channels'])==0:
             self.poller.notify_user('WARNING', 'Recording channel must be selected')
             return False
@@ -821,11 +823,18 @@ class ExperimentControl(gui.WidgetControl):
         self.mandatory_parameters.update(signal_attributes)
         return self.mandatory_parameters
         
-    def check_scan_parameters(self):
+    def check_scan_parameters(self, experiment=True):
+        '''
+        if experiment is true, experiment_name and experiment_config_source_code in parameter set is retained
+        '''
         self._get_experiment_run_parameters()
         if not self._parse_experiment_run_parameters():
             return
-        return self._calculate_and_check_scan_parameters()
+        parameters = self._calculate_and_check_scan_parameters()
+        if not experiment:
+            del parameters['experiment_name']
+            del parameters['experiment_config_source_code']
+        return parameters
         
     def add_experiment(self):
         '''
@@ -919,14 +928,14 @@ class ExperimentControl(gui.WidgetControl):
         '''
         
         '''
-        function_call = {'function': 'live_scan_start', 'args': [self.check_scan_parameters()]}
+        function_call = {'function': 'live_scan_start', 'args': [self.check_scan_parameters(experiment=False)]}
         self.poller.send(function_call,connection='ca_imaging')
         
     def live_scan_stop(self):
         self.poller.send({'function': 'live_scan_stop'},connection='ca_imaging')
         
     def snap_ca_image(self):
-        function_call = {'function': 'snap_ca_image', 'args': [self.check_scan_parameters()]}
+        function_call = {'function': 'snap_ca_image', 'args': [self.check_scan_parameters(experiment=False)]}
         self.poller.send(function_call,connection='ca_imaging')
         
 

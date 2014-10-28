@@ -105,11 +105,14 @@ def application_init(**kwargs):
         remote_logpath = machine_config.REMOTE_LOG_PATH
     logger = log.Logger(filename=fileop.get_logfilename(machine_config), 
                                     remote_logpath = remote_logpath)
-    log_sources = utils.get_key(kwargs, 'log_sources') 
+    log_sources = utils.get_key(kwargs, 'log_sources')
     if log_sources is not None:
         map(logger.add_source, log_sources)
     else:
         logger.add_source(machine_config.application_name)
+    #add application specific log sources
+    if machine_config.application_name=='ca_imaging':
+        logger.add_source('daq')
     #Set up network connections
     sockets = queued_socket.start_sockets(machine_config.application_name, machine_config, logger, kwargs.get('enable_sockets', True))
     if machine_config.PLATFORM == 'rc_cortical' or machine_config.PLATFORM == 'ac_cortical' :

@@ -316,6 +316,12 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
         
+    def serialize(self):
+        config_copied = copy.copy(self)
+        if hasattr(config_copied, 'GAMMA_CORRECTION'):
+            config_copied.GAMMA_CORRECTION = 0
+        return utils.object2array(config_copied)
+        
 class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
@@ -356,10 +362,11 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         CAIMAGE_DISPLAY_VERTICAL_FLIP = False
         CAIMAGE_DISPLAY_HORIZONTAL_FLIP = False
         
-        
         self.KEYS['snap'] = 'return'
         self.KEYS['live_start_stop'] = 'space'
         self.KEYS['transfer_function'] = 't'
+        
+        DATAFILE_COMPRESSION_LEVEL = [7, [0,9]]
         
         self._create_parameters_from_locals(locals())
         

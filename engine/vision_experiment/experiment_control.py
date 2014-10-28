@@ -30,6 +30,8 @@ from visexpman.engine.generic.command_parser import ServerLoop
 from visexpman.users.test import unittest_aggregator
 import unittest
 
+ENABLE_16_BIT = True
+
 class CaImagingLoop(ServerLoop, CaImagingScreen):
     def __init__(self, machine_config, socket_queues, command, log):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
@@ -40,8 +42,10 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         self.limits['min_ai_voltage'] = -self.config.MAX_PMT_VOLTAGE
         self.limits['max_ai_voltage'] = self.config.MAX_PMT_VOLTAGE
         self.limits['timeout'] = self.config.TWO_PHOTON_DAQ_TIMEOUT
-        self.logger_queue = self.log.get_queues()[self.config.application_name]
-        self.instrument_name = self.config.application_name
+        self.instrument_name = 'daq'
+        self.daq_logger_queue = self.log.get_queues()[self.instrument_name]
+        
+        
         self.daq_queues = {'command': multiprocessing.Queue(), 
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
@@ -99,6 +103,9 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                     self.images['display'], self.images['save'] = scanner_control.signal2image(frame, self.imaging_parameters, self.config.PMTS)
                     self.images['display']/=self.config.MAX_PMT_VOLTAGE
                     self.frame_ct+=1
+                    if ENABLE_16_BIT:
+                        #Scale image data to 0...2**16-1 range
+                        self.images['save'] = numpy.cast['uint16']((self.images['save']/self.config.MAX_PMT_VOLTAGE)*(2**16-1))
                     self._save_data(self.images['save'])
 #                    self.printl(self.images['snap'].mean())
 #                print self.images['snap'].mean()
@@ -142,7 +149,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         self._prepare_datafile()
         self.imaging_started = None
         self.record_ai_channels = daq_instrument.ai_channels2daq_channel_string(*self._pmtchannels2indexes(parameters['recording_channels']))
-        self.daq_process = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.logger_queue,
+        self.daq_process = daq_instrument.AnalogIOProcess(self.instrument_name, self.daq_queues, self.daq_logger_queue,
                                 ai_channels = self.record_ai_channels,
                                 ao_channels= self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'],limits=self.limits)
         self.daq_process.start()
@@ -167,7 +174,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         if not self.imaging_started:
             self.printl('Live scan is not running')
             return
-        t2=time.time()
+        self.t2=time.time()
         #Closing shutter before terminating scanning
         daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], 0)
         try:
@@ -176,13 +183,13 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             if isinstance(unread_data ,str):
                 self.printl(unread_data)
             else:
-                self.printl('unread data shape: {0}, acquired frames {1} read frames {2}, expected number of frames {3}'.format(unread_data[0].shape,
+                self.printl('acquired frames {0} read frames {1}, expected number of frames {2}'.format(
                                 unread_data[1],
                                 self.frame_ct, 
-                                (t2-self.t0) * parameters['frame_rate']))
+                                (self.t2-self.t0) * parameters['frame_rate']))
                 #Check if all frames have been acquired
                 if unread_data[0].shape[0] + self.frame_ct != unread_data[1] or\
-                    unread_data[1] < (t2-self.t0) * parameters['frame_rate']:
+                    unread_data[1] < (self.t2-self.t0) * parameters['frame_rate']:
                     self.printl('WARNING: Some frames are lost')
                 self._close_datafile(unread_data)
         except:
@@ -214,6 +221,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         if self.imaging_started:
             self.printl('Live scan already running')
             return
+        self.printl('Snap')
         self.live_scan_start(parameters)
         while True:
             frame = self.daq_process.read_ai()
@@ -267,8 +275,12 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.imaging_parameters, self.config, prefix = 'ca'),filelocking=False)
             self.datafile.imaging_parameters = copy.deepcopy(self.imaging_parameters)
             self.image_size = (len(self.imaging_parameters['recording_channels']), self.imaging_parameters['scanning_range']['row'] * self.imaging_parameters['resolution'],self.imaging_parameters['scanning_range']['col'] * self.imaging_parameters['resolution'])
-            datacompressor = tables.Filters(complevel=9, complib='blosc', shuffle = 1)
-            self.raw_data = self.datafile.h5f.create_earray(self.datafile.h5f.root, 'raw_data', tables.Float32Atom(self.image_size), 
+            datacompressor = tables.Filters(complevel=self.config.DATAFILE_COMPRESSION_LEVEL, complib='blosc', shuffle = 1)
+            if ENABLE_16_BIT:
+                datatype = tables.UInt16Atom(self.image_size)
+            else:
+                datatype = tables.Float32Atom(self.image_size)
+            self.raw_data = self.datafile.h5f.create_earray(self.datafile.h5f.root, 'raw_data', datatype, 
                     (0,),filters=datacompressor)
         
     def _close_datafile(self,data=None):
@@ -277,15 +289,16 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             if data is not None:
                 for frame in data[0]:
                     self._save_data(scanner_control.signal2image(frame, self.imaging_parameters, self.config.PMTS)[1])
-            self.datafile.frame_ct = self.frame_ct
-            nodes2save = ['imaging_parameters', 'frame_ct']
+            self.datafile.runtime_info = {'acquired_frames': self.frame_ct, 'start': self.t0, 'end':self.t2, 'duration':self.t2-self.t0 }
+            self.datafile.machine_config = self.config.serialize()
+            nodes2save = ['imaging_parameters', 'runtime_info', 'machine_config']
             self.datafile.save(nodes2save)
             self.datafile.close()
+            self.printl('Data saved to {0}'.format(self.datafile.filename))
         
     def _save_data(self,frame):
         if self.imaging_parameters['save2file']:
             self.raw_data.append(numpy.array([frame]))
-        
         
     def record_tranfer_function(self):
         from pylab import plot,show,figure,title
@@ -1427,7 +1440,7 @@ class TestCaImaging(unittest.TestCase):
             print datafile
             h=hdf5io.Hdf5io(datafile,filelocking=False)
             saved_parameters = h.findvar('imaging_parameters')
-            nframes = h.findvar('frame_ct')
+            nframes = h.findvar('runtime_info')['acquired_frames']
             self.assertTrue(isinstance(saved_parameters,dict))
             h.load('raw_data')
             self.assertEqual(h.raw_data.shape[1], len(self.parameters['recording_channels']))#Check if number of recorded channels is correct            

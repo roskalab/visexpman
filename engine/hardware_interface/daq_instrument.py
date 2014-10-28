@@ -339,7 +339,6 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
                 self.ai_record_time = kwargs['ai_record_time']
             else:
                  raise DaqInstrumentError('ai_record_time argument is expected but not provided')
-        
         #Calculate number of samples
         if self.enable_ao:
             self.number_of_ao_samples = self.ao_waveform.shape[1]
@@ -409,6 +408,7 @@ class AnalogIOProcess(AnalogIoHelpers, instrument.InstrumentProcess):
         return ai_data
 
     def run(self):
+        self.printl('aio process started')
         if platform.system() != 'Windows':
             self.printl('{0} platform not supported'.format(platform.system()))
             return
