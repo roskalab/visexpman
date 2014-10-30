@@ -1382,12 +1382,12 @@ class DisplayConfigurationGroupbox(QtGui.QGroupBox):
         display_channels_list.extend(self.config.PMTS.keys())
         self.channel_select = gui.LabeledComboBox(self, 'Channel', display_channels_list)
         default_options = ['raw']
-        smo = ['3x3 median filter', 'histogram shift', 'histogram equalize']
-        smo.extend(default_options)
-        smo.reverse()
-        self.snap_mode_options = gui.LabeledComboBox(self, 'Snap', smo)
-        self.snap_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. Filters are applied separately on each channel.')
-        rmo = ['MIP']
+        emo = ['3x3 median filter', 'Histogram shift', 'Histogram equalize', 'Ca activity']
+        emo.extend(default_options)
+        emo.reverse()
+        self.exploring_mode_options = gui.LabeledComboBox(self, 'Exploring', emo)
+        self.exploring_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. Filters are applied separately on each channel.')
+        rmo = ['MIP', 'Ca activity']
         rmo.extend(default_options)
         rmo.reverse()
         self.recording_mode_options = gui.LabeledComboBox(self, 'Recording', rmo)
@@ -1399,7 +1399,7 @@ class DisplayConfigurationGroupbox(QtGui.QGroupBox):
         self.layout.addWidget(self.enable, 0, 0)
         self.layout.addWidget(self.name, 0, 1)
         self.layout.addWidget(self.channel_select, 1, 0,1,2)
-        self.layout.addWidget(self.snap_mode_options, 2, 0,1,2)
+        self.layout.addWidget(self.exploring_mode_options, 2, 0,1,2)
         self.layout.addWidget(self.recording_mode_options, 3, 0,1,2)
         self.layout.addWidget(self.gridline_select, 4, 0,1,2)
         self.setLayout(self.layout)
@@ -1428,7 +1428,7 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
             self.display_configs[-1].setFixedHeight(250)
         self.select_display =  gui.LabeledComboBox(self, 'Select diplay', map(str, range(self.config.MAX_CA_IMAGE_DISPLAYS)))
         self.select_display.setToolTip('Select display for tuning advanced filter parameters')
-        self.select_plot = gui.LabeledComboBox(self, 'Select plot', ['histogram ', 'Ca activity'])
+        self.select_plot = gui.LabeledComboBox(self, 'Select plot', ['histogram ', 'Ca activity'])#TODO might be unnecessary
             
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -1459,7 +1459,7 @@ class CaImagingVisualisationControl(gui.WidgetControl):
                     self.poller.notify_user('WARNING', '{0} display name is redundant'.format(name))
                     return
                 display_configuration[name] = {}
-                for n in ['channel_select', 'snap_mode_options', 'recording_mode_options', 'gridline_select']:
+                for n in ['channel_select', 'exploring_mode_options', 'recording_mode_options', 'gridline_select']:
                     display_configuration[name][n] = str(getattr(self.widget.display_configs[i], n).input.currentText())
         #Check if configuration has changed
         send = False
@@ -1478,6 +1478,7 @@ class CaImagingVisualisationControl(gui.WidgetControl):
                 if send:
                     break
         self.display_configuration = copy.deepcopy(display_configuration)
+        print self.display_configuration
         if send or force_send:#If changed, send the display configuration to ca_imaging
             function_call = {'function': 'set_variable', 'args': ['display_configuration', display_configuration]}
             self.poller.send(function_call,connection='ca_imaging')

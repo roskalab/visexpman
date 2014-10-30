@@ -2715,7 +2715,7 @@ class VisexpGuiPoller(Poller):
             self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].enable.checkState'.format(i))
             self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].name.input.text'.format(i))
             self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].channel_select.input.currentIndex'.format(i))
-            self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].snap_mode_options.input.currentIndex'.format(i))
+            self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].exploring_mode_options.input.currentIndex'.format(i))
             self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].recording_mode_options.input.currentIndex'.format(i))
             self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].gridline_select.input.currentIndex'.format(i))
                                           

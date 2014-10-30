@@ -1123,7 +1123,7 @@ class VisionExperimentGui(Qt.QMainWindow):
             display_config_changed_signals.append([parent_widget.enable, function_link, 'stateChanged'])
             display_config_changed_signals.append([parent_widget.name.input, function_link, 'textEdited'])
             display_config_changed_signals.append([parent_widget.channel_select.input, function_link, 'currentIndexChanged'])
-            display_config_changed_signals.append([parent_widget.snap_mode_options.input, function_link, 'currentIndexChanged'])
+            display_config_changed_signals.append([parent_widget.exploring_mode_options.input, function_link, 'currentIndexChanged'])
             display_config_changed_signals.append([parent_widget.recording_mode_options.input, function_link, 'currentIndexChanged'])
             display_config_changed_signals.append([parent_widget.gridline_select.input, function_link, 'currentIndexChanged'])
         for item in display_config_changed_signals:

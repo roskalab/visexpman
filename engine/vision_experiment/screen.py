@@ -3,6 +3,8 @@ import copy
 import socket
 import time
 import numpy
+import unittest
+import scipy.ndimage.filters
 
 from visexpman.engine.generic import utils,colors,graphics,fileop
 from PIL import Image
@@ -20,7 +22,9 @@ class CaImagingScreen(graphics.Screen):
     '''
     Graphical screen of ca-imaging application
     '''
-    def __init__(self):
+    def __init__(self, config=None):
+        if config is not None:
+            self.config=config
         if self.config.FULLSCREEN:
             screen_resolution = graphics.get_screen_size()
         else:
@@ -28,23 +32,8 @@ class CaImagingScreen(graphics.Screen):
         graphics.Screen.__init__(self, self.config, screen_resolution = screen_resolution, graphics_mode = 'external')
         self.clear_screen()
         self.display_configuration = {}
-#        import numpy
-#        im = numpy.ones((200,100,3),dtype=numpy.float)
-#        im *=0.4
-#        im[0,0,:]=1.0
-#        im[0,5:6,1]=1.0
-#        im[0,5:6,0]=0.0
-#        im[0,5:6,2]=0.0
-#        im[5:6,0,2]=1.0
-#        im[5:6,0,:2]=0.0
-#        im[:2,:,0]=1.0
-#        im[-2:,:,0]=1.0
-#        im[:,:2,0]=1.0
-#        im[:,-2:,0]=1.0
-#        for i in range(10):
-#            im[:,10+i,1] = numpy.arange(im[:,10,1].shape[0],dtype=numpy.float)/im[:,10,1].shape[0]
-#        self.im = im
-        
+        self.ca_activity = []
+
     def refresh(self):
         '''
         Images to be displayed must be in a 0..1 range
@@ -53,11 +42,6 @@ class CaImagingScreen(graphics.Screen):
         number_of_displays = len(self.display_configuration.keys())
         spacing = 10
         if number_of_displays>0 and self.images.has_key('display'):
-            #Draw frame
-            self.images['display'][0,:,:]=0.3
-            self.images['display'][-1,:,:]=0.3
-            self.images['display'][:,0,:]=0.3
-            self.images['display'][:,-1,:]=0.3
             self.imsize = utils.rc((0,0))
             if number_of_displays < 4:
                 nrows = 1
@@ -68,14 +52,35 @@ class CaImagingScreen(graphics.Screen):
             self.imsize['row'] = (self.screen_resolution['row']-nrows*spacing)/nrows
             self.imsize['col'] = (self.screen_resolution['col']-ncols*spacing)/ncols
             stretch = float(min( self.imsize['row'], self.imsize['col']))/max(self.images['display'].shape)
+            display_id = 0
             for col in range(ncols):
                 for row in range(nrows):
                     if self.images.has_key('display'):
+                        image2subdisplay = copy.deepcopy(self.images['display'])
+                        #Select displayable channels
+                        channel2display = self.display_configuration[str(display_id)]['channel_select']
+                        if channel2display in self.config.PMTS.keys():
+                            keep_channel=colors.colorstr2channel(self.config.PMTS[channel2display]['COLOR'])
+                            for col_channel in range(3):
+                                if col_channel != keep_channel:
+                                    image2subdisplay[:,:,col_channel] = 0
+                        #Select image filter
+                        filter = self.display_configuration[str(display_id)]['recording_mode_options' if self.experiment_running else 'exploring_mode_options']
+                        if filter == 'Ca activity':
+                            self.ca_activity.append(image2subdisplay.sum())
+                            image2subdisplay = numpy.zeros_like(image2subdisplay)
+                            activity = numpy.array(self.ca_activity)
+                            activity = activity/activity.max()*(image2subdisplay.shape[0]-3)
+                            for pi in range(activity.shape[0]):
+                                image2subdisplay[image2subdisplay.shape[0]-activity[pi]-2,pi+1]=1.0
+                        elif 'median filter' in filter:
+                            for cch in range(3):
+                                image2subdisplay[:,:,cch] = scipy.ndimage.filters.median_filter(image2subdisplay[:,:,cch],3)
                         #CONTINUE HERE
                         pos = utils.rc(((row-0.5*(nrows-1))*(self.imsize['row']+spacing), (col-0.5*(ncols-1))*(self.imsize['col']+spacing)))
-                        self.render_image(self.images['display'], position = pos, stretch = stretch)
+                        self.render_image(colors.addframe(image2subdisplay, 0.3), position = pos, stretch = stretch,position_in_pixel=True)
+                        display_id += 1
             #Here comes the drawing of images, activity curves
-    #        self.render_image(self.im)
         self.flip()
     
     
@@ -206,5 +211,59 @@ class ScreenAndKeyboardHandler(StimulationScreen):
         if command != None:
             self.keyboard_command_queue.put(command)
     
+class TestCaImagingScreen(unittest.TestCase):
+    def setUp(self):
+        from visexpman.users.test.test_configurations import GUITestConfig
+        self.config = GUITestConfig()
+        self.config.application_name = 'ca_imaging'
+        self.config.ENABLE_FRAME_CAPTURE=True
+        from visexpman.users.test import unittest_aggregator
+        self.config.CAPTURE_PATH = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder),'capture')
+        fileop.mkdir_notexists(self.config.CAPTURE_PATH,remove_if_exists=True)
+        self.config.user = 'test'
+    
+    def _get_captured_frame(self):
+        fn=fileop.listdir_fullpath(self.config.CAPTURE_PATH)
+        fn.sort()
+        fn=fn[0]
+        frame=numpy.asarray(Image.open(fn))
+        os.remove(fn)
+        return frame
+        
+        
+    def test_01_image_display(self):
+        cai = CaImagingScreen(self.config)        
+        cai.experiment_running=False
+        cai.images={}
+        cai.ca_activity.extend(range(10))
+        cai.images['display'] = numpy.ones((50,100,3))
+        cai.display_configuration =\
+                {'0': {'channel_select': 'ALL', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': 'raw'}, }
+        cai.refresh()
+        cai.display_configuration =\
+                {'0': {'channel_select': 'ALL', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': 'raw'}, 
+                '1': {'channel_select': 'SIDE', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': 'raw'},
+                '2': {'channel_select': 'SIDE', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': 'Ca activity'}}
+        frame=self._get_captured_frame()
+        numpy.testing.assert_equal(frame[frame.shape[0]*0.4:frame.shape[0]*0.6,frame.shape[1]*0.4:frame.shape[1]*0.6].flatten(), 255)
+        cai.refresh()
+        cai.refresh()
+        frame1=numpy.cast['int'](self._get_captured_frame())
+        frame2=numpy.cast['int'](self._get_captured_frame())
+        hh=numpy.histogram(frame2-frame1,255)
+        numpy.testing.assert_equal(hh[0][1:-1],0)#No values in diff image except 0 and 255
+        self.assertGreater(hh[0][0],hh[0][-1])
+        cai.images['display'] = numpy.zeros((50,100,3))
+        cai.images['display'][:,20:22,0] = 0.8
+        cai.images['display'][:,30:32,1] = 0.8
+        cai.images['display'][:,50:52,:] = 0.8
+        noise = numpy.random.random(cai.images['display'].shape)*0.05
+        cai.images['display'] += noise
+        cai.display_configuration =\
+                {'0': {'channel_select': 'ALL', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': '3x3 median filter'}, }
+        cai.refresh()
+        frame=self._get_captured_frame()
+        #TODO: test for median filter
+
 if __name__ == "__main__":
-    pass
+    unittest.main()

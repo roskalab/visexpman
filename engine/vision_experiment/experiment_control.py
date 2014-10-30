@@ -50,6 +50,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                             'response': multiprocessing.Queue(), 
                             'data': multiprocessing.Queue()}
         self.imaging_started = False
+        self.experiment_running = False
         self.load_image_context()
         #Request for sending display_configuration
         self.send({'function': 'remote_call', 'args': ['self.visualisation_control.generate_display_configuration', [True]]})
