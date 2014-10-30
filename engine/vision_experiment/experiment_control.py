@@ -30,7 +30,7 @@ from visexpman.engine.generic.command_parser import ServerLoop
 from visexpman.users.test import unittest_aggregator
 import unittest
 
-ENABLE_16_BIT = True
+ENABLE_16_BIT = not True
 
 class CaImagingLoop(ServerLoop, CaImagingScreen):
     def __init__(self, machine_config, socket_queues, command, log):

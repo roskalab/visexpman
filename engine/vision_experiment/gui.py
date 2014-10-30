@@ -1478,7 +1478,6 @@ class CaImagingVisualisationControl(gui.WidgetControl):
                 if send:
                     break
         self.display_configuration = copy.deepcopy(display_configuration)
-        print self.display_configuration
         if send or force_send:#If changed, send the display configuration to ca_imaging
             function_call = {'function': 'set_variable', 'args': ['display_configuration', display_configuration]}
             self.poller.send(function_call,connection='ca_imaging')

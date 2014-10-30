@@ -40,6 +40,8 @@ class CaImagingScreen(graphics.Screen):
         '''
         self.clear_screen(color = colors.convert_color(0.0))
         number_of_displays = len(self.display_configuration.keys())
+        if not self.imaging_started:
+            self.ca_activity = []
         spacing = 10
         if number_of_displays>0 and self.images.has_key('display'):
             self.imsize = utils.rc((0,0))
@@ -67,23 +69,24 @@ class CaImagingScreen(graphics.Screen):
                         #Select image filter
                         filter = self.display_configuration[str(display_id)]['recording_mode_options' if self.experiment_running else 'exploring_mode_options']
                         if filter == 'Ca activity':
-                            self.ca_activity.append(image2subdisplay.sum())
-                            image2subdisplay = numpy.zeros_like(image2subdisplay)
-                            activity = numpy.array(self.ca_activity)
-                            activity = activity/activity.max()*(image2subdisplay.shape[0]-3)
-                            for pi in range(activity.shape[0]):
-                                image2subdisplay[image2subdisplay.shape[0]-activity[pi]-2,pi+1]=1.0
+                            if self.imaging_started:
+                                self.ca_activity.append(image2subdisplay.sum())
+                            if len(self.ca_activity)>image2subdisplay.shape[0]-3:
+                                self.ca_activity = self.ca_activity[-(image2subdisplay.shape[0]-3):]
+                            if len(self.ca_activity)>0:
+                                image2subdisplay = numpy.zeros_like(image2subdisplay)
+                                activity = numpy.array(self.ca_activity)
+                                activity = activity/activity.max()*(image2subdisplay.shape[0]-3)
+                                for pi in range(activity.shape[0]):
+                                    image2subdisplay[image2subdisplay.shape[0]-activity[pi]-2,pi+1]=1.0
                         elif 'median filter' in filter:
                             for cch in range(3):
                                 image2subdisplay[:,:,cch] = scipy.ndimage.filters.median_filter(image2subdisplay[:,:,cch],3)
-                        #CONTINUE HERE
                         pos = utils.rc(((row-0.5*(nrows-1))*(self.imsize['row']+spacing), (col-0.5*(ncols-1))*(self.imsize['col']+spacing)))
                         self.render_image(colors.addframe(image2subdisplay, 0.3), position = pos, stretch = stretch,position_in_pixel=True)
                         display_id += 1
             #Here comes the drawing of images, activity curves
         self.flip()
-    
-    
     
 class StimulationScreen(graphics.Screen):
     '''
@@ -234,6 +237,7 @@ class TestCaImagingScreen(unittest.TestCase):
     def test_01_image_display(self):
         cai = CaImagingScreen(self.config)        
         cai.experiment_running=False
+        cai.imaging_started=True
         cai.images={}
         cai.ca_activity.extend(range(10))
         cai.images['display'] = numpy.ones((50,100,3))

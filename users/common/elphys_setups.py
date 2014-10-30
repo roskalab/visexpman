@@ -50,6 +50,7 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         self.SCANNER_CHARACTERISTICS['GAIN'] = [-1.12765460e-04,  -2.82919056e-06]#(p1+p2*A)*f+1, in PU
         self.SCANNER_CHARACTERISTICS['PHASE'] = \
                     [9.50324884e-08,  -1.43226725e-07, 1.50117389e-05,  -1.41414186e-04,   5.90072950e-04,   5.40402050e-03,  -1.18021600e-02]#(p1*a+p2)*f**2+(p3*a**2+p4*a+p5)*f+(p6*a+p7), in radians
+        DATAFILE_COMPRESSION_LEVEL = 5
         self._create_parameters_from_locals(locals())
 
 class TamasSetupConfig(ElphysRetinalCaImagingConfig):
