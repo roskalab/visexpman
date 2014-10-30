@@ -127,3 +127,33 @@ def wavlength2rgb(wavelength):
 
     val = (float(SSS*R), float(SSS*G), float(SSS*B))
     return val
+
+def colorstr2channel(color_str):
+    '''
+    Converts color string to channel index, like 'blue' to 2
+    '''
+    color_strings = ['red','green','blue']
+    return color_strings.index(color_str.lower())
+    
+def addframe(im, frame_color, width=1):
+    im[:width,:,:]=frame_color
+    im[-width,:,:]=frame_color
+    im[:,:width,:]=frame_color
+    im[:,-width,:]=frame_color
+    return im
+    
+import unittest
+class TestColorUtils(unittest.TestCase):
+    def test_01_add_frame(self):
+        im=addframe(numpy.ones((100,100,3)), numpy.array([0.3,0,0]), width=1)
+        numpy.testing.assert_equal(im[0,0,:],numpy.array([0.3,0,0]))
+        im=addframe(numpy.ones((100,100,3)), 0.4, width=1)
+        numpy.testing.assert_equal(im[0,0,:],numpy.array([0.4,0.4,0.4]))
+        im=addframe(numpy.ones((100,100,3)), 0.4, width=10)
+        numpy.testing.assert_equal(im[9,-9,:],numpy.array([0.4,0.4,0.4]))
+        
+    def test_02_colorstr2channel(self):
+        self.assertEqual(colorstr2channel('red'),0)
+        
+if __name__ == "__main__":
+    unittest.main()
