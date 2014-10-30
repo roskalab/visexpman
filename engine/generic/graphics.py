@@ -370,13 +370,14 @@ class Screen(object):
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         
-    def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0):
+    def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0,position_in_pixel=False):
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
+        scale = 1.0 if position_in_pixel else self.config.SCREEN_UM_TO_PIXEL_SCALE
         vertices = numpy.array([
-                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[0]*stretch],
-                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[0]*stretch],
-                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * image.shape[0]*stretch],
-                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[1]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * image.shape[0]*stretch],
+                                [position['col']*scale + 0.5 * image.shape[1]*stretch, position['row']*scale - 0.5 * image.shape[0]*stretch],
+                                [position['col']*scale + 0.5 * image.shape[1]*stretch, position['row']*scale + 0.5 * image.shape[0]*stretch],
+                                [position['col']*scale - 0.5 * image.shape[1]*stretch, position['row']*scale + 0.5 * image.shape[0]*stretch],
+                                [position['col']*scale - 0.5 * image.shape[1]*stretch, position['row']*scale - 0.5 * image.shape[0]*stretch],
                                 ])
         
         glEnableClientState(GL_VERTEX_ARRAY)
