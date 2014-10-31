@@ -2696,6 +2696,7 @@ class VisexpGuiPoller(Poller):
                                      'self.animal_file.recordings']
         self.context_paths['variables'] = ['self.experiment_control.experiment_config_classes.keys', 
                                      'self.animal_file.filename', 
+                                     'self.parent.log.filename', 
                                      'self.parent.central_widget.parameters_groupbox.machine_parameters', 
                                      ]
         self.context_paths['variables'].extend(self.unittest_context_paths)
@@ -2709,6 +2710,7 @@ class VisexpGuiPoller(Poller):
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentIndex', 
+                                          'self.parent.central_widget.ca_displays.averaging.input.text',
                                           ]
         for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
             self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].enable.checkState'.format(i))
@@ -2873,104 +2875,9 @@ class VisexpGuiPoller(Poller):
                         self.send(function_call,connection='ca_imaging')
         except:
             self.printc(traceback.format_exc())
-                    
-                    
-#        try:
-#            for k, queue in self.queues.items():                
-#                if hasattr(queue, 'has_key') and queue.has_key('in') and not queue['in'].empty():
-#                    messages = queue['in'].get()
-#                    if 'EOPSOC' in messages:
-#                        messages = messages.replace('EOPSOC','EOP@@@SOC').split('@@@')
-#                    elif 'EOP' in messages:
-#                        messages = messages.split('EOP')
-#                        messages[0] += 'EOP'
-#                    else:
-#                        messages = [messages]
-#                    for message in messages:
-#                        if len(message)>0:
-#                            command = command_extract.findall(message)
-#                            if len(command) > 0:
-#                                command = command[0]
-#                            parameter = parameter_extract.findall(message)
-#                            if len(parameter) > 0:
-#                                parameter = parameter[0]
-#                            if command == 'connection':
-#                                message = command
-#                            elif command == 'echo' and parameter == 'GUI':
-#                                message = ''
-#                            elif command == 'imaging_finished':
-#                                self.imaging_finished = True
-#                            elif command == 'stim_finished':
-#                                self.stimulation_finished = True
-#                            elif message == 'connected to server':
-#                                #This is sent by the local queued client and its meaning can be confusing, therefore not shown
-#                                message = ''
-#                            else:
-#                                self.printc(k.upper() + ' '  +  message)
-#        except:
-#            self.printc(traceback.format_exc())
-        
-#    def start_experiment(self):
-#        self.emit(QtCore.SIGNAL('set_experiment_progressbar_range'), self.measurement_duration)
-#        self.measurement_starttime=time.time()
-#        
-#    def stop_experiment(self):
-#        self.printc('Stopping experiment requested, please wait')
-#        command = 'SOCabort_experimentEOCguiEOP'
-#        for conn in ['imaging', 'stim']:
-#            self.queues[conn]['out'].put(command)
-#        self._finish_analog_recording()
-#        self._finish_experiment(True)
-#        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(0)
-#
-#    def _start_analog_recording(self):
-#        self.analog_input = daq_instrument.AnalogIO(self.config, id=2)
-#        self.analog_input.start_daq_activity()
-#        self.analog_recording_started=True
-#        self.printc('Analog recording started')
-#
-#    def _finish_analog_recording(self, abort=False):
-#        if self.analog_recording_started:
-#            self.analog_input.finish_daq_activity(abort = abort)
-#            self.analog_recording_started=False
-#            self.printc('Analog recording finished')
-#            
-#    def _finish_experiment(self,  stopped=False):
-#        self.printc('Saving datafiles, please wait...')
-#        os.remove(os.path.join(self.config.EXPERIMENT_DATA_PATH,  self.experiment_parameters['id']+'.hdf5'))
-#        if hasattr(self.analog_input, 'ai_data'):
-#            analog_input_data = self.analog_input.ai_data
-#        #Move data to one file
-#        for fn in os.listdir(self.config.EXPERIMENT_DATA_PATH):
-#            if self.experiment_parameters['id'] in fn:
-#                path = os.path.join(self.config.EXPERIMENT_DATA_PATH, fn)
-#                if fn.split('.')[0].split('_')[-1] == 'ca':
-#                    h = hdf5io.Hdf5io(path, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-#                else:
-#                    #Read in data generated by stimulus software
-#                    node_name = os.path.split(path)[1].replace('.hdf5', '')
-#                    stimulus_data = hdf5io.read_item(path, node_name, filelocking=self.config.ENABLE_HDF5_FILELOCKING)
-#                    merged_filename = path
-#                    
-#        nodes2save = ['analog_inputs']
-#        if 'h' in locals():
-#            h.analog_inputs = analog_input_data
-#            if 'stimulus_data' in locals():
-#                print type(stimulus_data)
-#                setattr(h, node_name, stimulus_data)
-#                nodes2save.append(node_name)
-#            h.save(nodes2save)
-#            print nodes2save
-#        self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(self.measurement_duration)
-#        if 'h' in locals():
-#            h.close()
-#            os.remove(merged_filename)
-#            os.rename(h.filename, merged_filename)
-#            self.printc('All data saved to {0}'.format(merged_filename))
-#        else:
-#            self.printc('Data is not saved')#Need to be refined
-            
+                                
     def close(self):
+        self.printc('phase counter: {0}'.format(self.phase))
         for conn_name in self.queues.keys():
             self.queues[conn_name]['out'].put('SOCclose_connectionEOCstop_clientEOP')
         time.sleep(0.5)
@@ -3229,8 +3136,6 @@ class VisexpGuiPoller(Poller):
             time.sleep(wait)
             self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.setText('cell')
             time.sleep(wait)
-            self.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.setCurrentIndex(2)
-            time.sleep(wait)
             self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.setText('100, 100')
             time.sleep(1)
             self.emit(QtCore.SIGNAL('close_app'))
@@ -3253,8 +3158,6 @@ class VisexpGuiPoller(Poller):
             self.parent.central_widget.main_tab.setCurrentIndex(0)
             time.sleep(wait)
             self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.setText('C1')
-            time.sleep(wait)
-            self.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.setCurrentIndex(2)
             time.sleep(wait)
             self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.setText('200, 200')
             time.sleep(wait)

@@ -1340,7 +1340,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self.machine_config.application_name='main_ui'
         self.machine_config.user = 'test'
         fileop.cleanup_files(self.machine_config)
-        self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'two photon laser',  'pixel/um', utils.rc((200.0, 200.0)), 'DebugExperimentConfig', 10.0, ['SIDE'], utils.rc((10.0, 0.0)))     
+        self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'pixel/um', utils.rc((200.0, 200.0)), 'DebugExperimentConfig', 10.0, ['SIDE'], utils.rc((10.0, 0.0)))     
         
     def tearDown(self):
         time.sleep(10)
@@ -1359,6 +1359,12 @@ class testVisionExperimentGui(unittest.TestCase):
             time.sleep(1.0)
             context = utils.array2object(hdf5io.read_item(fn, 'context', filelocking=False))
             return context
+            
+    def _check_logfile(self,context):
+        logfile_content = fileop.read_text_file(context['variables']['self.parent.log.filename'])
+        self.assertNotIn(logfile_content.lower(),'error')#any error reported
+        self.assertGreater(int(logfile_content.split('phase counter: ')[1].split('\n')[0]),0)#check if phase counter is greater than 0
+        
     
     def _create_animal_parameter_file(self, id):
         '''
@@ -1385,6 +1391,7 @@ class testVisionExperimentGui(unittest.TestCase):
 #        gui =  VisionExperimentGui('test', 'GUITestConfig', 'main_ui', testmode=1)
         self._call_gui(1)
         context = self._read_context()
+        self._check_logfile(context)
         self.assertIn('GUITestExperimentConfig', context['variables']['self.experiment_control.experiment_config_classes.keys'])
         self.assertEqual(context['variables']['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount'], 3)
         self.assertIn('test_stimulus.py', context['variables']['self.experiment_control.user_selected_stimulation_module'])
@@ -1397,6 +1404,7 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         self._call_gui(2)
         context = self._read_context()
+        self._check_logfile(context)
         self.assertTrue(os.path.exists(context['variables']['self.animal_file.filename']))
         self.assertEqual(os.path.split(context['variables']['self.animal_file.filename'])[1], 'animal_test_strain_1-1-2013_1-5-2013_L2R1.hdf5')
         self.assertEqual(utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config)),
@@ -1409,6 +1417,7 @@ class testVisionExperimentGui(unittest.TestCase):
     def test_03_animal_file_parameter_not_provided(self):
         self._call_gui(3)
         context = self._read_context()
+        self._check_logfile(context)
         self.assertEqual((os.path.exists(context['variables']['self.animal_file.filename']), 
                                                               ), 
                                                               (False, 
@@ -1426,6 +1435,7 @@ class testVisionExperimentGui(unittest.TestCase):
         #Run gui
         self._call_gui(4)
         context = self._read_context()
+        self._check_logfile(context)
         self.assertEqual((
             stringop.string_in_list(context['variables']['self.animal_file.animal_files.keys'], 'data_storage1'), 
             stringop.string_in_list(context['variables']['self.animal_file.animal_files.keys'], 'data_storage2'), 
@@ -1447,6 +1457,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self._call_gui(5)
         
         context = self._read_context()
+        self._check_logfile(context)
         for fn in context['variables']['self.animal_file.animal_files.keys']:
             if 'data_storage2' in fn and  fileop.get_user_experiment_data_folder(self.machine_config) in fn:
                 copied_animal_file = fn
@@ -1471,6 +1482,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self._call_gui(6)
         
         context = self._read_context()
+        self._check_logfile(context)
         self.assertEqual((os.path.exists(context['variables']['self.animal_file.filename']), 
                                                               os.path.exists(context['variables']['self.animal_file.filename'].replace('test1', 'test')), 
                                                               utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'animal_parameters', self.machine_config))), (
@@ -1485,6 +1497,7 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         self._call_gui(7)
         context = self._read_context()
+        self._check_logfile(context)
         self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename')
                           ), (
@@ -1513,6 +1526,7 @@ class testVisionExperimentGui(unittest.TestCase):
         
         self._call_gui(9)
         context = self._read_context()
+        self._check_logfile(context)
         explog = utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'log', self.machine_config))
         self.assertEqual((context['widgets']['self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText'], 
                           context['variables'].has_key('self.animal_file.filename'), 
@@ -1553,6 +1567,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self._create_animal_parameter_file('copied2')
         self._call_gui(11)
         context = self._read_context()
+        self._check_logfile(context)
         self.assertEqual(len(context['variables']['self.animal_file.animal_files.keys']), 2)
 
 #    @unittest.skip('')
@@ -1576,13 +1591,12 @@ class testVisionExperimentGui(unittest.TestCase):
         context = self._read_context()
         contexts.append(context)
         expected_values = ('animal_id1_12_12-12-2012_12-12-2012_L0R0.hdf5',
-        2,
         'cell',
         '100, 100')
         for context in contexts:
+            self._check_logfile(context)
             self.assertEqual((
                 os.path.split(context['variables']['self.animal_file.filename'])[1],
-                context['widgets']['self.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.currentIndex'],
                 context['widgets']['self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text'],
                 context['widgets']['self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text'],
                 ),expected_values)
@@ -1594,11 +1608,11 @@ class testVisionExperimentGui(unittest.TestCase):
         '''
         self._call_gui(13)
         context = self._read_context()
+        self._check_logfile(context)
         self.assertEqual((len(context['variables']['self.animal_file.recordings']), 
                     context['variables']['self.animal_file.recordings'][0]['status'], 
                     context['variables']['self.animal_file.recordings'][0]['cell_name'], 
                     context['variables']['self.animal_file.recordings'][0]['pixel_size'], 
-                    context['variables']['self.animal_file.recordings'][0]['stimulation_device'], 
                     context['variables']['self.animal_file.recordings'][0]['resolution_unit'], 
                     context['variables']['self.animal_file.recordings'][0]['scanning_range'], 
                     context['variables']['self.animal_file.recordings'][0]['experiment_name'], 
@@ -1611,12 +1625,12 @@ class testVisionExperimentGui(unittest.TestCase):
     def test_14_add_remove_experiment_animal_file(self):
         self._call_gui(14)
         context = self._read_context()
+        self._check_logfile(context)
         recordings = utils.array2object(hdf5io.read_item(context['variables']['self.animal_file.filename'], 'recordings', self.machine_config))
         self.assertEqual((len(recordings), 
                     recordings[0]['status'], 
                     recordings[0]['cell_name'], 
                     recordings[0]['pixel_size'], 
-                    recordings[0]['stimulation_device'], 
                     recordings[0]['resolution_unit'], 
                     recordings[0]['scanning_range'], 
                     recordings[0]['experiment_name'], 

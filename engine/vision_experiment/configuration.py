@@ -222,6 +222,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         GUI['MOUSE_STRAIN_SUGGESTIONS'].sort()
         GUI['GUI_REFRESH_PERIOD'] = 2.0
         GUI['EXPERIMENT_LOG_UPDATE_PERIOD'] = 60.0
+        GUI['INJECTED_SUBSTANCE_SUGGESTIONS'] = ['', 'chlorprothixene', 'isofluorane']
+        GUI['INJECTED_SUBSTANCE_SUGGESTIONS'].extend(GUI['GREEN_LABELING_SUGGESTIONS'])
         
         ############# Experiment configuration/ experiment protocol related ######################
         GUI_CONFIGURABLE_STIMULATION_DEVICES = ['led', 'two photon laser', 'polychrome', 'electrode']

@@ -105,7 +105,7 @@ class AddExperimentLogEntryGroupbox(QtGui.QGroupBox):
         date_format = QtCore.QString('yyyy-MM-dd hh:mm')
         self.date = QtGui.QDateTimeEdit(self)
         self.date.setDisplayFormat(date_format)
-        self.substance = gui.LabeledComboBox(self, 'Substance',['', 'chlorprothixene', 'isofluorane'])#TODO: to config
+        self.substance = gui.LabeledComboBox(self, 'Substance',self.parent().parent().config.GUI['INJECTED_SUBSTANCE_SUGGESTIONS'])
         self.substance.input.setEditable(True)
         self.amount = gui.LabeledInput(self, 'Amount')
         self.comment = gui.LabeledInput(self, 'Comment')
@@ -741,7 +741,8 @@ class ExperimentControl(gui.WidgetControl):
                 return False
             self.mandatory_parameters[pn] = utils.rc(tuple(self.mandatory_parameters[pn]))
         #Parse numeric parameters
-        for pn in ['pixel_size', 'stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay','maximal_x_line_linearity_error','analog_output_sampling_rate', 'analog_input_sampling_rate', 'scanner_position_to_voltage', 'averaging']:
+        self.mandatory_parameters['averaging'] = 1 if self.mandatory_parameters['averaging'] == '' else int(self.mandatory_parameters['averaging'])
+        for pn in ['pixel_size', 'stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay','maximal_x_line_linearity_error','analog_output_sampling_rate', 'analog_input_sampling_rate', 'scanner_position_to_voltage']:
             try:
                 self.mandatory_parameters[pn] = float(self.mandatory_parameters[pn].split('#')[0])
             except ValueError:

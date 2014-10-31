@@ -141,7 +141,7 @@ TEST_priority_unittests = [
                     'testVisionExperimentGui.test_01_select_stimfile', 
                        ]
 
-TEST_single_unittest = ''#TestCaImaging.test_03_snap_and_live_imaging'
+TEST_single_unittest = ''#testVisionExperimentGui.test_13_add_remove_experiment_no_animal_file'#TestCaImaging.test_03_snap_and_live_imaging'
 
 def get_python_processes():
     pids = []
