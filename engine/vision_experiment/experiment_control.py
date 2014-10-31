@@ -224,11 +224,16 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             return
         self.printl('Snap')
         self.live_scan_start(parameters)
-        while True:
-            frame = self.daq_process.read_ai()
-            if frame is not None:
-                self.frame_ct+=1
-                break
+        frames2acquire = parameters['averaging'] if parameters['averaging']>0 else 1
+        frames=[]
+        for ii in range(int(frames2acquire)):
+            while True:
+                frame = self.daq_process.read_ai()
+                if frame is not None:
+                    frames.append(frame)
+                    self.frame_ct+=1
+                    break
+        frame = numpy.array(frames).mean(axis=0)
         self.images['display'], self.images['save'] = scanner_control.signal2image(frame, self.imaging_parameters, self.config.PMTS)
         self.images['display']/=self.config.MAX_PMT_VOLTAGE
         self._save_data(self.images['save'])

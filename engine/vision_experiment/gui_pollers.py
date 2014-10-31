@@ -2704,7 +2704,6 @@ class VisexpGuiPoller(Poller):
         self.context_paths['widgets'] = [
                                           'self.parent.central_widget.main_widget.experiment_control_groupbox.experiment_name.currentText',
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text', 
-                                          'self.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.currentIndex', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.recording_channel.list.selectedIndexes', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.enable_scanner_synchronization.checkState', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text', 

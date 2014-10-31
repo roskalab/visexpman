@@ -292,6 +292,11 @@ def phys2clampfit(filename):
     data = data.flatten('F').reshape(dim1, dim2)
     data.tofile(filename.replace('.phys', 'c.phys'))
     
+def read_machine_config(h):
+    return utils.array2object(h.findvar('machine_config'))
+    
+def read_machine_config_name(h):
+    return read_machine_config(h).__class__.__name__
    
 class TestExperimentData(unittest.TestCase):
     @unittest.skip("")

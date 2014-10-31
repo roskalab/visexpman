@@ -711,7 +711,6 @@ class ExperimentControl(gui.WidgetControl):
             'experiment_name': configname,
             'experiment_config_source_code' : self._get_updated_experiment_config_file(filename,configname),
             'cell_name': str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text()), 
-            'stimulation_device' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.stimulation_device.input.currentText()), 
             'recording_channels' : self.poller.parent.central_widget.main_widget.experiment_options_groupbox.recording_channel.get_selected_item_names(), 
             'enable_scanner_synchronization' : self.poller.parent.central_widget.main_widget.experiment_options_groupbox.enable_scanner_synchronization.checkState() == 2, 
             'scanning_range' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text()), 
@@ -719,7 +718,8 @@ class ExperimentControl(gui.WidgetControl):
             'resolution_unit' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentText()), 
             'status' : 'issued',
             'id':str(int(numpy.round(time.time(), 2)*100)), 
-            'save2file' : (self.poller.parent.central_widget.ca_displays.save2file.input.checkState()==2)
+            'save2file' : (self.poller.parent.central_widget.ca_displays.save2file.input.checkState()==2),
+            'averaging' : self.poller.parent.central_widget.ca_displays.averaging.input.text()
                            }
         #Copy values from machine parameters
         for machine_parameter_name in self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner'].keys():
@@ -741,7 +741,7 @@ class ExperimentControl(gui.WidgetControl):
                 return False
             self.mandatory_parameters[pn] = utils.rc(tuple(self.mandatory_parameters[pn]))
         #Parse numeric parameters
-        for pn in ['pixel_size', 'stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay','maximal_x_line_linearity_error','analog_output_sampling_rate', 'analog_input_sampling_rate', 'scanner_position_to_voltage']:
+        for pn in ['pixel_size', 'stimulus_flash_trigger_duty_cycle', 'stimulus_flash_trigger_delay','maximal_x_line_linearity_error','analog_output_sampling_rate', 'analog_input_sampling_rate', 'scanner_position_to_voltage', 'averaging']:
             try:
                 self.mandatory_parameters[pn] = float(self.mandatory_parameters[pn].split('#')[0])
             except ValueError:
@@ -972,13 +972,6 @@ class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
     def create_widgets(self):
         self.cell_name = gui.LabeledInput(self, 'Cell name')
         self.cell_name.setToolTip('Providing cell name is not mandatory')
-        stim_devices_list = copy.deepcopy(self.parent().config.PREFERRED_STIMULATION_DEVICES)
-        stim_devices_list.extend([item for item in self.parent().config.STIMULATION_DEVICES if item not in stim_devices_list])
-        stim_devices_list.insert(0, '')
-        self.stimulation_device = gui.LabeledComboBox(self, 'Stimulation device',items = stim_devices_list)
-        self.stimulation_device.setToolTip('''Empty: the experiment and experiment class will be executed as it is\n
-Any stimulation device: stimulation will be presented by the selected device,\n
-but any of {0}:\n Selected Experiment config is ignored, parameters are taken from user interface'''.format(self.parent().config.GUI_CONFIGURABLE_STIMULATION_DEVICES))
         self.enable_scanner_synchronization = QtGui.QCheckBox(self)
         self.enable_scanner_synchronization.setText('Scanner-stimulus synchronization')
         self.enable_scanner_synchronization.setToolTip('Synchronize stimulation with two photon scanning')
@@ -997,13 +990,12 @@ but any of {0}:\n Selected Experiment config is ignored, parameters are taken fr
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.cell_name, 0, 0, 1, 3)
-        self.layout.addWidget(self.stimulation_device, 1, 0, 1, 3)
-        self.layout.addWidget(self.recording_channel, 2, 0, 1, 3)
-        self.layout.addWidget(self.enable_scanner_synchronization, 3, 0, 1, 3)
-        self.layout.addWidget(self.scanning_range, 4, 0, 1, 3)
-        self.layout.addWidget(self.resolution_label, 5, 0)
-        self.layout.addWidget(self.resolution_unit, 5, 1)
-        self.layout.addWidget(self.pixel_size, 5, 2)
+        self.layout.addWidget(self.recording_channel, 1, 0, 1, 3)
+        self.layout.addWidget(self.enable_scanner_synchronization, 2, 0, 1, 3)
+        self.layout.addWidget(self.scanning_range, 3, 0, 1, 3)
+        self.layout.addWidget(self.resolution_label, 4, 0)
+        self.layout.addWidget(self.resolution_unit, 4, 1)
+        self.layout.addWidget(self.pixel_size, 4, 2)
         
         self.setLayout(self.layout)
 
@@ -1084,6 +1076,10 @@ class MachineParametersGroupbox(QtGui.QGroupBox):
         self.create_widgets()
         self.create_layout()
         self.machine_parameters = {}
+        stimdevice_help = '''Empty: the experiment and experiment class will be executed as it is\n
+Any stimulation device: stimulation will be presented by the selected device,\n
+Choices: {0}:\n Selected Experiment config is overridden by this value'''.format(self.parent().config.STIMULATION_DEVICES)
+
         self.machine_parameters['scanner'] = {'Scan center':  '0, 0#Center of scanning, format: (row, col) [um]', 
                                                                         'Stimulus flash trigger duty cycle': '100#[%] 100% means that the flash is on during the whole flyback of the x mirror', 
                                                                         'Stimulus flash trigger delay': '0#[us]',
@@ -1092,7 +1088,8 @@ class MachineParametersGroupbox(QtGui.QGroupBox):
                                                                         'Enable flyback scan': '0#If set to 1, x mirror\'s flyback movement is also used for data acquisition',
                                                                         'Maximal x line linearity error':'5#[%], Increase: better scan speed but more distortion at the left and right edges.\nKeep it below 15 %.',
                                                                         'Enable scanner phase characteristics': '1#1=enable',
-                                                                        'Scanner position to voltage': '0.013#Conversion factor between scanner voltage and scanning range, voltage=size*factor'
+                                                                        'Scanner position to voltage': '0.013#Conversion factor between scanner voltage and scanning range, voltage=size*factor',
+                                                                        #'Stimulation device': 'projector#{0}'.format(stimdevice_help)
                                                                         }
                                                                         
         self.machine_parameter_order = {}
@@ -1422,6 +1419,7 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
         self.live_scan_stop = QtGui.QPushButton('Live scan stop', self)
         self.snap = QtGui.QPushButton('Snap', self)
         self.save2file = gui.LabeledCheckBox(self, 'Save to file')
+        self.averaging = gui.LabeledInput(self, 'Averaging')
         for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
             self.display_configs.append(DisplayConfigurationGroupbox(self, str(i)))
             self.display_configs[-1].setFixedWidth(200)
@@ -1437,12 +1435,13 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
         self.layout.addWidget(self.live_scan_stop, 0, 1)
         self.layout.addWidget(self.save2file, 0, 2)
         self.layout.addWidget(self.snap, 0, 3)
+        self.layout.addWidget(self.averaging, 1, 0)
         for row in range(2):
             for col in range(self.config.MAX_CA_IMAGE_DISPLAYS/2):
-                self.layout.addWidget(self.display_configs[index], row+1, 2*col,1,2)
+                self.layout.addWidget(self.display_configs[index], row+2, 2*col,1,2)
                 index += 1
-        self.layout.addWidget(self.select_display, 3, 0)
-        self.layout.addWidget(self.select_plot, 4, 0)
+        self.layout.addWidget(self.select_display, 4, 0)
+        self.layout.addWidget(self.select_plot, 5, 0)
         self.setLayout(self.layout)
         
 class CaImagingVisualisationControl(gui.WidgetControl):
