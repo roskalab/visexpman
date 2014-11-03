@@ -368,7 +368,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         self.KEYS['live_start_stop'] = 'space'
         self.KEYS['transfer_function'] = 't'
         
-        DATAFILE_COMPRESSION_LEVEL = [7, [0,9]]
+        DATAFILE_COMPRESSION_LEVEL = [4, [0,9]]
         
         self._create_parameters_from_locals(locals())
         
