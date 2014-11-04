@@ -78,7 +78,7 @@ class CaImagingScreen(graphics.Screen):
                                 activity = numpy.array(self.ca_activity)
                                 activity = activity/activity.max()*(image2subdisplay.shape[0]-3)
                                 for pi in range(activity.shape[0]):
-                                    image2subdisplay[image2subdisplay.shape[0]-activity[pi]-2,pi+1]=1.0
+                                    image2subdisplay[image2subdisplay.shape[0]-int(activity[pi])-2,pi+1]=1.0
                         elif 'median filter' in filter:
                             for cch in range(3):
                                 image2subdisplay[:,:,cch] = scipy.ndimage.filters.median_filter(image2subdisplay[:,:,cch],3)
@@ -225,17 +225,19 @@ class TestCaImagingScreen(unittest.TestCase):
         fileop.mkdir_notexists(self.config.CAPTURE_PATH,remove_if_exists=True)
         self.config.user = 'test'
     
-    def _get_captured_frame(self):
+    def _get_captured_frame(self,remove_file=True):
         fn=fileop.listdir_fullpath(self.config.CAPTURE_PATH)
         fn.sort()
-        fn=fn[0]
-        frame=numpy.asarray(Image.open(fn))
-        os.remove(fn)
+        fn_latest=fn[-1]
+        frame=numpy.asarray(Image.open(fn_latest))
+        if remove_file:
+            [os.remove(f) for f in fn]
         return frame
         
         
     def test_01_image_display(self):
-        cai = CaImagingScreen(self.config)        
+        frame_saving_shifted=True
+        cai = CaImagingScreen(self.config)     
         cai.experiment_running=False
         cai.imaging_started=True
         cai.images={}
@@ -244,15 +246,19 @@ class TestCaImagingScreen(unittest.TestCase):
         cai.display_configuration =\
                 {'0': {'channel_select': 'ALL', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': 'raw'}, }
         cai.refresh()
+        if frame_saving_shifted:
+            cai.refresh()
+        frame=self._get_captured_frame()
+        numpy.testing.assert_equal(frame[int(frame.shape[0]*0.4):int(frame.shape[0]*0.6),int(frame.shape[1]*0.4):int(frame.shape[1]*0.6)].flatten(), 255)
         cai.display_configuration =\
                 {'0': {'channel_select': 'ALL', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': 'raw'}, 
                 '1': {'channel_select': 'SIDE', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': 'raw'},
                 '2': {'channel_select': 'SIDE', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': 'Ca activity'}}
-        frame=self._get_captured_frame()
-        numpy.testing.assert_equal(frame[frame.shape[0]*0.4:frame.shape[0]*0.6,frame.shape[1]*0.4:frame.shape[1]*0.6].flatten(), 255)
-        cai.refresh()
+        if frame_saving_shifted:
+            cai.refresh()
         cai.refresh()
         frame1=numpy.cast['int'](self._get_captured_frame())
+        cai.refresh()
         frame2=numpy.cast['int'](self._get_captured_frame())
         hh=numpy.histogram(frame2-frame1,255)
         numpy.testing.assert_equal(hh[0][1:-1],0)#No values in diff image except 0 and 255
@@ -265,6 +271,8 @@ class TestCaImagingScreen(unittest.TestCase):
         cai.images['display'] += noise
         cai.display_configuration =\
                 {'0': {'channel_select': 'ALL', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': '3x3 median filter'}, }
+        if frame_saving_shifted:
+            cai.refresh()
         cai.refresh()
         frame=self._get_captured_frame()
         #TODO: test for median filter

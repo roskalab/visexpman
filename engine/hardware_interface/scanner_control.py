@@ -1778,7 +1778,7 @@ class TestScannerControl(unittest.TestCase):
 #        plot(stimulus_flash_trigger_signal)
 #        show()
 
-    def test_19_reconstruct_signal(self):
+    def test_19_reconstruct_signal(self):#TODO:uncomplete test
         from pylab import plot, show
         from PIL import Image
         from visexpman.engine.generic import signal,introspect

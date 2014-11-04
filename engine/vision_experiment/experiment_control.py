@@ -379,37 +379,6 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             title((k, 'highest frq'))
             ct+=2
         show()
-        return
-        from visexpman.users.zoltan.scanner_calibration import organize_scanner_calib_data
-        from pylab import plot,show,figure,title
-        import pdb
-        pdb.set_trace()
-        fig = figure()
-        ct = 0
-        for fn in fns:
-            data = utils.array2object(numpy.load(fn))
-            #Cut up data to 
-            od = organize_scanner_calib_data(data)
-            od = od[:1]
-            t = od[0][0]
-            wf = od[0][1]
-            scanner = od[0][2]
-            a = od[0][3]
-            f = od[0][4]
-            t = t[:wf.shape[0]]
-            mask = numpy.zeros_like(wf)
-            mask[mask.shape[0]/4:mask.shape[0]/4*3]=1.0
-            wf*=mask
-            wf = wf[0]
-#            center,size,threshold=signal.find_bead_center_and_width(wf)
-            s = fig.add_subplot(3, len(fns)/3+1,1+ct)
-            plot(wf)
-            plot(scanner)
-            title((f))
-            ct += 1
-#            break
-        self.printl('plot done')
-        show()
         
     def at_process_end(self):
         self.save_image_context()
@@ -1295,6 +1264,7 @@ class TestCaImaging(unittest.TestCase):
             'trigger_width' : 0.0,
             'trigger_delay' : 0.0,
             'status' : 'preparing', 
+            'averaging':2,
             'id':str(int(numpy.round(time.time(), 2)*100)),
             'analog_input_sampling_rate': 500000,
             'analog_output_sampling_rate': 500000,
@@ -1352,6 +1322,7 @@ class TestCaImaging(unittest.TestCase):
             'experiment_name': '',
             'experiment_config_source_code' : source,
             'cell_name': 'cell0', 
+            'averaging':1,
             'stimulation_device' : '', 
             'recording_channels' : ['SIDE'], 
             'save2file' : True,
@@ -1421,6 +1392,7 @@ class TestCaImaging(unittest.TestCase):
             time.sleep(1.0)
         client.terminate()
         time.sleep(2)
+        return
         self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower().replace('max_linearity_error',''))
         #check context file
         image_context = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']),'context', filelocking=False))

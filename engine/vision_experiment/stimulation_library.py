@@ -1493,7 +1493,7 @@ class TestStimulationPatterns(unittest.TestCase):
         pauses = numpy.diff(edges[1:-1])[::2]/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE)
         numpy.testing.assert_equal(pauses, numpy.ones_like(pauses)*0.1)
         #TODO: check captured files: shape size, speed
-        self.assertEqual((len(stim_frames)-2)/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE), calculated_duration)
+        numpy.testing.assert_almost_equal((len(stim_frames)-2)/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE), calculated_duration, int(-numpy.log10(3.0/context['machine_config'].SCREEN_EXPECTED_FRAME_RATE))-1)
 
 #    @unittest.skip('')
     def test_03_natural_stim_spectrum(self):
@@ -1509,7 +1509,8 @@ class TestStimulationPatterns(unittest.TestCase):
         fns = fileop.listdir_fullpath(context['machine_config'].CAPTURE_PATH)
         #Check if number of frames generated corresponds to duration, repeat and frame rate
         self.assertAlmostEqual(len(fns), duration*repeats*context['machine_config'].SCREEN_EXPECTED_FRAME_RATE,delta=5)
-        for f in fns:
+        fns.sort()
+        for f in fns[1:]:#First frame might be some garbage in the frame buffer
             im = numpy.asarray(Image.open(f))
             first_column = im[:,0]
             self.assertEqual(first_column.std(),0)#Check if columns have the same color

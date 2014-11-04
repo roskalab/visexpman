@@ -9,7 +9,6 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 
 import visexpman
-from visexpman.engine import visexp_runner
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment

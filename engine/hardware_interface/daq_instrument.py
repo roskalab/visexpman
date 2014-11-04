@@ -88,9 +88,10 @@ class ControlLoop():
         analog_input.StopTask()
         analog_input.ClearTask()
         analog_output.ClearTask()
-        from pylab import plot,show
-        plot(numpy.array(data).flatten())
-        show()
+        if 0:
+            from pylab import plot,show
+            plot(numpy.array(data).flatten())
+            show()
         
 
 def parse_channel_string(channels):
