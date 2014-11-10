@@ -4,11 +4,17 @@ import sys
 import serial
 import numpy
 ################ Grating parameters ################
-BAR_WIDTH =  20 #4,6,10,20#deg
-SPEED = 2#deg/s, 10, 5, 1,0.4
+BAR_WIDTHS =  [20,40] #4,6,10,20#deg
+SPEEDS = [2]#deg/s, 10, 5, 1,0.4
+MEAN_INTENSITIES = [0.5]
+CONTRASTS = [1.0, 0.5]
 ORIENTATION = [0,180]#0,-180
-DURATION = 10.0#s, -1: unlimited, duration per orientation
+DURATION = 1.0#s, -1: unlimited, duration per orientation
 REPEATS = 2
+BACKGROUND = 0.5
+TIME1 = 2.0
+TIME2 = 4.0
+TIME3 = 3.0
 MOUSE_EYE_SCREEN_DISTANCE = 8.0#cm
 DUTY_CYCLE = 0.5
 ################ End of parameters ################
@@ -19,10 +25,10 @@ SCREEN_RESOLUTION = (1067,600)
 SCREEN_RESOLUTION = (1920,1080)
 #SCREEN_RESOLUTION = (1024,768)
 SCREEN_FRQ = 450#1750#60
-FULLSCREEN = not False
+FULLSCREEN = False
 
-BAR_WIDTH = numpy.tan(numpy.radians(BAR_WIDTH))*MOUSE_EYE_SCREEN_DISTANCE
-SPEED = numpy.tan(numpy.radians(SPEED))*MOUSE_EYE_SCREEN_DISTANCE
+BAR_WIDTHS = numpy.tan(numpy.radians(numpy.array(BAR_WIDTHS)))*MOUSE_EYE_SCREEN_DISTANCE
+SPEEDS = numpy.tan(numpy.radians(numpy.array(SPEEDS)))*MOUSE_EYE_SCREEN_DISTANCE
 if __name__=='__main__':
     try:
         s=serial.Serial(PORT)
@@ -37,23 +43,28 @@ if __name__=='__main__':
     else:
         screen = pygame.display.set_mode(SCREEN_RESOLUTION)
     pygame.mouse.set_visible(not FULLSCREEN)
-    white = (255,255,255)
-    black = (0,0,0)
+    background = tuple([int(255*BACKGROUND)]*3)
     exit=False
     while True:
-        screen.fill(black)
+        screen.fill(background)
         pygame.display.flip()
         for event in pygame.event.get():
             if event.type == pygame.QUIT or (event.type == pygame.KEYDOWN and pygame.key.name(event.key) == 'escape'):
                 exit=True
             elif (event.type == pygame.KEYDOWN and pygame.key.name(event.key) == 'e'):
-                oris = REPEATS*ORIENTATION
-                for ori in oris:
+                stim_abort =False
+                import itertools
+                time.sleep(TIME1)
+                for rep, mean_intensity, contrast, bar_width,spd,ori in itertools.product(range(REPEATS), MEAN_INTENSITIES,CONTRASTS,BAR_WIDTHS,SPEEDS,ORIENTATION):
+#                    print ori, mean_intensity, contrast, bar_width,spd,rep
+#                for ori in oris:
+                    white = tuple(3*[int(255*(mean_intensity+0.5*contrast))])
+                    black = tuple(3*[int(255*(mean_intensity-0.5*contrast))])
                     pixel_size = SCREEN_SIZE[0]/SCREEN_RESOLUTION[0]
-                    bar_width = BAR_WIDTH/pixel_size
+                    bar_width = bar_width/pixel_size
                     spacing = bar_width/DUTY_CYCLE
                     nstripes = int(SCREEN_RESOLUTION[0]/(spacing))
-                    pixel_speed = SPEED/pixel_size/SCREEN_FRQ
+                    pixel_speed = spd/pixel_size/SCREEN_FRQ
                     nframes = DURATION*SCREEN_FRQ
                     if ori == 180:
                         pixel_speed *= -1
@@ -68,7 +79,7 @@ if __name__=='__main__':
                         # check for quit events
                         for event in pygame.event.get():
                             if (event.type == pygame.KEYDOWN and pygame.key.name(event.key) == 'a'):
-                                stimstop=True
+                                stim_abort=True
                         if DURATION > 0 and framect >= nframes:
                             stimstop=True
                         # erase the screen
@@ -89,10 +100,19 @@ if __name__=='__main__':
                         tlast=now
                         pygame.display.flip()
                         framect+=1
-                        if stimstop:
+                        if stimstop or stim_abort:
                             break
-                    dt=(time.time()-t0)
-                    print framect/dt,dt,framect
+                    if stim_abort:
+                        break
+                    screen.fill(background)
+                    pygame.display.flip()
+                    time.sleep(TIME3)
+                screen.fill(background)
+                pygame.display.flip()
+                if TIME2 - TIME3 > 0:
+                    time.sleep(TIME2 - TIME3)
+                dt=(time.time()-t0)
+                print framect/dt,dt,framect
                 if serial_port:
                     s.setRTS(True)#Clearing acq pin
         if exit:
