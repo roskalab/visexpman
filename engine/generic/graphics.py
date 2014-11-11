@@ -157,7 +157,7 @@ class Screen(object):
             while self.run_loop:
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
                 #default view is set
-                self.set_view((0, 0, 0),  0, 0, 0, 1.0)
+                self.set_view((0, 0, 0), 0, 0, 0, 1.0)
                 #glDisable(GL_LIGHTING) if light is enabled
                 self.render_before_set_view()
                 self.set_view(self.position,  self.heading,  self.roll, self.pitch, self.scale)
@@ -245,10 +245,10 @@ class Screen(object):
         '''
         glMatrixMode (GL_PROJECTION)
         glLoadIdentity()
-        left = -0.5 * self.config.SCREEN_RESOLUTION['col']
-        right = 0.5 * self.config.SCREEN_RESOLUTION['col']
-        bottom = 0.5 * self.config.SCREEN_RESOLUTION['row']
-        top = -0.5 * self.config.SCREEN_RESOLUTION['row']
+        left = -0.5 * self.screen_resolution['col']
+        right = 0.5 * self.screen_resolution['col']
+        bottom = 0.5 * self.screen_resolution['row']
+        top = -0.5 * self.screen_resolution['row']
         
         if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'left':
             left = left * -1.0 + self.config.ORIGO['col']
@@ -263,7 +263,7 @@ class Screen(object):
             top = top + self.config.ORIGO['row']
             bottom = bottom + self.config.ORIGO['row']
         
-        z_range = max(self.config.SCREEN_RESOLUTION['row'], self.config.SCREEN_RESOLUTION['col'])
+        z_range = max(self.screen_resolution['row'], self.screen_resolution['col'])
         glOrtho(left, right, bottom, top,  -z_range, z_range)
                 
         #set viewport according to ORIGO parameter
@@ -379,7 +379,6 @@ class Screen(object):
                                 [position['col']*scale - 0.5 * image.shape[1]*stretch, position['row']*scale + 0.5 * image.shape[0]*stretch],
                                 [position['col']*scale - 0.5 * image.shape[1]*stretch, position['row']*scale - 0.5 * image.shape[0]*stretch],
                                 ])
-        
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         dt = GL_FLOAT
