@@ -985,7 +985,7 @@ class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
         self.scanning_range = gui.LabeledInput(self, 'Scan range (height, width) [um]')
         self.resolution_label = QtGui.QLabel('Pixel size', self)
         self.resolution_unit = QtGui.QComboBox(self)
-        self.resolution_unit.addItems(QtCore.QStringList(['um/pixel', 'pixel/um', 'us']))
+        self.resolution_unit.addItems(QtCore.QStringList(['pixel/um', 'um/pixel', 'us']))
         self.pixel_size = QtGui.QLineEdit(self)
 
     def create_layout(self):

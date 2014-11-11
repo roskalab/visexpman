@@ -28,10 +28,13 @@ class CaImagingScreen(graphics.Screen):
         if self.config.FULLSCREEN:
             screen_resolution = graphics.get_screen_size()
         else:
-            screen_resolution = utils.cr((800, 600))
+            screen_resolution = utils.cr((1024, 768))
         graphics.Screen.__init__(self, self.config, screen_resolution = screen_resolution, graphics_mode = 'external')
         self.clear_screen()
         self.display_configuration = {}
+        self.ca_activity = []
+        
+    def prepare_screen_for_live_imaging(self):
         self.ca_activity = []
 
     def refresh(self):
@@ -40,8 +43,6 @@ class CaImagingScreen(graphics.Screen):
         '''
         self.clear_screen(color = colors.convert_color(0.0))
         number_of_displays = len(self.display_configuration.keys())
-        if not self.imaging_started:
-            self.ca_activity = []
         spacing = 10
         if number_of_displays>0 and self.images.has_key('display'):
             self.imsize = utils.rc((0,0))
@@ -55,19 +56,21 @@ class CaImagingScreen(graphics.Screen):
             self.imsize['col'] = (self.screen_resolution['col']-ncols*spacing)/ncols
             stretch = float(min( self.imsize['row'], self.imsize['col']))/max(self.images['display'].shape)
             display_id = 0
+            display_names = self.display_configuration.keys()
+            display_names.sort()
             for col in range(ncols):
                 for row in range(nrows):
                     if self.images.has_key('display'):
                         image2subdisplay = copy.deepcopy(self.images['display'])
                         #Select displayable channels
-                        channel2display = self.display_configuration[str(display_id)]['channel_select']
+                        channel2display = self.display_configuration[display_names[display_id]]['channel_select']
                         if channel2display in self.config.PMTS.keys():
                             keep_channel=colors.colorstr2channel(self.config.PMTS[channel2display]['COLOR'])
                             for col_channel in range(3):
                                 if col_channel != keep_channel:
                                     image2subdisplay[:,:,col_channel] = 0
                         #Select image filter
-                        filter = self.display_configuration[str(display_id)]['recording_mode_options' if self.experiment_running else 'exploring_mode_options']
+                        filter = self.display_configuration[display_names[display_id]]['recording_mode_options' if self.experiment_running else 'exploring_mode_options']
                         if filter == 'Ca activity':
                             if self.imaging_started:
                                 self.ca_activity.append(image2subdisplay.sum())
