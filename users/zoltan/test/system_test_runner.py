@@ -10,7 +10,6 @@ import scipy.io
 import visexpman
 import visexpA
 from visexpman.engine import visexp_gui
-from visexpman.engine import visexp_runner
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine import jobhandler
 from visexpman.engine.generic import utils

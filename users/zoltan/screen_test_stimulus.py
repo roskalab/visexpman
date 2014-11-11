@@ -6,7 +6,6 @@ from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
-from visexpman.engine import visexp_runner
 
 class ScreenTestSetup(VisionExperimentConfig):
     def _set_user_parameters(self):

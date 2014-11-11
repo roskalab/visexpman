@@ -1,7 +1,6 @@
 import os
 import os.path
 import tempfile
-from visexpman.engine import visexp_runner
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
