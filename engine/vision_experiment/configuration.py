@@ -70,22 +70,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
                                                 'ND50': 6, 
                                                 }]
                                                 
-        DAQ_CONFIG = [
-             {
-             'ANALOG_CONFIG' : 'aio', #'ai', 'ao', 'aio', 'undefined'
-             'DAQ_TIMEOUT' : 1.0, 
-             'AO_SAMPLE_RATE' : 100,
-             'AI_SAMPLE_RATE' : 1000,
-             'AO_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ao0:1',
-             'AI_CHANNEL' : unittest_aggregator.TEST_daq_device + '/ai9:0',        
-             'MAX_VOLTAGE' : 5.0,
-             'MIN_VOLTAGE' : 0.0,
-             'DURATION_OF_AI_READ' : 1.0,
-             'ENABLE' : True
-             },
-         ]
-
-
         '''        
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
         
@@ -115,29 +99,8 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         'stim': {'port': self.BASE_PORT, 'ip': {'stim': '', 'main_ui': ''}},
         'analysis': {'port': self.BASE_PORT+2, 'ip': {'analysis': '', 'main_ui': ''}},
         }
+        NETWORK_COMMUNICATION_TIMEOUT = [10, [0,60]]
         
-        #OBSOLETE
-        COMMAND_RELAY_SERVER  = {
-        'RELAY_SERVER_IP' : '',
-        'RELAY_SERVER_IP_FROM_TABLE': False,
-        'ENABLE' : False,
-        'CLIENTS_ENABLE': False, 
-        'TIMEOUT':6.0,#6
-        'CONNECTION_MATRIX':
-            {
-            'GUI_MES'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 1}}, 
-            'STIM_MES'  : {'STIM' : {'IP': '1', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+2}, 'MES' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 3}}, 
-            'GUI_STIM'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+4}, 'STIM' : {'IP': '', 'LOCAL_IP': '',  'PORT': self.BASE_PORT + 5}}, 
-            'GUI_ANALYSIS'  : {'GUI' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT+6}, 'ANALYSIS' : {'IP': '', 'LOCAL_IP': '', 'PORT': self.BASE_PORT + 7}}, 
-            },
-        'SERVER_IP':{
-                     'GUI_MES': '',
-                     'STIM_MES': '',
-                     'GUI_STIM': '',
-                     'GUI_ANALYSIS'  : '',
-                     }
-        }
-
         ############### Display/graphics parameters: ################
         SCREEN_RESOLUTION = utils.rc([600, 800])        
         FULLSCREEN = False
@@ -185,7 +148,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_CENTER_ADJUST_STEP_SIZE = [1.0, [1.0, 100.0]]#um
 
         ############# External hardware ######################
-        ENABLE_PARALLEL_PORT = False
+        DIGITAL_IO = ''#'parallel port, or comport expected
         ACQUISITION_TRIGGER_PIN = [0,  PARALLEL_PORT_PIN_RANGE]
         ACQUISITION_STOP_PIN = [1,  PARALLEL_PORT_PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PARALLEL_PORT_PIN_RANGE]

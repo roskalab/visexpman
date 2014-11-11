@@ -21,7 +21,7 @@ import experiment_data
 import visexpman.engine
 from visexpman.engine.generic import log,utils,fileop,introspect,signal
 from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard
-from visexpman.engine.hardware_interface import mes_interface,instrument,daq_instrument,stage_control,digital_io,scanner_control
+from visexpman.engine.hardware_interface import mes_interface,instrument,daq_instrument,stage_control,digital_io,scanner_control,queued_socket
 from visexpman.engine.vision_experiment.screen import CaImagingScreen
 from visexpA.engine.datahandlers import hdf5io
 
@@ -30,7 +30,7 @@ from visexpman.engine.generic.command_parser import ServerLoop
 from visexpman.users.test import unittest_aggregator
 import unittest
 
-ENABLE_16_BIT = not True
+ENABLE_16_BIT = True
 
 class CaImagingLoop(ServerLoop, CaImagingScreen):
     def __init__(self, machine_config, socket_queues, command, log):
@@ -168,10 +168,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         self.t0=time.time()
         self.send({'update': ['imaging started', imaging_started_result]})
         self.printl('Imaging started')
-        if imaging_started_result == 'timeout':
-            self.imaging_started = False
-        else:
-            self.imaging_started = imaging_started_result
+        self.imaging_started = False if imaging_started_result == 'timeout' else imaging_started_result
 #        self.printl(parameters['scanning_attributes']['signal_attributes']['nxlines'])
         
     def live_scan_stop(self):
@@ -212,7 +209,6 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         
         
         #TODO:
-        #Gather all data and save to file
         #Make sure that file is not open
         #Notify man_ui that data imaging
 #        self.send({'update': ['data saved', imaging_started]})
@@ -292,15 +288,17 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             self.raw_data = self.datafile.h5f.create_earray(self.datafile.h5f.root, 'raw_data', datatype, 
                     (0,),filters=datacompressor)
         
-    def _close_datafile(self,data=None):
+    def _close_datafile(self,data=None, is_experiment=False):
         if self.imaging_parameters['save2file']:
             self.printl('Saved frames at the end of imaging: {0}'.format(data[0].shape[0]))
             if data is not None:
                 for frame in data[0]:
                     self._save_data(scanner_control.signal2image(frame, self.imaging_parameters, self.config.PMTS)[1])
             self.datafile.runtime_info = {'acquired_frames': self.frame_ct, 'start': self.t0, 'end':self.t2, 'duration':self.t2-self.t0 }
-            self.datafile.machine_config = self.config.serialize()
-            nodes2save = ['imaging_parameters', 'runtime_info', 'machine_config']
+            nodes2save = ['imaging_parameters', 'runtime_info']
+            if is_experiment:
+                self.datafile.machine_config = self.config.serialize()
+                nodes2save.append('machine_config')
             self.datafile.save(nodes2save)
             self.datafile.close()
             self.printl('Data saved to {0}'.format(self.datafile.filename))
@@ -392,26 +390,26 @@ class Trigger(object):
     Provides methods for detecting/generating triggers
     Logging takes place outside this class
     '''
-    def __init__(self,config, queues, digital_output):
-        self.config=config
+    def __init__(self,machine_config, queues, digital_output):
+        self.machine_config=machine_config
         self.queues = queues
         self.digital_output = digital_output
         
-    def _wait4trigger(self, wait_method, args, kwargs):
+    def _wait4trigger(self, wait_method, args=[], kwargs={}):
         '''
         wait_method is a callable function that returns True when trigger event occured
         '''
         while True:
-            if utils.is_abort_experiment_in_queue(self.queues['command'], False) or is_key_pressed(self.config.KEYS['abort']):
+            if is_key_pressed(self.machine_config.KEYS['abort']):
                 return False
-            if wait_method(*args, **kwargs):
+            elif wait_method(*args, **kwargs):
                 return True
                 
     def wait4queue_trigger(self, keyword): 
         return self._wait4trigger(utils.is_keyword_in_queue, (self.queues['command'], keyword), {})
         
     def wait4keyboard_trigger(self, key):
-        return self._wait4trigger(is_key_pressed, (self.config.KEYS[key]), {})
+        return self._wait4trigger(is_key_pressed, (self.machine_config.KEYS[key]), {})
         
     def wait4digital_input_trigger(self, pin):
         pass
@@ -428,31 +426,65 @@ class Trigger(object):
     def clear_trigger(self,pin):
         self.digital_output.set_pin(pin, False)
         
-class ExperimentControl(Trigger):
+class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
+    '''
+    Provides access to:
+            1. digital IO for generating sync signals
+            2. LED controller (if enabled)
+            3. Other stimulus generating device
+            4. Objective control (cortical setups)
+            5. Stage controller (cortical)
+    Takes care of communication of stim during experiment
+    Handles datafiles related to displaying stimulation
+    Ensures that no file operation take place during stimulation (writing to file in logger process is suspended)
+    '''
     def __init__(self, config, queues, log):
         self.machine_config = config
-        self.queues = queues
         self.log = log
-        self._init_devices()
+        digital_output_class = instrument.ParallelPort if self.machine_config.DIGITAL_IO == 'parallel port' else digital_io.SerialPortDigitalIO
+        self.digital_output = digital_output_class(self.machine_config, self.log)
         Trigger.__init__(self,config, queues, self.digital_output)
-
-
+        #Helper functions for getting messages from socket queues
+        QueuedSocketHelpers.__init__(self, queues)
         
-    def _init_devices(self):
+    def execute(self):
         '''
-        Initializes devices:
-            stage controller
-            objective control
-            digital io (parallel port or serial port io)
-            ...
+        Calls the run method of the experiment class. 
+        Also takes care of all communication, synchronization with other applications and file handling
         '''
-        self.digital_output = None
+        #Wait for trigger from main_ui
+        if self._wait4trigger(self._start_stimulus_message_arrived, [utils.Timeout(self.machine_config.NETWORK_COMMUNICATION_TIMEOUT)]):
+            self.run()
+            self._prepare_data2save()
+            self._save2file()
+        else:
+            self.printl('No start stimulus command arrived in time or experiment aborted')
         
+    def _start_stimulus_message_arrived(self, timeout):
+        return timeout.is_timeout() or utils.safe_has_key(self.recv(), 'function') == 'start_stimulus'
         
-    
+    def _prepare_data2save(self):
+        '''
+        Pack software enviroment and configs
+        '''
+        self.software_environment = experiment_data.pack_software_environment()
+        self.configs = {}
+        for confname in ['machine_config', 'experiment_config']:
+            self.configs['serialized'][confname] = getattr(self,confname).serialize()
+            self.configs[confname] = getattr(self,confname).todict()
         
+    def _save2file(self):
+        '''
+        Certain variables are saved to hdf5 file
+        '''
+        variables2save = ['user_data', 'stimulus_frame_info', 'experiment_name', 'experiment_config_name','configs','software_environment']
+        variables2save = [v for v in variables2save if hasattr(self, v)]
+        self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.parameters, self.machine_config, prefix = 'stim'),filelocking=False)
+        res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v)]
+        self.datafile.save(variables2save)
+        self.datafile.close()
         
-class ExperimentControl1(object):
+class ExperimentControl(object):
     '''
     Reimplemented version: 
     
@@ -1350,6 +1382,7 @@ class TestCaImaging(unittest.TestCase):
             pars = copy.deepcopy(parameters)
             pars['experiment_name'] = experiment_name
             commands.append({'function': 'start_imaging', 'args': [pars]})
+            commands.append({'function': 'start_stimulus'})
         commands.append({'function': 'exit_application'})
         client = self._send_commands_to_stim(commands)
         from visexpman.engine.visexp_app import run_ca_imaging

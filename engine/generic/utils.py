@@ -965,7 +965,7 @@ class Timeout(object):
             
     def wait_timeout(self, break_wait_function = None, *args):
         '''
-        break_wait_function: shall not block and shall return with a boolean fielld
+        break_wait_function: shall not block and shall return with boolean
         Returns True if expected condition is True
         '''        
         result = False

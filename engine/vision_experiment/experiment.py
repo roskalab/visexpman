@@ -33,6 +33,9 @@ class ExperimentConfig(Config):
             self.create_runnable(machine_config, queues, experiment_module, parameters, log) # needs to be called so that runnable is instantiated and other checks are done
 
     def create_runnable(self, machine_config, queues, experiment_module, parameters, log):
+        '''
+        Find experiment class and instantiate it
+        '''
         #Find experiment class
         if self.runnable is None:
             raise ValueError('You must specify the class which will run the experiment')
@@ -71,6 +74,7 @@ class Experiment(stimulation_library.AdvancedStimulation):
     The following variable is saved to the output file: self.experiment_specific_data
     '''
     def __init__(self, machine_config, experiment_config=None, queues=None, parameters=None, log=None):
+        self.parameters = parameters#Parameters coming from main_ui
         self.experiment_config = experiment_config
         self.experiment_name = self.__class__.__name__.split('_')[0]
         self.experiment_config_name = self.experiment_config.__class__.__name__.split('_')[0]

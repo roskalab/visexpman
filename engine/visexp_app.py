@@ -182,7 +182,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             self.experiment_config = experiment_config_class[0][1](self.config, self.socket_queues, \
                                                                                                   experiment_module, parameters, self.log)
         #Prepare experiment, run stimulation and save data
-        self.experiment_config.runnable.run()
+        self.experiment_config.runnable.execute()
         self.stim_context['last_experiment_parameters'] = parameters
         
 def run_main_ui(context):

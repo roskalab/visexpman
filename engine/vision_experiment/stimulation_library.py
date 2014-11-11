@@ -23,7 +23,7 @@ from visexpman.users.test import unittest_aggregator
 import unittest
 command_extract = re.compile('SOC(.+)EOC')
 
-class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyboardHandler):
+class Stimulations(experiment_control.StimulationControlHelper):#, screen.ScreenAndKeyboardHandler):
     """
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
@@ -32,7 +32,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         self._init_variables()
         #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
         self.screen = graphics.Screen(config, init_mode = 'no_screen')
-        experiment_control.ExperimentControl.__init__(self, config, queues, application_log)
+        experiment_control.StimulationControlHelper.__init__(self, config, queues, application_log)
         self.grating_texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.grating_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)

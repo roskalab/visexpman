@@ -161,7 +161,7 @@ class Config(object):
         parameter_names = [class_variable for class_variable in class_variables if class_variable.isupper() or 'user' == class_variable]        
         all_parameters = {}
         for parameter_name in parameter_names:
-            all_parameters[parameter_name] = getattr(self,  parameter_name)
+            all_parameters[parameter_name] = getattr(self, parameter_name)
             if hasattr(all_parameters[parameter_name], 'keys'):
                 if all_parameters[parameter_name] == {}:
                     all_parameters[parameter_name] = 0
@@ -171,11 +171,17 @@ class Config(object):
             elif isinstance(getattr(self,  parameter_name), list):
                 if isinstance(getattr(self,  parameter_name)[0], dict):
                     d = {}
-                    for i in range(len(getattr(self,  parameter_name))):
-                        parameter_value = getattr(self,  parameter_name)[i]
+                    for i in range(len(getattr(self, parameter_name))):
+                        parameter_value = getattr(self, parameter_name)[i]
                         d['index_'+str(i)] = parameter_value
                     all_parameters[parameter_name] = d
         return all_parameters
+        
+    def todict(self):
+        packed2dict = {}
+        for parameter_name in [class_variable for class_variable in dir(self) if class_variable.isupper() or 'user' == class_variable]:
+            packed2dict[parameter_name] = getattr(self,parameter_name)
+        return packed2dict
         
 ### Classes for test purposes ###
         
