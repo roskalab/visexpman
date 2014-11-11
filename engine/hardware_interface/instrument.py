@@ -6,6 +6,7 @@ import os
 import unittest
 import time
 import multiprocessing
+import threading
 
 import visexpman.engine.generic.configuration
 from visexpman.engine.generic import utils, fileop, log
@@ -13,7 +14,7 @@ import logging
 import visexpman
 from visexpman.users.test import unittest_aggregator
 
-class InstrumentProcess(multiprocessing.Process, log.LoggerHelper):
+class InstrumentProcess(threading.Thread, log.LoggerHelper):
     '''
     Superclass of instrument control related operations that need to run in a separate process
     
@@ -24,7 +25,7 @@ class InstrumentProcess(multiprocessing.Process, log.LoggerHelper):
     data: data acquired by process
     '''
     def __init__(self, instrument_name, queues, logger):
-        multiprocessing.Process.__init__(self)
+        threading.Thread.__init__(self)
         self.queues = queues
         self.log = logger
         self.instrument_name = instrument_name
