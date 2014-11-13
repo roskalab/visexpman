@@ -295,6 +295,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         
         ######### Calcium imaging #########
         MAX_PMT_VOLTAGE = [8.0,[0.0,15.0]]
+        MAX_PMT_NOISE_LEVEL = [1.0,[0.0,15.0]]
         MAX_SCANNER_VOLTAGE = [10.0,[0.0,30.0]]
         SCANNER_MAX_POSITION = [350.0, [100.0, 500.0]]#Corresponds to maximal amplitude of scanner contol signal
         POSITION_TO_SCANNER_VOLTAGE = [2.0/128.0, [1e-5,1]]#Conversion rate between laser beam position and scanner control voltage

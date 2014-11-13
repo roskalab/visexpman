@@ -371,7 +371,7 @@ AssertionError:
 Not equal to tolerance rtol=0, atol=4
 
 (mismatch 100.0%)
- x: array(1000.0)
+ x: array(995.02)
  y: array(60.0)
 
 ======================================================================
@@ -388,12 +388,12 @@ AssertionError:
 Not equal to tolerance rtol=0, atol=4
 
 (mismatch 100.0%)
- x: array(995.02)
+ x: array(1000.0)
  y: array(60.0)
 
 ----------------------------------------------------------------------
-Ran 319 tests in 1896.754s
+Ran 319 tests in 1886.675s
 
 FAILED (failures=2, skipped=48)
 
-2014-11-12 19:22:29.293000
+2014-11-13 12:55:40.261000
