@@ -182,7 +182,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
             self.experiment_config = experiment_config_class[0][1](self.config, self.socket_queues, \
                                                                                                   experiment_module, parameters, self.log)
         #Prepare experiment, run stimulation and save data
-        self.experiment_config.runnable.execute()
+        getattr(self.experiment_config.runnable, 'run' if parameters.get('stimulus_only', False) else 'execute')()
         self.stim_context['last_experiment_parameters'] = parameters
         
 def run_main_ui(context):
@@ -217,6 +217,7 @@ def stimulation_tester(user, machine_config, experiment_config, **kwargs):
             'experiment_name': experiment_config,
             'cell_name': '', 
             'stimulation_device' : '', 
+            'stimulus_only':True,
             'id':str(int(numpy.round(time.time(), 2)*100))}
     commands = [{'function': 'start_experiment', 'args': [parameters]}]
     commands.append({'function': 'exit_application'})
@@ -441,12 +442,17 @@ class TestStim(unittest.TestCase):
             pars = copy.deepcopy(parameters)
             pars['experiment_name'] = experiment_name
             commands.append({'function': 'start_experiment', 'args': [pars]})
+            commands.append({'function': 'start_stimulus'})
         commands.append({'function': 'exit_application'})
         client = self._send_commands_to_stim(commands)
         run_stim(self.context,timeout=None)
         client.terminate()
-        self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower())
-        #TODO: test not complete
+        logfile_content = fileop.read_text_file(self.context['logger'].filename)
+        self.assertNotIn('error', logfile_content.lower())
+        expected_logs = ['Starting stimulation: MovingShapeExperiment/TestCommonExperimentConfig', 
+                            'Starting stimulation: Debug/GUITestExperimentConfig', 
+                            'Stimulation ended, saving data to file']
+        map(self.assertIn,expected_logs,len(expected_logs)*[logfile_content])
         
     def test_08_stimulation_tester(self):
         context = stimulation_tester('test', 'GUITestConfig', 'TestCommonExperimentConfig')

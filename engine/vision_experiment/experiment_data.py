@@ -137,7 +137,7 @@ def save_config(file_handle, machine_config, experiment_config = None):
         config['experiment_config'] = experiment_config.get_all_parameters()
         return config
         
-def pickle_config(config):
+def pickle_config(config):#OBSOLETE
     config_modified = copy.copy(config)
     if hasattr(config_modified, 'connections'):
         config_modified.connections = 0

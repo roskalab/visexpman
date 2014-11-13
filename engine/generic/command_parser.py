@@ -29,12 +29,7 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
         '''
         Message to logfile, queued socket and standard output
         '''
-        message_string = str(message)
-        self.send(message_string)
-        if stdio:
-            sys.stdout.write(message_string+'\n')
-        if hasattr(self.log, loglevel):
-            getattr(self.log, loglevel)(message_string, self.log_source_name)
+        utils.printl(self, message, loglevel, stdio)
         
     def fetch_next_call(self):
         '''

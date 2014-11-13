@@ -16,6 +16,7 @@ import shutil
 import copy
 import multiprocessing
 import tables
+import sys
 
 import experiment_data
 import visexpman.engine
@@ -107,8 +108,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                     self.images['display']/=self.config.MAX_PMT_VOLTAGE
                     self.frame_ct+=1
                     if ENABLE_16_BIT:
-                        #Scale image data to 0...2**16-1 range
-                        self.images['save'] = numpy.cast['uint16']((self.images['save']/self.config.MAX_PMT_VOLTAGE)*(2**16-1))
+                        self.images['save'] = self._pmt_voltage2_16bit(self.images['save'])
                     self._save_data(self.images['save'])
 #                    self.printl(self.images['snap'].mean())
 #                print self.images['snap'].mean()
@@ -206,8 +206,6 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             self.printl('Imaging stopped')
             self.send({'update': ['imaging stopped']})
         
-        
-        
         #TODO:
         #Make sure that file is not open
         #Notify man_ui that data imaging
@@ -235,6 +233,8 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         frame = numpy.array(frames).mean(axis=0)
         self.images['display'], self.images['save'] = scanner_control.signal2image(frame, self.imaging_parameters, self.config.PMTS)
         self.images['display']/=self.config.MAX_PMT_VOLTAGE
+        if ENABLE_16_BIT:
+            self.images['save'] = self._pmt_voltage2_16bit(self.images['save'])
         self._save_data(self.images['save'])
         self.live_scan_stop()
         return
@@ -293,19 +293,28 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             self.printl('Saved frames at the end of imaging: {0}'.format(data[0].shape[0]))
             if data is not None:
                 for frame in data[0]:
-                    self._save_data(scanner_control.signal2image(frame, self.imaging_parameters, self.config.PMTS)[1])
+                    frame_converted = scanner_control.signal2image(frame, self.imaging_parameters, self.config.PMTS)[1]
+                    if ENABLE_16_BIT:
+                        frame_converted = self._pmt_voltage2_16bit(frame_converted)
+                    self._save_data(frame_converted)
             self.datafile.runtime_info = {'acquired_frames': self.frame_ct, 'start': self.t0, 'end':self.t2, 'duration':self.t2-self.t0 }
             nodes2save = ['imaging_parameters', 'runtime_info']
             if is_experiment:
                 self.datafile.machine_config = self.config.serialize()
                 nodes2save.append('machine_config')
             self.datafile.save(nodes2save)
-            self.datafile.close()
             self.printl('Data saved to {0}'.format(self.datafile.filename))
+            self.datafile.close()
         
     def _save_data(self,frame):
         if self.imaging_parameters['save2file']:
             self.raw_data.append(numpy.array([frame]))
+            
+    def _pmt_voltage2_16bit(self,image):
+        '''
+        Scale image data to 0...2**16-1 range
+        '''
+        return numpy.cast['uint16']((image/self.config.MAX_PMT_VOLTAGE)*(2**16-1))
         
     def record_tranfer_function(self):
         from pylab import plot,show,figure,title
@@ -395,12 +404,13 @@ class Trigger(object):
         self.queues = queues
         self.digital_output = digital_output
         
-    def _wait4trigger(self, wait_method, args=[], kwargs={}):
+    def _wait4trigger(self, timeout, wait_method, args=[], kwargs={}):
         '''
         wait_method is a callable function that returns True when trigger event occured
         '''
+        to = utils.Timeout(timeout)
         while True:
-            if is_key_pressed(self.machine_config.KEYS['abort']):
+            if is_key_pressed(self.machine_config.KEYS['abort']) or to.is_timeout():
                 return False
             elif wait_method(*args, **kwargs):
                 return True
@@ -438,14 +448,18 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
     Handles datafiles related to displaying stimulation
     Ensures that no file operation take place during stimulation (writing to file in logger process is suspended)
     '''
-    def __init__(self, config, queues, log):
-        self.machine_config = config
+    def __init__(self, machine_config, queues, log):
+        self.machine_config = machine_config
         self.log = log
-        digital_output_class = instrument.ParallelPort if self.machine_config.DIGITAL_IO == 'parallel port' else digital_io.SerialPortDigitalIO
-        self.digital_output = digital_output_class(self.machine_config, self.log)
-        Trigger.__init__(self,config, queues, self.digital_output)
+        if self.machine_config.DIGITAL_IO_PORT != False:
+            digital_output_class = instrument.ParallelPort if self.machine_config.DIGITAL_IO_PORT == 'parallel port' else digital_io.SerialPortDigitalIO
+            self.digital_output = digital_output_class(self.machine_config, self.log)
+        else:
+            self.digital_output = None
+        Trigger.__init__(self, machine_config, queues, self.digital_output)
         #Helper functions for getting messages from socket queues
-        QueuedSocketHelpers.__init__(self, queues)
+        queued_socket.QueuedSocketHelpers.__init__(self, queues)
+        self.user_data = {}
         
     def execute(self):
         '''
@@ -453,15 +467,22 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Also takes care of all communication, synchronization with other applications and file handling
         '''
         #Wait for trigger from main_ui
-        if self._wait4trigger(self._start_stimulus_message_arrived, [utils.Timeout(self.machine_config.NETWORK_COMMUNICATION_TIMEOUT)]):
+        if self._wait4trigger(self.machine_config.NETWORK_COMMUNICATION_TIMEOUT, self._start_stimulus_message_arrived) \
+                or self.machine_config.PLATFORM != 'elphys_retinal_ca':
+            self.printl('Starting stimulation: {0}/{1}'.format(self.experiment_name,self.experiment_config_name))
             self.run()
+            self.printl('Stimulation ended, saving data to file')
             self._prepare_data2save()
             self._save2file()
         else:
             self.printl('No start stimulus command arrived in time or experiment aborted')
+            
+    
+    def printl(self, message, loglevel='info', stdio = True):
+        utils.printl(self, message, loglevel, stdio)
         
-    def _start_stimulus_message_arrived(self, timeout):
-        return timeout.is_timeout() or utils.safe_has_key(self.recv(), 'function') == 'start_stimulus'
+    def _start_stimulus_message_arrived(self):
+        return utils.get_key(self.recv(), 'function') == 'start_stimulus'
         
     def _prepare_data2save(self):
         '''
@@ -469,6 +490,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         self.software_environment = experiment_data.pack_software_environment()
         self.configs = {}
+        self.configs['serialized'] = {}
         for confname in ['machine_config', 'experiment_config']:
             self.configs['serialized'][confname] = getattr(self,confname).serialize()
             self.configs[confname] = getattr(self,confname).todict()
@@ -477,8 +499,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         Certain variables are saved to hdf5 file
         '''
-        variables2save = ['user_data', 'stimulus_frame_info', 'experiment_name', 'experiment_config_name','configs','software_environment']
-        variables2save = [v for v in variables2save if hasattr(self, v)]
+        variables2save = []#['user_data', 'stimulus_frame_info', 'experiment_name', 'experiment_config_name','configs','software_environment']
         self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.parameters, self.machine_config, prefix = 'stim'),filelocking=False)
         res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v)]
         self.datafile.save(variables2save)
@@ -1268,8 +1289,10 @@ class TestCaImaging(unittest.TestCase):
         self._scanning_params()
         
     def tearDown(self):
+        print 1
         if hasattr(self, 'context'):
             visexpman.engine.stop_application(self.context)
+            print 2
         introspect.kill_python_processes(self.dont_kill_processes)
         
     def _send_commands_to_stim(self, commands):
@@ -1295,7 +1318,7 @@ class TestCaImaging(unittest.TestCase):
             'scanning_range' : utils.rc((110.0, 100.0)),
             'resolution' : 1.0, 
             'resolution_unit' : 'um/pixel', 
-            'scan_center' : utils.rc((0.0, 0.0)),
+            'scan_center' : utils.rc((120.0, 120.0)),
             'trigger_width' : 0.0,
             'trigger_delay' : 0.0,
             'status' : 'preparing', 
@@ -1428,7 +1451,6 @@ class TestCaImaging(unittest.TestCase):
             time.sleep(1.0)
         client.terminate()
         time.sleep(2)
-        return
         self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower().replace('max_linearity_error',''))
         #check context file
         image_context = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']),'context', filelocking=False))
@@ -1439,13 +1461,13 @@ class TestCaImaging(unittest.TestCase):
                     (len(self.parameters['recording_channels']),
                     self.parameters['scanning_range']['row']*self.parameters['resolution'],
                     self.parameters['scanning_range']['col']*self.parameters['resolution']))
-        self.assertLess(abs(image_context['save'][0].std(axis=0)).max(), 10e-3)#no big difference between lines
-        self.assertLess(abs(image_context['save'][1].std(axis=1)).max(), 10e-3)#no big difference between columns
-        self.assertLess(numpy.diff(image_context['save'][0,0,:]).max(),0)#The intensity in each line decreases
-        self.assertGreater(numpy.diff(image_context['save'][1,:,0]).min(),0)#The intensity in each column increase
+        self.assertLess(abs(image_context['save'][0].std(axis=0)).max(), 10e-3*2**16)#no big difference between lines
+        self.assertLess(abs(image_context['save'][1].std(axis=1)).max(), 10e-3*2**16)#no big difference between columns
+        self.assertLess(numpy.diff(numpy.cast['float'](image_context['save'][0,0,:])).max(),0)#The intensity in each line decreases
+        self.assertGreater(numpy.diff(numpy.cast['float'](image_context['save'][1,:,0])).min(),0)#The intensity in each column increase
         #saved and displayed images should be the same
-        numpy.testing.assert_equal(image_context['display'][:,:,1]*self.context['machine_config'].MAX_PMT_VOLTAGE,image_context['save'][0,:,:])
-        numpy.testing.assert_equal(image_context['display'][:,:,0]*self.context['machine_config'].MAX_PMT_VOLTAGE,image_context['save'][1,:,:])
+        numpy.testing.assert_almost_equal(image_context['display'][:,:,1],numpy.cast['float'](image_context['save'][0,:,:])/(2**16-1),4)
+        numpy.testing.assert_almost_equal(image_context['display'][:,:,0],numpy.cast['float'](image_context['save'][1,:,:])/(2**16-1),4)
         datafiles = fileop.listdir_fullpath(fileop.get_user_experiment_data_folder( self.context['machine_config']))
         datafiles.sort()
         self.assertEqual(numpy.array(map(os.path.getsize,datafiles)).argmax(),2)
@@ -1458,35 +1480,10 @@ class TestCaImaging(unittest.TestCase):
             self.assertTrue(isinstance(saved_parameters,dict))
             h.load('raw_data')
             self.assertEqual(h.raw_data.shape[1], len(self.parameters['recording_channels']))#Check if number of recorded channels is correct            
-            for frame in h.raw_data:
-                numpy.testing.assert_almost_equal(frame[0],image_context['save'][0,:,:],1)
-                numpy.testing.assert_almost_equal(frame[1],image_context['save'][1,:,:],1)
+            for frame_i in range(h.raw_data.shape[0]):
+                numpy.testing.assert_almost_equal(numpy.cast['float'](h.raw_data[frame_i,0]),numpy.cast['float'](image_context['save'][0,:,:]),-2)
+                numpy.testing.assert_almost_equal(numpy.cast['float'](h.raw_data[frame_i,1]),numpy.cast['float'](image_context['save'][1,:,:]),-2)
             h.close()
-        
-#    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
-#    def test_04_live_scan(self):
-#        commands = []
-#        pars = self.parameters
-#        commands.append({'function': 'live_scan_start', 'args': [pars]})
-#        commands.append({'function': 'live_scan_stop'})
-#        commands.append({'function': 'exit_application'})
-#        client = self._send_commands_to_stim(commands)
-#        from visexpman.engine.visexp_app import run_ca_imaging
-#        run_ca_imaging(self.context, timeout=None)
-#        t0=time.time()
-#        while True:
-#            msg = client.recv()
-#            if msg is not None or time.time() - t0>20.0:
-#                break
-#            time.sleep(1.0)
-#        client.terminate()
-#        time.sleep(2)
-#        self.assertNotIn('error', fileop.read_text_file(self.context['logger'].filename).lower().replace('max_linearity_error',''))
-#        
-#        
-#    @unittest.skipIf(not unittest_aggregator.TEST_daq,  'Daq tests disabled')
-#    def test_05_live_imaging_after_snap(self):
-#        pass
-        
+                
 if __name__=='__main__':
     unittest.main()

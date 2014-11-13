@@ -67,7 +67,6 @@ class ExperimentConfig(Config):
                 self.runnable.run()
         self.runnable.cleanup()
 
-
 class Experiment(stimulation_library.AdvancedStimulation):
     '''
     The usage of experiment fragments assumes the existence of number_of_fragments variable
@@ -110,17 +109,17 @@ class Experiment(stimulation_library.AdvancedStimulation):
             else:
                 setattr(self, k.lower(), v)
                 
-    def printl(self, message):
-         '''
-         Helper function that can be called during experiment. The message is sent to:
-         -standard output
-         -gui
-         -experiment log
-         '''
-         print message
-#         self.to_gui.put(str(message))
-#         if hasattr(self, 'log'):
-#             self.log.info(str(message))
+#    def printl(self, message):
+#         '''
+#         Helper function that can be called during experiment. The message is sent to:
+#         -standard output
+#         -gui
+#         -experiment log
+#         '''
+#         print message
+##         self.to_gui.put(str(message))
+##         if hasattr(self, 'log'):
+##             self.log.info(str(message))
         
     def save_variables(self,variable_names):
         '''

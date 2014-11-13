@@ -28,20 +28,21 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
     Contains all the externally callable stimulation patterns:
     1. show_image(self,  path,  duration = 0,  position = (0, 0),  formula = [])
     """
-    def __init__(self, config, queues, application_log):        
+    def __init__(self, machine_config, queues, application_log):
+        self.config=machine_config#TODO: eliminate self.config
         self._init_variables()
         #graphics.Screen constructor intentionally not called, only the very necessary variables for flip control are created.
-        self.screen = graphics.Screen(config, init_mode = 'no_screen')
-        experiment_control.StimulationControlHelper.__init__(self, config, queues, application_log)
+        self.screen = graphics.Screen(machine_config, init_mode = 'no_screen')
+        experiment_control.StimulationControlHelper.__init__(self, machine_config, queues, application_log)
         self.grating_texture = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, self.grating_texture)
         glPixelStorei(GL_UNPACK_ALIGNMENT,1)
         #Calculate axis factors
-        if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
+        if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
             self.vaf = 1
         else:
             self.vaf = -16666666666666666666
-        if self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
+        if self.machine_config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
             self.haf = 1
         else:
             self.has = -1
@@ -1501,7 +1502,7 @@ class TestStimulationPatterns(unittest.TestCase):
         from PIL import Image
         from visexpman.engine.generic import fileop
         spd = 300
-        duration = 3.0
+        duration = 1.5
         repeats = 2
         context = stimulation_tester('test', 'NaturalStimulusTestMachineConfig', 'TestNaturalStimConfig', ENABLE_FRAME_CAPTURE = True,
                 DURATION = duration, REPEATS = repeats, DIRECTIONS = [0], SPEED=spd)

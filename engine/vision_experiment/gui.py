@@ -950,7 +950,7 @@ class ExperimentParametersGroupBox(QtGui.QGroupBox):
         self.create_layout()
 
     def create_widgets(self):
-        self.button_names = ['Reload',  'Save']
+        self.button_names = ['Reload', 'Save']
         for button_name in self.button_names:
             setattr(self, stringop.to_variable_name(button_name), QtGui.QPushButton(button_name,  self))
         self.values = gui.ParameterTable(self)

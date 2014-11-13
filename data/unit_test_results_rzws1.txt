@@ -199,8 +199,8 @@ test_01_add_frame (visexpman.engine.generic.colors.TestColorUtils) ... ok
 test_07_aio_process_run_twice (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
 
 ----------------------------------------------------------------------
-Ran 160 tests in 686.376s
+Ran 160 tests in 673.281s
 
 OK (skipped=36)
 
-2014-11-04 16:26:11.732270
+2014-11-12 18:57:11.500740

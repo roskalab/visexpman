@@ -2,7 +2,8 @@ import sys
 import os.path
 import os 
 import platform
-
+import copy
+import utils
 import parameter
 
 import unittest
@@ -182,6 +183,13 @@ class Config(object):
         for parameter_name in [class_variable for class_variable in dir(self) if class_variable.isupper() or 'user' == class_variable]:
             packed2dict[parameter_name] = getattr(self,parameter_name)
         return packed2dict
+        
+    def serialize(self):
+        config_modified = copy.copy(self)
+        removable_attributes = ['machine_config', 'runnable', 'pre_runnable', 'queues', 'GAMMA_CORRECTION']
+        for a in removable_attributes:
+            setattr(config_modified, a, 0)
+        return utils.object2array(config_modified)
         
 ### Classes for test purposes ###
         

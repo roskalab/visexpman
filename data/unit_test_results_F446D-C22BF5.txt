@@ -361,7 +361,7 @@ test_04_histogram_shift_on_image (visexpman.engine.generic.signal.TestSignal) ..
 FAIL: test_06_measure_frame_rate (visexpman.engine.visexp_app.TestStim)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "r:\codes\visexpman\engine\visexp_app.py", line 417, in test_06_measure_frame_rate
+  File "r:\codes\visexpman\engine\visexp_app.py", line 418, in test_06_measure_frame_rate
     numpy.testing.assert_allclose(measured_framerate, self.context['machine_config'].SCREEN_EXPECTED_FRAME_RATE, 0, self.context['machine_config'].FRAME_RATE_TOLERANCE)
   File "C:\Python27\lib\site-packages\numpy\testing\utils.py", line 1181, in assert_allclose
     verbose=verbose, header=header)
@@ -378,7 +378,7 @@ Not equal to tolerance rtol=0, atol=4
 FAIL: test_06_measure_frame_rate (visexpman.engine.visexp_app.TestStim)
 ----------------------------------------------------------------------
 Traceback (most recent call last):
-  File "r:\codes\visexpman\engine\visexp_app.py", line 417, in test_06_measure_frame_rate
+  File "r:\codes\visexpman\engine\visexp_app.py", line 418, in test_06_measure_frame_rate
     numpy.testing.assert_allclose(measured_framerate, self.context['machine_config'].SCREEN_EXPECTED_FRAME_RATE, 0, self.context['machine_config'].FRAME_RATE_TOLERANCE)
   File "C:\Python27\lib\site-packages\numpy\testing\utils.py", line 1181, in assert_allclose
     verbose=verbose, header=header)
@@ -388,12 +388,12 @@ AssertionError:
 Not equal to tolerance rtol=0, atol=4
 
 (mismatch 100.0%)
- x: array(991.74)
+ x: array(995.02)
  y: array(60.0)
 
 ----------------------------------------------------------------------
-Ran 319 tests in 2226.704s
+Ran 319 tests in 1896.754s
 
 FAILED (failures=2, skipped=48)
 
-2014-11-04 17:03:02.823000
+2014-11-12 19:22:29.293000

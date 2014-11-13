@@ -148,7 +148,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         SCREEN_CENTER_ADJUST_STEP_SIZE = [1.0, [1.0, 100.0]]#um
 
         ############# External hardware ######################
-        DIGITAL_IO = ''#'parallel port, or comport expected
+        DIGITAL_IO_PORT = False#'parallel port, or comport expected
         ACQUISITION_TRIGGER_PIN = [0,  PARALLEL_PORT_PIN_RANGE]
         ACQUISITION_STOP_PIN = [1,  PARALLEL_PORT_PIN_RANGE]
         FRAME_TRIGGER_PIN = [2,  PARALLEL_PORT_PIN_RANGE]
@@ -280,12 +280,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         from visexpA.engine.datahandlers import hdf5io
         import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
-        
-    def serialize(self):
-        config_copied = copy.copy(self)
-        if hasattr(config_copied, 'GAMMA_CORRECTION'):
-            config_copied.GAMMA_CORRECTION = 0
-        return utils.object2array(config_copied)
+    
         
 class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
     def _create_application_parameters(self):

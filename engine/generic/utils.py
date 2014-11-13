@@ -1232,7 +1232,7 @@ def safe_istrue(obj, var):
     
 def get_key(var, key):
     '''
-    Returns None when dict does not have specified key
+    Returns None when var does not have specified key or var is not a dict at all
     '''
     if safe_has_key(var, key):
         return var[key]
@@ -1276,6 +1276,17 @@ def images2mpeg4(folder, video_path,  fps):
         os.remove(video_path)
     command = 'avconv -y -r {0} -i {1} -map 0 -c:v libx264 -b 5M {2}'.format(fps, folder, video_path)
     os.system(command)
+    
+def printl(self, message, loglevel='info', stdio = True):
+    '''
+    Message to logfile, queued socket and standard output
+    '''
+    message_string = str(message)
+    self.send(message_string)
+    if stdio:
+        sys.stdout.write(message_string+'\n')
+    if hasattr(self.log, loglevel):
+        getattr(self.log, loglevel)(message_string, self.machine_config.application_name)
 
 class TestUtils(unittest.TestCase):
     def setUp(self):

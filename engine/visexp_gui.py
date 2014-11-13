@@ -1335,7 +1335,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self.machine_config.application_name='main_ui'
         self.machine_config.user = 'test'
         fileop.cleanup_files(self.machine_config)
-        self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'pixel/um', utils.rc((200.0, 200.0)), 'DebugExperimentConfig', 10.0, ['SIDE'], utils.rc((10.0, 0.0)))     
+        self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'um/pixel', utils.rc((200.0, 200.0)), 'DebugExperimentConfig', 10.0, ['SIDE'], utils.rc((10.0, 0.0)))     
         
     def tearDown(self):
         time.sleep(10)

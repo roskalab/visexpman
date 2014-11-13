@@ -211,7 +211,7 @@ class GUITestExperimentConfig(experiment.ExperimentConfig):
         self.PAR1 = 1.0#Comment1
         self.editable=True
         self._create_parameters_from_locals(locals())
-        
+
 class TestCommonExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'MovingShapeExperiment'
@@ -237,7 +237,6 @@ class Debug(experiment.Experiment):
         self.show_shape(duration=0,pos = utils.rc((10, 0)), size=30, color=0.7, part_of_drawing_sequence=True, flip=False)
         self.show_shape(duration=0,size=100, color=0.4, part_of_drawing_sequence=True, flip=True)
         time.sleep(self.experiment_duration)
-        return
             
 if __name__ == "__main__":
     if True:
