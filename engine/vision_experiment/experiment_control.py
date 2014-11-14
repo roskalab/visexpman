@@ -454,17 +454,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Calls the run method of the experiment class. 
         Also takes care of all communication, synchronization with other applications and file handling
         '''
-        #Wait for trigger from main_ui
-        if self._wait4trigger(self.machine_config.NETWORK_COMMUNICATION_TIMEOUT, self._start_stimulus_message_arrived) \
-                or self.machine_config.PLATFORM != 'elphys_retinal_ca':
-            self.printl('Starting stimulation: {0}/{1}'.format(self.experiment_name,self.experiment_config_name))
-            self.run()
-            self.printl('Stimulation ended, saving data to file')
-            self._prepare_data2save()
-            self._save2file()
-        else:
-            self.printl('No start stimulus command arrived in time or experiment aborted')
-            
+        self.prepare()
+        self.printl('Starting stimulation: {0}/{1}'.format(self.experiment_name,self.experiment_config_name))
+        self.run()
+        self.send({'function':'stim_done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
+        self.printl('Stimulation ended, saving data to file')
+        self._prepare_data2save()
+        self._save2file()            
     
     def printl(self, message, loglevel='info', stdio = True):
         utils.printl(self, message, loglevel, stdio)
@@ -472,9 +468,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
     def check_abort(self):
         if is_key_pressed(self.machine_config.KEYS['abort']) or utils.get_key(self.recv(), 'function') == 'stop_all':
             self.abort = True
-        
-    def _start_stimulus_message_arrived(self):
-        return utils.get_key(self.recv(), 'function') == 'start_stimulus'
         
     def _prepare_data2save(self):
         '''
@@ -1393,7 +1386,6 @@ class TestCaImaging(unittest.TestCase):
             pars = copy.deepcopy(parameters)
             pars['experiment_name'] = experiment_name
             commands.append({'function': 'start_imaging', 'args': [pars]})
-            commands.append({'function': 'start_stimulus'})
         commands.append({'function': 'exit_application'})
         client = self._send_commands_to_stim(commands)
         from visexpman.engine.visexp_app import run_ca_imaging

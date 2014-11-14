@@ -442,7 +442,6 @@ class TestStim(unittest.TestCase):
             pars = copy.deepcopy(parameters)
             pars['experiment_name'] = experiment_name
             commands.append({'function': 'start_experiment', 'args': [pars]})
-            commands.append({'function': 'start_stimulus'})
         commands.append({'function': 'exit_application'})
         client = self._send_commands_to_stim(commands)
         run_stim(self.context,timeout=None)
