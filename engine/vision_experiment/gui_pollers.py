@@ -2814,7 +2814,7 @@ class VisexpGuiPoller(Poller):
             
     def run_in_all_iterations(self):
         #### Calling functions all the time #### 
-        self.experiment_control.check_experiment_queue()
+        self.experiment_control.prepare_next_experiment()
         #### Calling functions at lower repetition rate #### 
         if not hasattr(self, 'phase'):
             self.phase = 0
@@ -2873,6 +2873,18 @@ class VisexpGuiPoller(Poller):
                     elif function_name == 'read_variable':#NOT TESTED
                         function_call = {'function': 'set_variable', 'args': [args[0], introspect.string2objectreference(self,args[0])]}
                         self.send(function_call,connection='ca_imaging')
+                elif hasattr(msg, 'has_key') and msg.has_key('trigger'):
+                    trigger_name = msg['trigger']
+                    arg = msg.get('arg', None)
+                    if trigger_name=='imaging started' and arg==True:
+                        self.experiment_control.start_stimulation()
+                    elif trigger_name == 'stim started':
+                        pass#TODO: progress bar, stimulation time
+                    elif trigger_name == 'stim done':
+                        self.experiment_control.stop_data_acquisition()
+                    elif trigger_name == 'stim data ready' or trigger_name  == 'imaging data ready':
+                        self.experiment_control.finish_experiment(trigger_name)
+                        
         except:
             self.printc(traceback.format_exc())
                                 

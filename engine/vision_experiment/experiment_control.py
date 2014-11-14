@@ -172,8 +172,8 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                                                             ao_waveform = self._pack_waveform(parameters), 
                                                             timeout = 30)
         self.t0=time.time()
-        self.send({'update': ['imaging started', imaging_started_result]})
-        self.printl('Imaging started')
+        self.send({'trigger': 'imaging started',  'arg': imaging_started_result})#notifying main_ui that imaging started and stimulus can be launched
+        self.printl('Imaging started: {0}'.format('' if imaging_started_result else imaging_started_result))
         self.imaging_started = False if imaging_started_result == 'timeout' else imaging_started_result
 #        self.printl(parameters['scanning_attributes']['signal_attributes']['nxlines'])
         
@@ -210,7 +210,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             #Set scanner voltages to 0V
             daq_instrument.set_voltage(self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
             self.printl('Imaging stopped')
-            self.send({'update': ['imaging stopped']})
+            self.send({'trigger':'imaging data ready'})
         
         #TODO:
         #Make sure that file is not open
@@ -456,11 +456,13 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         self.prepare()
         self.printl('Starting stimulation: {0}/{1}'.format(self.experiment_name,self.experiment_config_name))
+        self.send({'trigger':'stim started'})
         self.run()
-        self.send({'function':'stim_done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
+        self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
         self.printl('Stimulation ended, saving data to file')
         self._prepare_data2save()
-        self._save2file()            
+        self._save2file()
+        self.send({'trigger':'stim data ready'})
     
     def printl(self, message, loglevel='info', stdio = True):
         utils.printl(self, message, loglevel, stdio)
