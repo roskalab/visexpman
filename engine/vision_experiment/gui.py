@@ -905,6 +905,7 @@ class ExperimentControl(gui.WidgetControl):
             if rec['status'] == 'preparing':
                 function_call = {'function': 'start_imgaging', 'args': [self.poller.animal_file.recordings[i]]}
                 self.poller.send(function_call,connection='stim')
+                self.printc('Initiating stimulus start')
                 self.poller.animal_file.recordings[i]['state']='running'
                 break
         
@@ -913,6 +914,7 @@ class ExperimentControl(gui.WidgetControl):
         Called when stimulation is done or experiment is aborted
         Initiates the termination of two photon recording and stops sync/elphys signal recording
         '''
+        self.printc('Stopping data acquistions')
         #TODO:ELPHYS
         self.poller.send({'function': 'stop_all'},'ca_imaging')
         
@@ -922,6 +924,7 @@ class ExperimentControl(gui.WidgetControl):
             if rec['status'] == 'running':
                 self.poller.animal_file.recordings[i]['data ready messages'].append(message)
                 if len(self.poller.animal_file.recordings[i]['data ready messages']) == 2:
+                    self.printc('Merging files and checking experiment data')
                     #stim and imaging data file is available too.
                     #TODO: assemble all the three files to one
                     self.poller.animal_file.recordings[i]['status'] = 'done'
@@ -948,6 +951,7 @@ class ExperimentControl(gui.WidgetControl):
                 self.poller.animal_file.recordings[i]['data ready messages'] = []
                 self.poller.update_recording_status()
                 self.printc('{0} is preparing'.format(self.poller.animal_file.recordings[i]['id']))
+                self.printc('Initiating two photon recording')
                 break
         
     def live_scan_start(self):
