@@ -1386,12 +1386,13 @@ class DisplayConfigurationGroupbox(QtGui.QGroupBox):
         display_channels_list= ['ALL', 'IR camera']
         display_channels_list.extend(self.config.PMTS.keys())
         self.channel_select = gui.LabeledComboBox(self, 'Channel', display_channels_list)
-        default_options = ['raw']
+        default_options = ['raw', 'Half scale', 'Quater scale', '1/8th scale']
+        #TODO: rename histogram shift
         emo = ['3x3 median filter', 'Histogram shift', 'Histogram equalize', 'Ca activity']
         emo.extend(default_options)
         emo.reverse()
         self.exploring_mode_options = gui.LabeledComboBox(self, 'Exploring', emo)
-        self.exploring_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. Filters are applied separately on each channel.')
+        self.exploring_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. Filters are applied separately on each channel.')#TODO: append info about filters
         rmo = ['MIP', 'Ca activity']
         rmo.extend(default_options)
         rmo.reverse()
@@ -1434,7 +1435,7 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
             self.display_configs[-1].setFixedHeight(250)
         self.select_display =  gui.LabeledComboBox(self, 'Select diplay', map(str, range(self.config.MAX_CA_IMAGE_DISPLAYS)))
         self.select_display.setToolTip('Select display for tuning advanced filter parameters')
-        self.select_plot = gui.LabeledComboBox(self, 'Select plot', ['histogram ', 'Ca activity'])#TODO might be unnecessary
+        self.select_plot = gui.LabeledComboBox(self, 'Select plot', ['histogram', 'Ca activity'])#TODO might be unnecessary
             
     def create_layout(self):
         self.layout = QtGui.QGridLayout()

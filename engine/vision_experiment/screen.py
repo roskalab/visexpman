@@ -6,7 +6,7 @@ import numpy
 import unittest
 import scipy.ndimage.filters
 
-from visexpman.engine.generic import utils,colors,graphics,fileop
+from visexpman.engine.generic import utils,colors,graphics,fileop,signal
 from PIL import Image
 
 from OpenGL.GL import *#TODO: perhaps this is not necessary
@@ -86,6 +86,20 @@ class CaImagingScreen(graphics.Screen):
                         elif 'median filter' in filter:
                             for cch in range(3):
                                 image2subdisplay[:,:,cch] = scipy.ndimage.filters.median_filter(image2subdisplay[:,:,cch],3)
+                        elif filter == 'Histogram shift':
+                            for cch in range(3):
+                                image2subdisplay[:,:,cch] = signal.histogram_shift(image2subdisplay[:,:,cch],[0.0,1.0],resolution=64)
+                        elif filter == 'Half scale':
+                            image2subdisplay *= 2
+                        elif filter == 'Quater scale':
+                            image2subdisplay *= 4
+                        elif filter == '1/8th scale':
+                            image2subdisplay *= 8
+                            
+                        if 'scale' in filter:
+                            image2subdisplay = numpy.where(image2subdisplay>1,1,image2subdisplay)
+                            
+                            
                         pos = utils.rc(((row-0.5*(nrows-1))*(self.imsize['row']+spacing), (col-0.5*(ncols-1))*(self.imsize['col']+spacing)))
                         self.render_image(colors.addframe(image2subdisplay, frame_color), position = pos, stretch = stretch,position_in_pixel=True)
                         display_id += 1
