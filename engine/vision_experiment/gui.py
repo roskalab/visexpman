@@ -898,6 +898,7 @@ class ExperimentControl(gui.WidgetControl):
         #TODO: offer if currently running or all shall stop
         if not self.poller.ask4confirmation('Stopping currently running experiment and queued commands are deleted. Are you sure?'):
             return
+        self._abort()
             
     def check_experiment_queue(self):
         '''
@@ -934,10 +935,16 @@ class ExperimentControl(gui.WidgetControl):
         
     def live_scan_stop(self):
         self.poller.send({'function': 'live_scan_stop'},connection='ca_imaging')
+        self._abort()
         
     def snap_ca_image(self):
         function_call = {'function': 'snap_ca_image', 'args': [self.check_scan_parameters(experiment=False)]}
         self.poller.send(function_call,connection='ca_imaging')
+        
+    def _abort(self):
+        function_call = {'function': 'stop_all'}
+        for conn in ['ca_imaging', 'stim']:
+            self.poller.send(function_call,conn)
         
 
 class ExperimentParametersGroupBox(QtGui.QGroupBox):

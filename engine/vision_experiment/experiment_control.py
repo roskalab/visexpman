@@ -90,6 +90,11 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             else:
                 print key_pressed
                 
+        if self.abort:
+            if self.imaging_started:
+                self.live_scan_stop()
+            self.abort = False
+                
         self.read_imaging_data()
         self.refresh()
         
@@ -257,11 +262,6 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             #Set all analog outputs to 0V
             daq_instrument.set_voltage(self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
             data2save = {'parameters':parameters,'ai_data':ai_data}
-            if 0:#TMP
-                fntmp=os.path.join(tempfile.gettempdir(), 'tmp.npy')
-                fnfinal=fileop.generate_filename(os.path.join(self.config.EXPERIMENT_DATA_PATH,'2psnap.npy'))
-                numpy.save(fntmp,utils.object2array(data2save))
-                shutil.move(fntmp,fnfinal)
             self.images['display'], self.images['save'] = scanner_control.signal2image(ai_data, parameters, self.config.PMTS)/self.config.MAX_PMT_VOLTAGE
             self.printl('Snap done')
         except:
@@ -416,10 +416,12 @@ class Trigger(object):
         '''
         to = utils.Timeout(timeout)
         while True:
-            if is_key_pressed(self.machine_config.KEYS['abort']) or to.is_timeout():
+            self.check_abort()
+            if to.is_timeout() or self.abort:
                 return False
             elif wait_method(*args, **kwargs):
                 return True
+            time.sleep(0.01)
                 
     def wait4queue_trigger(self, keyword): 
         return self._wait4trigger(utils.is_keyword_in_queue, (self.queues['command'], keyword), {})
@@ -466,6 +468,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         #Helper functions for getting messages from socket queues
         queued_socket.QueuedSocketHelpers.__init__(self, queues)
         self.user_data = {}
+        self.abort = False
         
     def execute(self):
         '''
@@ -486,6 +489,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
     
     def printl(self, message, loglevel='info', stdio = True):
         utils.printl(self, message, loglevel, stdio)
+        
+    def check_abort(self):
+        if is_key_pressed(self.machine_config.KEYS['abort']) or utils.get_key(self.recv(), 'function') == 'stop_all':
+            self.abort = True
         
     def _start_stimulus_message_arrived(self):
         return utils.get_key(self.recv(), 'function') == 'start_stimulus'
@@ -520,9 +527,6 @@ class ExperimentControl(object):
     2. queued sockets
     (3. mes connection)
     4. Application log
-    
-    
-    
 
     Provides methods for running a single experiment or a series of experiments at different depths. These methods are inherited by experiment classes
     that contain the user defined stimulations and other experiment specific functions.
@@ -636,7 +640,6 @@ class ExperimentControl(object):
         self.application_log.flush()
         return message_to_screen
 
-        
     def _load_experiment_parameters(self):
         if not self.parameters.has_key('id'):
             self.printl('Measurement ID is NOT provided')

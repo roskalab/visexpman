@@ -24,6 +24,7 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
         if hasattr(self.log, 'add_source'):
             self.log.add_source(self.log_source_name)
         self.exit=False
+        self.abort=False
             
     def printl(self, message, loglevel='info', stdio = True):
         '''
@@ -83,6 +84,9 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
         
     def exit_application(self):
         self.exit=True
+        
+    def stop_all(self):
+        self.abort=True
         
     def set_variable(self,varname, value):
         if not hasattr(self, varname):

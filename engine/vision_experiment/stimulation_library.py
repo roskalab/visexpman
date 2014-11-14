@@ -41,7 +41,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up':
             self.vaf = 1
         else:
-            self.vaf = -16666666666666666666
+            self.vaf = -1
         if self.machine_config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'right':
             self.haf = 1
         else:
@@ -49,7 +49,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self.frame_counter = 0
         
     def _init_variables(self):
-        self.abort = False
         self.delayed_frame_counter = 0 #counts how many frames were delayed
         self.log_on_flip_message = ''
         self.elapsed_time = 0
@@ -84,7 +83,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
         if trigger and not self.config.STIMULUS2MEMORY:
             self._frame_trigger_pulse()
-        self.check_abort_pressed()
+        self.check_abort()
         
     def _flip_and_block_trigger(self, frame_i, n_frames, frame_trigger, block_trigger):
         if block_trigger and frame_i==0:
@@ -97,22 +96,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._flip(trigger = frame_trigger)
         else:
             self._flip(trigger = frame_trigger)
-            
-    def check_abort_pressed(self):#TODO: rename
-        '''
-        Check keyboard, returns True if abort key sensed. 
-        Other commands are saved to keyboard command queue
-        '''
-        for command in graphics.check_keyboard(): #Here only commands with running experiment domain are considered
-            if command == self.config.KEYS['abort']:
-                self.printl('Abort pressed')
-                self.abort = True
-                return True
-            else:
-                cmd = [k for k, v in self.config.KEYS.items() if command == v]
-                if len(cmd)>0:
-                    self.keyboard_commands.put(cmd[0])
-                return False
 
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
         '''
