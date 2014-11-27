@@ -440,7 +440,7 @@ class CommandInterface(command_parser.CommandParser):
                     elif self.kwargs['export'] == 'EXPORT_DATA_TO_MAT':
                         self.printl('Saving data to mat file')
                         from visexpA.users.zoltan import converters
-                        converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
+                        converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal', 'image_scale'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
                     self.queues['low_priority_processor']['out'].put('SOC_find_cells_readyEOCid={0},runtime={1}EOP'.format(id, runtime))
                 else:
                     self.printl('Not existing ID: {0}'.format(id))
