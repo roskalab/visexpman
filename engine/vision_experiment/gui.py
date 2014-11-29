@@ -824,7 +824,7 @@ class ExperimentControl(gui.WidgetControl):
         self.mandatory_parameters.update(signal_attributes)
         return self.mandatory_parameters
         
-    def check_scan_parameters(self, experiment=True):
+    def check_scan_parameters(self, experiment=True):#TODO: rename this function
         '''
         if experiment is true, experiment_name and experiment_config_source_code in parameter set is retained
         '''
@@ -835,6 +835,8 @@ class ExperimentControl(gui.WidgetControl):
         if not experiment:
             del parameters['experiment_name']
             del parameters['experiment_config_source_code']
+        else:
+            parameters['save2file']=True
         return parameters
         
     def add_experiment(self):

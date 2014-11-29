@@ -455,12 +455,89 @@ def plot_rawdata():
         figct+=1
         title(f)
     show()
+    
+def merge_datafiles():
+    folder = '/home/rz/codes/data/electrode_current_temperature/20141128'
+    folders = map(os.path.join, len(os.listdir(folder))*[folder], os.listdir(folder))
+    h = Hdf5io(os.path.join(os.path.split(folder)[0], '20141128.hdf5'),filelocking=False)
+    h.names = []
+    for f in folders:
+        alldata = []
+        h.names.append(os.path.split(f)[1])
+        files = map(os.path.join, len(os.listdir(f))*[f], os.listdir(f))
+        for fn in files:
+            parameters = {}
+            parameters['name'] = os.path.split(f)[1]
+            tags = os.path.split(fn)[1].replace('.csv','').split('_')
+            parameters['repetitions'] = int(tags[1])
+            parameters['pulse_duration'] = float(tags[4])
+            parameters['laser_power'] = float(tags[5])
+            with open(fn, 'rt') as fp:
+                txt = fp.read()
+            dataseries = txt.split('\r\n')
+            data = []
+            for i in range(len(dataseries)-1):
+                data.append(map(float,dataseries[i].split(',')))
+            data = numpy.array(data, dtype=numpy.float32)
+            alldata.append([parameters, data])
+        setattr(h, h.names[-1], utils.object2array(alldata))
+        h.save(h.names[-1])
+    h.save('names')
+    h.close()
+    pass
+    
+def calculate_activation_energy(current, temperature):
+    pass
+    
+def extract(data):
+    '''
+    Extract current and temp baseline and transient
+    '''
+    laser_pulse = data[0]
+    current = data[1]*2000#pA
+    temperature = data[2]
+    laser_on_indexes = numpy.nonzero(numpy.where(laser_pulse>0.5*laser_pulse.max(), 1, 0))[0]
+    pre_pulse_temperature = temperature[:0.95*laser_on_indexes.min()].mean()
+    pre_pulse_current = current[:0.95*laser_on_indexes.min()].mean()
+    current_transient = current[laser_on_indexes.min():]
+    temperature_transient = temperature[laser_on_indexes.min():]
+    max_measured_temperature = temperature.max()
+    max_current = current.min()
+    current_step = abs(max_current-pre_pulse_current)
+    temperature_step = abs(max_measured_temperature-pre_pulse_temperature)
+    cooling_current = current[laser_on_indexes.max():]
+    cooling_temperature = temperature[laser_on_indexes.max():]
+    return current_transient, temperature_transient, pre_pulse_temperature, temperature_step, max_measured_temperature, pre_pulse_current, max_current,current_step
+    
+def evaluate_laser_triggered_currents():
+    '''
+    Temperature estimation from current: 1/(1/T0-R/Ea*log(I/I0))
+    
+    Ea = ?
+    '''
+    fn = '/home/rz/codes/data/electrode_current_temperature/20141128.hdf5'
+    h= Hdf5io(fn, filelocking=False)
+    currents_at_100deg = []
+    for n in h.findvar('names'):
+        data = utils.array2object(h.findvar(n))
+        for par, d in data:
+            current_transient, temperature_transient, pre_pulse_temperature, temperature_step, max_measured_temperature, pre_pulse_current, max_current,current_step = extract(d)
+            if 'boil' in n:
+                pulse_widths = 1e-3*numpy.array([10, 12, 13, 15,16, 17])
+                if par['pulse_duration'] in pulse_widths:
+                    currents_at_100deg.append([par['pulse_duration'], current_step, max_current])
+                
+            pass
+    
+    h.close()
 
 if __name__ == "__main__":
+    evaluate_laser_triggered_currents()
+#    merge_datafiles()
 #    plot_rawdata()
 #    arrhenius()
 #    measure()
-    evaluate1()
+#    evaluate1()
 #    fit()
 
     
