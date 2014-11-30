@@ -6,7 +6,7 @@ import numpy
 import unittest
 import scipy.ndimage.filters
 
-from visexpman.engine.generic import utils,colors,graphics,fileop
+from visexpman.engine.generic import utils,colors,graphics,fileop,signal
 from PIL import Image
 
 from OpenGL.GL import *#TODO: perhaps this is not necessary
@@ -44,6 +44,7 @@ class CaImagingScreen(graphics.Screen):
         self.clear_screen(color = colors.convert_color(0.0))
         number_of_displays = len(self.display_configuration.keys())
         spacing = 10
+        frame_color = numpy.array([0.7, 0.0, 0.0]) if self.laser_on else 0.3
         if number_of_displays>0 and self.images.has_key('display'):
             self.imsize = utils.rc((0,0))
             if number_of_displays < 4:
@@ -85,8 +86,22 @@ class CaImagingScreen(graphics.Screen):
                         elif 'median filter' in filter:
                             for cch in range(3):
                                 image2subdisplay[:,:,cch] = scipy.ndimage.filters.median_filter(image2subdisplay[:,:,cch],3)
+                        elif filter == 'Histogram shift':
+                            for cch in range(3):
+                                image2subdisplay[:,:,cch] = signal.histogram_shift(image2subdisplay[:,:,cch],[0.0,1.0],resolution=64)
+                        elif filter == 'Half scale':
+                            image2subdisplay *= 2
+                        elif filter == 'Quater scale':
+                            image2subdisplay *= 4
+                        elif filter == '1/8th scale':
+                            image2subdisplay *= 8
+                            
+                        if 'scale' in filter:
+                            image2subdisplay = numpy.where(image2subdisplay>1,1,image2subdisplay)
+                            
+                            
                         pos = utils.rc(((row-0.5*(nrows-1))*(self.imsize['row']+spacing), (col-0.5*(ncols-1))*(self.imsize['col']+spacing)))
-                        self.render_image(colors.addframe(image2subdisplay, 0.3), position = pos, stretch = stretch,position_in_pixel=True)
+                        self.render_image(colors.addframe(image2subdisplay, frame_color), position = pos, stretch = stretch,position_in_pixel=True)
                         display_id += 1
             #Here comes the drawing of images, activity curves
         self.flip()
@@ -243,6 +258,7 @@ class TestCaImagingScreen(unittest.TestCase):
         cai = CaImagingScreen(self.config)     
         cai.experiment_running=False
         cai.imaging_started=True
+        cai.laser_on = False
         cai.images={}
         cai.ca_activity.extend(range(10))
         cai.images['display'] = numpy.ones((50,100,3))
@@ -253,10 +269,15 @@ class TestCaImagingScreen(unittest.TestCase):
             cai.refresh()
         frame=self._get_captured_frame()
         numpy.testing.assert_equal(frame[int(frame.shape[0]*0.4):int(frame.shape[0]*0.6),int(frame.shape[1]*0.4):int(frame.shape[1]*0.6)].flatten(), 255)
+        #check if frame is grey (laser off)
+        image_frame_indexes=numpy.nonzero(numpy.where(frame == int(0.3*255),1,0))
+        self.assertGreater(image_frame_indexes[0].shape[0],0)
+        [self.assertIn(i, image_frame_indexes[2]) for i in range(3)]
         cai.display_configuration =\
                 {'0': {'channel_select': 'ALL', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': 'raw'}, 
                 '1': {'channel_select': 'SIDE', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': 'raw'},
                 '2': {'channel_select': 'SIDE', 'recording_mode_options': 'raw', 'gridline_select': 'off', 'exploring_mode_options': 'Ca activity'}}
+        cai.laser_on = True
         if frame_saving_shifted:
             cai.refresh()
         cai.refresh()
@@ -266,6 +287,11 @@ class TestCaImagingScreen(unittest.TestCase):
         hh=numpy.histogram(frame2-frame1,255)
         numpy.testing.assert_equal(hh[0][1:-1],0)#No values in diff image except 0 and 255
         self.assertGreater(hh[0][0],hh[0][-1])
+        #check if frame is red (laser on)
+        for f in [frame1,frame2]:
+            image_frame_indexes=numpy.nonzero(numpy.where(f == int(0.7*255),1,0))
+            self.assertGreater(image_frame_indexes[0].shape[0],0)
+            numpy.testing.assert_equal(image_frame_indexes[2], numpy.zeros_like(image_frame_indexes[2]))
         cai.images['display'] = numpy.zeros((50,100,3))
         cai.images['display'][:,20:22,0] = 0.8
         cai.images['display'][:,30:32,1] = 0.8

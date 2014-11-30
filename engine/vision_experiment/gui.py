@@ -824,7 +824,7 @@ class ExperimentControl(gui.WidgetControl):
         self.mandatory_parameters.update(signal_attributes)
         return self.mandatory_parameters
         
-    def check_scan_parameters(self, experiment=True):
+    def check_scan_parameters(self, experiment=True):#TODO: rename this function
         '''
         if experiment is true, experiment_name and experiment_config_source_code in parameter set is retained
         '''
@@ -835,16 +835,16 @@ class ExperimentControl(gui.WidgetControl):
         if not experiment:
             del parameters['experiment_name']
             del parameters['experiment_config_source_code']
+        else:
+            parameters['save2file']=True
         return parameters
         
     def add_experiment(self):
         '''
         
         '''
-        self._get_experiment_run_parameters()
-        if not self._parse_experiment_run_parameters():
+        if self.check_scan_parameters() is None:
             return
-        self.mandatory_parameters['scanning_attributes'] = self._calculate_and_check_scan_parameters()
         self.poller.animal_file.recordings.append(self.mandatory_parameters)
         if hasattr(self.poller.animal_file, 'filename'):
             hdf5io.save_item(self.poller.animal_file.filename, 'recordings', utils.object2array(self.poller.animal_file.recordings), self.config, overwrite = True)
@@ -898,32 +898,63 @@ class ExperimentControl(gui.WidgetControl):
         #TODO: offer if currently running or all shall stop
         if not self.poller.ask4confirmation('Stopping currently running experiment and queued commands are deleted. Are you sure?'):
             return
+        self._abort()
+        
+    def start_stimulation(self):
+        #Find out which if the active recording
+        for i in range(len(self.poller.animal_file.recordings)):
+            rec = self.poller.animal_file.recordings[i]
+            if rec['status'] == 'preparing':
+                function_call = {'function': 'start_imgaging', 'args': [self.poller.animal_file.recordings[i]]}
+                self.poller.send(function_call,connection='stim')
+                self.printc('Initiating stimulus start')
+                self.poller.animal_file.recordings[i]['state']='running'
+                break
+        
+    def stop_data_acquisition(self):
+        '''
+        Called when stimulation is done or experiment is aborted
+        Initiates the termination of two photon recording and stops sync/elphys signal recording
+        '''
+        self.printc('Stopping data acquistions')
+        #TODO:ELPHYS
+        self.poller.send({'function': 'stop_all'},'ca_imaging')
+        
+    def finish_experiment(self, message):
+        for i in range(len(self.poller.animal_file.recordings)):
+            rec = self.poller.animal_file.recordings[i]
+            if rec['status'] == 'running':
+                self.poller.animal_file.recordings[i]['data ready messages'].append(message)
+                if len(self.poller.animal_file.recordings[i]['data ready messages']) == 2:
+                    self.printc('Merging files and checking experiment data')
+                    #stim and imaging data file is available too.
+                    #TODO: assemble all the three files to one
+                    self.poller.animal_file.recordings[i]['status'] = 'done'
             
-    def check_experiment_queue(self):
+    def prepare_next_experiment(self):
         '''
         Called by poller regularly, checks command queue and current experiment status and starts a new recording
-        '''
         
-        #Do nothing if one experiment is prepering to run
-        if  len([rec for rec in self.poller.animal_file.recordings if rec['status'] == 'preparing']) > 0:
+        1. Chose the oldest recording which has issued state 
+        '''
+        #Do nothing when any recoring is in preparing/running state
+        if  len([rec for rec in self.poller.animal_file.recordings if rec['status'] == 'preparing' or rec['status'] == 'running']) > 0:
             return
         #Take the oldest issued recording 
         for i in range(len(self.poller.animal_file.recordings)):
             if self.poller.animal_file.recordings[i]['status'] == 'issued':
                 function_call = {'function': 'start_imgaging', 'args': [self.poller.animal_file.recordings[i]]}
-#                self.poller.send(function_call,connection='stim')
+                #TODO:ELPHYS
                 if self.config.PLATFORM == 'elphys_retinal_ca':
                     self.poller.send(function_call,connection='ca_imaging')
                 elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
                     raise NotImplementedError('')
                 self.poller.animal_file.recordings[i]['status'] = 'preparing'
+                self.poller.animal_file.recordings[i]['data ready messages'] = []
                 self.poller.update_recording_status()
                 self.printc('{0} is preparing'.format(self.poller.animal_file.recordings[i]['id']))
+                self.printc('Initiating two photon recording')
                 break
-        
-    def start_experiment(self, parameters):
-        #TODO: is this method really necessary???????????????
-        self.printc('Experiment started. Duration is {0} seconds, expected to finish at {1}.'.format(parameters['duration'][0], utils.timestamp2hm(time.time() + parameters['duration'][0])))
         
     def live_scan_start(self):
         '''
@@ -934,10 +965,15 @@ class ExperimentControl(gui.WidgetControl):
         
     def live_scan_stop(self):
         self.poller.send({'function': 'live_scan_stop'},connection='ca_imaging')
+        self._abort()
         
     def snap_ca_image(self):
         function_call = {'function': 'snap_ca_image', 'args': [self.check_scan_parameters(experiment=False)]}
         self.poller.send(function_call,connection='ca_imaging')
+        
+    def _abort(self):
+        self.stop_data_acquisition()
+        self.poller.send({'function': 'stop_all'},'stim')
         
 
 class ExperimentParametersGroupBox(QtGui.QGroupBox):
@@ -1379,12 +1415,13 @@ class DisplayConfigurationGroupbox(QtGui.QGroupBox):
         display_channels_list= ['ALL', 'IR camera']
         display_channels_list.extend(self.config.PMTS.keys())
         self.channel_select = gui.LabeledComboBox(self, 'Channel', display_channels_list)
-        default_options = ['raw']
+        default_options = ['raw', 'Half scale', 'Quater scale', '1/8th scale']
+        #TODO: rename histogram shift
         emo = ['3x3 median filter', 'Histogram shift', 'Histogram equalize', 'Ca activity']
         emo.extend(default_options)
         emo.reverse()
         self.exploring_mode_options = gui.LabeledComboBox(self, 'Exploring', emo)
-        self.exploring_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. Filters are applied separately on each channel.')
+        self.exploring_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. Filters are applied separately on each channel.')#TODO: append info about filters
         rmo = ['MIP', 'Ca activity']
         rmo.extend(default_options)
         rmo.reverse()
@@ -1427,7 +1464,7 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
             self.display_configs[-1].setFixedHeight(250)
         self.select_display =  gui.LabeledComboBox(self, 'Select diplay', map(str, range(self.config.MAX_CA_IMAGE_DISPLAYS)))
         self.select_display.setToolTip('Select display for tuning advanced filter parameters')
-        self.select_plot = gui.LabeledComboBox(self, 'Select plot', ['histogram ', 'Ca activity'])#TODO might be unnecessary
+        self.select_plot = gui.LabeledComboBox(self, 'Select plot', ['histogram', 'Ca activity'])#TODO might be unnecessary
             
     def create_layout(self):
         self.layout = QtGui.QGridLayout()

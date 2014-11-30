@@ -163,7 +163,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         is sent to stim. Pre experiment is displayed if available
         '''
         
-    def start_experiment(self,parameters):
+    def start_stimulus(self,parameters):
         #Create experiment config class from experiment source code
         if parameters.has_key('experiment_config_source_code'):
             introspect.import_code(parameters['experiment_config_source_code'],'experiment_module', add_to_sys_modules=1)
@@ -219,7 +219,7 @@ def stimulation_tester(user, machine_config, experiment_config, **kwargs):
             'stimulation_device' : '', 
             'stimulus_only':True,
             'id':str(int(numpy.round(time.time(), 2)*100))}
-    commands = [{'function': 'start_experiment', 'args': [parameters]}]
+    commands = [{'function': 'start_stimulus', 'args': [parameters]}]
     commands.append({'function': 'exit_application'})
     map(context['socket_queues']['stim']['fromsocket'].put, commands)
     context['logger'].start()
@@ -441,8 +441,7 @@ class TestStim(unittest.TestCase):
             import copy
             pars = copy.deepcopy(parameters)
             pars['experiment_name'] = experiment_name
-            commands.append({'function': 'start_experiment', 'args': [pars]})
-            commands.append({'function': 'start_stimulus'})
+            commands.append({'function': 'start_stimulus', 'args': [pars]})
         commands.append({'function': 'exit_application'})
         client = self._send_commands_to_stim(commands)
         run_stim(self.context,timeout=None)
