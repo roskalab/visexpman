@@ -1,5 +1,5 @@
 import zipfile
-from pylab import plot,show,title,figure,legend,xlabel,ylabel
+from pylab import plot,show,title,figure,legend,xlabel,ylabel,savefig
 import time,numpy
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.engine.generic import utils, log,fileop,introspect
@@ -457,7 +457,7 @@ def plot_rawdata():
     show()
     
 def merge_datafiles():
-    folder = '/home/rz/codes/data/electrode_current_temperature/20141128'
+    folder = '/home/rz/rzws/measurements/electrode_current_temperature/20141128'
     folders = map(os.path.join, len(os.listdir(folder))*[folder], os.listdir(folder))
     h = Hdf5io(os.path.join(os.path.split(folder)[0], '20141128.hdf5'),filelocking=False)
     h.names = []
@@ -486,16 +486,31 @@ def merge_datafiles():
     h.close()
     pass
     
-def calculate_activation_energy(current, temperature):
-    pass
+def calculate_activation_energy(current, temperature, trigger):
+    current_transient, temperature_transient, t0, temperature_step, max_measured_temperature, i0, max_current,current_step,heat_up_transient,cooling_transient = \
+                    extract(trigger, current, temperature)
+    index = numpy.nonzero(numpy.where(trigger>trigger.max()/2,1,0))[0].max()
+    current=current[index:]
+    temperature=temperature[index:]
+    t, i = variable_transformation(current, temperature, (temperature.max()-temperature.min())/10.0)
+    if numpy.isnan(i).any() or numpy.where(i/i0<0,1,0).sum()>0:
+        return 0,0
+    p0 = [1, -4000.0]
+    import scipy.optimize,scipy.constants
+    coeff, var_matrix = scipy.optimize.curve_fit(poly, 1/t, numpy.log(i/i0), p0=p0)
+    Ea = -coeff[1] * scipy.constants.R
+    Ea_cal = Ea/scipy.constants.calorie/1e3
+    return Ea, Ea_cal
     
-def extract(data):
+def estimate_electrode_temperature(i, i0, t0, Ea):
+    import scipy.constants
+    t=1/(1/t0-scipy.constants.R/Ea*numpy.log(i/i0))
+    return t
+    
+def extract(laser_pulse, current, temperature):
     '''
     Extract current and temp baseline and transient
     '''
-    laser_pulse = data[0]
-    current = data[1]*2000#pA
-    temperature = data[2]
     laser_on_indexes = numpy.nonzero(numpy.where(laser_pulse>0.5*laser_pulse.max(), 1, 0))[0]
     pre_pulse_temperature = temperature[:0.95*laser_on_indexes.min()].mean()
     pre_pulse_current = current[:0.95*laser_on_indexes.min()].mean()
@@ -507,29 +522,142 @@ def extract(data):
     temperature_step = abs(max_measured_temperature-pre_pulse_temperature)
     cooling_current = current[laser_on_indexes.max():]
     cooling_temperature = temperature[laser_on_indexes.max():]
-    return current_transient, temperature_transient, pre_pulse_temperature, temperature_step, max_measured_temperature, pre_pulse_current, max_current,current_step
+    heat_up_transient = current[laser_on_indexes.min():laser_on_indexes.max()]
+    cooling_transient = current[laser_on_indexes.max():]
+    return current_transient, temperature_transient, pre_pulse_temperature, temperature_step, max_measured_temperature, pre_pulse_current, max_current,current_step,heat_up_transient,cooling_transient
     
+def exp(t, *p):
+    return p[0]*numpy.exp(p[1]*t)+p[2]
+       
 def evaluate_laser_triggered_currents():
     '''
     Temperature estimation from current: 1/(1/T0-R/Ea*log(I/I0))
     
     Ea = ?
     '''
-    fn = '/home/rz/codes/data/electrode_current_temperature/20141128.hdf5'
+    import scipy.constants
+    fn = '/home/rz/rzws/measurements/electrode_current_temperature/20141128.hdf5'
     h= Hdf5io(fn, filelocking=False)
     currents_at_100deg = []
+    Eaall = {}
     for n in h.findvar('names'):
+        Ea_per_measurement = []
         data = utils.array2object(h.findvar(n))
         for par, d in data:
-            current_transient, temperature_transient, pre_pulse_temperature, temperature_step, max_measured_temperature, pre_pulse_current, max_current,current_step = extract(d)
+            laser_pulse = d[0]
+            current = d[1]*2000#pA
+            temperature = scipy.constants.C2K(d[2])
+#            #TODO: This calculation does not consider repeptitions!!!!!!!!!!!!!!!!!!
+            current_transient, temperature_transient, t0, temperature_step, max_measured_temperature, i0, max_current,current_step,heat_up_transient,cooling_transient = \
+                    extract(laser_pulse, current, temperature)
+            Ea_per_file = []
+            for r in range(par['repetitions']):
+                i1 = r*current.shape[0]/par['repetitions']
+                i2 = (r+1)*current.shape[0]/par['repetitions']
+                Ea_per_file.append(calculate_activation_energy(current[i1:i2], temperature[i1:i2], laser_pulse[i1:i2]))
+                if Ea_per_file[-1] == (0,0):
+                    Ea_per_file.remove((0,0))
+            if par['laser_power'] > 5.0 and par['pulse_duration'] > 0.1 and len(Ea_per_file)>0:
+                Ea_per_measurement.append(numpy.array(Ea_per_file).mean(axis=0))
             if 'boil' in n:
                 pulse_widths = 1e-3*numpy.array([10, 12, 13, 15,16, 17])
                 if par['pulse_duration'] in pulse_widths:
-                    currents_at_100deg.append([par['pulse_duration'], current_step, max_current])
-                
-            pass
-    
+                    Ea = Eaall['rapidtemp_pipette2_200um_deeper'][0]*scipy.constants.calorie*1e3
+                    currents_at_100deg.append([par['pulse_duration'], temperature.max(), estimate_electrode_temperature(current, i0, t0, Ea).max()])
+        if len(Ea_per_measurement)>0:
+            Eaall[n] = numpy.array(Ea_per_measurement)[:,1]
+            Eaall[n] = [Eaall[n].mean(), Eaall[n].std(), Eaall[n]]
+        pass
+    #Ea-s calculated, estimate temp from current
+    figct=1
+    timing = []
+    for n in h.findvar('names'):
+        diff = []
+        if 'boil' in n or 'pipettaX' in n:
+            continue
+        data = utils.array2object(h.findvar(n))
+        Ea = Eaall[n][0]
+        Ea_SI = Ea*scipy.constants.calorie*1e3
+        for par, d in data:
+            cool2_10percent_time = []
+            heat_50percent_time = []
+            for r in range(par['repetitions']):
+                i1 = r*d[0].shape[0]/par['repetitions']
+                i2 = (r+1)*d[0].shape[0]/par['repetitions']
+                laser_pulse = d[0,i1:i2]
+                current = d[1,i1:i2]*2000#pA
+                temperature = scipy.constants.C2K(d[2,i1:i2])
+                current_transient, temperature_transient, t0, temperature_step, max_measured_temperature, i0, max_current,current_step,heat_up_transient,cooling_transient = \
+                        extract(laser_pulse, current, temperature)
+                if 0:
+                    cool2_10percent_time.append(numpy.nonzero(numpy.where(cooling_transient < cooling_transient[-1]+0.1*(cooling_transient[0] - cooling_transient[-1]),1,0))[0].max())
+                    heat_50percent_time.append(numpy.nonzero(numpy.where(heat_up_transient>heat_up_transient[0]-di,1,0))[0].max())
+                else:
+                    di = 100#pA Absolute current step is better for comparing effect of different laser pulses
+                    cool2_10percent_time.append(numpy.nonzero(numpy.where(cooling_transient < cooling_transient[0]+di,1,0))[0].max())
+                    heat_50percent_time.append(numpy.nonzero(numpy.where(heat_up_transient>heat_up_transient[0]-di,1,0))[0].max())
+                if par['laser_power']<6 and par['pulse_duration']<0.3:
+                    continue
+                try:
+                    figure(figct)
+                    plot(temperature)
+                    #t=1/(1/t0-scipy.constants.R/Ea*numpy.log(i/i0))
+                    estimated_temp = estimate_electrode_temperature(current, i0, t0, Ea_SI)
+                    plot(estimated_temp)
+                    indexes = numpy.nonzero(numpy.where(laser_pulse.max()*0.5<laser_pulse,1,0))[0]
+                    trg=t0*numpy.ones_like(estimated_temp)
+                    trg[indexes] = estimated_temp.max()
+                    plot(trg)
+#                    plot(current)
+                    legend(['measured', 'estimated', 'pulse on/off', 'current'])
+                    diff.append(abs(estimated_temp-temperature).max())
+                    title('max diff between measured and estimated: {0}'.format(diff[-1]))
+                    savefig('/tmp/fig/{0}_{1}_{2}_{3}_{4}.png'.format(n,par['laser_power'], par['pulse_duration'], figct, int(diff[-1])))
+                    figct+=1
+                except:
+                    pass
+            cool2_10percent_time = numpy.array(cool2_10percent_time)
+            heat_50percent_time = numpy.array(heat_50percent_time)
+            timing.append([par['name'], par['laser_power'], par['pulse_duration'], cool2_10percent_time.mean(), 100*cool2_10percent_time.std()/cool2_10percent_time.mean(), heat_50percent_time.mean(), 100*heat_50percent_time.std()/heat_50percent_time.mean()])
+        figure(figct)
+        plot(diff)
+        savefig('/tmp/fig/max_error_{0}.png'.format(n))
+#            print timing[-1]
     h.close()
+    
+    for n in h.findvar('names'):
+        sel = [t for t in timing if t[0] == n]
+        laser_powers = set([t[1] for t in timing])
+        laser_powers = list(laser_powers)
+        laser_powers.sort()
+        pulse_durations = list(set([t[2] for t in timing]))
+        pulse_durations.sort()
+        pulse_durations.remove(0.0)
+        for pulse_duration in pulse_durations:
+            if pulse_duration == 0:
+                continue
+            pd = [[t[1], t[3], t[5]] for t in timing if t[2] == pulse_duration]
+            pd_sorted = []
+            for lp in laser_powers:
+                pd_sorted.append([pdi for pdi in pd if pdi[0] == lp][0])
+            pd = numpy.array(pd_sorted)
+            figure(figct)
+            plot(pd[:,0],pd[:,1]/1e4*1e3)
+            title('{0}, cooling time'.format(n))
+            legend(pulse_durations)
+            ylabel('ms')
+            xlabel('W')
+            figure(figct+1)
+            plot(pd[:,0],pd[:,2]/1e4*1e3)
+            title('{0}, heating time'.format(n))
+            legend(pulse_durations)
+            ylabel('ms')
+            xlabel('W')
+        figct += 2
+    pass
+    show()
+    
+    
 
 if __name__ == "__main__":
     evaluate_laser_triggered_currents()
