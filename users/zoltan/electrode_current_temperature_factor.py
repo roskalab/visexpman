@@ -1,15 +1,21 @@
 import zipfile
-from pylab import plot,show,title,figure,legend,xlabel,ylabel,savefig
 import time,numpy
-from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.generic import utils, log,fileop,introspect
-from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard
+try:
+    from visexpman.engine.hardware_interface import daq_instrument
+    from visexpman.engine.generic import utils, log,fileop,introspect
+    from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard
+    from visexpA.engine.datahandlers.datatypes import ImageData
+    from visexpA.engine.datahandlers.hdf5io import Hdf5io
+    import tables
+    import pygame
+    from pylab import plot,show,title,figure,legend,xlabel,ylabel,savefig
+except:
+    pass
+
 import multiprocessing
 import os.path
-import tables
-from visexpA.engine.datahandlers.datatypes import ImageData
-from visexpA.engine.datahandlers.hdf5io import Hdf5io
-import pygame
+
+
 import tempfile
 
 def measure():
