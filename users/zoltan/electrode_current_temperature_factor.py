@@ -663,10 +663,62 @@ def evaluate_laser_triggered_currents():
     pass
     show()
     
+def activation_energy_vs_pipettes():
+    import scipy.constants
+    resistances = {'p1': 12.5, 'p2': 10, 'p3': 10.3, 'p4': 8.8, 'p5': 15.1}
+    activation_energy = {}
+    folder = '/home/rz/rzws/measurements/electrode_current_temperature/20141202/ea_variability'
+    repeats = 5
+    for fn in os.listdir(folder):
+        with open(os.path.join(folder,fn), 'rt') as fp:
+            txt = fp.read()
+        dataseries = txt.split('\r\n')
+        data = []
+        for i in range(len(dataseries)-1):
+            data.append(map(float,dataseries[i].split(',')))
+        data = numpy.array(data, dtype=numpy.float32)
+        trigger = data[0]
+        current = data[1]*2000#pA
+        temperature = scipy.constants.C2K(data[2])
+        chunksize=temperature.shape[0]/repeats
+        activation_energy[fn[:2]] = []
+        for r in range(repeats):
+            ea,eacal = calculate_activation_energy(current[r*chunksize:(r+1)*chunksize], temperature[r*chunksize:(r+1)*chunksize], trigger[r*chunksize:(r+1)*chunksize])
+            activation_energy[fn[:2]].append(ea)
+        eas = numpy.array(activation_energy[fn[:2]])
+        activation_energy[fn[:2]] = [eas.mean(),round(100*eas.std()/eas.mean(),1)]
+    res = resistances.values()
+    res.sort()
+    pipette_order = []
+    for r in res:
+        pipette_order.append([k for k,v in resistances.items() if v == r][0])
+    data = []
+    for p in pipette_order:
+        data.append([resistances[p], activation_energy[p][0]])
+    data = numpy.array(data)
+    figure(1)
+    plot(data[:,0],data[:,1])
+    ylabel('activation energy [J/mol]')
+    xlabel('resistance [MOhm]')
+    figure(2)
+    t0 = temperature[:1000].mean()
+    i0 = current[:1000].mean()
+    temps = []
+    for ea in data[:,1]:
+        temps.append(estimate_electrode_temperature(current, i0, t0, ea))
+        plot(temps[-1])
+    legend(list(data[:,1]))
+    temps = numpy.array(temps)
+    print 'max variation', (temps.max(axis=0)-temps.min(axis=0)).max()
+    show()
+    pass
+    
+                
+                
     
 
 if __name__ == "__main__":
-    evaluate_laser_triggered_currents()
+    activation_energy_vs_pipettes()
 #    merge_datafiles()
 #    plot_rawdata()
 #    arrhenius()
