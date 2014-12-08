@@ -8,7 +8,7 @@ try:
     from visexpA.engine.datahandlers.hdf5io import Hdf5io
     import tables
     import pygame
-    from pylab import plot,show,title,figure,legend,xlabel,ylabel,savefig
+    from pylab import plot,show,title,figure,legend,xlabel,ylabel,savefig,clf,cla
 except:
     pass
 
@@ -513,12 +513,25 @@ def estimate_electrode_temperature(i, i0, t0, Ea):
     t=1/(1/t0-scipy.constants.R/Ea*numpy.log(i/i0))
     return t
     
+def get_s0(trigger, sig):
+    '''
+    SIgnal's initial values before trigger
+    '''
+    return sig[:0.95*trigger_indexes(trigger).min()].mean()
+    
+def trigger_indexes(trigger, only_boundaries=True):
+    indexes = numpy.nonzero(numpy.where(trigger>0.5*trigger.max(), 1, 0))[0]
+    if only_boundaries:
+        return numpy.array([indexes.min(),indexes.max()])
+    else:
+        return indexes
+    
 def extract(laser_pulse, current, temperature):
     '''
     Extract current and temp baseline and transient
     '''
     laser_on_indexes = numpy.nonzero(numpy.where(laser_pulse>0.5*laser_pulse.max(), 1, 0))[0]
-    pre_pulse_temperature = temperature[:0.95*laser_on_indexes.min()].mean()
+    pre_pulse_temperature = get_s0(laser_pulse, temperature)
     pre_pulse_current = current[:0.95*laser_on_indexes.min()].mean()
     current_transient = current[laser_on_indexes.min():]
     temperature_transient = temperature[laser_on_indexes.min():]
@@ -711,14 +724,162 @@ def activation_energy_vs_pipettes():
     temps = numpy.array(temps)
     print 'max variation', (temps.max(axis=0)-temps.min(axis=0)).max()
     show()
-    pass
     
-                
-                
+def read_csv(fn):
+    with open(fn,'rt') as f:
+        txt=f.read()
+    dataseries = txt.split('\r\n')
+    items_per_row = len(dataseries[0].split('\t'))
+    data = numpy.array(map(float, txt.replace('\r\n', '\t').split('\t')[:-1]), numpy.float32)
+    data = data.reshape(items_per_row, data.shape[0]/items_per_row, order='F')
+    laser_pulse = data[1]
+    current = data[2]*2000#pA
+    import scipy.constants
+    temperature = scipy.constants.C2K(data[3])
+    #eliminate small jumps
+    ii = numpy.nonzero(numpy.diff(numpy.where(laser_pulse>laser_pulse.max()*0.5,1,0)))[0]
+    for i in ii:
+        temperature[i+1:] -=numpy.diff(temperature[i:i+2])[0]
+        
+    return laser_pulse,current,temperature
+
     
+def eval_20141204():
+    folder = '/home/rz/codes/data/electrode_current_temperature/20141204'
+    #calculate Ea and temperature jumps.
+    if 1:
+        subfolder = os.path.join(folder, 'pulse_width_calibration')
+        skip= ['Cell1_4-16-54 PM_3.0_0.0460_10.00', 'Cell1_4-18-07 PM_3.0_0.0470_10.00',
+                'Cell1_4-18-57 PM_3.0_0.0480_10.00', 'Cell1_4-20-16 PM_3.0_0.0490_10.00',
+                'Cell1_3-15-23 PM_3.0_0.0010_10.00', 
+                '4-22-33', '4-23-30', '4-24-40', '4-25-22','4-26-05',	'4-24-40',
+                '4-25-22', '4-26-05', '4-26-45','4-27-37','4-28-16','4-31-31','4-32-54',
+                '4-16-43', '4-15-24', '4-16-54', '4-18-03','4-22-33', '4-23-30', '4-14-43']
+        aggregated = {}
+        figct = 1
+        files = os.listdir(subfolder)
+        files.sort()
+        for fn in files:
+            print fn
+            if len([s for s in skip if s in fn])>0:
+                continue
+            laser_pulse,current,temperature = read_csv(os.path.join(subfolder,fn))
+            repeats, pulse_duration, laser_power = map(float, fn.replace('.csv', '').split('_')[-3:])
+            timestamp = os.stat(os.path.join(subfolder,fn)).st_ctime
+            for r in range(int(repeats)):
+                i1 = r*laser_pulse.shape[0]/repeats
+                i2 = (r+1)*laser_pulse.shape[0]/repeats
+                temperature_single = temperature[i1:i2]
+                current_single = current[i1:i2]
+                laser_pulse_single = laser_pulse[i1:i2]
+                Ea = calculate_activation_energy(current_single, temperature_single, laser_pulse_single)[0]
+                t0 = get_s0(laser_pulse_single, temperature_single)
+                tmax = temperature_single.max()
+                tjump = tmax-t0
+                i0= get_s0(laser_pulse_single,current_single)
+                ipeak = current_single[trigger_indexes(laser_pulse_single,False)].min()
+                tempest_single_max = estimate_electrode_temperature(current_single, i0, t0, Ea).max()
+                sig  = (pulse_duration, laser_power)
+                if not aggregated.has_key(sig):
+                    aggregated[sig]=[]
+                aggregated[sig].append([Ea, tjump, i0, ipeak, timestamp, tempest_single_max-t0])
+            #plot
+            tempest = estimate_electrode_temperature(current, get_s0(laser_pulse, current), get_s0(laser_pulse, temperature), aggregated[sig][0][0])
+            figure(figct)
+            plot(temperature)
+            plot(tempest)
+            legend(['measured', 'estimated'])
+            ylabel('temperature [K]')
+            esttjump = tempest.max()-get_s0(laser_pulse, temperature)
+            title('{0} sec, {1} W, jump: {2:.1f} K\nestimated temp jump {3:.1f} K'.format(sig[0], sig[1], numpy.array(aggregated[sig])[:,1].mean(), esttjump))
+            savefig(os.path.join('/tmp', fn.replace('csv', 'png')))
+            clf()
+            cla()
+            figure(figct)
+            indexes = trigger_indexes(laser_pulse_single)
+            dt=2*(indexes[1]-indexes[0])
+            dt = 200 if dt<200 else dt
+            tm=numpy.arange(temperature[indexes[0]:indexes[1]+dt].shape[0])*1e-4*1e3
+            plot(tm, temperature[indexes[0]:indexes[1]+dt])
+            plot(tm, tempest[indexes[0]:indexes[1]+dt])
+            plot(tm, laser_pulse_single[indexes[0]:indexes[1]+dt]/laser_pulse_single.max()*(temperature[indexes[0]:indexes[1]+dt].max()-temperature[0])+temperature[0])
+            ylabel('temperature [K]')
+            xlabel('[ms]')
+            legend(['measured', 'estimated'])
+            title('{0:.0f} ms, {1} W, jump: {2:.1f} K\nestimated temp jump {3:.1f} K'.format(sig[0]*1000, sig[1], numpy.array(aggregated[sig])[:,1].mean(), esttjump))
+            savefig(os.path.join('/tmp', fn.replace('.csv', '_transient.png')))
+            clf()
+            cla()
+        print 'done'
+        h=Hdf5io('/tmp/aggregated.hdf5',filelocking=False)
+        h.aggregated = utils.object2array(aggregated)
+        h.save('aggregated')
+        h.close()
+    
+    
+    h=Hdf5io('/tmp/aggregated.hdf5',filelocking=False)
+    aggregated = utils.array2object(h.findvar('aggregated'))
+    h.close()
+    #Plot pulse duration vs temp jump and ea over time
+    pulse_widths = list(set(numpy.array(aggregated.keys())[:,0]))
+    pulse_widths.sort()
+    laser_powers = list(set(numpy.array(aggregated.keys())[:,1]))
+    laser_powers.sort()
+    
+    for laser_power in laser_powers:
+        tempjump = []
+        tempestjump = []
+        eas = []
+        current_jump_vs_temp_jump = []
+        pw = []
+        for pulse_width in pulse_widths:
+            sig  = (pulse_width, laser_power)
+            if not aggregated.has_key(sig):
+                continue
+            Ea, tjump, i0, ipeak, timestamp,testjump = numpy.array(aggregated[sig]).mean(axis=0)
+            tempjump.append(tjump)
+            tempestjump.append(testjump)
+            eas.append(Ea)
+            pw.append(pulse_width)
+            #Here come the aggregation of other curves
+            current_jump_vs_temp_jump.append([abs(i0-ipeak), tjump])
+            
+        figure(1000)
+        plot(pw, tempjump)
+        figure(1001)
+        plot(pw, eas)
+        current_jump_vs_temp_jump = numpy.array(current_jump_vs_temp_jump)
+        figure(1002)
+        plot(current_jump_vs_temp_jump[:,0],current_jump_vs_temp_jump[:,1])
+        figure(1003)
+        plot(pw, tempestjump)
+
+    figure(1000)
+    ylabel('temp jump [K]')
+    xlabel('pulse width [s]')
+    legend(laser_powers)
+    savefig(os.path.join('/tmp', 'pulse_width_vs_temp_jump.png'))
+        
+    figure(1001)
+    ylabel('Ea [J/mol]')
+    xlabel('pulse width [s]')
+    legend(laser_powers)
+    savefig(os.path.join('/tmp', 'pulse_width_vs_Ea.png'))
+    
+    figure(1002)
+    ylabel('temp jump [K]')
+    xlabel('current jump [pA]')
+    legend(laser_powers)
+    savefig(os.path.join('/tmp', 'current_jump_vs_temp_jump.png'))
+    
+    figure(1003)
+    ylabel('temp jump [K]')
+    xlabel('pulse width [s]')
+    legend(laser_powers)
+    savefig(os.path.join('/tmp', 'pulse_width_vs_estimated_temp_jump.png'))
 
 if __name__ == "__main__":
-    activation_energy_vs_pipettes()
+    eval_20141204()
 #    merge_datafiles()
 #    plot_rawdata()
 #    arrhenius()
