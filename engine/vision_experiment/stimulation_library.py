@@ -303,7 +303,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             for fn in os.listdir(path):
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip)
             self.screen.clear_screen()
-            self._flip(trigger = False)
+            self._flip(trigger = True)
         else:
             self._show_image(path,duration,position,flip)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
