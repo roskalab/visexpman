@@ -738,16 +738,24 @@ def read_csv(fn):
     temperature = scipy.constants.C2K(data[3])
     #eliminate small jumps
     ii = numpy.nonzero(numpy.diff(numpy.where(laser_pulse>laser_pulse.max()*0.5,1,0)))[0]
-    for i in ii:
-        temperature[i+1:] -=numpy.diff(temperature[i:i+2])[0]
-        
-    return laser_pulse,current,temperature
+    for i in range(ii.shape[0]/2):
+        i0=ii[2*i]
+        i1=ii[2*i+1]
+        d0=numpy.diff(temperature[i0:i0+2])[0]
+        d1=numpy.diff(temperature[i1:i1+2])[0]
+        d = 0.5*(abs(d0)+abs(d1))
+        if d0<0:
+            d*=-1
+        temperature[i0+1:i1+1] -=d
+    repeats, pulse_duration, laser_power = map(float, fn.replace('.csv', '').split('_')[-3:])
+    return laser_pulse,current,temperature,int(repeats),pulse_duration,laser_power
 
     
 def eval_20141204():
-    folder = '/home/rz/codes/data/electrode_current_temperature/20141204'
+    folder = '/home/rz/rzws/measurements/electrode_current_temperature/20141204'
     #calculate Ea and temperature jumps.
-    if 1:
+    figct = 1
+    if 0:
         subfolder = os.path.join(folder, 'pulse_width_calibration')
         skip= ['Cell1_4-16-54 PM_3.0_0.0460_10.00', 'Cell1_4-18-07 PM_3.0_0.0470_10.00',
                 'Cell1_4-18-57 PM_3.0_0.0480_10.00', 'Cell1_4-20-16 PM_3.0_0.0490_10.00',
@@ -756,15 +764,22 @@ def eval_20141204():
                 '4-25-22', '4-26-05', '4-26-45','4-27-37','4-28-16','4-31-31','4-32-54',
                 '4-16-43', '4-15-24', '4-16-54', '4-18-03','4-22-33', '4-23-30', '4-14-43']
         aggregated = {}
-        figct = 1
         files = os.listdir(subfolder)
         files.sort()
         for fn in files:
             print fn
             if len([s for s in skip if s in fn])>0:
                 continue
+#            check = ['4-01-41', '3-59-16', '3-50-10', '3-48-11', '3-44-31', '3-33-51', '3-32-31', '3-31-15', '3-25-50','3-16-08', '3-14-33', '4-47-31', '4-46-18', '4-44-56']
+#            check = ['4-55-16']
+#            if len([s for s in check if s in fn])==0:
+#                continue
+#            if '3-16-51' in fn:
+#                pass
             laser_pulse,current,temperature = read_csv(os.path.join(subfolder,fn))
             repeats, pulse_duration, laser_power = map(float, fn.replace('.csv', '').split('_')[-3:])
+            if laser_power != 5 and laser_power != 10:
+                continue
             timestamp = os.stat(os.path.join(subfolder,fn)).st_ctime
             for r in range(int(repeats)):
                 i1 = r*laser_pulse.shape[0]/repeats
@@ -799,17 +814,19 @@ def eval_20141204():
             indexes = trigger_indexes(laser_pulse_single)
             dt=2*(indexes[1]-indexes[0])
             dt = 200 if dt<200 else dt
-            tm=numpy.arange(temperature[indexes[0]:indexes[1]+dt].shape[0])*1e-4*1e3
-            plot(tm, temperature[indexes[0]:indexes[1]+dt])
-            plot(tm, tempest[indexes[0]:indexes[1]+dt])
-            plot(tm, laser_pulse_single[indexes[0]:indexes[1]+dt]/laser_pulse_single.max()*(temperature[indexes[0]:indexes[1]+dt].max()-temperature[0])+temperature[0])
+            tm=numpy.arange(temperature[indexes[0]-100:indexes[1]+dt].shape[0])*1e-4*1e3
+            plot(tm, laser_pulse_single[indexes[0]-100:indexes[1]+dt]/laser_pulse_single.max()*(temperature[indexes[0]:indexes[1]+dt].max()-temperature[0])+temperature[0])
+            plot(tm, temperature[indexes[0]-100:indexes[1]+dt])
+            plot(tm, tempest[indexes[0]-100:indexes[1]+dt])
             ylabel('temperature [K]')
             xlabel('[ms]')
-            legend(['measured', 'estimated'])
+            legend(['trg', 'measured', 'estimated'])
             title('{0:.0f} ms, {1} W, jump: {2:.1f} K\nestimated temp jump {3:.1f} K'.format(sig[0]*1000, sig[1], numpy.array(aggregated[sig])[:,1].mean(), esttjump))
-            savefig(os.path.join('/tmp', fn.replace('.csv', '_transient.png')))
+            savefig(os.path.join('/tmp', fn.replace('.csv', '_transient.svg')))
             clf()
             cla()
+            if abs(laser_pulse.max()-sig[1])>sig[1]*3e-2:
+                raise RuntimeError('')
         print 'done'
         h=Hdf5io('/tmp/aggregated.hdf5',filelocking=False)
         h.aggregated = utils.object2array(aggregated)
@@ -843,43 +860,146 @@ def eval_20141204():
             pw.append(pulse_width)
             #Here come the aggregation of other curves
             current_jump_vs_temp_jump.append([abs(i0-ipeak), tjump])
-            
+        #Fit 2nd order curve on temp jump vs pulse width
+        import scipy.optimize
+        if laser_power == 10:
+            pw1 = pw[45:]
+            tempjump1 = tempjump[45:]
+            tempestjump1 = tempestjump[45:]
+        else:
+            pw1 = pw
+            tempjump1 = tempjump
+            tempestjump1 = tempestjump
+        p0=[0,0,1]
+        coeff1, var_matrix = scipy.optimize.curve_fit(poly, numpy.array(tempjump1), numpy.array(pw1), p0=p0)
+        coeff2, var_matrix = scipy.optimize.curve_fit(poly, numpy.array(tempestjump1), numpy.array(pw1), p0=p0)
+        tj = numpy.arange(int(min(min(tempjump1), min(tempestjump1))),int(max(max(tempjump1), max(tempestjump1))), 0.2)
+        figure(figct)
+        figct+=1
+        plot(tempjump1,pw1,'x')
+        plot(tempestjump1,pw1,'x')
+        plot(tj, poly(tj, *coeff1))
+        plot(tj, poly(tj, *coeff2))
+        #print table
+        print str(numpy.array([tj, numpy.round(poly(tj, *coeff2),4)]).T).replace('[', '').replace(']', '').replace('     ',',').replace(' ','').replace('.,','.0,')
+        legend(['pulse width based on measured temp jump', 'pulse width based on estimated temp jump', 'pulse width based on measured temp fit', 'pulse width based on est temp fit'])
+        ylabel('pulse width [s]')
+        xlabel('temperatrue jump [K]')
+        title('pulse width calculation from temperature jump')
         figure(1000)
         plot(pw, tempjump)
         figure(1001)
         plot(pw, eas)
+#        print laser_power, eas
         current_jump_vs_temp_jump = numpy.array(current_jump_vs_temp_jump)
         figure(1002)
         plot(current_jump_vs_temp_jump[:,0],current_jump_vs_temp_jump[:,1])
         figure(1003)
         plot(pw, tempestjump)
+        
+        
 
     figure(1000)
     ylabel('temp jump [K]')
     xlabel('pulse width [s]')
     legend(laser_powers)
-    savefig(os.path.join('/tmp', 'pulse_width_vs_temp_jump.png'))
+    savefig(os.path.join('/tmp', 'pulse_width_vs_temp_jump.svg'))
         
     figure(1001)
     ylabel('Ea [J/mol]')
     xlabel('pulse width [s]')
     legend(laser_powers)
-    savefig(os.path.join('/tmp', 'pulse_width_vs_Ea.png'))
+    savefig(os.path.join('/tmp', 'pulse_width_vs_Ea.svg'))
     
     figure(1002)
     ylabel('temp jump [K]')
     xlabel('current jump [pA]')
     legend(laser_powers)
-    savefig(os.path.join('/tmp', 'current_jump_vs_temp_jump.png'))
+    savefig(os.path.join('/tmp', 'current_jump_vs_temp_jump.svg'))
     
     figure(1003)
     ylabel('temp jump [K]')
     xlabel('pulse width [s]')
     legend(laser_powers)
-    savefig(os.path.join('/tmp', 'pulse_width_vs_estimated_temp_jump.png'))
+    savefig(os.path.join('/tmp', 'pulse_width_vs_estimated_temp_jump.svg'))
+    show()
+    
+def eval_20141208_and_09():
+    ignore_files = []
+    lut = {}
+    for w in ['5W', '10W']:
+        with open('/home/rz/rzws/measurements/electrode_current_temperature/{0}_pulse_width2temp.txt'.format(w),'rt') as f:
+            txt = f.read()
+        lut[w] = numpy.array([float(ni) for n in [l.split(',') for l in txt.split('\n')][:-1] for ni in n])
+        lut[w] = lut[w].reshape(lut[w].shape[0]/2,2)
+    folders = ['/home/rz/rzws/measurements/electrode_current_temperature/20141208','/home/rz/rzws/measurements/electrode_current_temperature/20141209']
+    files = [map(os.path.join,len(os.listdir(folder))*[folder], os.listdir(folder)) for folder in folders]
+    files = [f for file in files for f in file]
+    files = [f for f in files if len([i for i in ignore_files if i in f])==0]
+    if 0:
+        #Calculate Ea
+        ea=[]
+        figct=1
+        for fn in [f for f in files if 'Ea' in f]:
+            laser_pulse,current,temperature,repeats,pulse_duration,laser_power = read_csv(fn)
+            single_size = laser_pulse.shape[0]/repeats
+            figure(figct);figct+=1
+    #        plot(current)
+            plot(temperature)
+            title((pulse_duration,laser_power))
+            for r in range(repeats):
+                i1=r*single_size
+                i2=i1+single_size
+                ea.append([laser_power,pulse_duration,calculate_activation_energy(current[i1:i2], temperature[i1:i2], laser_pulse[i1:i2])[0]])
+                if ea[-1][2]==0:
+                    ea.remove(ea[-1])
+        figure(figct);figct+=1
+        laserpowers=set([eai[0] for eai in ea])
+        for lp in laserpowers:
+            d=numpy.array([[eai[1], eai[2]] for eai in ea if eai[0] ==lp])
+            plot(1000*d[:,0],d[:,1],'.')
+            print d[:,1]
+        legend(laserpowers)
+        ylabel('Ea [J/mol]')
+        xlabel('pulse width [ms]')
+        show()
+    #compare cell/no cell currents
+    aggregated = {}
+    for folder in folders:
+        day = os.path.split(folder)[1]
+        aggregated[day]={}
+        cell_recordings = [f for f in files if 'Ea' not in f and folder in f]
+        for cr in cell_recordings:
+            laser_pulse,current,temperature,repeats,pulse_duration,laser_power = read_csv(cr)
+            l=lut[str(int(laser_power))+'W']
+            index=numpy.where(l[:,1]==pulse_duration)[0]
+            if index.shape[0]>0:
+                tempjump = l[index[0]][0]
+            else:
+                tempjump = None
+            cid = 'no_cell' if 'no_cell' in cr else os.path.split(cr)[1][:2]
+            sig=(laser_power,pulse_duration,tempjump,cid)
+            if not aggregated[day].has_key(sig):
+                aggregated[day][sig] = current
+    #plot each cell recording along with no-cell current
+    for day in aggregated.keys():
+        for c in aggregated[day].keys():
+            if c[3] != 'no_cell':
+                nocell_sig = [nc for nc in aggregated[day].keys() if nc[0] == c[0] and nc[1] == c[1] and nc[3] =='no_cell']
+                plot(aggregated[day][c])
+                if len(nocell_sig)>0:
+                    plot(aggregated[day][nocell_sig[0]])
+                    legend([c[3], 'no cell'])
+                t='{4} {0} {1} W {2} ms {3} C'.format(c[3],c[0],int(c[1]*1000), c[2],day)
+                title(t)
+                ylabel('Current [pA]')
+                savefig(os.path.join('/tmp',t+'.png'))
+                pass
+                clf()
+                cla()
 
 if __name__ == "__main__":
-    eval_20141204()
+    eval_20141208_and_09()
 #    merge_datafiles()
 #    plot_rawdata()
 #    arrhenius()
