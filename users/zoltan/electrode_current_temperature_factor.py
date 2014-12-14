@@ -1,3 +1,4 @@
+import shutil
 import zipfile
 import time,numpy
 try:
@@ -519,12 +520,8 @@ def get_s0(trigger, sig):
     '''
     return sig[:0.95*trigger_indexes(trigger).min()].mean()
     
-def trigger_indexes(trigger, only_boundaries=True):
-    indexes = numpy.nonzero(numpy.where(trigger>0.5*trigger.max(), 1, 0))[0]
-    if only_boundaries:
-        return numpy.array([indexes.min(),indexes.max()])
-    else:
-        return indexes
+def trigger_indexes(trigger):
+    return numpy.nonzero(numpy.where(abs(numpy.diff(trigger))>0.5*trigger.max(), 1, 0))[0]+1
     
 def extract(laser_pulse, current, temperature):
     '''
@@ -924,15 +921,23 @@ def eval_20141204():
     savefig(os.path.join('/tmp', 'pulse_width_vs_estimated_temp_jump.svg'))
     show()
     
-def eval_20141208_and_09():
+def compare_cell_nocell():
+    transient_only= False
+    aggregate= not True
     ignore_files = []
     lut = {}
+    outfolder = '/tmp/fig_transient' if transient_only else '/tmp/fig_full'
+    aggfn = 'aggregated_full.hdf5' if transient_only else 'aggregated_transients.hdf5'
+    if os.path.exists(outfolder):
+        shutil.rmtree(outfolder)
+    os.mkdir(outfolder)
     for w in ['5W', '10W']:
         with open('/home/rz/rzws/measurements/electrode_current_temperature/{0}_pulse_width2temp.txt'.format(w),'rt') as f:
             txt = f.read()
         lut[w] = numpy.array([float(ni) for n in [l.split(',') for l in txt.split('\n')][:-1] for ni in n])
         lut[w] = lut[w].reshape(lut[w].shape[0]/2,2)
     folders = ['/home/rz/rzws/measurements/electrode_current_temperature/20141208','/home/rz/rzws/measurements/electrode_current_temperature/20141209']
+    folders.append('/home/rz/rzws/measurements/electrode_current_temperature/20141211')
     files = [map(os.path.join,len(os.listdir(folder))*[folder], os.listdir(folder)) for folder in folders]
     files = [f for file in files for f in file]
     files = [f for f in files if len([i for i in ignore_files if i in f])==0]
@@ -964,42 +969,93 @@ def eval_20141208_and_09():
         xlabel('pulse width [ms]')
         show()
     #compare cell/no cell currents
-    aggregated = {}
-    for folder in folders:
-        day = os.path.split(folder)[1]
-        aggregated[day]={}
-        cell_recordings = [f for f in files if 'Ea' not in f and folder in f]
-        for cr in cell_recordings:
-            laser_pulse,current,temperature,repeats,pulse_duration,laser_power = read_csv(cr)
-            l=lut[str(int(laser_power))+'W']
-            index=numpy.where(l[:,1]==pulse_duration)[0]
-            if index.shape[0]>0:
-                tempjump = l[index[0]][0]
-            else:
-                tempjump = None
-            cid = 'no_cell' if 'no_cell' in cr else os.path.split(cr)[1][:2]
-            sig=(laser_power,pulse_duration,tempjump,cid)
-            if not aggregated[day].has_key(sig):
-                aggregated[day][sig] = current
+    if aggregate:
+        aggregated = {}
+        for folder in folders:
+            day = os.path.split(folder)[1]
+            aggregated[day]={}
+            cell_recordings = [f for f in files if 'Ea' not in f and folder in f]
+            for cr in cell_recordings:
+                laser_pulse,current,temperature,repeats,pulse_duration,laser_power = read_csv(cr)
+                l=lut[str(int(laser_power))+'W']
+                index=numpy.where(l[:,1]==pulse_duration)[0]
+                if index.shape[0]>0:
+                    tempjump = l[index[0]][0]
+                else:
+                    tempjump = None
+                cid = 'no_cell' if 'no_cell' in cr  or 'freerun' in cr or 'no-cell' in cr else os.path.split(cr)[1][:2]
+                sig=(repeats,laser_power,pulse_duration,tempjump,cid)
+                if transient_only:
+                    ti=trigger_indexes(laser_pulse)
+                    pulse_width = ti[1]-ti[0]
+                    ti[1::2] +=3*pulse_width
+                    ti[0::2] -=pulse_width
+                    current=numpy.concatenate(tuple(numpy.split(current,ti)[1::2]))
+                if not aggregated[day].has_key(sig):
+                    aggregated[day][sig] = current
+        h=Hdf5io(os.path.join(os.path.split(folders[0])[0],aggfn),filelocking=False)
+        h.aggregated=utils.object2array(aggregated)
+        h.save('aggregated')
+        h.close()
+    h=Hdf5io(os.path.join(os.path.split(folders[0])[0],aggfn),filelocking=False)
+    aggregated=utils.array2object(h.findvar('aggregated'))
+    h.close()
+    print 'aggregation done'
     #plot each cell recording along with no-cell current
-    for day in aggregated.keys():
-        for c in aggregated[day].keys():
-            if c[3] != 'no_cell':
-                nocell_sig = [nc for nc in aggregated[day].keys() if nc[0] == c[0] and nc[1] == c[1] and nc[3] =='no_cell']
-                plot(aggregated[day][c])
-                if len(nocell_sig)>0:
-                    plot(aggregated[day][nocell_sig[0]])
-                    legend([c[3], 'no cell'])
-                t='{4} {0} {1} W {2} ms {3} C'.format(c[3],c[0],int(c[1]*1000), c[2],day)
-                title(t)
-                ylabel('Current [pA]')
-                savefig(os.path.join('/tmp',t+'.png'))
-                pass
-                clf()
-                cla()
+    if 0:
+        for day in aggregated.keys():
+            for c in aggregated[day].keys():
+#                if c[3] != 'no_cell':
+                    nocell_sig = []#[nc for nc in aggregated[day].keys() if nc[0] == c[0] and nc[1] == c[1] and nc[2] == c[2] and nc[4] =='no_cell']
+                    fig=figure(1,figsize=(15.0, 9.0))
+                    plot(aggregated[day][c])
+                    if len(nocell_sig)>0:
+                        plot(aggregated[day][nocell_sig[0]])
+                        legend([c[3], 'no cell'])
+                    t='{4} {0} {1} W {2} ms {3} C, reps: {5}'.format(c[4],c[1],int(c[2]*1000), c[3],day, c[0])
+                    title(t)
+                    ylabel('Current [pA]')
+                    savefig(os.path.join(outfolder,t+'.png'))
+                    clf()
+                    cla()
+    #compare two days day1: no trp channels, day2 trp channels
+#    return
+    day1_no_trp_channel='20141208'
+    day2_no_trp_channel='20141209'
+    day3_trp_channel='20141211'
+    for mu in aggregated[day3_trp_channel].keys():
+        no_trp_channel_sigs = zip(len(aggregated[day1_no_trp_channel].keys())*[day1_no_trp_channel],aggregated[day1_no_trp_channel].keys())
+        no_trp_channel_sigs.extend(zip(len(aggregated[day2_no_trp_channel].keys())*[day2_no_trp_channel],aggregated[day2_no_trp_channel].keys()))
+        control_mus = [(day,sig) for day,sig in no_trp_channel_sigs if sig[1] == mu[1] and sig[2] == mu[2] and sig[-1] != 'no_cell']
+        ncsigs = [sig for sig in aggregated[day3_trp_channel].keys() if sig[1] == mu[1] and sig[2] == mu[2] and sig[-1] == 'no_cell']
+        control_mus.extend(zip(len(ncsigs)*[day3_trp_channel], ncsigs))
+        if len(control_mus)<1 or mu[-1] == 'no_cell':# or mu[0]==1:
+            continue
+        fig=figure(1,figsize=(20.0, 12.0))
+        plot(aggregated[day3_trp_channel][mu])
+#        #Remove traces below -500 pA
+#        control_mus = [(day,sig) for day,sig in control_mus if aggregated[day][sig].mean()>-500]
+        for day,sig in control_mus:
+            s=aggregated[day][sig]
+            if s.mean()<-300:
+                s-=s.mean()+300
+            plot(s)
+        l=['cell with trp channel']
+        #control_mus = [(control_mu[0], control_mu[1][-1]) for control_mu in control_mus]
+        l.extend(control_mus)
+        legend(l)
+        ylabel('pA')
+        t='compared_{0} W {1} ms {2} C {3}'.format(mu[1],int(mu[2]*1000), mu[3], mu[-1])
+        title(t)
+        savefig(os.path.join(outfolder,t+'.png'))
+        clf()
+        cla()
+        
+        
+    
 
 if __name__ == "__main__":
-    eval_20141208_and_09()
+    compare_cell_nocell()
 #    merge_datafiles()
 #    plot_rawdata()
 #    arrhenius()
