@@ -1234,12 +1234,4 @@ def evaluate_ea_and_current_calibration():
 
 if __name__ == "__main__":
     evaluate_ea_and_current_calibration()
-#    compare_cell_nocell()
-#    merge_datafiles()
-#    plot_rawdata()
-#    arrhenius()
-#    measure()
-#    evaluate1()
-#    fit()
-
     
