@@ -1,7 +1,7 @@
 import numpy
 import os
 import os.path
-import electrode_current_temperature_factor
+from visexpman.users.zoltan import electrode_current_temperature_factor
 import scipy.constants
 import time
 

@@ -901,14 +901,16 @@ class ExperimentControl(gui.WidgetControl):
         self._abort()
         
     def start_stimulation(self):
-        #Find out which if the active recording
+        #Find out which is the active recording
         for i in range(len(self.poller.animal_file.recordings)):
             rec = self.poller.animal_file.recordings[i]
             if rec['status'] == 'preparing':
-                function_call = {'function': 'start_imgaging', 'args': [self.poller.animal_file.recordings[i]]}
+                function_call = {'function': 'start_stimulus', 'args': [self.poller.animal_file.recordings[i]]}
                 self.poller.send(function_call,connection='stim')
                 self.printc('Initiating stimulus start')
                 self.poller.animal_file.recordings[i]['state']='running'
+                print id(self.poller.animal_file.recordings)
+                self.poller.update_recording_status()
                 break
         
     def stop_data_acquisition(self):
@@ -930,7 +932,8 @@ class ExperimentControl(gui.WidgetControl):
                     #stim and imaging data file is available too.
                     #TODO: assemble all the three files to one
                     self.poller.animal_file.recordings[i]['status'] = 'done'
-            
+                    self.poller.update_recording_status()
+                    
     def prepare_next_experiment(self):
         '''
         Called by poller regularly, checks command queue and current experiment status and starts a new recording
@@ -943,7 +946,7 @@ class ExperimentControl(gui.WidgetControl):
         #Take the oldest issued recording 
         for i in range(len(self.poller.animal_file.recordings)):
             if self.poller.animal_file.recordings[i]['status'] == 'issued':
-                function_call = {'function': 'start_imgaging', 'args': [self.poller.animal_file.recordings[i]]}
+                function_call = {'function': 'live_scan_start', 'args': [self.poller.animal_file.recordings[i]]}
                 #TODO:ELPHYS
                 if self.config.PLATFORM == 'elphys_retinal_ca':
                     self.poller.send(function_call,connection='ca_imaging')

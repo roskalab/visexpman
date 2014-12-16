@@ -1181,6 +1181,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         if not hasattr(self.poller.animal_file, 'recordings'):
             return
         #Convert list of experiment commands to parameter table format
+        print id(self.poller.animal_file.recordings)
         entry_order = []
         status_data = {}
         for recording in self.poller.animal_file.recordings:

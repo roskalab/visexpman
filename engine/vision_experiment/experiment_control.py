@@ -173,7 +173,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                                                             timeout = 30)
         self.t0=time.time()
         self.send({'trigger': 'imaging started',  'arg': imaging_started_result})#notifying main_ui that imaging started and stimulus can be launched
-        self.printl('Imaging started: {0}'.format('' if imaging_started_result else imaging_started_result))
+        self.printl('Imaging started {0}'.format('' if imaging_started_result else imaging_started_result))
         self.imaging_started = False if imaging_started_result == 'timeout' else imaging_started_result
 #        self.printl(parameters['scanning_attributes']['signal_attributes']['nxlines'])
         

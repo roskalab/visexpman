@@ -25,10 +25,13 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
         ENABLE_FRAME_CAPTURE = not True
         #### Network ####
-        self.CONNECTIONS['stim']['ip']['stim'] = None
-        self.CONNECTIONS['stim']['ip']['main_ui'] = '172.27.26.49'
-        self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = '172.27.26.49'#bind to specific network card
-        self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = '172.27.26.49'
+        stim_computer_ip = '172.27.26.55'
+        elphys_computer_ip = '172.27.26.48'
+        imaging_computer_ip = '172.27.26.49'
+        self.CONNECTIONS['stim']['ip']['stim'] = stim_computer_ip
+        self.CONNECTIONS['stim']['ip']['main_ui'] = stim_computer_ip
+        self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = imaging_computer_ip #bind to specific network card
+        self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = imaging_computer_ip
         self.CONNECTIONS['analysis']['ip']['analysis'] = None
         self.CONNECTIONS['analysis']['ip']['main_ui'] = '172.27.26.49'
 

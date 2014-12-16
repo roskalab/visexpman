@@ -2864,7 +2864,7 @@ class VisexpGuiPoller(Poller):
                     continue
                 msg = q.get()
                 if isinstance(msg,str):
-                    self.printc(msg)
+                    self.printc('{0}: {1}'.format(connection_name.upper(),msg))
                 elif hasattr(msg, 'has_key') and msg.has_key('function'):
                     function_name = msg['function']
                     args = msg['args']
@@ -2876,7 +2876,7 @@ class VisexpGuiPoller(Poller):
                 elif hasattr(msg, 'has_key') and msg.has_key('trigger'):
                     trigger_name = msg['trigger']
                     arg = msg.get('arg', None)
-                    if trigger_name=='imaging started' and arg==True:
+                    if trigger_name=='imaging started' and arg=='started':
                         self.experiment_control.start_stimulation()
                     elif trigger_name == 'stim started':
                         pass#TODO: progress bar, stimulation time
