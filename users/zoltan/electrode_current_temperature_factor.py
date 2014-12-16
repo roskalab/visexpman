@@ -12,11 +12,8 @@ try:
     from pylab import plot,show,title,figure,legend,xlabel,ylabel,savefig,clf,cla,xlim
 except:
     pass
-
 import multiprocessing
 import os.path
-
-
 import tempfile
 
 def measure():
@@ -1009,7 +1006,6 @@ def compare_cell_nocell():
             for c in aggregated[day].keys():
 #                if c[3] != 'no_cell':
                     nocell_sig = []#[nc for nc in aggregated[day].keys() if nc[0] == c[0] and nc[1] == c[1] and nc[2] == c[2] and nc[4] =='no_cell']
-                    fig=figure(1,figsize=(15.0, 9.0))
                     plot(aggregated[day][c])
                     if len(nocell_sig)>0:
                         plot(aggregated[day][nocell_sig[0]])
@@ -1055,6 +1051,7 @@ def compare_cell_nocell():
         
 def evaluate_ea_and_current_calibration():
     folder = '/home/rz/codes/data/electrode_current_temperature/20141213'
+    folder = '/home/rz/rzws/measurements/electrode_current_temperature/20141213'
     load = False
     csv2hdf5=False
     if load:
@@ -1110,7 +1107,7 @@ def evaluate_ea_and_current_calibration():
     else:
         h=Hdf5io(folder+'.hdf5',filelocking=False)
         data=utils.array2object(h.findvar('data'))
-        plotcolors = ['#0000ff','#00ff00','#ff0000','#ff00ff','#ffff00','#00ffff','#00007f','#007f00','#7f0000']
+        plotcolors = ['#0000ff','#00ff00','#ff0000','#ff00ff','#ffff00','#00ffff','#00007f','#007f00','#7f0000','#7f007f','#7f7f00','#007f7f']
         h.close()
         if 0:
             #Calculate activation energy
@@ -1156,13 +1153,13 @@ def evaluate_ea_and_current_calibration():
                 sig,laser_pulse,current,temperature=data['jump'][p][i]
                 t0=get_s0(laser_pulse,temperature)
                 i0=get_s0(laser_pulse,current)
-                temp_estimated=estimate_electrode_temperature(current, i0, t0, Ea[p])
-                
-                plot(temp_estimated)
-#                plot(laser_pulse)
-                ylabel('estimated temperature [K]')
-                xlabel('time [s]')
-                savefig('/tmp/raw_{0}_{1}W_{2}.png'.format(p, sig[1], ct))
+                import scipy.constants
+                temp_estimated=scipy.constants.K2C(estimate_electrode_temperature(current, i0, t0, Ea[p]))
+                if 0:
+                    plot(temp_estimated)
+                    ylabel('estimated temperature [K]')
+                    xlabel('time [s]')
+                    savefig('/tmp/raw_{0}_{1}W_{2}.png'.format(p, sig[1], ct))
                 ct+=1
                 clf()
                 ti=trigger_indexes(laser_pulse)
@@ -1170,34 +1167,35 @@ def evaluate_ea_and_current_calibration():
                 ti[1::2]+=8000
                 temp_estimated = numpy.concatenate(numpy.split(temp_estimated,ti)[1::2])
                 temp_estimated = temp_estimated.reshape(3,temp_estimated.shape[0]/3)
-                trg = laser_pulse/laser_pulse.max()*(temp_estimated.max()-temp_estimated.min())+t0
+                trg = laser_pulse/laser_pulse.max()*(temp_estimated.max()-temp_estimated.min())+scipy.constants.K2C(t0)
                 trg = numpy.concatenate(numpy.split(trg,ti)[1::2])
                 trg = trg[:trg.shape[0]/3]
                 t=numpy.arange(temp_estimated.shape[1])/1e4
-                
                 sig2=(p,sig[1])
                 if not aggregated[p].has_key(sig2):
                     aggregated[p][sig2] = []
                 aggregated[p][sig2].append([trg,t,temp_estimated])
-                
-
     tjump_vs_power={}
+    traces_vs_powers = {}
     for p in aggregated.keys():
         tjump_vs_power[p]=[]
+        traces_vs_powers[p]={}
         for sig in aggregated[p]:
             print sig
             trg=aggregated[p][sig][0][0]
             t=aggregated[p][sig][0][1]
-            fig=figure(1,figsize=(20.0, 12.0))
             plot(t,trg)
             baseline=aggregated[p][sig][0][2][0][:1000].mean()
             tjumps = []
+            traces_vs_powers[p][sig[1]]=[]
             for traces in aggregated[p][sig]:
                 for trace in traces[2]:
                     offset=baseline-trace[:1000].mean()
                     plot(t,trace+offset)
                     tjump=trace[trigger_indexes(trg-trg[0])[1]-100e-3*1e4]-trace[0]
                     tjumps.append(tjump)
+                    traces_vs_powers[p][sig[1]].append(trace+0*offset)
+            traces_vs_powers[p][sig[1]] = numpy.array(traces_vs_powers[p][sig[1]]).mean(axis=0)
             tjumps=numpy.array(tjumps)
             mean=tjumps.mean()
             std=tjumps.std()
@@ -1205,11 +1203,11 @@ def evaluate_ea_and_current_calibration():
             tjump_vs_power[p].append([sig[1], mean,std])
             tjumps=list(tjumps)
             l1= 'mean: {0:.2f}, std: {1:.2f}, n={2}\n'.format(mean,std,n)
-            l2 = ', '.join(['{'+str(i) + ':.2f}' for i in range(len(tjumps))]).format(*tjumps)
+            l2 = ', '.join(['{'+str(i) + ':.4}' for i in range(len(tjumps))]).format(*tjumps)
             title(l1+l2)
-            ylabel('estimated temperature [K]')
+            ylabel('estimated temperature [C]')
             xlabel('time [s]')
-            savefig('/tmp/{0}_{1}W_{2}.png'.format(p, sig[1], ct))
+            savefig('/tmp/{0}_{1}W_{2}.png'.format(p, sig[1], ct),dpi=300)
             clf()
             ct+=1
     for p in tjump_vs_power.keys():
@@ -1222,15 +1220,26 @@ def evaluate_ea_and_current_calibration():
         plot(power,mean-std, '^',color=clr)
         plot(power,mean+std, 'v',color=clr)
     t='temperature jumps vs laser power'
-    fig=figure(1,figsize=(20.0, 12.0))
     title(t)
     xlabel('Laser power [W]')
-    ylabel('Temperature jump [K]')
+    ylabel('Temperature jump [C]')
     legend([tjump_vs_power.keys()[0],'','',tjump_vs_power.keys()[1],'',''])
-    xlim([0,max(power)+0.5])
-    savefig('/tmp/'+t+'.png')
-    
-        
+    xlim([0,max(power)+3.5])
+    savefig('/tmp/'+t+'.png',dpi=300)
+    clf()
+    #Plot mean of transients
+    for p in traces_vs_powers.keys():
+        cct=0
+        for pwr in traces_vs_powers[p].keys():
+            t=numpy.arange(traces_vs_powers[p][pwr].shape[0])/1e4*1e3
+            plot(t,traces_vs_powers[p][pwr]-traces_vs_powers[p][pwr][0],color=plotcolors[cct])
+            cct+=1
+        title(p)
+        ylabel('Temperature jump estimated from current [C]')
+        xlabel('time [ms]')
+        legend([str(w)+' W' for w in traces_vs_powers[p].keys()])
+        savefig('/tmp/temperature_transient_{0}.png'.format(p),dpi=300)
+        clf()
 
 if __name__ == "__main__":
     evaluate_ea_and_current_calibration()
