@@ -883,10 +883,10 @@ class ExperimentControl(gui.WidgetControl):
     def remove_experiment(self):
         self.printc('{0} removed from experiment queue.'.format(self._modify_experiment_item(self._remove_experiment)))
         
-    def _set_experiment_state(self, entry):
+    def _set_experiment_state(self, entry,new_state=None):
         for i in range(len(self.poller.animal_file.recordings)):
             if self.poller.animal_file.recordings[i]['id'] == entry['id']:#id is unique identifier
-                self.poller.animal_file.recordings[i]['status'] = str(self.status_widget.new_state.currentText())
+                self.poller.animal_file.recordings[i]['status'] = str(self.status_widget.new_state.currentText()) if new_state is None else new_state
                 self.poller.animal_file.recordings[i]['state_transition_times'].append([self.poller.animal_file.recordings[i]['status'], time.time()])
                 break
         
@@ -909,12 +909,10 @@ class ExperimentControl(gui.WidgetControl):
             rec = self.poller.animal_file.recordings[i]
             if rec['status'] == 'preparing':
                 function_call = {'function': 'start_stimulus', 'args': [self.poller.animal_file.recordings[i]]}
-                self.poller.send(function_call,connection='stim')
                 self.printc('Initiating stimulus start')
-                self.poller.animal_file.recordings[i]['state']='running'
-                self.poller.animal_file.recordings[i]['state_transition_times'].append([self.poller.animal_file.recordings[i]['status'], time.time()])
+                self.poller.send(function_call,connection='stim')
                 self.isstimulus_started=False
-                print id(self.poller.animal_file.recordings)
+                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='running')
                 self.poller.update_recording_status()
                 break
                 
@@ -946,8 +944,7 @@ class ExperimentControl(gui.WidgetControl):
                     self.printc('Merging files and checking experiment data')
                     #stim and imaging data file is available too.
                     #TODO: assemble all the three files to one
-                    self.poller.animal_file.recordings[i]['status'] = 'done'
-                    self.poller.animal_file.recordings[i]['state_transition_times'].append([self.poller.animal_file.recordings[i]['status'], time.time()])
+                    self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='done')
                     self.poller.update_recording_status()
                     
     def prepare_next_experiment(self):

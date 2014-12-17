@@ -2829,9 +2829,10 @@ class VisexpGuiPoller(Poller):
                 self.animal_file.chec4new_animal_file()
             if not self.phase%15:
                 self.experiment_log.update_suggested_date()
-            if not self.phase%9:
+            if not self.phase%7:
                 self.update_network_connection_status()
-            self.experiment_control.check_stimulus_start_timeout()
+            if not self.phase%9:
+                self.experiment_control.check_stimulus_start_timeout()
             self.phase+= 1
             
 #        if hasattr(self, 'experiment_parameters') and ((self.imaging_finished ^ (not self.experiment_parameters['enable_ca_recording'])) and self.stimulation_finished):
