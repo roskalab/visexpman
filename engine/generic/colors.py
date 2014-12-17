@@ -2,13 +2,6 @@
 #From utils all the color related functions shall be moved to here
 import numpy,random
 from PIL import Image
-
-
-def imshow(ima, show=True):
-    im = Image.fromarray(numpy.cast['uint8'](255*(ima - ima.min())/(ima.max()-ima.min())))
-    if show:
-        im.show()
-    return im
     
 def imsave(imarray, filename):
     imshow(imarray, False).save(filename)
@@ -49,6 +42,22 @@ def convert_int_color(color):
         return (int(color[0] * 255.0),  int(color[1] * 255.0),  int(color[2] * 255.0))
     else:
         return (int(color * 255.0),  int(color * 255.0),  int(color * 255.0))
+        
+def get_color(index):
+    '''
+    
+    '''
+    c=numpy.array([1,0,0,
+          0,1,0,
+          0,0,1,
+          1,1,0,
+          1,0,1,
+          0,1,1,
+          ],dtype=numpy.float)
+    c=numpy.concatenate((c,0.5*c, numpy.array([1,0.5,0,])))
+    if index>=c.shape[0]/3:
+        raise RuntimeError('No more colors')
+    return list(c[index*3:(index+1)*3])
         
 def random_colors(n,  frames = 1,  greyscale = False,  inital_seed = 0):
     '''
@@ -154,6 +163,12 @@ class TestColorUtils(unittest.TestCase):
         
     def test_02_colorstr2channel(self):
         self.assertEqual(colorstr2channel('red'),0)
+        
+    def test_get_colors(self):
+        for i in range(13):
+            self.assertLessEqual(max(get_color(i)),1)
+            self.assertGreaterEqual(min(get_color(i)),0)
+        self.assertRaises(RuntimeError,get_color,13)
         
 if __name__ == "__main__":
     unittest.main()
