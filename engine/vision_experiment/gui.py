@@ -717,6 +717,7 @@ class ExperimentControl(gui.WidgetControl):
             'pixel_size' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text()), 
             'resolution_unit' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentText()), 
             'status' : 'issued',
+            'state_transition_times':[['issued',time.time()]],#Keeps track of what transitions happened and when
             'id':str(int(numpy.round(time.time(), 2)*100)), 
             'save2file' : (self.poller.parent.central_widget.ca_displays.save2file.input.checkState()==2),
             'averaging' : self.poller.parent.central_widget.ca_displays.averaging.input.text()
@@ -885,6 +886,7 @@ class ExperimentControl(gui.WidgetControl):
         for i in range(len(self.poller.animal_file.recordings)):
             if self.poller.animal_file.recordings[i]['id'] == entry['id']:#id is unique identifier
                 self.poller.animal_file.recordings[i]['status'] = str(self.status_widget.new_state.currentText())
+                self.poller.animal_file.recordings[i]['state_transition_times'].append([self.poller.animal_file.recordings[i]['status'], time.time()])
                 break
         
     def set_experiment_state(self):
@@ -909,6 +911,7 @@ class ExperimentControl(gui.WidgetControl):
                 self.poller.send(function_call,connection='stim')
                 self.printc('Initiating stimulus start')
                 self.poller.animal_file.recordings[i]['state']='running'
+                self.poller.animal_file.recordings[i]['state_transition_times'].append([self.poller.animal_file.recordings[i]['status'], time.time()])
                 print id(self.poller.animal_file.recordings)
                 self.poller.update_recording_status()
                 break
@@ -932,6 +935,7 @@ class ExperimentControl(gui.WidgetControl):
                     #stim and imaging data file is available too.
                     #TODO: assemble all the three files to one
                     self.poller.animal_file.recordings[i]['status'] = 'done'
+                    self.poller.animal_file.recordings[i]['state_transition_times'].append([self.poller.animal_file.recordings[i]['status'], time.time()])
                     self.poller.update_recording_status()
                     
     def prepare_next_experiment(self):
@@ -953,6 +957,7 @@ class ExperimentControl(gui.WidgetControl):
                 elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
                     raise NotImplementedError('')
                 self.poller.animal_file.recordings[i]['status'] = 'preparing'
+                self.poller.animal_file.recordings[i]['state_transition_times'].append([self.poller.animal_file.recordings[i]['status'], time.time()])
                 self.poller.animal_file.recordings[i]['data ready messages'] = []
                 self.poller.update_recording_status()
                 self.printc('{0} is preparing'.format(self.poller.animal_file.recordings[i]['id']))
