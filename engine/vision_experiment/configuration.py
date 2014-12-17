@@ -100,6 +100,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         'analysis': {'port': self.BASE_PORT+2, 'ip': {'analysis': '', 'main_ui': ''}},
         }
         NETWORK_COMMUNICATION_TIMEOUT = [10, [0,60]]
+        STIMULATION_START_TIMEOUT = [10, [0,60]]
         
         ############### Display/graphics parameters: ################
         SCREEN_RESOLUTION = utils.rc([600, 800])        

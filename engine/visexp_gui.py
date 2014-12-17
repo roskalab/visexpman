@@ -1616,6 +1616,10 @@ class testVisionExperimentGui(unittest.TestCase):
                     context['variables']['self.animal_file.recordings'][0]['recording_channels'], 
                     context['variables']['self.animal_file.recordings'][0]['scan_center'], 
                     ), self.test_13_14_expected_values)
+        #Test state transition data
+        self.assertTrue(isinstance(context['variables']['self.animal_file.recordings'][0]['state_transition_times'][0][0],str))
+        self.assertGreater(context['variables']['self.animal_file.recordings'][0]['state_transition_times'][0][1],1418811772)
+        self.assertEqual(len(context['variables']['self.animal_file.recordings'][0]['state_transition_times']),2)
     
 #    @unittest.skip('')
     def test_14_add_remove_experiment_animal_file(self):
@@ -1634,6 +1638,10 @@ class testVisionExperimentGui(unittest.TestCase):
                     recordings[0]['recording_channels'], 
                     recordings[0]['scan_center'], 
                     ), self.test_13_14_expected_values)
+        self.assertTrue(isinstance(context['variables']['self.animal_file.recordings'][0]['state_transition_times'][0][0],str))
+        self.assertGreater(context['variables']['self.animal_file.recordings'][0]['state_transition_times'][0][1],1418811772)
+        self.assertEqual(len(context['variables']['self.animal_file.recordings'][0]['state_transition_times']),2)
+
         
 #    def test_15(self):
 #        for i in range(8):

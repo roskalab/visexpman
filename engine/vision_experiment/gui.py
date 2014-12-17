@@ -595,6 +595,7 @@ class ExperimentControl(gui.WidgetControl):
         if context_experiment_config_file is None:
             context_experiment_config_file = fileop.get_user_module_folder(self.config)
         self._load_experiment_config_parameters(context_experiment_config_file)
+        self.isstimulus_started=False
         
     ################# Experiment config parameters ####################
     def browse(self):
@@ -912,9 +913,20 @@ class ExperimentControl(gui.WidgetControl):
                 self.printc('Initiating stimulus start')
                 self.poller.animal_file.recordings[i]['state']='running'
                 self.poller.animal_file.recordings[i]['state_transition_times'].append([self.poller.animal_file.recordings[i]['status'], time.time()])
+                self.isstimulus_started=False
                 print id(self.poller.animal_file.recordings)
                 self.poller.update_recording_status()
                 break
+                
+    def check_stimulus_start_timeout(self):
+        if self.isstimulus_started:
+            for i in range(len(self.poller.animal_file.recordings)):
+                rec = self.poller.animal_file.recordings[i]
+                if rec['status'] == 'preparing' and time.time() - rec['state_transition_times'][-1][1]>self.config.STIMULATION_START_TIMEOUT:
+                    self.printc('Aborting {0} experiment because stimulus did not start'.format(rec['id']))
+                    self.stop_data_acquisition()
+                    self.poller.animal_file.recordings.remove(rec)
+                    self.poller.update_recording_status()
         
     def stop_data_acquisition(self):
         '''

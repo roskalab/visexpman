@@ -2831,6 +2831,7 @@ class VisexpGuiPoller(Poller):
                 self.experiment_log.update_suggested_date()
             if not self.phase%9:
                 self.update_network_connection_status()
+            self.experiment_control.check_stimulus_start_timeout()
             self.phase+= 1
             
 #        if hasattr(self, 'experiment_parameters') and ((self.imaging_finished ^ (not self.experiment_parameters['enable_ca_recording'])) and self.stimulation_finished):
@@ -2879,6 +2880,7 @@ class VisexpGuiPoller(Poller):
                     if trigger_name=='imaging started' and arg=='started':
                         self.experiment_control.start_stimulation()
                     elif trigger_name == 'stim started':
+                        self.experiment_control.isstimulus_started=True
                         pass#TODO: progress bar, stimulation time
                     elif trigger_name == 'stim done':
                         self.experiment_control.stop_data_acquisition()
