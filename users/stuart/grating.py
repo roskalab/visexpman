@@ -8,7 +8,7 @@ BAR_WIDTHS =  [20,40] #4,6,10,20#deg
 SPEEDS = [2]#deg/s, 10, 5, 1,0.4
 MEAN_INTENSITIES = [0.5]
 CONTRASTS = [1.0, 0.5]
-ORIENTATION = [0,180]#0,-180
+ORIENTATION = [90,270,0,180]#0,-180
 DURATION = 1.0#s, -1: unlimited, duration per orientation
 REPEATS = 2
 BACKGROUND = 0.5
@@ -63,10 +63,10 @@ if __name__=='__main__':
                     pixel_size = SCREEN_SIZE[0]/SCREEN_RESOLUTION[0]
                     bar_width = bar_width/pixel_size
                     spacing = bar_width/DUTY_CYCLE
-                    nstripes = int(SCREEN_RESOLUTION[0]/(spacing))
+                    nstripes = int(SCREEN_RESOLUTION[0]/(spacing)) if ori == 0 or ori == 180 else int(SCREEN_RESOLUTION[1]/(spacing))
                     pixel_speed = spd/pixel_size/SCREEN_FRQ
                     nframes = DURATION*SCREEN_FRQ
-                    if ori == 180:
+                    if ori == 180 or ori == 270:
                         pixel_speed *= -1
                     pos = 0
                     framect=0
@@ -91,7 +91,10 @@ if __name__=='__main__':
                             pos = 0
                         for stripe in range(-2,nstripes+2):
                             position = pos+stripe*spacing
-                            pygame.draw.rect(screen,white,(position,0,bar_width, SCREEN_RESOLUTION[1]))                            
+                            if ori == 0 or ori == 180:
+                                pygame.draw.rect(screen,white,(position,0,bar_width, SCREEN_RESOLUTION[1]))
+                            elif ori == 90 or ori == 270:
+                                pygame.draw.rect(screen,white,(0,position,SCREEN_RESOLUTION[0],bar_width))
                        # update the screen
                         now=time.time()
     #                    if now-tlast<1.0/SCREEN_FRQ:
