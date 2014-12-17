@@ -1418,18 +1418,22 @@ class DisplayConfigurationGroupbox(QtGui.QGroupBox):
         display_channels_list= ['ALL', 'IR camera']
         display_channels_list.extend(self.config.PMTS.keys())
         self.channel_select = gui.LabeledComboBox(self, 'Channel', display_channels_list)
-        default_options = ['raw', 'Half scale', 'Quater scale', '1/8th scale']
+        default_options = ['raw', 'Half scale', 'Quarter scale', '1/8th scale']
+        filter_tooltip =''' \nBy default the maximum intensity is the maximal pmt voltage, therefore maximal intensity is reserved for saturation.
+        Half, quarter and 1/8th scale could be used to decrease the value of this maximal intensity' and make dim images visible'''
         #TODO: rename histogram shift
         emo = ['3x3 median filter', 'Histogram shift', 'Histogram equalize', 'Ca activity']
         emo.extend(default_options)
         emo.reverse()
         self.exploring_mode_options = gui.LabeledComboBox(self, 'Exploring', emo)
-        self.exploring_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. Filters are applied separately on each channel.')#TODO: append info about filters
+        self.exploring_mode_options.input.setCurrentIndex(emo.index('raw'))
+        self.exploring_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. Filters are applied separately on each channel.'+filter_tooltip)#TODO: append info about filters
         rmo = ['MIP', 'Ca activity']
         rmo.extend(default_options)
         rmo.reverse()
         self.recording_mode_options = gui.LabeledComboBox(self, 'Recording', rmo)
-        self.recording_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. MIP: maximum intensity projection')
+        self.recording_mode_options.setToolTip('The selected option will be applied on the display when no recording is ongoing. MIP: maximum intensity projection.'+filter_tooltip)
+        self.recording_mode_options.input.setCurrentIndex(rmo.index('raw'))
         self.gridline_select = gui.LabeledComboBox(self, 'Gridline', ['off', 'sparse', 'dense', 'scanner nonlienarity'])
         
     def create_layout(self):
