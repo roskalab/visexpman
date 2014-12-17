@@ -75,6 +75,33 @@ class IncreasingSpotExperiment(experiment.Experiment):
         for color in self.colors:
             self.increasing_spot(self.experiment_config.SIZES, self.experiment_config.ON_TIME, self.experiment_config.OFF_TIME,
                     color = color, background_color = self.background_color, pos = utils.rc((0,  0)), block_trigger = True)
+                    
+class FullFieldFlashesExperiment(experiment.Experiment):
+    '''
+    Expected parameters:
+    Color(s)
+    On time
+    Off time
+    N flashes
+    '''
+    def prepare(self):
+        if not hasattr(self.experiment_config, 'COLORS'):
+            self.colors = [1.0]
+        else:
+            self.colors = self.experiment_config.COLORS
+        if len(colors)==1:
+            colors = colors * self.experiment_config.NFLASHES
+        if not hasattr(self.experiment_config, 'BACKGROUND'):
+            self.background_color = self.machine_config.BACKGROUND_COLOR
+        else:
+            self.background_color = self.experiment_config.BACKGROUND
+        
+    def run(self):
+        self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,block_trigger=True)
+        for color in self.colors:
+            self.show_fullscreen(duration=self.experiment_config.ON_TIME,color=color,block_trigger=True)
+            self.show_fullscreen(duration=self.experiment_config.OFF_TIME,color=self.background_color,block_trigger=True)
+            
 
 class MovingGrating(experiment.Experiment):
     '''

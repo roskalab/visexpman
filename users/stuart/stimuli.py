@@ -222,3 +222,11 @@ class MyFFGratingsExp(experiment.Experiment):
                         color_contrast = 1.0,  
                         color_offset = 0.5,
                         duty_cycle = self.experiment_config.DUTY_CYCLE)
+
+class Flashes(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.ON_TIME=3
+        self.OFF_TIME=10
+        self.COLOR_STEP = 0.2
+        self.COLORS = numpy.arange(0,1+self.COLOR_STEP,self.COLOR_STEP)
+        self.runnable='FullFieldFlashesExperiment'
