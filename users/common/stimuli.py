@@ -89,8 +89,8 @@ class FullFieldFlashesExperiment(experiment.Experiment):
             self.colors = [1.0]
         else:
             self.colors = self.experiment_config.COLORS
-        if len(colors)==1:
-            colors = colors * self.experiment_config.NFLASHES
+        if len(self.colors)==1:
+            self.colors = self.colors * self.experiment_config.NFLASHES
         if not hasattr(self.experiment_config, 'BACKGROUND'):
             self.background_color = self.machine_config.BACKGROUND_COLOR
         else:
