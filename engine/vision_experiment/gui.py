@@ -965,9 +965,8 @@ class ExperimentControl(gui.WidgetControl):
                     self.poller.send(function_call,connection='ca_imaging')
                 elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
                     raise NotImplementedError('')
-                self.poller.animal_file.recordings[i]['status'] = 'preparing'
-                self.poller.animal_file.recordings[i]['state_transition_times'].append([self.poller.animal_file.recordings[i]['status'], time.time()])
-                self.poller.animal_file.recordings[i]['data ready messages'] = []
+                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='preparing')
+                self.poller.animal_file.recordings[i]['data ready messages''data ready messages'] = []
                 self.poller.update_recording_status()
                 self.printc('{0} is preparing'.format(self.poller.animal_file.recordings[i]['id']))
                 self.printc('Initiating two photon recording')
@@ -990,7 +989,13 @@ class ExperimentControl(gui.WidgetControl):
         
     def _abort(self):
         self.stop_data_acquisition()
+        for i in range(len(self.poller.animal_file.recordings)):
+            #Aborting all issued/preparing/running recordings
+            if self.poller.animal_file.recordings[i]['status'] == 'running' or self.poller.animal_file.recordings[i]['status'] == 'preparing' or self.poller.animal_file.recordings[i]['status'] == 'issued':
+                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='stopped')
+                self.poller.update_recording_status()
         self.poller.send({'function': 'stop_all'},'stim')
+        
         
 
 class ExperimentParametersGroupBox(QtGui.QGroupBox):

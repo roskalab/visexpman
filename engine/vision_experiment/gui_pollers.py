@@ -2881,6 +2881,7 @@ class VisexpGuiPoller(Poller):
                     if trigger_name=='imaging started' and arg=='started':
                         self.experiment_control.start_stimulation()
                     elif trigger_name == 'stim started':
+                        self.printc('!!!!!!!!! stim started trigger arrived')
                         self.experiment_control.isstimulus_started=True
                         pass#TODO: progress bar, stimulation time
                     elif trigger_name == 'stim done':
