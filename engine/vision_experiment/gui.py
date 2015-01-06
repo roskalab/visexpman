@@ -876,7 +876,7 @@ class ExperimentControl(gui.WidgetControl):
             return
         elif (entry['status'] == 'done' or entry['status'] == 'analyzed') and not self.poller.ask4confirmation('Deleting experiment recording file. Are you sure?'):
             return
-        self.poller.animal_file.recordings.remove(entry)
+        self.poller.animal_file.recordings = [e for e in self.poller.animal_file.recordings if e['id'] != entry['id']]
         if entry['status'] == 'done' or entry['status'] == 'analyzed':
             raise NotImplementedError('Removing measurement file is not implemented')
 
