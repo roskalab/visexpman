@@ -143,7 +143,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         waveforms = numpy.array([parameters['xsignal'], 
                                 parameters['ysignal'],
                                 parameters['stimulus_flash_trigger_signal']*parameters['enable_scanner_synchronization']*self.config.STIMULATION_TRIGGER_AMPLITUDE,
-                                parameters['frame_trigger_signal']])
+                                parameters['frame_trigger_signal']*self.config.FRAME_TRIGGER_AMPLITUDE])
         if xy_scanner_only:
             waveforms *= numpy.array([[1,1,0,0]]).T
         return waveforms

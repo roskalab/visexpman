@@ -2833,6 +2833,8 @@ class VisexpGuiPoller(Poller):
                 self.update_network_connection_status()
             if not self.phase%9:
                 self.experiment_control.check_stimulus_start_timeout()
+            if not self.phase%11:
+                self.printc('poller alive')#TMP
             self.phase+= 1
             
 #        if hasattr(self, 'experiment_parameters') and ((self.imaging_finished ^ (not self.experiment_parameters['enable_ca_recording'])) and self.stimulation_finished):
@@ -2865,9 +2867,9 @@ class VisexpGuiPoller(Poller):
                 if q.empty():
                     continue
                 msg = q.get()
-                if isinstance(msg,str):
+                if isinstance(msg,str) and 'ping' not in msg and 'pong' not in msg:
                     self.printc('{0}: {1}'.format(connection_name.upper(),msg))
-                elif hasattr(msg, 'has_key') and msg.has_key('function'):
+                if hasattr(msg, 'has_key') and msg.has_key('function'):
                     function_name = msg['function']
                     args = msg['args']
                     if function_name == 'remote_call':
@@ -2875,20 +2877,19 @@ class VisexpGuiPoller(Poller):
                     elif function_name == 'read_variable':#NOT TESTED
                         function_call = {'function': 'set_variable', 'args': [args[0], introspect.string2objectreference(self,args[0])]}
                         self.send(function_call,connection='ca_imaging')
-                elif hasattr(msg, 'has_key') and msg.has_key('trigger'):
+                if hasattr(msg, 'has_key') and msg.has_key('trigger'):
                     trigger_name = msg['trigger']
                     arg = msg.get('arg', None)
+                    self.printc((trigger_name,arg))
                     if trigger_name=='imaging started' and arg=='started':
                         self.experiment_control.start_stimulation()
                     elif trigger_name == 'stim started':
-                        self.printc('!!!!!!!!! stim started trigger arrived')
-                        self.experiment_control.isstimulus_started=True
+                        self.experiment_control.stimulation_started()
                         pass#TODO: progress bar, stimulation time
                     elif trigger_name == 'stim done':
                         self.experiment_control.stop_data_acquisition()
                     elif trigger_name == 'stim data ready' or trigger_name  == 'imaging data ready':
                         self.experiment_control.finish_experiment(trigger_name)
-                        
         except:
             self.printc(traceback.format_exc())
                                 

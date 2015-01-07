@@ -912,19 +912,26 @@ class ExperimentControl(gui.WidgetControl):
                 self.printc('Initiating stimulus start')
                 self.poller.send(function_call,connection='stim')
                 self.isstimulus_started=False
-                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='running')
-                self.poller.update_recording_status()
                 break
                 
-    def check_stimulus_start_timeout(self):
-        if self.isstimulus_started:
+    def stimulation_started(self):
+            self.isstimulus_started=True
             for i in range(len(self.poller.animal_file.recordings)):
                 rec = self.poller.animal_file.recordings[i]
-                if rec['status'] == 'preparing' and time.time() - rec['state_transition_times'][-1][1]>self.config.STIMULATION_START_TIMEOUT:
-                    self.printc('Aborting {0} experiment because stimulus did not start'.format(rec['id']))
-                    self.stop_data_acquisition()
-                    self.poller.animal_file.recordings.remove(rec)
+                if rec['status'] == 'preparing':
+                    self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='running')
                     self.poller.update_recording_status()
+                    break
+                
+    def check_stimulus_start_timeout(self):
+        for i in range(len(self.poller.animal_file.recordings)):
+            rec = self.poller.animal_file.recordings[i]
+            if rec['status'] == 'preparing' and time.time() - rec['state_transition_times'][-1][1]>self.config.STIMULATION_START_TIMEOUT:
+                self.printc('Aborting {0} experiment because stimulus did not start'.format(rec['id']))
+                self.stop_data_acquisition()
+                self.poller.animal_file.recordings = [e for e in self.poller.animal_file.recordings if rec['id'] != e['id']]
+                self.poller.update_recording_status()
+                break
         
     def stop_data_acquisition(self):
         '''
@@ -940,12 +947,14 @@ class ExperimentControl(gui.WidgetControl):
             rec = self.poller.animal_file.recordings[i]
             if rec['status'] == 'running':
                 self.poller.animal_file.recordings[i]['data ready messages'].append(message)
+                self.printc(self.poller.animal_file.recordings[i]['data ready messages'])
                 if len(self.poller.animal_file.recordings[i]['data ready messages']) == 2:
                     self.printc('Merging files and checking experiment data')
                     #stim and imaging data file is available too.
                     #TODO: assemble all the three files to one
                     self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='done')
                     self.poller.update_recording_status()
+                break
                     
     def prepare_next_experiment(self):
         '''
@@ -966,7 +975,7 @@ class ExperimentControl(gui.WidgetControl):
                 elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
                     raise NotImplementedError('')
                 self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='preparing')
-                self.poller.animal_file.recordings[i]['data ready messages''data ready messages'] = []
+                self.poller.animal_file.recordings[i]['data ready messages'] = []
                 self.poller.update_recording_status()
                 self.printc('{0} is preparing'.format(self.poller.animal_file.recordings[i]['id']))
                 self.printc('Initiating two photon recording')

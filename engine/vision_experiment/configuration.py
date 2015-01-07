@@ -302,7 +302,8 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         POSITION_TO_SCANNER_VOLTAGE = [2.0/128.0, [1e-5,1]]#Conversion rate between laser beam position and scanner control voltage
         XMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]#Offset of scanner signal cannot exceed 2 V
         YMIRROR_OFFSET = [0,[-2.0/POSITION_TO_SCANNER_VOLTAGE[0], 2.0/POSITION_TO_SCANNER_VOLTAGE[0]]]
-        STIMULATION_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
+        STIMULATION_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging stimulus trigger signals
+        FRAME_TRIGGER_AMPLITUDE = [5.0,[0.0, 5.0]]#Amplitude of ca imaging frame trigger signals
         PMTS = {'TOP': {'CHANNEL': 0,  'COLOR': 'GREEN', 'ENABLE': True}, 
                             'SIDE': {'CHANNEL' : 1,'COLOR': 'RED', 'ENABLE': False}}
         TWO_PHOTON_PINOUT = {}

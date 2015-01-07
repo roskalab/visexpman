@@ -1028,7 +1028,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.init_variables()
         self.connect_signals()
         self.poller.start()
-        self.show()
+        self.showMaximized()
         self.init_widget_content()
         self.block_widgets(False)
         self.display_warnings(warning)
