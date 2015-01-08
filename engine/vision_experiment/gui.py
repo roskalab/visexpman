@@ -541,7 +541,7 @@ class RecordingStatusGroupbox(QtGui.QGroupBox):
         self.remove.setToolTip('Remove selected recording')
         self.set_state = QtGui.QPushButton('Change state to',  self)
         self.new_state = QtGui.QComboBox(self)
-        self.new_state.addItems(QtCore.QStringList(['', 'issued', 'preparing', 'running', 'done', 'analyzed']))
+        self.new_state.addItems(QtCore.QStringList(['', 'queued', 'preparing', 'running', 'done', 'analyzed']))
         
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -717,8 +717,8 @@ class ExperimentControl(gui.WidgetControl):
             'scanning_range' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text()), 
             'pixel_size' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text()), 
             'resolution_unit' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentText()), 
-            'status' : 'issued',
-            'state_transition_times':[['issued',time.time()]],#Keeps track of what transitions happened and when
+            'status' : 'queued',
+            'state_transition_times':[['queued',time.time()]],#Keeps track of what transitions happened and when
             'id':str(int(numpy.round(time.time(), 2)*100)), 
             'save2file' : (self.poller.parent.central_widget.ca_displays.save2file.input.checkState()==2),
             'averaging' : self.poller.parent.central_widget.ca_displays.averaging.input.text()
@@ -872,7 +872,7 @@ class ExperimentControl(gui.WidgetControl):
         return entry['id']
         
     def _remove_experiment(self, entry):
-        if entry['status'] == 'issued' and not self.poller.ask4confirmation('Removing issued experiment command. Are you sure?'):
+        if entry['status'] == 'queued' and not self.poller.ask4confirmation('Removing issued experiment command. Are you sure?'):
             return
         elif (entry['status'] == 'done' or entry['status'] == 'analyzed') and not self.poller.ask4confirmation('Deleting experiment recording file. Are you sure?'):
             return
@@ -912,7 +912,7 @@ class ExperimentControl(gui.WidgetControl):
                 self.printc('Initiating stimulus start')
                 self.poller.send(function_call,connection='stim')
                 self.isstimulus_started=False
-                break
+                return True
                 
     def stimulation_started(self):
             self.isstimulus_started=True
@@ -921,7 +921,7 @@ class ExperimentControl(gui.WidgetControl):
                 if rec['status'] == 'preparing':
                     self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='running')
                     self.poller.update_recording_status()
-                    break
+                    return True
                 
     def check_stimulus_start_timeout(self):
         for i in range(len(self.poller.animal_file.recordings)):
@@ -941,6 +941,7 @@ class ExperimentControl(gui.WidgetControl):
         self.printc('Stopping data acquistions')
         #TODO:ELPHYS
         self.poller.send({'function': 'stop_all'},'ca_imaging')
+        return True
         
     def finish_experiment(self, message):
         for i in range(len(self.poller.animal_file.recordings)):
@@ -954,7 +955,7 @@ class ExperimentControl(gui.WidgetControl):
                     #TODO: assemble all the three files to one
                     self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='done')
                     self.poller.update_recording_status()
-                break
+                return True
                     
     def prepare_next_experiment(self):
         '''
@@ -967,7 +968,7 @@ class ExperimentControl(gui.WidgetControl):
             return
         #Take the oldest issued recording 
         for i in range(len(self.poller.animal_file.recordings)):
-            if self.poller.animal_file.recordings[i]['status'] == 'issued':
+            if self.poller.animal_file.recordings[i]['status'] == 'queued':
                 function_call = {'function': 'live_scan_start', 'args': [self.poller.animal_file.recordings[i]]}
                 #TODO:ELPHYS
                 if self.config.PLATFORM == 'elphys_retinal_ca':
@@ -1000,7 +1001,7 @@ class ExperimentControl(gui.WidgetControl):
         self.stop_data_acquisition()
         for i in range(len(self.poller.animal_file.recordings)):
             #Aborting all issued/preparing/running recordings
-            if self.poller.animal_file.recordings[i]['status'] == 'running' or self.poller.animal_file.recordings[i]['status'] == 'preparing' or self.poller.animal_file.recordings[i]['status'] == 'issued':
+            if self.poller.animal_file.recordings[i]['status'] == 'running' or self.poller.animal_file.recordings[i]['status'] == 'preparing' or self.poller.animal_file.recordings[i]['status'] == 'queued':
                 self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='stopped')
                 self.poller.update_recording_status()
         self.poller.send({'function': 'stop_all'},'stim')

@@ -2860,36 +2860,43 @@ class VisexpGuiPoller(Poller):
         try:
             for connection_name in self.socket_queues.keys():
                 q = self.socket_queues[connection_name]['fromsocket']
+                msgs=[]
+                while True:
     #            if connection_name == 'ca_imaging':
     #                status = self.socket_queues[connection_name]['in'].empty(),self.socket_queues[connection_name]['out'].empty()
     #                if not status[0] or not status[1]:
     #                    self.printc([self.queues[connection_name]['in'].empty(),self.queues[connection_name]['out'].empty()])
-                if q.empty():
-                    continue
-                msg = q.get()
-                if isinstance(msg,str) and 'ping' not in msg and 'pong' not in msg:
-                    self.printc('{0}: {1}'.format(connection_name.upper(),msg))
-                if hasattr(msg, 'has_key') and msg.has_key('function'):
-                    function_name = msg['function']
-                    args = msg['args']
-                    if function_name == 'remote_call':
-                        introspect.string2objectreference(self, args[0])(*args[1])
-                    elif function_name == 'read_variable':#NOT TESTED
-                        function_call = {'function': 'set_variable', 'args': [args[0], introspect.string2objectreference(self,args[0])]}
-                        self.send(function_call,connection='ca_imaging')
-                if hasattr(msg, 'has_key') and msg.has_key('trigger'):
-                    trigger_name = msg['trigger']
-                    arg = msg.get('arg', None)
-                    self.printc((trigger_name,arg))
-                    if trigger_name=='imaging started' and arg=='started':
-                        self.experiment_control.start_stimulation()
-                    elif trigger_name == 'stim started':
-                        self.experiment_control.stimulation_started()
-                        pass#TODO: progress bar, stimulation time
-                    elif trigger_name == 'stim done':
-                        self.experiment_control.stop_data_acquisition()
-                    elif trigger_name == 'stim data ready' or trigger_name  == 'imaging data ready':
-                        self.experiment_control.finish_experiment(trigger_name)
+                    if q.empty():
+    #                    continue
+                        break
+                    msgs.append(q.get())
+                for msg in msgs:
+                    if isinstance(msg,str) and 'ping' not in msg and 'pong' not in msg:
+                        self.printc('{0}: {1}'.format(connection_name.upper(),msg))
+                    elif hasattr(msg, 'has_key') and msg.has_key('trigger'):
+                        trigger_name = msg['trigger']
+                        arg = msg.get('arg', None)
+                        self.printc((trigger_name,arg))
+                        if trigger_name=='imaging started' and arg=='started':
+                            res = self.experiment_control.start_stimulation()
+                        elif trigger_name == 'stim started':
+                            res = self.experiment_control.stimulation_started()
+                            pass#TODO: progress bar, stimulation time
+                        elif trigger_name == 'stim done':
+                            res = self.experiment_control.stop_data_acquisition()
+                        elif trigger_name == 'stim data ready' or trigger_name  == 'imaging data ready':
+                            res = self.experiment_control.finish_experiment(trigger_name)
+                        if res != True:#Put trigger back to network queue if could not be processed
+                            q.put(msg)
+                    elif hasattr(msg, 'has_key') and msg.has_key('function'):
+                        function_name = msg['function']
+                        args = msg['args']
+                        if function_name == 'remote_call':
+                            introspect.string2objectreference(self, args[0])(*args[1])
+                        elif function_name == 'read_variable':#NOT TESTED
+                            function_call = {'function': 'set_variable', 'args': [args[0], introspect.string2objectreference(self,args[0])]}
+                            self.send(function_call,connection='ca_imaging')
+                    
         except:
             self.printc(traceback.format_exc())
                                 

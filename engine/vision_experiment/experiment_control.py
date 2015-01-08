@@ -56,6 +56,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         self.load_image_context()
         #Request for sending display_configuration
         self.send({'function': 'remote_call', 'args': ['self.visualisation_control.generate_display_configuration', [True]]})
+        self.ct=0
         
     def application_callback(self):
         '''
@@ -98,6 +99,9 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                 
         self.read_imaging_data()
         self.refresh()
+#        self.printl(self.ct)
+#        time.sleep(1.0)
+#        self.ct+=1
         
     def read_imaging_data(self):
         '''

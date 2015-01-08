@@ -14,15 +14,19 @@ class QueuedSocketHelpers(object):
     def __init__(self,socket_queues):
         self.socket_queues=socket_queues
         
-    def recv(self, connection=None):
+    def _get_queue(self, connection):
         if connection == None:
             queue = self.socket_queues['fromsocket']
         else:
             queue = self.socket_queues[connection]['fromsocket']
+        return queue
+        
+    def recv(self, connection=None):
+        queue = self._get_queue(connection)
         if not queue.empty():
             return queue.get()
 
-    def send(self,msg, connection=None):
+    def send(self, msg, connection=None):
         if connection == None:
             queue = self.socket_queues['tosocket']
         else:
@@ -32,10 +36,13 @@ class QueuedSocketHelpers(object):
     def ping(self,timeout=1.0, connection=None):
         self.send('ping',connection)
         t0 = time.time()
+        queue = self._get_queue(connection)
         while True:
             resp = self.recv(connection)
             if resp == 'pong':
                 return True
+            else:
+                queue.put(resp)
             if time.time()-t0>timeout:
                 return False
             time.sleep(0.1)
@@ -112,14 +119,20 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                 try:
                     message = self.socket.recv(flags=zmq.NOBLOCK)
                     message = utils.str2object(message)
-                    if hasattr(self.log, 'info'):
-                        self.log.info('received: ' + log.log2str(message),self.socket_name)
                     if message == 'ping':
                         self.socket_queues['tosocket'].put('pong')
                     else:
                         self.socket_queues['fromsocket'].put(message)
+                    if hasattr(self.log, 'info'):
+                        self.log.info('received: ' + log.log2str(message),self.socket_name)
                 except zmq.ZMQError:
                     pass#Nothing has received
+#                    import traceback
+#                    m=traceback.format_exc()
+#                    if ' temporarily unavailable' in m:
+#                        m = 'tmp unav'
+#                    if 'anal' not in self.socket_name:
+#                        self.log.info('error: ' + m,self.socket_name)
                 if not self.command.empty() and self.command.get() =='terminate':
                     break
                 time.sleep(self.loop_wait)
