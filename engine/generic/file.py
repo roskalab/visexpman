@@ -328,7 +328,7 @@ def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter =
     return filtered_files
 
 def find_file_from_timestamp(dir, timestamp):
-    from visexpman.engine.generic.string import dirListing
+    #from visexpman.engine.generic.string import dirListing
     from visexpA.engine.component_guesser import get_mes_name_timestamp
     files = dirListing(dir, ['.hdf5'], dir)
     matching = [f for f in files if str(int(timestamp)) in f]

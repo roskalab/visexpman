@@ -136,7 +136,23 @@ class MovingGratingAdrian(MovingGratingNoMarchingConfig):
             import random
             random.shuffle(self.ORIENTATIONS)
         
-        
+class MovingGratingTest(MovingGratingNoMarchingConfig):
+    def _create_parameters(self):
+        MovingGratingNoMarchingConfig._create_parameters(self)
+        self.GRATING_STAND_TIME = 0.0#after
+        self.MARCH_TIME = 0.0#before
+        self.PAUSE_BEFORE_AFTER = 1.0
+        self.REPEATS = 1
+        self.NUMBER_OF_BAR_ADVANCE_OVER_POINT = 100
+        self.ENABLE_RANDOM_ORDER = False #True
+        self.WHITE_BAR_WIDTHS=[50, 100]
+        self.ORIENTATIONS = range(0, 90, 90)
+        self.VELOCITIES = [200, 2000.0, 2800]#1800
+        self.DUTY_CYCLES = [2.0]
+        if self.ENABLE_RANDOM_ORDER:
+            import random
+            random.shuffle(self.ORIENTATIONS)
+
         
 class MovingGratingNoMarchingBlackPreConfig(experiment.ExperimentConfig):
     def _create_parameters(self):

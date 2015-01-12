@@ -103,6 +103,7 @@ class CommandHandler(command_parser.CommandParser, screen.ScreenAndKeyboardHandl
                         self.queues['gui']['out'].put('SOCstageEOC{0},{1},{2}EOP'.format(position[0], position[1], position[2]))
                 if 'origin' in par:
                     self.stage_origin = position
+                    self.log.info('DEBUG: Stage origin is {0}' .format(self.stage_origin))
                 if 'set' in par:
                     new_position = numpy.array([float(new_x), float(new_y), float(new_z)])
                     reached = stage.move(new_position)

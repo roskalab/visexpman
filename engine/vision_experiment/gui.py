@@ -886,6 +886,7 @@ class MainPoller(Poller):
                             if self.config.ADD_CELLS_TO_MOUSE_FILE:
                                 self.add_cells_to_database(parameter)
                             else:
+                                time.sleep(3)#TMP: Make sure that all data is saved to file
                                 region_name, measurement_file_path, info = self.read_scan_regions(parameter)
                                 id = parameter
                                 self.scan_regions[region_name]['process_status'][parameter]['find_cells_ready'] = True
@@ -895,7 +896,7 @@ class MainPoller(Poller):
                                 else:
                                     number_of_new_cells = len(soma_rois)
                                     if number_of_new_cells > 200:
-                                        number_of_new_cells = 50
+                                        number_of_new_cells = 200
                                 self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
                                 self.save2mouse_file(['scan_regions'])
                                 self.parent.update_jobhandler_process_status()
@@ -1002,18 +1003,36 @@ class MainPoller(Poller):
         
     def save_context(self):
         try:
-            context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE,filelocking=False)
-            context_hdf5.stage_origin = copy.deepcopy(self.stage_origin)
-            context_hdf5.stage_position = copy.deepcopy(self.stage_position)
-            context_hdf5.save('stage_origin',overwrite = True)
-            context_hdf5.save('stage_position', overwrite = True)
-            if hasattr(self,  'xy_scan'):
-                context_hdf5.xy_scan = copy.deepcopy(self.xy_scan)
-                context_hdf5.save('xy_scan', overwrite = True)
-            if hasattr(self, 'xz_scan'):
-                context_hdf5.xz_scan = copy.deepcopy(self.xz_scan)
-                context_hdf5.save('xz_scan', overwrite = True)
-            context_hdf5.close()
+            if 0:
+                context_hdf5 = hdf5io.Hdf5io(self.config.CONTEXT_FILE,filelocking=False)
+                context_hdf5.stage_origin = copy.deepcopy(self.stage_origin)
+                context_hdf5.stage_position = copy.deepcopy(self.stage_position)
+                context_hdf5.save('stage_origin',overwrite = True)
+                context_hdf5.save('stage_position', overwrite = True)
+                if hasattr(self,  'xy_scan'):
+                    context_hdf5.xy_scan = copy.deepcopy(self.xy_scan)
+                    context_hdf5.save('xy_scan', overwrite = True)
+                if hasattr(self, 'xz_scan'):
+                    context_hdf5.xz_scan = copy.deepcopy(self.xz_scan)
+                    context_hdf5.save('xz_scan', overwrite = True)
+                context_hdf5.close()
+            else:#NOT TESTED
+                if os.path.exists('/tmp/context.hdf5'):
+                    os.remove('/tmp/context.hdf5')
+                context_hdf5 = hdf5io.Hdf5io('/tmp/context.hdf5',filelocking=False)
+                context_hdf5.stage_origin = copy.deepcopy(self.stage_origin)
+                context_hdf5.stage_position = copy.deepcopy(self.stage_position)
+                context_hdf5.save('stage_origin',overwrite = True)
+                context_hdf5.save('stage_position', overwrite = True)
+                if hasattr(self,  'xy_scan'):
+                    context_hdf5.xy_scan = copy.deepcopy(self.xy_scan)
+                    context_hdf5.save('xy_scan', overwrite = True)
+                if hasattr(self, 'xz_scan'):
+                    context_hdf5.xz_scan = copy.deepcopy(self.xz_scan)
+                    context_hdf5.save('xz_scan', overwrite = True)
+                context_hdf5.close()
+                import shutil
+                shutil.move('/tmp/context.hdf5', self.config.CONTEXT_FILE)#Context file is always saved to new file
         except:
             self.printc('Context file NOT updated')
         
@@ -1298,6 +1317,7 @@ class MainPoller(Poller):
 
     def set_stage_origin(self):
         result = False
+        self.printc('Stage origin: {0}'.format(self.stage_origin))
         if not self.mes_interface.overwrite_relative_position(0, self.config.MES_TIMEOUT):
             self.printc('Setting objective to 0 did not succeed')
             return result
@@ -1317,6 +1337,7 @@ class MainPoller(Poller):
                     result = True
         self.origin_set = True
         self.parent.update_position_display()
+        self.printc('Stage origin: {0}'.format(self.stage_origin))
         return result
         
     def tilt_brain_surface(self):
@@ -1596,6 +1617,8 @@ class MainPoller(Poller):
             variable_name = 'animal_parameters_{0}'.format(int(time.time()))
             hdf5io.save_item(self.mouse_file, variable_name, self.animal_parameters,filelocking=False)
             self.local_mouse_file = os.path.join(tempfile.gettempdir(), os.path.split(self.mouse_file)[1])
+            if os.path.exists(self.local_mouse_file):#Remove existing temp mouse file
+                os.remove(self.local_mouse_file)
             hdf5io.save_item(self.local_mouse_file, variable_name, self.animal_parameters,filelocking=False)
             are_new_file, self.mouse_files = update_mouse_files_list(self.config, self.mouse_files)
             time.sleep(0.1)#Wait till file is created
@@ -2465,17 +2488,28 @@ class MainPoller(Poller):
     def backup_mousefile(self):
         if hasattr(self, 'animal_parameters') and hasattr(self, 'mouse_file'):
             self.printc('Backing up mouse file')
+            try:
+                h = hdf5io.Hdf5io(self.mouse_file,filelocking=False)
+                h.close()
+            except:
+                self.printc('Backing up mouse file was not successful')
+                return
+            self.printc('1')
             dir = os.path.join(self.config.DATABIG_PATH,  utils.date_string().replace('-',''), self.animal_parameters['id'])
             if not os.path.exists(dir):
                 os.makedirs(dir)
+            self.printc('2')
             databig_path = os.path.join(dir, os.path.split(self.mouse_file)[1])
             if os.path.exists(databig_path):
                 os.remove(databig_path)
             try:
                 shutil.copy(self.mouse_file, databig_path)
+                self.printc('3')
             except:
                 self.printc(traceback.format_exc())
                 self.printc('Problem with copying mousefile to databig.')
+                self.printc('4')
+            self.printc('5')
 
     def cells2pickled_ready(self, cells):
         '''

@@ -574,15 +574,16 @@ class VisionExperimentGui(QtGui.QWidget):
             self.roi_widget.roi_plot.clear()
 
     def show_image(self, image, channel, scale, line = [], origin = utils.rc((0, 0))):
-        image_in = {}
-        image_in['image'] = generic_visexpA.normalize(image, outtype=numpy.uint8, std_range = 10)
+        imcopy = copy.deepcopy(image)
+        image_in = {}        
+        image_in['image'] = generic_visexpA.normalize(imcopy, outtype=numpy.uint8, std_range = 10)
         image_in['scale'] = scale
         image_in['origin'] = origin
         if channel == 'overview':
             image_with_sidebar = generate_gui_image(image_in, self.config.OVERVIEW_IMAGE_SIZE, self.config, lines  = line)
             self.overview_widget.image_display.setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.OVERVIEW_IMAGE_SIZE))
             self.overview_widget.image_display.image = image_with_sidebar
-            self.overview_widget.image_display.raw_image = image
+            self.overview_widget.image_display.raw_image = imcopy
             self.overview_widget.image_display.scale = scale
         else:
             box = self.get_subimage_box()
@@ -602,7 +603,7 @@ class VisionExperimentGui(QtGui.QWidget):
                                                     gridlines = gridlines)
             self.images_widget.image_display[channel].setPixmap(imaged.array_to_qpixmap(image_with_sidebar, self.config.IMAGE_SIZE))
             self.images_widget.image_display[channel].image = image_with_sidebar
-            self.images_widget.image_display[channel].raw_image = image
+            self.images_widget.image_display[channel].raw_image = imcopy
             self.images_widget.image_display[channel].scale = scale
             self.images_widget.image_display[channel].origin = origin
             self.images_widget.image_display[channel].line = line

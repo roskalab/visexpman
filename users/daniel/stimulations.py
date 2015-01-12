@@ -33,10 +33,10 @@ class ReceptiveFieldExploreAutosizeConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.AUTOSIZE_SHAPE = True
         self.SHAPE = 'rect'
-        self.COLORS = [1.0, 0.0]
-        self.BACKGROUND_COLOR = 0.25
+        self.COLORS = [1.0]
+        self.BACKGROUND_COLOR = 0.0
         self.SHAPE_SIZE = 300.0
-        self.MESH_XY = utils.rc((4,6))
+        self.MESH_XY = utils.rc((4,4))
         self.ON_TIME = 0.5*2
         self.OFF_TIME = 0.5*6
         self.PAUSE_BEFORE_AFTER = 2.0
@@ -116,7 +116,9 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                     pos = position_color[0])
                                     
             self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.OFF_TIME)
-        self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = self.experiment_config.PAUSE_BEFORE_AFTER-self.experiment_config.OFF_TIME)
+        duration = self.experiment_config.PAUSE_BEFORE_AFTER-self.experiment_config.OFF_TIME
+        if duration> 0:
+            self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR, duration = duration)
              
 
             
