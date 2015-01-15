@@ -143,11 +143,17 @@ class ParallelPort(parallel_port_ancestors):
     
     def init_instrument(self):
         if self.config.ENABLE_PARALLEL_PORT:
-            try:
-                parallel.Parallel.__init__(self)
-            except WindowsError:
-                raise RuntimeError('Parallel port cannot be initialized, \
-                                   make sure that parallel port driver is installed and started')
+            if self.config.OS=='Windows':
+                from ctypes import windll
+                self.p=windll.inpout32
+                self.outp_func = getattr(p, 'Out'+'64' if self.config.IS64BIT else '32')
+            else:
+            
+                try:
+                    parallel.Parallel.__init__(self)
+                except WindowsError:
+                    raise RuntimeError('Parallel port cannot be initialized, \
+                                       make sure that parallel port driver is installed and started')
         #Here create the variables that store the status of the IO lines
         self.iostate = {}
         self.iostate['data'] = 0
@@ -162,9 +168,12 @@ class ParallelPort(parallel_port_ancestors):
                 self.iostate['in'][pin] = self.read_pin(pin)
 
     def _update_io(self):
-        self.setData(self.iostate['data'])
-        self.setDataStrobe(self.iostate['data_strobe'])
-        self.setAutoFeed(self.iostate['auto_feed'])
+        if self.config.OS=='Windows':
+            self.outp_func(0x378,self.iostate['data'])
+        else:
+            self.setData(self.iostate['data'])
+            self.setDataStrobe(self.iostate['data_strobe'])
+            self.setAutoFeed(self.iostate['auto_feed'])
         
     def set_data_bit(self, bit, value,  log = True):
         '''
