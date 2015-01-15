@@ -312,6 +312,17 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'] = 'Dev1/ao0:3'
         TWO_PHOTON_DAQ_TIMEOUT = [10.0, [0.1, 60.0]]
         
+        ELPHYS_SYNC_RECORDING={}
+        ELPHYS_SYNC_RECORDING['AI_PINOUT'] = 'Dev1/ai2:5'
+        ELPHYS_SYNC_RECORDING['AO_PINOUT'] = 'Dev1/ao:1'
+        ELPHYS_SYNC_RECORDING['SPIKING_SAMPLE_RATE'] = 10000 #This value cannot be adjusted from main_ui
+        ELPHYS_SYNC_RECORDING['ELPHYS_SAMPLE_RATE'] = 1000 #This value cannot be adjusted from main_ui
+        ELPHYS_SYNC_RECORDING['TIMEOUT'] = 10.0
+        ELPHYS_INDEXES = [0,1]
+        SYNC_INDEXES = [2,3]
+        
+        DATA_FILE_NODES = ['raw_data', 'runtime_info', 'sync_and_elphys_data', 'conversion_factor', 'config', 'software']
+        
         #Scanner dynamics
         XMIRROR_MAX_FREQUENCY = [1400.0, [50.0, 2200.0]]
         Y_MIRROR_MIN_FLYBACK_TIME = [1e-3, [0.66e-3, 100e-3]]

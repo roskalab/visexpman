@@ -19,8 +19,8 @@ import visexpman
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
-from visexpman.engine.vision_experiment import experiment
-from visexpman.engine.hardware_interface import scanner_control
+from visexpman.engine.vision_experiment import experiment, experiment_data
+from visexpman.engine.hardware_interface import scanner_control,daq_instrument
 from visexpman.engine import ExperimentConfigError, AnimalFileError
 from visexpman.engine.generic import gui,fileop,stringop,introspect,utils
 
@@ -596,6 +596,7 @@ class ExperimentControl(gui.WidgetControl):
             context_experiment_config_file = fileop.get_user_module_folder(self.config)
         self._load_experiment_config_parameters(context_experiment_config_file)
         self.isstimulus_started=False
+        self.daq_queues = daq_instrument.init_daq_queues()
         
     ################# Experiment config parameters ####################
     def browse(self):
@@ -714,6 +715,7 @@ class ExperimentControl(gui.WidgetControl):
             'cell_name': str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text()), 
             'recording_channels' : self.poller.parent.central_widget.main_widget.experiment_options_groupbox.recording_channel.get_selected_item_names(), 
             'enable_scanner_synchronization' : self.poller.parent.central_widget.main_widget.experiment_options_groupbox.enable_scanner_synchronization.checkState() == 2, 
+            'spike_recording':True,#TODO: put checkbox on main_ui
             'scanning_range' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text()), 
             'pixel_size' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text()), 
             'resolution_unit' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentText()), 
@@ -778,6 +780,7 @@ class ExperimentControl(gui.WidgetControl):
         if self.optional_parameters.has_key('animal_parameters'):
             self.mandatory_parameters['animal_id'] = self.optional_parameters['animal_parameters']['id']
         self.mandatory_parameters['counter'] = '{0:0=3}'.format(len(self.poller.animal_file.recordings))
+        self.mandatory_parameters['elphys_sync_sample_rate'] = self.config.ELPHYS_SYNC_RECORDING['SPIKING_SAMPLE_RATE'] if self.mandatory_parameters['spike_recording'] else self.config.ELPHYS_SYNC_RECORDING['ELPHYS_SAMPLE_RATE']
         return True
             
     def _calculate_and_check_scan_parameters(self):
@@ -919,6 +922,8 @@ class ExperimentControl(gui.WidgetControl):
             for i in range(len(self.poller.animal_file.recordings)):
                 rec = self.poller.animal_file.recordings[i]
                 if rec['status'] == 'preparing':
+                    self.current_stimulus_start_time = time.time()
+                    self.current_stimulus_duration = self.poller.animal_file.recordings[i]['duration']
                     self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='running')
                     self.poller.update_recording_status()
                     return True
@@ -939,7 +944,23 @@ class ExperimentControl(gui.WidgetControl):
         Initiates the termination of two photon recording and stops sync/elphys signal recording
         '''
         self.printc('Stopping data acquistions')
-        #TODO:ELPHYS
+        if hasattr(self,'daq_process'):
+            unread_data = self.daq_process.stop_daq()
+            sync_and_elphys_data=numpy.zeros((0, unread_data[0][0].shape[1]),dtype=unread_data[0][0].dtype)#dim 1 is the number of channels
+            for chunk in unread_data[0]:
+                sync_and_elphys_data = numpy.concatenate(sync_and_elphys_data,chunk)
+            #Convert to 16 bit, -10..10 range 16 bits
+            float216bit_factor = 2**16/20.0
+            sync_and_elphys_data = numpy.cast['uint16'](sync_and_elphys_data*float216bit_factor)
+            rec=[rec for rec in self.poller.animal_file.recordings if rec['status'] == 'running' or rec['status'] == 'preparing']
+            if len(rec)==1:
+                h = hdf5io.Hdf5io(fileop.get_recording_path(rec, self.config, prefix = 'sync'),filelocking=False)
+                h.sync_and_elphys_data = sync_and_elphys_data
+                h.conversion_factor = float216bit_factor
+                h.save(['sync_and_elphys_data', 'conversion_factor'])
+                h.close()
+            else:
+                self.printc('ERROR: number of running or preparing records is {0}'.format(len(rec)))
         self.poller.send({'function': 'stop_all'},'ca_imaging')
         return True
         
@@ -950,11 +971,28 @@ class ExperimentControl(gui.WidgetControl):
                 self.poller.animal_file.recordings[i]['data ready messages'].append(message)
                 self.printc(self.poller.animal_file.recordings[i]['data ready messages'])
                 if len(self.poller.animal_file.recordings[i]['data ready messages']) == 2:
-                    self.printc('Merging files and checking experiment data')
-                    #stim and imaging data file is available too.
-                    #TODO: assemble all the three files to one
+                    self.printc('Merging files')
+                    #stim and imaging data file is available too, merge them to one file
+                    files2merge = [fn for fn in fileop.listdir_fullpath(fileop.get_user_experiment_data_folder(self.config)) if self.poller.animal_file.recordings[i]['id'] in fn]
+                    nodes2read = self.config.DATA_FILE_NODES
+                    hmerged = hdf5io.Hdf5io(fileop.get_recording_path(rec, self.config, prefix = 'data'),filelocking=False)
+                    for fn in files2merge:
+                        h = hdf5io.Hdf5io(fn,filelocking=False)
+                        [h.load(node) for node in nodes2read]
+                        [setattr(hmerged, node, getattr(h, node)) for node in nodes2read if hasattr(h, node)]
+                        h.close()
+                    hmerged.save(nodes2read)
                     self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='done')
+                    hmerged.recording_parameters = self.poller.animal_file.recordings[i]
+                    hmerged.software = experiment_data.pack_software_environment()
+                    hmerged.save('recording_parameters')
+                    self.printc('Checking data')
+                    experiment_data.check(hmerged, self.config)
+                    hmerged.close()
                     self.poller.update_recording_status()
+                    self.poller.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
+                    self.printc('Removing unnecessary files')
+                    map(os.remove, files2merge)
                 return True
                     
     def prepare_next_experiment(self):
@@ -970,7 +1008,23 @@ class ExperimentControl(gui.WidgetControl):
         for i in range(len(self.poller.animal_file.recordings)):
             if self.poller.animal_file.recordings[i]['status'] == 'queued':
                 function_call = {'function': 'live_scan_start', 'args': [self.poller.animal_file.recordings[i]]}
-                #TODO:ELPHYS
+                #Start elphys/sync signal recording
+                self.daq_process = daq_instrument.AnalogIOProcess('daq', self.daq_queues, self.log.get_queues()['daq'],
+                                ai_channels = self.config.ELPHYS_SYNC_RECORDING['AI_PINOUT'],
+                                ao_channels = self.config.ELPHYS_SYNC_RECORDING['AO_PINOUT'],
+                                limits={'min_ai_voltage' : -10, 'max_ai_voltage' : 10, 'min_ao_voltage' : -10, 'max_ao_voltage' : 10,
+                                'timeout' : self.config.ELPHYS_SYNC_RECORDING['TIMEOUT']}
+                                )
+                self.daq_process.start()
+                ch1_voltage = 0
+                ch2_voltage = 0
+                voltage_levels = numpy.array([[numpy.ones(self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'])*ch1_voltage,numpy.ones(self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'])*ch2_voltage]]).T
+                recording_started_result = self.daq_process.start_daq(ai_sample_rate = self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'], 
+                                    ao_sample_rate = self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'], 
+                                    ao_waveform = voltage_levels, timeout = 30)
+                self.printc('Sync {0} signal recording {1}'.format('and elphys' if self.poller.animal_file.recordings[i]['record_electrophysiology_signal'] else '',recording_started_result))
+                if recording_started_result != 'started':
+                    return
                 if self.config.PLATFORM == 'elphys_retinal_ca':
                     self.poller.send(function_call,connection='ca_imaging')
                 elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':

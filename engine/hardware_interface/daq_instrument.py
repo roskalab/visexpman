@@ -167,6 +167,9 @@ def set_waveform(channels,waveform,sample_rate = 100000):
     analog_output.StopTask()                            
     analog_output.ClearTask()
     
+def init_daq_queues():
+    return {'command': multiprocessing.Queue(), 'response': multiprocessing.Queue(), 'data': multiprocessing.Queue()}
+    
 class AnalogIoHelpers(object):
     def __init__(self, queues):
         self.n_ai_reads = 0

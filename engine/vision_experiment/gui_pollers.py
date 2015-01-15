@@ -2834,7 +2834,9 @@ class VisexpGuiPoller(Poller):
             if not self.phase%9:
                 self.experiment_control.check_stimulus_start_timeout()
             if not self.phase%11:
-                self.printc('poller alive')#TMP
+                #update progress bar
+                if self.experiment_control.isstimulus_started:
+                    self.emit(QtCore.SIGNAL('set_experiment_progressbar'), time.time()-self.experiment_control.current_stimulus_start_time)
             self.phase+= 1
             
 #        if hasattr(self, 'experiment_parameters') and ((self.imaging_finished ^ (not self.experiment_parameters['enable_ca_recording'])) and self.stimulation_finished):
@@ -2881,6 +2883,8 @@ class VisexpGuiPoller(Poller):
                             res = self.experiment_control.start_stimulation()
                         elif trigger_name == 'stim started':
                             res = self.experiment_control.stimulation_started()
+                            self.emit(QtCore.SIGNAL('set_experiment_progressbar_range'), self.experiment_control.current_stimulus_duration)
+                            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
                             pass#TODO: progress bar, stimulation time
                         elif trigger_name == 'stim done':
                             res = self.experiment_control.stop_data_acquisition()
@@ -2896,7 +2900,6 @@ class VisexpGuiPoller(Poller):
                         elif function_name == 'read_variable':#NOT TESTED
                             function_call = {'function': 'set_variable', 'args': [args[0], introspect.string2objectreference(self,args[0])]}
                             self.send(function_call,connection='ca_imaging')
-                    
         except:
             self.printc(traceback.format_exc())
                                 

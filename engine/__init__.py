@@ -111,7 +111,7 @@ def application_init(**kwargs):
     else:
         logger.add_source(machine_config.application_name)
     #add application specific log sources
-    if machine_config.application_name=='ca_imaging':
+    if machine_config.application_name=='ca_imaging' or machine_config.application_name=='main_ui':
         logger.add_source('daq')
     #Set up network connections
     sockets = queued_socket.start_sockets(machine_config.application_name, machine_config, logger, kwargs.get('enable_sockets', True))

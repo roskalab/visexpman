@@ -48,9 +48,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         self.daq_logger_queue = self.log.get_queues()[self.instrument_name]
         
         
-        self.daq_queues = {'command': multiprocessing.Queue(), 
-                            'response': multiprocessing.Queue(), 
-                            'data': multiprocessing.Queue()}
+        self.daq_queues = daq_instrument.init_daq_queues()
         self.imaging_started = False
         self.experiment_running = False
         self.load_image_context()
@@ -267,7 +265,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             self.raw_data = self.datafile.h5f.create_earray(self.datafile.h5f.root, 'raw_data', datatype, 
                     (0,),filters=datacompressor)
         
-    def _close_datafile(self,data=None, is_experiment=False):
+    def _close_datafile(self,data=None):
         if self.imaging_parameters['save2file']:
             self.printl('Saved frames at the end of imaging: {0}'.format(data[0].shape[0]))
             if data is not None:
@@ -278,9 +276,6 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                     self._save_data(frame_converted)
             self.datafile.runtime_info = {'acquired_frames': self.frame_ct, 'start': self.t0, 'end':self.t2, 'duration':self.t2-self.t0 }
             nodes2save = ['imaging_parameters', 'runtime_info']
-            if is_experiment:
-                self.datafile.machine_config = self.config.serialize()
-                nodes2save.append('machine_config')
             self.datafile.save(nodes2save)
             self.printl('Data saved to {0}'.format(self.datafile.filename))
             self.datafile.close()
