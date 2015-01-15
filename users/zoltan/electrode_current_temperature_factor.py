@@ -735,7 +735,7 @@ def read_csv(fn,rawdata_only=False):
     #eliminate small jumps
     ii = numpy.nonzero(numpy.diff(numpy.where(laser_pulse>laser_pulse.max()*0.5,1,0)))[0]
     for i in range(ii.shape[0]/2):
-        i0=ii[2*i]
+        i0=ii[2*i]      
         i1=ii[2*i+1]
         d0=numpy.diff(temperature[i0:i0+2])[0]
         d1=numpy.diff(temperature[i1:i1+2])[0]
@@ -1050,8 +1050,54 @@ def compare_cell_nocell():
         cla()
         
 def evaluate_ea_and_current_calibration():
-    folder = '/home/rz/codes/data/electrode_current_temperature/20141213'
-    folder = '/home/rz/rzws/measurements/electrode_current_temperature/20141213'
+#    folder = '/home/rz/codes/data/electrode_current_temperature/20150109'
+    folder = '/home/rz/rzws/measurements/electrode_current_temperature/20150112'
+    fns = fileop.listdir_fullpath(folder)
+    pipette = 'p1'
+    fns.sort()
+    data = {}
+    data['ea'] = {}
+    data['ea'][pipette] = []
+    data['jump'] = {}
+    for fn  in fns:
+        if os.path.isdir(fn):
+            continue
+        print fn
+        if '_.' in fn:
+            rawdata = read_csv(fn,rawdata_only=True)
+            current = rawdata[2]*2000#pA
+            import scipy.constants
+            temperature = scipy.constants.C2K(rawdata[1])
+            data['ea'][pipette].append([temperature,current])
+        else:
+            laser_pulse,current,temperature,repeats,pulse_duration,laser_power = read_csv(fn)
+            sig = (pipette, laser_power, pulse_duration)
+            data['jump'][sig] = [temperature,current,laser_pulse]
+    pass
+    if 1:#calculate ea
+        #Merge cooling curves
+        t=[]
+        i=[]
+        for chunk in data['ea'][pipette]:
+            t.extend(list(chunk[0]))
+            i.extend(list(chunk[1]))
+        t=numpy.array(t)
+        i=numpy.array(i)
+#        plot(t[::1000]);plot(i[::1000]);show()
+        boundaries = [2546000,7584000,9188000,14375000,16166000,-1]
+        for section in range(len(boundaries)/2):
+            boundary1 = boundaries[section*2]
+            boundary2 = boundaries[section*2+1]
+            ti=t[boundary1:boundary2]
+            ii=i[boundary1:boundary2]
+            trg=numpy.zeros_like(t)
+            trg[1]=1
+            Ea,Eacal=calculate_activation_energy(ii,ti, trg)
+            print Ea,Eacal
+            tt, it = variable_transformation(i, t, (t.max()-t.min())/10.0)
+            
+        pass
+        
     load = False
     csv2hdf5=False
     if load:
@@ -1240,7 +1286,98 @@ def evaluate_ea_and_current_calibration():
         legend([str(w)+' W' for w in traces_vs_powers[p].keys()])
         savefig('/tmp/temperature_transient_{0}.png'.format(p),dpi=300)
         clf()
+        
+def laserpower2tempjump(pwr):
+    '''
+    0.5 W: 0 C
+    10 W: 20 C
+    '''
+    return 20/9.5*pwr-10/9.5
+    
+        
+def guess_tempjump():
+    '''
+    20141213 recording the temperature characteristics is 0 C at 0.5 W, 20 C at 10 W. 
+    From the 20150112 measurements the 915 nm cannula recordings can be used to find out activation energy. 
+    From this temp jumps of 200 um cannula and 1450 nm recordings can be guessed
+    '''
+    #1 read reference current jumps:
+    import scipy.constants
+    tstep = 1e-4
+    timewindow = 200e-3
+    folder = '/home/rz/rzws/measurements/electrode_current_temperature/20150112/915nm_cannula'
+    fns = [fn for fn in fileop.listdir_fullpath(folder) if '_.csv' not in fn]
+    fns.sort()
+    current_jumps = []
+    laser_powers = []
+    t0s = []
+    for fn in fns:
+        trg,current,temperature,repeats,pulse_duration,laser_power = read_csv(fn)
+        if pulse_duration != 0.3:
+            continue
+        i0 = current[:trigger_indexes(trg)[0]].mean()
+        t0 = temperature[:trigger_indexes(trg)[0]].mean()
+        current_transients = numpy.array(numpy.split(current, trigger_indexes(trg))[1::2])/i0
+        current_jumps.extend(list(current_transients[:,timewindow/tstep]))
+        laser_powers.extend(repeats*[laser_power])
+        t0s.extend(repeats*[t0])
+    t0s=numpy.array(t0s)
+    #Tjump+t0 = 1/(1/t0-R/Ea*ln(i/i0))
+    #Ea = R*ln(i/i0)/(1/t0-1/(tj+t0)
+    tjump = laserpower2tempjump(numpy.array(laser_powers))
+    Ea=scipy.constants.R*numpy.log(numpy.array(current_jumps))/(1/t0s-1/(tjump+t0s))
+    lp=numpy.array(list(set(laser_powers)))
+    ea=Ea[numpy.array(laser_powers).argsort()].reshape(lp.shape[0],Ea.shape[0]/lp.shape[0]).mean(axis=1)
+    ea_lut= dict(zip(lp, ea))
+    folder = '/home/rz/rzws/measurements/electrode_current_temperature/20150112'
+    categories = {'1450 nm, 400 um cannula' : '1450nm_cannula', 
+                    '915 nm 200 um cannula': '915nm_200um_cannula', 
+                    '1450 nm epi lightpath':'1450nm_4',
+                    '915 nm epi lightpath': '6.7MOhm_4'}
+    fns = [fn for fn in fileop.listdir_fullpath(folder) if '_.csv' not in fn and not os.path.isdir(fn)]
+    fns.sort()
+    from visexpman.engine.generic.colors import get_color
+    for name, search_pattern in categories.items():
+        tjump = []
+        laser_powers = []
+        for fn in [fn for fn in fns if search_pattern in fn]:
+            trg,current,temperature,repeats,pulse_duration,laser_power = read_csv(fn)
+            if pulse_duration<0.3:
+                continue
+            i0 = current[:trigger_indexes(trg)[0]].mean()
+            t0 = temperature[:trigger_indexes(trg)[0]].mean()
+            current_transients = numpy.array(numpy.split(current, trigger_indexes(trg))[1::2])
+            e=numpy.array(ea_lut.values()).mean()
+            tjump.extend(list(estimate_electrode_temperature(current_transients[:,timewindow/tstep], i0, t0, e)-t0))
+            laser_powers.extend(repeats*[laser_power])
+        lpwr_set = list(set(laser_powers))
+        tjump_mean= []
+        tjump_min= []
+        tjump_max= []
+        for lpwr in lpwr_set:
+            vals=numpy.array(tjump)[numpy.nonzero(numpy.where(numpy.array(laser_powers)==lpwr,1,0))[0]]
+            tjump_mean.append(vals.mean())
+            tjump_min.append(vals.min())
+            tjump_max.append(vals.max())
+        tjump_mean=numpy.array(tjump_mean)
+        tjump_max=numpy.array(tjump_max)
+        tjump_min=numpy.array(tjump_min)
+        plot(lpwr_set,tjump_mean,'o-',color=get_color(categories.keys().index(name)))
+        plot(lpwr_set,tjump_max,'v',color=get_color(categories.keys().index(name)))
+        plot(lpwr_set,tjump_min,'^',color=get_color(categories.keys().index(name)))
+    xlabel('laser power [W]')
+    ylabel('temp jump [C]')
+    l=numpy.repeat(numpy.array(categories.keys()),3)
+    l[1::3]=''
+    l[2::3]=''
+    legend(list(l), 'title')
+    xlim([0, max(lpwr_set)+1])
+    show()
+#        pass
+            
+        
+        
+    
 
 if __name__ == "__main__":
-    evaluate_ea_and_current_calibration()
-    
+    guess_tempjump()
