@@ -223,12 +223,6 @@ def find_files_and_folders(start_path,  extension = None, filter = None):
                 else:
                     all_files.append(root + os.sep + file)    
         return directories, all_files
-        
-def listdir_fullpath(foldername):
-    fns = os.listdir(foldername)
-    fns = map(os.path.join, len(fns) * [foldername], fns)
-    fns.sort()
-    return fns
 
 def filtered_file_list(folder_name,  filter, fullpath = False, inverted_filter = False, filter_condition = None):
     import numpy
