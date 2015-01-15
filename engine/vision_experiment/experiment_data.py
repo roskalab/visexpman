@@ -20,6 +20,21 @@ from visexpA.engine.datahandlers import hdf5io
 
 import unittest
 
+def check(h, config):
+    h_opened = False
+    error_messages = []
+    if not hasattr(h, 'filename'):
+        h = hdf5io.Hdf5io(h, filelocking=False)
+        map(h.load, config.DATA_FILE_NODES)
+        h_opened = True
+    for node in config.DATA_FILE_NODES:
+        if not hasattr(h, node):
+            error_messages.append('missing node: {0}'.format(node))
+    if h_opened:
+        h.close()
+    return error_messages
+    #TODO: check if all software are identical
+
 def generate_filename(config, id, experiment_name = '',  cell_name = '', nfragments = 1, region_name = '',  depth = '',  scan_mode = '', end_tag = '', user_extensions = [], tmp_folder = None, experiment_config = None, output_folder = None):
     '''
     Format:
