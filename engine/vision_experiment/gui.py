@@ -944,11 +944,12 @@ class ExperimentControl(gui.WidgetControl):
         Initiates the termination of two photon recording and stops sync/elphys signal recording
         '''
         self.printc('Stopping data acquistions')
+        self.poller.send({'function': 'stop_all'},'ca_imaging')
         if hasattr(self,'daq_process'):
             unread_data = self.daq_process.stop_daq()
             sync_and_elphys_data=numpy.zeros((0, unread_data[0][0].shape[1]),dtype=unread_data[0][0].dtype)#dim 1 is the number of channels
             for chunk in unread_data[0]:
-                sync_and_elphys_data = numpy.concatenate(sync_and_elphys_data,chunk)
+                sync_and_elphys_data = numpy.concatenate((sync_and_elphys_data,chunk))
             #Convert to 16 bit, -10..10 range 16 bits
             float216bit_factor = 2**16/20.0
             sync_and_elphys_data = numpy.cast['uint16'](sync_and_elphys_data*float216bit_factor)
@@ -961,7 +962,6 @@ class ExperimentControl(gui.WidgetControl):
                 h.close()
             else:
                 self.printc('ERROR: number of running or preparing records is {0}'.format(len(rec)))
-        self.poller.send({'function': 'stop_all'},'ca_imaging')
         return True
         
     def finish_experiment(self, message):
@@ -1009,7 +1009,7 @@ class ExperimentControl(gui.WidgetControl):
             if self.poller.animal_file.recordings[i]['status'] == 'queued':
                 function_call = {'function': 'live_scan_start', 'args': [self.poller.animal_file.recordings[i]]}
                 #Start elphys/sync signal recording
-                self.daq_process = daq_instrument.AnalogIOProcess('daq', self.daq_queues, self.log.get_queues()['daq'],
+                self.daq_process = daq_instrument.AnalogIOProcess('daq', self.daq_queues, self.poller.parent.log.get_queues()['daq'],
                                 ai_channels = self.config.ELPHYS_SYNC_RECORDING['AI_PINOUT'],
                                 ao_channels = self.config.ELPHYS_SYNC_RECORDING['AO_PINOUT'],
                                 limits={'min_ai_voltage' : -10, 'max_ai_voltage' : 10, 'min_ao_voltage' : -10, 'max_ao_voltage' : 10,
@@ -1018,7 +1018,7 @@ class ExperimentControl(gui.WidgetControl):
                 self.daq_process.start()
                 ch1_voltage = 0
                 ch2_voltage = 0
-                voltage_levels = numpy.array([[numpy.ones(self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'])*ch1_voltage,numpy.ones(self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'])*ch2_voltage]]).T
+                voltage_levels = numpy.array([numpy.ones(self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'])*ch1_voltage,numpy.ones(self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'])*ch2_voltage])
                 recording_started_result = self.daq_process.start_daq(ai_sample_rate = self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'], 
                                     ao_sample_rate = self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'], 
                                     ao_waveform = voltage_levels, timeout = 30)

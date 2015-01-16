@@ -6,6 +6,7 @@ import copy
 import logging
 import os
 import platform
+import multiprocessing
 
 try:
     import PyDAQmx
@@ -198,6 +199,7 @@ class AnalogIoHelpers(object):
                 return 'timeout'
             if not self.queues['response'].empty():
                 response = self.queues['response'].get(timeout = 5)
+                self.printl(response)
                 nframes = response[1]
                 data = []
                 for i in range(nframes - self.n_ai_reads):

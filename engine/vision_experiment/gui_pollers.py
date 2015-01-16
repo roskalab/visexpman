@@ -2825,6 +2825,9 @@ class VisexpGuiPoller(Poller):
             self.last_second = now
             if not self.phase%2:
                 self.test()#Call tester
+                #update progress bar
+                if self.experiment_control.isstimulus_started:
+                    self.emit(QtCore.SIGNAL('set_experiment_progressbar'), time.time()-self.experiment_control.current_stimulus_start_time)
             if not self.phase%5:
                 self.animal_file.chec4new_animal_file()
             if not self.phase%15:
@@ -2834,9 +2837,7 @@ class VisexpGuiPoller(Poller):
             if not self.phase%9:
                 self.experiment_control.check_stimulus_start_timeout()
             if not self.phase%11:
-                #update progress bar
-                if self.experiment_control.isstimulus_started:
-                    self.emit(QtCore.SIGNAL('set_experiment_progressbar'), time.time()-self.experiment_control.current_stimulus_start_time)
+                pass#self.printc('poller alive')
             self.phase+= 1
             
 #        if hasattr(self, 'experiment_parameters') and ((self.imaging_finished ^ (not self.experiment_parameters['enable_ca_recording'])) and self.stimulation_finished):
