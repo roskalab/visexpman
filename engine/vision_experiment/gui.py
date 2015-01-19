@@ -938,6 +938,8 @@ class ExperimentControl(gui.WidgetControl):
                 break
         
     def start_stimulation(self):
+        if len(self.poller.animal_file.recordings)==0:#it is a live scan or snap
+            return True
         #Find out which is the active recording
         for i in range(len(self.poller.animal_file.recordings)):
             rec = self.poller.animal_file.recordings[i]
@@ -1020,6 +1022,8 @@ class ExperimentControl(gui.WidgetControl):
         return True
         
     def finish_experiment(self, message):
+        if len(self.poller.animal_file.recordings)==0:#it is a live scan or snap
+            return True
         for i in range(len(self.poller.animal_file.recordings)):
             rec = self.poller.animal_file.recordings[i]
             if rec['status'] == 'running':

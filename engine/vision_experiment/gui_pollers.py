@@ -2868,7 +2868,7 @@ class VisexpGuiPoller(Poller):
                     elif hasattr(msg, 'has_key') and msg.has_key('trigger'):
                         trigger_name = msg['trigger']
                         arg = msg.get('arg', None)
-                        self.printc((trigger_name,arg))
+                        self.printc((trigger_name,arg))#TMP
                         if trigger_name=='imaging started' and arg=='started':
                             res = self.experiment_control.start_stimulation()
                         elif trigger_name == 'stim started':
