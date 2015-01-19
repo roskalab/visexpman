@@ -2835,26 +2835,15 @@ class VisexpGuiPoller(Poller):
             if not self.phase%7:
                 self.update_network_connection_status()
             if not self.phase%9:
-                self.experiment_control.check_stimulus_start_timeout()
+                self.experiment_control.check_stimulus_and_imaging_start_timeout()
             if not self.phase%11:
                 pass#self.printc('poller alive')
             self.phase+= 1
-            
-#        if hasattr(self, 'experiment_parameters') and ((self.imaging_finished ^ (not self.experiment_parameters['enable_ca_recording'])) and self.stimulation_finished):
-#            self._finish_analog_recording()
-#            self.imaging_finished = False
-#            self.stimulation_finished = False
-#            self._finish_experiment()
+
             
     def periodic(self):
         pass
-#        if self.analog_recording_started and hasattr(self, 'measurement_starttime') and hasattr(self, 'measurement_duration'):
-#            elapsed_time = int(time.time() - self.measurement_starttime)
-#            if elapsed_time > self.measurement_duration-1:
-#                elapsed_time = self.measurement_duration-1
-#            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), elapsed_time)
-#        else:
-#            self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
+
 
     def handle_commands(self):
         '''
@@ -2886,7 +2875,6 @@ class VisexpGuiPoller(Poller):
                             res = self.experiment_control.stimulation_started()
                             self.emit(QtCore.SIGNAL('set_experiment_progressbar_range'), self.experiment_control.current_stimulus_duration)
                             self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
-                            pass#TODO: progress bar, stimulation time
                         elif trigger_name == 'stim done':
                             res = self.experiment_control.stop_data_acquisition()
                         elif trigger_name == 'stim data ready' or trigger_name  == 'imaging data ready':

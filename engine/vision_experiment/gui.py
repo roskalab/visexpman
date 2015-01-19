@@ -949,21 +949,21 @@ class ExperimentControl(gui.WidgetControl):
                 return True
                 
     def stimulation_started(self):
-            self.isstimulus_started=True
-            for i in range(len(self.poller.animal_file.recordings)):
-                rec = self.poller.animal_file.recordings[i]
-                if rec['status'] == 'preparing':
-                    self.current_stimulus_start_time = time.time()
-                    self.current_stimulus_duration = self.poller.animal_file.recordings[i]['duration']
-                    self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='running')
-                    self.poller.update_recording_status()
-                    return True
-                
-    def check_stimulus_start_timeout(self):
+        self.isstimulus_started=True
         for i in range(len(self.poller.animal_file.recordings)):
             rec = self.poller.animal_file.recordings[i]
-            if rec['status'] == 'preparing' and time.time() - rec['state_transition_times'][-1][1]>self.config.STIMULATION_START_TIMEOUT:
-                self.printc('Aborting {0} experiment because stimulus did not start'.format(rec['id']))
+            if rec['status'] == 'preparing':
+                self.current_stimulus_start_time = time.time()
+                self.current_stimulus_duration = self.poller.animal_file.recordings[i]['duration']
+                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='running')
+                self.poller.update_recording_status()
+                return True
+                
+    def check_stimulus_and_imaging_start_timeout(self):
+        for i in range(len(self.poller.animal_file.recordings)):
+            rec = self.poller.animal_file.recordings[i]
+            if rec['status'] == 'preparing' and time.time() - rec['state_transition_times'][-1][1]>self.config.STIMULATION_AND_IMAGING_START_TIMEOUT:
+                self.printc('Aborting {0} experiment because stimulus or imaging did not start'.format(rec['id']))#TODO: figure out which one happened
                 self.stop_data_acquisition()
                 self.poller.animal_file.recordings = [e for e in self.poller.animal_file.recordings if rec['id'] != e['id']]
                 self.poller.update_recording_status()
