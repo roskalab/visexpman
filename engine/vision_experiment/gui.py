@@ -881,7 +881,7 @@ class ExperimentControl(gui.WidgetControl):
             return
         self.poller.animal_file.recordings = [e for e in self.poller.animal_file.recordings if e['id'] != entry['id']]
         if entry['status'] == 'done' or entry['status'] == 'analyzed':
-            raise NotImplementedError('Removing measurement file is not implemented')
+            raise NotImplementedError('Removing completed measurement is not implemented')
 
     def remove_experiment(self):
         self.printc('{0} removed from experiment queue.'.format(self._modify_experiment_item(self._remove_experiment)))
@@ -947,19 +947,24 @@ class ExperimentControl(gui.WidgetControl):
         self.poller.send({'function': 'stop_all'},'ca_imaging')
         if hasattr(self,'daq_process'):
             unread_data = self.daq_process.stop_daq()
+            self.daq_process.terminate()
+            #Wait till process terminates
+            while self.daq_process.is_alive():
+                time.sleep(0.2)
+            self.printc('DAQ process terminated, sync and elphys data chunks are concatenated')
             sync_and_elphys_data=numpy.zeros((0, unread_data[0][0].shape[1]),dtype=unread_data[0][0].dtype)#dim 1 is the number of channels
             for chunk in unread_data[0]:
                 sync_and_elphys_data = numpy.concatenate((sync_and_elphys_data,chunk))
             #Convert to 16 bit, -10..10 range 16 bits
             float216bit_factor = 2**16/20.0
-            sync_and_elphys_data = numpy.cast['uint16'](sync_and_elphys_data*float216bit_factor)
+            sync_and_elphys_data = numpy.cast['int16'](sync_and_elphys_data*float216bit_factor)
             rec=[rec for rec in self.poller.animal_file.recordings if rec['status'] == 'running' or rec['status'] == 'preparing']
             if len(rec)==1:
-                h = hdf5io.Hdf5io(fileop.get_recording_path(rec, self.config, prefix = 'sync'),filelocking=False)
-                h.sync_and_elphys_data = sync_and_elphys_data
-                h.conversion_factor = float216bit_factor
-                h.save(['sync_and_elphys_data', 'conversion_factor'])
-                h.close()
+                hh = hdf5io.Hdf5io(fileop.get_recording_path(rec[0], self.config, prefix = 'sync'),filelocking=False)
+                hh.sync_and_elphys_data = sync_and_elphys_data
+                hh.conversion_factor = float216bit_factor
+                hh.save(['sync_and_elphys_data', 'conversion_factor'])
+                hh.close()
             else:
                 self.printc('ERROR: number of running or preparing records is {0}'.format(len(rec)))
         return True
@@ -968,6 +973,7 @@ class ExperimentControl(gui.WidgetControl):
         for i in range(len(self.poller.animal_file.recordings)):
             rec = self.poller.animal_file.recordings[i]
             if rec['status'] == 'running':
+                self.poller.emit(QtCore.SIGNAL('set_experiment_progressbar'), self.current_stimulus_duration)
                 self.poller.animal_file.recordings[i]['data ready messages'].append(message)
                 self.printc(self.poller.animal_file.recordings[i]['data ready messages'])
                 if len(self.poller.animal_file.recordings[i]['data ready messages']) == 2:
@@ -981,11 +987,10 @@ class ExperimentControl(gui.WidgetControl):
                         [h.load(node) for node in nodes2read]
                         [setattr(hmerged, node, getattr(h, node)) for node in nodes2read if hasattr(h, node)]
                         h.close()
-                    hmerged.save(nodes2read)
-                    self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='done')
-                    hmerged.recording_parameters = self.poller.animal_file.recordings[i]
+                    self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='done')                    
+                    hmerged.recording_parameters = copy.deepcopy(self.poller.animal_file.recordings[i])
                     hmerged.software = experiment_data.pack_software_environment()
-                    hmerged.save('recording_parameters')
+                    hmerged.save(nodes2read)
                     self.printc('Checking data')
                     experiment_data.check(hmerged, self.config)
                     hmerged.close()
