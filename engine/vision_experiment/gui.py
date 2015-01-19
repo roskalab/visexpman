@@ -895,16 +895,47 @@ class ExperimentControl(gui.WidgetControl):
         
     def set_experiment_state(self):
         self.printc('{0}\'s state updated.'.format(self._modify_experiment_item(self._set_experiment_state)))
-
-    def stop_experiment(self):
+        
+    def prepare_next_experiment(self):
         '''
-        Stops currently running experiment and already issued experiment commands will be erased
+        Called by poller regularly, checks command queue and current experiment status and starts a new recording
+        
+        1. Chose the oldest recording which has issued state 
         '''
-        #TODO: check if experiment is running at all
-        #TODO: offer if currently running or all shall stop
-        if not self.poller.ask4confirmation('Stopping currently running experiment and queued commands are deleted. Are you sure?'):
+        #Do nothing when any recoring is in preparing/running state
+        if  len([rec for rec in self.poller.animal_file.recordings if rec['status'] == 'preparing' or rec['status'] == 'running']) > 0:
             return
-        self._abort()
+        #Take the oldest issued recording 
+        for i in range(len(self.poller.animal_file.recordings)):
+            if self.poller.animal_file.recordings[i]['status'] == 'queued':
+                function_call = {'function': 'live_scan_start', 'args': [self.poller.animal_file.recordings[i]]}
+                #Start elphys/sync signal recording
+                self.daq_process = daq_instrument.AnalogIOProcess('daq', self.daq_queues, self.poller.parent.log.get_queues()['daq'],
+                                ai_channels = self.config.ELPHYS_SYNC_RECORDING['AI_PINOUT'],
+                                ao_channels = self.config.ELPHYS_SYNC_RECORDING['AO_PINOUT'],
+                                limits={'min_ai_voltage' : -10, 'max_ai_voltage' : 10, 'min_ao_voltage' : -10, 'max_ao_voltage' : 10,
+                                'timeout' : self.config.ELPHYS_SYNC_RECORDING['TIMEOUT']}
+                                )
+                self.daq_process.start()
+                ch1_voltage = 0
+                ch2_voltage = 0
+                voltage_levels = numpy.array([numpy.ones(self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'])*ch1_voltage,numpy.ones(self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'])*ch2_voltage])
+                recording_started_result = self.daq_process.start_daq(ai_sample_rate = self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'], 
+                                    ao_sample_rate = self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'], 
+                                    ao_waveform = voltage_levels, timeout = 30)
+                self.printc('Sync {0} signal recording {1}'.format('and elphys' if self.poller.animal_file.recordings[i]['record_electrophysiology_signal'] else '',recording_started_result))
+                if recording_started_result != 'started':
+                    return
+                if self.config.PLATFORM == 'elphys_retinal_ca':
+                    self.poller.send(function_call,connection='ca_imaging')
+                elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
+                    raise NotImplementedError('')
+                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='preparing')
+                self.poller.animal_file.recordings[i]['data ready messages'] = []
+                self.poller.update_recording_status()
+                self.printc('{0} is preparing'.format(self.poller.animal_file.recordings[i]['id']))
+                self.printc('Initiating two photon recording')
+                break
         
     def start_stimulation(self):
         #Find out which is the active recording
@@ -937,6 +968,25 @@ class ExperimentControl(gui.WidgetControl):
                 self.poller.animal_file.recordings = [e for e in self.poller.animal_file.recordings if rec['id'] != e['id']]
                 self.poller.update_recording_status()
                 break
+                
+    def stop_experiment(self):
+        '''
+        Stops currently running experiment and already issued experiment commands will be erased
+        '''
+        #TODO: check if experiment is running at all
+        #TODO: offer if currently running or all shall stop
+        if not self.poller.ask4confirmation('Stopping currently running experiment and queued commands are deleted. Are you sure?'):
+            return
+        self._abort()
+        
+    def _abort(self):
+        self.stop_data_acquisition()
+        for i in range(len(self.poller.animal_file.recordings)):
+            #Aborting all issued/preparing/running recordings
+            if self.poller.animal_file.recordings[i]['status'] == 'running' or self.poller.animal_file.recordings[i]['status'] == 'preparing' or self.poller.animal_file.recordings[i]['status'] == 'queued':
+                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='stopped')
+                self.poller.update_recording_status()
+        self.poller.send({'function': 'stop_all'},'stim')
         
     def stop_data_acquisition(self):
         '''
@@ -999,47 +1049,6 @@ class ExperimentControl(gui.WidgetControl):
                     self.printc('Removing unnecessary files')
                     map(os.remove, files2merge)
                 return True
-                    
-    def prepare_next_experiment(self):
-        '''
-        Called by poller regularly, checks command queue and current experiment status and starts a new recording
-        
-        1. Chose the oldest recording which has issued state 
-        '''
-        #Do nothing when any recoring is in preparing/running state
-        if  len([rec for rec in self.poller.animal_file.recordings if rec['status'] == 'preparing' or rec['status'] == 'running']) > 0:
-            return
-        #Take the oldest issued recording 
-        for i in range(len(self.poller.animal_file.recordings)):
-            if self.poller.animal_file.recordings[i]['status'] == 'queued':
-                function_call = {'function': 'live_scan_start', 'args': [self.poller.animal_file.recordings[i]]}
-                #Start elphys/sync signal recording
-                self.daq_process = daq_instrument.AnalogIOProcess('daq', self.daq_queues, self.poller.parent.log.get_queues()['daq'],
-                                ai_channels = self.config.ELPHYS_SYNC_RECORDING['AI_PINOUT'],
-                                ao_channels = self.config.ELPHYS_SYNC_RECORDING['AO_PINOUT'],
-                                limits={'min_ai_voltage' : -10, 'max_ai_voltage' : 10, 'min_ao_voltage' : -10, 'max_ao_voltage' : 10,
-                                'timeout' : self.config.ELPHYS_SYNC_RECORDING['TIMEOUT']}
-                                )
-                self.daq_process.start()
-                ch1_voltage = 0
-                ch2_voltage = 0
-                voltage_levels = numpy.array([numpy.ones(self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'])*ch1_voltage,numpy.ones(self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'])*ch2_voltage])
-                recording_started_result = self.daq_process.start_daq(ai_sample_rate = self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'], 
-                                    ao_sample_rate = self.poller.animal_file.recordings[i]['elphys_sync_sample_rate'], 
-                                    ao_waveform = voltage_levels, timeout = 30)
-                self.printc('Sync {0} signal recording {1}'.format('and elphys' if self.poller.animal_file.recordings[i]['record_electrophysiology_signal'] else '',recording_started_result))
-                if recording_started_result != 'started':
-                    return
-                if self.config.PLATFORM == 'elphys_retinal_ca':
-                    self.poller.send(function_call,connection='ca_imaging')
-                elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
-                    raise NotImplementedError('')
-                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='preparing')
-                self.poller.animal_file.recordings[i]['data ready messages'] = []
-                self.poller.update_recording_status()
-                self.printc('{0} is preparing'.format(self.poller.animal_file.recordings[i]['id']))
-                self.printc('Initiating two photon recording')
-                break
         
     def live_scan_start(self):
         '''
@@ -1055,17 +1064,6 @@ class ExperimentControl(gui.WidgetControl):
     def snap_ca_image(self):
         function_call = {'function': 'snap_ca_image', 'args': [self.check_scan_parameters(experiment=False)]}
         self.poller.send(function_call,connection='ca_imaging')
-        
-    def _abort(self):
-        self.stop_data_acquisition()
-        for i in range(len(self.poller.animal_file.recordings)):
-            #Aborting all issued/preparing/running recordings
-            if self.poller.animal_file.recordings[i]['status'] == 'running' or self.poller.animal_file.recordings[i]['status'] == 'preparing' or self.poller.animal_file.recordings[i]['status'] == 'queued':
-                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='stopped')
-                self.poller.update_recording_status()
-        self.poller.send({'function': 'stop_all'},'stim')
-        
-        
 
 class ExperimentParametersGroupBox(QtGui.QGroupBox):
     '''
