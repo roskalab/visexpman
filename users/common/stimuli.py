@@ -72,6 +72,7 @@ class IncreasingSpotExperiment(experiment.Experiment):
             self.background_color = self.experiment_config.BACKGROUND
         
     def run(self):
+        self.show_fullscreen(color = self.background_color, duration = self.experiment_config.OFF_TIME)
         for color in self.colors:
             self.increasing_spot(self.experiment_config.SIZES, self.experiment_config.ON_TIME, self.experiment_config.OFF_TIME,
                     color = color, background_color = self.background_color, pos = utils.rc((0,  0)), block_trigger = True)
