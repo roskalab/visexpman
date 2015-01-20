@@ -13,8 +13,7 @@ import shutil
 import tempfile
 import StringIO
 
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
+from visexpman.engine.generic import utils,fileop
 from visexpman.engine import generic
 from visexpA.engine.datahandlers import hdf5io
 
@@ -312,6 +311,22 @@ def read_machine_config(h):
     
 def read_machine_config_name(h):
     return read_machine_config(h).__class__.__name__
+    
+def read_smr_file(fn):
+    from neo import Block
+    from neo.io import Spike2IO, NeoMatlabIO
+    name=os.path.split(fn)[1].replace('.smr','')
+    tmp_matfile=os.path.join(tempfile.gettempdir(), name+'.mat')
+    r = Spike2IO(filename=fn)
+    w = NeoMatlabIO(filename=tmp_matfile)
+    seg = r.read_segment()
+    bl = Block(name=name)
+    bl.segments.append(seg)
+    w.write_block(bl)
+    data=scipy.io.loadmat(tmp_matfile, mat_dtype=True)['block']['segments'][0][0][0][0][0]['analogsignals'][0][0]
+#    from pylab import plot, show
+#    plot(data[0]['signal'][0][0][0][::100]);show()
+#    os.remove(tmp_matfile)
    
 class TestExperimentData(unittest.TestCase):
     @unittest.skip("")
@@ -326,6 +341,14 @@ class TestExperimentData(unittest.TestCase):
         from visexpman.users.test import unittest_aggregator
         working_folder = unittest_aggregator.prepare_test_data('elphys')
         convert_phys(os.path.join(working_folder,os.listdir(working_folder)[0]))
+        
+    def test_03_smr(self):
+        folder='/home/rz/rzws/temp/santiago/181214_Lema_offcell'
+        for fn in fileop.listdir_fullpath(folder):
+            if '.smr' in fn:
+                read_smr_file(fn)
+            
+        
         
 if __name__=='__main__':
     unittest.main()
