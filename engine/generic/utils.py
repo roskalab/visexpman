@@ -438,6 +438,9 @@ def rc_x_const(rc_value, constant):
             cols = rc_value[:]['col'] * constant
             return rc(numpy.array([rows, cols]))
             
+def rc_multiply_with_constant(rc_value, constant):#Obsolete
+    return rc_x_const(rc_value, constant)
+            
 def rc_angle(point1, point2, degree = False):
     '''
     Calculates the angle between two points
