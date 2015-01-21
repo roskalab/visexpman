@@ -2836,6 +2836,7 @@ class VisexpGuiPoller(Poller):
                 self.update_network_connection_status()
             if not self.phase%9:
                 self.experiment_control.check_stimulus_and_imaging_start_timeout()
+                self.experiment_control.check_data_ready_timeout()
             if not self.phase%11:
                 pass#self.printc('poller alive')
             self.phase+= 1
@@ -2876,7 +2877,7 @@ class VisexpGuiPoller(Poller):
                             self.emit(QtCore.SIGNAL('set_experiment_progressbar_range'), self.experiment_control.current_stimulus_duration)
                             self.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
                         elif trigger_name == 'stim done':
-                            res = self.experiment_control.stop_data_acquisition()
+                            res = self.experiment_control.stop_image_acquisition()
                         elif trigger_name == 'stim data ready' or trigger_name  == 'imaging data ready':
                             res = self.experiment_control.finish_experiment(trigger_name)
                         if res != True:#Put trigger back to network queue if could not be processed

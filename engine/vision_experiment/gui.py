@@ -867,7 +867,8 @@ class ExperimentControl(gui.WidgetControl):
         for removable_row in removable_rows:
             for entry in self.poller.animal_file.recordings:
                 if entry['id'] in str(self.status_widget.table.item(removable_row, 0).toolTip()) and entry['id'] in str(self.status_widget.table.item(removable_row, 1).toolTip()):
-                    function(entry)
+                    if function(entry) == False:
+                        return
                     break
         if hasattr(self.poller.animal_file, 'filename'):
             hdf5io.save_item(self.poller.animal_file.filename, 'recordings', utils.object2array(self.poller.animal_file.recordings), self.config, overwrite = True)
@@ -876,15 +877,20 @@ class ExperimentControl(gui.WidgetControl):
         
     def _remove_experiment(self, entry):
         if entry['status'] == 'queued' and not self.poller.ask4confirmation('Removing issued experiment command. Are you sure?'):
-            return
+            return False
         elif (entry['status'] == 'done' or entry['status'] == 'analyzed') and not self.poller.ask4confirmation('Deleting experiment recording file. Are you sure?'):
-            return
-        self.poller.animal_file.recordings = [e for e in self.poller.animal_file.recordings if e['id'] != entry['id']]
-        if entry['status'] == 'done' or entry['status'] == 'analyzed':
+            return False
+        if entry['status'] == 'done' or entry['status'] == 'analyzed':#TMP
             raise NotImplementedError('Removing completed measurement is not implemented')
-
+        elif (entry['status'] == 'running' or entry['status'] == 'preparing'):
+            self.printc('Experiment in {0} state cannot be removed'.format(entry['status']))
+            return False
+        self.poller.animal_file.recordings = [e for e in self.poller.animal_file.recordings if e['id'] != entry['id']]
+        
     def remove_experiment(self):
-        self.printc('{0} removed from experiment queue.'.format(self._modify_experiment_item(self._remove_experiment)))
+        res = self._modify_experiment_item(self._remove_experiment)
+        if res is not None:
+            self.printc('{0} removed from experiment queue.'.format(res))
         
     def _set_experiment_state(self, entry,new_state=None):
         for i in range(len(self.poller.animal_file.recordings)):
@@ -966,7 +972,19 @@ class ExperimentControl(gui.WidgetControl):
             rec = self.poller.animal_file.recordings[i]
             if rec['status'] == 'preparing' and time.time() - rec['state_transition_times'][-1][1]>self.config.STIMULATION_AND_IMAGING_START_TIMEOUT:
                 self.printc('Aborting {0} experiment because stimulus or imaging did not start'.format(rec['id']))#TODO: figure out which one happened
-                self.stop_data_acquisition()
+                self.stop_image_acquisition()
+                self._stop_sync_and_elphys_recording()
+                self.poller.animal_file.recordings = [e for e in self.poller.animal_file.recordings if rec['id'] != e['id']]
+                self.poller.update_recording_status()
+                break
+                
+    def check_data_ready_timeout(self):
+        for i in range(len(self.poller.animal_file.recordings)):
+            rec = self.poller.animal_file.recordings[i]
+            if rec['status'] == 'running' and\
+                    time.time() - rec['state_transition_times'][-1][1]-self.current_stimulus_duration>self.config.DATA_READY_TIMEOUT and\
+                    len(rec['data ready messages']) < 2:
+                self.printc('Removing {0} experiment because stimulus or imaging is not available. Received data ready messages: {1}'.format(rec['id'], rec['data ready messages']))
                 self.poller.animal_file.recordings = [e for e in self.poller.animal_file.recordings if rec['id'] != e['id']]
                 self.poller.update_recording_status()
                 break
@@ -982,22 +1000,18 @@ class ExperimentControl(gui.WidgetControl):
         self._abort()
         
     def _abort(self):
-        self.stop_data_acquisition()
+        self.stop_image_acquisition()
         for i in range(len(self.poller.animal_file.recordings)):
             #Aborting all issued/preparing/running recordings
             if self.poller.animal_file.recordings[i]['status'] == 'running' or self.poller.animal_file.recordings[i]['status'] == 'preparing' or self.poller.animal_file.recordings[i]['status'] == 'queued':
                 self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='stopped')
                 self.poller.update_recording_status()
+        self._stop_sync_and_elphys_recording()
         self.poller.send({'function': 'stop_all'},'stim')
         
-    def stop_data_acquisition(self):
-        '''
-        Called when stimulation is done or experiment is aborted
-        Initiates the termination of two photon recording and stops sync/elphys signal recording
-        '''
-        self.printc('Stopping data acquistions')
-        self.poller.send({'function': 'stop_all'},'ca_imaging')
+    def _stop_sync_and_elphys_recording(self):
         if hasattr(self,'daq_process'):
+            self.printc('Stopping elphys/sync data acquistions')
             unread_data = self.daq_process.stop_daq()
             self.daq_process.terminate()
             #Wait till process terminates
@@ -1019,6 +1033,14 @@ class ExperimentControl(gui.WidgetControl):
                 hh.close()
             else:
                 self.printc('ERROR: number of running or preparing records is {0}'.format(len(rec)))
+        
+    def stop_image_acquisition(self):
+        '''
+        Called when stimulation is done or experiment is aborted
+        Initiates the termination of two photon recording and stops sync/elphys signal recording
+        '''
+        self.printc('Stopping image acquistions')
+        self.poller.send({'function': 'stop_all'},'ca_imaging')
         return True
         
     def finish_experiment(self, message):
@@ -1031,6 +1053,8 @@ class ExperimentControl(gui.WidgetControl):
                 self.poller.animal_file.recordings[i]['data ready messages'].append(message)
                 self.printc(self.poller.animal_file.recordings[i]['data ready messages'])
                 if len(self.poller.animal_file.recordings[i]['data ready messages']) == 2:
+                    #Now sync and elphys recording can be stopped
+                    self._stop_sync_and_elphys_recording()
                     self.printc('Merging files')
                     #stim and imaging data file is available too, merge them to one file
                     files2merge = [fn for fn in fileop.listdir_fullpath(fileop.get_user_experiment_data_folder(self.config)) if self.poller.animal_file.recordings[i]['id'] in fn]

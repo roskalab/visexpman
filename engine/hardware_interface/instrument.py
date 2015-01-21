@@ -144,6 +144,9 @@ class ParallelPort(parallel_port_ancestors):
     def init_instrument(self):
         if self.config.ENABLE_PARALLEL_PORT:
             if self.config.OS=='Windows':
+                dllpath='c:\\Windows\\system32\\inpout' + 'x64' if self.config.IS64BIT else '32'+'dll'
+                if not os.path.exists(dllpath):
+                    raise WindowsError('{0} dll does not exists'.format(dllpath))
                 from ctypes import windll
                 self.p=windll.inpout32
                 self.outp_func = getattr(p, 'Out'+'64' if self.config.IS64BIT else '32')
