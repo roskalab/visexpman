@@ -183,6 +183,9 @@ def get_experiment_duration(experiment_config_class, config, source=None):
         experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
     if hasattr(experiment_class_object, 'experiment_duration'):
         return experiment_class_object.experiment_duration
+    else:
+        from visexpman.engine import ExperimentConfigError
+        raise ExperimentConfigError('Experiment duration is unknown')
 
 
 def parse_stimulation_file(filename):

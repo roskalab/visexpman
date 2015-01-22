@@ -596,6 +596,7 @@ class ExperimentControl(gui.WidgetControl):
             context_experiment_config_file = fileop.get_user_module_folder(self.config)
         self._load_experiment_config_parameters(context_experiment_config_file)
         self.isstimulus_started=False
+        self.experiment_not_started_message_sent = False
         self.daq_queues = daq_instrument.init_daq_queues()
         
     ################# Experiment config parameters ####################
@@ -818,11 +819,14 @@ class ExperimentControl(gui.WidgetControl):
                                                                                                                     self.mandatory_parameters['stimulus_flash_trigger_delay'], 
                                                                                                                     signal_attributes, 
                                                                                                                     constraints)
+        displayable_scan_parameters = ['frame_rate']
         for k,v in signal_attributes.items():
             if k =='one_period_x_scanner_signal' or k == 'one_period_valid_data_mask':
                 continue#Do not print arrays on console
+            elif k in displayable_scan_parameters:
+                self.printc('{0}: {1:.3}'.format(stringop.to_title(k), v))
             else:
-                self.printc('{0}: {1}'.format(stringop.to_title(k), v))
+                self.poller.parent.log.info('{0}: {1}'.format(k, v))
         for pn in ['xsignal', 'ysignal', 'stimulus_flash_trigger_signal', 'frame_trigger_signal', 'valid_data_mask']:
             self.mandatory_parameters[pn] = locals()[pn]
         self.mandatory_parameters.update(constraints)
@@ -914,6 +918,15 @@ class ExperimentControl(gui.WidgetControl):
         #Take the oldest issued recording 
         for i in range(len(self.poller.animal_file.recordings)):
             if self.poller.animal_file.recordings[i]['status'] == 'queued':
+                #Check if stim and ca_imaging is connected
+                expected_connections = ['stim', 'ca_imaging']
+                available_connections = [c for c in expected_connections if c in self.poller.connected_nodes]
+                if len(available_connections)!=2:
+                    if not self.experiment_not_started_message_sent:
+                        self.printc('Only {0} is connected, experiment will be started when all connections are active'.format(available_connections))
+                    self.experiment_not_started_message_sent = True
+                    return
+                self.experiment_not_started_message_sent = False
                 function_call = {'function': 'live_scan_start', 'args': [self.poller.animal_file.recordings[i]]}
                 #Start elphys/sync signal recording
                 self.daq_process = daq_instrument.AnalogIOProcess('daq', self.daq_queues, self.poller.parent.log.get_queues()['daq'],
@@ -963,6 +976,8 @@ class ExperimentControl(gui.WidgetControl):
             if rec['status'] == 'preparing':
                 self.current_stimulus_start_time = time.time()
                 self.current_stimulus_duration = self.poller.animal_file.recordings[i]['duration']
+                self.printc('Stimulus duration is {0}, expected end of stimulus is at {1}'\
+                        .format(self.current_stimulus_duration, utils.timestamp2hm(self.current_stimulus_start_time+self.current_stimulus_duration)))
                 self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='running')
                 self.poller.update_recording_status()
                 return True
@@ -974,6 +989,7 @@ class ExperimentControl(gui.WidgetControl):
                 self.printc('Aborting {0} experiment because stimulus or imaging did not start'.format(rec['id']))#TODO: figure out which one happened
                 self.stop_image_acquisition()
                 self._stop_sync_and_elphys_recording()
+                self._remove_files( rec['id'])
                 self.poller.animal_file.recordings = [e for e in self.poller.animal_file.recordings if rec['id'] != e['id']]
                 self.poller.update_recording_status()
                 break
@@ -984,6 +1000,8 @@ class ExperimentControl(gui.WidgetControl):
             if rec['status'] == 'running' and\
                     time.time() - rec['state_transition_times'][-1][1]-self.current_stimulus_duration>self.config.DATA_READY_TIMEOUT and\
                     len(rec['data ready messages']) < 2:
+                self._stop_sync_and_elphys_recording()
+                self._remove_files( rec['id'])
                 self.printc('Removing {0} experiment because stimulus or imaging is not available. Received data ready messages: {1}'.format(rec['id'], rec['data ready messages']))
                 self.poller.animal_file.recordings = [e for e in self.poller.animal_file.recordings if rec['id'] != e['id']]
                 self.poller.update_recording_status()
@@ -999,14 +1017,21 @@ class ExperimentControl(gui.WidgetControl):
             return
         self._abort()
         
-    def _abort(self):
+    def _abort(self, live_scan_only = False):
+        '''
+        Stop experiment and live scan
+        '''
         self.stop_image_acquisition()
+        if not live_scan_only:
+            self._stop_sync_and_elphys_recording()
         for i in range(len(self.poller.animal_file.recordings)):
             #Aborting all issued/preparing/running recordings
             if self.poller.animal_file.recordings[i]['status'] == 'running' or self.poller.animal_file.recordings[i]['status'] == 'preparing' or self.poller.animal_file.recordings[i]['status'] == 'queued':
-                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='stopped')
+                self.poller.animal_file.recordings = []
+#                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='stopped')
                 self.poller.update_recording_status()
-        self._stop_sync_and_elphys_recording()
+                break
+        self.isstimulus_started=False
         self.poller.send({'function': 'stop_all'},'stim')
         
     def _stop_sync_and_elphys_recording(self):
@@ -1051,7 +1076,6 @@ class ExperimentControl(gui.WidgetControl):
             if rec['status'] == 'running':
                 self.poller.emit(QtCore.SIGNAL('set_experiment_progressbar'), self.current_stimulus_duration)
                 self.poller.animal_file.recordings[i]['data ready messages'].append(message)
-                self.printc(self.poller.animal_file.recordings[i]['data ready messages'])
                 if len(self.poller.animal_file.recordings[i]['data ready messages']) == 2:
                     #Now sync and elphys recording can be stopped
                     self._stop_sync_and_elphys_recording()
@@ -1065,33 +1089,47 @@ class ExperimentControl(gui.WidgetControl):
                         [h.load(node) for node in nodes2read]
                         [setattr(hmerged, node, getattr(h, node)) for node in nodes2read if hasattr(h, node)]
                         h.close()
-                    self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='done')                    
+                    self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='done')
                     hmerged.recording_parameters = copy.deepcopy(self.poller.animal_file.recordings[i])
                     hmerged.software = experiment_data.pack_software_environment()
                     hmerged.save(nodes2read)
                     self.printc('Checking data')
-                    experiment_data.check(hmerged, self.config)
+                    for error_msg in experiment_data.check(hmerged, self.config):
+                        self.printc(error_msg)
                     hmerged.close()
-                    self.poller.update_recording_status()
                     self.poller.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
                     self.printc('Removing unnecessary files')
                     map(os.remove, files2merge)
+                    self.poller.update_recording_status()
+                    self.printc('{0} DONE' .format(self.poller.animal_file.recordings[i]['id']))
                 return True
         
     def live_scan_start(self):
         '''
         
         '''
+        if len([r for r in self.poller.animal_file.recordings if r['status'] == 'running' or r['status'] == 'preparing' or r['status'] == 'queued'])>0:
+            self.printc('Some experiments are active')
+            return
         function_call = {'function': 'live_scan_start', 'args': [self.check_scan_parameters(experiment=False)]}
         self.poller.send(function_call,connection='ca_imaging')
         
     def live_scan_stop(self):
+        if len([r for r in self.poller.animal_file.recordings if r['status'] == 'running' or r['status'] == 'preparing' or r['status'] == 'queued'])>0:
+            self.printc('Some experiments are active')
+            return
         self.poller.send({'function': 'live_scan_stop'},connection='ca_imaging')
-        self._abort()
+        self._abort(live_scan_only = True)
         
     def snap_ca_image(self):
+        if len([r for r in self.poller.animal_file.recordings if r['status'] == 'running' or r['status'] == 'preparing' or r['status'] == 'queued'])>0:
+            self.printc('Some experiments are active')
+            return
         function_call = {'function': 'snap_ca_image', 'args': [self.check_scan_parameters(experiment=False)]}
         self.poller.send(function_call,connection='ca_imaging')
+        
+    def _remove_files(self,id):
+        map(os.remove, [fn for fn in fileop.listdir_fullpath(fileop.get_user_experiment_data_folder(self.config)) if id in fn])
 
 class ExperimentParametersGroupBox(QtGui.QGroupBox):
     '''

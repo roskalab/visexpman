@@ -174,7 +174,8 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                                                             ao_waveform = self._pack_waveform(parameters), 
                                                             timeout = 30)
         self.t0=time.time()
-        self.send({'trigger': 'imaging started',  'arg': imaging_started_result})#notifying main_ui that imaging started and stimulus can be launched
+        if parameters.has_key('experiment_name'):
+            self.send({'trigger': 'imaging started',  'arg': imaging_started_result})#notifying main_ui that imaging started and stimulus can be launched
         self.printl('Imaging started {0}'.format('' if imaging_started_result else imaging_started_result))
         self.imaging_started = False if imaging_started_result == 'timeout' else imaging_started_result
 #        self.printl(parameters['scanning_attributes']['signal_attributes']['nxlines'])
@@ -212,7 +213,8 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             #Set scanner voltages to 0V
             daq_instrument.set_voltage(self.config.TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'], 0.0)
             self.printl('Imaging stopped')
-            self.send({'trigger':'imaging data ready'})
+            if parameters.has_key('experiment_name'):
+                self.send({'trigger':'imaging data ready'})
         
         #TODO:
         #Make sure that file is not open

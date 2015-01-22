@@ -2688,6 +2688,7 @@ class VisexpGuiPoller(Poller):
         self.stimulation_finished = False
         self.imaging_finished = False
         self.analog_recording_started=False
+        self.connected_nodes = ''
         self.context_paths = {}
         self.unittest_context_paths = ['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount',#only used by unittest
                                      'self.experiment_control.user_selected_stimulation_module',
@@ -2803,14 +2804,14 @@ class VisexpGuiPoller(Poller):
         
     def update_network_connection_status(self):
         #Check for network connection status
-        connected_nodes = ''
+        self.connected_nodes = ''
         n_connected = 0
         n_connections = len(self.socket_queues.keys())
         for remote_node_name, socket in self.socket_queues.items():
             if self.ping(timeout=1.0, connection=remote_node_name):
-                connected_nodes += remote_node_name + ' '
+                self.connected_nodes += remote_node_name + ' '
                 n_connected += 1
-        self.parent.central_widget.network_status.setText('Network connections: {2} {0}/{1}'.format(n_connected, n_connections, connected_nodes))
+        self.parent.central_widget.network_status.setText('Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes))
             
     def run_in_all_iterations(self):
         #### Calling functions all the time #### 
@@ -2826,8 +2827,7 @@ class VisexpGuiPoller(Poller):
             if not self.phase%2:
                 self.test()#Call tester
                 #update progress bar
-                if self.experiment_control.isstimulus_started:
-                    self.emit(QtCore.SIGNAL('set_experiment_progressbar'), time.time()-self.experiment_control.current_stimulus_start_time)
+                self.emit(QtCore.SIGNAL('set_experiment_progressbar'), time.time()-self.experiment_control.current_stimulus_start_time if self.experiment_control.isstimulus_started else 0)
             if not self.phase%5:
                 self.animal_file.chec4new_animal_file()
             if not self.phase%15:
@@ -2838,7 +2838,7 @@ class VisexpGuiPoller(Poller):
                 self.experiment_control.check_stimulus_and_imaging_start_timeout()
                 self.experiment_control.check_data_ready_timeout()
             if not self.phase%11:
-                pass#self.printc('poller alive')
+                self.printc('poller alive')
             self.phase+= 1
 
             
