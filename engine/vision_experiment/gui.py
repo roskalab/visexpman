@@ -957,7 +957,7 @@ class ExperimentControl(gui.WidgetControl):
                 break
         
     def start_stimulation(self):
-        if len(self.poller.animal_file.recordings)==0:#it is a live scan or snap
+        if len([r for r in self.poller.animal_file.recordings if r['status'] != 'done'])==0:#it is a live scan or snap
             return True
         #Find out which is the active recording
         for i in range(len(self.poller.animal_file.recordings)):
@@ -970,6 +970,8 @@ class ExperimentControl(gui.WidgetControl):
                 return True
                 
     def stimulation_started(self):
+        if len([r for r in self.poller.animal_file.recordings if r['status'] != 'done'])==0:
+            return True
         self.isstimulus_started=True
         for i in range(len(self.poller.animal_file.recordings)):
             rec = self.poller.animal_file.recordings[i]
@@ -1027,7 +1029,7 @@ class ExperimentControl(gui.WidgetControl):
         for i in range(len(self.poller.animal_file.recordings)):
             #Aborting all issued/preparing/running recordings
             if self.poller.animal_file.recordings[i]['status'] == 'running' or self.poller.animal_file.recordings[i]['status'] == 'preparing' or self.poller.animal_file.recordings[i]['status'] == 'queued':
-                self.poller.animal_file.recordings = []
+                self.poller.animal_file.recordings = [r for r in self.poller.animal_file.recordings if r['status'] == 'done']
 #                self._set_experiment_state(self.poller.animal_file.recordings[i],new_state='stopped')
                 self.poller.update_recording_status()
                 break
@@ -1069,7 +1071,7 @@ class ExperimentControl(gui.WidgetControl):
         return True
         
     def finish_experiment(self, message):
-        if len(self.poller.animal_file.recordings)==0:#it is a live scan or snap
+        if len([r for r in self.poller.animal_file.recordings if r['status'] != 'done'])==0:#it is a live scan or snap
             return True
         for i in range(len(self.poller.animal_file.recordings)):
             rec = self.poller.animal_file.recordings[i]
