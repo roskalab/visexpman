@@ -238,6 +238,58 @@ class Debug(experiment.Experiment):
         self.show_shape(duration=0,pos = utils.rc((10, 0)), size=30, color=0.7, part_of_drawing_sequence=True, flip=False)
         self.show_shape(duration=0,size=100, color=0.4, part_of_drawing_sequence=True, flip=True)
         time.sleep(self.experiment_duration)
+        
+class TestStimulusBlockParams(experiment.ExperimentConfig):
+    def _create_parameters(self):
+        self.COLORS = [0, 100, 0.0, 1.0, 0.5, [1.0, 0.0, 0.0]]
+        self.T_FULLSCREEN = 2.0
+        self.IMAGE_FOLDERS = []
+        self.IMAGE_STRETCHES = [1.0, 0.5, 1.4]
+        self.T_IMAGE = 1.0
+        self.SHAPES = ['rect', 'o']
+        self.T_SHAPE = [1.0, 0.0]
+        self.POSITIONS = []
+        self.SIZES = [10, 100, utils.rc((100,20))]
+        self.T_GRATING = 3.0
+        self.GRATING_PROFILES = ['sqr', 'sine']
+        self.GRATING_WIDTH = [10,100,223.0]
+        self.GRATING_SPEEDS = [0, 10, 100, 1000]
+        self.runnable = 'TestStimulusBlocks'
+        self._create_parameters_from_locals(locals())
+        
+class TestStimulusBlocks(experiment.Experiment):
+    #TODO =: separate test for centering
+    def run(self):
+        import itertools
+        nbinary_parameters = 4
+        for color in self.experiment_config.COLORS:
+            for binary_config in range(nbinary_parameters**2):
+                flip =  bool(int(bin(binary_config)[2]))
+                count =  bool(int(bin(binary_config)[3]))
+                is_block =  bool(int(bin(binary_config)[4]))
+                frame_trigger =  bool(int(bin(binary_config)[5]))
+                self.show_fullscreen(duration = self.experiment_config.T_FULLSCREEN,  color = color, flip = flip, count = count, is_block = is_block, frame_trigger = frame_trigger)
+        flip = [True,False]
+        is_block = [True,False]        
+        params = [self.experiment_config.IMAGE_FOLDERS, self.experiment_config.IMAGE_STRETCHES, flip, is_block]
+        for path, stretch, flip_i, is_block_i in itertools.product(*params):
+            self.show_image(path, duration = self.experiment_config.T_IMAGE,  stretch=stretch, flip = flip_i, is_block = is_block_i)
+        params = [self.experiment_config.SHAPES, self.experiment_config.T_SHAPE, self.experiment_config.POSITIONS, 
+                            self.experiment_config.COLORS, self.experiment_config.SIZES, flip, is_block]
+        for shape, duration, pos, color, size, flip_i, is_block_i in itertools.product(params):
+            self.show_shape(shape = shape,  duration = duration,  
+                                pos = pos,  color = color,  background_color = 0.5,  size = size,  flip = flip_i, is_block = is_block_i)
+        params = ['T_GRATING', 'GRATING_PROFILES', 'GRATING_WIDTH', 'GRATING_SPEEDS']   
+        params = [getattr(self.experiment_config, p) for p in params]
+        params.extend([is_block])
+        for t, profile, white_bar_width, speed, is_block_i in itertools.product(params):
+            self.show_grating(self, duration = t,  profile = profile,  white_bar_width =white_bar_width,   
+                    velocity = speed, duty_cycle = 1.0, is_block = is_block_i)
+        for b in is_block:
+            self.show_natural_bars(speed = 300, repeats = 2, duration=10.0, is_block = b)
+        for b in is_block:    
+            self.moving_shape(util.rc((100,300)), [100.0,1000.0], range(0,360,4), shape = 'rect', color = 1.0, background_color = 0.5, 
+                    moving_range=utils.rc((500.0,500.0)), pause=1.0, repetition = 2, block_trigger = b, shape_starts_from_edge=False)
             
 if __name__ == "__main__":
     if True:

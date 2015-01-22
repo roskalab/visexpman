@@ -47,16 +47,16 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         else:
             self.has = -1
         self.frame_counter = 0
+        self.stimulus_frame_info = []
         
     def _init_variables(self):
         self.delayed_frame_counter = 0 #counts how many frames were delayed
         self.log_on_flip_message = ''
-        self.elapsed_time = 0
         self.text_on_stimulus = []
         #Command buffer for keyboard commands during experiment
         self.keyboard_commands = multiprocessing.Queue()
         
-    def _flip(self,  trigger = False, count = True):
+    def _flip(self, frame_trigger, count = True):
         """
         Flips screen buffer. Additional operations are performed here: saving frame and generating trigger
         """
@@ -67,25 +67,16 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if current_texture_state:
             glEnable(GL_TEXTURE_2D)
         self.screen.flip()
-        self.flip_time = time.time()
-        if count and hasattr(self, 'frame_counter'):
+        if frame_trigger and not self.config.STIMULUS2MEMORY:
+            self._frame_trigger_pulse()
+        if count:
             self.frame_counter += 1
-        frame_rate_deviation = abs(self.screen.frame_rate - self.config.SCREEN_EXPECTED_FRAME_RATE)
-        if frame_rate_deviation > self.config.FRAME_RATE_TOLERANCE:
-            self.delayed_frame_counter += 1
-            frame_rate_warning = ' %2.2f' %(frame_rate_deviation)            
-        else:
-            frame_rate_warning = ''
         if not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
-            if hasattr(self, 'start_time'):
-                self.elapsed_time = self.flip_time -  self.start_time
-                self.log.info('%2.2f\t%s'%(self.screen.frame_rate,self.log_on_flip_message + frame_rate_warning))       
-        if trigger and not self.config.STIMULUS2MEMORY:
-            self._frame_trigger_pulse()
+            self.log.info(self.screen.frame_rate)
         self.check_abort()
         
-    def _flip_and_block_trigger(self, frame_i, n_frames, frame_trigger, block_trigger):
+    def _flip_and_block_trigger(self, frame_i, n_frames, frame_trigger, block_trigger):#OBSOLETE
         if block_trigger and frame_i==0:
             self._flip(trigger = frame_trigger)
             if hasattr(self, 'parallel_port'):
@@ -107,43 +98,55 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         -stimulus function's name
         -parameters of stimulus
         '''
-        if hasattr(self, 'elapsed_time') and hasattr(self, 'frame_counter') and\
-                hasattr(self, 'stimulus_frame_info'):
-            args, _, _, values = inspect.getargvalues(caller_function_info)
-            caller_name =inspect.getframeinfo(caller_function_info)[2]
-            frame_info = {}
-            frame_info['counter'] = self.frame_counter
-            if is_last:
-                frame_info['counter']  -= 1
-            frame_info['elapsed_time'] = self.elapsed_time
-            frame_info['stimulus_type'] = caller_name
-            frame_info['is_last'] = is_last
-            frame_info['parameters'] = {}
-            for arg in args:
-                if arg != 'self':
-                    if values[arg] is None:
-                        frame_info['parameters'][arg] = ''
-                    else:
-                        frame_info['parameters'][arg] = values[arg]
-            self.stimulus_frame_info.append(frame_info)
+        args, _, _, values = inspect.getargvalues(caller_function_info)
+        caller_name =inspect.getframeinfo(caller_function_info)[2]
+        frame_info = {}
+        frame_info['counter'] = self.frame_counter
+        if is_last:
+            frame_info['counter']  -= 1
+        frame_info['stimulus_type'] = caller_name
+        frame_info['is_last'] = is_last
+        frame_info['parameters'] = {}
+        for arg in args:
+            if arg != 'self':
+                if values[arg] is None:
+                    frame_info['parameters'][arg] = ''
+                else:
+                    frame_info['parameters'][arg] = values[arg]
+        self.stimulus_frame_info.append(frame_info)
+            
+    def trigger_pulse(self, pin, width):
+        '''
+        Generates trigger pulses
+        '''
+        if hasattr(self, 'digital_output'):
+            self.digital_output.set_data_bit(pin, 1, log = False)
+            time.sleep(width)
+            self.digital_output.set_data_bit(pin, 0, log = False)
 
     def _frame_trigger_pulse(self):
         '''
         Generates frame trigger pulses
         '''
-        if hasattr(self, 'parallel_port'):
-            self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
-            time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
-            self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
+        self.trigger_pulse(self.config.FRAME_TRIGGER_PIN, self.config.FRAME_TRIGGER_PULSE_WIDTH)
             
-    def block_trigger_pulse(self, pulse_width=None):
-        if hasattr(self, 'parallel_port'):
-            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
-            if pulse_width is None:
-                time.sleep(self.config.BLOCK_TRIGGER_PULSE_WIDTH)
-            else:
-                time.sleep(pulse_width)
-            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
+    def block_start(self, block_name = ''):
+        if hasattr(self, 'digital_output'):
+                self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
+        self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
+                
+    def block_end(self, block_name = ''):
+        if hasattr(self, 'digital_output'):
+                self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
+        self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})
+        
+    def _add_block_start(self, is_block, frame_i, nframes):
+        if i == 0 and is_block:
+            self.block_start()
+            
+    def _add_block_end(self, is_block, frame_i, nframes):
+        if i == n_frames - 1 and is_block:
+            self.block_end()
         
     def _show_text(self):
         '''
@@ -205,20 +208,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             index = id
         self.text_on_stimulus[index]['enable'] = False
 
-    def trigger_pulse(self, pin, width = None):
-        '''
-        Generates trigger pulses
-        '''
-        if width is None:
-            width = self.config.FRAME_TRIGGER_PULSE_WIDTH
-        if hasattr(self, 'parallel_port'):
-            self.parallel_port.set_data_bit(pin, 1, log = False)
-            time.sleep(width)
-            self.parallel_port.set_data_bit(pin, 0, log = False)
-
     #== Various visual patterns ==
     
-    def show_fullscreen(self, duration = 0.0,  color = None, flip = True, count = True, block_trigger = False, save_frame_info = True, frame_trigger = True):
+    def show_fullscreen(self, duration = 0.0,  color = None, 
+                        flip = True, count = True, is_block = False, save_frame_info = True, frame_trigger = True):
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
@@ -248,8 +241,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     self._flip(trigger = True, count = count)
                 i += 1
         else:
-            n_frames = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
-            for i in range(n_frames):
+            nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
+            for i in range(nframes):
                 if i == 0:
                     self.log_on_flip_message = self.log_on_flip_message_initial
                 elif i == 1:
@@ -258,16 +251,17 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
-                    self._flip_and_block_trigger(i, n_frames, frame_trigger, block_trigger)
+                    self._add_block_start(is_block, i, nframes)
+                    self._flip(trigger = frame_trigger, count = count)
+                    self._add_block_end(is_block, i, nframes)
                 if self.abort:
                     break
-                    
         #set background color to the original value
         glClearColor(self.config.BACKGROUND_COLOR[0], self.config.BACKGROUND_COLOR[1], self.config.BACKGROUND_COLOR[2], 0.0)
         if count and save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
                 
-    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  size = None, stretch=1.0, flip = True):
+    def show_image(self,  path,  duration = 0,  position = utils.rc((0, 0)),  stretch=1.0, flip = True, is_block = False):
         '''
         Two use cases are handled here:
             - showing individual image files
@@ -286,13 +280,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 show_image(image_path,  duration = 1.0,  position = (0, 0))
             Play the content of a directory (directory_path) which contains image files. Each imag is shown for one frame time :
                 show_image(directory_path,  duration = 0,  position = (0, 0))
-            Play the content of a directory (directory_path) which contains image files and the position of the image is  the function of time and some parameters:
-                parameters = [100.0,  100.0]
-                formula_pos_x = ['p[0] * cos(10.0 * t)',  parameters]
-                formula_pos_y = ['p[1] * sin(10.0 * t)',  parameters]                
-                formula = [formula_pos_x,  formula_pos_y]
-                start_position = (10,10)
-                show_image('directory_path',  0.0,  start_position,  formula)             
         '''
         #Generate log messages
         flips_per_frame = duration/(1.0/self.config.SCREEN_EXPECTED_FRAME_RATE)
@@ -303,14 +290,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self._save_stimulus_frame_info(inspect.currentframe())
         if os.path.isdir(path):
             for fn in os.listdir(path):
-                self._show_image(os.path.join(path,fn),duration,position,stretch,flip)
+                self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block)
             self.screen.clear_screen()
             self._flip(trigger = True)
         else:
-            self._show_image(path,duration,position,flip)
+            self._show_image(path,duration,position,flip,is_block)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
-    def _show_image(self,path,duration,position,stretch,flip):
+    def _show_image(self,path,duration,position,stretch,flip,is_block):
         if duration == 0.0:
             nframes=1
         else:
@@ -319,108 +306,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
             if flip:
+                self._add_block_start(is_block, i, nframes)
                 self._flip(trigger = True)
+                self._add_block_end(is_block, i, nframes)
             if self.abort:
                 break
-    
-#        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
-#        if os.path.isdir(path) == True:
-#            #when content of directory is to be shown
-#            image_file_paths = os.listdir(path)
-#            image_file_paths.sort()
-#            #initialize parametric control
-#            start_time = time.time()            
-#            posx_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
-#            posy_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time) 
-#            
-#            for image_file_path in image_file_paths:
-#                if len(formula) > 0:
-#                    #parametric control
-#                    parametric_data_x = formula[0]
-#                    parametric_data_y = formula[1]
-#                    actual_time_tick = time.time()
-#                    posx_parametric_control.update(value = None,  parameters = parametric_data_x[1],  formula = parametric_data_x[0],  time_tick = actual_time_tick)
-#                    posy_parametric_control.update(value = None,  parameters = parametric_data_y[1],  formula = parametric_data_y[0],  time_tick = actual_time_tick)
-#                    parametric_position =  (posx_parametric_control.value,  posy_parametric_control.value)
-#                    self._show_image_file(path + os.sep + image_file_path,  duration,  parametric_position)
-#                else:
-#                    self._show_image_file(path + os.sep + image_file_path,  duration,  position)                    
-#                    
-#                if self.stimulation_control.abort_stimulus():
-#                    break
-#            
-#        elif os.path.isfile(path) == True:
-#            path_adjusted = path
-#            #resize file
-#            if size != None and size != (0,  0):                
-#                stimulus_image = Image.open(path)
-#                stimulus_image = stimulus_image.resize((int(size[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE), int(size[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)))
-#                stimulus_image.save(self.config.TEMP_IMAGE_PTH)
-#                path_adjusted = self.config.TEMP_IMAGE_PTH
-#            
-#            #initialize parametric control
-#            start_time = time.time()            
-#            posx_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[0],  start_time)
-#            posy_parametric_control = visexpman.engine.generic.parametric_control.ParametricControl(position[1],  start_time)             
-#            if len(formula) > 0:
-#                #parametric control
-#                for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):
-#                    parametric_data_x = formula[0]
-#                    parametric_data_y = formula[1] 
-#                    actual_time_tick = time.time()
-#                    posx_parametric_control.update(value = None,  parameters = parametric_data_x[1],  formula = parametric_data_x[0],  time_tick = actual_time_tick)
-#                    posy_parametric_control.update(value = None,  parameters = parametric_data_y[1],  formula = parametric_data_y[0],  time_tick = actual_time_tick)
-#                    parametric_position =  (posx_parametric_control.value,  posy_parametric_control.value)                
-#                    self._show_image_file(path_adjusted, 0,  parametric_position)
-#            else:            
-#                #when a single image file is to be shown
-#                self._show_image_file(path_adjusted, duration,  position)
-#        else:
-#            pass
-#            #invalid path
-#        
-#
-#    def _show_image_file(self,  path,  duration,  position, flip = True):
-#        self.image.setPos((self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1]))        
-#        self.screen.logOnFlip('_show_image_file(' + path + ', ' + str(duration) + ', ' + str(position) + ')',  psychopy.log.DATA)
-#        if duration == 0:                                        
-#                    self.image.setImage(path)
-#                    self.image.draw()
-#                    if flip:
-#                    	self._flip(trigger = True)
-#        else:
-#            for i in range(int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))):                    
-#                    self.image.setImage(path)            
-#                    self.image.draw()
-#                    if i == 0:
-#                        if flip:
-#                            self._flip(trigger = True)
-#                    else:
-#                        if flip:
-#                        	self._flip(trigger = False)
-#                        
-#                    
-#    def show_movie(self,  video_file_path,  position = (0, 0)):
-#        '''
-#        Plays a movie fileop. Pressing 'a' aborts the playback. The video is positioned according to the value of position parameter
-#        Parametric control of position is no possible. Some frames are always dropped.
-#        '''        
-#        position_p = (self.config.SCREEN_PIXEL_TO_UM_SCALE * position[0],  self.config.SCREEN_PIXEL_TO_UM_SCALE * position[1])
-#        self.movie = psychopy.visual.MovieStim(self.screen,  filename = video_file_path,  pos = position_p) 
-#        msg = 'video size: ' + str(self.movie.format.height) + ', ' + str(self.movie.format.width)
-#        psychopy.log.data(msg)
-#        globalClock = psychopy.core.Clock()
-#        frame_counter = 0
-#        while globalClock.getTime() < self.movie.duration: 
-#            self._flip() 
-#            self._frame_trigger_pulse()
-#            self.movie.draw()
-#            frame_counter = frame_counter + 1
-#            self.screen.logOnFlip(str(frame_counter) + ' show_movie(' + video_file_path +  ', ' + str(position) + ')', psychopy.log.DATA)            
-#            if self.stimulation_control.abort_stimulus():
-#                break
 
-    def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, flip = True, block_trigger = False, save_frame_info = True, enable_centering = True, part_of_drawing_sequence = False):
+    def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, 
+                flip = True, is_block = False, save_frame_info = True, enable_centering = True, part_of_drawing_sequence = False):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
         If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
@@ -502,7 +395,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         first_flip = False
-        stop_stimulus = False
         start_time = time.time()
         frame_i = 0
         while True:
@@ -529,16 +421,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 self.log_on_flip_message = self.log_on_flip_message_initial
                 first_flip = True
             else:
-                if time.time() - start_time > duration and duration >=1.0 and not self.config.ENABLE_FRAME_CAPTURE:
-                    stop_stimulus = True
-                    self.log_on_flip_message = self.log_on_flip_message_continous + ' Less frames shown.'
-                else:
-                    self.log_on_flip_message = self.log_on_flip_message_continous
+                self.log_on_flip_message = self.log_on_flip_message_continous
             if flip:
-                self._flip_and_block_trigger(frame_i, n_frames, True, block_trigger)
+                self._add_block_start(is_block, frame_i, n_frames)
+                self._flip(trigger = True)
+                self._add_block_end(is_block, frame_i, n_frames)
             if self.abort:
-                break
-            if stop_stimulus:                
                 break
             frame_i += 1
             if duration != -1 and frame_i == n_frames:
@@ -549,10 +437,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-        
-           
-                    
-    def show_checkerboard(self, n_checkers, duration = 0.0, pos = utils.cr((0,  0)), color = [], box_size = utils.cr((0,  0)), background_color = None, flip = True, save_frame_info = True,block_trigger=False):
+
+    def show_checkerboard(self, n_checkers, duration = 0.0, pos = utils.cr((0,  0)), color = [], box_size = utils.cr((0,  0)), background_color = None, 
+            flip = True, save_frame_info = True,block_trigger=False):
         '''
         Shows checkerboard:
             n_checkers = (x dir (column), y dir (rows))
@@ -565,6 +452,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                             3. col
                             4. color channel
         '''
+        raise NotImplementedError('block handling and trigger generation is not implemented')
         self.log_on_flip_message_initial = 'show_checkerboard(' + str(n_checkers)+ ', ' + str(duration) +', ' + str(box_size) +')'
         self.log_on_flip_message_continous = 'show_checkerboard'
         first_flip = False
@@ -587,126 +475,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     save_frame_info = False)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-
-#
-#    def show_ring(self,  n_rings, diameter,  inner_diameter = [],  duration = 0.0,  n_slices = 1,  colors = [],  pos = (0,  0), flip = True):
-#        """
-#        This stimulation shows concentric rings or circles. The rings/circles can be divided into pie slices.
-#        n_rings: number of rings to be drawn
-#        diameter: diameter' of outer rings. The followings are accepted:
-#                    - list of integers: outer diameter of each rings
-#                    - list of list of two integers: the two values determine the diameter in the x and y direction
-#                    - single integer: diameter of first (innermost) ring. The diameter of additional rings will be the multiple of this value
-#        inner_diameter: The following data types are accepted:
-#                    - list of integers: inner diameter of each rings, assuming that diameter is a list
-#                    - list of list of two integers: the two values determine the inner diameter in the x and y direction, assuming that diameter is a list
-#                    - integer: width of rings regardless of the type of diameter
-#        duration; duration of stimulus in second. If zero, stimulus is shown for one frame time
-#        n_slices: number of slices displayed for each ring
-#        colors: list of colors. The 0 place is the slice in the innermost circle, which angle range is between 0 and a positive number, for example in case of n_slices = 4, the angle range is 0, 90 for the 0. slice.
-#        pos: center position of stimulus
-#        
-#        Use cases:
-#        1) Show three concentrical circles for 1 second:
-#            n_rings = 3
-#            outer_diameter = [100, 120, 140]
-#            show_ring(n_rings, outer_diameter,  duration = 1.0,  colors = colors)
-#        2) Show rings 5 rings:
-#            n_rings = 5
-#            outer_diameter = 100
-#            inner_diameter = 5 #width of ring
-#            show_ring(n_rings, outer_diameter,  inner_diameter, duration = 1.0,  colors = colors)
-#        3) Show sliced rings with arbitrary thickness and diameter
-#            n_rings = 4
-#            n_slices = 2
-#            outer_diameter = [100, 200, 300]
-#            inner_diameter = [90, 180, 250]
-#            show_ring(n_rings, outer_diameter,  inner_diameter, duration = 1.0,  n_slices = 2, colors = colors)
-#        4) Show oval rings
-#            n_rings = 2
-#            outer_diameter = [[100, 200], [200, 300]]
-#            inner_diameter = [[90, 190], [190, 290]]
-#            show_ring(n_rings, outer_diameter,  inner_diameter, duration = 1.0,  colors = colors)        
-#        """        
-#        self.screen.logOnFlip('show_rings(' + str(n_rings)+ ', ' + str(diameter) + ', ' + str(inner_diameter) + ', ' + str(duration)  + ', ' + str(n_slices)  + ', ' + str(colors[:self.config.MAX_LOG_COLORS])  + ', ' + str(pos)  + ')',  psychopy.log.DATA)
-#        
-#        pos_p = (pos[0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  pos[1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)        
-#        outer_diameter = diameter       
-#        
-#        #sort diameter lists to avoid putting a bigger circle on a smaller one
-#        if isinstance(outer_diameter, list):
-#            outer_diameter.sort()
-#            outer_diameter.reverse()
-#        
-#        if isinstance(inner_diameter, list):
-#            inner_diameter.sort()
-#            inner_diameter.reverse()        
-#        
-#        #if number of rings is not consistent with the number of provided list of diameter values
-#        if isinstance(outer_diameter, list):
-#            if n_rings != len(outer_diameter):
-#                n_rings = len(outer_diameter)                    
-#        
-#        if isinstance(outer_diameter, list) and isinstance(inner_diameter, list):            
-#            if len(inner_diameter) == 0 or (len(inner_diameter) != len(outer_diameter)):
-#                inner_circles = False
-#            else:
-#                inner_circles = True
-#                
-#        elif isinstance(outer_diameter, list) and not isinstance(inner_diameter, list):            
-#            new_inner_diameter = []
-#            for diameter in outer_diameter:
-#                if isinstance(diameter,  list):
-#                    new_inner_diameter.append([diameter[0] - inner_diameter,  diameter[1] - inner_diameter])
-#                else:
-#                    new_inner_diameter.append(diameter - inner_diameter)
-#            inner_diameter = new_inner_diameter
-#            inner_circles = True
-#        elif not isinstance(outer_diameter, list):
-#            outer_diameter = numpy.linspace(outer_diameter,  n_rings * outer_diameter,  n_rings).tolist()
-#            outer_diameter.reverse()
-#            if isinstance(inner_diameter, list):
-#                inner_circles = False
-#            elif not isinstance(inner_diameter, list):
-#                new_inner_diameter = []
-#                for diameter in outer_diameter:
-#                    new_inner_diameter.append(diameter - inner_diameter)
-#                inner_diameter = new_inner_diameter                
-#                inner_circles = True            
-#        
-#        slice_angle = 360.0 / n_slices        
-#        self.ring = []
-#        for ring in range(n_rings):
-#            #diameter can be a list (ellipse) or a single integer (circle)            
-#            if isinstance(outer_diameter[ring],  list):                
-#                outer_r = [outer_diameter[ring][0]  * self.config.SCREEN_PIXEL_TO_UM_SCALE, outer_diameter[ring][1]  * self.config.SCREEN_PIXEL_TO_UM_SCALE]
-#            else:
-#                outer_r = (outer_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  outer_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE)                
-#            
-#            if inner_circles:
-#                if isinstance(inner_diameter[ring],  list):
-#                    inner_r = (inner_diameter[ring][0] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  inner_diameter[ring][1] * self.config.SCREEN_PIXEL_TO_UM_SCALE)
-#                else:                    
-#                    inner_r = (inner_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE,  inner_diameter[ring] * self.config.SCREEN_PIXEL_TO_UM_SCALE)            
-#            
-#            for slice in range(n_slices):
-#                start_angle = slice_angle * slice
-#                end_angle = slice_angle * (slice + 1)
-#                vertices = utils.calculate_circle_vertices(outer_r,  start_angle = start_angle,  end_angle = end_angle+1)               
-#                
-#                try:
-#                    color = color.convert_color(colors[(n_rings -1 - ring) * n_slices + slice])
-#                except IndexError:
-#                    color = (-1.0,  -1.0,  -1.0)
-#                
-#                self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = color,  fillColor = color,  vertices =  vertices,  pos = pos_p))
-#            if inner_circles:
-#                vertices  = utils.calculate_circle_vertices(inner_r)
-#                self.ring.append(psychopy.visual.ShapeStim(self.screen, lineColor = (-1.0,  -1.0,  -1.0),  fillColor = (-1.0,  -1.0,  -1.0),  vertices =  vertices,  pos = pos_p))
-#                
-#        self._show_stimulus(duration,  self.ring,  flip)
                     
-    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0, part_of_drawing_sequence = False, block_trigger = False, save_frame_info = True):
+    def show_grating(self, duration = 0.0,  profile = 'sqr',  white_bar_width =-1,  display_area = utils.cr((0,  0)),  orientation = 0,  starting_phase = 0.0,  
+                    velocity = 0.0,  color_contrast = 1.0,  color_offset = 0.5,  pos = utils.cr((0,  0)),  duty_cycle = 1.0,  noise_intensity = 0, 
+                    part_of_drawing_sequence = False, is_block = False, save_frame_info = True):
         """
         This stimulation shows grating with different color (intensity) profiles.
             - duration: duration of stimulus in seconds
@@ -884,7 +656,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             else:
                 self.log_on_flip_message = self.log_on_flip_message_continous
             if not part_of_drawing_sequence:
-                self._flip_and_block_trigger(i, n_frames, True, block_trigger)
+                self._add_block_start(is_block, i, n_frames)
+                self._flip(trigger = True)
+                self._add_block_end(is_block, i, n_frames)
             if self.abort:
                 break
                     
@@ -898,6 +672,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
         Maintains backward compatibility with old stimulations using show_dots
         '''
+        raise NotImplementedError('block handling and trigger generation is not implemented')
         self.show_shapes('o', dot_diameters, dot_positions, ndots, duration = duration,  color = color, block_trigger = block_trigger, colors_per_shape = False)
                     
     def show_shapes(self, shape, shape_size, shape_positions, nshapes, duration = 0.0,  color = (1.0,  1.0,  1.0), background_color = None, block_trigger = False, are_same_shapes_over_frames = False, colors_per_shape = True, save_frame_info = True):
@@ -915,6 +690,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         The shape_sizes and shape_positions are expected to be in a linear list. Based on the nshapes, these will be segmented to frames assuming
         that on each frame the number of shapes are equal.
         '''
+        raise NotImplementedError('block handling and trigger generation is not implemented')
         self.log_on_flip_message_initial = 'show_shapes(' + str(duration)+ ', ' + str(shape_size) +', ' + str(shape_positions) +')'
         self.log_on_flip_message_continous = 'show_shapes'
         first_flip = False
@@ -1006,6 +782,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
     def show_grating_non_texture(self,duration,width,speed,orientation,duty_cycle,contrast=1.0,background_color=0.0):
+        raise NotImplementedError('block handling and trigger generation is not implemented')
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         swap_row_col=False
         reverse_phases = False
@@ -1080,7 +857,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
             
-    def show_natural_bars(self, speed = 300, repeats = 5, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, save_frame_info =True, block_trigger = False):
+    def show_natural_bars(self, speed = 300, repeats = 5, duration=20.0, minimal_spatial_period = None, spatial_resolution = None, intensity_levels = 255, direction = 0, save_frame_info =True, is_block = False):
         if spatial_resolution is None:
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         if minimal_spatial_period is None:
@@ -1125,6 +902,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
 #        t0=time.time()
         texture_pointer = 0
         frame_counter = 0
+        self._add_block_start(is_block, 0, 0)
         while True:
             start_index = int(texture_pointer)
             end_index = int(start_index + self.config.SCREEN_RESOLUTION['col'])
@@ -1144,11 +922,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
-            self._flip_and_block_trigger(frame_counter, frame_counter+10, True, block_trigger)#Don't want to calculate the overall number of frames
+            self._flip(trigger = True)
             if self.abort:
                 break
-        if block_trigger:
-            self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
+        self._add_block_start(is_block, 0, 1)
 #        dt=(time.time()-t0)
 #        print self.frame_counter/dt,dt,self.frame_counter,texture_pointer
         glDisable(GL_TEXTURE_2D)
@@ -1205,6 +982,7 @@ class AdvancedStimulation(Stimulations):
         sizes: 1. single size
                   2. 2d numpy array: series of different sizes
         '''
+        raise NotImplementedError('block handling and trigger generation is not implemented')
         if save_frame_info:
             self.log.info('flash_stimulus(' + str(shape)+ ', ' + str(timing) +', ' + str(colors) +', ' + str(sizes)  +', ' + str(position)  + ', ' + str(background_color) + ', ' + str(repeats) + ', ' + str(block_trigger) + ')')
             self._save_stimulus_frame_info(inspect.currentframe())
@@ -1263,6 +1041,7 @@ class AdvancedStimulation(Stimulations):
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
     def increasing_spot(self, spot_sizes, on_time, off_time, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0)), block_trigger = True):
+        raise NotImplementedError('block handling and trigger generation is not implemented')
         self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) + ', ' + str(block_trigger) + ')')
         self._save_stimulus_frame_info(inspect.currentframe())
         self.flash_stimulus('o', [on_time, off_time], color, sizes = numpy.array(spot_sizes), position = pos, background_color = background_color, repeats = 1, block_trigger = block_trigger, save_frame_info = False)
@@ -1320,7 +1099,7 @@ class AdvancedStimulation(Stimulations):
             self.show_shape(shape = shape,  pos = trajectories[block], 
                             color = color,  background_color = background_color, 
                             orientation =self.vaf*trajectory_directions[block] , size = size,  
-                            block_trigger = block_trigger, save_frame_info = False, 
+                            is_block = block_trigger, save_frame_info = False, 
                             enable_centering = False)
             if pause > 0:
                 self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
@@ -1338,6 +1117,7 @@ class AdvancedStimulation(Stimulations):
         colors: set of colors or intensities to be used
         n_on_pixels: if provided the number of white pixels shown. colors shall be a list of two.
         '''
+        raise NotImplementedError('block handling and trigger generation is not implemented')
         #TODO: has to be reworked
         self.log.info('white_noise(' + str(duration)+ ', ' + str(pixel_size) +', ' + str(flickering_frequency) +', ' + str(colors) +', ' + str(n_on_pixels) + ')')
         self._save_stimulus_frame_info(inspect.currentframe())
@@ -1412,7 +1192,7 @@ class AdvancedStimulation(Stimulations):
         if pause > 0:
             self.show_fullscreen(duration = pause, color = background_color, save_frame_info = False, frame_trigger = False)
         self.show_shape(shape = 'rect',  pos = pos,  
-                            color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size,  block_trigger = block_trigger, 
+                            color = color,  background_color = background_color,  orientation =self.vaf*direction , size = size,  is_block = block_trigger, 
                             save_frame_info = False, enable_centering = False)
         if pause > 0:
             self.show_fullscreen(duration = pause, color = color, save_frame_info = False, frame_trigger = False)
