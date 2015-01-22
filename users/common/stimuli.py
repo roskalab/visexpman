@@ -45,20 +45,21 @@ class MovingShapeExperiment(experiment.Experiment):
                                     size = self.experiment_config.SHAPE_SIZE,
                                     speeds = self.experiment_config.SPEEDS,
                                     directions = self.experiment_config.DIRECTIONS,
-                                    pause = self.pause_between_directions)
+                                    pause = self.pause_between_directions,
+                                    repetition = self.experiment_config.REPETITIONS)
         self.stimulus_duration *= self.repetitions
         if hasattr(self.log, 'info'):
             self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration))
 
     def run(self):
-        for repetition in range(self.repetitions):
-            self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
+        self.moving_shape(size = self.experiment_config.SHAPE_SIZE,
                                   speeds = self.experiment_config.SPEEDS,
                                   directions = self.experiment_config.DIRECTIONS,
                                   shape = self.shape,
                                   color = self.shape_contrast,
                                   background_color = self.shape_background,
                                   pause = self.pause_between_directions,
+                                  repetition = self.experiment_config.REPETITIONS,
                                   shape_starts_from_edge = True)
 
 class IncreasingSpotExperiment(experiment.Experiment):
@@ -313,8 +314,8 @@ class ReceptiveFieldExplore(experiment.Experiment):
         for repeat in range(repeat_sequence):
             for row in range(mesh_size['row']):
                 for col in range(mesh_size['col']):
-                    position = utils.rc((-vaf*((row+0.5) * step['row']+center['row']-int(self.machine_config.SCREEN_SIZE_UM['row']*0.5/step['row'])*step['row']), 
-                                (col+0.5)* step['col']+center['col']-int(self.machine_config.SCREEN_SIZE_UM['col']*0.5/step['row'])*step['row']))
+                    position = utils.rc((-vaf*((row+0.5) * step['row']+center['row']-int(display_range['row']*0.5/step['row'])*step['row']), 
+                                (col+0.5)* step['col']+center['col']-int(display_range['col']*0.5/step['row'])*step['row']))
                     if colors is None:
                         positions.extend(repeats*[position])
                     else:
@@ -331,13 +332,16 @@ class ReceptiveFieldExplore(experiment.Experiment):
             self.positions, display_range = self.calculate_positions(display_range, zoom_center, self.experiment_config.REPEATS, self.experiment_config.ZOOM_MESH_SIZE, self.experiment_config.COLORS, repeat_sequence = self.experiment_config.REPEAT_SEQUENCE)
         else:
             self.shape_size = self.experiment_config.SHAPE_SIZE
+            if not hasattr(self.experiment_config, 'DISPLAY_AREA'):
+                display_area = self.machine_config.SCREEN_SIZE_UM
+            else:
+                display_area = self.experiment_config.DISPLAY_AREA
             if not hasattr(self.experiment_config, 'MESH_SIZE') or self.experiment_config.MESH_SIZE == None:
-                mesh_size = utils.rc_multiply_with_constant(self.machine_config.SCREEN_SIZE_UM, 1.0/self.experiment_config.SHAPE_SIZE)
+                mesh_size = utils.rc_multiply_with_constant(display_area, 1.0/self.experiment_config.SHAPE_SIZE)
                 mesh_size = utils.rc((numpy.floor(mesh_size['row']), numpy.floor(mesh_size['col'])))
-                print mesh_size, self.machine_config.SCREEN_SIZE_UM, self.experiment_config.SHAPE_SIZE
             else:
                 mesh_size =  self.experiment_config.MESH_SIZE
-            self.positions, display_range = self.calculate_positions(self.machine_config.SCREEN_SIZE_UM, utils.rc((0,0)), self.experiment_config.REPEATS, mesh_size, self.experiment_config.COLORS, repeat_sequence = self.experiment_config.REPEAT_SEQUENCE)
+            self.positions, display_range = self.calculate_positions(display_area, utils.rc((0,0)), self.experiment_config.REPEATS, mesh_size, self.experiment_config.COLORS, repeat_sequence = self.experiment_config.REPEAT_SEQUENCE)
         if self.experiment_config.ENABLE_RANDOM_ORDER:
             import random
             random.seed(0)

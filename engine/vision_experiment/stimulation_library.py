@@ -1271,7 +1271,7 @@ class AdvancedStimulation(Stimulations):
     def moving_grating_stimulus(self):
         pass
         
-    def moving_shape_trajectory(self, size, speeds, directions,pause=0.0,shape_starts_from_edge=False):
+    def moving_shape_trajectory(self, size, speeds, directions,repetition,pause=0.0,shape_starts_from_edge=False):
         '''
         Calculates moving shape trajectory and total duration of stimulus
         '''
@@ -1289,18 +1289,19 @@ class AdvancedStimulation(Stimulations):
         trajectories = []
         nframes = 0
         for spd in speeds:
-            for direction in directions:
-                end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
-                start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
-                spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-                trajectories.append(utils.calculate_trajectory(start_point,  end_point,  spatial_resolution))
-                nframes += trajectories[-1].shape[0]
-                trajectory_directions.append(direction)
+            for rep in repetition:
+                for direction in directions:
+                    end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
+                    start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
+                    spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+                    trajectories.append(utils.calculate_trajectory(start_point,  end_point,  spatial_resolution))
+                    nframes += trajectories[-1].shape[0]
+                    trajectory_directions.append(direction)
         duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + len(speeds)*len(directions)*pause
         return trajectories, trajectory_directions, duration
         
         
-    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0, block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
+    def moving_shape(self, size, speeds, directions, shape = 'rect', color = 1.0, background_color = 0.0, moving_range=utils.rc((0.0,0.0)), pause=0.0, repetition = 1, block_trigger = False, shape_starts_from_edge=False,save_frame_info =True):
         '''
         shape_starts_from_edge: moving shape starts from the edge of the screen such that shape is not visible
         '''
@@ -1311,7 +1312,7 @@ class AdvancedStimulation(Stimulations):
 #        else:
 #            pos_with_offset = pos
         self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')')
-        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,pause,shape_starts_from_edge)
+        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,pause,shape_starts_from_edge)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
         self.show_fullscreen(duration = 0, color = background_color, save_frame_info = False, frame_trigger = False)
