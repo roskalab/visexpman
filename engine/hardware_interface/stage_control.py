@@ -287,29 +287,66 @@ class MotorizedGoniometer(StageControl):
         else:
             return False
             
-class RemoteFocus(StageControl):
+class RemoteFocus(object):
     '''
     Remote Focus device controls objective position. Default baud rate is 1200
     '''
+    def __init__(self,comport, baudrate = 1200):
+        self.scale = 1e-2
+        self.serial_port = serial.Serial(port =comport, baudrate = baudrate,
+                                                    parity = serial.PARITY_NONE,
+                                                    stopbits = serial.STOPBITS_ONE,
+                                                    bytesize = serial.EIGHTBITS,    
+                                                    timeout = 1.0)
+        pass
+    
     def execute_command(self, command, wait_after_command = True):
         self.serial_port.write(command + '\r\n')
         if wait_after_command:
-            time.sleep(100e-3)
+            time.sleep(500e-3)
+            
+    def read(self):
+        return self.read_position()
     
     def read_position(self, print_position = False):
-        self.serial_port.read(100)
-        self.execute_command('WZ')
-        response = self.serial_port.read(100)
+        self.serial_port.flushInput()
+        pos = None
+        ct = 0
+        while not isinstance(pos, float):
+            self.execute_command('WZ')
+            pos = self._parse_response(self.serial_port.read(30))
+            ct += 1
+            if ct > 10:
+                break
+        return pos
+                
+    def _parse_response(self,response):
+        if 'Unknown Command' in response:
+            return False
         if len(response)>0:
             try:
-                return float(response)
+                return float(response.split(':A')[1])*self.scale
             except:
-                return 0.0
+                print response
+                return False
+        return False
                 
     def move(self, position):
-        self.execute_command('MZ{0}'.format(position))
-
-    
+        resp = ''
+        ct = 0
+        while resp != ':A\n\r':
+            self.execute_command('MZ{0}'.format(int(int(position)/self.scale)))
+            resp = self.serial_port.read(30)
+            ct += 1
+            if ct>10:
+                break
+        
+        
+    def close(self):
+        try:
+            self.serial_port.close()
+        except AttributeError:
+            pass
 
 class MotorTestConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):
@@ -445,17 +482,18 @@ class TestMotorizedGoniometer(unittest.TestCase):
         
 class TestRemoteFocus(unittest.TestCase):
     def setUp(self):
-        self.config = MotorTestConfig()
-        self.rf = RemoteFocus(self.config, id = 2)
+        self.rf = RemoteFocus('COM3')
 
     def tearDown(self):
-        self.rf.release_instrument()
+        self.rf.close()
 
     @unittest.skipIf(not unittest_aggregator.TEST_remote_focus,  'Stage tests disabled')
     def test_01(self):
-        print self.rf.read_position()
-        self.rf.move(10)
-        print self.rf.read_position()
+        pos = [10.0,100.,-201.,0., -15]
+        for p in pos:
+            self.rf.move(p)
+            print p,self.rf.read_position()
+            self.assertEqual(self.rf.read_position(),p)
         
 if __name__ == "__main__":
     unittest.main()
