@@ -21,10 +21,13 @@ class QueuedSocketHelpers(object):
             queue = self.socket_queues[connection]['fromsocket']
         return queue
         
-    def recv(self, connection=None):
+    def recv(self, connection=None, put_message_back=False):
         queue = self._get_queue(connection)
         if not queue.empty():
-            return queue.get()
+            m=queue.get()
+            if put_message_back:
+                queue.put(m)
+            return m
 
     def send(self, msg, connection=None):
         if connection == None:

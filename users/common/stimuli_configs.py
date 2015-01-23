@@ -28,7 +28,7 @@ class MonkeyMarchingSquares(experiment.ExperimentConfig):
         self.SHAPE = 'rect'
         self.COLORS = [1.0]
         self.BACKGROUND_COLOR = 0.0
-        self.SHAPE_SIZE = 190.0
+        self.SHAPE_SIZE = 200.0
         self.ON_TIME = 1.0
         self.OFF_TIME = 1.0
         self.PAUSE_BEFORE_AFTER = 2.0

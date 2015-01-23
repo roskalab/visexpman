@@ -470,7 +470,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         utils.printl(self, message, loglevel, stdio)
         
     def check_abort(self):
-        if is_key_pressed(self.machine_config.KEYS['abort']) or utils.get_key(self.recv(), 'function') == 'stop_all':
+        if is_key_pressed(self.machine_config.KEYS['abort']) or utils.get_key(self.recv(put_message_back=True), 'function') == 'stop_all':
             self.abort = True
         
     def _prepare_data2save(self):

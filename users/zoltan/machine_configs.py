@@ -226,14 +226,6 @@ class JobhandlerTestConfig(configuration.VisionExperimentConfig):
         COORDINATE_SYSTEM='ulcorner'
         self._create_parameters_from_locals(locals())
         
-class StimulusDevelopmentMachineConfig(JobhandlerTestConfig):
-    def _set_user_parameters(self):
-        JobhandlerTestConfig._set_user_parameters(self)
-        EXPERIMENT_CONFIG = 'StimulusPatternDevelopmentConfig'
-        PLATFORM = 'standalone'
-        COORDINATE_SYSTEM='center'
-        self._create_parameters_from_locals(locals())
-
 class StimulusPatternDevelopmentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'StimulusPatternDevelopment'

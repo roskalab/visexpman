@@ -75,20 +75,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
             self.log.info(self.screen.frame_rate)
         self.check_abort()
-        
-    def _flip_and_block_trigger(self, frame_i, n_frames, frame_trigger, block_trigger):#OBSOLETE
-        if block_trigger and frame_i==0:
-            self._flip(trigger = frame_trigger)
-            if hasattr(self, 'parallel_port'):
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
-        elif block_trigger and frame_i == n_frames -1:
-            self._flip(trigger = frame_trigger)
-            if hasattr(self, 'parallel_port'):
-                self.parallel_port.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
-        elif block_trigger:
-            self._flip(trigger = frame_trigger)
-        else:
-            self._flip(trigger = frame_trigger)
 
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
         '''
@@ -119,7 +105,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
         Generates trigger pulses
         '''
-        if hasattr(self, 'digital_output'):
+        if hasattr(self.digital_output,'set_data_bit'):
             self.digital_output.set_data_bit(pin, 1, log = False)
             time.sleep(width)
             self.digital_output.set_data_bit(pin, 0, log = False)
@@ -131,12 +117,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self.trigger_pulse(self.config.FRAME_TRIGGER_PIN, self.config.FRAME_TRIGGER_PULSE_WIDTH)
             
     def block_start(self, block_name = ''):
-        if hasattr(self, 'digital_output'):
+        if hasattr(self.digital_output,'set_data_bit'):
                 self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
         self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
                 
     def block_end(self, block_name = ''):
-        if hasattr(self, 'digital_output'):
+        if hasattr(self.digital_output,'set_data_bit'):
                 self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
         self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})
         
@@ -145,7 +131,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.block_start()
             
     def _add_block_end(self, is_block, frame_i, nframes):
-        if i == n_frames - 1 and is_block:
+        if i == nframes - 1 and is_block:
             self.block_end()
         
     def _show_text(self):
@@ -227,7 +213,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if duration == 0.0:
             self.log_on_flip_message = self.log_on_flip_message_initial
             if flip:
-                self._flip(trigger = frame_trigger, count = count)
+                self._flip(frame_trigger = frame_trigger, count = count)
         elif duration == -1.0:
             i = 0
             while not self.abort:
@@ -238,7 +224,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
-                    self._flip(trigger = True, count = count)
+                    self._flip(frame_trigger = True, count = count)
                 i += 1
         else:
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
@@ -252,7 +238,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                     self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
                     self._add_block_start(is_block, i, nframes)
-                    self._flip(trigger = frame_trigger, count = count)
+                    self._flip(frame_trigger = frame_trigger, count = count)
                     self._add_block_end(is_block, i, nframes)
                 if self.abort:
                     break
@@ -292,7 +278,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             for fn in os.listdir(path):
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block)
             self.screen.clear_screen()
-            self._flip(trigger = True)
+            self._flip(frame_trigger = True)
         else:
             self._show_image(path,duration,position,flip,is_block)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
@@ -307,7 +293,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.screen.render_imagefile(path, position = utils.rc_add(position, self.machine_config.SCREEN_CENTER),stretch=stretch)
             if flip:
                 self._add_block_start(is_block, i, nframes)
-                self._flip(trigger = True)
+                self._flip(frame_trigger = True)
                 self._add_block_end(is_block, i, nframes)
             if self.abort:
                 break
@@ -424,7 +410,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 self.log_on_flip_message = self.log_on_flip_message_continous
             if flip:
                 self._add_block_start(is_block, frame_i, n_frames)
-                self._flip(trigger = True)
+                self._flip(frame_trigger = True)
                 self._add_block_end(is_block, frame_i, n_frames)
             if self.abort:
                 break
@@ -657,7 +643,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 self.log_on_flip_message = self.log_on_flip_message_continous
             if not part_of_drawing_sequence:
                 self._add_block_start(is_block, i, n_frames)
-                self._flip(trigger = True)
+                self._flip(frame_trigger = True)
                 self._add_block_end(is_block, i, n_frames)
             if self.abort:
                 break
@@ -922,7 +908,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
-            self._flip(trigger = True)
+            self._flip(frame_trigger = True)
             if self.abort:
                 break
         self._add_block_start(is_block, 0, 1)
