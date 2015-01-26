@@ -331,44 +331,11 @@ class Screen(object):
         '''
         Renders an image file on screen with its original size.
         '''
-        #TODO: image resizing
         im = Image.open(path)
         if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION=='down':
             im = im.transpose(Image.FLIP_TOP_BOTTOM)
-        im = im.convert('RGBX')
-        self.image_size = im.size
-        ix, iy, image = im.size[0], im.size[1], im.tostring('raw', 'RGBX', 0, -1)        
-        glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
-        glPixelStorei(GL_UNPACK_ALIGNMENT,1)
-        glTexImage2D(GL_TEXTURE_2D, 0, 3, ix, iy, 0, GL_RGBA, GL_UNSIGNED_BYTE, image)
-
-        glEnable(GL_TEXTURE_2D)
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST)
-        glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST)
-        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL)
-        glBindTexture(GL_TEXTURE_2D, self.image_texture_id)#TODO: Unnecessary?
-        glColor3fv((1.0, 1.0, 1.0))
-        texture_coordinates = numpy.array(
-                             [
-                             [1.0, 1.0],
-                             [1.0, 0.0],
-                             [0.0, 0.0],
-                             [0.0, 1.0],
-                             ])
-        vertices = numpy.array([
-                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * self.image_size[0]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * self.image_size[1]*stretch], 
-                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * self.image_size[0]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * self.image_size[1]*stretch], 
-                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * self.image_size[0]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * self.image_size[1]*stretch], 
-                                [position['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE - 0.5 * self.image_size[0]*stretch, position['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE + 0.5 * self.image_size[1]*stretch],                                 
-                                ])
-        glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-        glTexCoordPointerf(texture_coordinates)
-        glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointerf(vertices)
-        glDrawArrays(GL_POLYGON, 0, 4)
-        glDisableClientState(GL_VERTEX_ARRAY)
-        glDisable(GL_TEXTURE_2D)
-        glDisableClientState(GL_TEXTURE_COORD_ARRAY)
+        image = (numpy.cast['float'](numpy.asarray(im))/255.0)[:,:,:3]
+        self.render_image(image, position = position, stretch=stretch,position_in_pixel=False)
         
     def render_image(self,image, position = utils.rc((0, 0)), stretch=1.0,position_in_pixel=False):
         glBindTexture(GL_TEXTURE_2D, self.image_texture_id)
