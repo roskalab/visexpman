@@ -221,7 +221,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         #Notify man_ui that data imaging
 #        self.send({'update': ['data saved', imaging_started]})
         
-    def snap_ca_image(self,parameters):
+    def snap_ca_image(self, parameters):
         '''
         Snap a single two photon image
         '''
@@ -248,7 +248,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         self._save_data(self.images['save'])
         self.live_scan_stop()
         
-    def _pmtchannels2indexes(self,recording_channels):
+    def _pmtchannels2indexes(self, recording_channels):
         daq_device = self.config.TWO_PHOTON_PINOUT['PMT_ANALOG_INPUT_CHANNELS'].split('/')[0]
         channel_indexes = [self.config.PMTS[ch]['CHANNEL'] for ch in recording_channels]
         channel_indexes.sort()
@@ -267,7 +267,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             self.raw_data = self.datafile.h5f.create_earray(self.datafile.h5f.root, 'raw_data', datatype, 
                     (0,),filters=datacompressor)
         
-    def _close_datafile(self,data=None):
+    def _close_datafile(self, data=None):
         if self.imaging_parameters['save2file']:
             self.printl('Saved frames at the end of imaging: {0}'.format(data[0].shape[0]))
             if data is not None:
@@ -276,8 +276,10 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                     if ENABLE_16_BIT:
                         frame_converted = self._pmt_voltage2_16bit(frame_converted)
                     self._save_data(frame_converted)
-            self.datafile.runtime_info = {'acquired_frames': self.frame_ct, 'start': self.t0, 'end':self.t2, 'duration':self.t2-self.t0 }
-            nodes2save = ['imaging_parameters', 'runtime_info']
+            self.datafile.imaging_run_info = {'acquired_frames': self.frame_ct, 'start': self.t0, 'end':self.t2, 'duration':self.t2-self.t0 }
+            setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.application_name), experiment_data.pack_software_environment())
+            setattr(self.datafile, 'configs_{0}'.format(self.machine_config.application_name), experiment_data.pack_configs(self))
+            nodes2save = ['imaging_parameters', 'imaging_run_info', 'software_environment_{0}'.format(self.machine_config.application_name), 'configs_{0}'.format(self.machine_config.application_name)]
             self.datafile.save(nodes2save)
             self.printl('Data saved to {0}'.format(self.datafile.filename))
             self.datafile.close()
@@ -478,18 +480,14 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         Pack software enviroment and configs
         '''
-        self.software_environment = experiment_data.pack_software_environment()
-        self.configs = {}
-        self.configs['serialized'] = {}
-        for confname in ['machine_config', 'experiment_config']:
-            self.configs['serialized'][confname] = getattr(self,confname).serialize()
-            self.configs[confname] = getattr(self,confname).todict()
+        setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.application_name), experiment_data.pack_software_environment())
+        setattr(self.datafile, 'configs_{0}'.format(self.machine_config.application_name), experiment_data.pack_configs(self))
         
     def _save2file(self):
         '''
         Certain variables are saved to hdf5 file
         '''
-        variables2save = []#['user_data', 'stimulus_frame_info', 'experiment_name', 'experiment_config_name','configs','software_environment']
+        variables2save = ['stimulus_frame_info', 'configs_{0}'.format(self.machine_config.application_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.application_name)]#['experiment_name', 'experiment_config_name']
         self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.parameters, self.machine_config, prefix = 'stim'),filelocking=False)
         res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v)]
         self.datafile.save(variables2save)
@@ -1465,7 +1463,7 @@ class TestCaImaging(unittest.TestCase):
             print datafile
             h=hdf5io.Hdf5io(datafile,filelocking=False)
             saved_parameters = h.findvar('imaging_parameters')
-            nframes = h.findvar('runtime_info')['acquired_frames']
+            nframes = h.findvar('imaging_run_info')['acquired_frames']
             self.assertTrue(isinstance(saved_parameters,dict))
             h.load('raw_data')
             self.assertEqual(h.raw_data.shape[1], len(self.parameters['recording_channels']))#Check if number of recorded channels is correct            

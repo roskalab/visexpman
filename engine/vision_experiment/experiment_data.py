@@ -87,47 +87,22 @@ def pack_software_environment(experiment_source_code = None):
             software_environment['experiment_source_code'] = numpy.fromstring(experiment_source_code, dtype = numpy.uint8)
         zipfile_handler.close()
         return software_environment
-
+        
+def pack_configs(self):
+    '''
+    machine and experiment config is packed in a serialized and in a dictionary format
+    '''
+    configs = {}
+    configs['serialized'] = {}
+    for confname in ['machine_config', 'experiment_config']:
+        if hasattr(self, confname):#Experiment config might not be relevant/available
+            configs['serialized'][confname] = getattr(self,confname).serialize()
+            configs[confname] = getattr(self,confname).todict()
+    return configs
 
 def load_config(numpy_array):
     return utils.array2object(numpy_array)
     
-def save_config(file_handle, machine_config, experiment_config = None):
-    if hasattr(file_handle, 'save'):
-        if 0:
-            file_handle.machine_config = copy.deepcopy(machine_config.get_all_parameters()) #The deepcopy is necessary to avoid conflict between daqmx and hdf5io        
-            file_handle.experiment_config = experiment_config.get_all_parameters()
-        #pickle configs
-        file_handle.machine_config = pickle_config(machine_config)
-        if experiment_config is not None:
-            file_handle.experiment_config = pickle_config(experiment_config)
-            file_handle.save(['experiment_config', 'machine_config'])#, 'experiment_config_pickled', 'machine_config_pickled'])
-        else:
-            file_handle.save(['machine_config'])
-    elif file_handle is None:
-        config = {}
-        config['machine_config'] = copy.deepcopy(machine_config.get_all_parameters())
-        config['experiment_config'] = experiment_config.get_all_parameters()
-        return config
-        
-def pickle_config(config):#OBSOLETE
-    config_modified = copy.copy(config)
-    if hasattr(config_modified, 'connections'):
-        config_modified.connections = 0
-    if hasattr(config_modified, 'application_log'):
-        config_modified.application_log = 0
-    if hasattr(config_modified, 'machine_config'):
-        config_modified.machine_config = 0
-    if hasattr(config_modified, 'runnable'):
-        config_modified.runnable = config_modified.runnable.__class__.__name__
-    if hasattr(config_modified, 'pre_runnable'):
-        config_modified.pre_runnable = config_modified.pre_runnable.__class__.__name__
-    if hasattr(config_modified, 'queues'):
-        config_modified.queues = 0
-    if hasattr(config_modified, 'GAMMA_CORRECTION'):
-        config_modified.GAMMA_CORRECTION = 0
-    return utils.object2array(config_modified)
-       
 def read_merge_rois(cells, cell_group, region_name, objective_position, objective_origin, z_range, merge_distance):
     '''
     Reads rois of selected group, performs filtering based on objective position and merge distance
