@@ -184,6 +184,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         #Prepare experiment, run stimulation and save data
         getattr(self.experiment_config.runnable, 'run' if parameters.get('stimulus_only', False) else 'execute')()
         self.stim_context['last_experiment_parameters'] = parameters
+        self.stim_context['last_experiment_stimulus_frame_info'] = self.experiment_config.runnable.stimulus_frame_info
         
 def run_main_ui(context):
     context['logger'].start()#This needs to be started separately from application_init ensuring that other logger source can be added 

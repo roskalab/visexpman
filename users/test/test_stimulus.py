@@ -10,7 +10,7 @@ from OpenGL.GLUT import *
 
 import visexpman
 from visexpman.engine.vision_experiment.configuration import VisionExperimentConfig
-from visexpman.engine.generic import utils
+from visexpman.engine.generic import utils,fileop
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.hardware_interface import daq_instrument
 from visexpman.users.test import unittest_aggregator
@@ -245,18 +245,19 @@ class Debug(experiment.Experiment):
 class TestStimulusBlockParams(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.COLORS = [0.1, 0.6]
-        self.T_FULLSCREEN = 2.0
-        self.IMAGE_FOLDERS = []
+        self.T_FULLSCREEN = 1.0
+        #TODO: get image rendering run on Linux
+        self.IMAGE_FOLDERS = [os.path.join(fileop.visexpman_package_path(), 'data', 'images')] if self.OS != 'Linux' else []
         self.IMAGE_STRETCHES = [0.5, 1.4]
         self.T_IMAGE = 1.0
         self.SHAPES = ['rect', 'o']
         self.T_SHAPE = [1.0, 0.0]
-        self.POSITIONS = []
-        self.SIZES = [10, utils.rc((100,20))]
-        self.T_GRATING = 3.0
-        self.GRATING_PROFILES = ['sine']
-        self.GRATING_WIDTH = [100]
-        self.GRATING_SPEEDS = [0, 800]
+        self.POSITIONS = [utils.rc((0,0))]
+        self.SIZES = [100.0, utils.rc((100.0,20.0))]
+        self.T_GRATING = [1.0]
+        self.GRATING_PROFILES = ['sin']
+        self.GRATING_WIDTH = [100.0]
+        self.GRATING_SPEEDS = [0.0, 800.0]
         self.runnable = 'TestStimulusBlocks'
         self._create_parameters_from_locals(locals())
         
@@ -264,53 +265,44 @@ class TestStimulusBlocks(experiment.Experiment):
     #TODO =: separate test for centering
     def run(self):
         import itertools
-        nbinary_parameters = 4
-        for color in self.experiment_config.COLORS:
-            for binary_config in range(nbinary_parameters**2):
-                flip =  bool(int(bin(binary_config)[2]))
-                count =  bool(int(bin(binary_config)[3]))
-                is_block =  bool(int(bin(binary_config)[4]))
-                frame_trigger =  bool(int(bin(binary_config)[5]))
-                self.show_fullscreen(duration = self.experiment_config.T_FULLSCREEN,  color = color, flip = flip, count = count, is_block = is_block, frame_trigger = frame_trigger)
         flip = [True,False]
-        is_block = [True,False]        
+        is_block = [True,False]
+        count = [True,False]
+        frame_trigger = [True,False]
+        ct=0
+        for flipi, is_blocki, counti, frame_triggeri, color in itertools.product(*[flip, is_block, count, frame_trigger, self.experiment_config.COLORS]):
+            if is_blocki and flipi:
+                ct+=1
+            self.show_fullscreen(duration = self.experiment_config.T_FULLSCREEN,  color = color, flip = flipi, count = counti, is_block = is_blocki, frame_trigger = frame_triggeri)
         params = [self.experiment_config.IMAGE_FOLDERS, self.experiment_config.IMAGE_STRETCHES, flip, is_block]
         for path, stretch, flip_i, is_block_i in itertools.product(*params):
+            if is_block_i and flip_i:
+                ct+=1
             self.show_image(path, duration = self.experiment_config.T_IMAGE,  stretch=stretch, flip = flip_i, is_block = is_block_i)
         params = [self.experiment_config.SHAPES, self.experiment_config.T_SHAPE, self.experiment_config.POSITIONS, 
                             self.experiment_config.COLORS, self.experiment_config.SIZES, flip, is_block]
-        for shape, duration, pos, color, size, flip_i, is_block_i in itertools.product(params):
+        for shape, duration, pos, color, size, flip_i, is_block_i in itertools.product(*params):
             self.show_shape(shape = shape,  duration = duration,  
                                 pos = pos,  color = color,  background_color = 0.5,  size = size,  flip = flip_i, is_block = is_block_i)
+            if is_block_i and flip_i:
+                ct+=1
         params = ['T_GRATING', 'GRATING_PROFILES', 'GRATING_WIDTH', 'GRATING_SPEEDS']   
         params = [getattr(self.experiment_config, p) for p in params]
         params.extend([is_block])
-        for t, profile, white_bar_width, speed, is_block_i in itertools.product(params):
-            self.show_grating(self, duration = t,  profile = profile,  white_bar_width =white_bar_width,   
+        for t, profile, white_bar_width, speed, is_block_i in itertools.product(*params):
+            self.show_grating(duration = t,  profile = profile,  white_bar_width =white_bar_width,   
                     velocity = speed, duty_cycle = 1.0, is_block = is_block_i)
+            if is_block_i:
+                ct+=1
         for b in is_block:
-            self.show_natural_bars(speed = 300, repeats = 2, duration=10.0, is_block = b)
+            self.show_natural_bars(speed = 300, repeats = 2, duration=5.0, is_block = b)
+            if b:
+                ct+=1
         for b in is_block:    
-            self.moving_shape(util.rc((100,300)), [100.0,1000.0], range(0,360,4), shape = 'rect', color = 1.0, background_color = 0.5, 
-                    moving_range=utils.rc((500.0,500.0)), pause=1.0, repetition = 2, block_trigger = b, shape_starts_from_edge=False)
+            if b:
+                ct+=1
+            self.moving_shape(utils.rc((100,300)), [2000.0], [45.0], shape = 'rect', color = 1.0, background_color = 0.5, 
+                    moving_range=utils.rc((500.0,500.0)), pause=1.0, repetition = 1, block_trigger = b, shape_starts_from_edge=False)
             
 if __name__ == "__main__":
-    if True:
-        v = visexp_runner.VisionExperimentRunner('peter', 'StimulusDevelopment')
-#        v.run_experiment(user_experiment_config = 'MovingGratingTuning')
-        v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')
-    elif not True:
-        v = visexp_runner.VisionExperimentRunner(['zoltan', 'chi'], 'SwDebugConfig')
-        v.run_experiment(user_experiment_config = 'FullfieldSinewave')
-    elif not True:
-        v = visexp_runner.VisionExperimentRunner('antonia',  'MEASetup')
-        v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')
-    elif True:
-        v = visexp_runner.VisionExperimentRunner(['zoltan', 'chi'], 'SwDebugConfig')
-        if True:
-            v.run_loop()
-        else:
-            v.run_experiment(user_experiment_config = 'IncreasingAnnulusParameters')
-    else:
-        v = visexp_runner.VisionExperimentRunner('zoltan',  'SwDebugConfig')
-        v.run_experiment(user_experiment_config = 'WhiteNoiseParameters')
+    pass

@@ -170,8 +170,10 @@ class Logger(multiprocessing.Process,LoggerHelper):
                     break
                 elif command == 'suspend':
                     self.saving2file_enable = False
+                    self.sources['default'].put('Saving to file suspended')
                 elif command == 'resume':
                     self.saving2file_enable = True
+                    self.sources['default'].put('Resuming file saving')
             if self.saving2file_enable:
                 self.flush()
         self.flush()#Make sure that all entries in queue are saved
@@ -193,9 +195,12 @@ class TestLog(unittest.TestCase):
         p.start()
         p.info('test1', 'mysource')
         time.sleep(1)
+        filesize1=os.path.getsize(p.filename)
         p.suspend()
         p.info('test2')
         time.sleep(1)
+        filesize2=os.path.getsize(p.filename)
+        self.assertEqual(filesize1, filesize2)#File size not changed, during suspend no new entry flushed to file
         p.resume()
         p.warning('test3')
         time.sleep(1)
@@ -239,6 +244,7 @@ class TestLog(unittest.TestCase):
         self.assertIn('test2', logged_text)
         self.assertIn('test3', logged_text)
         self.assertIn('test4', logged_text)
+
         
     def tearDown(self):
         pass

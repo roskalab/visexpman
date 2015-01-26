@@ -72,7 +72,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.frame_counter += 1
         if not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
-            self.log.info(numpy.round(self.screen.frame_rate))
+            self.log.info(numpy.round(self.screen.frame_rate,2), source = 'stim')
         self.check_abort()
 
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
@@ -117,20 +117,20 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             
     def block_start(self, block_name = ''):
         if hasattr(self.digital_output,'set_data_bit'):
-                self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
+            self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
         self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
                 
     def block_end(self, block_name = ''):
         if hasattr(self.digital_output,'set_data_bit'):
-                self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
+            self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
         self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})
         
     def _add_block_start(self, is_block, frame_i, nframes):
-        if i == 0 and is_block:
+        if frame_i == 0 and is_block:
             self.block_start()
             
     def _add_block_end(self, is_block, frame_i, nframes):
-        if i == nframes - 1 and is_block:
+        if frame_i == nframes - 1 and is_block:
             self.block_end()
         
     def _show_text(self):
@@ -200,41 +200,30 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
         duration: 0.0: one frame time, -1.0: forever, any other value is interpreted in seconds        
         '''
-        if count and save_frame_info:
-            self._save_stimulus_frame_info(inspect.currentframe())
         if color == None:
             color_to_set = self.config.BACKGROUND_COLOR
         else:
             color_to_set = colors.convert_color(color, self.config)
-        self.log_on_flip_message_initial = 'show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')'
-        self.log_on_flip_message_continous = 'show_fullscreen'
+        if count and save_frame_info:
+            self.log.info('show_fullscreen(' + str(duration) + ', ' + str(color_to_set) + ')', source='stim')
+            self._save_stimulus_frame_info(inspect.currentframe())
         self.screen.clear_screen(color = color_to_set)
         if duration == 0.0:
-            self.log_on_flip_message = self.log_on_flip_message_initial
             if flip:
                 self._flip(frame_trigger = frame_trigger, count = count)
         elif duration == -1.0:
             i = 0
             while not self.abort:
-                if i == 0:
-                    self.log_on_flip_message = self.log_on_flip_message_initial
-                elif i == 1:
+                if i == 1:
                     self.screen.clear_screen(color = color_to_set)
-                else:
-                    self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
                     self._flip(frame_trigger = True, count = count)
                 i += 1
         else:
             nframes = int(duration * self.config.SCREEN_EXPECTED_FRAME_RATE)
             for i in range(nframes):
-                if i == 0:
-                    self.log_on_flip_message = self.log_on_flip_message_initial
-                elif i == 1:
+                if i == 1:
                     self.screen.clear_screen(color = color_to_set)
-                    self.log_on_flip_message = self.log_on_flip_message_continous
-                else:
-                    self.log_on_flip_message = self.log_on_flip_message_continous
                 if flip:
                     self._add_block_start(is_block, i, nframes)
                     self._flip(frame_trigger = frame_trigger, count = count)
@@ -270,11 +259,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         flips_per_frame = duration/(1.0/self.config.SCREEN_EXPECTED_FRAME_RATE)
         if flips_per_frame != numpy.round(flips_per_frame):
             raise RuntimeError('This duration is not possible, it should be the multiple of 1/SCREEN_EXPECTED_FRAME_RATE')                
-        self.log_on_flip_message_initial = 'show_image(' + str(path)+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(size)  + ', ' + ')'
-        self.log_on_flip_message_continous = 'show_shape'
+        self.log.info('show_image(' + str(path)+ ', ' + str(duration) + ', ' + str(position) + ', ' + str(stretch)  + ', ' + ')', source='stim')
         self._save_stimulus_frame_info(inspect.currentframe())
         if os.path.isdir(path):
-            for fn in os.listdir(path):
+            fns = os.listdir(path)
+            fns.sort()
+            for fn in fns:
                 self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block)
             self.screen.clear_screen()
             self._flip(frame_trigger = True)
@@ -308,10 +298,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         flash on  right half of screen self.show_shape(shape='rect', pos = utils.rc((0, self.config.SCREEN_SIZE_UM['col']/4)), size = utils.rc((self.config.SCREEN_SIZE_UM['row'],self.config.SCREEN_SIZE_UM['col']/2)), color = self.color, duration = self.experiment_config.FLASH_DURATION,background_color=0.0)
         
         '''
-        #Generate log messages
-        self.log_on_flip_message_initial = 'show_shape(' + str(shape)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color)  + ', ' + str(background_color)  + ', ' + str(orientation)  + ', ' + str(size)  + ', ' + str(ring_size) + ')'
-        self.log_on_flip_message_continous = 'show_shape'
         if save_frame_info:
+            self.log.info('show_shape(' + str(shape)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color)  + ', ' + str(background_color)  + ', ' + str(orientation)  + ', ' + str(size)  + ', ' + str(ring_size) + ')', source = 'stim')
             self._save_stimulus_frame_info(inspect.currentframe())
         #Calculate number of frames
         n_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
@@ -379,7 +367,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
-        first_flip = False
         start_time = time.time()
         frame_i = 0
         while True:
@@ -401,12 +388,6 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     glColor3fv(colors.convert_color(color, self.config))
                 glDrawArrays(GL_POLYGON,  0, n)
-            #Make sure that at the first flip the parameters of the function call are logged
-            if not first_flip:
-                self.log_on_flip_message = self.log_on_flip_message_initial
-                first_flip = True
-            else:
-                self.log_on_flip_message = self.log_on_flip_message_continous
             if flip:
                 self._add_block_start(is_block, frame_i, n_frames)
                 self._flip(frame_trigger = True)
@@ -438,8 +419,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                             4. color channel
         '''
         raise NotImplementedError('block handling and trigger generation is not implemented')
-        self.log_on_flip_message_initial = 'show_checkerboard(' + str(n_checkers)+ ', ' + str(duration) +', ' + str(box_size) +')'
-        self.log_on_flip_message_continous = 'show_checkerboard'
+        self.log.info('show_checkerboard(' + str(n_checkers)+ ', ' + str(duration) +', ' + str(box_size) +')',source='stim')
         first_flip = False
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
@@ -498,9 +478,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         else:
             bar_width = white_bar_width * self.config.SCREEN_UM_TO_PIXEL_SCALE
         #== Logging ==
-        self.log_on_flip_message_initial = 'show_grating(' + str(duration)+ ', ' + str(profile) + ', ' + str(white_bar_width) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')'
-        self.log_on_flip_message_continous = 'show_grating'
-        first_flip = False
+        self.log.info('show_grating(' + str(duration)+ ', ' + str(profile) + ', ' + str(white_bar_width) + ', ' + str(display_area)  + ', ' + str(orientation)  + ', ' + str(starting_phase)  + ', ' + str(velocity)  + ', ' + str(color_contrast)  + ', ' + str(color_offset) + ', ' + str(pos)  + ')',source='stim')
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
         
@@ -634,19 +612,12 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv((1.0,1.0,1.0))
             glDrawArrays(GL_POLYGON,  0, 4)
-            #Make sure that at the first flip the parameters of the function call are logged
-            if not first_flip:
-                self.log_on_flip_message = self.log_on_flip_message_initial
-                first_flip = True
-            else:
-                self.log_on_flip_message = self.log_on_flip_message_continous
             if not part_of_drawing_sequence:
                 self._add_block_start(is_block, i, n_frames)
                 self._flip(frame_trigger = True)
                 self._add_block_end(is_block, i, n_frames)
             if self.abort:
                 break
-                    
         glDisable(GL_TEXTURE_2D)
         glDisableClientState(GL_TEXTURE_COORD_ARRAY)
         glDisableClientState(GL_VERTEX_ARRAY)
@@ -847,8 +818,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE
         if minimal_spatial_period is None:
             minimal_spatial_period = 10 * spatial_resolution
-        self.log_on_flip_message_initial = 'show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')'
-        self.log_on_flip_message_continous = 'show_natural_bars'
+        self.log.info('show_natural_bars(' + str(speed)+ ', ' + str(repeats) +', ' + str(duration) +', ' + str(minimal_spatial_period)+', ' + str(spatial_resolution)+ ', ' + str(intensity_levels) +', ' + str(direction)+ ')',source='stim')
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         self.intensity_profile = signal.generate_natural_stimulus_intensity_profile(duration, speed, minimal_spatial_period, spatial_resolution, intensity_levels)
@@ -910,7 +880,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self._flip(frame_trigger = True)
             if self.abort:
                 break
-        self._add_block_start(is_block, 0, 1)
+        self._add_block_end(is_block, 0, 1)
 #        dt=(time.time()-t0)
 #        print self.frame_counter/dt,dt,self.frame_counter,texture_pointer
         glDisable(GL_TEXTURE_2D)
@@ -969,7 +939,7 @@ class AdvancedStimulation(Stimulations):
         '''
         raise NotImplementedError('block handling and trigger generation is not implemented')
         if save_frame_info:
-            self.log.info('flash_stimulus(' + str(shape)+ ', ' + str(timing) +', ' + str(colors) +', ' + str(sizes)  +', ' + str(position)  + ', ' + str(background_color) + ', ' + str(repeats) + ', ' + str(block_trigger) + ')')
+            self.log.info('flash_stimulus(' + str(shape)+ ', ' + str(timing) +', ' + str(colors) +', ' + str(sizes)  +', ' + str(position)  + ', ' + str(background_color) + ', ' + str(repeats) + ', ' + str(block_trigger) + ')', source='stim')
             self._save_stimulus_frame_info(inspect.currentframe())
         if isinstance(timing, list) and len(timing) == 2 or hasattr(timing, 'dtype') and timing.shape[0] == 2:
             #find out number of flashes
@@ -1027,7 +997,7 @@ class AdvancedStimulation(Stimulations):
 
     def increasing_spot(self, spot_sizes, on_time, off_time, color = 1.0, background_color = 0.0, pos = utils.rc((0,  0)), block_trigger = True):
         raise NotImplementedError('block handling and trigger generation is not implemented')
-        self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) + ', ' + str(block_trigger) + ')')
+        self.log.info('increasing_spot(' + str(spot_sizes)+ ', ' + str(on_time) +', ' + str(off_time) +', ' + str(color) +', ' + str(background_color) +', ' + str(pos) + ', ' + str(block_trigger) + ')', source='stim')
         self._save_stimulus_frame_info(inspect.currentframe())
         self.flash_stimulus('o', [on_time, off_time], color, sizes = numpy.array(spot_sizes), position = pos, background_color = background_color, repeats = 1, block_trigger = block_trigger, save_frame_info = False)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
@@ -1075,7 +1045,7 @@ class AdvancedStimulation(Stimulations):
 #            pos_with_offset = utils.rc_add(pos, self.screen_center)
 #        else:
 #            pos_with_offset = pos
-        self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')')
+        self.log.info('moving_shape(' + str(size)+ ', ' + str(speeds) +', ' + str(directions) +', ' + str(shape) +', ' + str(color) +', ' + str(background_color) +', ' + str(moving_range) + ', '+ str(pause) + ', ' + str(block_trigger) + ')', source='stim')
         trajectories, trajectory_directions, duration = self.moving_shape_trajectory(size, speeds, directions,repetition,pause,shape_starts_from_edge)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe())
@@ -1104,7 +1074,7 @@ class AdvancedStimulation(Stimulations):
         '''
         raise NotImplementedError('block handling and trigger generation is not implemented')
         #TODO: has to be reworked
-        self.log.info('white_noise(' + str(duration)+ ', ' + str(pixel_size) +', ' + str(flickering_frequency) +', ' + str(colors) +', ' + str(n_on_pixels) + ')')
+        self.log.info('white_noise(' + str(duration)+ ', ' + str(pixel_size) +', ' + str(flickering_frequency) +', ' + str(colors) +', ' + str(n_on_pixels) + ')', source='stim')
         self._save_stimulus_frame_info(inspect.currentframe())
         if flickering_frequency == 0:
             npatterns = duration * self.config.SCREEN_EXPECTED_FRAME_RATE
@@ -1167,7 +1137,7 @@ class AdvancedStimulation(Stimulations):
         pass
         
     def moving_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0,block_trigger = False):
-        self.log.info('moving_curtain(' + str(color)+ ', ' + str(background_color) +', ' + str(speed) +', ' + str(direction) +', ' + str(pause) + ', ' + str(block_trigger) +')')
+        self.log.info('moving_curtain(' + str(color)+ ', ' + str(background_color) +', ' + str(speed) +', ' + str(direction) +', ' + str(pause) + ', ' + str(block_trigger) +')',source='stim')
         self._save_stimulus_frame_info(inspect.currentframe())
         movement = numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['col']**2+self.machine_config.SCREEN_SIZE_UM['row']**2)
         size = utils.rc((movement, movement))
@@ -1313,6 +1283,25 @@ class TestStimulationPatterns(unittest.TestCase):
         from visexpman.engine.visexp_app import stimulation_tester
         from visexpman.users.test.test_stimulus import TestMovingShapeConfig
         context = stimulation_tester('test', 'GUITestConfigPix', 'TestNTGratingConfig', ENABLE_FRAME_CAPTURE = False)
+        
+    def test_10_block_trigger(self):
+        from visexpman.engine.visexp_app import stimulation_tester
+        from visexpA.engine.datahandlers import hdf5io
+        from visexpman.users.test.test_stimulus import TestStimulusBlockParams
+        context = stimulation_tester('test', 'GUITestConfig', 'TestStimulusBlockParams')
+        ec = TestStimulusBlockParams(context['machine_config'])
+        stim_context = hdf5io.read_item(fileop.get_context_filename(context['machine_config']), 'context', filelocking=False)
+        sfi=utils.array2object(stim_context)['last_experiment_stimulus_frame_info']
+        expected_number_of_blocks = len(ec.COLORS)*2**2+len(ec.IMAGE_FOLDERS)*len(ec.IMAGE_STRETCHES)+len(ec.SHAPES)*len(ec.T_SHAPE)*len(ec.POSITIONS)*len(ec.SIZES)*len(ec.COLORS)
+        expected_number_of_blocks += numpy.prod(map(len, [getattr(ec, p) for p in ['T_GRATING', 'GRATING_PROFILES', 'GRATING_WIDTH', 'GRATING_SPEEDS']]))
+        expected_number_of_blocks += 2
+        self.assertEqual(len([s for s in sfi if 'block_start' in s]), expected_number_of_blocks)
+        self.assertEqual(len([s for s in sfi if 'block_end' in s]), expected_number_of_blocks)
+        #block start and block end entries must be adjacent, no stimulus info should be in between
+        self.assertEqual((numpy.array([i for i in range(len(sfi)) if 'block_end' in sfi[i]])-numpy.array([i for i in range(len(sfi)) if 'block_start' in sfi[i]])).sum(), expected_number_of_blocks)
+        #Check if block indexes are increasing:
+        bidiff = numpy.diff(numpy.array([s['block_start' if s.has_key('block_start') else 'block_end'] for s in sfi if 'block_start' in s or 'block_end' in s]))
+        self.assertGreaterEqual(bidiff.min(),0)
 
 if __name__ == "__main__":
     unittest.main()

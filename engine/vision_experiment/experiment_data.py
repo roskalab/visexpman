@@ -34,47 +34,6 @@ def check(h, config):
     return error_messages
     #TODO: check if all software are identical
 
-def generate_filename(config, id, experiment_name = '',  cell_name = '', nfragments = 1, region_name = '',  depth = '',  scan_mode = '', end_tag = '', user_extensions = [], tmp_folder = None, experiment_config = None, output_folder = None):
-    '''
-    Format:
-    scan_mode, region_name, cell_name, depth, experiment_name, id, fragment_id
-    '''
-    #OBSOLETE
-    filenames = {}
-    filenames['names']= []
-    filenames['datafile'] = []
-    filenames['local_datafile'] = []
-    filenames['other_files'] = []
-    if config.PLATFORM == 'rc_cortical':
-        filenames['mes_files'] = []
-        prefix = 'fragment'#FIXME: this is obsolete
-    else:
-        prefix = ''
-    if output_folder is None:
-        output_folder = config.EXPERIMENT_DATA_PATH
-    for fragment_id in range(nfragments):
-        if hasattr(experiment_config, 'USER_FRAGMENT_NAME'):
-            name = self.experiment_config.USER_FRAGMENT_NAME
-        else:
-            if depth != '':
-                depth_formatted = str(numpy.round(depth, 1))
-            else:
-                depth_formatted = depth
-            name = ''
-            for tag in [prefix, scan_mode, region_name, cell_name, depth_formatted, experiment_name, id, str(fragment_id)]:
-                if tag != '':
-                    name += tag + '_'
-            name = name[:-1]
-        filenames['names'].append(name)
-        filename = '{0}{1}.{2}'.format(name, end_tag, config.EXPERIMENT_FILE_FORMAT)
-        filenames['datafile'].append(os.path.join(output_folder, filename))
-        if tmp_folder is None or not os.path.exists(tmp_folder):
-            tmp_folder = tempfile.mkdtemp()
-        filenames['local_datafile'].append(os.path.join(tmp_folder, filename))
-        for ext in user_extensions:
-            filenames['other_files'].append(os.path.join(output_folder, '.'.join(filename.split('.')[:-1])+'.' + ext))
-    return filenames
-
 ############### Preprocess measurement data ####################
 def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_signal_min_amplitude = 1.5):
     #Find out high and low voltage levels

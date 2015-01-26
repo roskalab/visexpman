@@ -458,8 +458,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.prepare()
         self.printl('Starting stimulation: {0}/{1}'.format(self.experiment_name,self.experiment_config_name))
         self.send({'trigger':'stim started'})
-        #TODO: suspend logging
+        self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
         self.run()
+        self.log.resume()
         self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
         self.printl('Stimulation ended, saving data to file')
         self._prepare_data2save()
