@@ -15,9 +15,8 @@ from OpenGL.GLUT import *
 
 import command_handler
 import experiment_control
-from visexpman.engine.generic import graphics,utils,colors,fileop
+from visexpman.engine.generic import graphics,utils,colors,fileop, signal
 from visexpman.engine.vision_experiment import screen
-from visexpman.engine.generic import signal
 from visexpman.users.test import unittest_aggregator
 
 import unittest
@@ -73,7 +72,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.frame_counter += 1
         if not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
-            self.log.info(self.screen.frame_rate)
+            self.log.info(numpy.round(self.screen.frame_rate))
         self.check_abort()
 
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
@@ -1054,7 +1053,7 @@ class AdvancedStimulation(Stimulations):
         trajectories = []
         nframes = 0
         for spd in speeds:
-            for rep in repetition:
+            for rep in range(repetition):
                 for direction in directions:
                     end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
                     start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
@@ -1062,7 +1061,7 @@ class AdvancedStimulation(Stimulations):
                     trajectories.append(utils.calculate_trajectory(start_point,  end_point,  spatial_resolution))
                     nframes += trajectories[-1].shape[0]
                     trajectory_directions.append(direction)
-        duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + len(speeds)*len(directions)*pause
+        duration = float(nframes)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE  + (len(speeds)*len(directions)*repetition+1)*pause
         return trajectories, trajectory_directions, duration
         
         
@@ -1234,17 +1233,19 @@ class TestStimulationPatterns(unittest.TestCase):
         from visexpman.users.test.test_stimulus import TestMovingShapeConfig
         context = stimulation_tester('test', 'GUITestConfig', 'TestMovingShapeConfig', ENABLE_FRAME_CAPTURE = True)
         ec = TestMovingShapeConfig(context['machine_config'])
+        bgcolor = colors.convert_color(ec.SHAPE_BACKGROUND, context['machine_config'])[0]*255
         calculated_duration = float(fileop.read_text_file(context['logger'].filename).split('\n')[0].split(' ')[-1])
         captured_files = map(os.path.join, len(os.listdir(context['machine_config'].CAPTURE_PATH))*[context['machine_config'].CAPTURE_PATH],os.listdir(context['machine_config'].CAPTURE_PATH))
         captured_files.sort()
+        captured_files=captured_files[1:]#Drop first frame which is some garbage from the video buffer
         #remove menu frames (red)
         stim_frames = [captured_file for captured_file in captured_files if not (numpy.asarray(Image.open(captured_file))[:,:,0].sum() > 0 and numpy.asarray(Image.open(captured_file))[:,:,1:].sum() == 0)]
         #Check pause durations
         overall_intensity = [numpy.asarray(Image.open(f)).sum() for f in stim_frames]
-        edges = numpy.nonzero(numpy.diff(abs(utils.signal2binary(overall_intensity))))[0]
-        
+        mean_intensity_per_frame = overall_intensity/(context['machine_config'].SCREEN_RESOLUTION['row']*context['machine_config'].SCREEN_RESOLUTION['col']*3)
+        edges = signal.trigger_indexes(mean_intensity_per_frame)
         pauses = numpy.diff(edges[1:-1])[::2]/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE)
-        numpy.testing.assert_equal(pauses, numpy.ones_like(pauses)*0.1)
+        self.assertGreaterEqual(pauses.min(), ec.PAUSE_BETWEEN_DIRECTIONS)
         #TODO: check captured files: shape size, speed
         numpy.testing.assert_almost_equal((len(stim_frames)-2)/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE), calculated_duration, int(-numpy.log10(3.0/context['machine_config'].SCREEN_EXPECTED_FRAME_RATE))-1)
 

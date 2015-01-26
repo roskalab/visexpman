@@ -270,7 +270,7 @@ class TestCaImagingScreen(unittest.TestCase):
         frame=self._get_captured_frame()
         numpy.testing.assert_equal(frame[int(frame.shape[0]*0.4):int(frame.shape[0]*0.6),int(frame.shape[1]*0.4):int(frame.shape[1]*0.6)].flatten(), 255)
         #check if frame is grey (laser off)
-        image_frame_indexes=numpy.nonzero(numpy.where(frame == int(0.3*255),1,0))
+        image_frame_indexes=numpy.nonzero(numpy.where(numpy.logical_or(frame == int(0.3*255),frame == int(0.3*255)+1),1,0))
         self.assertGreater(image_frame_indexes[0].shape[0],0)
         [self.assertIn(i, image_frame_indexes[2]) for i in range(3)]
         cai.display_configuration =\
@@ -289,7 +289,7 @@ class TestCaImagingScreen(unittest.TestCase):
         self.assertGreater(hh[0][0],hh[0][-1])
         #check if frame is red (laser on)
         for f in [frame1,frame2]:
-            image_frame_indexes=numpy.nonzero(numpy.where(f == int(0.7*255),1,0))
+            image_frame_indexes=numpy.nonzero(numpy.where(numpy.logical_or(f == int(0.7*255), f == int(0.7*255)+1),1,0))
             self.assertGreater(image_frame_indexes[0].shape[0],0)
             numpy.testing.assert_equal(image_frame_indexes[2], numpy.zeros_like(image_frame_indexes[2]))
         cai.images['display'] = numpy.zeros((50,100,3))

@@ -46,8 +46,8 @@ class MovingShapeExperiment(experiment.Experiment):
                                     speeds = self.experiment_config.SPEEDS,
                                     directions = self.experiment_config.DIRECTIONS,
                                     pause = self.pause_between_directions,
-                                    repetition = self.experiment_config.REPETITIONS)
-        self.stimulus_duration *= self.repetitions
+                                    repetition = self.experiment_config.REPETITIONS,
+                                    shape_starts_from_edge = True)
         if hasattr(self.log, 'info'):
             self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration))
 

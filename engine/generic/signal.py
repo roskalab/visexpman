@@ -196,6 +196,9 @@ def find_bead_center_and_width(curve):
     edges = numpy.nonzero(numpy.diff(numpy.where(curve>threshold,1,0)))[0]
     return edges.mean(), edges.max()-edges.min(),threshold#center,bead size
     
+def trigger_indexes(trigger):
+    return numpy.nonzero(numpy.where(abs(numpy.diff(trigger-trigger.min()))>0.5*(trigger.max()-trigger.min()), 1, 0))[0]+1
+
 class TestSignal(unittest.TestCase):
     def test_01_histogram_shift_1d(self):
         #generate test data
@@ -325,6 +328,10 @@ class TestSignal(unittest.TestCase):
             plot(waveform)
             plot(boundaries)
             show()
+            
+    def test_14_trigger_indexes(self):
+        trigger = numpy.concatenate((numpy.zeros(2), numpy.ones(10), numpy.zeros(10), numpy.ones(20), numpy.zeros(10)))
+        numpy.testing.assert_equal(trigger_indexes(trigger), numpy.array([2, 12, 22, 42]))
     
 
 if __name__=='__main__':

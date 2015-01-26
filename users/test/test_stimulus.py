@@ -136,7 +136,7 @@ class TestNaturalStimConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'TestNaturalStimExp'
         self._create_parameters_from_locals(locals())
-        
+
 class TestNaturalStimExp(experiment.Experiment):
     def run(self):
         for rep in range(self.machine_config.REPEATS):
@@ -145,7 +145,9 @@ class TestNaturalStimExp(experiment.Experiment):
             for directions in self.machine_config.DIRECTIONS:
                 if self.abort:
                     break
-                self.show_natural_bars(speed = self.machine_config.SPEED, repeats = 1, duration=self.machine_config.DURATION, minimal_spatial_period = None, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, intensity_levels = 255, direction = directions, save_frame_info =True, block_trigger = False)
+                self.show_natural_bars(speed = self.machine_config.SPEED, repeats = 1, duration=self.machine_config.DURATION, 
+                            minimal_spatial_period = None, spatial_resolution = self.machine_config.SCREEN_PIXEL_TO_UM_SCALE, 
+                            intensity_levels = 255, direction = directions, save_frame_info =True, is_block = False)
         if utils.safe_istrue(self.machine_config, 'STIM2VIDEO') and hasattr(self.machine_config, 'OUT_PATH') and self.machine_config.OS == 'Linux':
             self.export2video(os.path.join(self.machine_config.OUT_PATH, 'natural_stim.mp4'))
         if utils.safe_istrue(self.machine_config, 'EXPORT_INTENSITY_PROFILE'):
@@ -163,7 +165,7 @@ class TestMovingShapeConfig(experiment.ExperimentConfig):
         self.REPETITIONS = 1
         self.SHAPE_SIZE = utils.rc((100,200))
         self.DIRECTIONS = [0,45,90]
-        self.SPEEDS = [1500,2500]
+        self.SPEEDS = [2000,3000]
         self.SHAPE_CONTRAST = 0.5
         self.SHAPE_BACKGROUND = 0.1
         self.SHAPE = 'rect'
@@ -218,6 +220,7 @@ class TestCommonExperimentConfig(experiment.ExperimentConfig):
         SHAPE_SIZE = 100
         SPEEDS = [1000.0]
         DIRECTIONS = [90]
+        REPETITIONS=1
         self._create_parameters_from_locals(locals())
                                  
         
@@ -241,19 +244,19 @@ class Debug(experiment.Experiment):
         
 class TestStimulusBlockParams(experiment.ExperimentConfig):
     def _create_parameters(self):
-        self.COLORS = [0, 100, 0.0, 1.0, 0.5, [1.0, 0.0, 0.0]]
+        self.COLORS = [0.1, 0.6]
         self.T_FULLSCREEN = 2.0
         self.IMAGE_FOLDERS = []
-        self.IMAGE_STRETCHES = [1.0, 0.5, 1.4]
+        self.IMAGE_STRETCHES = [0.5, 1.4]
         self.T_IMAGE = 1.0
         self.SHAPES = ['rect', 'o']
         self.T_SHAPE = [1.0, 0.0]
         self.POSITIONS = []
-        self.SIZES = [10, 100, utils.rc((100,20))]
+        self.SIZES = [10, utils.rc((100,20))]
         self.T_GRATING = 3.0
-        self.GRATING_PROFILES = ['sqr', 'sine']
-        self.GRATING_WIDTH = [10,100,223.0]
-        self.GRATING_SPEEDS = [0, 10, 100, 1000]
+        self.GRATING_PROFILES = ['sine']
+        self.GRATING_WIDTH = [100]
+        self.GRATING_SPEEDS = [0, 800]
         self.runnable = 'TestStimulusBlocks'
         self._create_parameters_from_locals(locals())
         

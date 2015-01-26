@@ -88,7 +88,7 @@ def generate_lut(x, min = 0.0, max = 1.0, gamma = 1.0, brightness = 0.5, contras
     return y
 
 ######## Signals  ########
-def signal2binary(signal):
+def signal2binary(signal):#TODO: move to signal module
     '''
     Signal is considered true/logic 1 when signal reached the 'high' voltage level (transient is considered as False)
     '''
