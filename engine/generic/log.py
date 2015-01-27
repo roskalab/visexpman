@@ -170,10 +170,8 @@ class Logger(multiprocessing.Process,LoggerHelper):
                     break
                 elif command == 'suspend':
                     self.saving2file_enable = False
-                    self.sources['default'].put('Saving to file suspended')
                 elif command == 'resume':
                     self.saving2file_enable = True
-                    self.sources['default'].put('Resuming file saving')
             if self.saving2file_enable:
                 self.flush()
         self.flush()#Make sure that all entries in queue are saved
@@ -186,7 +184,7 @@ class TestLog(unittest.TestCase):
     def setUp(self):
         import visexpman.engine.vision_experiment.configuration
         self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1](clear_files=True)
-        self.machine_config.application_name='main_ui'
+        self.machine_config.user_interface_name='main_ui'
         self.machine_config.user = 'test'
 
     def test_01_create_logger(self):

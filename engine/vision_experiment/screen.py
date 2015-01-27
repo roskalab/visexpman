@@ -236,7 +236,7 @@ class TestCaImagingScreen(unittest.TestCase):
     def setUp(self):
         from visexpman.users.test.test_configurations import GUITestConfig
         self.config = GUITestConfig()
-        self.config.application_name = 'ca_imaging'
+        self.config.user_interface_name = 'ca_imaging'
         self.config.ENABLE_FRAME_CAPTURE=True
         from visexpman.users.test import unittest_aggregator
         self.config.CAPTURE_PATH = os.path.join(fileop.select_folder_exists(unittest_aggregator.TEST_working_folder),'capture')

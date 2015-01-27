@@ -189,7 +189,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
 def run_main_ui(context):
     context['logger'].start()#This needs to be started separately from application_init ensuring that other logger source can be added 
     gui =  VisionExperimentGui(config=context['machine_config'], 
-                                                        application_name =context['application_name'], 
+                                                        user_interface_name =context['user_interface_name'], 
                                                         log=context['logger'],
                                                         socket_queues = context['socket_queues'],
                                                         warning = context['warning'])
@@ -208,7 +208,7 @@ def stimulation_tester(user, machine_config, experiment_config, **kwargs):
     '''
     Runs the provided experiment config and terminates
     '''
-    context = visexpman.engine.application_init(user = user, config = machine_config, application_name = 'stim',enable_sockets=False)
+    context = visexpman.engine.application_init(user = user, config = machine_config, user_interface_name = 'stim',enable_sockets=False)
     for k,v in kwargs.items():
         setattr(context['machine_config'], k, v)
     if context['machine_config'].ENABLE_FRAME_CAPTURE:
@@ -240,7 +240,7 @@ def run_application():
     with warnings.catch_warnings(record=True) as w:
         context = visexpman.engine.application_init()
         context['warning'] = w
-        globals()['run_{0}'.format(context['application_name'])](context)
+        globals()['run_{0}'.format(context['user_interface_name'])](context)
         visexpman.engine.stop_application(context)
 
 class TestStim(unittest.TestCase):
@@ -251,11 +251,11 @@ class TestStim(unittest.TestCase):
             self.configname = 'GUITestConfig'
         #Erase work folder, including context files
         self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
-        self.machine_config.application_name='stim'
+        self.machine_config.user_interface_name='stim'
         self.machine_config.user = 'test'
         fileop.cleanup_files(self.machine_config)
         if '_08_' not in self._testMethodName:
-            self.context = visexpman.engine.application_init(user = 'test', config = self.configname, application_name = 'stim')
+            self.context = visexpman.engine.application_init(user = 'test', config = self.configname, user_interface_name = 'stim')
         self.dont_kill_processes = introspect.get_python_processes()
         
     def _send_commands_to_stim(self, commands):
@@ -399,7 +399,7 @@ class TestStim(unittest.TestCase):
         visexpman.engine.stop_application(self.context)
         time.sleep(15.0)
         #Start stim again
-        self.context = visexpman.engine.application_init(user = 'test', config =self.configname, application_name = 'stim')
+        self.context = visexpman.engine.application_init(user = 'test', config =self.configname, user_interface_name = 'stim')
         run_stim(self.context,timeout=5)
         saved_context2 = utils.array2object(hdf5io.read_item(fileop.get_context_filename(self.context['machine_config']), 'context', self.context['machine_config']))
         self.assertEqual(saved_context2['background_color'], 0.5)

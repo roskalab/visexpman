@@ -1056,9 +1056,9 @@ class ExperimentControl(gui.WidgetControl):
                 hh = hdf5io.Hdf5io(fileop.get_recording_path(rec[0], self.config, prefix = 'sync'),filelocking=False)
                 hh.sync_and_elphys_data = sync_and_elphys_data
                 hh.conversion_factor = float216bit_factor
-                setattr(hh, 'software_environment_{0}'.format(self.machine_config.application_name), experiment_data.pack_software_environment())
-                setattr(hh, 'configs_{0}'.format(self.machine_config.application_name), experiment_data.pack_configs(self))
-                hh.save(['sync_and_elphys_data', 'conversion_factor', 'software_environment_{0}'.format(self.machine_config.application_name), 'configs_{0}'.format(self.machine_config.application_name)])
+                setattr(hh, 'software_environment_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_software_environment())
+                setattr(hh, 'configs_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_configs(self))
+                hh.save(['sync_and_elphys_data', 'conversion_factor', 'software_environment_{0}'.format(self.machine_config.user_interface_name), 'configs_{0}'.format(self.machine_config.user_interface_name)])
                 hh.close()
             else:
                 self.printc('ERROR: number of running or preparing records is {0}'.format(len(rec)))

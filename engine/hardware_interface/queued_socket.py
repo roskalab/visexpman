@@ -147,14 +147,14 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
         if hasattr(self.log, 'info'):
             self.log.info('process ended', self.socket_name)
 
-def start_sockets(appname, config, log, enable_sockets):
+def start_sockets(uiname, config, log, enable_sockets):
     '''
-    Starts sockets depending on config.CONNECTIONS and appname.
+    Starts sockets depending on config.CONNECTIONS and uiname.
     '''
     sockets = {}
-    if appname == 'main_ui':
+    if uiname == 'main_ui':
         for server_name in config.CONNECTIONS.keys():
-            sockets[server_name] = QueuedSocket('{0}-{1} socket'.format(appname, server_name), 
+            sockets[server_name] = QueuedSocket('{0}-{1} socket'.format(uiname, server_name), 
                                                                                     False, #client started
                                                                                     config.CONNECTIONS[server_name]['port'],
                                                                                     multiprocessing.Queue(), 
@@ -162,12 +162,12 @@ def start_sockets(appname, config, log, enable_sockets):
                                                                                     ip= config.CONNECTIONS[server_name]['ip']['main_ui'],
                                                                                     log=log)
     else:
-        sockets[appname] = QueuedSocket('{0}-{1} socket'.format(appname, 'main_ui'), 
+        sockets[uiname] = QueuedSocket('{0}-{1} socket'.format(uiname, 'main_ui'), 
                                                                                     True, #server started
-                                                                                    config.CONNECTIONS[appname]['port'],
+                                                                                    config.CONNECTIONS[uiname]['port'],
                                                                                     multiprocessing.Queue(), 
                                                                                     multiprocessing.Queue(), 
-                                                                                    ip = config.CONNECTIONS[appname]['ip'][appname],
+                                                                                    ip = config.CONNECTIONS[uiname]['ip'][uiname],
                                                                                     log=log)
     if not ((introspect.is_test_running() and platform.system()=='Windows') and '--testmode' in sys.argv) and enable_sockets:
         [s.start() for s in sockets.values()]#Not run when unittests of gui are executed on windows platform
@@ -208,7 +208,7 @@ class TestQueuedSocket(unittest.TestCase):
         import os.path
         config = GUITestConfig()
         config.user = 'test'
-        config.application_name = 'main_ui'
+        config.user_interface_name = 'main_ui'
         server = QueuedSocket('server', True, self.port, multiprocessing.Queue(), multiprocessing.Queue())
         client = QueuedSocket('client', False, self.port, multiprocessing.Queue(), multiprocessing.Queue(), ip='localhost')
         client.start()
@@ -283,13 +283,13 @@ class TestQueuedSocket(unittest.TestCase):
         import os.path
         config = GUITestConfig()
         config.user = 'test'
-        appnames = ['main_ui']
-        appnames.extend(config.CONNECTIONS.keys())
+        uinames = ['main_ui']
+        uinames.extend(config.CONNECTIONS.keys())
         logfiles = []
-        for appname in appnames:
-            config.application_name = appname
+        for uiname in uinames:
+            config.user_interface_name = uiname
             logger = log.Logger(filename=fileop.get_logfilename(config), remote_logpath = config.REMOTE_LOG_PATH)
-            sockets = start_sockets(appname, config, log=logger, enable_sockets = True)#Unit under test
+            sockets = start_sockets(uiname, config, log=logger, enable_sockets = True)#Unit under test
             logger.start()
             time.sleep(4.0)
             stop_sockets(sockets)

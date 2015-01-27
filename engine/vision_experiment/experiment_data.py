@@ -95,9 +95,11 @@ def pack_configs(self):
     configs = {}
     configs['serialized'] = {}
     for confname in ['machine_config', 'experiment_config']:
-        if hasattr(self, confname):#Experiment config might not be relevant/available
+        if hasattr(self, confname):#Experiment config might not be available
             configs['serialized'][confname] = getattr(self,confname).serialize()
             configs[confname] = getattr(self,confname).todict()
+            if configs[confname].has_key('GAMMA_CORRECTION'):
+                del configs[confname]['GAMMA_CORRECTION']#interpolator object, cannot be pickled
     return configs
 
 def load_config(numpy_array):

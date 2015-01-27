@@ -1009,12 +1009,12 @@ class CentralWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
-    def __init__(self, config=None, application_name=None, log = None, socket_queues = None, warning = []):
+    def __init__(self, config=None, user_interface_name=None, log = None, socket_queues = None, warning = []):
         if QtCore.QCoreApplication.instance() is None:
             qt_app = Qt.QApplication([])
 #            qt_app.setStyleSheet(fileop.read_text_file('/home/rz/Downloads/QTDark.stylesheet'))
 #            qt_app.setStyle('windows')
-        self.source_name = '{0}' .format(application_name)
+        self.source_name = '{0}' .format(user_interface_name)
         self.config = config
         self.log = log
         self.socket_queues = socket_queues
@@ -1307,8 +1307,8 @@ class VisionExperimentGui(Qt.QMainWindow):
 
     ################# Helper functions ####################
     def _set_window_title(self, animal_file=''):
-        if not self.config.APPLICATION_NAMES.has_key(self.config.application_name):
-            raise MachineConfigError('Unknown application name: {0}' .format(self.config.application_name))
+        if not self.config.USER_INTERFACE_NAMES.has_key(self.config.user_interface_name):
+            raise MachineConfigError('Unknown application name: {0}' .format(self.config.user_interface_name))
         self.setWindowTitle('{0} - {1}' .format(utils.get_window_title(self.config), animal_file) )
         
     def select_recording_item(self, row, state):
@@ -1332,7 +1332,7 @@ class testVisionExperimentGui(unittest.TestCase):
     def setUp(self):
         from visexpman.users.test.test_configurations import GUITestConfig
         self.machine_config = GUITestConfig()
-        self.machine_config.application_name='main_ui'
+        self.machine_config.user_interface_name='main_ui'
         self.machine_config.user = 'test'
         fileop.cleanup_files(self.machine_config)
         self.test_13_14_expected_values = (1, 'done', 'C2', 1.0, 'um/pixel', utils.rc((200.0, 200.0)), 'DebugExperimentConfig', 10.0, ['SIDE'], utils.rc((10.0, 0.0)))     
@@ -1575,7 +1575,7 @@ class testVisionExperimentGui(unittest.TestCase):
         self._call_gui(12)
         
 #        from visexpman.engine.visexp_app import run_main_ui
-#        context = visexpman.engine.application_init(user='test', config ='GUITestConfig', application_name='main_ui')
+#        context = visexpman.engine.application_init(user='test', config ='GUITestConfig', user_interface_name='main_ui')
 #        context['machine_config'].testmode=12
 #        run_main_ui(context)
 #        visexpman.engine.stop_application(context)

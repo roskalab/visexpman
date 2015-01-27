@@ -365,19 +365,19 @@ def get_context_filename(config):
     if not hasattr(config, 'CONTEXT_PATH'):
         raise RuntimeError('CONTEXT_PATH is not defined in machine config')
     import platform
-    filename = 'context_{0}_{1}_{2}.hdf5'.format(config.application_name, config.user, platform.uname()[1])
+    filename = 'context_{0}_{1}_{2}.hdf5'.format(config.user_interface_name, config.user, platform.uname()[1])
     return os.path.join(config.CONTEXT_PATH, filename)
     
 def get_logfilename(config):
     '''
-    filename format: log_<machine config name>_<username>_<application_name>_yy-mm-dd-hhmm.txt
+    filename format: log_<machine config name>_<username>_<user_interface_name>_yy-mm-dd-hhmm.txt
     '''
-    expected_attributes = ['user', 'application_name', 'LOG_PATH']
+    expected_attributes = ['user', 'user_interface_name', 'LOG_PATH']
     if not all([hasattr(config, expected_attribute) for expected_attribute in expected_attributes]):
         from visexpman.engine import MachineConfigError
-        raise MachineConfigError('LOG_PATH, user and application_name shall be an attribute in machine config')
+        raise MachineConfigError('LOG_PATH, user and user_interface_name shall be an attribute in machine config')
     while True:
-        filename =  os.path.join(config.LOG_PATH, 'log_{0}_{1}_{2}_{3}.txt'.format(config.__class__.__name__, config.user, config.application_name, utils.datetime_string()))
+        filename =  os.path.join(config.LOG_PATH, 'log_{0}_{1}_{2}_{3}.txt'.format(config.__class__.__name__, config.user, config.user_interface_name, utils.datetime_string()))
         if not os.path.exists(filename):
             break
         time.sleep(1.0)

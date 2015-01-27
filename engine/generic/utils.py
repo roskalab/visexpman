@@ -96,7 +96,7 @@ def signal2binary(signal):#TODO: move to signal module
 
 
 def get_window_title(config):
-    return '{0} - {1} - {2}' .format(config.APPLICATION_NAMES[config.application_name], config.user, config.__class__.__name__) 
+    return '{0} - {1} - {2}' .format(config.USER_INTERFACE_NAMES[config.user_interface_name], config.user, config.__class__.__name__) 
 
 #== Coordinate geometry ==
 #TODO: check for redundant functions in this section
@@ -1292,7 +1292,7 @@ def printl(self, message, loglevel='info', stdio = True):
     if stdio:
         sys.stdout.write(message_string+'\n')
     if hasattr(self.log, loglevel):
-        getattr(self.log, loglevel)(message_string, self.machine_config.application_name)
+        getattr(self.log, loglevel)(message_string, self.machine_config.user_interface_name)
 
 class TestUtils(unittest.TestCase):
     def setUp(self):

@@ -47,7 +47,7 @@ def application_init(**kwargs):
     Logger process started.
 
     '''
-    parnames = ['user', 'config', 'application_name']
+    parnames = ['user', 'config', 'user_interface_name']
     args = {}
     if len(kwargs) < 3:#Find user, machine config and application name from command line parameters
         import sys
@@ -59,7 +59,7 @@ def application_init(**kwargs):
             argparser= unittest_aggregator.argparser
         argparser.add_argument('-u', '--user', help = 'User of the application. A subfolder with this name shall exists visexpman.engine.users folder.')
         argparser.add_argument('-c', '--config', help = 'Machine config that reside in either user\'s folder or in visexpman.users.common')
-        argparser.add_argument('-a', '--application_name', help = 'Application to be started: main_ui, stim, ca_imaging')
+        argparser.add_argument('-a', '--user_interface_name', help = 'Application to be started: main_ui, stim, ca_imaging')
         argparser.add_argument('--testmode', help = 'Test mode')
         parsed_args = argparser.parse_args()
         for parname in parnames:
@@ -79,7 +79,7 @@ def application_init(**kwargs):
     machine_config = config_class[0][1]()
     #Add app name and user to machine config
     machine_config.user = args['user']
-    machine_config.application_name = args['application_name']
+    machine_config.user_interface_name = args['user_interface_name']
     #Add testmode
     if 'parsed_args' in locals():
         tm=getattr(parsed_args,'testmode')
@@ -109,12 +109,12 @@ def application_init(**kwargs):
     if log_sources is not None:
         map(logger.add_source, log_sources)
     else:
-        logger.add_source(machine_config.application_name)
+        logger.add_source(machine_config.user_interface_name)
     #add application specific log sources
-    if machine_config.application_name=='ca_imaging' or machine_config.application_name=='main_ui':
+    if machine_config.user_interface_name=='ca_imaging' or machine_config.user_interface_name=='main_ui':
         logger.add_source('daq')
     #Set up network connections
-    sockets = queued_socket.start_sockets(machine_config.application_name, machine_config, logger, kwargs.get('enable_sockets', True))
+    sockets = queued_socket.start_sockets(machine_config.user_interface_name, machine_config, logger, kwargs.get('enable_sockets', True))
     if machine_config.PLATFORM == 'rc_cortical' or machine_config.PLATFORM == 'ac_cortical' :
         raise NotImplementedError('Here comes the initialization of MES non zmq sockets')
     if utils.get_key(kwargs, 'log_start') :
@@ -124,7 +124,7 @@ def application_init(**kwargs):
     context['logger'] = logger
     context['sockets'] = sockets
     context['socket_queues'] = queued_socket.get_queues(sockets)
-    context['application_name'] = args['application_name']
+    context['user_interface_name'] = args['user_interface_name']
     context['command'] = multiprocessing.Queue()
     context['warning'] = []
     return context
@@ -154,23 +154,23 @@ class TestApplicationInit(unittest.TestCase):
   # @unittest.skip('')
     def test_02_no_command_line_args(self):
 
-        self.context = application_init(user='test', config='GUITestConfig', application_name='main_ui',log_start=True)
+        self.context = application_init(user='test', config='GUITestConfig', user_interface_name='main_ui',log_start=True)
         
 #    @unittest.skip('')
     def test_03_invalid_config(self):
-        self.assertRaises(RuntimeError,  application_init, user='test', config='GUITestConfig1', application_name='main_ui',log_start = True)
+        self.assertRaises(RuntimeError,  application_init, user='test', config='GUITestConfig1', user_interface_name='main_ui',log_start = True)
         
 #    @unittest.skip('')
     def test_04_freespace_warning(self):
         import warnings
         warnings.simplefilter("always")
         with warnings.catch_warnings(record=True) as w:
-            self.context = application_init(user='test', config='AppInitTest4Config', application_name='main_ui',log_start=True)
+            self.context = application_init(user='test', config='AppInitTest4Config', user_interface_name='main_ui',log_start=True)
             self.assertEqual('Running out of free space on' in str(w[-1].message), True)
         
 #    @unittest.skip('')
     def test_05_freespace_error(self):
-        self.assertRaises(FreeSpaceError, application_init, user='test', config='AppInitTest5Config', application_name='main_ui',log_start=True)
+        self.assertRaises(FreeSpaceError, application_init, user='test', config='AppInitTest5Config', user_interface_name='main_ui',log_start=True)
     
 if __name__=='__main__':
     unittest.main()

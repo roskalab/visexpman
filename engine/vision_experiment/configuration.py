@@ -86,7 +86,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         
         ############## General platform parameters ###############
         PLATFORM = ['undefined', ['elphys_retinal_ca', 'rc_cortical', 'ao_cortical', 'mc_mea', 'hi_mea', 'mea', 'epos','behav','standalone', 'smallapp', 'undefined']]
-        APPLICATION_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
+        USER_INTERFACE_NAMES = {'main_ui':'Main User Interface', 'ca_imaging': 'Calcium imaging', 'stim':'Stimulation', 'analysis': 'Online Analysis'}
         
         ############## File/Filesystem related ###############
         FREE_SPACE_WARNING_THRESHOLD = [2.0**30, [1.0, 2.0**40]]
@@ -323,8 +323,8 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         ELPHYS_SYNC_RECORDING['SYNC_INDEXES'] = [2,3,4,5]#stim frame sync, y scanner, imaging frame sync, block trigger
         
         DATA_FILE_NODES = ['raw_data', 'imaging_run_info', 'sync_and_elphys_data', 'conversion_factor', 'recording_parameters']
-        for an in self.APPLICATION_NAMES:
-            DATA_FILE_NODES.extend('config_{0}'.format(an), 'software_{0}'.format(an))
+        for an in self.USER_INTERFACE_NAMES:
+            DATA_FILE_NODES.extend(['config_{0}'.format(an), 'software_{0}'.format(an)])
         #Scanner dynamics
         XMIRROR_MAX_FREQUENCY = [1400.0, [50.0, 2200.0]]
         Y_MIRROR_MIN_FLYBACK_TIME = [1e-3, [0.66e-3, 100e-3]]

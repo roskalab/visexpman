@@ -277,9 +277,9 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                         frame_converted = self._pmt_voltage2_16bit(frame_converted)
                     self._save_data(frame_converted)
             self.datafile.imaging_run_info = {'acquired_frames': self.frame_ct, 'start': self.t0, 'end':self.t2, 'duration':self.t2-self.t0 }
-            setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.application_name), experiment_data.pack_software_environment())
-            setattr(self.datafile, 'configs_{0}'.format(self.machine_config.application_name), experiment_data.pack_configs(self))
-            nodes2save = ['imaging_parameters', 'imaging_run_info', 'software_environment_{0}'.format(self.machine_config.application_name), 'configs_{0}'.format(self.machine_config.application_name)]
+            setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_software_environment())
+            setattr(self.datafile, 'configs_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_configs(self))
+            nodes2save = ['imaging_parameters', 'imaging_run_info', 'software_environment_{0}'.format(self.machine_config.user_interface_name), 'configs_{0}'.format(self.machine_config.user_interface_name)]
             self.datafile.save(nodes2save)
             self.printl('Data saved to {0}'.format(self.datafile.filename))
             self.datafile.close()
@@ -465,7 +465,6 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.log.resume()
         self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
         self.printl('Stimulation ended, saving data to file')
-        self._prepare_data2save()
         self._save2file()
         self.send({'trigger':'stim data ready'})
     
@@ -480,15 +479,16 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         Pack software enviroment and configs
         '''
-        setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.application_name), experiment_data.pack_software_environment())
-        setattr(self.datafile, 'configs_{0}'.format(self.machine_config.application_name), experiment_data.pack_configs(self))
+        setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.user_interface_name), utils.object2array(experiment_data.pack_software_environment()))
+        setattr(self.datafile, 'configs_{0}'.format(self.machine_config.user_interface_name), utils.object2array(experiment_data.pack_configs(self)))
         
     def _save2file(self):
         '''
         Certain variables are saved to hdf5 file
         '''
-        variables2save = ['stimulus_frame_info', 'configs_{0}'.format(self.machine_config.application_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.application_name)]#['experiment_name', 'experiment_config_name']
+        variables2save = ['stimulus_frame_info', 'configs_{0}'.format(self.machine_config.user_interface_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.user_interface_name)]#['experiment_name', 'experiment_config_name']
         self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.parameters, self.machine_config, prefix = 'stim'),filelocking=False)
+        self._prepare_data2save()
         res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v)]
         self.datafile.save(variables2save)
         self.datafile.close()
@@ -1265,10 +1265,10 @@ class TestCaImaging(unittest.TestCase):
         #Erase work folder, including context files
         import visexpman.engine.vision_experiment.configuration
         self.machine_config = utils.fetch_classes('visexpman.users.test', 'GUITestConfig', required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
-        self.machine_config.application_name='ca_imaging'
+        self.machine_config.user_interface_name='ca_imaging'
         self.machine_config.user = 'test'
         fileop.cleanup_files(self.machine_config)
-        self.context = visexpman.engine.application_init(user = 'test', config = self.configname, application_name = 'ca_imaging')
+        self.context = visexpman.engine.application_init(user = 'test', config = self.configname, user_interface_name = 'ca_imaging')
         self.dont_kill_processes = introspect.get_python_processes()
         self._scanning_params()
         

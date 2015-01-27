@@ -1,5 +1,5 @@
 @echo off
-set appname=main_ui
+set uiname=main_ui
 :: folders
 set install_source_folder=M:\Zoltan\visexpman_installer
 set tmp_folder=c:\temp\visexp_installers
@@ -85,9 +85,9 @@ if not exist "c:\visexp" (
 )
 if exist "c:\visexp" (
     echo Copy application starters to Desktop
-    if %appname%==main_ui copy "c:\visexp\visexpman\main_ui.bat" "%USERPROFILE%\Desktop\main_ui.bat"
-    if %appname%==ca_imaging copy "c:\visexp\visexpman\ca_imaging.bat" "%USERPROFILE%\Desktop\ca_imaging.bat"
-    if %appname%==stim (
+    if %uiname%==main_ui copy "c:\visexp\visexpman\main_ui.bat" "%USERPROFILE%\Desktop\main_ui.bat"
+    if %uiname%==ca_imaging copy "c:\visexp\visexpman\ca_imaging.bat" "%USERPROFILE%\Desktop\ca_imaging.bat"
+    if %uiname%==stim (
         copy "c:\visexp\visexpman\stim.bat" "%USERPROFILE%\Desktop\stim.bat"
         copy "c:\visexp\visexpman\projector_calibration.bat" "%USERPROFILE%\Desktop\projector_calibration.bat"
         copy "c:\visexp\visexpman\check_projector_calibration.bat" "%USERPROFILE%\Desktop\check_projector_calibration.bat"

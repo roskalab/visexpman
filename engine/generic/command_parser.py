@@ -20,7 +20,7 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
         self.config = machine_config
         self.command = command
         self.log = log
-        self.log_source_name = self.machine_config.application_name
+        self.log_source_name = self.machine_config.user_interface_name
         if hasattr(self.log, 'add_source'):
             self.log.add_source(self.log_source_name)
         self.exit=False

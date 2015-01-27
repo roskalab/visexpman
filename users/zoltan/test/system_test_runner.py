@@ -19,10 +19,10 @@ from visexpman.engine.generic import command_parser
 from visexpA.engine.datahandlers import matlabfile
 
 class VisexpAppRunner(threading.Thread):
-    def __init__(self, appname):
-        if appname == 'visexp_runner':
+    def __init__(self, uiname):
+        if uiname == 'visexp_runner':
             self.command = 'python {0} {1} {2}'.format(os.path.join(os.path.split(visexpman.__file__)[0], 'engine', 'visexp_runner.py'), sys.argv[1], sys.argv[2])
-        elif appname == 'jobhandler':
+        elif uiname == 'jobhandler':
             self.command = 'python {0} {1} {2}'.format(os.path.join(os.path.split(visexpA.__file__)[0], 'engine', 'jobhandler.py'), sys.argv[1], sys.argv[2])
         threading.Thread.__init__(self)
         
@@ -143,8 +143,8 @@ class MESCommandParser(command_parser.CommandParser):
     
 if __name__ == '__main__':
     var = []
-    for appname in ['visexp_runner', 'jobhandler']:
-        var.append(VisexpAppRunner(appname))
+    for uiname in ['visexp_runner', 'jobhandler']:
+        var.append(VisexpAppRunner(uiname))
     for v in var:
         v.start()
     messim = MESSimulator()
