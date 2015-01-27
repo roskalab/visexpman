@@ -2712,6 +2712,9 @@ class VisexpGuiPoller(Poller):
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentIndex', 
                                           'self.parent.central_widget.ca_displays.averaging.input.text',
+                                          'self.parent.central_widget.main_widget.toolbox.bullseye_type.currentIndex',
+                                          'self.parent.central_widget.main_widget.toolbox.bullseye_size.input.text',
+                                          
                                           ]
         for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
             self.context_paths['widgets'].append('self.parent.central_widget.ca_displays.display_configs[{0}].enable.checkState'.format(i))
@@ -2783,6 +2786,7 @@ class VisexpGuiPoller(Poller):
         if self.context['variables'].has_key('self.parent.central_widget.parameters_groupbox.machine_parameters'):
             self.parent.central_widget.parameters_groupbox.machine_parameters = self.context['variables']['self.parent.central_widget.parameters_groupbox.machine_parameters']
         self.visualisation_control = gui.CaImagingVisualisationControl(self, self.config, self.parent.central_widget.ca_displays)
+        self.toolbox = gui.RetinaTools(self, self.config, self.parent.central_widget.main_widget.toolbox)
 
     def connect_signals(self):
         self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)

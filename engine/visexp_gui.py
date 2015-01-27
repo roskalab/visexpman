@@ -1105,10 +1105,15 @@ class VisionExperimentGui(Qt.QMainWindow):
                                   [self.central_widget.ca_displays.snap, 'experiment_control.snap_ca_image'],
                                   [self.central_widget.ca_displays.live_scan_start, 'experiment_control.live_scan_start'],
                                   [self.central_widget.ca_displays.live_scan_stop, 'experiment_control.live_scan_stop'],
+                                  [self.central_widget.main_widget.toolbox.bullseye_toggle, 'toolbox.toggle_bullseye'],
+                                  [self.central_widget.main_widget.toolbox.filterwheel0, 'toolbox.set_filterwheel0', 'currentIndexChanged'],
+                                  [self.central_widget.main_widget.toolbox.filterwheel1, 'toolbox.set_filterwheel1', 'currentIndexChanged'],
+                                  [self.central_widget.main_widget.toolbox.grey_level, 'toolbox.set_color', 'currentIndexChanged'],
+                                  [self.central_widget.main_widget.toolbox.projector_enable.input, 'toolbox.set_projector', 'stateChanged'],
                                   ]
         
         for item in widget2poller_function:
-            gui_generic.connect_and_map_signal(self, item[0],item[1])
+            gui_generic.connect_and_map_signal(self, *item)
         
         #display config changed    
         function_link = 'visualisation_control.generate_display_configuration'

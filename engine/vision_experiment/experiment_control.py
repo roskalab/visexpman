@@ -45,6 +45,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         self.limits['timeout'] = self.config.TWO_PHOTON_DAQ_TIMEOUT
         self.instrument_name = 'daq'
         self.laser_on = False
+        self.projector_state = False
         self.daq_logger_queue = self.log.get_queues()[self.instrument_name]
         
         
@@ -94,7 +95,8 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             if self.imaging_started:
                 self.live_scan_stop()
             self.abort = False
-                
+        if not self.imaging_started:
+            daq_instrument.set_voltage(self.config.TWO_PHOTON_PINOUT['PROJECTOR_CONTROL'], self.config.STIMULATION_TRIGGER_AMPLITUDE if self.projector_state else 0.0)
         self.read_imaging_data()
         self.refresh()
 #        self.printl(self.ct)
@@ -149,7 +151,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         if xy_scanner_only:
             waveforms *= numpy.array([[1,1,0,0]]).T
         return waveforms
-        
+
     def live_scan_start(self, parameters):
         if self.imaging_started:
             self.printl('Live scan already running, stoping it then starting')
@@ -467,14 +469,14 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.printl('Stimulation ended, saving data to file')
         self._save2file()
         self.send({'trigger':'stim data ready'})
-    
+
     def printl(self, message, loglevel='info', stdio = True):
         utils.printl(self, message, loglevel, stdio)
-        
+
     def check_abort(self):
         if is_key_pressed(self.machine_config.KEYS['abort']) or utils.get_key(self.recv(put_message_back=True), 'function') == 'stop_all':
             self.abort = True
-        
+
     def _prepare_data2save(self):
         '''
         Pack software enviroment and configs

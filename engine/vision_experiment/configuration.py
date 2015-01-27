@@ -52,24 +52,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             CAPTURE_PATH = '/media/Common/visexpman_data/Capture'
             
         GUI_CONFIGURABLE_STIMULATION_DEVICES: generating stimulation on these devices can be done without an existing experiment config. The (timing) parameters are taken from the user interface.
-        
-        FILTERWHEEL_SERIAL_PORT = [{
-                                    'port' :  port,
-                                    'baudrate' : 115200,
-                                    'parity' : serial.PARITY_NONE,
-                                    'stopbits' : serial.STOPBITS_ONE,
-                                    'bytesize' : serial.EIGHTBITS,                                    
-                                    }]
-                                    
-        FILTERWHEEL_FILTERS = [{
-                                                'ND0': 1, 
-                                                'ND10': 2, 
-                                                'ND20': 3, 
-                                                'ND30': 4, 
-                                                'ND40': 5, 
-                                                'ND50': 6, 
-                                                }]
-                                                
+
         '''        
         visexpman.engine.generic.configuration.Config._create_application_parameters(self)
         
@@ -285,6 +268,20 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
     
         
 class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
+    '''
+        FILTERWHEEL = [{
+                        'port' :  port,
+                        'baudrate' : 115200,
+                        'filters' : {
+                                                'ND0': 1, 
+                                                'ND10': 2, 
+                                                'ND20': 3, 
+                                                'ND30': 4, 
+                                                'ND40': 5, 
+                                                'ND50': 6, 
+                                                }
+                        }]
+    '''
     def _create_application_parameters(self):
         VisionExperimentConfig._create_application_parameters(self)
         ################ Ca imaging GUI #######################
@@ -311,6 +308,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'] = 'Dev1/port0/line0'
         TWO_PHOTON_PINOUT['PMT_ANALOG_INPUT_CHANNELS'] = 'Dev1/ai0:1'
         TWO_PHOTON_PINOUT['CA_IMAGING_CONTROL_SIGNAL_CHANNELS'] = 'Dev1/ao0:3'
+        TWO_PHOTON_PINOUT['PROJECTOR_CONTROL'] = 'Dev1/ao2'
         TWO_PHOTON_DAQ_TIMEOUT = [10.0, [0.1, 60.0]]
         
         ELPHYS_SYNC_RECORDING={}

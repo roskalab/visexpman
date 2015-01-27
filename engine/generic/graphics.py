@@ -470,6 +470,9 @@ class Screen(object):
         pass
 
     def draw_L(self, size,position):
+        '''
+        size: the longer side of the L
+        '''
         width = 0.25*size
         lenght1=size
         lenght2=0.5 * size

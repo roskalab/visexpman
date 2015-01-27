@@ -292,57 +292,15 @@ class Shutter(Instrument):
                 except AttributeError:
                     pass
 
-class Filterwheel(Instrument):#TODO: all parameters need to be collected to one dictionary
-    def init_communication_interface(self):
-        self.position = -1        
-        if self.config.ENABLE_FILTERWHEEL:
-            self.serial_port = serial.Serial(port =self.config.FILTERWHEEL_SERIAL_PORT[self.id]['port'], 
-                                                    baudrate = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['baudrate'],
-                                                    parity = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['parity'],
-                                                    stopbits = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['stopbits'],
-                                                    bytesize = self.config.FILTERWHEEL_SERIAL_PORT[self.id]['bytesize'])
-        try:
-            if os.name != 'nt':
-                self.serial_port.open()
-        except AttributeError:
-            pass
+def set_filterwheel(filter, config):
+    '''
+    config is expected to have port baudrate and filters keys
+    '''
+    serial_port = serial.Serial(port = config['port'], baudrate = config['baudrate'])
+    serial_port.write('pos='+str(config['filter'][filter]) +'\r')
+    time.sleep(2)
+    serial_port.close()
 
-    def set(self,  position = -1, log = True):
-        if self.config.ENABLE_FILTERWHEEL:
-            if self.config.FILTERWHEEL_VALID_POSITIONS[0] <= position and self.config.FILTERWHEEL_VALID_POSITIONS[1] >= position:
-                self.serial_port.write('pos='+str(position) +'\r')
-                time.sleep(self.config.FILTERWHEEL_SETTLING_TIME)
-                self.position = position
-            else:
-                raise RuntimeError('Invalid filter position')
-                
-            #logging
-            if log:
-                self.log_during_experiment('Filterwheel set to %i' % position)
-        
-    def set_filter(self,  filter = '', log = True):
-        if self.config.ENABLE_FILTERWHEEL:
-            position_to_set = -1
-            for k,  v in self.config.FILTERWHEEL_FILTERS[self.id].items():
-                if k == filter:
-                    position_to_set = self.config.FILTERWHEEL_FILTERS[self.id][k]
-                    
-            if position_to_set != -1:
-                self.set(position_to_set, log = False)
-            else:
-                raise RuntimeError('Invalid filter name')
-                
-            #logging
-            if log:
-                self.log_during_experiment('Filterwheel set to %s' % filter)                
-
-    def close_communication_interface(self):
-        if self.config.ENABLE_FILTERWHEEL:
-            try:
-                self.serial_port.close()
-            except AttributeError:
-                pass
-            
 class testConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):        
             
@@ -444,68 +402,6 @@ class TestParallelPort(unittest.TestCase):
         p.set_data_bit(0, True)        
         self.assertEqual((p.iostate),  ({'data': 0, 'data_strobe' : 0, 'auto_feed': 0}))
         p.release_instrument()        
-
-class TestFilterwheel(unittest.TestCase):
-    def setUp(self):
-        self.state = 'experiment running'
-        self.config = testConfig()
-        self.experiment_control = testLogClass(self.config)
-        
-    def tearDown(self):
-        self.experiment_control.handler.flush()
-#test constructor
-    @unittest.skipIf(not unittest_aggregator.TEST_filterwheel,  'Filterwheel tests disabled')
-    def test_01_filterwheel_communication_port_open(self):        
-        fw = Filterwheel(self.config, self.experiment_control)        
-        self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (True, -1, 'ready'))
-        fw.release_instrument()
-
-    @unittest.skipIf(not unittest_aggregator.TEST_filterwheel,  'Filterwheel tests disabled')
-    def test_02_filterwheel_communication_port_open_with_invalid_configuration_1(self):        
-        self.config.FILTERWHEEL_SERIAL_PORT[0]['port'] = '/dev/mismatch/ttyUSB0'        
-        self.assertRaises(serial.SerialException,  Filterwheel,  self.config, self.experiment_control)        
-
-    @unittest.skipIf(not unittest_aggregator.TEST_filterwheel,  'Filterwheel tests disabled')
-    def test_03_filterwheel_communication_port_open_with_invalid_configuration_2(self):        
-        self.config.FILTERWHEEL_SERIAL_PORT[0]['parity'] = 1
-        self.assertRaises(ValueError,  Filterwheel,  self.config, self.experiment_control)         
-        
-#test set position
-    @unittest.skipIf(not unittest_aggregator.TEST_filterwheel,  'Filterwheel tests disabled')
-    def test_04_set_filterwheel_position(self):        
-        fw = Filterwheel(self.config, self.experiment_control)
-        fw.set(1)
-        self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (True, 1, 'ready'))
-        fw.release_instrument()
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_filterwheel,  'Filterwheel tests disabled')
-    def test_05_set_filterwheel_invalid_position(self):
-        self.config = testConfig()
-        fw = Filterwheel(self.config, self.experiment_control)        
-        self.assertRaises(RuntimeError,  fw.set,  100)
-        fw.release_instrument()
-        
-#test set filterwheel
-    @unittest.skipIf(not unittest_aggregator.TEST_filterwheel,  'Filterwheel tests disabled')
-    def test_06_set_filter(self):        
-        fw = Filterwheel(self.config, self.experiment_control)
-        fw.set_filter('ND50')
-        self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (True, 6, 'ready'))
-        fw.release_instrument()
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_filterwheel,  'Filterwheel tests disabled')        
-    def test_07_set_invalid_filter_name(self):
-        fw = Filterwheel(self.config, self.experiment_control)
-        self.assertRaises(RuntimeError,  fw.set_filter,  10)
-        fw.release_instrument()
-        
-    @unittest.skipIf(not unittest_aggregator.TEST_filterwheel,  'Filterwheel tests disabled')        
-    def test_08_set_filterwheel_position_when_disabled(self):        
-        self.config.ENABLE_FILTERWHEEL = False
-        fw = Filterwheel(self.config, self.experiment_control)
-        fw.set(1)
-        self.assertEqual((hasattr(fw, 'serial_port'), fw.position, fw.state), (False, -1, 'ready'))
-        fw.release_instrument()
         
 class DummyInstrumentProcess(InstrumentProcess):
     def run(self):

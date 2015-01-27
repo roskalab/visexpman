@@ -174,6 +174,27 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
 #        self.GUI['GUI_SIZE'] =  utils.cr((1024,700))
 #        if os.name == 'nt':
 #            DAQ_CONFIG[0]['AI_TERMINAL'] = DAQmxConstants.DAQmx_Val_PseudoDiff
+
+        self.FILTERWHEEL = [{
+                        'connected to': 'main_ui',
+                        'port' :  'COM8',
+                        'baudrate' : 115200,
+                        'filters' : {
+                                                'IR': 1, 
+                                                'empty': 2, 
+                                                }
+                        },
+                        {
+                        'connected to': '',
+                        'port' :  'COM1',
+                        'baudrate' : 115200,
+                        'filters' : {
+                                                'ND10': 1, 
+                                                'ND20': 2, 
+                                                'ND30': 3, 
+                                                'ND40': 4, 
+                                                }
+                        }]
         self._create_parameters_from_locals(locals())
 
 

@@ -20,7 +20,7 @@ from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datadisplay import imaged
 from visexpA.engine.datadisplay.plot import Qt4Plot
 from visexpman.engine.vision_experiment import experiment, experiment_data
-from visexpman.engine.hardware_interface import scanner_control,daq_instrument
+from visexpman.engine.hardware_interface import scanner_control,daq_instrument,instrument
 from visexpman.engine import ExperimentConfigError, AnimalFileError
 from visexpman.engine.generic import gui,fileop,stringop,introspect,utils
 
@@ -1193,6 +1193,129 @@ class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
         self.layout.addWidget(self.pixel_size, 4, 2)
         
         self.setLayout(self.layout)
+        
+class RetinalToolbox(QtGui.QGroupBox):
+    '''
+    Filterwheels
+    Bullseye
+    Adjust grey level
+    Projector on/off
+    Stimulus centering
+    '''
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, '', parent)
+        self.config = parent.config
+        self.create_widgets()
+        self.create_layout()
+    
+    def create_widgets(self):
+        if len(self.config.FILTERWHEEL)!=2:
+            raise NotImplementedError('2 filterwheel configs are expected')
+        for fw_config in self.config.FILTERWHEEL:
+            vname = 'filterwheel{0}'.format(self.config.FILTERWHEEL.index(fw_config))
+            setattr(self, vname, QtGui.QComboBox(self))
+            getattr(self, vname).setFixedWidth(80)
+            getattr(self, vname).addItems(QtCore.QStringList(fw_config['filters'].keys()))
+            if not fw_config.has_key('connected to') or fw_config['connected to'] == '':
+                getattr(self, vname).setEnabled(False)
+        self.grey_level = QtGui.QComboBox(self)
+        self.grey_level.addItems(QtCore.QStringList(['0%', '50%', '100%']))
+        self.grey_level.setFixedWidth(80)
+        self.grey_level.setToolTip('Set grey level')
+        self.bullseye_type = QtGui.QComboBox(self)
+        self.bullseye_type.setFixedWidth(100)
+        self.bullseye_type.addItems(QtCore.QStringList(['bullseye', 'spot', 'L']))
+        self.bullseye_type.setToolTip('''
+        Bullseye: size is the diameter
+        L: size corresponds to the longer side
+        Spot: TBD
+        ''')
+        self.bullseye_size = gui.LabeledInput(self, 'size')
+        self.bullseye_size.setToolTip('[um]')
+        self.bullseye_toggle = QtGui.QPushButton('Toggle\r\nBullseye',  self)
+        self.projector_enable = gui.LabeledCheckBox(self, 'Projector ON')
+        self.stimulus_centering = XYWidget(self)
+        self.stimulus_centering.setToolTip('Center X, Y of stimulus [um]')
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        widgets_1st_line = [self.filterwheel0, self.filterwheel1, self.grey_level, self.projector_enable]
+        widgets_2nd_line = [self.bullseye_type, self.bullseye_size, self.bullseye_toggle]
+        for i in range(len(widgets_1st_line)):
+            self.layout.addWidget(widgets_1st_line[i], 0, i, 1, 1)
+        for i in range(len(widgets_2nd_line)):
+            self.layout.addWidget(widgets_2nd_line[i], 1, i, 1, 1)
+        self.layout.addWidget(self.stimulus_centering, 0, max(len(widgets_1st_line), len(widgets_2nd_line)), 2, 2)
+        self.setLayout(self.layout)
+        
+class XYWidget(QtGui.QGroupBox):
+    def __init__(self, parent):
+        QtGui.QGroupBox.__init__(self, '', parent)
+        self.config = parent.config
+        self.create_widgets()
+        self.create_layout()
+    
+    def create_widgets(self):
+        self.center_x = gui.LabeledInput(self, 'X')
+        self.center_y = gui.LabeledInput(self, 'Y')
+        self.up = QtGui.QPushButton('^',  self)
+        self.down = QtGui.QPushButton('v',  self)
+        self.left = QtGui.QPushButton('<',  self)
+        self.right = QtGui.QPushButton('>',  self)
+        for w in [self.left, self.right, self.up, self.down]:
+            w.setFixedWidth(50)
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.setVerticalSpacing(1)
+        self.layout.addWidget(self.center_x, 0, 0, 1, 2)
+        self.layout.addWidget(self.center_y, 1, 0, 1, 2)
+        self.layout.addWidget(self.left, 1, 2, 1, 1)
+        self.layout.addWidget(self.up, 0, 3, 1, 1)
+        self.layout.addWidget(self.right, 1, 4, 1, 1)
+        self.layout.addWidget(self.down, 1, 3, 1, 1)
+        self.setLayout(self.layout)
+
+class RetinaTools(gui.WidgetControl):
+    '''
+        Handles animal file and animal parameters
+    '''
+    def __init__(self, poller, config, widget, context_animal_file=None):
+        gui.WidgetControl.__init__(self, poller, config, widget)
+
+    def toggle_bullseye(self):
+        type = str(self.widget.bullseye_type.currentText())
+        size = float(str(self.widget.bullseye_size.input.text()))
+        msgs = [{'function': 'set_variable', 'args': ['bullseye_size', size]},
+            {'function': 'set_variable', 'args': ['bullseye_type', type]},
+            {'function': 'toggle_bullseye'}]
+        for msg in msgs:
+            self.poller.send(msg, connection='stim')
+    
+    def set_filterwheel0(self):
+        self._set_filterwheel(0)
+        
+    def set_filterwheel1(self):
+        self._set_filterwheel(1)
+
+    def _set_filterwheel(self, channel):
+        connection = self.config.FILTERWHEEL[channel].get('connected to', None)
+        filter = str(getattr(self.widget, 'filterwheel{0}'.format(channel)).currentText())
+        if connection == 'stim':
+            self.poller.send({'function': 'set_filterwheel', 'args': [channel, filter]}, connection='stim')
+        elif connection == 'main_ui':
+            instrument.set_filterwheel(filter, self.config.FILTERWHEEL[channel])
+            self.printc('Filterwheel is set to {0}'.format(self.config.FILTERWHEEL[channel]['filters'][filter]))
+            
+    def set_color(self):
+        color = float(str(self.widget.grey_level.currentText()).replace('%',''))/100
+        self.poller.send({'function': 'set_context_variable', 'args': ['background_color', color]}, connection='stim')
+        
+    def set_projector(self):
+        self.poller.send({'function': 'set_variable', 'args': ['projector_state', self.widget.projector_enable.input.checkState() == 2]}, connection='stim')
+            
+        
+    
 
 class CorticalExperimentOptionsGroupBox(QtGui.QGroupBox):
     '''
@@ -1777,26 +1900,6 @@ class ImagesWidget(QtGui.QWidget):
         
         self.setLayout(self.layout)
         
-class OverviewWidget(QtGui.QWidget):#OBSOLETE
-    def __init__(self, parent):
-        QtGui.QWidget.__init__(self, parent)
-        self.config = parent.config
-        self.create_widgets()
-        self.create_layout()
-        self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
-        
-    def create_widgets(self):
-        self.image_display = QtGui.QLabel()
-        blank_image = 128*numpy.ones((self.config.OVERVIEW_IMAGE_SIZE['col'], self.config.OVERVIEW_IMAGE_SIZE['row']), dtype = numpy.uint8)
-        self.image_display.setPixmap(imaged.array_to_qpixmap(blank_image))
-        
-    def create_layout(self):
-        self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.image_display, 0, 0, 1, 1)
-        self.layout.setRowStretch(3, 3)
-        self.layout.setColumnStretch(3, 3)
-        self.setLayout(self.layout)
-        
 ################### Application widgets #######################
 class MainWidget(QtGui.QWidget):
     def __init__(self, parent):
@@ -1811,6 +1914,7 @@ class MainWidget(QtGui.QWidget):
         self.experiment_control_groupbox.setFixedHeight(150)
         if self.config.PLATFORM == 'elphys_retinal_ca':
             self.experiment_options_groupbox = RetinalExperimentOptionsGroupBox(self)
+            self.toolbox = RetinalToolbox(self)
         elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
             self.experiment_options_groupbox = CorticalExperimentOptionsGroupBox(self)
         self.experiment_options_groupbox.setFixedWidth(350)
@@ -1820,8 +1924,9 @@ class MainWidget(QtGui.QWidget):
         self.recording_status.setFixedHeight(300)
         self.experiment_parameters = ExperimentParametersGroupBox(self)
         self.experiment_parameters.setFixedWidth(400)
-        self.experiment_parameters.setFixedHeight(250)
+        self.experiment_parameters.setFixedHeight(230)
         self.experiment_parameters.values.setColumnWidth(0, 200)
+        
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -1829,6 +1934,7 @@ class MainWidget(QtGui.QWidget):
         self.layout.addWidget(self.experiment_options_groupbox, 1, 0, 2, 1)
         self.layout.addWidget(self.recording_status, 0, 1, 2, 1)
         self.layout.addWidget(self.experiment_parameters, 2, 1, 1, 1)
+        self.layout.addWidget(self.toolbox, 3, 0, 1, 2)
         self.layout.setRowStretch(10, 5)
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)

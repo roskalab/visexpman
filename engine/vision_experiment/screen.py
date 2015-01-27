@@ -141,7 +141,12 @@ class StimulationScreen(graphics.Screen):
         self.screen_text = ''
         self.show_text = True
         self.show_bullseye = False
-        self.bullseye_size = None
+        self.bullseye_size = 100.0
+        self.bullseye_type = 'bullseye'
+        self.bullseye_image = numpy.cast['float'](numpy.asarray(Image.open(os.path.join(fileop.visexpman_package_path(), 'data', 'images', 'bullseye.bmp'))))/255
+        if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION=='down':
+            self.bullseye_image = numpy.flipud(self.bullseye_image)
+        self.bullseye_stretch_factor = self.config.SCREEN_UM_TO_PIXEL_SCALE/float(self.bullseye_image.shape[0])
         self.text_color = colors.convert_color(self.config.TEXT_COLOR, self.config)
         self.text_position = copy.deepcopy(self.config.UPPER_LEFT_CORNER)
         self.text_position['row'] -= 13
@@ -153,15 +158,12 @@ class StimulationScreen(graphics.Screen):
         
     def _display_bullseye(self):
         if self.show_bullseye:
-            if self.bullseye_size is None:
-                bullseye_path = os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp')
-            else:
-                self.bullseye_size_in_pixel = int(float(self.bullseye_size) * self.config.SCREEN_UM_TO_PIXEL_SCALE)
-                bullseye_path = fileop.get_tmp_file('bmp')
-                im = Image.open(os.path.join(self.config.PACKAGE_PATH, 'data', 'images', 'bullseye.bmp'))
-                im = im.resize((self.bullseye_size_in_pixel, self.bullseye_size_in_pixel))
-                im.save(bullseye_path)
-            self.render_imagefile(bullseye_path, position = self.stim_context['screen_center'])
+            if self.bullseye_type == 'L':
+                self.draw_L(self.bullseye_size, self.stim_context['screen_center'])
+            elif self.bullseye_type == 'bullseye':
+                self.render_image(self.bullseye_image, position = self.stim_context['screen_center'], stretch = self.bullseye_stretch_factor*self.bullseye_size)
+            elif self.bullseye_type == 'spot':
+                raise NotImplementedError('')
             
     def refresh_non_experiment_screen(self, flip = True):
         '''

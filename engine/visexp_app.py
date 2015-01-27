@@ -157,6 +157,9 @@ class StimulationLoop(ServerLoop, StimulationScreen):
     def set_filterwheel(self, channel, filter):
         raise NotImplementedError('')
         
+    def toggle_bullseye(self):
+        self.show_bullseye = not self.show_bullseye
+        
     def set_experiment_config(self,source_code, experiment_config_name):
         '''
         When user changes Experiment config name (stimulus), the selected experiment config
@@ -185,7 +188,7 @@ class StimulationLoop(ServerLoop, StimulationScreen):
         getattr(self.experiment_config.runnable, 'run' if parameters.get('stimulus_only', False) else 'execute')()
         self.stim_context['last_experiment_parameters'] = parameters
         self.stim_context['last_experiment_stimulus_frame_info'] = self.experiment_config.runnable.stimulus_frame_info
-        
+
 def run_main_ui(context):
     context['logger'].start()#This needs to be started separately from application_init ensuring that other logger source can be added 
     gui =  VisionExperimentGui(config=context['machine_config'], 
@@ -318,6 +321,7 @@ class TestStim(unittest.TestCase):
             {'function': 'set_context_variable', 'args': ['screen_center', utils.rc((200,300))]},
             {'function': 'set_variable', 'args': ['show_text', False]},
             {'function': 'set_variable', 'args': ['bullseye_size', 100.0]},
+            {'function': 'set_variable', 'args': ['bullseye_type', 'bullseye']},
             {'function': 'set_variable', 'args': ['show_bullseye', True]},
             {'function': 'read', 'args': ['stim_context']}])
         run_stim(self.context,timeout=10)
@@ -369,6 +373,7 @@ class TestStim(unittest.TestCase):
             {'function': 'set_context_variable', 'args': ['screen_center', utils.rc((200,300))]},
             {'function': 'set_variable', 'args': ['show_text', False]},
             {'function': 'set_variable', 'args': ['bullseye_size', 100.0]},
+            {'function': 'set_variable', 'args': ['bullseye_type', 'bullseye']},
             {'function': 'set_variable', 'args': ['show_bullseye', True]},])
             
         run_stim(self.context,timeout=10)
@@ -457,6 +462,8 @@ class TestStim(unittest.TestCase):
     def test_08_stimulation_tester(self):
         context = stimulation_tester('test', 'GUITestConfig', 'TestCommonExperimentConfig')
         self.assertNotIn('error', fileop.read_text_file(context['logger'].filename).lower())
+        
+    #TODO: test for different bullseyes
     
 if __name__=='__main__':
     if len(sys.argv)>1:
