@@ -2834,14 +2834,15 @@ class VisexpGuiPoller(Poller):
                 self.emit(QtCore.SIGNAL('set_experiment_progressbar'), time.time()-self.experiment_control.current_stimulus_start_time if self.experiment_control.isstimulus_started else 0)
             if not self.phase%5:
                 self.animal_file.chec4new_animal_file()
+                self.update_network_connection_status()
             if not self.phase%15:
                 self.experiment_log.update_suggested_date()
             if not self.phase%7:
-                self.update_network_connection_status()
+                pass
             if not self.phase%9:
                 self.experiment_control.check_stimulus_and_imaging_start_timeout()
                 self.experiment_control.check_data_ready_timeout()
-            if not self.phase%11:
+            if not self.phase%21:
                 self.printc('poller alive')
             self.phase+= 1
 

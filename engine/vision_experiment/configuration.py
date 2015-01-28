@@ -194,12 +194,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
     
         self._create_parameters_from_locals(locals()) # make self.XXX_p from XXX
         
-        #== Parallel port pins ==        
-        ACQUISITION_TRIGGER_ON = 1<<self.ACQUISITION_TRIGGER_PIN
-        self.ACQUISITION_TRIGGER_ON_p = visexpman.engine.generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
-        self.ACQUISITION_TRIGGER_OFF_p = visexpman.engine.generic.parameter.Parameter(0,  range_ = [0,  255])
-        self.FRAME_TRIGGER_ON_p = visexpman.engine.generic.parameter.Parameter(ACQUISITION_TRIGGER_ON | 1<<self.FRAME_TRIGGER_PIN,  range_ = [0,  255])
-        self.FRAME_TRIGGER_OFF_p = visexpman.engine.generic.parameter.Parameter(ACQUISITION_TRIGGER_ON,  range_ = [0,  255])
         #Pixel scaling
         if not self.IMAGE_DIRECTLY_PROJECTED_ON_RETINA_p.v:
             self.SCREEN_UM_TO_PIXEL_SCALE = numpy.tan(numpy.pi/180/self.VISUAL_ANGLE_TO_UM_SCALE)*self.SCREEN_DISTANCE_FROM_MOUSE_EYE/self.SCREEN_PIXEL_WIDTH #1 um on the retina is this many pixels on the screen
@@ -320,9 +314,10 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         ELPHYS_SYNC_RECORDING['ELPHYS_INDEXES'] = [0,1]
         ELPHYS_SYNC_RECORDING['SYNC_INDEXES'] = [2,3,4,5]#stim frame sync, y scanner, imaging frame sync, block trigger
         
-        DATA_FILE_NODES = ['raw_data', 'imaging_run_info', 'sync_and_elphys_data', 'conversion_factor', 'recording_parameters']
+        DATA_FILE_NODES = ['raw_data', 'imaging_run_info', 'sync_and_elphys_data', 'conversion_factor', 'recording_parameters', 'stimulus_frame_info']
         for an in self.USER_INTERFACE_NAMES:
-            DATA_FILE_NODES.extend(['config_{0}'.format(an), 'software_{0}'.format(an)])
+            if 'analysis' not in an:
+                DATA_FILE_NODES.extend(['configs_{0}'.format(an), 'software_environment_{0}'.format(an)])
         #Scanner dynamics
         XMIRROR_MAX_FREQUENCY = [1400.0, [50.0, 2200.0]]
         Y_MIRROR_MIN_FLYBACK_TIME = [1e-3, [0.66e-3, 100e-3]]

@@ -95,8 +95,11 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             if self.imaging_started:
                 self.live_scan_stop()
             self.abort = False
-        if not self.imaging_started:
-            daq_instrument.set_voltage(self.config.TWO_PHOTON_PINOUT['PROJECTOR_CONTROL'], self.config.STIMULATION_TRIGGER_AMPLITUDE if self.projector_state else 0.0)
+        if not self.imaging_started and self.projector_state:
+            waveform = numpy.ones((1,1000))*self.config.STIMULATION_TRIGGER_AMPLITUDE
+            waveform[0,0]=0.0
+            waveform[0,-1]=0.0
+            daq_instrument.set_waveform(self.config.TWO_PHOTON_PINOUT['PROJECTOR_CONTROL'],waveform,sample_rate = 10000)
         self.read_imaging_data()
         self.refresh()
 #        self.printl(self.ct)
@@ -180,7 +183,6 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             self.send({'trigger': 'imaging started',  'arg': imaging_started_result})#notifying main_ui that imaging started and stimulus can be launched
         self.printl('Imaging started {0}'.format('' if imaging_started_result else imaging_started_result))
         self.imaging_started = False if imaging_started_result == 'timeout' else imaging_started_result
-#        self.printl(parameters['scanning_attributes']['signal_attributes']['nxlines'])
         
     def live_scan_stop(self):
         if not self.imaging_started:
@@ -481,8 +483,8 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         Pack software enviroment and configs
         '''
-        setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.user_interface_name), utils.object2array(experiment_data.pack_software_environment()))
-        setattr(self.datafile, 'configs_{0}'.format(self.machine_config.user_interface_name), utils.object2array(experiment_data.pack_configs(self)))
+        setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_software_environment())
+        setattr(self.datafile, 'configs_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_configs(self))
         
     def _save2file(self):
         '''
@@ -495,7 +497,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.datafile.save(variables2save)
         self.datafile.close()
         
-class ExperimentControl(object):
+class ExperimentControl(object):#OBSOLETE
     '''
     Reimplemented version: 
     

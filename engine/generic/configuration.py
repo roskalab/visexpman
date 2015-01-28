@@ -65,6 +65,7 @@ class Config(object):
         OS = platform.system()
         IS64BIT = '64' in platform.machine()
         self.OS_p = parameter.Parameter(OS)
+        self.IS64BIT_p = parameter.Parameter(IS64BIT)
         self._create_parameter_aliases()
         return
 

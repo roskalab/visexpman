@@ -1045,6 +1045,9 @@ class ExperimentControl(gui.WidgetControl):
             while self.daq_process.is_alive():
                 time.sleep(0.2)
             self.printc('DAQ process terminated, sync and elphys data chunks are concatenated')
+            if isinstance(unread_data,str):
+                self.printc('Data sync/elphys data is not available: {0}'.format(unread_data))
+                return
             sync_and_elphys_data=numpy.zeros((0, unread_data[0][0].shape[1]),dtype=unread_data[0][0].dtype)#dim 1 is the number of channels
             for chunk in unread_data[0]:
                 sync_and_elphys_data = numpy.concatenate((sync_and_elphys_data,chunk))
@@ -1056,9 +1059,9 @@ class ExperimentControl(gui.WidgetControl):
                 hh = hdf5io.Hdf5io(fileop.get_recording_path(rec[0], self.config, prefix = 'sync'),filelocking=False)
                 hh.sync_and_elphys_data = sync_and_elphys_data
                 hh.conversion_factor = float216bit_factor
-                setattr(hh, 'software_environment_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_software_environment())
-                setattr(hh, 'configs_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_configs(self))
-                hh.save(['sync_and_elphys_data', 'conversion_factor', 'software_environment_{0}'.format(self.machine_config.user_interface_name), 'configs_{0}'.format(self.machine_config.user_interface_name)])
+                setattr(hh, 'software_environment_{0}'.format(self.config.user_interface_name), experiment_data.pack_software_environment())
+                setattr(hh, 'configs_{0}'.format(self.config.user_interface_name), experiment_data.pack_configs(self))
+                hh.save(['sync_and_elphys_data', 'conversion_factor', 'software_environment_{0}'.format(self.config.user_interface_name), 'configs_{0}'.format(self.config.user_interface_name)])
                 hh.close()
             else:
                 self.printc('ERROR: number of running or preparing records is {0}'.format(len(rec)))
@@ -1215,11 +1218,13 @@ class RetinalToolbox(QtGui.QGroupBox):
             vname = 'filterwheel{0}'.format(self.config.FILTERWHEEL.index(fw_config))
             setattr(self, vname, QtGui.QComboBox(self))
             getattr(self, vname).setFixedWidth(80)
-            getattr(self, vname).addItems(QtCore.QStringList(fw_config['filters'].keys()))
+            filters = ['']
+            filters.extend(fw_config['filters'].keys())
+            getattr(self, vname).addItems(QtCore.QStringList(filters))
             if not fw_config.has_key('connected to') or fw_config['connected to'] == '':
                 getattr(self, vname).setEnabled(False)
         self.grey_level = QtGui.QComboBox(self)
-        self.grey_level.addItems(QtCore.QStringList(['0%', '50%', '100%']))
+        self.grey_level.addItems(QtCore.QStringList(['0 %', '50 %', '100 %']))
         self.grey_level.setFixedWidth(80)
         self.grey_level.setToolTip('Set grey level')
         self.bullseye_type = QtGui.QComboBox(self)
@@ -1227,7 +1232,7 @@ class RetinalToolbox(QtGui.QGroupBox):
         self.bullseye_type.addItems(QtCore.QStringList(['bullseye', 'spot', 'L']))
         self.bullseye_type.setToolTip('''
         Bullseye: size is the diameter
-        L: size corresponds to the longer side
+        L: size corresponds to the longer side. Shape center is the concave vertice of the L
         Spot: TBD
         ''')
         self.bullseye_size = gui.LabeledInput(self, 'size')
@@ -1301,18 +1306,22 @@ class RetinaTools(gui.WidgetControl):
     def _set_filterwheel(self, channel):
         connection = self.config.FILTERWHEEL[channel].get('connected to', None)
         filter = str(getattr(self.widget, 'filterwheel{0}'.format(channel)).currentText())
+        if filter == '':
+            return
         if connection == 'stim':
             self.poller.send({'function': 'set_filterwheel', 'args': [channel, filter]}, connection='stim')
         elif connection == 'main_ui':
             instrument.set_filterwheel(filter, self.config.FILTERWHEEL[channel])
-            self.printc('Filterwheel is set to {0}'.format(self.config.FILTERWHEEL[channel]['filters'][filter]))
+            self.printc('Filterwheel is set to {1}/{0}'.format(self.config.FILTERWHEEL[channel]['filters'][filter], filter))
             
     def set_color(self):
         color = float(str(self.widget.grey_level.currentText()).replace('%',''))/100
+        self.printc('Screen color set to {0}'.format(color))
         self.poller.send({'function': 'set_context_variable', 'args': ['background_color', color]}, connection='stim')
         
     def set_projector(self):
-        self.poller.send({'function': 'set_variable', 'args': ['projector_state', self.widget.projector_enable.input.checkState() == 2]}, connection='stim')
+        self.printc('Turning {0} projector'.format('on' if self.widget.projector_enable.input.checkState() == 2 else 'off'))
+        self.poller.send({'function': 'set_variable', 'args': ['projector_state', self.widget.projector_enable.input.checkState() == 2]}, connection='ca_imaging')
             
         
     

@@ -144,12 +144,12 @@ class ParallelPort(parallel_port_ancestors):
     def init_instrument(self):
         if self.config.ENABLE_PARALLEL_PORT:
             if self.config.OS=='Windows':
-                dllpath='c:\\Windows\\system32\\inpout' + 'x64' if self.config.IS64BIT else '32'+'dll'
+                dllpath=os.environ['WINDIR'] + '\\system32\\inpout' + ('x64' if self.config.IS64BIT else '32'+'.dll')
                 if not os.path.exists(dllpath):
                     raise WindowsError('{0} dll does not exists'.format(dllpath))
                 from ctypes import windll
                 self.p=windll.inpout32
-                self.outp_func = getattr(p, 'Out'+'64' if self.config.IS64BIT else '32')
+                self.outp_func = getattr(self.p, 'Out'+('64' if self.config.IS64BIT else '32'))
             else:
             
                 try:
@@ -167,8 +167,9 @@ class ParallelPort(parallel_port_ancestors):
         self.iostate['in'] = {}
         if self.config.ENABLE_PARALLEL_PORT:
             self._update_io()#clear all output pins
-            for pin in self.input_pins.keys():
-                self.iostate['in'][pin] = self.read_pin(pin)
+            if self.config.OS=='Linux':
+                for pin in self.input_pins.keys():
+                    self.iostate['in'][pin] = self.read_pin(pin)
 
     def _update_io(self):
         if self.config.OS=='Windows':
@@ -197,7 +198,6 @@ class ParallelPort(parallel_port_ancestors):
             elif pin_value == 0:
                 self.iostate['data'] &= ~(1 << bit)
             self._update_io()
-            
             #logging
             if log:
                 self.log_during_experiment('Parallel port data bits set to %i' % self.iostate['data'])
@@ -297,7 +297,7 @@ def set_filterwheel(filter, config):
     config is expected to have port baudrate and filters keys
     '''
     serial_port = serial.Serial(port = config['port'], baudrate = config['baudrate'])
-    serial_port.write('pos='+str(config['filter'][filter]) +'\r')
+    serial_port.write('pos='+str(config['filters'][filter]) +'\r')
     time.sleep(2)
     serial_port.close()
 

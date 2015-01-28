@@ -62,10 +62,10 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
                         'filters' : {
                                                 'IR': 1, 
                                                 'empty': 2, 
-                                                'empty': 3, 
-                                                'empty': 4, 
-                                                'empty': 5, 
-                                                'empty': 6, 
+#                                                'empty': 3, 
+#                                                'empty': 4, 
+#                                                'empty': 5, 
+#                                                'empty': 6, 
                                                 }
                         },
                         {
@@ -81,7 +81,9 @@ class ReiSetupConfig(ElphysRetinalCaImagingConfig):
                                                 'ND0': 6, 
                                                 }
                         }]
-        
+        self.DIGITAL_IO_PORT = 'parallel port'
+        self.BLOCK_TRIGGER_PIN = 0
+        self.ENABLE_PARALLEL_PORT = True
         self._create_parameters_from_locals(locals())
 
 class TamasSetupConfig(ElphysRetinalCaImagingConfig):
