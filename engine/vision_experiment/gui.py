@@ -14,6 +14,7 @@ import inspect
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
+import PyQt4.Qwt5 as Qwt
 
 import visexpman
 from visexpA.engine.datahandlers import hdf5io
@@ -1101,8 +1102,9 @@ class ExperimentControl(gui.WidgetControl):
                     hmerged.recording_parameters = copy.deepcopy(self.poller.animal_file.recordings[i])
                     hmerged.save(nodes2read)
                     self.printc('Checking data')
-                    for error_msg in experiment_data.check(hmerged, self.config):
-                        self.printc(error_msg)
+                    error_msgs = experiment_data.check(hmerged, self.config)
+                    if len(error_msg)>0:
+                        self.poller.notify_user('WARNING', 'Problem with datafile: \r\n{0}'.format('\r\n'.join(error_msgs)))
                     hmerged.close()
                     self.poller.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
                     self.printc('Removing temporary files')
@@ -1585,7 +1587,7 @@ class ScanRegionGroupBox(QtGui.QGroupBox):
         self.layout.setColumnStretch(10, 10)
         self.setLayout(self.layout)
         
-class RoiWidget(QtGui.QWidget):
+class RoiWidget(QtGui.QWidget):#OBSOLETE
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.config = parent.config
@@ -1814,8 +1816,49 @@ class CaImagingVisualisationControl(gui.WidgetControl):
             function_call = {'function': 'set_variable', 'args': ['display_configuration', display_configuration]}
             self.poller.send(function_call,connection='ca_imaging')
             self.printc('Ca imaging display updated')
-            
+
+class Plot(Qwt.QwtPlot):
+    def __init__(self, parent):
+        Qwt.QwtPlot.__init__(self)
+        self.setCanvasBackground(QtCore.Qt.white)
+        self.setFixedWidth(700)
+        self.setFixedHeight(220)
+        self.grid = Qwt.QwtPlotGrid()
+        self.grid.enableXMin(True)
+        self.grid.setMajPen(QtGui.QPen(QtCore.Qt.black, 0, QtCore.Qt.DotLine))
+        self.grid.setMinPen(QtGui.QPen(QtCore.Qt.gray, 0, QtCore.Qt.DotLine))
+        self.grid.attach(self)
+#        legend = Qwt.QwtLegend()
+#        self.insertLegend(legend, Qwt.QwtPlot.BottomLegend)
+        self.setAxisTitle(Qwt.QwtPlot.xBottom, 'time [s]')
+        self.colors = [QtCore.Qt.red, QtCore.Qt.green, QtCore.Qt.blue, QtCore.Qt.black]
+        color_i=0
+        self.curve1 =Qwt.QwtPlotCurve('1')
+        self.curve1.setRenderHint(Qwt.QwtPlotItem.RenderAntialiased);
+        self.curve1.setPen(QtGui.QPen(self.colors[color_i]))
+        self.curve1.setSymbol(Qwt.QwtSymbol(Qwt.QwtSymbol.Cross,
+                                  Qt.QBrush(),
+                                  Qt.QPen(self.colors[color_i]),
+                                  Qt.QSize(8, 8)))
+        self.curve1.attach(self)
+        duration=5
+#        self.set_stimulus_duration(duration)
+        t=numpy.arange(0,duration, 1./100)
+        data = t**2
+        self.update_curve(t, data)
+        self.update_curve(t, data*2)
         
+    def set_stimulus_duration(self,duration):
+        self.setAxisScale(Qwt.QwtPlot.xBottom, 0, duration)
+        
+    def update_curve(self, t, data):
+        self.curve1.setData(t, data)
+#        self.setAxisScale(Qwt.QwtPlot.yLeft, min(data), max(data))
+        self.replot()
+        
+#        self.setAxisScaleDraw(
+#            Qwt.QwtPlot.xBottom, TimeScaleDraw(Qt.QDate(int(self.months[0].split('-')[0]), int(self.months[0].split('-')[1]), 1)))
+#        self.setAxisScale(Qwt.QwtPlot.xBottom, 0, len(self.months))        
 
 class ImagesWidget(QtGui.QWidget):
     '''
@@ -1927,8 +1970,8 @@ class MainWidget(QtGui.QWidget):
             self.toolbox = RetinalToolbox(self)
         elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
             self.experiment_options_groupbox = CorticalExperimentOptionsGroupBox(self)
-        self.experiment_options_groupbox.setFixedWidth(330)
-        self.experiment_options_groupbox.setFixedHeight(400)
+        self.experiment_options_groupbox.setFixedWidth(350)
+        self.experiment_options_groupbox.setFixedHeight(380)
         self.recording_status = RecordingStatusGroupbox(self)
         self.recording_status.setFixedWidth(400)
         self.recording_status.setFixedHeight(300)
@@ -1936,7 +1979,6 @@ class MainWidget(QtGui.QWidget):
         self.experiment_parameters.setFixedWidth(400)
         self.experiment_parameters.setFixedHeight(230)
         self.experiment_parameters.values.setColumnWidth(0, 200)
-        
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -1949,7 +1991,7 @@ class MainWidget(QtGui.QWidget):
         self.layout.setColumnStretch(5,10)
         self.setLayout(self.layout)
 
-class CommonWidget(QtGui.QWidget):
+class CommonWidget(QtGui.QWidget):#OBSOLETE
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.config = parent.config
@@ -2023,7 +2065,7 @@ class CommonWidget(QtGui.QWidget):
 
 
 ################### Debug/helper widgets #######################
-class HelpersWidget(QtGui.QWidget):
+class HelpersWidget(QtGui.QWidget):#OBSOLETE
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.config = parent.config

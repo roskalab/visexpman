@@ -2793,6 +2793,7 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('ask4confirmation'),  self.parent.ask4confirmation)
         self.connect(self, QtCore.SIGNAL('ask4filename'),  self.parent.ask4filename)
         self.connect(self, QtCore.SIGNAL('notify_user'),  self.parent.notify_user)
+        self.connect(self, QtCore.SIGNAL('update_curve'),  self.parent.update_curve)
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar'),  self.parent.set_experiment_progressbar)
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar_range'),  self.parent.set_experiment_progressbar_range)
         self.connect(self, QtCore.SIGNAL('set_experiment_names'),  self.parent.set_experiment_names)
@@ -2832,6 +2833,12 @@ class VisexpGuiPoller(Poller):
                 self.test()#Call tester
                 #update progress bar
                 self.emit(QtCore.SIGNAL('set_experiment_progressbar'), time.time()-self.experiment_control.current_stimulus_start_time if self.experiment_control.isstimulus_started else 0)
+                if not hasattr(self, 'd'):
+                    self.d=[1]
+                    self.t=[time.time()]
+                self.d.append(self.d[-1]+1)
+                self.t.append(time.time())
+                self.emit(QtCore.SIGNAL('update_curve'), numpy.array(self.t)-self.t[0], numpy.array(self.d))
             if not self.phase%5:
                 self.animal_file.chec4new_animal_file()
                 self.update_network_connection_status()

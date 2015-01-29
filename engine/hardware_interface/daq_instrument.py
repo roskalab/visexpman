@@ -133,7 +133,7 @@ def set_digital_line(channel, value):
                                     None,
                                     None)
     digital_output.ClearTask()
-    
+
 def set_voltage(channel, voltage):
     set_waveform(channel, numpy.ones((parse_channel_string(channel)[1], 10))*voltage,1000)
     

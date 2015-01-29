@@ -999,6 +999,7 @@ class CentralWidget(QtGui.QWidget):
         self.text_out.setReadOnly(True)
         self.text_out.ensureCursorVisible()
         self.text_out.setCursorWidth(5)
+        self.plot = gui.Plot(self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -1006,6 +1007,7 @@ class CentralWidget(QtGui.QWidget):
         self.layout.addWidget(self.ca_displays, 0, 3, 1, 1)
         self.layout.addWidget(self.network_status, 1,  0, 1, 2)
         self.layout.addWidget(self.text_out, 2,  0, 1, 2)
+        self.layout.addWidget(self.plot, 1, 2, 2, 2)
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
@@ -1138,11 +1140,12 @@ class VisionExperimentGui(Qt.QMainWindow):
                                      ]
         [w.blockSignals(block) for w in self.blocked_widgets]
         
-    def printc(self, text):
+    def printc(self, text, logonly = False):
         if not isinstance(text, str):
             text = str(text)
-        self.console_text  += utils.timestamp2hms(time.time()) + ' '  + text + '\n'
-        self.update_console()
+        if not logonly:
+            self.console_text  += utils.timestamp2hms(time.time()) + ' '  + text + '\n'
+            self.update_console()
         if 'warning' in text.lower():
             self.log.warning(text.replace('WARNING: ',''), self.source_name)
         elif 'error' in text.lower():
@@ -1293,6 +1296,10 @@ class VisionExperimentGui(Qt.QMainWindow):
         utils.empty_queue(self.poller.gui_thread_queue)
         QtGui.QMessageBox.question(self, title, message, QtGui.QMessageBox.Ok)
         self.poller.gui_thread_queue.put(True)
+        self.printc(title + '\t' + message, logonly = True)
+        
+    def update_curve(self,t,d):
+        self.central_widget.plot.update_curve(t,d)
         
     def set_experiment_progressbar(self, value, attribute='setValue'):
         self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(value)
