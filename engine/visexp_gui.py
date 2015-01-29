@@ -1145,6 +1145,8 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.update_console()
         if 'warning' in text.lower():
             self.log.warning(text.replace('WARNING: ',''), self.source_name)
+        elif 'error' in text.lower():
+            self.log.error(text.replace('ERROR: ',''), self.source_name)
         else:
             self.log.info(text, self.source_name)
         

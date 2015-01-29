@@ -27,7 +27,6 @@ class ExperimentConfig(Config):
     '''
     def __init__(self, machine_config, queues = None, experiment_module = None, parameters = None, log=None):
         Config.__init__(self, ignore_range = True)
-        self.CALL_PARAMETERS = parameters
         self.editable=True#If false, experiment config parameters cannot be edited from GUI
         if machine_config != None:
             self.create_runnable(machine_config, queues, experiment_module, parameters, log) # needs to be called so that runnable is instantiated and other checks are done
@@ -181,12 +180,11 @@ def get_experiment_duration(experiment_config_class, config, source=None):
         experiment_config_module = __import__('experiment_config_module')
         experiment_config_class_object = getattr(experiment_config_module, experiment_config_class)(None)
         experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
-    if hasattr(experiment_class_object, 'experiment_duration'):
-        return experiment_class_object.experiment_duration
+    if hasattr(experiment_class_object, 'stimulus_duration'):
+        return experiment_class_object.stimulus_duration
     else:
         from visexpman.engine import ExperimentConfigError
-        raise ExperimentConfigError('Experiment duration is unknown')
-
+        raise ExperimentConfigError('Stimulus duration is unknown')
 
 def parse_stimulation_file(filename):
     '''
@@ -225,7 +223,7 @@ class testExperimentHelpers(unittest.TestCase):
         conf.user='test'
         duration = get_experiment_duration('DebugExperimentConfig', conf, source=None)
         self.assertEqual(duration, 10.0)
-        pass
+        self.assertEqual(isinstance(get_experiment_duration('TestCommonExperimentConfig', conf, source=None), float), True)#Testing something from the common folder
         
     def test_03_read_experiment_duration_from_source(self):
         from visexpman.users.test.test_configurations import GUITestConfig

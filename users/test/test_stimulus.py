@@ -233,16 +233,18 @@ class DebugExperimentConfig(experiment.ExperimentConfig):
 
 class Debug(experiment.Experiment):
     def prepare(self):
-        self.experiment_duration = self.experiment_config.DURATION
+        self.stimulus_duration = self.experiment_config.DURATION
     
     def run(self):
         self.show_fullscreen(duration=0, color=0.5)
         self.show_shape(duration=0,size=10, color=1.0, part_of_drawing_sequence=True, flip=False)
         self.show_shape(duration=0,pos = utils.rc((10, 0)), size=30, color=0.7, part_of_drawing_sequence=True, flip=False)
         self.show_shape(duration=0,size=100, color=0.4, part_of_drawing_sequence=True, flip=True)
-        self.block_start('test')
-        time.sleep(self.experiment_duration)
-        self.block_end('test')
+        nsteps = 4
+        d=self.stimulus_duration/2./nsteps
+        for i in range(nsteps):
+            self.show_shape(duration=d,size=i*50, color=0.4,is_block=True)
+            self.show_fullscreen(duration=d, color=0.2)
         
 class TestStimulusBlockParams(experiment.ExperimentConfig):
     def _create_parameters(self):

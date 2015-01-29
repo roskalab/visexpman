@@ -44,7 +44,7 @@ class CaImagingScreen(graphics.Screen):
         self.clear_screen(color = colors.convert_color(0.0))
         number_of_displays = len(self.display_configuration.keys())
         spacing = 10
-        frame_color = numpy.array([0.7, 0.0, 0.0]) if self.laser_on else 0.3
+        frame_color = numpy.array([0.3, 0.0, 0.0]) if self.laser_on else 0.3
         if number_of_displays>0 and self.images.has_key('display'):
             self.imsize = utils.rc((0,0))
             if number_of_displays < 4:

@@ -13,7 +13,7 @@ import shutil
 import tempfile
 import StringIO
 
-from visexpman.engine.generic import utils,fileop
+from visexpman.engine.generic import utils,fileop,signal
 from visexpman.engine import generic
 from visexpA.engine.datahandlers import hdf5io
 
@@ -29,10 +29,32 @@ def check(h, config):
     for node in config.DATA_FILE_NODES:
         if not hasattr(h, node):
             error_messages.append('missing node: {0}'.format(node))
+    #Check
+    if len(error_messages)==0:
+        if len(h.raw_data.shape) != 4 or h.raw_data.shape[1]>2:
+            error_messages.append('raw_data has invalid shape: {0}'.format(h.raw_data.shape))
+        if h.imaging_run_info['end']-h.imaging_run_info['start'] != h.imaging_run_info['duration']:
+            error_messages.append('inconsistent imaging_run_info')
+        if not isinstance(h.stimulus_frame_info, list):
+            error_messages.append('Invalid stimulus_frame_info')
+        sync_signals = numpy.cast['float'](h.sync_and_elphys_data[:,config.ELPHYS_SYNC_RECORDING['SYNC_INDEXES']])/h.conversion_factor
+        ca_frame_trigger = sync_signals[:,2]
+        block_trigger = sync_signals[:,0]
+        ca_frame_trigger_edges = signal.trigger_indexes(ca_frame_trigger)
+        block_trigger_edges = signal.trigger_indexes(block_trigger)
+        if block_trigger_edges.shape[0]>0 and (block_trigger_edges.min() < ca_frame_trigger_edges.min() or block_trigger_edges.max() > ca_frame_trigger_edges.max()):
+            error_messages.append('Some parts of the stimulus might not be imaged')
+        npulses = 0.5 * (ca_frame_trigger_edges.shape[0]-2)#Last pulse is ignored
+        if h.imaging_run_info['acquired_frames'] < npulses and (1-h.imaging_run_info['acquired_frames']/npulses>5e-2 and abs(h.imaging_run_info['acquired_frames'] - npulses) >= 1):
+            error_messages.append('Acquired frames ({0}) and generated pulses ({1}) differ'.format(h.imaging_run_info['acquired_frames'], npulses))
+        #Check frame rate
+        distance_between_edges = numpy.diff(ca_frame_trigger_edges)[:-1]
+        frame_durations = numpy.cast['float'](distance_between_edges.reshape(distance_between_edges.shape[0]/2,2).sum(axis=1))/h.recording_parameters['elphys_sync_sample_rate']
+        if abs(frame_durations-1/h.recording_parameters['frame_rate']).max()>5./h.recording_parameters['elphys_sync_sample_rate']:#Maximum allowed deviation is 5 sample time
+            error_messages.append('Frame rate mismatch')
     if h_opened:
         h.close()
     return error_messages
-    #TODO: check if all software are identical
 
 ############### Preprocess measurement data ####################
 def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_signal_min_amplitude = 1.5):
@@ -276,15 +298,24 @@ class TestExperimentData(unittest.TestCase):
     def test_02_elphys(self):
         from visexpman.users.test import unittest_aggregator
         working_folder = unittest_aggregator.prepare_test_data('elphys')
-        convert_phys(os.path.join(working_folder,os.listdir(working_folder)[0]))
+        map(read_phys, fileop.listdir_fullpath(working_folder))
         
+    @unittest.skip("")
     def test_03_smr(self):
         folder='/home/rz/rzws/temp/santiago/181214_Lema_offcell'
         for fn in fileop.listdir_fullpath(folder):
             if '.smr' in fn:
                 read_smr_file(fn)
-            
-        
+                
+    def test_04_check_retinal_ca_datafile(self):
+        from visexpman.users.test import unittest_aggregator
+        from visexpman.users.test.test_configurations import GUITestConfig
+        conf = GUITestConfig()
+        working_folder = unittest_aggregator.prepare_test_data('retinal_ca_datafiles')
+        files = fileop.listdir_fullpath(working_folder)
+        res = map(check, files, [conf]*len(files))
+        map(self.assertEqual, res, len(res)*[[]])
+        pass
         
 if __name__=='__main__':
     unittest.main()

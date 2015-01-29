@@ -87,14 +87,6 @@ def generate_lut(x, min = 0.0, max = 1.0, gamma = 1.0, brightness = 0.5, contras
     y = numpy.where(y > 1.0,  1.0,  y)
     return y
 
-######## Signals  ########
-def signal2binary(signal):#TODO: move to signal module
-    '''
-    Signal is considered true/logic 1 when signal reached the 'high' voltage level (transient is considered as False)
-    '''
-    return numpy.where(signal > numpy.histogram(signal, bins = 10)[1][-2],  True,  False)
-
-
 def get_window_title(config):
     return '{0} - {1} - {2}' .format(config.USER_INTERFACE_NAMES[config.user_interface_name], config.user, config.__class__.__name__) 
 

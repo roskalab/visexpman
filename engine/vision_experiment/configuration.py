@@ -306,13 +306,13 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         TWO_PHOTON_DAQ_TIMEOUT = [10.0, [0.1, 60.0]]
         
         ELPHYS_SYNC_RECORDING={}
-        ELPHYS_SYNC_RECORDING['AI_PINOUT'] = 'Dev1/ai2:7'
+        ELPHYS_SYNC_RECORDING['AI_PINOUT'] = 'Dev1/ai2:6'
         ELPHYS_SYNC_RECORDING['AO_PINOUT'] = 'Dev1/ao0:1'
         ELPHYS_SYNC_RECORDING['SPIKING_SAMPLE_RATE'] = 10000 #This value cannot be adjusted from main_ui
         ELPHYS_SYNC_RECORDING['ELPHYS_SAMPLE_RATE'] = 1000 #This value cannot be adjusted from main_ui
         ELPHYS_SYNC_RECORDING['TIMEOUT'] = 10.0
         ELPHYS_SYNC_RECORDING['ELPHYS_INDEXES'] = [0,1]
-        ELPHYS_SYNC_RECORDING['SYNC_INDEXES'] = [2,3,4,5]#stim frame sync, y scanner, imaging frame sync, block trigger
+        ELPHYS_SYNC_RECORDING['SYNC_INDEXES'] = [2,3,4]#stim frame sync, y scanner, imaging frame sync, block trigger
         
         DATA_FILE_NODES = ['raw_data', 'imaging_run_info', 'sync_and_elphys_data', 'conversion_factor', 'recording_parameters', 'stimulus_frame_info']
         for an in self.USER_INTERFACE_NAMES:

@@ -590,6 +590,7 @@ class ExperimentControl(gui.WidgetControl):
         self.paramwidget = paramwidget
         self.status_widget = status_widget
         gui.WidgetControl.__init__(self, poller, config, widget)
+        self.machine_config = config
         #find all python module in user folder and load users's all experiment configs and parameters
         self.experiment_config_classes = {}
         if context_experiment_config_file is None:
@@ -716,7 +717,7 @@ class ExperimentControl(gui.WidgetControl):
             'cell_name': str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.cell_name.input.text()), 
             'recording_channels' : self.poller.parent.central_widget.main_widget.experiment_options_groupbox.recording_channel.get_selected_item_names(), 
             'enable_scanner_synchronization' : self.poller.parent.central_widget.main_widget.experiment_options_groupbox.enable_scanner_synchronization.checkState() == 2, 
-            'spike_recording':True,#TODO: put checkbox on main_ui
+            'spike_recording':False,#TODO: put checkbox on main_ui
             'scanning_range' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text()), 
             'pixel_size' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text()), 
             'resolution_unit' : str(self.poller.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentText()), 
@@ -1045,8 +1046,8 @@ class ExperimentControl(gui.WidgetControl):
             while self.daq_process.is_alive():
                 time.sleep(0.2)
             self.printc('DAQ process terminated, sync and elphys data chunks are concatenated')
-            if isinstance(unread_data,str):
-                self.printc('Data sync/elphys data is not available: {0}'.format(unread_data))
+            if isinstance(unread_data,str):#TODO: popup window
+                self.printc('ERROR: Data sync/elphys data is not available: {0}'.format(unread_data))
                 return
             sync_and_elphys_data=numpy.zeros((0, unread_data[0][0].shape[1]),dtype=unread_data[0][0].dtype)#dim 1 is the number of channels
             for chunk in unread_data[0]:
@@ -1104,7 +1105,7 @@ class ExperimentControl(gui.WidgetControl):
                         self.printc(error_msg)
                     hmerged.close()
                     self.poller.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
-                    self.printc('Removing unnecessary files')
+                    self.printc('Removing temporary files')
                     map(os.remove, files2merge)
                     self.poller.update_recording_status()
                     self.printc('{0} DONE' .format(self.poller.animal_file.recordings[i]['id']))
@@ -1926,7 +1927,7 @@ class MainWidget(QtGui.QWidget):
             self.toolbox = RetinalToolbox(self)
         elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
             self.experiment_options_groupbox = CorticalExperimentOptionsGroupBox(self)
-        self.experiment_options_groupbox.setFixedWidth(350)
+        self.experiment_options_groupbox.setFixedWidth(330)
         self.experiment_options_groupbox.setFixedHeight(400)
         self.recording_status = RecordingStatusGroupbox(self)
         self.recording_status.setFixedWidth(400)

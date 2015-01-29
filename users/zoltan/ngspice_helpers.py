@@ -1,7 +1,7 @@
 '''
 Helpers for ngspice analysis
 '''
-from visexpman.engine.generic import utils
+from visexpman.engine.generic import utils,signal
 import subprocess
 import os
 import os.path
@@ -61,13 +61,13 @@ if __name__ == "__main__":
         #expected threshold voltages:
         R1=float([l.split(' ')[-3].replace('k','000') for l in netlist.split('\n') if 'R1' == l.split(' ')[0]][0])
         R2=float([l.split(' ')[-3].replace('k','000') for l in netlist.split('\n') if 'R2' == l.split(' ')[0]][0])
-        Vh=vout[numpy.nonzero(utils.signal2binary(vout))[0]].mean()
-        Vl=vout[numpy.nonzero(utils.signal2binary(vout)^1)[0]].mean()
+        Vh=vout[numpy.nonzero(signal.signal2binary(vout))[0]].mean()
+        Vl=vout[numpy.nonzero(signal.signal2binary(vout)^1)[0]].mean()
         Vs=vref.mean()*R2/(R1+R2)
         Vtu=Vs+Vh*R1/(R1+R2)
         Vtl=Vs+Vl*R1/(R1+R2)
         #Calculate threshold values from simulation results
-        thresholds=vin[numpy.nonzero(numpy.diff(utils.signal2binary(vout)))[0]]
+        thresholds=vin[numpy.nonzero(numpy.diff(signal.signal2binary(vout)))[0]]
         Vtu_sim=thresholds[0::2].mean()
         Vtl_sim=thresholds[1::2].mean()
     #    plot(t,1000*(vout-vref)/R2)

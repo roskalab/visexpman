@@ -219,7 +219,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
             self.printl('Imaging stopped')
             if parameters.has_key('experiment_name'):
                 self.send({'trigger':'imaging data ready'})
-        
+        time.sleep(0.5)
         #TODO:
         #Make sure that file is not open
         #Notify man_ui that data imaging
@@ -280,6 +280,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                     if ENABLE_16_BIT:
                         frame_converted = self._pmt_voltage2_16bit(frame_converted)
                     self._save_data(frame_converted)
+                    self.frame_ct += 1
             self.datafile.imaging_run_info = {'acquired_frames': self.frame_ct, 'start': self.t0, 'end':self.t2, 'duration':self.t2-self.t0 }
             setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_software_environment())
             setattr(self.datafile, 'configs_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_configs(self))

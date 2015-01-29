@@ -74,6 +74,7 @@ if TEST_os == 'Darwin':
 
 TEST_working_folder = ['/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', '/tmp', 'c:\\temp']
 TEST_results_folder = ['/mnt/rzws/test_results', 'r:\\test_results', '/tmp', 'c:\\temp']
+TEST_test_data_folder = ['/mnt/rzws/test_data', 'r:\\test_data']
 
 #if TEST_os == 'nt':
 #    TEST_test_data_folder = 'u:\\software_test\\ref_data'
@@ -122,6 +123,7 @@ TEST_unittests = [
     'visexpman.engine.vision_experiment.experiment_control.TestCaImaging', 
     'visexpman.engine.visexp_app.TestStim',    
     'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 
+    'visexpman.engine.vision_experiment.experiment_data.TestExperimentData', 
     'visexpman.engine.vision_experiment.screen.TestCaImagingScreen',     
     'visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns', 
     'visexpman.engine.TestApplicationInit',
@@ -190,8 +192,8 @@ if TEST_valid_file is None:
 TEST_invalid_file = '/home'
     
 def prepare_test_data(modulename, clean_working_dir = True, copy_only_first_file = False):
-    ref_folder = os.path.join(TEST_test_data_folder, modulename)
-    working_folder = TEST_working_folder
+    ref_folder = os.path.join(select_path_exists(TEST_test_data_folder), modulename)
+    working_folder = select_path_exists(TEST_working_folder)
     print 'preparing test data'
     if clean_working_dir:
         shutil.rmtree(working_folder)

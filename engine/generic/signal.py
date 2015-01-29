@@ -196,6 +196,13 @@ def find_bead_center_and_width(curve):
     edges = numpy.nonzero(numpy.diff(numpy.where(curve>threshold,1,0)))[0]
     return edges.mean(), edges.max()-edges.min(),threshold#center,bead size
     
+def signal2binary(waveform):
+    '''
+    Signal is considered true/logic 1 when signal reached the 'high' voltage level (transient is considered as False)
+    '''
+    return numpy.where(waveform > numpy.histogram(waveform, bins = 10)[1][-2],  True,  False)
+
+    
 def trigger_indexes(trigger):
     return numpy.nonzero(numpy.where(abs(numpy.diff(trigger-trigger.min()))>0.5*(trigger.max()-trigger.min()), 1, 0))[0]+1
 
