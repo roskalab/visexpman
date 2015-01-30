@@ -74,7 +74,7 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
         multiprocessing.Process.__init__(self)
         if hasattr(self.log, 'add_source'):
             self.log.add_source(self.socket_name)
-        
+
     def terminate(self):
         self.command.put('terminate')
         if platform.system()=='Windows' or True:
@@ -112,6 +112,8 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
             try:
                 if not self.socket_queues['tosocket'].empty():
                     message = self.socket_queues['tosocket'].get()
+                    if message == 'sync':
+                        message = {'sync': {'t1': time.time()}}
                     message_str = utils.object2str(message)
                     #This blocks the process if remote peer is not connected.
                     #Receiving messages is blocked too which resumes only when remote peer is available.
@@ -122,7 +124,14 @@ class QueuedSocket(multiprocessing.Process, QueuedSocketHelpers):
                 try:
                     message = self.socket.recv(flags=zmq.NOBLOCK)
                     message = utils.str2object(message)
-                    if message == 'ping':
+                    if hasattr(message,'has_key') and message.has_key('sync'):
+                        if message['sync'].has_key('t2'):
+                            message['sync']['t1*'] = time.time()
+                            self.socket_queues['fromsocket'].put(message)
+                        else:
+                            message['sync']['t2']=time.time()
+                            self.socket_queues['tosocket'].put(message)
+                    elif message == 'ping':
                         self.socket_queues['tosocket'].put('pong')
                     else:
                         self.socket_queues['fromsocket'].put(message)
