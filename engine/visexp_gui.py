@@ -1298,8 +1298,8 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.poller.gui_thread_queue.put(True)
         self.printc(title + '\t' + message, logonly = True)
         
-    def update_curve(self,t,d):
-        self.central_widget.plot.update_curve(t,d)
+    def update_curve(self,curves):
+        self.central_widget.plot.update(curves)
         
     def set_experiment_progressbar(self, value, attribute='setValue'):
         self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(value)

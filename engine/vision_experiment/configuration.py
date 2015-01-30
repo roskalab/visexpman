@@ -336,6 +336,7 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         self.KEYS['transfer_function'] = 't'
         
         DATAFILE_COMPRESSION_LEVEL = [4, [0,9]]
+        SYNC_SAMPLE_SIZE = [3, [1, 100]]
         
         self._create_parameters_from_locals(locals())
         

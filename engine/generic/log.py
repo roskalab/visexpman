@@ -120,7 +120,6 @@ class Logger(multiprocessing.Process,LoggerHelper):
     def _entry2text(self, entry):
         return '{0}.{4} {1}/{2}\t{3}\n'.format(utils.timestamp2ymdhms(entry[0]), entry[1], entry[2], entry[3],int(entry[0]*10)%10)
         
-        
     def upload_logfiles(self):
         '''
         Copies log files from LOG_PATH to REMOTE_LOG_PATH
@@ -149,12 +148,16 @@ class Logger(multiprocessing.Process,LoggerHelper):
         suspends saving to file until resume is not called
         '''
         self.command.put('suspend')
+        if 0:
+            self.sources['default'].put([time.time(), 'DEBUG', 'default', 'suspend'])
         
     def resume(self):
         '''
         Resumes saving log entries to file
         '''
         self.command.put('resume')
+        if 0:
+            self.sources['default'].put([time.time(), 'DEBUG', 'default', 'resume'])
 
     def run(self):
         t0=time.time()

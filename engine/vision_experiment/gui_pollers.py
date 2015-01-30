@@ -25,23 +25,13 @@ else:
 import PyQt4.Qt as Qt
 import PyQt4.QtCore as QtCore
 
-from visexpman.engine.vision_experiment import experiment_data
-from visexpman.engine.hardware_interface import mes_interface
-from visexpman.engine.hardware_interface import network_interface
-from visexpman.engine.hardware_interface import stage_control
-from visexpman.engine.hardware_interface import scanner_control
-from visexpman.engine.hardware_interface import flowmeter
-from visexpman.engine.hardware_interface import daq_instrument
-from visexpman.engine.vision_experiment import gui
+from visexpman.engine.vision_experiment import experiment_data,gui
+from visexpman.engine.hardware_interface import mes_interface,network_interface,stage_control,scanner_control,flowmeter,daq_instrument
 from visexpman.engine import generic
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
-from visexpman.engine.generic import stringop
-from visexpman.engine.generic import introspect 
+from visexpman.engine.generic import utils,signal,fileop,stringop,introspect 
 from visexpman.engine.generic import gui as gui_generic
 from visexpA.engine.datadisplay import imaged
-from visexpA.engine.datahandlers import matlabfile
-from visexpA.engine.datahandlers import hdf5io
+from visexpA.engine.datahandlers import matlabfile,hdf5io
 from visexpman.engine.hardware_interface import queued_socket
 try:
     import visexpA.engine.component_guesser as cg
@@ -2689,6 +2679,9 @@ class VisexpGuiPoller(Poller):
         self.imaging_finished = False
         self.analog_recording_started=False
         self.connected_nodes = ''
+        self.sync_samples = {'ca_imaging':[], 'stim':[]}
+        self.tdiff = {'ca_imaging':0, 'stim':0}
+        self.plotdata = {}
         self.context_paths = {}
         self.unittest_context_paths = ['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount',#only used by unittest
                                      'self.experiment_control.user_selected_stimulation_module',
@@ -2789,23 +2782,23 @@ class VisexpGuiPoller(Poller):
         self.toolbox = gui.RetinaTools(self, self.config, self.parent.central_widget.main_widget.toolbox)
 
     def connect_signals(self):
-        self.connect(self, QtCore.SIGNAL('printc'),  self.parent.printc)
-        self.connect(self, QtCore.SIGNAL('ask4confirmation'),  self.parent.ask4confirmation)
-        self.connect(self, QtCore.SIGNAL('ask4filename'),  self.parent.ask4filename)
-        self.connect(self, QtCore.SIGNAL('notify_user'),  self.parent.notify_user)
-        self.connect(self, QtCore.SIGNAL('update_curve'),  self.parent.update_curve)
-        self.connect(self, QtCore.SIGNAL('set_experiment_progressbar'),  self.parent.set_experiment_progressbar)
-        self.connect(self, QtCore.SIGNAL('set_experiment_progressbar_range'),  self.parent.set_experiment_progressbar_range)
-        self.connect(self, QtCore.SIGNAL('set_experiment_names'),  self.parent.set_experiment_names)
-        self.connect(self, QtCore.SIGNAL('update_experiment_parameter_table'),  self.parent.update_experiment_parameter_table)
-        self.connect(self, QtCore.SIGNAL('update_animal_parameters_table'),  self.parent.update_animal_parameters_table)
-        self.connect(self, QtCore.SIGNAL('update_animal_file_list'),  self.parent.update_animal_file_list)
-        self.connect(self, QtCore.SIGNAL('update_experiment_log_suggested_date'),  self.parent.update_experiment_log_suggested_date)
-        self.connect(self, QtCore.SIGNAL('update_experiment_log'),  self.parent.update_experiment_log)
-        self.connect(self, QtCore.SIGNAL('update_recording_status'),  self.parent.update_recording_status)
-        self.connect(self, QtCore.SIGNAL('close_app'),  self.parent.close_app)
-        self.connect(self, QtCore.SIGNAL('select_recording_item'),  self.parent.select_recording_item)
-        self.connect(self, QtCore.SIGNAL('select_experiment_log_entry'),  self.parent.select_experiment_log_entry)
+        self.connect(self, QtCore.SIGNAL('printc'), self.parent.printc)
+        self.connect(self, QtCore.SIGNAL('ask4confirmation'), self.parent.ask4confirmation)
+        self.connect(self, QtCore.SIGNAL('ask4filename'), self.parent.ask4filename)
+        self.connect(self, QtCore.SIGNAL('notify_user'), self.parent.notify_user)
+        self.connect(self, QtCore.SIGNAL('update_curve'), self.parent.update_curve)
+        self.connect(self, QtCore.SIGNAL('set_experiment_progressbar'), self.parent.set_experiment_progressbar)
+        self.connect(self, QtCore.SIGNAL('set_experiment_progressbar_range'), self.parent.set_experiment_progressbar_range)
+        self.connect(self, QtCore.SIGNAL('set_experiment_names'), self.parent.set_experiment_names)
+        self.connect(self, QtCore.SIGNAL('update_experiment_parameter_table'), self.parent.update_experiment_parameter_table)
+        self.connect(self, QtCore.SIGNAL('update_animal_parameters_table'), self.parent.update_animal_parameters_table)
+        self.connect(self, QtCore.SIGNAL('update_animal_file_list'), self.parent.update_animal_file_list)
+        self.connect(self, QtCore.SIGNAL('update_experiment_log_suggested_date'), self.parent.update_experiment_log_suggested_date)
+        self.connect(self, QtCore.SIGNAL('update_experiment_log'), self.parent.update_experiment_log)
+        self.connect(self, QtCore.SIGNAL('update_recording_status'), self.parent.update_recording_status)
+        self.connect(self, QtCore.SIGNAL('close_app'), self.parent.close_app)
+        self.connect(self, QtCore.SIGNAL('select_recording_item'), self.parent.select_recording_item)
+        self.connect(self, QtCore.SIGNAL('select_experiment_log_entry'), self.parent.select_experiment_log_entry)
         
     def update_network_connection_status(self):
         #Check for network connection status
@@ -2817,6 +2810,45 @@ class VisexpGuiPoller(Poller):
                 self.connected_nodes += remote_node_name + ' '
                 n_connected += 1
         self.parent.central_widget.network_status.setText('Network connections: {2} {0}/{1}'.format(n_connected, n_connections, self.connected_nodes))
+            
+    def _update_plot(self, msg, connection_name):
+        if not self.plotdata.has_key(connection_name):
+            self.plotdata[connection_name] = []
+        if len(numpy.array(msg['plot']).shape) == 1:
+            self.plotdata[connection_name].append(msg['plot'])
+        else:
+            self.plotdata[connection_name].extend(msg['plot'])
+        curves = []
+        for c in self.plotdata.keys():
+            if len(self.plotdata[c])==0:
+                continue
+            plotdata = numpy.array(self.plotdata[c])
+            t=plotdata[:,0]-self.tdiff[c]-self.experiment_control.current_stimulus_start_time#time 0 is when stim started
+#            t -= t[0]
+            plotdata = plotdata[:,1:]
+            if c=='stim' and self.plotdata.has_key('ca_imaging'):
+                #Specific for block trigger
+                #insert values to visualize block trigger better
+                t=numpy.repeat(t,2)
+                plotdata=numpy.repeat(numpy.cast['bool'](plotdata),2)
+                plotdata[0::2] = numpy.invert(plotdata[0::2])
+                ca_values = numpy.array(self.plotdata['ca_imaging'])[:,1:]
+                plotdata = signal.scale(plotdata, ca_values.min(), ca_values.max())
+                curves.append((t, plotdata))
+            else:
+                for i in range(plotdata.shape[1]):
+                    curves.append((t, plotdata[:,i]))
+        self.emit(QtCore.SIGNAL('update_curve'), curves)
+        
+    
+    def _calculate_tdiff(self, msg, connection):
+        self.sync_samples[connection].append(msg)
+        for c in ['stim', 'ca_imaging']:
+            if len(self.sync_samples[c]) == self.config.SYNC_SAMPLE_SIZE:
+                latency = numpy.array([sample['sync']['t1*']-sample['sync']['t1'] for sample in self.sync_samples[c]]).mean()
+                self.tdiff[c] = self.sync_samples[c][-1]['sync']['t1'] + 0.5 * latency - self.sync_samples[c][-1]['sync']['t2']
+                self.printc(self.tdiff)
+                self.sync_samples[c] = []
             
     def run_in_all_iterations(self):
         #### Calling functions all the time #### 
@@ -2833,12 +2865,6 @@ class VisexpGuiPoller(Poller):
                 self.test()#Call tester
                 #update progress bar
                 self.emit(QtCore.SIGNAL('set_experiment_progressbar'), time.time()-self.experiment_control.current_stimulus_start_time if self.experiment_control.isstimulus_started else 0)
-                if not hasattr(self, 'd'):
-                    self.d=[1]
-                    self.t=[time.time()]
-                self.d.append(self.d[-1]+1)
-                self.t.append(time.time())
-                self.emit(QtCore.SIGNAL('update_curve'), numpy.array(self.t)-self.t[0], numpy.array(self.d))
             if not self.phase%5:
                 self.animal_file.chec4new_animal_file()
                 self.update_network_connection_status()
@@ -2851,6 +2877,12 @@ class VisexpGuiPoller(Poller):
                 self.experiment_control.check_data_ready_timeout()
             if not self.phase%21:
                 self.printc('poller alive')
+                if not self.experiment_control.check_recording_state(['queued', 'preparing',  'running']):
+                    for i in range(self.config.SYNC_SAMPLE_SIZE):
+                        for c in ['stim', 'ca_imaging']:
+                            if c in self.connected_nodes:
+                                self.send('sync', connection=c)
+                        time.sleep(0.1)
             self.phase+= 1
 
             
@@ -2883,6 +2915,7 @@ class VisexpGuiPoller(Poller):
                         arg = msg.get('arg', None)
                         if trigger_name=='imaging started' and arg=='started':
                             res = self.experiment_control.start_stimulation()
+                            self.plotdata = {}
                         elif trigger_name == 'stim started':
                             res = self.experiment_control.stimulation_started()
                             self.emit(QtCore.SIGNAL('set_experiment_progressbar_range'), self.experiment_control.current_stimulus_duration)
@@ -2893,6 +2926,10 @@ class VisexpGuiPoller(Poller):
                             res = self.experiment_control.finish_experiment(trigger_name)
                         if res != True:#Put trigger back to network queue if could not be processed
                             q.put(msg)
+                    elif hasattr(msg, 'has_key') and msg.has_key('sync'):
+                        self._calculate_tdiff(msg, connection_name)
+                    elif hasattr(msg, 'has_key') and msg.has_key('plot'):
+                        self._update_plot(msg, connection_name)
                     elif hasattr(msg, 'has_key') and msg.has_key('function'):
                         function_name = msg['function']
                         args = msg['args']

@@ -155,11 +155,11 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         ENABLE_FRAME_CAPTURE = not True
         #### Network ####
         self.CONNECTIONS['stim']['ip']['stim'] = None
-        self.CONNECTIONS['stim']['ip']['main_ui'] = '172.27.26.39'
-        self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = '172.27.26.39'#bind to specific network card
-        self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = '172.27.26.39'
+        self.CONNECTIONS['stim']['ip']['main_ui'] = '172.27.26.45'
+        self.CONNECTIONS['ca_imaging']['ip']['ca_imaging'] = '172.27.26.45'#bind to specific network card
+        self.CONNECTIONS['ca_imaging']['ip']['main_ui'] = '172.27.26.45'
         self.CONNECTIONS['analysis']['ip']['analysis'] = None
-        self.CONNECTIONS['analysis']['ip']['main_ui'] = '172.27.26.39'
+        self.CONNECTIONS['analysis']['ip']['main_ui'] = '172.27.26.45'
 
         self.BASE_PORT = 10000
         

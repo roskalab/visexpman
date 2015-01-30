@@ -908,6 +908,9 @@ class ExperimentControl(gui.WidgetControl):
     def set_experiment_state(self):
         self.printc('{0}\'s state updated.'.format(self._modify_experiment_item(self._set_experiment_state)))
         
+    def check_recording_state(self, states):
+        return len([rec for rec in self.poller.animal_file.recordings if rec['status'] in states]) > 0
+        
     def prepare_next_experiment(self):
         '''
         Called by poller regularly, checks command queue and current experiment status and starts a new recording
@@ -915,7 +918,7 @@ class ExperimentControl(gui.WidgetControl):
         1. Chose the oldest recording which has issued state 
         '''
         #Do nothing when any recoring is in preparing/running state
-        if  len([rec for rec in self.poller.animal_file.recordings if rec['status'] == 'preparing' or rec['status'] == 'running']) > 0:
+        if self.check_recording_state(['preparing',  'running']):
             return
         #Take the oldest issued recording 
         for i in range(len(self.poller.animal_file.recordings)):
@@ -1103,13 +1106,14 @@ class ExperimentControl(gui.WidgetControl):
                     hmerged.save(nodes2read)
                     self.printc('Checking data')
                     error_msgs = experiment_data.check(hmerged, self.config)
-                    if len(error_msg)>0:
+                    if len(error_msgs)>0:
                         self.poller.notify_user('WARNING', 'Problem with datafile: \r\n{0}'.format('\r\n'.join(error_msgs)))
                     hmerged.close()
                     self.poller.emit(QtCore.SIGNAL('set_experiment_progressbar'), 0)
                     self.printc('Removing temporary files')
                     map(os.remove, files2merge)
                     self.poller.update_recording_status()
+                    self.isstimulus_started=False
                     self.printc('{0} DONE' .format(self.poller.animal_file.recordings[i]['id']))
                 return True
         
@@ -1122,6 +1126,7 @@ class ExperimentControl(gui.WidgetControl):
             return
         function_call = {'function': 'live_scan_start', 'args': [self.check_scan_parameters(experiment=False)]}
         self.poller.send(function_call,connection='ca_imaging')
+        self.poller.plotdata = {}
         
     def live_scan_stop(self):
         if len([r for r in self.poller.animal_file.recordings if r['status'] == 'running' or r['status'] == 'preparing' or r['status'] == 'queued'])>0:
@@ -1832,27 +1837,30 @@ class Plot(Qwt.QwtPlot):
 #        self.insertLegend(legend, Qwt.QwtPlot.BottomLegend)
         self.setAxisTitle(Qwt.QwtPlot.xBottom, 'time [s]')
         self.colors = [QtCore.Qt.red, QtCore.Qt.green, QtCore.Qt.blue, QtCore.Qt.black]
-        color_i=0
-        self.curve1 =Qwt.QwtPlotCurve('1')
-        self.curve1.setRenderHint(Qwt.QwtPlotItem.RenderAntialiased);
-        self.curve1.setPen(QtGui.QPen(self.colors[color_i]))
-        self.curve1.setSymbol(Qwt.QwtSymbol(Qwt.QwtSymbol.Cross,
-                                  Qt.QBrush(),
-                                  Qt.QPen(self.colors[color_i]),
-                                  Qt.QSize(8, 8)))
-        self.curve1.attach(self)
-        duration=5
-#        self.set_stimulus_duration(duration)
-        t=numpy.arange(0,duration, 1./100)
-        data = t**2
-        self.update_curve(t, data)
-        self.update_curve(t, data*2)
+        ncurves = 3
+        self.curves = []
+        for i in range(ncurves):
+            self.curves.append(Qwt.QwtPlotCurve(str(i)))
+            self.curves[-1].setRenderHint(Qwt.QwtPlotItem.RenderAntialiased)
+            self.curves[-1].setPen(QtGui.QPen(self.colors[i]))
+            self.curves[-1].setSymbol(Qwt.QwtSymbol(Qwt.QwtSymbol.Cross,
+                                      Qt.QBrush(),
+                                      Qt.QPen(self.colors[i]),
+                                      Qt.QSize(8, 8)))
+            self.curves[-1].attach(self)
+#        duration=5
+##        self.set_stimulus_duration(duration)
+#        t=numpy.arange(0,duration, 1./100)
+#        data = t**2
+#        self.update_curve(t, data)
+#        self.update_curve(t, data*2)
         
     def set_stimulus_duration(self,duration):
         self.setAxisScale(Qwt.QwtPlot.xBottom, 0, duration)
         
-    def update_curve(self, t, data):
-        self.curve1.setData(t, data)
+    def update(self, curves):
+        for ci in range(len(curves)):
+            self.curves[ci].setData(curves[ci][0], curves[ci][1])
 #        self.setAxisScale(Qwt.QwtPlot.yLeft, min(data), max(data))
         self.replot()
         

@@ -123,13 +123,23 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                     if ENABLE_16_BIT:
                         self.images['save'] = self._pmt_voltage2_16bit(self.images['save'])
                     self._save_data(self.images['save'])
-#                    self.printl(self.images['snap'].mean())
-#                print self.images['snap'].mean()
-#                print self.images['snap'].shape,self.images['snap'].mean(),self.images['snap'].max(),self.images['snap'].min(),self.images['snap'].dtype
-#                numpy.save('r:\\dataslow\\temp\\im.npy', self.images['snap'])
-                #Save to file
+                    self._send_meanimage_data()
             
+    def _send_meanimage_data(self):
+        now = time.time()
+        entry = map(int, list(numpy.cast['float'](self.images['save']).mean(axis=1).mean(axis=1)))
+        entry.insert(0,round(now,2))
+        self.data2plot.append(entry)
+        if now - self.last_send_time> 1.0 and len(self.data2plot)>0:#sending data in every 1 second
+            self.send({'plot': self.data2plot})
+            self.data2plot = []
+            self.last_send_time = now
                 
+    def _init_meanimage_data_send(self):
+        self.last_send_time = time.time()
+    
+        self.data2plot = []
+        
     def test(self):
         self.printl('test1')
         
@@ -163,6 +173,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         self.prepare_screen_for_live_imaging()
         self.frame_ct=0
         self.imaging_parameters = parameters
+        self._init_meanimage_data_send()
         self._prepare_datafile()
         self.imaging_started = None
         self.record_ai_channels = daq_instrument.ai_channels2daq_channel_string(*self._pmtchannels2indexes(parameters['recording_channels']))
@@ -303,7 +314,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
         image_cut = numpy.where(image<-self.config.MAX_PMT_NOISE_LEVEL,-self.config.MAX_PMT_NOISE_LEVEL,image)
         #Voltages above MAX_PMT_VOLTAGE+max_noise_level are considered to be saturated
         image_cut = numpy.where(image>self.config.MAX_PMT_VOLTAGE+self.config.MAX_PMT_NOISE_LEVEL,self.config.MAX_PMT_VOLTAGE+self.config.MAX_PMT_NOISE_LEVEL,image_cut)
-        return numpy.cast['uint16']((image_cut/(2*self.config.MAX_PMT_NOISE_LEVEL+self.config.MAX_PMT_VOLTAGE))*(2**16-1))
+        return numpy.cast['uint16'](((image_cut+self.config.MAX_PMT_NOISE_LEVEL)/(2*self.config.MAX_PMT_NOISE_LEVEL+self.config.MAX_PMT_VOLTAGE))*(2**16-1))
         
     def _shutter(self,state):
         daq_instrument.set_digital_line(self.config.TWO_PHOTON_PINOUT['LASER_SHUTTER_PORT'], int(state))
@@ -464,6 +475,7 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         self.prepare()
         self.printl('Starting stimulation: {0}/{1}'.format(self.experiment_name,self.experiment_config_name))
+        time.sleep(0.1)
         self.send({'trigger':'stim started'})
         self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
         self.run()
@@ -472,6 +484,10 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         self.printl('Stimulation ended, saving data to file')
         self._save2file()
         self.send({'trigger':'stim data ready'})
+        self.frame_rates = numpy.array(self.frame_rates)
+        fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
+        self.log.info(fri, source = 'stim')
+
 
     def printl(self, message, loglevel='info', stdio = True):
         utils.printl(self, message, loglevel, stdio)

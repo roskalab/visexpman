@@ -47,6 +47,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.has = -1
         self.frame_counter = 0
         self.stimulus_frame_info = []
+        self.frame_rates = []
         
     def _init_variables(self):
         self.delayed_frame_counter = 0 #counts how many frames were delayed
@@ -72,7 +73,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             self.frame_counter += 1
         if not self.config.STIMULUS2MEMORY:
             # If this library is not called by an experiment class which is called form experiment control class, no logging shall take place
-            self.log.info(numpy.round(self.screen.frame_rate,2), source = 'stim')
+            self.frame_rates.append(self.screen.frame_rate)
         self.check_abort()
 
     def _save_stimulus_frame_info(self, caller_function_info, is_last = False):
@@ -119,11 +120,15 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if hasattr(self.digital_output,'set_data_bit'):
             self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
         self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
+        if self.machine_config.PLATFORM == 'elphys_retinal_ca':
+            self.send({'plot': [time.time(), 1]})
                 
     def block_end(self, block_name = ''):
         if hasattr(self.digital_output,'set_data_bit'):
             self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
         self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})
+        if self.machine_config.PLATFORM == 'elphys_retinal_ca':
+            self.send({'plot': [time.time(), 0]})
         
     def _add_block_start(self, is_block, frame_i, nframes):
         if frame_i == 0 and is_block:
