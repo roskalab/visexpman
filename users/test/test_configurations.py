@@ -524,6 +524,14 @@ class GUITestConfig(configuration.ElphysRetinalCaImagingConfig):
                                              [0.0, 0.0], 
                                              [0.5, 25.0], 
                                              [1.0, 100.0],])
+        FILTERWHEEL = [{
+                        'connected to': '',
+                        'filters':{'ND0': 1 }
+                        },
+                        {
+                        'connected to': '',
+                        'filters':{}
+                        }]
         
         self._create_parameters_from_locals(locals())
         

@@ -9,7 +9,7 @@ import os.path
 import os
 import shutil
 import spike_sort.core
-from visexpA.engine.datahandlers import hdf5io
+import hdf5io
 #from visexpA.engine.dataprocessors.signal import estimate_baseline
 THRESHOLD = 'auto'
 

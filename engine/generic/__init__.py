@@ -9,7 +9,8 @@ except ImportError:
     from PIL import ImageFont
 
 import os
-from visexpA.engine.dataprocessors import generic
+if 0:
+    from visexpA.engine.dataprocessors import generic
 import unittest
 import itertools
     
@@ -93,7 +94,7 @@ class Test(unittest.TestCase):
     
 #    def test_01(self):
 #        file = '/home/zoltan/visexp/debug/mouse_regions.hdf5'
-#        from visexpA.engine.datahandlers import hdf5io
+#        import hdf5io
 #        sr = hdf5io.read_item(file,  'scan_regions')
 #        image = [sr[sr.keys()[1]]['brain_surface']]
 #    #    image = {'image': 100*numpy.ones((100, 200),  numpy.uint16), 'origin':utils.rc((0, 0)), 'scale': utils.rc((1, 1))}

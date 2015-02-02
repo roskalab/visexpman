@@ -3,7 +3,7 @@ import numpy
 import zlib
 import blosc
 import pickle
-from visexpA.engine.datahandlers import hdf5io
+import hdf5io
 
 import scipy.io
 

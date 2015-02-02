@@ -17,9 +17,10 @@ import PyQt4.QtCore as QtCore
 import PyQt4.Qwt5 as Qwt
 
 import visexpman
-from visexpA.engine.datahandlers import hdf5io
-from visexpA.engine.datadisplay import imaged
-from visexpA.engine.datadisplay.plot import Qt4Plot
+import hdf5io
+if 0:
+    from visexpA.engine.datadisplay import imaged
+    from visexpA.engine.datadisplay.plot import Qt4Plot
 from visexpman.engine.vision_experiment import experiment, experiment_data
 from visexpman.engine.hardware_interface import scanner_control,daq_instrument,instrument
 from visexpman.engine import ExperimentConfigError, AnimalFileError

@@ -160,7 +160,7 @@ class Testuled(unittest.TestCase):
             while not self.queues['data'].empty():
                 self.data.append(self.queues['data'].get())
             self.data=numpy.array(self.data)
-            from visexpA.engine.datahandlers import hdf5io
+            import hdf5io
             from visexpman.engine.generic import fileop
             from visexpman.engine.generic import utils
             h=hdf5io.Hdf5io(fileop.generate_filename('v:\\debug\\uled\\timing.hdf5'), filelocking=False)
@@ -177,7 +177,7 @@ class Testuled(unittest.TestCase):
             
     @unittest.skip('')
     def test_02_eval_timing(self):
-        from visexpA.engine.datahandlers import hdf5io
+        import hdf5io
         p='/mnt/datafast/debug/uled/timing_00001.hdf5'
         p='v:\\debug\\uled\\timing_00001.hdf5'
         h=hdf5io.Hdf5io(p, filelocking=False)

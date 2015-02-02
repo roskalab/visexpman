@@ -118,7 +118,8 @@ def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100))
     return circle 
  
 def numpy_circles(radii,  centers,  array_size,  colors = None):
-    from visexpA.engine.datadisplay.imaged import imshow
+    if 0:
+        from visexpA.engine.datadisplay.imaged import imshow
 
     a = numpy.zeros(array_size).astype('uint8')
     if not isinstance(radii, (list, tuple)) or  (hasattr(radii, 'shape') and radii.shape[1]==1):
@@ -771,6 +772,7 @@ def module_versions(modules):
                 try:
                     version_path = version_paths[module].split('.')
                     version = getattr(sys.modules[module], version_path[0])
+                    print version, version_path
                     if not isinstance(version, str):
                         if callable(getattr(version, version_path[1])):
                             version = getattr(version, version_path[1])()

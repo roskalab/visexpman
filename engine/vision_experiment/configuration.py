@@ -250,7 +250,7 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
             raise RuntimeError('Gamma calibration file does not exists: {0}'.format(filename))
         if 'hdf5' not in os.path.split(filename)[1]:
             raise RuntimeError('Gamma calibration file is expected in hdf5 format: {0}'.format(filename))
-        from visexpA.engine.datahandlers import hdf5io
+        import hdf5io
         import copy
         self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction',filelocking=False))
     

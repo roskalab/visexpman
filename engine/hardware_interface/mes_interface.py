@@ -17,7 +17,9 @@ import traceback
 import PyQt4.QtCore as QtCore
 
 import visexpman.engine.generic.configuration
-from visexpA.engine.datahandlers import matlabfile
+if 0:
+    from visexpA.engine.datahandlers import matlabfile
+
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 
@@ -807,7 +809,7 @@ if __name__ == "__main__":
 #    shutil.copy('/home/zoltan/visexp/data/test/scanparams.mat', path)
 #    set_scan_parameter_file(10.0, path,  path, scan_mode = 'xyz')
   #TEST )X+1
-#  from visexpA.engine.datahandlers import hdf5io
+#  import hdf5io
 #  points = hdf5io.read_item(os.path.join('/home/zoltan/visexp/context',  'cell_positions.hdf5'), 'cell_positions_fine')
 #  generate_scan_points_mat(points, '/home/zoltan/visexp/debug/data/crpoints.mat')
 #     set_scan_parameter_file(10.0, '/home/zoltan/visexp/debug/data/test.mat',  '/home/zoltan/visexp/debug/data/test.mat')

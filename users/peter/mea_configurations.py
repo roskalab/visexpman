@@ -133,7 +133,7 @@ class MultiChannel256MeaSetup(MCMEAConfig): #David machine config
         USER_EXPERIMENT_COMMANDS = {'next': {'key': 'l', 'domain': ['running experiment']}, }
         gamma_corr_filename = 'c:\\visexp\\data\\gamma.hdf5'
         if os.path.exists(gamma_corr_filename):
-            from visexpA.engine.datahandlers import hdf5io
+            import hdf5io
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction', filelocking=False))
         self._create_parameters_from_locals(locals())

@@ -1,4 +1,4 @@
-from visexpA.engine.datahandlers import hdf5io
+import hdf5io
 import xlrd
 import sys
 import numpy

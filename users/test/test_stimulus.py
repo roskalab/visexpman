@@ -26,8 +26,6 @@ class TestNTGratingExp(experiment.Experiment):
         for o in range(0,360,45):
             self.show_grating_non_texture(3,100,100,o,2,contrast=1.0,background_color=0.0)
             break
-        
-
 
 class TestShowGratingPars(experiment.ExperimentConfig):
     def _create_parameters(self):

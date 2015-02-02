@@ -114,7 +114,7 @@ class TestLightMeter(unittest.TestCase):
         import numpy
         values = numpy.array(values)
         pylab.plot(values[:, 0],  values[:, 1])
-        from visexpA.engine.datahandlers import hdf5io
+        import hdf5io
         hdf5io.save_item('c:\\_del\\data.hdf5', 'values',  values,  filelocking=False)
         
         print 1/numpy.diff(values[:, 0]).mean()

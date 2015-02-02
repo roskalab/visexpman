@@ -10,13 +10,14 @@ import scipy.io
 import visexpman
 import visexpA
 from visexpman.engine import visexp_gui
-from visexpA.engine.datahandlers import hdf5io
-from visexpA.engine import jobhandler
+import hdf5io
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import command_parser
-from visexpA.engine.datahandlers import matlabfile
+if 0:
+    from visexpA.engine.datahandlers import matlabfile
+    from visexpA.engine import jobhandler
 
 class VisexpAppRunner(threading.Thread):
     def __init__(self, uiname):

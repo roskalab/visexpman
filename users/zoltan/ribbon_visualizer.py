@@ -12,10 +12,11 @@ except ImportError:
 import visexpman.engine.generic.graphics
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
-from visexpA.engine.datahandlers import hdf5io
+import hdf5io
 import visexpman.engine.generic.configuration
 from visexpman.engine import generic
-from visexpA.engine.datadisplay import imaged
+if 0:
+    from visexpA.engine.datadisplay import imaged
 
 class RibbonScanVisualizeConfig(visexpman.engine.generic.configuration.Config):
     def _create_application_parameters(self):

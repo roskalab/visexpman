@@ -18,7 +18,7 @@ def analyze_logs():
                     elif 'SOCacquire_line_scanEOCV' in content:
                         database.append(content)
     else:
-        from visexpA.engine.datahandlers import hdf5io
+        import hdf5io
         selected = hdf5io.read_item('/home/rz/Downloads/t.hdf5', 'selected',  filelocking=False)
     names = ['_'.join(s.split('_')[2:-4]) for s in selected]
     unames = {}

@@ -1291,7 +1291,7 @@ class TestStimulationPatterns(unittest.TestCase):
         
     def test_10_block_trigger(self):
         from visexpman.engine.visexp_app import stimulation_tester
-        from visexpA.engine.datahandlers import hdf5io
+        import hdf5io
         from visexpman.users.test.test_stimulus import TestStimulusBlockParams
         context = stimulation_tester('test', 'GUITestConfig', 'TestStimulusBlockParams')
         ec = TestStimulusBlockParams(context['machine_config'])

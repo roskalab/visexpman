@@ -15,7 +15,7 @@ import StringIO
 
 from visexpman.engine.generic import utils,fileop,signal
 from visexpman.engine import generic
-from visexpA.engine.datahandlers import hdf5io
+import hdf5io
 
 import unittest
 

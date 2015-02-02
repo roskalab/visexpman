@@ -11,7 +11,7 @@ from visexpman.engine import ExperimentConfigError
 import stimulation_library
 
 import inspect
-from visexpA.engine.datahandlers import hdf5io
+import hdf5io
 from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
 

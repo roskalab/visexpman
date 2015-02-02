@@ -31,179 +31,189 @@ TEST_single_unittest =
 TEST_stage = False
 TEST_stim = False
 TEST_test = True
+TEST_test_data_folder = ['/mnt/rzws/test_data', 'r:\\test_data']
 TEST_uled = False
-TEST_unittests = ['visexpman.engine.visexp_gui.testVisionExperimentGui', 'visexpman.engine.vision_experiment.experiment_control.TestCaImaging', 'visexpman.engine.visexp_app.TestStim', 'visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 'visexpman.engine.vision_experiment.screen.TestCaImagingScreen', 'visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns', 'visexpman.engine.TestApplicationInit', 'visexpman.engine.generic.parameter.testParameter', 'visexpman.engine.generic.fileop.TestFileops', 'visexpman.engine.generic.utils.TestUtils', 'visexpman.engine.generic.log.TestLog', 'visexpman.engine.generic.signal.TestSignal', 'visexpman.engine.generic.colors.TestColorUtils', 'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket', 'visexpman.engine.hardware_interface.instrument.TestInstrument', 'visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess', 'visexpman.engine.hardware_interface.scanner_control.TestScannerControl']
+TEST_unittests = ['visexpman.engine.vision_experiment.experiment.testExperimentHelpers', 'visexpman.engine.vision_experiment.experiment_data.TestExperimentData', 'visexpman.engine.vision_experiment.screen.TestCaImagingScreen', 'visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns', 'visexpman.engine.TestApplicationInit', 'visexpman.engine.generic.parameter.testParameter', 'visexpman.engine.generic.fileop.TestFileops', 'visexpman.engine.generic.utils.TestUtils', 'visexpman.engine.generic.log.TestLog', 'visexpman.engine.generic.signal.TestSignal', 'visexpman.engine.generic.colors.TestColorUtils', 'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket', 'visexpman.engine.hardware_interface.instrument.TestInstrument', 'visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess', 'visexpman.engine.hardware_interface.scanner_control.TestScannerControl']
 TEST_valid_file = /mnt/rzws/codes/visexpman/__init__.py
 TEST_working_folder = ['/mnt/rzws/work-rzws', 'r:\\work-rznb-win7', '/tmp', 'c:\\temp']
 
 ################# Test results ####################
-test_01_select_stimfile (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_05_twophoton (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
-test_09_triangle_wf_single (visexpman.engine.generic.signal.TestSignal) ... ok
-test_11_copy_animal_file_after_gui_start (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_27_string_list_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_07_sine_scan_pattern (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
-test_08_point_laser_beam_out_of_range (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... skipped 'Daq tests disabled'
-test_19_reconstruct_signal (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... ok
-test_03_snap_and_live_imaging (visexpman.engine.vision_experiment.experiment_control.TestCaImaging) ... skipped 'Daq tests disabled'
-test_04_bind2ip (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_05_context_persistence (visexpman.engine.visexp_app.TestStim) ... ok
-test_12_context_loading (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_08_stimulation_tester (visexpman.engine.visexp_app.TestStim) ... ok
-test_04_ulcorner_coordinate_system (visexpman.engine.visexp_app.TestStim) ... ok
-test_37_set_invalid_type_value_2 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_04_invalid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_08_sinus_pattern_scan_daq (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
-test_03_natural_stim_spectrum (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... ok
-test_05_load_animal_files_from_data_storage_and_modify (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_06_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
-test_12_calculate_trigger_signal (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
-test_01_parse_channel_string (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... ok
-test_01_create_logger (visexpman.engine.generic.log.TestLog) ... ok
-test_02_set_speed_position_withmax_acceleration (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
-test_06_calibrate_scanner_parameters (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
-test_01_command_line_args (visexpman.engine.TestApplicationInit) ... ok
-test_01_pngsave (visexpman.engine.generic.fileop.TestFileops) ... skipped ''
-test_16_numeric_parameter_invalid_range_1 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_04_histogram_shift_on_image (visexpman.engine.generic.signal.TestSignal) ... ok
-test_get_colors (visexpman.engine.generic.colors.TestColorUtils) ... ok
-test_07_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
-test_12_natural_morse (visexpman.engine.generic.signal.TestSignal) ... ok
-test_02_invalid_path_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
 test_06_valid_string_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_06_modify_animal_parameter_name (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_09_fft_scan_signal (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
-test_02_histogram_shift_2d (visexpman.engine.generic.signal.TestSignal) ... ok
-test_01_add_frame (visexpman.engine.generic.colors.TestColorUtils) ... ok
-test_09_invalid_switch_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_11_sinus_linear_range (visexpman.engine.generic.signal.TestSignal) ... ok
-test_11_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
-test_09_nonprocess_aio (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
-test_01_parse_stim_file (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
-test_03_read_experiment_duration_from_source (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
-test_05_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
-test_03_multiple_servers (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_03_set_do_line (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
-test_02_read_experiment_duration (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
-test_01_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
-test_05_exp_config_points2non_expclass (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
-test_04_load_animal_files_from_data_storage_and_switch (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_06_texture (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... skipped 'Funtion is not ready'
-test_02_copier (visexpman.engine.generic.fileop.TestFileops) ... skipped 'Starts a process and blocks other tests, needs to be fixed'
-test_20_invalid_numeric_parameter_2 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_01_set_position_and_speed (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
-test_03_presscommands (visexpman.engine.visexp_app.TestStim) ... ok
-test_11_non_process_aio_then_process_aio (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
-test_14_add_remove_experiment_animal_file (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_08_context_file_no_animal_file_add_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
 test_28_string_list_parameter_with_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_02_run_experiment (visexpman.engine.vision_experiment.experiment_control.TestCaImaging) ... skipped 'Daq tests disabled'
-test_07_string_parameter_with_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_15_scanner_transfer_function (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
-test_34_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
 test_10_block_trigger (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... ok
-test_07_add_experiment_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_08_valid_switch_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_31_list_of_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_17_rectangular_scan_timing (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
-test_01_valid_path_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_02_moving_shape (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... ok
-test_03_parse_animal_filename (visexpman.engine.generic.fileop.TestFileops) ... ok
-test_24_invalid_numeric_list_parameter_1 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_35_set_out_of_range_value (visexpman.engine.generic.parameter.testParameter) ... ok
-test_22_numeric_list_parameter_invalid_range1 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_14_generate_sinus_calibration_signal (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
-test_17_numeric_parameter_invalid_range_2 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_06_measure_frame_rate (visexpman.engine.visexp_app.TestStim) ... ok
-test_05_greyscale_invalid_dimension (visexpman.engine.generic.signal.TestSignal) ... ok
-test_01_curtain (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... ok
-test_02_no_remote_logger (visexpman.engine.generic.log.TestLog) ... ok
-test_40_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
-test_03_generate_line_scans (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
-test_25_invalid_numeric_list_parameter_2 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_33_array_parameter_with_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_30_invalid_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_08_triangle_wf (visexpman.engine.generic.signal.TestSignal) ... ok
-test_09_no_context_file_but_animal_file_add_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_16_estimate_scanner_position_shift (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
-test_14_numeric_parameter_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_11_enumerated_parameter_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_01_start_stim_loop (visexpman.engine.visexp_app.TestStim) ... ok
-test_02_execute_command (visexpman.engine.visexp_app.TestStim) ... ok
-test_01_instrument_process (visexpman.engine.hardware_interface.instrument.TestInstrument) ... ok
-test_13_rcd_pack (visexpman.engine.generic.utils.TestUtils) ... ok
-test_04_generate_rectangular_scan (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
-test_10_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
-test_04_freespace_warning (visexpman.engine.TestApplicationInit) ... ok
-test_13_sinesweep (visexpman.engine.generic.signal.TestSignal) ... ok
-test_14_trigger_indexes (visexpman.engine.generic.signal.TestSignal) ... ok
-test_09_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
-test_01_histogram_shift_1d (visexpman.engine.generic.signal.TestSignal) ... ok
-test_39_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
-test_12_enumerated_parameter_invalid_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_11_process_sine_calibdata (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
-test_13_valid_numeric_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_13_add_remove_experiment_no_animal_file (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_12_rcd_pack (visexpman.engine.generic.utils.TestUtils) ... ok
-test_10_valid_enumerated_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_05_export2video (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... ok
-test_10_remove_experiment_log_entry (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_01_simple_transfer (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_10_process_calibdata (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
-test_03_histogram_shift_band_and_gamma (visexpman.engine.generic.signal.TestSignal) ... ok
-test_04_not_existing_experiment_class (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
-test_07_aio_process_run_twice (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
-test_07_execute_experiment (visexpman.engine.visexp_app.TestStim) ... ok
-test_14_rcd_pack (visexpman.engine.generic.utils.TestUtils) ... ok
-test_09_show_grating_non_texture (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... ok
-test_01_image_display (visexpman.engine.vision_experiment.screen.TestCaImagingScreen) ... ok
-test_17_object2array (visexpman.engine.generic.utils.TestUtils) ... ok
-test_05_single_ai_channel (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
-test_02_create_animal_file (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_04_aio_multichannel (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
-test_10_set_waveform (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
-test_05_invalid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_03_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
-test_03_animal_file_parameter_not_provided (visexpman.engine.visexp_gui.testVisionExperimentGui) ... ok
-test_26_numeric_list_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
-test_16_numpy_circles (visexpman.engine.generic.utils.TestUtils) ... ok
-test_04_natural_export (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... skipped ''
-test_07_sin_waveform (visexpman.engine.generic.signal.TestSignal) ... ok
-test_18_numeric_parameter_invalid_range_3 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_05_start_sockets_from_config (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_13_run_twophoton (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
-test_38_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
-test_15_numeric_parameter_invalid_range_1 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_01_ca_imaging_app (visexpman.engine.vision_experiment.experiment_control.TestCaImaging) ... ok
-test_21_numeric_list_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_08_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
-test_02_big_data_transfer (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_15_rcd_pack (visexpman.engine.generic.utils.TestUtils) ... ok
-test_05_freespace_error (visexpman.engine.TestApplicationInit) ... ok
-test_06_ping_connections (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
-test_10_generate_natural_stimulus_intensity_profile (visexpman.engine.generic.signal.TestSignal) ... ok
-test_12_analog_control (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
-test_02_set_voltage (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
-test_07_point_laser_beam (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... skipped 'Daq tests disabled'
-test_04_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
-test_06_greyscale_conversion (visexpman.engine.generic.signal.TestSignal) ... ok
-test_03_invalid_config (visexpman.engine.TestApplicationInit) ... ok
-test_32_array_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_08_short_waveform (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+test_01_read_merge_rois (visexpman.engine.vision_experiment.experiment_data.TestExperimentData) ... skipped ''
 test_02_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
-test_29_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_03_valid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
-test_18_scanner_signal (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... ok
-test_19_invalid_numeric_parameter_1 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_13_sinesweep (visexpman.engine.generic.signal.TestSignal) ... ok
+test_27_string_list_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_33_array_parameter_with_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_38_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
+test_16_estimate_scanner_position_shift (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
+test_01_curtain (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... ok
+test_15_numeric_parameter_invalid_range_1 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_03_set_do_line (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+test_01_pngsave (visexpman.engine.generic.fileop.TestFileops) ... skipped ''
+test_03_read_experiment_duration_from_source (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
+test_17_rectangular_scan_timing (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
+test_09_invalid_switch_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_12_natural_morse (visexpman.engine.generic.signal.TestSignal) ... ok
+test_09_triangle_wf_single (visexpman.engine.generic.signal.TestSignal) ... ok
+test_06_greyscale_conversion (visexpman.engine.generic.signal.TestSignal) ... ok
+test_37_set_invalid_type_value_2 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_03_natural_stim_spectrum (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... ok
+test_03_generate_line_scans (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
 test_36_set_invalid_type_value_1 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_02_no_command_line_args (visexpman.engine.TestApplicationInit) ... ok
-test_23_numeric_list_parameter_invalid_range2 (visexpman.engine.generic.parameter.testParameter) ... ok
-test_02_colorstr2channel (visexpman.engine.generic.colors.TestColorUtils) ... ok
+test_01_add_frame (visexpman.engine.generic.colors.TestColorUtils) ... ok
+test_08_point_laser_beam_out_of_range (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... skipped 'Daq tests disabled'
+test_05_export2video (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... ok
+test_01_valid_path_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_07_point_laser_beam (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... skipped 'Daq tests disabled'
+test_13_run_twophoton (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
+test_05_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
+test_11_non_process_aio_then_process_aio (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+test_05_start_sockets_from_config (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
+test_03_valid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
 test_06_aio_start_without_params (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+test_14_numeric_parameter_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_04_check_retinal_ca_datafile (visexpman.engine.vision_experiment.experiment_data.TestExperimentData) ... FAIL
+test_05_exp_config_points2non_expclass (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
+test_07_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
+test_get_colors (visexpman.engine.generic.colors.TestColorUtils) ... ok
+test_02_big_data_transfer (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
+test_30_invalid_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_01_command_line_args (visexpman.engine.TestApplicationInit) ... ok
+test_02_invalid_path_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_04_not_existing_experiment_class (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
+test_07_sine_scan_pattern (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
+test_13_rcd_pack (visexpman.engine.generic.utils.TestUtils) ... ok
+test_11_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
+test_11_process_sine_calibdata (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
+test_07_sin_waveform (visexpman.engine.generic.signal.TestSignal) ... ok
+test_05_invalid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_01_set_position_and_speed (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
+test_06_calibrate_scanner_parameters (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
+test_24_invalid_numeric_list_parameter_1 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_02_set_speed_position_withmax_acceleration (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
+test_02_colorstr2channel (visexpman.engine.generic.colors.TestColorUtils) ... ok
+test_06_texture (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... skipped 'Funtion is not ready'
+test_04_histogram_shift_on_image (visexpman.engine.generic.signal.TestSignal) ... ok
+test_04_freespace_warning (visexpman.engine.TestApplicationInit) ... ok
+test_03_parse_animal_filename (visexpman.engine.generic.fileop.TestFileops) ... ok
+test_40_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
+test_07_aio_process_run_twice (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+test_08_triangle_wf (visexpman.engine.generic.signal.TestSignal) ... ok
+test_16_numpy_circles (visexpman.engine.generic.utils.TestUtils) ... ok
+test_32_array_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_05_single_ai_channel (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+test_02_elphys (visexpman.engine.vision_experiment.experiment_data.TestExperimentData) ... ok
+test_08_valid_switch_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_08_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
+test_05_greyscale_invalid_dimension (visexpman.engine.generic.signal.TestSignal) ... ok
+test_04_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
+test_04_natural_export (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... skipped ''
+test_02_no_command_line_args (visexpman.engine.TestApplicationInit) ... ok
+test_18_numeric_parameter_invalid_range_3 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_10_set_waveform (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+test_05_twophoton (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
+test_10_valid_enumerated_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_15_rcd_pack (visexpman.engine.generic.utils.TestUtils) ... ok
+test_23_numeric_list_parameter_invalid_range2 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_10_process_calibdata (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
+test_19_invalid_numeric_parameter_1 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_08_sinus_pattern_scan_daq (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
+test_21_numeric_list_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_09_fft_scan_signal (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
+test_22_numeric_list_parameter_invalid_range1 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_01_image_display (visexpman.engine.vision_experiment.screen.TestCaImagingScreen) ... FAIL
+test_08_short_waveform (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+test_20_invalid_numeric_parameter_2 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_02_set_voltage (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+test_03_smr (visexpman.engine.vision_experiment.experiment_data.TestExperimentData) ... skipped ''
+test_12_calculate_trigger_signal (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped ''
+test_06_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
+test_03_histogram_shift_band_and_gamma (visexpman.engine.generic.signal.TestSignal) ... ok
+test_03_invalid_config (visexpman.engine.TestApplicationInit) ... ok
+test_01_parse_channel_string (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... ok
+test_09_show_grating_non_texture (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... ok
+test_17_object2array (visexpman.engine.generic.utils.TestUtils) ... ok
+test_04_generate_rectangular_scan (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
+test_05_freespace_error (visexpman.engine.TestApplicationInit) ... ok
+test_02_no_remote_logger (visexpman.engine.generic.log.TestLog) ... ok
+test_25_invalid_numeric_list_parameter_2 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_01_parse_stim_file (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
+test_01_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
+test_01_create_logger (visexpman.engine.generic.log.TestLog) ... ok
+test_17_numeric_parameter_invalid_range_2 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_09_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
+test_02_read_experiment_duration (visexpman.engine.vision_experiment.experiment.testExperimentHelpers) ... ok
+test_35_set_out_of_range_value (visexpman.engine.generic.parameter.testParameter) ... ok
+test_01_histogram_shift_1d (visexpman.engine.generic.signal.TestSignal) ... ok
+test_04_invalid_file_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_10_generate_natural_stimulus_intensity_profile (visexpman.engine.generic.signal.TestSignal) ... ok
+test_29_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_06_ping_connections (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
+test_01_simple_transfer (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
+test_15_scanner_transfer_function (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
+test_26_numeric_list_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_02_moving_shape (visexpman.engine.vision_experiment.stimulation_library.TestStimulationPatterns) ... ok
+test_14_generate_sinus_calibration_signal (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... skipped 'Run only for debug purposes'
+test_14_rcd_pack (visexpman.engine.generic.utils.TestUtils) ... ok
+test_04_bind2ip (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
+test_02_histogram_shift_2d (visexpman.engine.generic.signal.TestSignal) ... ok
+test_13_valid_numeric_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_01_instrument_process (visexpman.engine.hardware_interface.instrument.TestInstrument) ... ok
+test_14_trigger_indexes (visexpman.engine.generic.signal.TestSignal) ... ok
+test_12_analog_control (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+test_04_aio_multichannel (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+test_07_string_parameter_with_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_12_rcd_pack (visexpman.engine.generic.utils.TestUtils) ... ok
+test_11_sinus_linear_range (visexpman.engine.generic.signal.TestSignal) ... ok
+test_12_enumerated_parameter_invalid_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_02_copier (visexpman.engine.generic.fileop.TestFileops) ... skipped 'Starts a process and blocks other tests, needs to be fixed'
+test_19_reconstruct_signal (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... ok
+test_10_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
+test_39_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
+test_16_numeric_parameter_invalid_range_1 (visexpman.engine.generic.parameter.testParameter) ... ok
+test_18_scanner_signal (visexpman.engine.hardware_interface.scanner_control.TestScannerControl) ... ok
+test_31_list_of_dict_parameter (visexpman.engine.generic.parameter.testParameter) ... ok
+test_03_pulse_train (visexpman.engine.generic.utils.TestUtils) ... ok
+test_11_enumerated_parameter_out_of_range (visexpman.engine.generic.parameter.testParameter) ... ok
+test_34_set_valid_value (visexpman.engine.generic.parameter.testParameter) ... ok
+test_03_multiple_servers (visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket) ... ok
+test_09_nonprocess_aio (visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess) ... skipped 'Daq tests disabled'
+
+======================================================================
+FAIL: test_04_check_retinal_ca_datafile (visexpman.engine.vision_experiment.experiment_data.TestExperimentData)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/rzws/codes/visexpman/engine/vision_experiment/experiment_data.py", line 317, in test_04_check_retinal_ca_datafile
+    map(self.assertEqual, res, len(res)*[[]])
+AssertionError: Lists differ: ['missing node: raw_data', 'mi... != []
+
+First list contains 8 additional elements.
+First extra element 0:
+missing node: raw_data
+
++ []
+- ['missing node: raw_data',
+-  'missing node: sync_and_elphys_data',
+-  'missing node: recording_parameters',
+-  'missing node: configs_stim',
+-  'missing node: software_environment_stim',
+-  'missing node: configs_ca_imaging',
+-  'missing node: software_environment_ca_imaging',
+-  'missing node: software_environment_main_ui']
+
+======================================================================
+FAIL: test_01_image_display (visexpman.engine.vision_experiment.screen.TestCaImagingScreen)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/mnt/rzws/codes/visexpman/engine/vision_experiment/screen.py", line 302, in test_01_image_display
+    self.assertGreater(image_frame_indexes[0].shape[0],0)
+AssertionError: 0 not greater than 0
 
 ----------------------------------------------------------------------
-Ran 163 tests in 767.059s
+Ran 142 tests in 247.589s
 
-OK (skipped=36)
+FAILED (failures=2, skipped=36)
 
-2015-01-27 10:55:29.999591
+2015-02-02 14:20:33.851371

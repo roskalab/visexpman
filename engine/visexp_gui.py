@@ -20,7 +20,9 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
 import visexpman
-from visexpA.engine.datadisplay import imaged
+if 0:
+    from visexpA.engine.datadisplay import imaged
+    from visexpA.engine.dataprocessors import generic as generic_visexpA
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
@@ -34,8 +36,8 @@ from visexpman.engine.generic import stringop
 from visexpman.engine import generic, MachineConfigError
 from visexpman.engine.generic import log
 from visexpman.users.test import unittest_aggregator
-from visexpA.engine.datahandlers import hdf5io
-from visexpA.engine.dataprocessors import generic as generic_visexpA
+import hdf5io
+
 
 MAX_NUMBER_OF_DISPLAYED_MEASUREMENTS = 30
 MAX_ANESTHESIA_ENTRIES = 20

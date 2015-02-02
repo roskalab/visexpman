@@ -1,8 +1,9 @@
 from matplotlib.pyplot import plot, show,figure,legend, savefig, subplot, title, xlabel,  ylabel,subplot,imshow,suptitle,text
 from visexpman.engine.hardware_interface import scanner_control
-from visexpA.engine.datahandlers import hdf5io
+import hdf5io
 from PIL import Image
-from visexpA.engine.dataprocessors.generic import normalize
+if 0:
+    from visexpA.engine.dataprocessors.generic import normalize
 import os
 import os.path
 from visexpman.engine.generic import utils

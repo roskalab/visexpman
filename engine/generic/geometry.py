@@ -9,7 +9,8 @@ except ImportError:
 from visexpman.engine.generic.utils import nan2value
 from scipy.ndimage.interpolation import shift, rotate
 from visexpman.engine.generic.utils import nd, rc, cr
-from visexpA.engine.datadisplay.imaged import imshow
+if 0:
+    from visexpA.engine.datadisplay.imaged import imshow
 
 ## {{{ http://code.activestate.com/recipes/117225/ (r2)
 # convex hull (Graham scan by x-coordinate) and diameter of a set of points

@@ -17,7 +17,7 @@ from visexpman.engine.vision_experiment.configuration import VisionExperimentCon
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import fileop
 from visexpman.engine.hardware_interface import lightmeter
-from visexpA.engine.datahandlers import hdf5io
+import hdf5io
 
 class ProjectorCalibrationSetup(VisionExperimentConfig):
     def _set_user_parameters(self):

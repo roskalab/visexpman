@@ -47,7 +47,7 @@ from visexpman.engine.generic import configuration
 from visexpman.engine.generic import command_parser
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.users.test import unittest_aggregator
-from visexpA.engine.datahandlers import hdf5io
+import hdf5io
 import unittest
 
 class ScannerTestConfig(configuration.Config):

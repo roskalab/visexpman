@@ -104,7 +104,7 @@ class InsermSetupConfig(ElphysRetinalCaImagingConfig):
                                                 }]
         gamma_corr_filename = 'c:\\visexp\\gamma.hdf5'
         if os.path.exists(gamma_corr_filename):
-            from visexpA.engine.datahandlers import hdf5io
+            import hdf5io
             import copy
             self.GAMMA_CORRECTION = copy.deepcopy(hdf5io.read_item(gamma_corr_filename, 'gamma_correction'))
         #=== Others ===

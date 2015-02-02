@@ -18,7 +18,7 @@ from visexpman.engine.vision_experiment.screen import StimulationScreen
 from visexpman.engine.vision_experiment import experiment_control
 from visexpman.engine.generic.graphics import check_keyboard
 from visexpman.engine.generic import utils,fileop,introspect
-from visexpA.engine.datahandlers import hdf5io
+import hdf5io
 
 class StimulationLoop(ServerLoop, StimulationScreen):
     def __init__(self, machine_config, socket_queues, command, log):

@@ -24,7 +24,7 @@ from visexpman.engine.generic import log,utils,fileop,introspect,signal
 from visexpman.engine.generic.graphics import is_key_pressed,check_keyboard
 from visexpman.engine.hardware_interface import mes_interface,instrument,daq_instrument,stage_control,digital_io,scanner_control,queued_socket
 from visexpman.engine.vision_experiment.screen import CaImagingScreen
-from visexpA.engine.datahandlers import hdf5io
+import hdf5io
 
 from visexpman.engine.generic.command_parser import ServerLoop
 
