@@ -122,6 +122,12 @@ class StimulationScreen(graphics.Screen):
         commands.sort()
         for k in commands:
             self.menu_text+= '{0} - {1}, '.format(self.config.KEYS[k], k)
+        if self.config.PLATFORM == 'hi_mea' or self.config.PLATFORM == 'standalone':
+            ct = 0
+            for ec in self.experiment_configs:
+                self.menu_text+= '{0} - {1}, '.format(ct, ec)
+                ct +=1
+            self.experiment_select_commands = map(str, range(ct))
         self.menu_text = self.menu_text[:-2]
         #Split menu text to lines
         parts = [[]]
@@ -151,6 +157,7 @@ class StimulationScreen(graphics.Screen):
         self.text_position = copy.deepcopy(self.config.UPPER_LEFT_CORNER)
         self.text_position['row'] -= 13
         self.text_position['col'] += 13
+        
         self.refresh_non_experiment_screen()
         
     def clear_screen_to_background(self):

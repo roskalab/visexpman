@@ -8,7 +8,6 @@ from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImag
 
 
 class ReiSetupConfig(ElphysRetinalCaImagingConfig):
-    
     def _set_user_parameters(self):
         #### paths/data handling ####
         FULLSCREEN = not True

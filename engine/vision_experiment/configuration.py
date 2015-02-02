@@ -140,12 +140,6 @@ class VisionExperimentConfig(visexpman.engine.generic.configuration.Config):
         BLOCK_TRIGGER_PIN = [3,  PARALLEL_PORT_PIN_RANGE]
         FRAME_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
         BLOCK_TRIGGER_PULSE_WIDTH = [1e-3,  [1e-4,  1e-1]]
-        FILTERWHEEL = {}
-        FILTERWHEEL['ENABLE'] = False
-        FILTERWHEEL['SETTLING_TIME'] = [0.4,  [0,  20]]
-        FILTERWHEEL['VALID_POSITIONS'] = [[1, 6],  [[0, 0],  [100, 100]]]
-        FILTERWHEEL['SERIAL_PORTS'] = []
-        FILTERWHEEL['FILTERS'] = []
         ENABLE_SHUTTER = False
         
         ############# Graphical User Interface related ######################
@@ -427,6 +421,7 @@ class HiMEAConfig(VisionExperimentConfig):
         VisionExperimentConfig._create_application_parameters(self)
         PLATFORM = 'hi_mea'
         EXPERIMENT_FILE_FORMAT = 'mat'
+        self.KEYS['start stimulus'] = 'e'
         STIM_RECORDS_ANALOG_SIGNALS = False
         self._create_parameters_from_locals(locals())
         

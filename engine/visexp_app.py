@@ -23,6 +23,10 @@ from visexpA.engine.datahandlers import hdf5io
 class StimulationLoop(ServerLoop, StimulationScreen):
     def __init__(self, machine_config, socket_queues, command, log):
         ServerLoop.__init__(self, machine_config, socket_queues, command, log)
+        self.experiment_configs = [ecn[1].__name__ for ecn in utils.fetch_classes('visexpman.users.'+self.machine_config.user, required_ancestors = visexpman.engine.vision_experiment.experiment.ExperimentConfig,direct = False)]
+        self.experiment_configs.sort()
+        if len(self.experiment_configs)>10:
+            self.experiment_configs = self.experiment_configs[:10]#TODO: give some warning
         self.load_stim_context()
         StimulationScreen.__init__(self)
         if not introspect.is_test_running() and machine_config.MEASURE_FRAME_RATE:
@@ -96,6 +100,16 @@ class StimulationLoop(ServerLoop, StimulationScreen):
                     self.stim_context['screen_center']['col'] += self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
                 elif self.config.HORIZONTAL_AXIS_POSITIVE_DIRECTION == 'left':
                     self.stim_context['screen_center']['col'] -= self.config.SCREEN_CENTER_ADJUST_STEP_SIZE
+            elif (self.config.PLATFORM == 'hi_mea' or self.config.PLATFORM == 'standalone') and key_pressed in self.experiment_select_commands:
+                self.selected_experiment = self.experiment_configs[int(key_pressed)]
+                self.printl('Experiment selected: {0}'.format(self.selected_experiment))
+            elif (self.config.PLATFORM == 'hi_mea' or self.config.PLATFORM == 'standalone') and key_pressed == self.config.KEYS['start stimulus']:
+                if not hasattr(self, 'selected_experiment'):
+                    self.printl('Select stimulus first')
+                    return
+                parameters = {'experiment_name': self.selected_experiment, 'stimulus_only':False,
+                    'id':str(int(numpy.round(time.time(), 2)*100))}
+                self.start_stimulus(parameters)
             else:
                 self.printl('Key pressed: {0}'.format(key_pressed))
         #Update screen
