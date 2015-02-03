@@ -364,7 +364,7 @@ class TestStim(unittest.TestCase):
         self.assertEqual(numpy.asarray(Image.open(captured_files[1])).shape, numpy.asarray(Image.open(captured_files[2])).shape)#All frames have the same size
         self.assertEqual(numpy.asarray(Image.open(captured_files[0])).shape, numpy.asarray(Image.open(captured_files[-1])).shape)
         #Check screen color
-        expected_color = numpy.array([0.5, 0.5, 0.5+1/6.0])*255
+        expected_color = numpy.ceil(numpy.array([0.5, 0.5, 0.5+1/6.0])*255)
         for captured_file in captured_files[-5:]:
             numpy.testing.assert_allclose(numpy.asarray(Image.open(captured_file))[0,0], expected_color,0,1)
             numpy.testing.assert_allclose(numpy.asarray(Image.open(captured_file))[1,0], expected_color,0,1)
@@ -375,6 +375,14 @@ class TestStim(unittest.TestCase):
         #Check bullseye position
         last_frame = numpy.cast['float'](numpy.asarray(Image.open(captured_files[-1])))
         ref_frame = numpy.cast['float'](numpy.asarray(Image.open(os.path.join(self.context['machine_config'].PACKAGE_PATH, 'data', 'images', 'visexp_app_test_03.png'))))
+        x1,y1,z=numpy.nonzero(last_frame-expected_color)
+        x2,y2,z=numpy.nonzero(last_frame-expected_color)
+        for m in ['min', 'max']:#Check if position of bullseye are OK
+            self.assertEqual(getattr(x1, m)(),getattr(x2, m)())
+            self.assertEqual(getattr(y1, m)(),getattr(y2, m)())
+        ref_frame[x1.min():x1.max(), y1.min():y1.max(),:]=0#Clear bullseye pixels
+        last_frame[x1.min():x1.max(), y1.min():y1.max(),:]=0
+        
         numpy.testing.assert_allclose(ref_frame, last_frame, 0, 1)
         
     def test_04_ulcorner_coordinate_system(self):
@@ -397,6 +405,14 @@ class TestStim(unittest.TestCase):
         from PIL import Image
         last_frame = numpy.cast['float'](numpy.asarray(Image.open(captured_files[-1])))
         ref_frame = numpy.cast['float'](numpy.asarray(Image.open(os.path.join(self.context['machine_config'].PACKAGE_PATH, 'data', 'images', 'visexp_app_test_04.png'))))
+        expected_color = numpy.ceil(numpy.array([0.5, 0.5, 0.5+1/6.0])*255)
+        x1,y1,z=numpy.nonzero(last_frame-expected_color)
+        x2,y2,z=numpy.nonzero(last_frame-expected_color)
+        for m in ['min', 'max']:#Check if position of bullseye are OK
+            self.assertEqual(getattr(x1, m)(),getattr(x2, m)())
+            self.assertEqual(getattr(y1, m)(),getattr(y2, m)())
+        ref_frame[x1.min():x1.max(), y1.min():y1.max(),:]=0#Clear bullseye pixels
+        last_frame[x1.min():x1.max(), y1.min():y1.max(),:]=0
         numpy.testing.assert_allclose(ref_frame, last_frame, 0, 1)
     
     def test_05_context_persistence(self):
@@ -441,6 +457,7 @@ class TestStim(unittest.TestCase):
     def test_07_execute_experiment(self):
         source = fileop.read_text_file(os.path.join(fileop.visexpman_package_path(), 'users', 'test', 'test_stimulus.py'))
         experiment_names = ['GUITestExperimentConfig', 'TestCommonExperimentConfig']
+#        experiment_names = ['TestCommonExperimentConfig']
         parameters = {
             'experiment_name': '',
             'experiment_config_source_code' : source,
@@ -463,6 +480,7 @@ class TestStim(unittest.TestCase):
             pars['experiment_name'] = experiment_name
             commands.append({'function': 'start_stimulus', 'args': [pars]})
         commands.append({'function': 'exit_application'})
+        print len(commands)
         client = self._send_commands_to_stim(commands)
         run_stim(self.context,timeout=None)
         client.terminate()

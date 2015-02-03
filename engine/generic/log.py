@@ -195,7 +195,9 @@ class TestLog(unittest.TestCase):
         p.add_source('mysource')
         p.start()
         p.info('test1', 'mysource')
-        time.sleep(1)
+        time.sleep(1.5)
+        if not os.path.exists(p.filename):
+            pass
         filesize1=os.path.getsize(p.filename)
         p.suspend()
         p.info('test2')

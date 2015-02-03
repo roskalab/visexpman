@@ -122,6 +122,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
             self.send({'plot': [time.time(), 1]})
+        if hasattr(self.log, 'info'):
+            self.log.info('{0} block started' .format(block_name))
                 
     def block_end(self, block_name = ''):
         if hasattr(self.digital_output,'set_data_bit'):
@@ -129,6 +131,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
             self.send({'plot': [time.time(), 0]})
+        if hasattr(self.log, 'info'):
+            self.log.info('{0} block ended' .format(block_name))
         
     def _add_block_start(self, is_block, frame_i, nframes):
         if frame_i == 0 and is_block:
@@ -269,10 +273,14 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if os.path.isdir(path):
             fns = os.listdir(path)
             fns.sort()
+            if is_block:
+                self.block_start()
             for fn in fns:
-                self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block)
+                self._show_image(os.path.join(path,fn),duration,position,stretch,flip,is_block=False)
             self.screen.clear_screen()
             self._flip(frame_trigger = True)
+            if is_block:
+                self.block_end()
         else:
             self._show_image(path,duration,position,flip,is_block)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
@@ -1196,8 +1204,8 @@ class AdvancedStimulation(Stimulations):
         daq_instrument.set_waveform(channels,waveform,sample_rate = sample_rate)
         
 class TestStimulationPatterns(unittest.TestCase):
-
-#    @unittest.skip('')
+    
+    #    @unittest.skip('')
     def test_01_curtain(self):
         from visexpman.engine.visexp_app import stimulation_tester
         context = stimulation_tester('test', 'GUITestConfig', 'TestCurtainConfig', ENABLE_FRAME_CAPTURE = not True)
@@ -1300,6 +1308,12 @@ class TestStimulationPatterns(unittest.TestCase):
         expected_number_of_blocks = len(ec.COLORS)*2**2+len(ec.IMAGE_FOLDERS)*len(ec.IMAGE_STRETCHES)+len(ec.SHAPES)*len(ec.T_SHAPE)*len(ec.POSITIONS)*len(ec.SIZES)*len(ec.COLORS)
         expected_number_of_blocks += numpy.prod(map(len, [getattr(ec, p) for p in ['T_GRATING', 'GRATING_PROFILES', 'GRATING_WIDTH', 'GRATING_SPEEDS']]))
         expected_number_of_blocks += 2
+        if 0:
+            for s in sfi:
+                if s.has_key('block_start') or s.has_key('block_end'):
+                    print s.keys()
+                else:
+                    print s['stimulus_type']
         self.assertEqual(len([s for s in sfi if 'block_start' in s]), expected_number_of_blocks)
         self.assertEqual(len([s for s in sfi if 'block_end' in s]), expected_number_of_blocks)
         #block start and block end entries must be adjacent, no stimulus info should be in between

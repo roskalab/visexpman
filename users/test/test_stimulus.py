@@ -183,7 +183,7 @@ class Pointing2NonExpConfig(experiment.ExperimentConfig):
         
 class DummyClass(object):
     pass
-
+    
 class WhiteNoiseParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.DURATION = 1.0
@@ -250,7 +250,7 @@ class TestStimulusBlockParams(experiment.ExperimentConfig):
         self.COLORS = [0.1, 0.6]
         self.T_FULLSCREEN = 1.0
         #TODO: get image rendering run on Linux
-        self.IMAGE_FOLDERS = [os.path.join(fileop.visexpman_package_path(), 'data', 'images')] if self.OS != 'Linux' else []
+        self.IMAGE_FOLDERS = [os.path.join(fileop.visexpman_package_path(), 'data', 'images')] if self.OS != 'Linux' else []#TODO: show_image should work on linux too
         self.IMAGE_STRETCHES = [0.5, 1.4]
         self.T_IMAGE = 1.0
         self.SHAPES = ['rect', 'o']
@@ -277,11 +277,11 @@ class TestStimulusBlocks(experiment.Experiment):
             if is_blocki and flipi:
                 ct+=1
             self.show_fullscreen(duration = self.experiment_config.T_FULLSCREEN,  color = color, flip = flipi, count = counti, is_block = is_blocki, frame_trigger = frame_triggeri)
-        params = [self.experiment_config.IMAGE_FOLDERS, self.experiment_config.IMAGE_STRETCHES, flip, is_block]
-        for path, stretch, flip_i, is_block_i in itertools.product(*params):
-            if is_block_i and flip_i:
+        params = [self.experiment_config.IMAGE_FOLDERS, self.experiment_config.IMAGE_STRETCHES, is_block]
+        for path, stretch, is_block_i in itertools.product(*params):
+            if is_block_i:
                 ct+=1
-            self.show_image(path, duration = self.experiment_config.T_IMAGE,  stretch=stretch, flip = flip_i, is_block = is_block_i)
+            self.show_image(path, duration = self.experiment_config.T_IMAGE,  stretch=stretch, flip=True, is_block = is_block_i)
         params = [self.experiment_config.SHAPES, self.experiment_config.T_SHAPE, self.experiment_config.POSITIONS, 
                             self.experiment_config.COLORS, self.experiment_config.SIZES, flip, is_block]
         for shape, duration, pos, color, size, flip_i, is_block_i in itertools.product(*params):
@@ -298,7 +298,7 @@ class TestStimulusBlocks(experiment.Experiment):
             if is_block_i:
                 ct+=1
         for b in is_block:
-            self.show_natural_bars(speed = 300, repeats = 2, duration=5.0, is_block = b)
+            self.show_natural_bars(speed = 300, repeats = 2, duration=0.5, is_block = b)
             if b:
                 ct+=1
         for b in is_block:    
@@ -306,6 +306,5 @@ class TestStimulusBlocks(experiment.Experiment):
                 ct+=1
             self.moving_shape(utils.rc((100,300)), [2000.0], [45.0], shape = 'rect', color = 1.0, background_color = 0.5, 
                     moving_range=utils.rc((500.0,500.0)), pause=1.0, repetition = 1, block_trigger = b, shape_starts_from_edge=False)
-            
 if __name__ == "__main__":
-    pass
+    unittest.main()

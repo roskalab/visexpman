@@ -4,7 +4,7 @@ import re
 import unittest
 import sys
 import time
-from visexpman.engine.generic import utils
+from visexpman.engine.generic import utils, introspect
 from visexpman.engine.hardware_interface import queued_socket
 method_extract = re.compile('SOC(.+)EOC') # a command is a string starting with SOC and terminated with EOC (End Of Command)
 parameter_extract = re.compile('EOC(.+)EOP') # an optional parameter string follows EOC terminated by EOP. In case of binary data EOC and EOP should be escaped.
@@ -36,6 +36,8 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
         '''
         Checks for incoming data from socket and if data contains valid data, corresponding function is called
         '''
+        if introspect.is_test_running:
+            time.sleep(0.1)
         message = self.recv()
         if not utils.safe_has_key(message, 'function'):
             return False

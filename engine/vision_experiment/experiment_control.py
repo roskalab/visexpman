@@ -1470,12 +1470,18 @@ class TestCaImaging(unittest.TestCase):
         self.assertLess(numpy.diff(numpy.cast['float'](image_context['save'][0,0,:])).max(),0)#The intensity in each line decreases
         self.assertGreater(numpy.diff(numpy.cast['float'](image_context['save'][1,:,0])).min(),0)#The intensity in each column increase
         #saved and displayed images should be the same
+        #return numpy.cast['uint16'](((image_cut+self.config.MAX_PMT_NOISE_LEVEL)/(2*self.config.MAX_PMT_NOISE_LEVEL+self.config.MAX_PMT_VOLTAGE))*(2**16-1))
         display_vs_scaled_image_scaling_factor = \
                     self.context['machine_config'].MAX_PMT_VOLTAGE/(self.context['machine_config'].MAX_PMT_VOLTAGE+2*self.context['machine_config'].MAX_PMT_NOISE_LEVEL)
-        numpy.testing.assert_almost_equal(image_context['display'][:,:,1]*display_vs_scaled_image_scaling_factor,
-                                            numpy.cast['float'](image_context['save'][0,:,:])/(2**16-1),4)
-        numpy.testing.assert_almost_equal(image_context['display'][:,:,0]*display_vs_scaled_image_scaling_factor,
-                                            numpy.cast['float'](image_context['save'][1,:,:])/(2**16-1),4)
+        maxpmtvoltage = self.context['machine_config'].MAX_PMT_VOLTAGE
+        maxnoiselevel = self.context['machine_config'].MAX_PMT_NOISE_LEVEL
+        scaling16bit = (2**16-1)
+        saved = numpy.cast['float'](image_context['save'][0])
+        displayed = image_context['display'][:,:,1]
+        numpy.testing.assert_almost_equal(saved/scaling16bit*(maxpmtvoltage+2*maxnoiselevel) - maxnoiselevel, displayed*maxpmtvoltage,3)
+        saved = numpy.cast['float'](image_context['save'][1])
+        displayed = image_context['display'][:,:,0]
+        numpy.testing.assert_almost_equal(saved/scaling16bit*(maxpmtvoltage+2*maxnoiselevel) - maxnoiselevel, displayed*maxpmtvoltage,3)
         datafiles = fileop.listdir_fullpath(fileop.get_user_experiment_data_folder( self.context['machine_config']))
         datafiles.sort()
         self.assertEqual(numpy.array(map(os.path.getsize,datafiles)).argmax(),2)

@@ -49,7 +49,7 @@ class MovingShapeExperiment(experiment.Experiment):
                                     repetition = self.experiment_config.REPETITIONS,
                                     shape_starts_from_edge = True)
         if hasattr(self.log, 'info'):
-            self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration))
+            self.log.info('Stimulus duration: {0}'.format(self.stimulus_duration), source = 'stim')
 
     def run(self):
         self.moving_shape(size = self.experiment_config.SHAPE_SIZE,

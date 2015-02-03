@@ -772,12 +772,11 @@ def module_versions(modules):
                 try:
                     version_path = version_paths[module].split('.')
                     version = getattr(sys.modules[module], version_path[0])
-                    print version, version_path
-                    if not isinstance(version, str):
+                    if not isinstance(version, str) and not isinstance(version, unicode):
                         if callable(getattr(version, version_path[1])):
                             version = getattr(version, version_path[1])()
                         else:
-                            version = getattr(version, version_path[1])                        
+                            version = getattr(version, version_path[1])
                 except AttributeError:
                     version = ''                
                 module_version += '%s %s\n'%(module, version.replace('\n', ' '))
