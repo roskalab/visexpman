@@ -179,7 +179,11 @@ def get_experiment_duration(experiment_config_class, config, source=None):
         introspect.import_code(source,'experiment_config_module', add_to_sys_modules=1)
         experiment_config_module = __import__('experiment_config_module')
         experiment_config_class_object = getattr(experiment_config_module, experiment_config_class)(None)
-        experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
+        if hasattr(experiment_config_module,experiment_config_class_object.runnable):
+            experiment_class_object = getattr(experiment_config_module,experiment_config_class_object.runnable)(config,experiment_config_class_object)
+        else:
+            experiment_class = utils.fetch_classes('visexpman.users.common', classname = experiment_config_class_object.runnable, required_ancestors = visexpman.engine.vision_experiment.experiment.Experiment,direct = False)[0][1]
+            experiment_class_object = experiment_class(config, experiment_config_class_object)
     if hasattr(experiment_class_object, 'stimulus_duration'):
         return experiment_class_object.stimulus_duration
     else:
@@ -223,7 +227,6 @@ class testExperimentHelpers(unittest.TestCase):
         conf.user='test'
         duration = get_experiment_duration('DebugExperimentConfig', conf, source=None)
         self.assertEqual(duration, 10.0)
-        self.assertEqual(isinstance(get_experiment_duration('TestCommonExperimentConfig', conf, source=None), float), True)#Testing something from the common folder
         
     def test_03_read_experiment_duration_from_source(self):
         from visexpman.users.test.test_configurations import GUITestConfig
@@ -233,6 +236,7 @@ class testExperimentHelpers(unittest.TestCase):
         conf.user='zoltan'
         duration = get_experiment_duration('DebugExperimentConfig', conf, source=source)
         self.assertEqual(duration, 10.0)
+        self.assertEqual(isinstance(get_experiment_duration('TestCommonExperimentConfig', conf, source=source), float), True)#Testing something from the common folder
         
     def test_04_not_existing_experiment_class(self):
         from visexpman.users.test.test_configurations import GUITestConfig
