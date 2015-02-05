@@ -2820,8 +2820,8 @@ class VisexpGuiPoller(Poller):
             self.plotdata[connection_name].append(msg['plot'])
         else:
             self.plotdata[connection_name].extend(msg['plot'])
-        curves = []
-        for c in self.plotdata.keys():
+        curves = [[], []]
+        for c in self.plotdata.keys():#TODO: this is a messy solution
             if len(self.plotdata[c])==0:
                 continue
             plotdata = numpy.array(self.plotdata[c])
@@ -2832,14 +2832,14 @@ class VisexpGuiPoller(Poller):
                 #Specific for block trigger
                 #insert values to visualize block trigger better
                 t=numpy.repeat(t,2)
-                plotdata=numpy.repeat(numpy.cast['bool'](plotdata),2)
-                plotdata[0::2] = numpy.invert(plotdata[0::2])
-                ca_values = numpy.array(self.plotdata['ca_imaging'])[:,1:]
+#                plotdata=numpy.repeat(numpy.cast['bool'](plotdata),2)
+#                plotdata[0::2] = numpy.invert(plotdata[0::2])
+#                ca_values = numpy.array(self.plotdata['ca_imaging'])[:,1:]
                 plotdata = signal.scale(plotdata, ca_values.min(), ca_values.max())
-                curves.append((t, plotdata))
+                curves[0] = (t, plotdata)
             else:
                 for i in range(plotdata.shape[1]):
-                    curves.append((t, plotdata[:,i]))
+                    curves[1](t, plotdata[:,i])
         self.emit(QtCore.SIGNAL('update_curve'), curves)
         
     
@@ -2886,11 +2886,9 @@ class VisexpGuiPoller(Poller):
                                 self.send('sync', connection=c)
                         time.sleep(0.1)
             self.phase+= 1
-
             
     def periodic(self):
         pass
-
 
     def handle_commands(self):
         '''

@@ -40,4 +40,4 @@ class MonkeyMarchingSquares(experiment.ExperimentConfig):
         
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester
-    stimulation_tester('common', 'StimulusDevelopment', 'MonkeyMarchingSquares')
+    stimulation_tester('test', 'StimulusDevelopment', 'TestCommonExperimentConfig')

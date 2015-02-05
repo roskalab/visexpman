@@ -1822,6 +1822,30 @@ class CaImagingVisualisationControl(gui.WidgetControl):
             function_call = {'function': 'set_variable', 'args': ['display_configuration', display_configuration]}
             self.poller.send(function_call,connection='ca_imaging')
             self.printc('Ca imaging display updated')
+            
+class BarCurve(Qwt.QwtPlotCurve):
+    
+    def drawFromTo(self, painter, xMap, yMap, start, stop):
+        """Draws rectangles with the corners taken from the x- and y-arrays.
+        """
+        barcolor = Qt.QColor(50,50,50,100)
+        painter.setPen(Qt.QPen(barcolor))
+        painter.setBrush(barcolor)
+        if stop == -1:
+            stop = self.dataSize()
+        # force 'start' and 'stop' to be even and positive
+        if start & 1:
+            start -= 1
+        if stop & 1:
+            stop -= 1
+        start = max(start, 0)
+        stop = max(stop, 0)
+        for i in range(start, stop, 2):
+            px1 = xMap.transform(self.x(i))
+            py1 = yMap.transform(self.y(i))
+            px2 = xMap.transform(self.x(i+1))
+            py2 = yMap.transform(self.y(i+1))
+            painter.drawRect(px1, py1, (px2 - px1), (py2 - py1))
 
 class Plot(Qwt.QwtPlot):
     def __init__(self, parent):
@@ -1841,7 +1865,11 @@ class Plot(Qwt.QwtPlot):
         ncurves = 3
         self.curves = []
         for i in range(ncurves):
-            self.curves.append(Qwt.QwtPlotCurve(str(i)))
+            if i != 0:
+                c = Qwt.QwtPlotCurve(str(i))
+            else:
+                c = BarCurve(str(i))
+            self.curves.append(c)
             self.curves[-1].setRenderHint(Qwt.QwtPlotItem.RenderAntialiased)
             self.curves[-1].setPen(QtGui.QPen(self.colors[i]))
             self.curves[-1].setSymbol(Qwt.QwtSymbol(Qwt.QwtSymbol.Cross,
@@ -1849,18 +1877,22 @@ class Plot(Qwt.QwtPlot):
                                       Qt.QPen(self.colors[i]),
                                       Qt.QSize(8, 8)))
             self.curves[-1].attach(self)
+        
 #        duration=5
 ##        self.set_stimulus_duration(duration)
 #        t=numpy.arange(0,duration, 1./100)
 #        data = t**2
 #        self.update_curve(t, data)
 #        self.update_curve(t, data*2)
+    
         
     def set_stimulus_duration(self,duration):
         self.setAxisScale(Qwt.QwtPlot.xBottom, 0, duration)
         
     def update(self, curves):
         for ci in range(len(curves)):
+            if curves[ci] == []:
+                continue
             self.curves[ci].setData(curves[ci][0], curves[ci][1])
 #        self.setAxisScale(Qwt.QwtPlot.yLeft, min(data), max(data))
         self.replot()
