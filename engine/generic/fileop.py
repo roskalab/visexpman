@@ -502,6 +502,26 @@ def get_recording_filename(config, parameters, prefix):
 def get_recording_path(parameters, config, prefix = ''):
     return os.path.join(get_user_experiment_data_folder(config), get_recording_filename(config, parameters, prefix))
     
+def parse_recording_filename(filename):
+    items = {}
+    items['folder'] = os.path.split(filename)[0]
+    items['file'] = os.path.split(filename)[1]
+    items['extension'] = file_extension(filename)
+    fnp = items['file'].replace(items['extension'],'').split('_')
+    items['type'] = fnp[0]
+    #Find out if there is a counter at the end of the filename. Timestamp is always 12 characters
+    offset = 1 if len(fnp[-1]) != 12 else 0
+    items['id'] = fnp[-1-offset]
+    items['experiment_name'] = fnp[-2-offset]
+    return items
+        
+        
+    
+    
+    
+    
+    
+    
 ################# Not fileop related ####################
 
 def compare_timestamps(string1, string2):
