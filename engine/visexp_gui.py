@@ -985,16 +985,17 @@ class CentralWidget(QtGui.QWidget):
         self.experiment_log_groupbox = gui.ExperimentLogGroupbox(self)
         self.calibration_groupbox = gui.CalibrationGroupbox(self)
         self.parameters_groupbox = gui.MachineParametersGroupbox(self)
+        self.ca_displays = gui.CaImagingVisualisationControlWidget(self)
         self.main_tab = QtGui.QTabWidget(self)
         self.main_tab.addTab(self.main_widget, 'Main')
         self.main_tab.addTab(self.experiment_log_groupbox, 'Experiment log')
         self.main_tab.addTab(self.animal_parameters_groupbox, 'Animal parameters')
         self.main_tab.addTab(self.parameters_groupbox, 'Parameters')
         self.main_tab.addTab(self.calibration_groupbox, 'Calibration')
+        self.main_tab.addTab(self.ca_displays, 'Display setup')
         self.main_tab.setCurrentIndex(0)
         self.main_tab.setFixedHeight(self.config.GUI['GUI_SIZE']['row']*0.7)
         self.main_tab.setMaximumWidth(self.config.GUI['GUI_SIZE']['col']*0.6)
-        self.ca_displays = gui.CaImagingVisualisationControlWidget(self)
         self.network_status = QtGui.QLabel('', self)
         self.text_out = QtGui.QTextEdit(self)
         self.text_out.setPlainText('')
@@ -1002,14 +1003,16 @@ class CentralWidget(QtGui.QWidget):
         self.text_out.ensureCursorVisible()
         self.text_out.setCursorWidth(5)
         self.plot = gui.Plot(self)
+        self.browse_data_file_button = QtGui.QPushButton('Display datafile',  self)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
-        self.layout.addWidget(self.main_tab, 0, 0, 1, 3)
-        self.layout.addWidget(self.ca_displays, 0, 3, 1, 1)
-        self.layout.addWidget(self.network_status, 1,  0, 1, 2)
-        self.layout.addWidget(self.text_out, 2,  0, 1, 2)
-        self.layout.addWidget(self.plot, 1, 2, 2, 2)
+        self.layout.addWidget(self.main_tab, 0, 0, 3, 3)
+#        self.layout.addWidget(self.ca_displays, 0, 3, 1, 1)
+        self.layout.addWidget(self.network_status, 3,  0, 1, 2)
+        self.layout.addWidget(self.text_out, 4,  0, 1, 2)
+        self.layout.addWidget(self.browse_data_file_button, 0, 3, 1, 1)
+        self.layout.addWidget(self.plot, 3, 2, 2, 2)
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
@@ -1114,6 +1117,7 @@ class VisionExperimentGui(Qt.QMainWindow):
                                   [self.central_widget.main_widget.toolbox.filterwheel1, 'toolbox.set_filterwheel1', 'currentIndexChanged'],
                                   [self.central_widget.main_widget.toolbox.grey_level, 'toolbox.set_color', 'currentIndexChanged'],
                                   [self.central_widget.main_widget.toolbox.projector_enable.input, 'toolbox.set_projector', 'stateChanged'],
+                                  [self.central_widget.browse_data_file_button, 'display_datafile'],
                                   ]
         
         for item in widget2poller_function:

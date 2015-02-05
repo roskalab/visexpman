@@ -2820,7 +2820,7 @@ class VisexpGuiPoller(Poller):
             self.plotdata[connection_name].append(msg['plot'])
         else:
             self.plotdata[connection_name].extend(msg['plot'])
-        curves = [[], []]
+        curves = [[], [], []]
         for c in self.plotdata.keys():#TODO: this is a messy solution
             if len(self.plotdata[c])==0:
                 continue
@@ -2828,15 +2828,15 @@ class VisexpGuiPoller(Poller):
             t=plotdata[:,0]-self.tdiff[c]-self.experiment_control.current_stimulus_start_time#time 0 is when stim started
 #            t -= t[0]
             plotdata = plotdata[:,1:]
-            if c=='stim' and self.plotdata.has_key('ca_imaging'):
+            if c=='stim' and self.plotdata.has_key('ca_imaging'):#TEST0206
                 #Specific for block trigger
                 #insert values to visualize block trigger better
                 t=numpy.repeat(t,2)
-#                plotdata=numpy.repeat(numpy.cast['bool'](plotdata),2)
-#                plotdata[0::2] = numpy.invert(plotdata[0::2])
-#                ca_values = numpy.array(self.plotdata['ca_imaging'])[:,1:]
+                plotdata=numpy.repeat(numpy.cast['bool'](plotdata),2)
+                plotdata[0::2] = numpy.invert(plotdata[0::2])
+                ca_values = numpy.array(self.plotdata['ca_imaging'])[:,1:]
                 plotdata = signal.scale(plotdata, ca_values.min(), ca_values.max())
-                curves[0] = (t, plotdata)
+                curves[2] = (t, plotdata)
             else:
                 for i in range(plotdata.shape[1]):
                     curves[1](t, plotdata[:,i])
@@ -2851,6 +2851,24 @@ class VisexpGuiPoller(Poller):
                 self.tdiff[c] = self.sync_samples[c][-1]['sync']['t1'] + 0.5 * latency - self.sync_samples[c][-1]['sync']['t2']
                 self.printc(self.tdiff)
                 self.sync_samples[c] = []
+                
+    def display_datafile(self,datafile = None):
+        datafile = self.ask4filename('Select datafile', fileop.get_user_experiment_data_folder(self.config),  '*.hdf5')
+        if not os.path.exists(datafile):
+            return
+        self.printc(datafile)
+        if fileop.parse_recording_filename(datafile)['type'] != 'data':
+            self.printc('This file cannot be displayed')
+            return
+        ts, ti, a = experiment_data.get_activity_plotdata(datafile)
+#        import pdb
+#        pdb.set_trace()
+        rect_heights = numpy.ones_like(ts)
+        rect_heights[0::2] = a.min()
+        rect_heights[1::2] = a.max()
+        curves = [[ts, rect_heights]]
+        curves.append([ti,a])
+        self.emit(QtCore.SIGNAL('update_curve'), curves)
             
     def run_in_all_iterations(self):
         #### Calling functions all the time #### 

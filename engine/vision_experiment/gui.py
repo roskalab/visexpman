@@ -1116,6 +1116,8 @@ class ExperimentControl(gui.WidgetControl):
                     self.poller.update_recording_status()
                     self.isstimulus_started=False
                     self.printc('{0} DONE' .format(self.poller.animal_file.recordings[i]['id']))
+                    if 0:
+                        self.poller.display_datafile(hmerged.filename)#TEST0206
                 return True
         
     def live_scan_start(self):
@@ -1756,11 +1758,11 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
         
     def create_widgets(self):
         self.display_configs = []
-        self.live_scan_start = QtGui.QPushButton('Live scan start', self)
-        self.live_scan_stop = QtGui.QPushButton('Live scan stop', self)
-        self.snap = QtGui.QPushButton('Snap', self)
-        self.save2file = gui.LabeledCheckBox(self, 'Save to file')
-        self.averaging = gui.LabeledInput(self, 'Averaging')
+        self.live_scan_start = QtGui.QPushButton('Live scan start', self)#TODO: move
+        self.live_scan_stop = QtGui.QPushButton('Live scan stop', self)#TODO: move
+        self.snap = QtGui.QPushButton('Snap', self)#TODO: move
+        self.save2file = gui.LabeledCheckBox(self, 'Save to file')#TODO: move
+        self.averaging = gui.LabeledInput(self, 'Averaging')#TODO: move
         for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
             self.display_configs.append(DisplayConfigurationGroupbox(self, str(i)))
             self.display_configs[-1].setFixedWidth(200)
