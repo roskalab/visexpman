@@ -113,6 +113,9 @@ class Screen(object):
         '''
         Create pygame screen using SCREEN_RESOLUTION and FULLSCREEN parameters
         '''
+        if not self.config.FULLSCREEN:
+            import os
+            os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (0,0)
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
         if self.config.FULLSCREEN:            
             flags = flags | pygame.FULLSCREEN
