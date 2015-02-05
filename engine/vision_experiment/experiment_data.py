@@ -57,6 +57,53 @@ def check(h, config):
     return error_messages
 
 ############### Preprocess measurement data ####################
+def read_sync_rawdata(h):
+    for v in  ['configs_stim', 'sync_and_elphys_data', 'conversion_factor']:
+        if not hasattr(h, v):
+            h.load(v)
+    machine_config = h.configs_stim['machine_config']
+    sync_and_elphys_data = numpy.cast['float'](h.sync_and_elphys_data)
+    sync_and_elphys_data /= h.conversion_factor#Scale back to original value
+    elphys = sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['ELPHYS_INDEXES']]
+    stim_sync =  sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]]
+    img_sync =  sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]+2]
+    return elphys, stim_sync, img_sync
+
+def get_sync_events(h):
+    elphys, stim_sync, img_sync=read_sync_rawdata(h)
+    for v in  ['recording_parameters']:
+        if not hasattr(h, v):
+            h.load(v)
+    telphyssync = numpy.arange(h.sync_and_elphys_data.shape[0],dtype='float')/h.recording_parameters['elphys_sync_sample_rate']
+    #calculate time of sync events
+    h.tsync = telphyssync[signal.trigger_indexes(stim_sync)]
+    h.timg = telphyssync[signal.trigger_indexes(img_sync)[0::2]]
+    return h.tsync,h.timg
+    
+def  get_ca_activity(h, mask = None):
+    if not hasattr(h, 'raw_data'):
+        h.load('raw_data')
+    if h.raw_data.shape[1] != 1:
+        raise NotImplementedError('Two channels are not supported')
+    if mask is None:
+        mask = numpy.ones(h.raw_data.shape[2:],dtype='bool')
+    if h.raw_data.shape[2:] != mask.shape:
+        raise RuntimeError('Invalid mask size: {0}, expected: {1}'.format(mask.shape, h.raw_data.shape[2:]))
+    masked_data = h.raw_data * mask
+    return masked_data.mean(axis=2).mean(axis=2).flatten()
+    
+def get_activity_plotdata(h):
+    h_opened = False
+    if not hasattr(h, 'filename'):
+        h = hdf5io.Hdf5io(h, filelocking=False)
+        h_opened = True
+    tsync,timg = get_sync_events(h)
+    a=get_ca_activity(h)
+    l=min(timg.shape[0],a.shape[0])
+    if h_opened:
+        h.close()
+    return tsync, timg[:l], a[:l]
+
 def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_signal_min_amplitude = 1.5):
     #Find out high and low voltage levels
     histogram, bin_edges = numpy.histogram(sync_signal, bins = 20)
@@ -315,8 +362,21 @@ class TestExperimentData(unittest.TestCase):
         files = fileop.listdir_fullpath(working_folder)
         res = map(check, files, [conf]*len(files))
         map(self.assertEqual, res, len(res)*[[]])
-        pass
         
+    def test_04_align_stim_with_imaging(self):
+        from visexpman.users.test.test_configurations import GUITestConfig
+        conf = GUITestConfig()
+        from pylab import plot,show,savefig,figure,clf
+        for file in fileop.listdir_fullpath('r:\\production\\rei-setup\\zoltan'):
+            if fileop.parse_recording_filename(file)['type'] == 'data' and '22863' in file:
+                if len(check(file,conf))==0:
+#                    h=hdf5io.Hdf5io(file,filelocking=False)
+                    ts, ti, a = get_activity_plotdata(file)
+                    plot(ti,a);plot(ts, a.max()*numpy.ones_like(ts), 'r|');
+                    savefig('r:\\temp\\plot\\'+os.path.split(file)[1]+'.png')
+                    clf()
+#                    h.close()
+
 if __name__=='__main__':
     unittest.main()
         

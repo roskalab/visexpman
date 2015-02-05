@@ -277,7 +277,6 @@ class ElphysRetinalCaImagingConfig(VisionExperimentConfig):
         self.CONNECTIONS['ca_imaging'] = {'port': self.BASE_PORT+1, 'ip': {'ca_imaging': '', 'main_ui': ''}}
         
         STIM_RECORDS_ANALOG_SIGNALS = False
-        ELPHYS_SIGNAL_CHANNEL_INDEX = [0, [0, 10]]
         self.GUI['GUI_SIZE'] = utils.rc((1024, 1280))
         
         ######### Calcium imaging #########
