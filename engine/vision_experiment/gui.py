@@ -1116,8 +1116,7 @@ class ExperimentControl(gui.WidgetControl):
                     self.poller.update_recording_status()
                     self.isstimulus_started=False
                     self.printc('{0} DONE' .format(self.poller.animal_file.recordings[i]['id']))
-                    if 0:
-                        self.poller.display_datafile(hmerged.filename)#TEST0206
+                    self.poller.display_datafile(hmerged.filename)
                 return True
         
     def live_scan_start(self):

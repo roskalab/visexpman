@@ -183,7 +183,7 @@ class Pointing2NonExpConfig(experiment.ExperimentConfig):
         
 class DummyClass(object):
     pass
-    
+
 class WhiteNoiseParameters(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.DURATION = 1.0
@@ -225,7 +225,8 @@ class TestCommonExperimentConfig(experiment.ExperimentConfig):
 class DebugExperimentConfig(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.runnable = 'Debug'
-        self.DURATION = 10.0#Comment
+        self.DURATION = 15#Comment
+        self.SPOT_SIZE = 400#Comment
 #        self.pre_runnable = 'TestPre'
         self._create_parameters_from_locals(locals())
 
@@ -239,11 +240,11 @@ class Debug(experiment.Experiment):
 #        self.show_shape(duration=0,pos = utils.rc((10, 0)), size=30, color=0.7, part_of_drawing_sequence=True, flip=False)
 #        self.show_shape(duration=0,size=100, color=0.4, part_of_drawing_sequence=True, flip=True)
         nsteps = 2
-        d=self.stimulus_duration/(2*nsteps+1.)
+        d=self.stimulus_duration/(4*nsteps+1.)
         self.show_fullscreen(duration=d, color=0.0)
         for i in range(nsteps):
-            self.show_shape(duration=d,size=470, color=0.9,is_block=True)
-            self.show_fullscreen(duration=d, color=0.0)
+            self.show_shape(duration=d,size=self.experiment_config.SPOT_SIZE, color=0.9,is_block=True)
+            self.show_fullscreen(duration=2*d, color=0.0)
         
 class TestStimulusBlockParams(experiment.ExperimentConfig):
     def _create_parameters(self):
