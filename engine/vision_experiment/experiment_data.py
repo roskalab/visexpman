@@ -335,6 +335,17 @@ def read_smr_file(fn):
     bl.segments.append(seg)
     w.write_block(bl)
     data=scipy.io.loadmat(tmp_matfile, mat_dtype=True)['block']['segments'][0][0][0][0][0]['analogsignals'][0][0]
+    #Select the one where channel name is units
+    for item in data:
+        if str(item['name'][0,0][0]) == 'Units':
+            sample_rate = item['sampling_rate'][0][0][0][0]
+            signal = item['signal'][0][0][0]
+            timeseries = numpy.arange(signal.shape[0])/sample_rate
+            from pylab import plot,show
+            print timeseries.shape, signal.shape
+            plot(timeseries,signal);show()
+    pass
+    pass
 #    from pylab import plot, show
 #    plot(data[0]['signal'][0][0][0][::100]);show()
 #    os.remove(tmp_matfile)
@@ -353,7 +364,7 @@ class TestExperimentData(unittest.TestCase):
         working_folder = unittest_aggregator.prepare_test_data('elphys')
         map(read_phys, fileop.listdir_fullpath(working_folder))
         
-    @unittest.skip("")
+#    @unittest.skip("")
     def test_03_smr(self):
         folder='/home/rz/rzws/temp/santiago/181214_Lema_offcell'
         for fn in fileop.listdir_fullpath(folder):
