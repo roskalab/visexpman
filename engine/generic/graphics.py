@@ -115,7 +115,7 @@ class Screen(object):
         '''
         if not self.config.FULLSCREEN:
             import os
-            os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (20,20)
+            os.environ['SDL_VIDEO_WINDOW_POS'] = "%d,%d" % (0,20)
         flags = pygame.DOUBLEBUF | pygame.HWSURFACE | pygame.OPENGL
         if self.config.FULLSCREEN:            
             flags = flags | pygame.FULLSCREEN

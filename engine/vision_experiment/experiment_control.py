@@ -96,7 +96,7 @@ class CaImagingLoop(ServerLoop, CaImagingScreen):
                 self.live_scan_stop()
             self.abort = False
         if not self.imaging_started and self.projector_state:
-            waveform = numpy.ones((1,1000))*self.config.STIMULATION_TRIGGER_AMPLITUDE
+            waveform = numpy.ones((1,100))*self.config.STIMULATION_TRIGGER_AMPLITUDE
             waveform[0,0]=0.0
             waveform[0,-1]=0.0
             daq_instrument.set_waveform(self.config.TWO_PHOTON_PINOUT['PROJECTOR_CONTROL'],waveform,sample_rate = 10000)

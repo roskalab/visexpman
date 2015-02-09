@@ -49,7 +49,13 @@ def check(h, config):
             error_messages.append('Acquired frames ({0}) and generated pulses ({1}) differ'.format(h.imaging_run_info['acquired_frames'], npulses))
         #Check frame rate
         distance_between_edges = numpy.diff(ca_frame_trigger_edges)[:-1]
-        frame_durations = numpy.cast['float'](distance_between_edges.reshape(distance_between_edges.shape[0]/2,2).sum(axis=1))/h.recording_parameters['elphys_sync_sample_rate']
+        try:
+            frame_durations = numpy.cast['float'](distance_between_edges.reshape(distance_between_edges.shape[0]/2,2).sum(axis=1))/h.recording_parameters['elphys_sync_sample_rate']
+        except ValueError:#TMP: this error has to be catched
+            import pdb
+            import traceback
+            traceback.print_exc()
+            pdb.set_trace()
         if abs(frame_durations-1/h.recording_parameters['frame_rate']).max()>5./h.recording_parameters['elphys_sync_sample_rate']:#Maximum allowed deviation is 5 sample time
             error_messages.append('Frame rate mismatch')
     if h_opened:

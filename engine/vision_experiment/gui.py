@@ -18,9 +18,6 @@ import PyQt4.Qwt5 as Qwt
 
 import visexpman
 import hdf5io
-if 0:
-    from visexpA.engine.datadisplay import imaged
-    from visexpA.engine.datadisplay.plot import Qt4Plot
 from visexpman.engine.vision_experiment import experiment, experiment_data
 from visexpman.engine.hardware_interface import scanner_control,daq_instrument,instrument
 from visexpman.engine import ExperimentConfigError, AnimalFileError
@@ -726,8 +723,8 @@ class ExperimentControl(gui.WidgetControl):
             'status' : 'queued',
             'state_transition_times':[['queued',time.time()]],#Keeps track of what transitions happened and when
             'id':str(int(numpy.round(time.time(), 2)*100)), 
-            'save2file' : (self.poller.parent.central_widget.ca_displays.save2file.input.checkState()==2),
-            'averaging' : self.poller.parent.central_widget.ca_displays.averaging.input.text()
+            'save2file' : (self.poller.parent.central_widget.save2file.input.checkState()==2),
+            'averaging' : self.poller.parent.central_widget.averaging.input.text()
                            }
         #Copy values from machine parameters
         for machine_parameter_name in self.poller.parent.central_widget.parameters_groupbox.machine_parameters['scanner'].keys():
@@ -1757,11 +1754,6 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
         
     def create_widgets(self):
         self.display_configs = []
-        self.live_scan_start = QtGui.QPushButton('Live scan start', self)#TODO: move
-        self.live_scan_stop = QtGui.QPushButton('Live scan stop', self)#TODO: move
-        self.snap = QtGui.QPushButton('Snap', self)#TODO: move
-        self.save2file = gui.LabeledCheckBox(self, 'Save to file')#TODO: move
-        self.averaging = gui.LabeledInput(self, 'Averaging')#TODO: move
         for i in range(self.config.MAX_CA_IMAGE_DISPLAYS):
             self.display_configs.append(DisplayConfigurationGroupbox(self, str(i)))
             self.display_configs[-1].setFixedWidth(200)
@@ -1773,11 +1765,6 @@ class CaImagingVisualisationControlWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         index = 0
-        self.layout.addWidget(self.live_scan_start, 0, 0)
-        self.layout.addWidget(self.live_scan_stop, 0, 1)
-        self.layout.addWidget(self.save2file, 0, 2)
-        self.layout.addWidget(self.snap, 0, 3)
-        self.layout.addWidget(self.averaging, 1, 0)
         for row in range(2):
             for col in range(self.config.MAX_CA_IMAGE_DISPLAYS/2):
                 self.layout.addWidget(self.display_configs[index], row+2, 2*col,1,2)

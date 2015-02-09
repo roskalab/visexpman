@@ -2706,7 +2706,7 @@ class VisexpGuiPoller(Poller):
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.scanning_range.input.text', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.pixel_size.text', 
                                           'self.parent.central_widget.main_widget.experiment_options_groupbox.resolution_unit.currentIndex', 
-                                          'self.parent.central_widget.ca_displays.averaging.input.text',
+                                          'self.parent.central_widget.averaging.input.text',
                                           'self.parent.central_widget.main_widget.toolbox.bullseye_type.currentIndex',
                                           'self.parent.central_widget.main_widget.toolbox.bullseye_size.input.text',
                                           

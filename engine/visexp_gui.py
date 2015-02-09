@@ -20,21 +20,13 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
 import visexpman
-if 0:
-    from visexpA.engine.datadisplay import imaged
-    from visexpA.engine.dataprocessors import generic as generic_visexpA
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import introspect
 from visexpman.engine.vision_experiment import configuration
 from visexpman.engine.vision_experiment import gui
 from visexpman.engine.generic import gui as gui_generic
 from visexpman.engine.vision_experiment import gui_pollers
 from visexpman.engine.hardware_interface import network_interface
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
-from visexpman.engine.generic import stringop
+from visexpman.engine.generic import utils, fileop, stringop, log, introspect
 from visexpman.engine import generic, MachineConfigError
-from visexpman.engine.generic import log
 from visexpman.users.test import unittest_aggregator
 import hdf5io
 
@@ -1004,6 +996,12 @@ class CentralWidget(QtGui.QWidget):
         self.text_out.setCursorWidth(5)
         self.plot = gui.Plot(self)
         self.browse_data_file_button = QtGui.QPushButton('Display datafile',  self)
+        
+        self.live_scan_start = QtGui.QPushButton('Live scan start', self)
+        self.live_scan_stop = QtGui.QPushButton('Live scan stop', self)
+        self.snap = QtGui.QPushButton('Snap', self)
+        self.save2file = gui_generic.LabeledCheckBox(self, 'Save to file')
+        self.averaging = gui_generic.LabeledInput(self, 'Averaging')
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -1012,7 +1010,14 @@ class CentralWidget(QtGui.QWidget):
         self.layout.addWidget(self.network_status, 3,  0, 1, 2)
         self.layout.addWidget(self.text_out, 4,  0, 1, 2)
         self.layout.addWidget(self.browse_data_file_button, 0, 3, 1, 1)
-        self.layout.addWidget(self.plot, 3, 2, 2, 2)
+        
+        self.layout.addWidget(self.live_scan_start, 1, 3)
+        self.layout.addWidget(self.live_scan_stop, 1, 4)
+        self.layout.addWidget(self.save2file, 1, 5)
+        self.layout.addWidget(self.snap, 1, 6)
+        self.layout.addWidget(self.averaging, 1, 7)
+        
+        self.layout.addWidget(self.plot, 3, 2, 2, 3)
         self.setLayout(self.layout)
 
 class VisionExperimentGui(Qt.QMainWindow):
@@ -1109,9 +1114,9 @@ class VisionExperimentGui(Qt.QMainWindow):
                                   [self.central_widget.main_widget.recording_status.remove, 'experiment_control.remove_experiment'],
                                   [self.central_widget.main_widget.recording_status.set_state, 'experiment_control.set_experiment_state'],
                                   [self.central_widget.parameters_groupbox.check_scan_parameters_button, 'experiment_control.check_scan_parameters'],
-                                  [self.central_widget.ca_displays.snap, 'experiment_control.snap_ca_image'],
-                                  [self.central_widget.ca_displays.live_scan_start, 'experiment_control.live_scan_start'],
-                                  [self.central_widget.ca_displays.live_scan_stop, 'experiment_control.live_scan_stop'],
+                                  [self.central_widget.snap, 'experiment_control.snap_ca_image'],
+                                  [self.central_widget.live_scan_start, 'experiment_control.live_scan_start'],
+                                  [self.central_widget.live_scan_stop, 'experiment_control.live_scan_stop'],
                                   [self.central_widget.main_widget.toolbox.bullseye_toggle, 'toolbox.toggle_bullseye'],
                                   [self.central_widget.main_widget.toolbox.filterwheel0, 'toolbox.set_filterwheel0', 'currentIndexChanged'],
                                   [self.central_widget.main_widget.toolbox.filterwheel1, 'toolbox.set_filterwheel1', 'currentIndexChanged'],
