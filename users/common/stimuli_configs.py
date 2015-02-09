@@ -4,7 +4,7 @@ Commonly used "standard" stimuli
 from visexpman.engine.generic import utils
 from visexpman.engine.vision_experiment import experiment
 
-class MonkeyMovingBar(experiment.ExperimentConfig):
+class NHPMovingBar(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE_SIZE = utils.cr((1000, 500)) #um
         self.SPEEDS = [120, 200,400,1600] #um/s
@@ -15,7 +15,7 @@ class MonkeyMovingBar(experiment.ExperimentConfig):
         self.runnable = 'MovingShapeExperiment'        
         self._create_parameters_from_locals(locals())
 
-class MonkeySpots(experiment.ExperimentConfig):
+class NHPSpots(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SIZES = [25, 50, 100, 200, 400, 800,1600]
         self.ON_TIME = 2
@@ -23,7 +23,7 @@ class MonkeySpots(experiment.ExperimentConfig):
         self.runnable = 'IncreasingSpotExperiment'        
         self._create_parameters_from_locals(locals())
         
-class MonkeyMarchingSquares(experiment.ExperimentConfig):
+class NHPMarchingSquares(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'
         self.COLORS = [1.0]

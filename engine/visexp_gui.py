@@ -1002,6 +1002,7 @@ class CentralWidget(QtGui.QWidget):
         self.snap = QtGui.QPushButton('Snap', self)
         self.save2file = gui_generic.LabeledCheckBox(self, 'Save to file')
         self.averaging = gui_generic.LabeledInput(self, 'Averaging')
+        self.image = gui.ImageWidget(self)        
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -1016,6 +1017,7 @@ class CentralWidget(QtGui.QWidget):
         self.layout.addWidget(self.save2file, 1, 5)
         self.layout.addWidget(self.snap, 1, 6)
         self.layout.addWidget(self.averaging, 1, 7)
+        self.layout.addWidget(self.image, 2, 3, 1,4)
         
         self.layout.addWidget(self.plot, 3, 2, 2, 3)
         self.setLayout(self.layout)
@@ -1096,6 +1098,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.connect(self.central_widget.animal_parameters_groupbox.animal_filename.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.animal_filename_changed)
         self.connect(self.central_widget.animal_parameters_groupbox.animal_filename.input, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
         self.connect(self.central_widget.parameters_groupbox.table['scanner'], QtCore.SIGNAL('cellChanged(int,int)'),  self.machine_parameter_table_content_changed)
+        self.connect(self.central_widget.main_widget.recording_status.table, QtCore.SIGNAL('cellActivated(int,int)'),  self.recording_selected_for_display)
 #        self.connect(self.central_widget.animal_parameters_groupbox.animal_filename, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)
         #Signals mapped to poller functions
         self.signal_mapper = QtCore.QSignalMapper(self)
@@ -1196,7 +1199,14 @@ class VisionExperimentGui(Qt.QMainWindow):
             else:
                 formatted[k] = v
         self.central_widget.parameters_groupbox.machine_parameters['scanner'] = formatted
-    
+        
+    def recording_selected_for_display(self,row,col):
+        entry = self.poller.animal_file.recordings[len(self.poller.animal_file.recordings) -1- row]
+        if entry['status'] == 'done':
+            filename = fileop.find_recording_filename(entry['id'], self.config)
+            if filename is not None:
+                self.poller.display_datafile(filename)
+
     ################# Update widgets #################### 
     def update_recording_status(self):
         if not hasattr(self.poller.animal_file, 'recordings'):

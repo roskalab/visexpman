@@ -884,8 +884,11 @@ class ExperimentControl(gui.WidgetControl):
             return False
         elif (entry['status'] == 'done' or entry['status'] == 'analyzed') and not self.poller.ask4confirmation('Deleting experiment recording file. Are you sure?'):
             return False
-        if entry['status'] == 'done' or entry['status'] == 'analyzed':#TMP
-            raise NotImplementedError('Removing completed measurement is not implemented')
+        if entry['status'] == 'done' or entry['status'] == 'analyzed':
+            for fn in fileop.listdir_fullpath(fileop.get_user_experiment_data_folder(self.config)):
+                if entry['id'] in fn:
+                    os.remove(fn)
+                    self.printc('Removing {0}'.format(fn))
         elif (entry['status'] == 'running' or entry['status'] == 'preparing'):
             self.printc('Experiment in {0} state cannot be removed'.format(entry['status']))
             return False
@@ -1889,9 +1892,16 @@ class Plot(Qwt.QwtPlot):
 #            Qwt.QwtPlot.xBottom, TimeScaleDraw(Qt.QDate(int(self.months[0].split('-')[0]), int(self.months[0].split('-')[1]), 1)))
 #        self.setAxisScale(Qwt.QwtPlot.xBottom, 0, len(self.months))        
 
-class ImagesWidget(QtGui.QWidget):
+class ImageWidget(QtGui.QWidget):
     '''
     Depends on platform
+    
+    Requirements:
+    show image
+    roi selection
+    zoom
+    pan
+    
     '''
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
@@ -1901,28 +1911,26 @@ class ImagesWidget(QtGui.QWidget):
         
         
     def create_widgets(self):
-        self.snap = QtGui.QPushButton('Snap', self)
         self.imagefilter = gui.LabeledComboBox(self, 'Filter', items = ['median_filter', 'fft bandfilter'])
         display_channels_list= ['ALL']
         display_channels_list.extend(self.config.PMTS.keys())
         self.imagechannel = gui.LabeledComboBox(self, 'Display channel', items = display_channels_list)
         
-        if False:
+        if not False:
             self.v=QtGui.QGraphicsView(self)
             scene = QtGui.QGraphicsScene(self.v)
             self.v.setScene(scene)
             
             img = numpy.random.random((200,100, 3))
             scene.addPixmap(QtGui.QPixmap.fromImage(QtGui.QImage(img, img.shape[1], img.shape[0], 3*img.shape[1], QtGui.QImage.Format_RGB888)))
-            self.v.scale(1, 1)
+            self.v.scale(1.5, 1.5)
         
 #        scene.addLine(0, 0, 1000, 1000)
 
 
 
 
-        import PyQt4.Qwt5 as Qwt5
-        self.plot = Qwt5.QwtPlot(self)
+    
         
         self.max = QtGui.QSlider(QtCore.Qt.Horizontal, self)
         self.min = QtGui.QSlider(QtCore.Qt.Horizontal, self)
@@ -1971,12 +1979,10 @@ class ImagesWidget(QtGui.QWidget):
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
         
-        self.layout.addWidget(self.snap, 0, 0)
         self.layout.addWidget(self.imagechannel, 0, 1)
         self.layout.addWidget(self.imagefilter, 0, 2)
-        if False:
+        if not False:
             self.layout.addWidget(self.v, 1, 0, 1, 3)
-        self.layout.addWidget(self.plot, 2, 0, 1, 3)
         self.layout.addWidget(self.max, 3, 0, 1, 1)
         self.layout.addWidget(self.min, 3, 1, 1, 1)
         

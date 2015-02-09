@@ -382,7 +382,16 @@ def get_logfilename(config):
             break
         time.sleep(1.0)
     return filename
-        
+    
+def find_recording_filename(id, config_or_path):
+    if isinstance(config_or_path,str):
+        foldername = config_or_path
+    else:
+        foldername = get_user_experiment_data_folder(config_or_path)
+    res = [fn for fn in listdir_fullpath(foldername) if id in fn]
+    if len(res)==1:
+        return res[0]
+
 def cleanup_files(config):
     [shutil.rmtree(getattr(config,pn)) for pn in ['DATA_STORAGE_PATH', 'EXPERIMENT_DATA_PATH', 'LOG_PATH', 'REMOTE_LOG_PATH', 'CAPTURE_PATH'] if hasattr(config, pn) and os.path.exists(getattr(config,pn))]
     if os.path.exists(get_context_filename(config)):
