@@ -12,6 +12,7 @@ import string
 import shutil
 import tempfile
 import StringIO
+from PIL import Image
 
 from visexpman.engine.generic import utils,fileop,signal
 from visexpman.engine import generic
@@ -323,33 +324,122 @@ def read_machine_config(h):
 def read_machine_config_name(h):
     return read_machine_config(h).__class__.__name__
     
-def read_smr_file(fn):
-    from neo import Block
-    from neo.io import Spike2IO, NeoMatlabIO
-    name=os.path.split(fn)[1].replace('.smr','')
-    tmp_matfile=os.path.join(tempfile.gettempdir(), name+'.mat')
-    r = Spike2IO(filename=fn)
-    w = NeoMatlabIO(filename=tmp_matfile)
-    seg = r.read_segment()
-    bl = Block(name=name)
-    bl.segments.append(seg)
-    w.write_block(bl)
-    data=scipy.io.loadmat(tmp_matfile, mat_dtype=True)['block']['segments'][0][0][0][0][0]['analogsignals'][0][0]
-    #Select the one where channel name is units
-    for item in data:
-        if str(item['name'][0,0][0]) == 'Units':
-            sample_rate = item['sampling_rate'][0][0][0][0]
-            signal = item['signal'][0][0][0]
-            timeseries = numpy.arange(signal.shape[0])/sample_rate
-            from pylab import plot,show
-            print timeseries.shape, signal.shape
-            plot(timeseries,signal);show()
-    pass
-    pass
-#    from pylab import plot, show
-#    plot(data[0]['signal'][0][0][0][::100]);show()
-#    os.remove(tmp_matfile)
-   
+class SmrVideoAligner(object):
+    def __init__(self, folders, fps = 29.97):
+        filename, outfolder = folders
+        self.filename = filename
+        self.outfolder = outfolder
+        self.elphys_timeseries, self.elphys_signal = self.read_smr_file(filename, outfolder)
+        framefiles = self.read_video(filename, fps)
+        if framefiles is not None:
+            self.video_traces = map(self.process_frame, framefiles)
+        if 0:
+            self.detect_motion(framefiles)
+        self.save()
+        pass
+        pass
+        
+    def __del__(self):
+        if hasattr(self, 'self.tempdir'):
+            shutil.rmtree(self.tempdir)
+        
+    def read_smr_file(self, fn, outfolder):
+        from neo import Block
+        from neo.io import Spike2IO, NeoMatlabIO
+        name=os.path.split(fn)[1].replace('.smr','')
+        self.matfile=os.path.join(tempfile.gettempdir(), name+'.mat')
+        r = Spike2IO(filename=fn)
+        w = NeoMatlabIO(filename=self.matfile)
+        seg = r.read_segment()
+        bl = Block(name=name)
+        bl.segments.append(seg)
+        w.write_block(bl)
+        self.smr_data=scipy.io.loadmat(self.matfile, mat_dtype=True)['block']['segments'][0][0][0][0][0]['analogsignals'][0][0]
+        #Select the one where channel name is units
+        for item in self.smr_data:
+            if str(item['name'][0,0][0]) == 'Units':
+                sample_rate = item['sampling_rate'][0][0][0][0]
+                signal = item['signal'][0][0][0]
+                timeseries = numpy.arange(signal.shape[0])/sample_rate
+                return timeseries, signal
+
+    def read_video(self, filename,fps):
+        import subprocess
+        recording_name = os.path.split(filename)[1].replace('.smr', '')
+        avi_file = [fn for fn in fileop.listdir_fullpath(os.path.split(filename)[0]) if recording_name in fn and '.avi' in fn ]
+        if len(avi_file) == 1:
+            self.tempdir = os.path.join(tempfile.gettempdir(), 'frames_'+recording_name)
+            fileop.mkdir_notexists(self.tempdir, True)
+            command = '{0} -i "{1}" {2}'.format('ffmpeg' if os.name == 'nt' else 'avconv', avi_file[0], os.path.join(self.tempdir, 'f%5d.png'))
+            subprocess.call(command,shell=True)
+            self.frame_files=  fileop.listdir_fullpath(self.tempdir)
+            self.frame_files.sort()
+            self.video_time_series = numpy.arange(len(self.frame_files),dtype=numpy.float)/fps
+            return self.frame_files
+        else:
+            print 'No avi file found for ' + filename
+            
+    def save(self):
+        data = {}
+        data['elphys'] = {}
+        data['elphys']['t'] = self.elphys_timeseries, 
+        data['elphys']['signal'] = self.elphys_signal
+        data['video'] = {}
+        if hasattr(self, 'video_time_series'):
+            data['video']['t'] = self.video_time_series
+        if hasattr(self, 'video_traces'):
+            data['video']['meanimages'] = self.video_traces
+        if data['video'] == {}:
+            del data['video']
+        fn = os.path.join(self.outfolder, os.path.split(self.filename)[1].replace('.smr', '.mat'))
+        scipy.io.savemat(fn, data, oned_as = 'column')
+            
+    def process_frame(self, frame_file):
+        frame = numpy.cast['float'](numpy.asarray(Image.open(frame_file))).mean()
+        return frame
+        
+    def _read_frame(self,fn):
+        return numpy.cast['float'](signal.greyscale(numpy.asarray(Image.open(fn))))
+
+    def detect_motion(self,files):
+        meanframe = self._read_frame(files[0])
+#        videoadata = numpy.zeros((len(files), frame.shape[0], frame.shape[1], ))
+#        videoadata[0] = frame
+        for i in range(1,len(files)):
+            meanframe += self._read_frame(files[i])
+        meanframe /= len(files)
+        current_frame = self._read_frame(files[0])
+        diff_pixels = []
+        cog = []
+        threshold = self._threshold_video(files)
+        #track biggest object's movement
+        from scipy import ndimage
+        for i in range(0, len(files)):
+            thresholded = numpy.where(self._read_frame(files[i])>threshold,1,0)
+            labeled, nfeatures = ndimage.measurements.label(thresholded)
+            maxsizecolor = 0
+            maxsize = 0
+            for c in range(1, nfeatures+1):
+                size = numpy.where(labeled == c)[0].shape[0]
+                if size>maxsize:
+                    maxsize = size
+                    maxsizecolor = c
+            biggest_feature = numpy.where(labeled == maxsizecolor, 1,0)
+            cog.append(ndimage.measurements.center_of_mass(biggest_feature))
+            
+            pass
+        cog_change = numpy.diff(numpy.array(cog),axis=0)
+        r = numpy.sqrt(cog_change[:,0]**2, cog_change[:,1]**2)
+        phi = numpy.degrees(numpy.arctan2(cog_change[:,0], cog_change[:,1]))
+        from pylab import plot, imshow, show
+        
+        pass
+            
+    def _threshold_video(self,files):
+        return 0.95 * max([self._read_frame(files[i]).max() for i in range(0,len(files))])#assuming that the moving bars are the brightest items 
+        from skimage import filter
+        return numpy.array([filter.threshold_otsu(self._read_frame(files[i])) for i in range(0,len(files))]).mean()
+    
 class TestExperimentData(unittest.TestCase):
     @unittest.skip("")
     def test_01_read_merge_rois(self):
@@ -358,7 +448,8 @@ class TestExperimentData(unittest.TestCase):
         roi_locations, rois = read_merge_rois(cells, 'g2', 'scanned_2vessels_0_0', -130, 0, 80, 4)
         roi_locations, rois = add_auxiliary_rois(rois, 9, -130, -100, aux_roi_distance = 5.0)
         pass
-        
+
+    @unittest.skip("")
     def test_02_elphys(self):
         from visexpman.users.test import unittest_aggregator
         working_folder = unittest_aggregator.prepare_test_data('elphys')
@@ -366,11 +457,14 @@ class TestExperimentData(unittest.TestCase):
         
 #    @unittest.skip("")
     def test_03_smr(self):
-        folder='/home/rz/rzws/temp/santiago/181214_Lema_offcell'
-        for fn in fileop.listdir_fullpath(folder):
+        folder=fileop.select_folder_exists(['/home/rz/rzws/temp/santiago/181214_Lema_offcell', '/home/rz/codes/data/181214_Lema_offcell'])
+        fns =  fileop.listdir_fullpath(folder)
+        fns.sort()
+        for fn in fns:
             if '.smr' in fn:
-                read_smr_file(fn)
-                
+                SmrVideoAligner((fn, '/tmp'))
+
+    @unittest.skip("")
     def test_04_check_retinal_ca_datafile(self):
         from visexpman.users.test import unittest_aggregator
         from visexpman.users.test.test_configurations import GUITestConfig
@@ -379,8 +473,9 @@ class TestExperimentData(unittest.TestCase):
         files = fileop.listdir_fullpath(working_folder)
         res = map(check, files, [conf]*len(files))
         map(self.assertEqual, res, len(res)*[[]])
-        
-    def test_04_align_stim_with_imaging(self):
+
+    @unittest.skip("")
+    def test_05_align_stim_with_imaging(self):
         from visexpman.users.test.test_configurations import GUITestConfig
         conf = GUITestConfig()
         from pylab import plot,show,savefig,figure,clf
