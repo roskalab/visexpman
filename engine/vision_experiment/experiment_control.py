@@ -139,7 +139,7 @@ class ExperimentControl(object):
             self.printl('Parameter file does NOT exists')
             return False
         h = hdf5io.Hdf5io(self.parameter_file,filelocking=False)
-        fields_to_load = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
+        fields_to_load = ['parameters']
         for field in fields_to_load:
             value = h.findvar(field)
             if value is None:
@@ -148,9 +148,12 @@ class ExperimentControl(object):
             if field == 'parameters':
                 self.parameters = dict(self.parameters.items() + value.items())
                 self.scan_mode = self.parameters['scan_mode']
+                self.intrinsic = self.parameters['intrinsic']
                 self.id = self.parameters['id']
                 if self.scan_mode == 'xz':
                     fields_to_load += ['xz_config', 'rois', 'roi_locations']
+                if not self.intrinsic:
+                    fields_to_load += ['scan_regions', 'animal_parameters', 'anesthesia_history']
             elif field == 'scan_regions':
                 self.scan_region = value[self.parameters['region_name']]
             else:
@@ -234,7 +237,7 @@ class ExperimentControl(object):
         self.stimulus_frame_info_pointer = 0
         self.frame_counter = 0
         self.stimulus_frame_info = []
-        if self.config.PLATFORM == 'mes':
+        if self.config.PLATFORM == 'mes' and not self.intrinsic:
             if not self._pre_post_experiment_scan(is_pre=True):
                 return False
         # Start ai recording
@@ -244,37 +247,52 @@ class ExperimentControl(object):
         if self.config.PLATFORM == 'mes':
             self.mes_record_time = self.fragment_durations[fragment_id] + self.config.MES_RECORD_START_DELAY
             self.printl('Fragment duration is {0} s, expected end of recording {1}'.format(int(self.mes_record_time), utils.time_stamp_to_hm(time.time() + self.mes_record_time)))
-            if self.config.IMAGING_CHANNELS == 'from_animal_parameter' and self.animal_parameters.has_key('both_channels'):
-                if self.animal_parameters['both_channels']:
+            if not self.intrinsic:
+                if self.config.IMAGING_CHANNELS == 'from_animal_parameter' and self.animal_parameters.has_key('both_channels'):
+                    if self.animal_parameters['both_channels']:
+                        channels = 'both'
+                    else:
+                        channels = None
+                elif self.config.IMAGING_CHANNELS == 'both':
                     channels = 'both'
-                else:
+                else :
                     channels = None
-            elif self.config.IMAGING_CHANNELS == 'both':
-                channels = 'both'
-            else :
-                channels = None
             utils.empty_queue(self.queues['mes']['in'])
-            #start two photon recording
-            if self.scan_mode == 'xyz':
-                scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
-                                                                                      parameter_file = self.filenames['mes_fragments'][fragment_id], 
-                                                                                      scan_time = self.mes_record_time, 
-                                                                                      channels = channels)
+            #TODO:  INTRINSIC: wait for trigger: self.parallel_port.getInSelected() or getInPaperOut
+            if self.intrinsic:
+                self.printl('Intrinsic imaging: waiting for trigger from MES')
+                scan_start_success=False
+                while True:
+                    if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
+                        self.abort=True
+                        break
+                    elif daq_instrument.read_digital_line('Dev1/port0/line0')[0] == 1:
+                        scan_start_success=True
+                        break
+#                    return True#tmp
+                return scan_start_success
             else:
-                if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
-                    #Before starting scan, set xz lines
-                    if self.roi_locations is None:
-                        self.printl('No ROIs found')
-                        return False
-                elif self.scan_mode == 'xy':
-                    if hasattr(self, 'scan_region'):
-                        self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
-                scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
-                    parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
-            if scan_start_success:
-                time.sleep(1.0)
-            else:
-                self.printl('Scan start ERROR, check netwok connection to MES, restart experiment or rename scan region')
+                #start two photon recording
+                if self.scan_mode == 'xyz':
+                    scan_start_success, line_scan_path = self.mes_interface.start_rc_scan(self.roi_locations, 
+                                                                                          parameter_file = self.filenames['mes_fragments'][fragment_id], 
+                                                                                          scan_time = self.mes_record_time, 
+                                                                                          channels = channels)
+                else:
+                    if self.scan_mode == 'xz' and hasattr(self, 'roi_locations'):
+                        #Before starting scan, set xz lines
+                        if self.roi_locations is None:
+                            self.printl('No ROIs found')
+                            return False
+                    elif self.scan_mode == 'xy':
+                        if hasattr(self, 'scan_region'):
+                            self.scan_region['xy_scan_parameters'].tofile(self.filenames['mes_fragments'][fragment_id])
+                    scan_start_success, line_scan_path = self.mes_interface.start_line_scan(scan_time = self.mes_record_time, 
+                        parameter_file = self.filenames['mes_fragments'][fragment_id], timeout = self.config.MES_TIMEOUT,  scan_mode = self.scan_mode, channels = channels)
+                if scan_start_success:
+                    time.sleep(1.0)
+                else:
+                    self.printl('Scan start ERROR, check netwok connection to MES, restart experiment or rename scan region')
             return scan_start_success
         elif self.config.PLATFORM == 'elphys':
             #Set acquisition trigger pin to high
@@ -299,15 +317,19 @@ class ExperimentControl(object):
             self.mes_timeout = 0.5 * self.fragment_durations[fragment_id]            
             if self.mes_timeout < self.config.MES_TIMEOUT:
                 self.mes_timeout = self.config.MES_TIMEOUT
-            if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
-                if self.scan_mode == 'xyz':
-                    data_acquisition_stop_success =  self.mes_interface.wait_for_rc_scan_complete(self.mes_timeout)
-                else:
-                    data_acquisition_stop_success =  self.mes_interface.wait_for_line_scan_complete(self.mes_timeout)
-                if not data_acquisition_stop_success:
-                    self.printl('Line scan complete ERROR')
+            #TODO:  INTRINSIC: do not wait for anything
+            if self.intrinsic:
+                data_acquisition_stop_success = True
             else:
-                data_acquisition_stop_success =  False
+                if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
+                    if self.scan_mode == 'xyz':
+                        data_acquisition_stop_success =  self.mes_interface.wait_for_rc_scan_complete(self.mes_timeout)
+                    else:
+                        data_acquisition_stop_success =  self.mes_interface.wait_for_line_scan_complete(self.mes_timeout)
+                    if not data_acquisition_stop_success:
+                        self.printl('Line scan complete ERROR')
+                else:
+                    data_acquisition_stop_success =  False
         elif self.config.PLATFORM == 'standalone':
             data_acquisition_stop_success =  True
         #Stop acquiring analog signals
@@ -322,14 +344,17 @@ class ExperimentControl(object):
             if self.config.PLATFORM == 'mes':
                 if not utils.is_abort_experiment_in_queue(self.queues['gui']['in']):
                     self.printl('Wait for data save complete')
-                    if self.scan_mode == 'xyz':
-                        scan_data_save_success = self.mes_interface.wait_for_rc_scan_save_complete(self.mes_timeout)
+                    if not self.intrinsic:
+                        if self.scan_mode == 'xyz':
+                            scan_data_save_success = self.mes_interface.wait_for_rc_scan_save_complete(self.mes_timeout)
+                        else:
+                            scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(self.mes_timeout)
+                        if scan_data_save_success:
+                            self.printl('MES data save complete')
+                        else:
+                            self.printl('MES data save did not succeed')
                     else:
-                        scan_data_save_success = self.mes_interface.wait_for_line_scan_save_complete(self.mes_timeout)
-                    if scan_data_save_success:
-                        self.printl('MES data save complete')
-                    else:
-                        self.printl('MES data save did not succeed')
+                        scan_data_save_success = True
                 else:
                     aborted = True
                     scan_data_save_success = False

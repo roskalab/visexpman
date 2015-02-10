@@ -246,7 +246,8 @@ class AnimalParametersWidget(QtGui.QWidget):
         self.resize(self.config.TAB_SIZE['col'], self.config.TAB_SIZE['row'])
 
     def create_widgets(self):
-        default_date = QtCore.QDate(2012, 1, 1)
+        import datetime
+        default_date = QtCore.QDate(datetime.datetime.now().year, 1, 1)
         date_format = QtCore.QString('dd-MM-yyyy')
         ear_punch_items = QtCore.QStringList(['0',  '1',  '2'])                
         self.mouse_birth_date_label = QtGui.QLabel('Mouse birth date',  self)        
@@ -649,6 +650,9 @@ class CommonWidget(QtGui.QWidget):
         self.set_objective_button = QtGui.QPushButton('Set objective', self)
         self.enable_reset_objective_origin_after_moving_label = QtGui.QLabel('Set objective to 0\n after moving it', self)
         self.enable_set_objective_origin_after_moving_checkbox = QtGui.QCheckBox(self)
+        self.enable_intrinsic_label = QtGui.QLabel('Enable intrinsic', self)
+        self.enable_intrinsic_checkbox = QtGui.QCheckBox(self)
+        
         self.current_position_label = QtGui.QLabel('', self)
         
         self.registration_subimage_label = QtGui.QLabel('Registration subimage, upper left (x,y),\nbottom right (x,y) [um]', self)
@@ -673,6 +677,10 @@ class CommonWidget(QtGui.QWidget):
         self.layout.addWidget(self.set_objective_button, 2, 6, 1, 1)
         self.layout.addWidget(self.enable_reset_objective_origin_after_moving_label, 2, 7, 1, 1)
         self.layout.addWidget(self.enable_set_objective_origin_after_moving_checkbox, 2, 8, 1, 1)
+        
+        self.layout.addWidget(self.enable_intrinsic_label, 2, 9, 1, 1)
+        self.layout.addWidget(self.enable_intrinsic_checkbox, 2, 10, 1, 1)
+        
         self.layout.addWidget(self.current_position_label, 0, 8, 1, 2)
         self.layout.addWidget(self.tilt_brain_surface_button, 1, 5, 1, 1)
         self.layout.addWidget(self.enable_tilting_label, 1, 0, 1, 1)
@@ -900,6 +908,7 @@ class MainPoller(Poller):
                                 self.scan_regions[region_name]['process_status'][id]['info']['number_of_cells'] = number_of_new_cells
                                 self.save2mouse_file(['scan_regions'])
                                 self.parent.update_jobhandler_process_status()
+#                                self.backup_mousefile()????
                         elif command == 'mouse_file_copy':
                             if parameter == '':
                                 tag = 'jobhandler'
@@ -917,7 +926,7 @@ class MainPoller(Poller):
         self.wait_mouse_file_save()
         self.mouse_file = os.path.join(self.config.EXPERIMENT_DATA_PATH, str(self.parent.main_widget.scan_region_groupbox.select_mouse_file.currentText()))
         self.load_mouse_file()
-        self.backup_mousefile()
+#        self.backup_mousefile()
         self.reset_jobhandler()
         self.emit(QtCore.SIGNAL('update_widgets_when_mouse_file_changed'))
         
@@ -1017,9 +1026,11 @@ class MainPoller(Poller):
                     context_hdf5.save('xz_scan', overwrite = True)
                 context_hdf5.close()
             else:#NOT TESTED
-                if os.path.exists('/tmp/context.hdf5'):
-                    os.remove('/tmp/context.hdf5')
-                context_hdf5 = hdf5io.Hdf5io('/tmp/context.hdf5',filelocking=False)
+                import tempfile
+                tmp_context_file=os.path.join(tempfile.gettempdir(),  'context.hdf5')
+                if os.path.exists(tmp_context_file):
+                    os.remove(tmp_context_file)
+                context_hdf5 = hdf5io.Hdf5io(tmp_context_file,filelocking=False)
                 context_hdf5.stage_origin = copy.deepcopy(self.stage_origin)
                 context_hdf5.stage_position = copy.deepcopy(self.stage_position)
                 context_hdf5.save('stage_origin',overwrite = True)
@@ -1030,10 +1041,14 @@ class MainPoller(Poller):
                 if hasattr(self, 'xz_scan'):
                     context_hdf5.xz_scan = copy.deepcopy(self.xz_scan)
                     context_hdf5.save('xz_scan', overwrite = True)
+#                context_hdf5.last_region_name = self.parent.get_current_region_name()
+#                context_hdf5.last_mouse_file_name = os.path.split(self.mouse_file)[1]
                 context_hdf5.close()
                 import shutil
-                shutil.move('/tmp/context.hdf5', self.config.CONTEXT_FILE)#Context file is always saved to new file
+                os.remove(self.config.CONTEXT_FILE)
+                shutil.move(tmp_context_file, self.config.CONTEXT_FILE)#Context file is always saved to new file
         except:
+            self.printc(traceback.format_exc())
             self.printc('Context file NOT updated')
         
     ############## Measurement file handling ########################
@@ -1157,6 +1172,10 @@ class MainPoller(Poller):
         call_parameters = fromfile[0]
         if not call_parameters.has_key('scan_mode'):
             self.printc('Scan mode does not exists')
+            measurement_hdfhandler.close()
+            return 5*[None]
+        if call_parameters['intrinsic']:
+            self.printc('Intrinsic recording session, not adding to automated analysis')
             measurement_hdfhandler.close()
             return 5*[None]
         laser_intensity = measurement_hdfhandler.findvar('laser_intensity', path = 'root.'+ '_'.join(cg.get_mes_name_timestamp(measurement_hdfhandler)))
@@ -1710,6 +1729,7 @@ class MainPoller(Poller):
         if self.scan_regions == None:
             self.scan_regions = {}
         region_name = self.parent.get_current_region_name()
+        self.printc('1. Laser intensity read')
         if region_name == '':
             region_name = 'r'
         if self.scan_regions.has_key(region_name):
@@ -1729,6 +1749,7 @@ class MainPoller(Poller):
             if self.scan_regions.has_key(region_name) and not self.ask4confirmation('Overwriting scan region'):
                 self.printc('Region not saved')
                 return
+            self.printc('2. region name generated')
         if not('master' in region_name or '0_0' in region_name or self.has_master_position(self.scan_regions)):
             self.printc('Master position has to be defined')
             return
@@ -1739,6 +1760,7 @@ class MainPoller(Poller):
            else:
                 relative_position = numpy.round(self.stage_position-self.stage_origin, 0)
                 region_name = 'master_{0}_{1}'.format(int(relative_position[0]),int(relative_position[1]))
+        self.printc('3. region name finalized')
         scan_region = {}
         scan_region['add_date'] = utils.datetime_string().replace('_', ' ')
         scan_region['position'] = utils.pack_position(self.stage_position-self.stage_origin, self.objective_position)
@@ -1751,11 +1773,14 @@ class MainPoller(Poller):
         scan_region['xy']['scale'] = self.xy_scan['scale']
         scan_region['xy']['origin'] = self.xy_scan['origin']
         scan_region['xy']['mes_parameters']  = self.xy_scan['mes_parameters']
+        self.printc('4. scan region dictionary loaded with data')
         #Save xy line scan parameters
         result, line_scan_path, line_scan_path_on_mes = self.mes_interface.get_line_scan_parameters()
+        self.printc('5. line scan parameters are read')
         if result and os.path.exists(line_scan_path):
             scan_region['xy_scan_parameters'] = utils.file_to_binary_array(line_scan_path)
             os.remove(line_scan_path)
+        self.printc('6. reading vertical scan parameters')
         #Vertical section
         if hasattr(self, 'xz_scan'):
             if self.xz_scan !=  None:
@@ -2048,10 +2073,12 @@ class MainPoller(Poller):
     def start_experiment(self):
         self.printc('Experiment started, please wait')
         self.experiment_parameters = {}
-        self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
-        region_name = self.parent.get_current_region_name()
-        if len(region_name)>0:
-            self.experiment_parameters['region_name'] = region_name
+        self.experiment_parameters['intrinsic'] = self.parent.common_widget.enable_intrinsic_checkbox.checkState() == 2
+        if not self.experiment_parameters['intrinsic']:
+            self.experiment_parameters['mouse_file'] = os.path.split(self.mouse_file)[1]
+            region_name = self.parent.get_current_region_name()
+            if len(region_name)>0:
+                self.experiment_parameters['region_name'] = region_name
         objective_range_string = str(self.parent.main_widget.experiment_control_groupbox.objective_positions_combobox.currentText())
         if len(objective_range_string)>0:
             objective_positions = map(float, objective_range_string.split(','))
@@ -2091,6 +2118,7 @@ class MainPoller(Poller):
         self.generate_experiment_start_command()
 
     def generate_experiment_start_command(self):
+        #TODO:  INTRINSIC: do not expect mouse file and scan regions, chck checkbox which enables intrinsic
         #Ensure that user can switch between different stimulations during the experiment batch
         self.experiment_parameters['experiment_config'] = str(self.parent.main_widget.experiment_control_groupbox.experiment_name.currentText())
         self.experiment_parameters['scan_mode'] = str(self.parent.main_widget.experiment_control_groupbox.scan_mode.currentText())
@@ -2128,13 +2156,16 @@ class MainPoller(Poller):
             del h.parameters['laser_intensities']
         if h.parameters.has_key('objective_positions'):
             del h.parameters['objective_positions']
-        h.scan_regions = copy.deepcopy(self.scan_regions)
-        h.scan_regions = {self.experiment_parameters['region_name'] : h.scan_regions[self.experiment_parameters['region_name']]}#Keep only current scan region
-        if h.scan_regions[self.experiment_parameters['region_name']].has_key('process_status'):
-            del h.scan_regions[self.experiment_parameters['region_name']]['process_status']#remove the continously increasing and unnecessary node
-        h.animal_parameters = copy.deepcopy(self.animal_parameters)
-        h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
-        fields_to_save = ['parameters', 'scan_regions', 'animal_parameters', 'anesthesia_history']
+        if not self.experiment_parameters['intrinsic']:
+            h.scan_regions = copy.deepcopy(self.scan_regions)
+            h.scan_regions = {self.experiment_parameters['region_name'] : h.scan_regions[self.experiment_parameters['region_name']]}#Keep only current scan region
+            if h.scan_regions[self.experiment_parameters['region_name']].has_key('process_status'):
+                del h.scan_regions[self.experiment_parameters['region_name']]['process_status']#remove the continously increasing and unnecessary node
+            h.animal_parameters = copy.deepcopy(self.animal_parameters)
+            h.anesthesia_history = copy.deepcopy(self.anesthesia_history)
+        fields_to_save = ['parameters']
+        if not self.experiment_parameters['intrinsic']:
+            fields_to_save.extend(['scan_regions', 'animal_parameters', 'anesthesia_history'])
         if self.experiment_parameters['scan_mode'] == 'xz':
             h.xz_config = copy.deepcopy(self.xz_config)
             h.rois = copy.deepcopy(self.rois)
@@ -2496,8 +2527,14 @@ class MainPoller(Poller):
                 return
             self.printc('1')
             dir = os.path.join(self.config.DATABIG_PATH,  utils.date_string().replace('-',''), self.animal_parameters['id'])
-            if not os.path.exists(dir):
+            #Mouse file is backed up if 1) backup path exists or 2) animal parameters were created max 8 hours ago
+#            import datetime#TODO: mouse file is backed up at mouse file change (at startup, not backed up when databig folder created only if region save happens
+#            animal_parameter_save_timestamp =  time.mktime(datetime.datetime.strptime(self.animal_parameters['add_date'], "%Y-%m-%d %H-%M-%S").timetuple())
+            if not os.path.exists(dir):# and time.time() - animal_parameter_save_timestamp<8*3600:
                 os.makedirs(dir)
+#            if not os.path.exists(dir):
+#                self.printc('Backing up mouse file aborted')
+#                return
             self.printc('2')
             databig_path = os.path.join(dir, os.path.split(self.mouse_file)[1])
             if os.path.exists(databig_path):

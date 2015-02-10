@@ -114,7 +114,7 @@ class CommandInterface(command_parser.CommandParser):
         user = 'daniel'
         import visexpA.engine.configuration
         #TODO: use argparse
-        if len(sys.argv) == 4 and sys.argv[3] != 'EXPORT_SYNC_DATA_TO_MAT' and sys.argv[3] != 'EXPORT_DATA_TO_MAT':
+        if len(sys.argv) == 4 and sys.argv[3] != 'EXPORT_SYNC_DATA_TO_MAT' and sys.argv[3] != 'EXPORT_DATA_TO_MAT' and sys.argv[3] != 'EXPORT_DATA_TO_VIDEO':
             aconfigname = sys.argv[3]
         else:
             aconfigname = 'Config'
@@ -197,8 +197,8 @@ class CommandInterface(command_parser.CommandParser):
         #If mouse file changed, save previous one to tape
         new_mouse_filename = os.path.join(self.config.EXPERIMENT_DATA_PATH, filename)
         if hasattr(self,'mouse_file') and self.mouse_file != new_mouse_filename:
-            self._save_files()
-            self.printl('Mouse file backed up')
+            if self._save_files() != False:
+                self.printl('Mouse file backed up')
         self.mouse_file = new_mouse_filename
         self._jobs_from_database()
         self.copy_request_pending = False
@@ -262,6 +262,7 @@ class CommandInterface(command_parser.CommandParser):
             if not os.path.ismount('/mnt/tape'):
                 print '!!! Tape not mounted, measurement data is not backed up !!!'
             else:
+                self._save_files()
                 self.background_copier_command_queue.put((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename), tape_path))
                 self.background_copier_command_queue.put((os.path.join(self.config.EXPERIMENT_DATA_PATH, filename).replace('.hdf5','.mat'), tape_path.replace('.hdf5','.mat')))
         else:
@@ -301,12 +302,12 @@ class CommandInterface(command_parser.CommandParser):
         if self.zmq:
             self.zeromq_pusher.send((('add_and_sync', databig_path, ), ), False) #also opens the file
         
-    def _generate_copypath(self, filename):
+    def _generate_copypath(self, filename,  create_folder=True):
         try:
             paths = []
             for dir in [self.config.DATABIG_PATH,self.config.TAPE_PATH]:
                 d = os.path.join(dir, utils.date_string().replace('-',''), os.path.split(self.mouse_file)[1].split('_')[1])
-                if not os.path.exists(d):
+                if not os.path.exists(d) and create_folder:
                     try:
                         os.makedirs(d)
                     except:
@@ -317,20 +318,27 @@ class CommandInterface(command_parser.CommandParser):
             self.printl(traceback.format_exc())
             
     def _save_files(self):
-        print 'Saving mouse file to databig and tape'
-        if hasattr(self, 'mouse_file'):
+        if not hasattr(self, 'mouse_file'):
+            return False
+        else:
+            print 'Saving mouse file to databig and tape'
             mouse_file = self.mouse_file.replace('_jobhandler','')
-            databig_path, tape_path = self._generate_copypath(mouse_file)
-            if os.path.exists(databig_path):
-                os.remove(databig_path)
-            try:
-                shutil.copy(mouse_file, databig_path)
-            except:
-                self.printl(traceback.format_exc())
-                self.printl('Problem with copying mousefile. Copy it manually to databig/u drive.')
+            databig_path, tape_path = self._generate_copypath(mouse_file, create_folder=False)
+#            if os.path.exists(databig_path):
+#                os.remove(databig_path)
+#            try:
+#                shutil.copy(mouse_file, databig_path)
+#            except:
+#                self.printl(traceback.format_exc())
+#                self.printl('Problem with copying mousefile. Copy it manually to databig/u drive.')
             if BACKGROUND_COPIER:
-                self.printl('Command sent to background copier: {0}'.format((mouse_file, tape_path)))
-                self.background_copier_command_queue.put((mouse_file, tape_path))
+                if os.path.exists(databig_path):
+                    self._generate_copypath(mouse_file)#Create the path
+#                    if os.path.exists(tape_path):
+#                        os.remove(tape_path)
+#                        time.sleep(2)
+                    self.printl('Command sent to background copier: {0}'.format((databig_path, tape_path)))
+                    self.background_copier_command_queue.put((databig_path, tape_path))
             else:
                 try:
                     shutil.copy(mouse_file, tape_path)
@@ -441,6 +449,13 @@ class CommandInterface(command_parser.CommandParser):
                         self.printl('Saving data to mat file')
                         from visexpA.users.zoltan import converters
                         converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal', 'image_scale'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
+                    elif self.kwargs['export'] == 'EXPORT_DATA_TO_VIDEO':
+                        nodes = ['idnode','rawdata', 'sync_signal', 'image_scale', 'soma_rois', 'roi_curves']
+                        self.printl('Saving the followings to mat file: {0}' .format(', '.join(nodes)))
+                        from visexpA.users.zoltan import converters
+                        converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
+                        from visexpman.users.zoltan.mes2video import mes2video
+                        mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])
                     self.queues['low_priority_processor']['out'].put('SOC_find_cells_readyEOCid={0},runtime={1}EOP'.format(id, runtime))
                 else:
                     self.printl('Not existing ID: {0}'.format(id))

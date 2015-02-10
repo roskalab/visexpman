@@ -118,7 +118,7 @@ def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
         def close(self):
             try:
                 self.manager.shutdown()
-                children = psutil.Process(os.getpid()).get_children(recursive=True)
+                children = psutil.Process(os.getpid()).children(recursive=True)
                 self.logfile.write('no of children:{0}'.format(len(children)))
                 for c1 in children:
                     c1.kill()
