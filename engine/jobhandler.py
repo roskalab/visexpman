@@ -388,7 +388,7 @@ class CommandInterface(command_parser.CommandParser):
                 # tell file_pool to close the file and freeze it until jobhandler is done with it:
                #self.zeromq_pusher.send((('close', full_fragment_path)))
                 #self.zeromq_pusher.send((('suspend', full_fragment_path)))
-                mes_extractor = importers.MESExtractor(full_fragment_path, config = self.config, queue_out = self.queues['low_priority_processor']['out'])                
+                mes_extractor = importers.MESExtractor(full_fragment_path, config = self.analysis_config, queue_out = self.queues['low_priority_processor']['out'])                
                 data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = force_recreate)
                 file.set_file_dates(full_fragment_path, file_info)
                 self.queues['low_priority_processor']['out'].put('SOC_mesextractor_readyEOCid={0}EOP' .format(id))
