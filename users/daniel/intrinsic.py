@@ -19,7 +19,21 @@ class MyExperiment(experiment.Experiment):
 ##################################################################
 class Retinotopy(experiment.ExperimentConfig):#was MyInstrConfig
     def _create_parameters(self):
-        IntrinsicProtConfig._create_parameters(self)
+        self.SCREEN_PER_MASK_RATIO = 3
+        self.MASK_PER_GRATING_RATIO = 4
+        self.MASK_SIZE = utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] / self.SCREEN_PER_MASK_RATIO, self.machine_config.SCREEN_SIZE_UM['col'] / self.SCREEN_PER_MASK_RATIO))
+        self.GRATING_SIZE = self.machine_config.SCREEN_SIZE_UM['row'] / self.SCREEN_PER_MASK_RATIO/self.MASK_PER_GRATING_RATIO
+        self.DUTY_CYCLE = 1.0
+        self.BACKGROUND_COLOR = 0.5
+        #Speeds
+        #5/6 of screen is 60 degree of mouse visual field
+        angular_factor = self.machine_config.SCREEN_SIZE_UM['col']*(5.0/6.0)/60.0
+        if 0:
+            self.STARTING_ANGULAR_SPEED = 10.0#degree/sec
+            self.FINAL_ANGULAR_SPEED = 50.0#degree/sec
+            self.SPEEDS = numpy.array([self.STARTING_ANGULAR_SPEED, self.FINAL_ANGULAR_SPEED]) * angular_factor
+
+        self.ENABLE_TRIGGER_WAIT = True
         self.DURATION = 10.0*0.05
         self.SPEEDS = 200
         self.ORIENTATIONS = range(0,360,90)
@@ -30,7 +44,6 @@ class Retinotopy(experiment.ExperimentConfig):#was MyInstrConfig
         
 class MyIntrinsicProtocol(experiment.Experiment):
     def prepare(self):
-        
         self.positions = [
             utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *1/ 6, self.machine_config.SCREEN_SIZE_UM['col'] *5/6)), 
             utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *3/6, self.machine_config.SCREEN_SIZE_UM['col'] *5/6)), 
@@ -54,12 +67,13 @@ class MyIntrinsicProtocol(experiment.Experiment):
             spd = self.experiment_config.SPEEDS
             if i ==1 and isinstance(spd, list):
                 spd = spd[::-1]
-            while True:
-                if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
-                    self.abort=True
-                    break
-                elif daq_instrument.read_digital_line('Dev1/port0/line0')[0] == 1:
-                    break
+            if self.experiment_config.ENABLE_TRIGGER_WAIT:
+                while True:
+                    if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
+                        self.abort=True
+                        break
+                    elif daq_instrument.read_digital_line('Dev1/port0/line0')[0] == 1:
+                        break
             if self.abort:
                 return
             for position in self.positions:
@@ -80,12 +94,13 @@ class MyIntrinsicProtocol(experiment.Experiment):
                                     background_color = self.experiment_config.BACKGROUND_COLOR)
                 self.show_fullscreen(color = 0.5, duration=self.experiment_config.PAUSE)
                 self.printl('Waiting for next MES trigger')
-                while True:
-                    if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
-                        self.abort=True
-                        break
-                    elif daq_instrument.read_digital_line('Dev1/port0/line0')[0] == 1:
-                        break
+                if self.experiment_config.ENABLE_TRIGGER_WAIT:
+                    while True:
+                        if utils.is_abort_experiment_in_queue(self.queues['gui']['in'], False):
+                            self.abort=True
+                            break
+                        elif daq_instrument.read_digital_line('Dev1/port0/line0')[0] == 1:
+                            break
                 if self.abort:
                     return
                     
