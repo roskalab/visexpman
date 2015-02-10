@@ -14,7 +14,7 @@ import tempfile
 import StringIO
 from PIL import Image
 
-from visexpman.engine.generic import utils,fileop,signal
+from visexpman.engine.generic import utils,fileop,signal,videofile
 from visexpman.engine import generic
 import hdf5io
 
@@ -332,16 +332,17 @@ class SmrVideoAligner(object):
         self.elphys_timeseries, self.elphys_signal = self.read_smr_file(filename, outfolder)
         framefiles = self.read_video(filename, fps)
         if framefiles is not None:
-            self.video_traces = map(self.process_frame, framefiles)
+            self.video_traces = numpy.array(map(self.process_frame, framefiles))
         if 0:
             self.detect_motion(framefiles)
         self.save()
-        pass
-        pass
+        self.cleanup()
         
-    def __del__(self):
-        if hasattr(self, 'self.tempdir'):
+    def cleanup(self):
+        if hasattr(self, 'tempdir') and os.path.exists(self.tempdir):
             shutil.rmtree(self.tempdir)
+        if os.path.exists(self.matfile):
+            os.remove(self.matfile)
         
     def read_smr_file(self, fn, outfolder):
         from neo import Block
@@ -370,29 +371,43 @@ class SmrVideoAligner(object):
         if len(avi_file) == 1:
             self.tempdir = os.path.join(tempfile.gettempdir(), 'frames_'+recording_name.replace(' ', '_'))
             fileop.mkdir_notexists(self.tempdir, True)
-            command = '{0} -i "{1}" {2}'.format('ffmpeg' if os.name == 'nt' else 'avconv', avi_file[0], os.path.join(self.tempdir, 'f%5d.jpg'))
-            print command
+            command = '{0} -i "{1}" {2}'.format('ffmpeg' if os.name == 'nt' else 'avconv', avi_file[0], os.path.join(self.tempdir, 'f%5d.png'))
             subprocess.call(command,shell=True)
             self.frame_files=  fileop.listdir_fullpath(self.tempdir)
             self.frame_files.sort()
-            self.video_time_series = numpy.arange(len(self.frame_files),dtype=numpy.float)/fps
+            self.video_time_series = numpy.arange(len(self.frame_files),dtype=numpy.float)/videofile.get_fps(avi_file[0])
             return self.frame_files
         else:
             print 'No avi file found for ' + filename
             
     def save(self):
+        from pylab import plot,clf,savefig,legend,xlabel
         data = {}
         data['elphys'] = {}
-        data['elphys']['t'] = self.elphys_timeseries, 
+        data['elphys']['t'] = self.elphys_timeseries
         data['elphys']['signal'] = self.elphys_signal
+        if self.elphys_timeseries.shape[0]>1e6:
+            self.elphys_timeseries = self.elphys_timeseries[::100]
+            self.elphys_signal = self.elphys_signal[::100]
+        plot(self.elphys_timeseries, self.elphys_signal)
+        lgnd = ['elphys signal']
         data['video'] = {}
         if hasattr(self, 'video_time_series'):
             data['video']['t'] = self.video_time_series
         if hasattr(self, 'video_traces'):
             data['video']['meanimages'] = self.video_traces
+            if self.video_time_series.shape[0]>1e6:
+                self.video_time_series = self.video_time_series[::100]
+                self.video_time_series = self.video_time_series[::100]
+            plot(self.video_time_series, signal.scale(self.video_traces, 0, self.elphys_signal.max()))
+            lgnd.append('video meanimages')
         if data['video'] == {}:
             del data['video']
         fn = os.path.join(self.outfolder, os.path.split(self.filename)[1].replace('.smr', '.mat'))
+        legend(lgnd)
+        xlabel('time [s]')
+        savefig(fn.replace('.mat', '.png'),dpi=300)
+        clf()
         scipy.io.savemat(fn, data, oned_as = 'column')
             
     def process_frame(self, frame_file):
@@ -442,7 +457,7 @@ class SmrVideoAligner(object):
         return numpy.array([filter.threshold_otsu(self._read_frame(files[i])) for i in range(0,len(files))]).mean()
     
 class TestExperimentData(unittest.TestCase):
-    @unittest.skip("")
+#    @unittest.skip("")
     def test_01_read_merge_rois(self):
         path = '/mnt/databig/testdata/read_merge_rois/mouse_test_1-1-2012_1-1-2012_0_0.hdf5'
         cells = hdf5io.read_item(path, 'cells', filelocking = self.config.ENABLE_HDF5_FILELOCKING)
@@ -450,7 +465,7 @@ class TestExperimentData(unittest.TestCase):
         roi_locations, rois = add_auxiliary_rois(rois, 9, -130, -100, aux_roi_distance = 5.0)
         pass
 
-    @unittest.skip("")
+#    @unittest.skip("")
     def test_02_elphys(self):
         from visexpman.users.test import unittest_aggregator
         working_folder = unittest_aggregator.prepare_test_data('elphys')
@@ -459,13 +474,16 @@ class TestExperimentData(unittest.TestCase):
 #    @unittest.skip("")
     def test_03_smr(self):
         folder=fileop.select_folder_exists(['/home/rz/rzws/temp/santiago/181214_Lema_offcell', '/home/rz/codes/data/181214_Lema_offcell'])
+        if folder is None:
+            return
         fns =  fileop.listdir_fullpath(folder)
         fns.sort()
         for fn in fns:
             if '.smr' in fn:
-                SmrVideoAligner((fn, '/tmp'))
+                SmrVideoAligner((fn, '/tmp/out'))
+                break
 
-    @unittest.skip("")
+#    @unittest.skip("")
     def test_04_check_retinal_ca_datafile(self):
         from visexpman.users.test import unittest_aggregator
         from visexpman.users.test.test_configurations import GUITestConfig
@@ -475,7 +493,7 @@ class TestExperimentData(unittest.TestCase):
         res = map(check, files, [conf]*len(files))
         map(self.assertEqual, res, len(res)*[[]])
 
-    @unittest.skip("")
+#    @unittest.skip("")
     def test_05_align_stim_with_imaging(self):
         from visexpman.users.test.test_configurations import GUITestConfig
         conf = GUITestConfig()
