@@ -369,7 +369,11 @@ class SmrVideoAligner(object):
         recording_name = os.path.split(filename)[1].replace('.smr', '')
         avi_file = [fn for fn in fileop.listdir_fullpath(os.path.split(filename)[0]) if recording_name in fn and '.avi' in fn ]
         if len(avi_file) == 1:
-            self.tempdir = os.path.join(tempfile.gettempdir(), 'frames_'+recording_name.replace(' ', '_'))
+            if fileopfree_space(tempfile.gettempdir())<10e9 and os.name == 'nt':
+                tmpdir = 'e:\\temp'
+            else:
+                tmpdir = tempfile.gettempdir()
+            self.tempdir = os.path.join(tmpdir, 'frames_'+recording_name.replace(' ', '_'))
             fileop.mkdir_notexists(self.tempdir, True)
             command = '{0} -i "{1}" {2}'.format('ffmpeg' if os.name == 'nt' else 'avconv', avi_file[0], os.path.join(self.tempdir, 'f%5d.png'))
             subprocess.call(command,shell=True)
