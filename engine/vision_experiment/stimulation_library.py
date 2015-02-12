@@ -433,7 +433,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             frame_i += 1
             if duration != -1 and frame_i == n_frames:
                 break
-        glDisableClientState(GL_VERTEX_ARRAY)        
+        glDisableClientState(GL_VERTEX_ARRAY)
         #Restore original background color
         if background_color != None:            
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
@@ -925,7 +925,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
             
-class StimulationUtilities(Stimulations):
+class StimulationHelpers(Stimulations):
     def _merge_identical_frames(self):
         self.merged_bitmaps = [[self.screen.stimulus_bitmaps[0], 1]]
         for frame_i in range(1, len(self.screen.stimulus_bitmaps)):
@@ -980,10 +980,58 @@ class StimulationUtilities(Stimulations):
         '''
         pass
 
-class AdvancedStimulation(StimulationUtilities):
+class AdvancedStimulation(StimulationHelpers):
     '''
     Stimulation sequences, helpers
     ''' 
+    
+    def moving_comb(self, speed, orientation, bar_width, tooth_size, tooth_type, contrast, background):
+        '''
+        tooth_type: square, sawtooth
+        '''
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
+        glColor3fv(colors.convert_color(color, self.config))
+        converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)
+        
+        
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        
+        for frame_i in positions:
+            glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            for shi in range(nshapes):
+                if i == 0:
+                    glDrawArrays(GL_POLYGON,  ncorners*3, ncorners)
+            self._flip(frame_trigger = True)
+            if self.abort:
+                break
+        
+        glDisableClientState(GL_VERTEX_ARRAY)        
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+    
+    def _draw_comb(self, orientation, bar_width, tooth_size, tooth_type, position):
+        bar_height = numpy.sqrt(self.machine_config.SCREEN_RESOLUTION['row']**2,self.machine_config.SCREEN_RESOLUTION['col']**2)
+        vertices = geometry.rectangle_vertices(utils.cr((bar_width-tooth_size,bar_height)))
+        if tooth_type == 'sawtooth':
+            tooth_v = geometry.triangle_vertices(tooth_size)
+            offset = numpy.array([0,0])
+            tooth_spacing = tooth_size
+            ntooth = int(bar_height/tooth_size)
+        elif tooth_type == 'square':
+            tooth_v = geometry.rectangle_vertices(utils.rc((tooth_size,tooth_size)))
+            offset = numpy.array([-0.5*tooth_size,0])
+            tooth_spacing = 2*tooth_size
+            ntooth = int(bar_height/tooth_size/2)
+        for toothi in range(ntooth):
+            position = numpy.array([0.5*(bar_width-tooth_size), toothi*tooth_spacing])
+            vertices = numpy.concatenate((vertices, tooth_v+offset))
+        nshapes = ntooth + 1
+        #rotate and shift into position
+        vertices = utils.nd(utils.rc_add(geometry.rotate_point(cr(vertices[:,0],vertices[:,1]),orientation, utils.rc((0,0))), position))
+        return vertices, nshapes
+        
+    
+    
     def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
         '''
         Use cases:

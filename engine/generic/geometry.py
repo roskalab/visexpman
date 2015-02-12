@@ -608,6 +608,13 @@ def are_vectors_parallel(v1, v2):
         is_parallel = False
     return is_parallel
     
+def rotate_point(point,angle,origin):
+    r = numpy.sqrt((point['col']-origin['col'])**2+(point['row']-origin['row'])**2)
+    phi = numpy.arctan2(point['row'],point['col'])
+    phi += numpy.radians(angle)
+    return point_coordinates(r, phi, origin)
+    
+    
 def rotate_vector(vector, angle):
     '''
     angle: about x, y and z axis, in radian
@@ -868,7 +875,7 @@ def point_coordinates(distance, angle, origin):
     '''
     x=numpy.cos(angle)*distance+origin['col']
     y=numpy.sin(angle)*distance+origin['row']
-    return rc((x,y))
+    return cr((x,y))
     
 def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100)):
     radius_sq = (diameter * 0.5) ** 2
@@ -917,7 +924,8 @@ def numpy_circles(radii,  centers,  array_size,  colors = None):
             draw.ellipse(bbox, fill=color)
     return numpy.array(im)
     
-def triangle_vertices(size, orientation):
+def triangle_vertices(size, orientation = 0):
+    orientation -= 90
     vertices = numpy.zeros((3,2))
     vertices[0,0] = 0.5*size*numpy.cos(numpy.radians(orientation))
     vertices[0,1] = 0.5*size*numpy.sin(numpy.radians(orientation))
@@ -928,7 +936,7 @@ def triangle_vertices(size, orientation):
     vertices[2,1] = height*numpy.sin(angle)
     return vertices
     
-def star_vertices(radius, ncorners, orientation, inner_radius = None):
+def star_vertices(radius, ncorners, orientation=0, inner_radius = None):
     if inner_radius is None:
         inner_radius = 0.5*radius
     vertices = numpy.zeros((2*ncorners,2))
@@ -1452,9 +1460,18 @@ class TestGeometry(unittest.TestCase):
             rs=numpy.sqrt(v[:,0]**2+v[:,1]**2)
             numpy.testing.assert_almost_equal(rs[::2], numpy.ones(c)*r)
             numpy.testing.assert_almost_equal(rs[1::2], numpy.ones(c)*r*0.5)
-            angles = numpy.arctan2(v[:,0],v[:,1])-numpy.radians(o)
+            angles = numpy.arctan2(v[:,1],v[:,0])#-numpy.radians(o)
             angles = numpy.where(angles<0, angles+2*numpy.pi,angles)
-            numpy.testing.assert_almost_equal(angles, numpy.arange(0, numpy.pi*2,numpy.pi/c))
+            try:
+                numpy.testing.assert_almost_equal(numpy.diff(numpy.sort(angles)).std(), 0)
+            except:
+                pass
+            
+            
+    def test_38_rotate_point(self):
+        res= rotate_point(cr((1,0)),90, rc((0,0)))
+        numpy.testing.assert_almost_equal(res['col'],0)
+        numpy.testing.assert_almost_equal(res['row'],1)
         
 
 def test_estimate_rotation():
