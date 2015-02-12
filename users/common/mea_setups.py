@@ -2,7 +2,10 @@ import os
 import os.path
 import numpy
 import tempfile
-import serial
+try:
+    import serial
+except:
+    pass
 from visexpman.engine.generic import utils,fileop
 from visexpman.engine.vision_experiment.configuration import HiMEAConfig
 

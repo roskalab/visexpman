@@ -1,4 +1,7 @@
-import serial
+try:
+    import serial
+except:
+    pass
 import time
 import numpy
 import struct

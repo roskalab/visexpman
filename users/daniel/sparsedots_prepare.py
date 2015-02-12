@@ -130,7 +130,7 @@ def circle_coord(diameter,  resolution = 1.0,  image_size = None,  color = 1.0, 
         from PIL import Image, ImageDraw
     import numpy
     from bresenham import circle_arc
-    vertices = utils.calculate_circle_vertices([diameter,  diameter],  resolution)
+    vertices = utils.circle_vertices([diameter,  diameter],  resolution)
     if image_size is None:
         image_size = max(vertices)
     image = Image.new('L',  image_size,  0)

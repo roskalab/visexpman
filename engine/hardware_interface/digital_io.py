@@ -1,4 +1,7 @@
-import serial
+try:
+    import serial
+except:
+    pass
 import os
 import time
 import unittest

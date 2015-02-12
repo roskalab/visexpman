@@ -1,6 +1,9 @@
 import time
 import numpy
-import serial
+try:
+    import serial
+except:
+    pass
 import os.path
 import os
 
@@ -307,5 +310,6 @@ class TestStimulusBlocks(experiment.Experiment):
                 ct+=1
             self.moving_shape(utils.rc((100,300)), [2000.0], [45.0], shape = 'rect', color = 1.0, background_color = 0.5, 
                     moving_range=utils.rc((500.0,500.0)), pause=1.0, repetition = 1, block_trigger = b, shape_starts_from_edge=False)
+
 if __name__ == "__main__":
     pass
