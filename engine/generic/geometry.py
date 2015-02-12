@@ -861,6 +861,159 @@ def versor2angle_axis(versor):
     angle = 2.0*numpy.arcsin(K)
     axis = numpy.array(versor)/K
     return angle,axis
+    
+def point_coordinates(distance, angle, origin):
+    '''
+    calculate the coordinates of a point which is in a certain distance and angle from origin
+    '''
+    x=numpy.cos(angle)*distance+origin['col']
+    y=numpy.sin(angle)*distance+origin['row']
+    return rc((x,y))
+    
+def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100)):
+    radius_sq = (diameter * 0.5) ** 2
+    circle = numpy.ones(array_size)
+    coords = numpy.nonzero(circle)
+    distance_x = coords[0] - (center[0] + int(0.5 * array_size[0]))
+    distance_y = coords[1] - (center[1] + int(0.5 * array_size[1]))
+    
+    distance_x = distance_x ** 2
+    distance_y = distance_y ** 2
+    distance = distance_x + distance_y
+    active_pixel_mask = numpy.where(distance <= radius_sq, 1, 0)
+    circle = circle * 0
+    for i in range(len(active_pixel_mask)):
+        if active_pixel_mask[i] == 1:
+            circle[coords[0][i], coords[1][i]] = color
+    return circle 
+ 
+def numpy_circles(radii,  centers,  array_size,  colors = None):
+    if 0:
+        from visexpA.engine.datadisplay.imaged import imshow
+
+    a = numpy.zeros(array_size).astype('uint8')
+    if not isinstance(radii, (list, tuple)) or  (hasattr(radii, 'shape') and radii.shape[1]==1):
+        # either a numpy array of row, col pairs, or a list of numpy arrays with 1 row,col pair is accepted
+        radii = [radii]
+    if colors is None: colors = 255
+    if not isinstance(colors, (tuple, list)) or (len(colors)==1 and len(radii)>1):
+        colors = [colors]*len(radii)
+    
+    from PIL import Image, ImageDraw
+    im=Image.fromarray(a)
+    draw = ImageDraw.Draw(im)
+    im_center = numpy.array(array_size).astype(float)/2
+    for c, r, color in zip(centers, radii, colors):
+        if 0:
+            r_l = numpy.clip(c['row']-r, 0, array_size[0]) # lower limit for row coords
+            r_h = numpy.clip(c['row']+r+1, 0, array_size[0])
+            c_l = numpy.clip(c['col']-r, 0, array_size[1])
+            c_h = numpy.clip(c['col']+r+1, 0, array_size[1]+1)
+            row, col = numpy.ogrid[r_l-c['row']+(r-1)%2: r_h-c['row'], c_l-c['col']+(r-1)%2: c_h-c['col']]
+            index = row**2 + col**2 <= r**2
+            a[r_l:r_h+(r%2),c_l:c_h+(r%2)][index] = color
+        else:
+            bbox =  (c['col']-r,  c['row']-r,c['col']+r, c['row']+r)
+            draw.ellipse(bbox, fill=color)
+    return numpy.array(im)
+    
+def triangle_vertices(size, orientation):
+    vertices = numpy.zeros((3,2))
+    vertices[0,0] = 0.5*size*numpy.cos(numpy.radians(orientation))
+    vertices[0,1] = 0.5*size*numpy.sin(numpy.radians(orientation))
+    vertices[1] = -vertices[0]
+    height=0.5*numpy.sqrt(3)*size
+    angle = numpy.radians(90-orientation)
+    vertices[2,0] = -height*numpy.cos(angle)
+    vertices[2,1] = height*numpy.sin(angle)
+    return vertices
+    
+def star_vertices(radius, ncorners, orientation, inner_radius = None):
+    if inner_radius is None:
+        inner_radius = 0.5*radius
+    vertices = numpy.zeros((2*ncorners,2))
+    current_angle = numpy.radians(orientation)
+    angle_step = 2*numpy.pi/(2*ncorners)
+    for corner in range(ncorners):
+        #calculate outer point
+        pouter=point_coordinates(radius, current_angle, rc((0,0)))
+        vertices[2*corner,0]=pouter['col']
+        vertices[2*corner,1]=pouter['row']
+        current_angle += angle_step
+        pinner=point_coordinates(inner_radius, current_angle, rc((0,0)))
+        vertices[2*corner+1,0]=pinner['col']
+        vertices[2*corner+1,1]=pinner['row']
+        current_angle += angle_step
+    return vertices
+
+def arc_vertices(diameter, n_vertices,  angle,  angle_range,  pos = [0, 0]):
+    if not isinstance(diameter,  list):
+        diameter_list = [diameter, diameter]
+    else:
+        diameter_list = diameter   
+    
+    start_angle = (angle - 0.5 * angle_range)  * numpy.pi / 180.0
+    end_angle = (angle + 0.5 * angle_range) * numpy.pi / 180.0
+    angles = numpy.linspace(start_angle, end_angle,  n_vertices)
+#    angles = angles[1:]
+    vertices = numpy.zeros((angles.shape[0],  2))    
+    vertices[:, 0] = 0.5 * numpy.cos(angles)
+    vertices[:, 1] = 0.5 * numpy.sin(angles)
+    return vertices * numpy.array(diameter_list) + numpy.array(pos)
+    
+def rectangle_vertices(size, orientation = 0):
+    alpha = numpy.arctan(float(size['row'])/float(size['col']))
+    angles = numpy.array([alpha, numpy.pi - alpha, numpy.pi + alpha, - alpha])
+    angles += orientation * numpy.pi / 180.0
+    half_diagonal = 0.5 * numpy.sqrt(size['row'] ** 2 + size['col'] ** 2)
+    vertices = []
+    for angle in angles:
+        vertice = [numpy.cos(angle), numpy.sin(angle)]
+        vertices.append(vertice)
+    vertices = numpy.array(vertices)
+    vertices *= half_diagonal
+    return vertices    
+
+def circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  end_angle = 360, pos = (0,0),  arc_slice = False):
+    '''
+    Resolution is in steps / degree
+    radius is a list of x and y
+    '''
+    output_list = False
+    if not isinstance(diameter,list):
+        diameter = [diameter,diameter]
+    if output_list:
+        vertices = []
+    else:
+        n_vertices_arc = int((end_angle - start_angle) * resolution + 1)
+        if abs(start_angle - end_angle) < 360 and arc_slice:
+            n_vertices = n_vertices_arc + 1
+        else:
+            n_vertices = n_vertices_arc
+        vertices = numpy.zeros(shape = (n_vertices,  2))
+        
+    if output_list:
+        for i in range(int(start_angle * resolution),  int(end_angle * resolution)):
+                    angle = (float(i)*numpy.pi / 180.0) / resolution
+                    vertice = [0.5 * diameter[0] * numpy.cos(angle) + pos[0],  0.5 * diameter[1] * numpy.sin(angle) + pos[1]]
+                    vertices.append(vertice)
+    else:
+        start_angle_rad = start_angle * numpy.pi / 180.0
+        end_angle_rad = end_angle * numpy.pi / 180.0
+        angle = numpy.linspace(start_angle_rad,  end_angle_rad, n_vertices_arc)        
+        x = 0.5 * diameter[0] * numpy.cos(angle) + pos[0]
+        y = 0.5 * diameter[1] * numpy.sin(angle) + pos[1]
+        vertices[0:n_vertices_arc, 0] = x
+        vertices[0:n_vertices_arc, 1] = y      
+    
+    if abs(start_angle - end_angle) < 360:
+        if output_list:
+            if arc_slice:
+                vertices.append([0,  0])
+        else:
+            if arc_slice:                
+                vertices[-1] = numpy.array([0,  0])
+    return vertices
 
 class TestGeometry(unittest.TestCase):
     def setUp(self):
@@ -1268,14 +1421,41 @@ class TestGeometry(unittest.TestCase):
         im2  =affine_transform(im1,A,[0,0],order=0)
         A2 = Haffine_from_points(zip(*im2.nonzero()),zip(*im1.nonzero()))
         pass
+    
+    def test_36_triangle(self):
+        expected_vertices = numpy.array([
+            [[ 0.5 ,  0.  ],
+            [-0.5 , 0.  ],
+            [0.  ,  0.87]],
+            [[ 0.35,  0.35],
+            [-0.35, -0.35],
+            [-0.61,  0.61]],
+            [[ 0.  ,  0.5 ],
+            [0.  , -0.5 ],
+            [-0.87,  0.  ]],
+            [[ -0.5 ,  0.  ],
+            [0.5 , 0.  ],
+            [0.  ,  -0.87]],
+        ])
         
-    def test_35_numpy_circles(self):
-        pars = [ [[10, 25], (rc((1, 1)), rc((25, 25))), (64, 64), 255],  #
-                        [[10, 25],  (rc((64-1, 64-1)), rc((64-25, 64-25))), (64, 64), 255],   # odd radius, single center
-                        ]
-        for p in pars:
-            img = numpy_circles(p[0], p[1], p[2], p[3])
-            pass
+        angles = [0,45,90,180]
+        size = 1.2
+        for i in range(len(angles)):
+            numpy.testing.assert_almost_equal(numpy.round(triangle_vertices(size, angles[i]),2), size*expected_vertices[i], 2)
+        pass
+        
+    def test_37_star(self):
+        import itertools
+        for r,c,o in itertools.product([1.0, 10.0], range(2,10), [0, 45, 90]):
+            v=star_vertices(r,c,o)
+            self.assertEqual(v.shape, (2*c,2))
+            rs=numpy.sqrt(v[:,0]**2+v[:,1]**2)
+            numpy.testing.assert_almost_equal(rs[::2], numpy.ones(c)*r)
+            numpy.testing.assert_almost_equal(rs[1::2], numpy.ones(c)*r*0.5)
+            angles = numpy.arctan2(v[:,0],v[:,1])-numpy.radians(o)
+            angles = numpy.where(angles<0, angles+2*numpy.pi,angles)
+            numpy.testing.assert_almost_equal(angles, numpy.arange(0, numpy.pi*2,numpy.pi/c))
+        
 
 def test_estimate_rotation():
     a = [[1, 1], [1, 5]]
@@ -1350,148 +1530,6 @@ if __name__ == "__main__":
     angle = numpy.array([45, 45, 0])
     print rotate_vector(vector, angle * numpy.pi/180.0)
     
-def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100)):
-    radius_sq = (diameter * 0.5) ** 2
-    circle = numpy.ones(array_size)
-    coords = numpy.nonzero(circle)
-    distance_x = coords[0] - (center[0] + int(0.5 * array_size[0]))
-    distance_y = coords[1] - (center[1] + int(0.5 * array_size[1]))
-    
-    distance_x = distance_x ** 2
-    distance_y = distance_y ** 2
-    distance = distance_x + distance_y
-    active_pixel_mask = numpy.where(distance <= radius_sq, 1, 0)
-    circle = circle * 0
-    for i in range(len(active_pixel_mask)):
-        if active_pixel_mask[i] == 1:
-            circle[coords[0][i], coords[1][i]] = color
-    return circle 
- 
-def numpy_circles(radii,  centers,  array_size,  colors = None):
-    if 0:
-        from visexpA.engine.datadisplay.imaged import imshow
-
-    a = numpy.zeros(array_size).astype('uint8')
-    if not isinstance(radii, (list, tuple)) or  (hasattr(radii, 'shape') and radii.shape[1]==1):
-        # either a numpy array of row, col pairs, or a list of numpy arrays with 1 row,col pair is accepted
-        radii = [radii]
-    if colors is None: colors = 255
-    if not isinstance(colors, (tuple, list)) or (len(colors)==1 and len(radii)>1):
-        colors = [colors]*len(radii)
-    
-    from PIL import Image, ImageDraw
-    im=Image.fromarray(a)
-    draw = ImageDraw.Draw(im)
-    im_center = numpy.array(array_size).astype(float)/2
-    for c, r, color in zip(centers, radii, colors):
-        if 0:
-            r_l = numpy.clip(c['row']-r, 0, array_size[0]) # lower limit for row coords
-            r_h = numpy.clip(c['row']+r+1, 0, array_size[0])
-            c_l = numpy.clip(c['col']-r, 0, array_size[1])
-            c_h = numpy.clip(c['col']+r+1, 0, array_size[1]+1)
-            row, col = numpy.ogrid[r_l-c['row']+(r-1)%2: r_h-c['row'], c_l-c['col']+(r-1)%2: c_h-c['col']]
-            index = row**2 + col**2 <= r**2
-            a[r_l:r_h+(r%2),c_l:c_h+(r%2)][index] = color
-        else:
-            bbox =  (c['col']-r,  c['row']-r,c['col']+r, c['row']+r)
-            draw.ellipse(bbox, fill=color)
-    return numpy.array(im)
-
-def arc_vertices(diameter, n_vertices,  angle,  angle_range,  pos = [0, 0]):
-    if not isinstance(diameter,  list):
-        diameter_list = [diameter, diameter]
-    else:
-        diameter_list = diameter   
-    
-    start_angle = (angle - 0.5 * angle_range)  * numpy.pi / 180.0
-    end_angle = (angle + 0.5 * angle_range) * numpy.pi / 180.0
-    angles = numpy.linspace(start_angle, end_angle,  n_vertices)
-#    angles = angles[1:]
-    vertices = numpy.zeros((angles.shape[0],  2))    
-    vertices[:, 0] = 0.5 * numpy.cos(angles)
-    vertices[:, 1] = 0.5 * numpy.sin(angles)
-    return vertices * numpy.array(diameter_list) + numpy.array(pos)
-
-def circle_to_numpy(diameter,  resolution = 1.0,  image_size = (100,  100),  color = 1.0,  pos = (0, 0)):
-    '''
-    diameter: diameter of circle in pixels
-    resolution: angle resolution of drawing circle
-    image_size: x, y size of image/numpy array in pixels
-    color: color of circle, greyscale, range 0...1
-    pos : x, y position in pixels, center is 0, 0
-    '''
-    vertices = calculate_circle_vertices([diameter,  diameter],  resolution)
-    try:
-        import Image, ImageDraw
-    except ImportError:
-        from PIL import Image, ImageDraw
-    import numpy
-    image = Image.new('L',  image_size,  0)
-    draw = ImageDraw.Draw(image)
-    
-    vertices_int = []
-    for i in vertices:
-        vertices_int.append(int(i[0] + image_size[0] * 0.5) + pos[0])
-        vertices_int.append(int(i[1] + image_size[1] * 0.5) - pos[1])
-    
-    
-    draw.polygon(vertices_int,  fill = int(color * 255.0))    
-    #just for debug
-    image.show()
-    print numpy.asarray(image)
-    return numpy.asarray(image)
-    
-def rectangle_vertices(size, orientation = 0):
-    alpha = numpy.arctan(float(size['row'])/float(size['col']))
-    angles = numpy.array([alpha, numpy.pi - alpha, numpy.pi + alpha, - alpha])
-    angles += orientation * numpy.pi / 180.0
-    half_diagonal = 0.5 * numpy.sqrt(size['row'] ** 2 + size['col'] ** 2)
-    vertices = []
-    for angle in angles:
-        vertice = [numpy.cos(angle), numpy.sin(angle)]
-        vertices.append(vertice)
-    vertices = numpy.array(vertices)
-    vertices *= half_diagonal
-    return vertices    
-
-def calculate_circle_vertices(diameter,  resolution = 1.0,  start_angle = 0,  end_angle = 360, pos = (0,0),  arc_slice = False):
-    '''
-    Resolution is in steps / degree
-    radius is a list of x and y
-    '''
-    output_list = False
-    if output_list:
-        vertices = []
-    else:
-        n_vertices_arc = int((end_angle - start_angle) * resolution + 1)
-        if abs(start_angle - end_angle) < 360 and arc_slice:
-            n_vertices = n_vertices_arc + 1
-        else:
-            n_vertices = n_vertices_arc
-        vertices = numpy.zeros(shape = (n_vertices,  2))
-        
-    if output_list:
-        for i in range(int(start_angle * resolution),  int(end_angle * resolution)):
-                    angle = (float(i)*math.pi / 180.0) / resolution
-                    vertice = [0.5 * diameter[0] * math.cos(angle) + pos[0],  0.5 * diameter[1] * math.sin(angle) + pos[1]]
-                    vertices.append(vertice)
-    else:
-        start_angle_rad = start_angle * math.pi / 180.0
-        end_angle_rad = end_angle * math.pi / 180.0
-        angle = numpy.linspace(start_angle_rad,  end_angle_rad, n_vertices_arc)        
-        x = 0.5 * diameter[0] * numpy.cos(angle) + pos[0]
-        y = 0.5 * diameter[1] * numpy.sin(angle) + pos[1]
-        vertices[0:n_vertices_arc, 0] = x
-        vertices[0:n_vertices_arc, 1] = y      
-    
-    if abs(start_angle - end_angle) < 360:
-        if output_list:
-            if arc_slice:
-                vertices.append([0,  0])
-        else:
-            if arc_slice:                
-                vertices[-1] = numpy.array([0,  0])
-    return vertices
 
 if __name__ == '__main__':
     unittest.main()
