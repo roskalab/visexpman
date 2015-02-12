@@ -134,6 +134,7 @@ TEST_unittests = [
     'visexpman.engine.generic.signal.TestSignal',
     'visexpman.engine.generic.colors.TestColorUtils',
     'visexpman.engine.generic.videofile.TestVideoFile',
+    'visexpman.engine.generic.geometry.TestGeometry',
     'visexpman.engine.hardware_interface.queued_socket.TestQueuedSocket',
     'visexpman.engine.hardware_interface.instrument.TestInstrument',
     'visexpman.engine.hardware_interface.daq_instrument.TestAnalogIOProcess',
