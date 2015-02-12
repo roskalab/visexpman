@@ -15,7 +15,7 @@ from OpenGL.GLUT import *
 
 import command_handler
 import experiment_control
-from visexpman.engine.generic import graphics,utils,colors,fileop, signal
+from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry
 from visexpman.engine.vision_experiment import screen
 from visexpman.users.test import unittest_aggregator
 
@@ -300,7 +300,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             if self.abort:
                 break
 
-    def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, 
+    def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  
+                orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, ncorners = None, inner_radius = None,
                 flip = True, is_block = False, save_frame_info = True, enable_centering = True, part_of_drawing_sequence = False):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
@@ -339,17 +340,31 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         points_per_round = 360
         if shape == 'circle' or shape == '' or shape == 'o' or shape == 'c' or shape =='spot':
             shape_type = 'circle'
-            vertices = utils.calculate_circle_vertices([size_pixel['col'],  size_pixel['row']],  resolution = points_per_round / 360.0)#resolution is vertex per degree
+            vertices = geometry.circle_vertices([size_pixel['col'],  size_pixel['row']],  resolution = points_per_round / 360.0)#resolution is vertex per degree
         elif shape == 'rect' or shape == 'rectangle' or shape == 'r' or shape == '||':
             vertices = utils.rectangle_vertices(size_pixel, orientation = orientation)
             shape_type = 'rectangle'
         elif shape == 'annuli' or shape == 'annulus' or shape == 'a':
-            vertices_outer_ring = utils.calculate_circle_vertices([size_pixel['col'],  size_pixel['row']],  resolution = points_per_round / 360.0)#resolution is vertex per degree
-            vertices_inner_ring = utils.calculate_circle_vertices([size_pixel['col'] - 2*ring_size_pixel,  size_pixel['row'] - 2*ring_size_pixel],  resolution = points_per_round / 360.0)#resolution is vertex per degree
+            vertices_outer_ring = geometry.circle_vertices([size_pixel['col'],  size_pixel['row']],  resolution = points_per_round / 360.0)#resolution is vertex per degree
+            vertices_inner_ring = geometry.circle_vertices([size_pixel['col'] - 2*ring_size_pixel,  size_pixel['row'] - 2*ring_size_pixel],  resolution = points_per_round / 360.0)#resolution is vertex per degree
             vertices = numpy.zeros(shape = (vertices_outer_ring.shape[0] * 2, 2))
             vertices[:vertices_outer_ring.shape[0]] = vertices_outer_ring
             vertices[vertices_outer_ring.shape[0]:] = vertices_inner_ring
             shape_type = 'annulus'
+        elif shape == 'triangle':
+            vertices = geometry.triangle_vertices(size_pixel['row'], orientation)
+            shape_type = shape
+        elif shape == 'star':
+            vertices_ = geometry.star_vertices(size_pixel['row'],ncorners,orientation,inner_radius)
+            #make triangles of shape
+            vertices = numpy.zeros((ncorners*3,2))
+#            import pdb
+#            pdb.set_trace()
+            vertices[1::3] = vertices_[0::2]
+            vertices[0::3] = numpy.roll(vertices_[1::2],1,axis=0)
+            vertices[2::3] = vertices_[1::2]
+            vertices = numpy.concatenate((vertices, vertices_[1::2]))
+            shape_type = shape
         n_vertices = vertices.shape[0]
         if len(pos_pixel.shape) == 0:#When does it happen?????????????
             number_of_positions = 1
@@ -389,11 +404,19 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 if hasattr(color,  'shape') and len(color.shape) == 2:
                     glColor3fv(colors.convert_color(color[frame_i], self.config))
                 if number_of_positions == 1:
-                    glDrawArrays(GL_POLYGON,  0, n_vertices)
+                    if shape_type == 'star':#opengl cannot draw concave shapes
+                        for i in range(ncorners):
+                            glDrawArrays(GL_POLYGON,  i*3, 3)
+                        glDrawArrays(GL_POLYGON,  ncorners*3, ncorners)
+                    else:
+                        glDrawArrays(GL_POLYGON,  0, n_vertices)
+                            
                 else:
+                    if shape_type == 'star':
+                        raise NotImplementedError('moving star is not implemented')
                     glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices)
             else:
-                n = int(n_vertices/2)                
+                n = int(n_vertices/2)
                 glColor3fv(converted_background_color)
                 glDrawArrays(GL_POLYGON,  n, n)
                 if hasattr(color,  'shape') and len(color.shape) ==2:
@@ -668,7 +691,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         shape = self._get_shape_string(shape)
         if shape == 'circle':
             radius = 1.0
-            vertices = utils.calculate_circle_vertices([radius,  radius],  1.0/1.0)
+            vertices = geometry.circle_vertices([radius,  radius],  1.0/1.0)
         elif shape == 'rectangle':
             vertices = numpy.array([[0.5, 0.5], [0.5, -0.5], [-0.5, -0.5], [-0.5, 0.5]])
         else:
@@ -901,11 +924,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         glDisableClientState(GL_VERTEX_ARRAY)
         if save_frame_info:
             self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-
-class AdvancedStimulation(Stimulations):
-    '''
-    Stimulation sequences, helpers
-    '''
+            
+class StimulationUtilities(Stimulations):
     def _merge_identical_frames(self):
         self.merged_bitmaps = [[self.screen.stimulus_bitmaps[0], 1]]
         for frame_i in range(1, len(self.screen.stimulus_bitmaps)):
@@ -937,7 +957,33 @@ class AdvancedStimulation(Stimulations):
         
     def export2video(self, filename, img_format='png'):
         utils.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
-        
+
+    def projector_calibration(self, intensity_range = [0.0, 1.0], npoints = 128, time_per_point = 1.0, repeats = 3, sync_flash = False):
+        self._save_stimulus_frame_info(inspect.currentframe())
+        step = (intensity_range[1]-intensity_range[0])/(npoints)
+        intensities = numpy.concatenate((numpy.arange(intensity_range[0], intensity_range[1]+step, step), numpy.arange(intensity_range[1], intensity_range[0]-step, -step)))
+        if sync_flash:
+            self.show_fullscreen(duration = 1.0, color = intensity_range[1])
+            self.show_fullscreen(duration = 3.0, color = intensity_range[0])
+        else:
+            self.show_fullscreen(duration = 4.0, color = intensity_range[0])
+        for r in range(repeats):
+            for c in intensities:
+                self.show_fullscreen(duration = time_per_point, color = c)
+                self.measure_light_power(c)
+                if self.check_abort_pressed():
+                    break
+
+    def measure_light_power(self, reference_intensity):
+        '''
+        Placeholder for light power measurement. This shall be implemented in the experiment class
+        '''
+        pass
+
+class AdvancedStimulation(StimulationUtilities):
+    '''
+    Stimulation sequences, helpers
+    ''' 
     def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
         '''
         Use cases:
@@ -1125,28 +1171,6 @@ class AdvancedStimulation(Stimulations):
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
 
     def sine_wave_shape(self):
-        pass
-        
-    def projector_calibration(self, intensity_range = [0.0, 1.0], npoints = 128, time_per_point = 1.0, repeats = 3, sync_flash = False):
-        self._save_stimulus_frame_info(inspect.currentframe())
-        step = (intensity_range[1]-intensity_range[0])/(npoints)
-        intensities = numpy.concatenate((numpy.arange(intensity_range[0], intensity_range[1]+step, step), numpy.arange(intensity_range[1], intensity_range[0]-step, -step)))
-        if sync_flash:
-            self.show_fullscreen(duration = 1.0, color = intensity_range[1])
-            self.show_fullscreen(duration = 3.0, color = intensity_range[0])
-        else:
-            self.show_fullscreen(duration = 4.0, color = intensity_range[0])
-        for r in range(repeats):
-            for c in intensities:
-                self.show_fullscreen(duration = time_per_point, color = c)
-                self.measure_light_power(c)
-                if self.check_abort_pressed():
-                    break
-
-    def measure_light_power(self, reference_intensity):
-        '''
-        Placeholder for light power measurement. This shall be implemented in the experiment class
-        '''
         pass
         
     def moving_curtain(self,speed, color = 1.0, direction=0.0, background_color = 0.0, pause = 0.0,block_trigger = False):
