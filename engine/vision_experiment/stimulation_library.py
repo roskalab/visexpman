@@ -301,7 +301,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 break
 
     def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  
-                orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, ncorners = None, inner_radius = None,
+                orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, ncorners = None, inner_radius = None, L_shape_config = None,
                 flip = True, is_block = False, save_frame_info = True, enable_centering = True, part_of_drawing_sequence = False):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
@@ -310,6 +310,13 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         
         Examples:
         flash on  right half of screen self.show_shape(shape='rect', pos = utils.rc((0, self.config.SCREEN_SIZE_UM['col']/4)), size = utils.rc((self.config.SCREEN_SIZE_UM['row'],self.config.SCREEN_SIZE_UM['col']/2)), color = self.color, duration = self.experiment_config.FLASH_DURATION,background_color=0.0)
+        
+        L_shape_config:
+        shorter_side
+        longer_side
+        shorter_position: beginning, middle, end
+        angle = 45, 90, 135
+        width
         
         '''
         if save_frame_info:
@@ -365,6 +372,16 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             vertices[2::3] = vertices_[1::2]
             vertices = numpy.concatenate((vertices, vertices_[1::2]))
             shape_type = shape
+        elif shape == 'L':
+            #create skeleton
+            #calculate skeleton: endpoint: x, y, direction, wrist: x, y, directions
+            #Calculate corners from endpoint and wrist
+            #if wrist has 2 directions: L, assign endpoint corner to wrist corner and do the same thing with the other endpoint
+            #if wrist has 3 directions: T: two endpoint corners (with 180 angle) make up one bar, wrist and third endpoint is the second bar
+#            if L_shape_config['shorter_position'] == 'beginning' and L_shape_config['angle'] == 90
+#        angle = 45, 90
+#            
+            L_shape_config
         n_vertices = vertices.shape[0]
         if len(pos_pixel.shape) == 0:#When does it happen?????????????
             number_of_positions = 1
@@ -1035,6 +1052,16 @@ class AdvancedStimulation(StimulationHelpers):
             vertices = numpy.concatenate((vertices, tooth_v+offset+rel_position))
         nshapes = ntooth + 1
         return vertices,nshapes
+        
+    def moving_cross(self, speeds, sizes, positions, orientations, movement_directions, contrasts = 1.0, background = 0.0):
+        self._save_stimulus_frame_info(inspect.currentframe())
+        bar_height = numpy.sqrt(self.machine_config.SCREEN_RESOLUTION['row']**2+self.machine_config.SCREEN_RESOLUTION['col']**2)
+        
+        
+        
+        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        
+    
     
     def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
         '''
