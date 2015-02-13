@@ -328,7 +328,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             size_pixel = size
         else:
             raise RuntimeError('Parameter size is provided in an unsupported format')
-        size_pixel = utils.rc_x_const(size_pixel, self.config.SCREEN_UM_TO_PIXEL_SCALE)        
+        size_pixel = utils.rc_x_const(size_pixel, self.config.SCREEN_UM_TO_PIXEL_SCALE)
         if hasattr(self, 'screen_center') and enable_centering:
             pos_with_offset = utils.rc_add(pos, self.screen_center)
         else:
@@ -990,18 +990,26 @@ class AdvancedStimulation(StimulationHelpers):
         tooth_type: square, sawtooth
         '''
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
-        glColor3fv(colors.convert_color(color, self.config))
+        bar_width_pix = self.config.SCREEN_UM_TO_PIXEL_SCALE*bar_width
+        tooth_size_pix = self.config.SCREEN_UM_TO_PIXEL_SCALE*tooth_size
         converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)
-        
-        
+        combv,nshapes=self._draw_comb(orientation, bar_width_pix, tooth_size_pix, tooth_type)
+        combv = geometry.rotate_point(utils.cr((combv[:,0],combv[:,1])),orientation,utils.cr((0,0)))
+        combv = numpy.array([combv['col'], combv['row']]).T
+        trajectories, trajectory_directions, duration = self.moving_shape_trajectory(bar_width, [speed], [orientation],1,0,shape_starts_from_edge=True)
+        v = []
         glEnableClientState(GL_VERTEX_ARRAY)
-        glVertexPointerf(vertices)
-        
-        for frame_i in positions:
+        nvertice = (combv.shape[0]-4)/(nshapes-1)
+        for frame_i in range(trajectories[0].shape[0]):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv(colors.convert_color(contrast, self.config))
+            v=combv + numpy.array([trajectories[0][frame_i]['col'],trajectories[0][frame_i]['row']])
+            glVertexPointerf(v)
             for shi in range(nshapes):
-                if i == 0:
-                    glDrawArrays(GL_POLYGON,  ncorners*3, ncorners)
+                if shi == 0:
+                    glDrawArrays(GL_POLYGON,  0, 4)
+                else:
+                    glDrawArrays(GL_POLYGON,  4+(shi-1)*nvertice, nvertice)
             self._flip(frame_trigger = True)
             if self.abort:
                 break
@@ -1009,9 +1017,9 @@ class AdvancedStimulation(StimulationHelpers):
         glDisableClientState(GL_VERTEX_ARRAY)        
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
     
-    def _draw_comb(self, orientation, bar_width, tooth_size, tooth_type, position):
-        bar_height = numpy.sqrt(self.machine_config.SCREEN_RESOLUTION['row']**2,self.machine_config.SCREEN_RESOLUTION['col']**2)
-        vertices = geometry.rectangle_vertices(utils.cr((bar_width-tooth_size,bar_height)))
+    def _draw_comb(self, orientation, bar_width, tooth_size, tooth_type):
+        bar_height = numpy.sqrt(self.machine_config.SCREEN_RESOLUTION['row']**2+self.machine_config.SCREEN_RESOLUTION['col']**2)
+        vertices = geometry.rectangle_vertices(utils.cr((bar_width,bar_height)))
         if tooth_type == 'sawtooth':
             tooth_v = geometry.triangle_vertices(tooth_size)
             offset = numpy.array([0,0])
@@ -1019,18 +1027,14 @@ class AdvancedStimulation(StimulationHelpers):
             ntooth = int(bar_height/tooth_size)
         elif tooth_type == 'square':
             tooth_v = geometry.rectangle_vertices(utils.rc((tooth_size,tooth_size)))
-            offset = numpy.array([-0.5*tooth_size,0])
+            offset = numpy.array([0.5*tooth_size,0])
             tooth_spacing = 2*tooth_size
             ntooth = int(bar_height/tooth_size/2)
         for toothi in range(ntooth):
-            position = numpy.array([0.5*(bar_width-tooth_size), toothi*tooth_spacing])
-            vertices = numpy.concatenate((vertices, tooth_v+offset))
+            rel_position = numpy.array([0.5*(bar_width-0*tooth_size), (toothi+0.5)*tooth_spacing-0.5*bar_height])
+            vertices = numpy.concatenate((vertices, tooth_v+offset+rel_position))
         nshapes = ntooth + 1
-        #rotate and shift into position
-        vertices = utils.nd(utils.rc_add(geometry.rotate_point(cr(vertices[:,0],vertices[:,1]),orientation, utils.rc((0,0))), position))
-        return vertices, nshapes
-        
-    
+        return vertices,nshapes
     
     def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
         '''
@@ -1134,6 +1138,8 @@ class AdvancedStimulation(StimulationHelpers):
                 for direction in directions:
                     end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
                     start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
+                    if spd == 0:
+                        raise RuntimeError('Zero speed is not supported')
                     spatial_resolution = spd/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
                     trajectories.append(utils.calculate_trajectory(start_point,  end_point,  spatial_resolution))
                     nframes += trajectories[-1].shape[0]
