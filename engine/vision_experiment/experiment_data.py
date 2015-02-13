@@ -329,13 +329,17 @@ class SmrVideoAligner(object):
         filename, outfolder = folders
         self.filename = filename
         self.outfolder = outfolder
+        print 'read smr file'
         self.elphys_timeseries, self.elphys_signal = self.read_smr_file(filename, outfolder)
+        print 'reading video file'
         framefiles = self.read_video(filename, fps)
         if framefiles is not None:
             self.video_traces = numpy.array(map(self.process_frame, framefiles))
         if 0:
             self.detect_motion(framefiles)
+        print 'saving data'
         self.save()
+        print 'deleting temporary files'
         self.cleanup()
         
     def cleanup(self):
@@ -369,10 +373,12 @@ class SmrVideoAligner(object):
         recording_name = os.path.split(filename)[1].replace('.smr', '')
         avi_file = [fn for fn in fileop.listdir_fullpath(os.path.split(filename)[0]) if recording_name in fn and '.avi' in fn ]
         if len(avi_file) == 1:
-            if fileopfree_space(tempfile.gettempdir())<10e9 and os.name == 'nt':
+            if fileop.free_space(tempfile.gettempdir())<10e9 and os.name == 'nt':
                 tmpdir = 'e:\\temp'
             else:
                 tmpdir = tempfile.gettempdir()
+            if fileop.free_space(tmpdir)<10e9:
+                raise IOError('Not enough space on {0}.'.format(tmpdir))
             self.tempdir = os.path.join(tmpdir, 'frames_'+recording_name.replace(' ', '_'))
             fileop.mkdir_notexists(self.tempdir, True)
             command = '{0} -i "{1}" {2}'.format('ffmpeg' if os.name == 'nt' else 'avconv', avi_file[0], os.path.join(self.tempdir, 'f%5d.png'))
@@ -387,32 +393,37 @@ class SmrVideoAligner(object):
     def save(self):
         from pylab import plot,clf,savefig,legend,xlabel
         data = {}
-        data['elphys'] = {}
-        data['elphys']['t'] = self.elphys_timeseries
-        data['elphys']['signal'] = self.elphys_signal
+        data['elphys_t'] = self.elphys_timeseries
+        data['elphys_signal'] = self.elphys_signal
         if self.elphys_timeseries.shape[0]>1e6:
             self.elphys_timeseries = self.elphys_timeseries[::100]
             self.elphys_signal = self.elphys_signal[::100]
         plot(self.elphys_timeseries, self.elphys_signal)
         lgnd = ['elphys signal']
-        data['video'] = {}
         if hasattr(self, 'video_time_series'):
-            data['video']['t'] = self.video_time_series
+            data['video_t'] = self.video_time_series
         if hasattr(self, 'video_traces'):
-            data['video']['meanimages'] = self.video_traces
+            data['video_meancontrasts'] = self.video_traces
             if self.video_time_series.shape[0]>1e6:
                 self.video_time_series = self.video_time_series[::100]
-                self.video_time_series = self.video_time_series[::100]
+                self.video_traces = self.video_traces[::100]
             plot(self.video_time_series, signal.scale(self.video_traces, 0, self.elphys_signal.max()))
             lgnd.append('video meanimages')
-        if data['video'] == {}:
-            del data['video']
         fn = os.path.join(self.outfolder, os.path.split(self.filename)[1].replace('.smr', '.mat'))
         legend(lgnd)
         xlabel('time [s]')
         savefig(fn.replace('.mat', '.png'),dpi=300)
         clf()
-        scipy.io.savemat(fn, data, oned_as = 'column')
+        for k in data.keys():
+            d={}
+            d[k]=data[k]
+            del data[k]
+            try:
+                scipy.io.savemat(fn.replace('.mat', '_' + k+'.mat'), d, oned_as = 'column')
+            except:
+                import pdb
+                pdb.set_trace()
+        
             
     def process_frame(self, frame_file):
         frame = numpy.cast['float'](numpy.asarray(Image.open(frame_file))).mean()
