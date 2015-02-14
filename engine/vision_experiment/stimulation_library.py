@@ -376,9 +376,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             shape_type = shape
             #create skeleton
             if L_shape_config['shorter_position'] == 'middle':
-                p=geometry.point_coordinates(L_shape_config['shorter_side'], numpy.radians(L_shape_config['angle']), utils.rc((0,0)))
-                v = numpy.array([[-0.5*L_shape_config['longer_side'], 0], [0,0], [0.5*L_shape_config['longer_side'],0],
-                                                                                                        [p['col'], p['row']]])
+                p=geometry.point_coordinates(L_shape_config['shorter_side'], numpy.radians(L_shape_config['angle']), numpy.array([0,0]))
+                v = numpy.array([[-0.5*L_shape_config['longer_side'], 0], [0,0], [0.5*L_shape_config['longer_side'],0],p])
             elif L_shape_config['shorter_position'] == 'start':
                 start_point = numpy.array([-0.5*L_shape_config['longer_side'],0])
                 p=geometry.point_coordinates(L_shape_config['shorter_side'], numpy.radians(L_shape_config['angle']), start_point)
@@ -388,16 +387,20 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 p=geometry.point_coordinates(L_shape_config['shorter_side'], numpy.radians(L_shape_config['angle']), start_point)
                 v=numpy.array([[-0.5*L_shape_config['longer_side'],0], start_point, p])
             if L_shape_config['shorter_position'] == 'middle':
+                wrist_distance = 0.5* L_shape_config['width']/numpy.sin(numpy.radians(45))
                 base_shape = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(90), v[0]), 
                                                                 geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(-90), v[0]),
                                                                 geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(-90), v[2]),
                                                                 geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(90), v[2])])
-                wrist = numpy.array([geometry.point_coordinates(wrist_distance, numpy.radians(L_shape_config['angle']*0.5-90), v[1]),
-                                                geometry.point_coordinates(wrist_distance, numpy.radians(L_shape_config['angle']*0.5+90), v[1]),
-                                                geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']+90), v[3]),
-                                                geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']-90), v[3]),
-                                                ])
-                vertices = numpy.concatenate((base_shape, wrist))
+                angle = numpy.radians(L_shape_config['angle'])
+                endpoints = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']+90), v[3]),
+                                                        geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']-90), v[3]),
+                                                        ])
+                wrist = numpy.array([
+                                            geometry.point_coordinates(L_shape_config['shorter_side'], angle-numpy.pi, endpoints[1]),
+                                            geometry.point_coordinates(L_shape_config['shorter_side'], angle-numpy.pi, endpoints[0])
+                                            ])
+                vertices = numpy.concatenate((base_shape, wrist, endpoints))
             elif L_shape_config['shorter_position'] == 'start':
                 wrist_distance = 0.5* L_shape_config['width']/numpy.sin(numpy.radians(L_shape_config['angle']*0.5))
                 endvertices1 = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(90), v[0]), 
@@ -469,7 +472,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     if shape_type == 'star':
                         raise NotImplementedError('moving star is not implemented')
-                    glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices)
+                    elif shape_type == 'L':
+                        glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices/2)
+                        glDrawArrays(GL_POLYGON,  int((frame_i+0.5) * n_vertices), n_vertices/2)
+                    else:
+                        glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices)
             else:
                 n = int(n_vertices/2)
                 glColor3fv(converted_background_color)
