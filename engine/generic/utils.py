@@ -144,7 +144,7 @@ def um2pixel(data, origin, scale):
     if scale['col'] == 0.0 or scale['row'] == 0.0:
         raise RuntimeError('Scaling is incorrect {0}'.format(scale))
     else:
-        in_pixel = rc((numpy.cast['int']((data['row']-origin['row'])/scale['row']), numpy.cast['int']((data['col']-origin['col'])/scale['col'])))
+        in_pixel = rc(((data['row']-origin['row'])/scale['row'], (data['col']-origin['col'])/scale['col']))
     return in_pixel
     
 def pixel2um(data, origin, scale):

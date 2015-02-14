@@ -422,6 +422,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                                                     geometry.point_coordinates(wrist_distance, angle, v[1])])
                 vertices = numpy.concatenate((endvertices1, wrist, wrist[::-1], endvertices2))
             vertices = geometry.rotate_point(vertices.T,orientation,numpy.array([0,0])).T
+            #Convert to pixels
+            vertices = utils.um2pixel(utils.cr(vertices), self.config.ORIGO, utils.cr((self.config.SCREEN_UM_TO_PIXEL_SCALE, -1 if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down' else 1 * self.config.SCREEN_UM_TO_PIXEL_SCALE)))
+            vertices = numpy.array([vertices['col'], vertices['row']]).T
         n_vertices = vertices.shape[0]
         if len(pos_pixel.shape) == 0:#When does it happen?????????????
             number_of_positions = 1
@@ -1098,15 +1101,24 @@ class AdvancedStimulation(StimulationHelpers):
         nshapes = ntooth + 1
         return vertices,nshapes
         
-    def moving_cross(self, speeds, sizes, positions, orientations, movement_directions, contrasts = 1.0, background = 0.0):
+    def moving_cross(self, speeds, sizes, positions, movement_directions, contrasts = 1.0, background = 0.0):
         self._save_stimulus_frame_info(inspect.currentframe())
-        bar_height = numpy.sqrt(self.machine_config.SCREEN_RESOLUTION['row']**2+self.machine_config.SCREEN_RESOLUTION['col']**2)
+        bar_height = numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['row']**2+self.machine_config.SCREEN_SIZE_UM['col']**2)
+        ds = numpy.array(speeds)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        movement = float(max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']))
+        for i in range(len(movement_directions)):
+            startx = -0.5*movement
+            starty = 0
+            endx = 0.5*movement
+            endy = 0
+            
+            pass
+            
+            
         
-        
-        
+        vertices = utils.um2pixel(utils.cr(vertices), self.config.ORIGO, utils.cr((self.config.SCREEN_UM_TO_PIXEL_SCALE, -1 if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down' else 1 * self.config.SCREEN_UM_TO_PIXEL_SCALE)))
+        vertices = numpy.array([vertices['col'], vertices['row']]).T
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-        
-    
     
     def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
         '''
