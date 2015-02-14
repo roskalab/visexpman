@@ -13,6 +13,8 @@ class StimulusDevelopment(VisionExperimentConfig):
             root_folder = 'c:\\data'
         elif os.path.exists('/mnt/rzws/dataslow/temp'):
             root_folder = '/mnt/rzws/dataslow/temp'
+        else:
+            root_folder = '/tmp'
         LOG_PATH = os.path.join(root_folder, 'log')
         CAPTURE_PATH = os.path.join(root_folder, 'capture')
         CONTEXT_PATH = root_folder

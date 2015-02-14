@@ -609,8 +609,12 @@ def are_vectors_parallel(v1, v2):
     return is_parallel
     
 def rotate_point(point,angle,origin):
-    r = numpy.sqrt((point['col']-origin['col'])**2+(point['row']-origin['row'])**2)
-    phi = numpy.arctan2(point['row'],point['col'])
+    if origin.dtype.names is None:
+        r = numpy.sqrt((point[0]-origin[0])**2+(point[1]-origin[1])**2)
+        phi = numpy.arctan2(point[1],point[0])
+    else:
+        r = numpy.sqrt((point['col']-origin['col'])**2+(point['row']-origin['row'])**2)
+        phi = numpy.arctan2(point['row'],point['col'])
     phi += numpy.radians(angle)
     return point_coordinates(r, phi, origin)
     
@@ -873,9 +877,14 @@ def point_coordinates(distance, angle, origin):
     '''
     calculate the coordinates of a point which is in a certain distance and angle from origin
     '''
-    x=numpy.cos(angle)*distance+origin['col']
-    y=numpy.sin(angle)*distance+origin['row']
-    return cr((x,y))
+    if origin.dtype.names is None:
+        x=numpy.cos(angle)*distance+origin[0]
+        y=numpy.sin(angle)*distance+origin[1]
+        return numpy.array([x,y])
+    else:
+        x=numpy.cos(angle)*distance+origin['col']
+        y=numpy.sin(angle)*distance+origin['row']
+        return cr((x,y))
     
 def numpy_circle(diameter, center = (0,0), color = 1.0, array_size = (100, 100)):
     radius_sq = (diameter * 0.5) ** 2
