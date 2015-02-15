@@ -1079,7 +1079,7 @@ class AdvancedStimulation(StimulationHelpers):
             if self.abort:
                 break
         
-        glDisableClientState(GL_VERTEX_ARRAY)        
+        glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
     
     def _draw_comb(self, orientation, bar_width, tooth_size, tooth_type):
@@ -1101,23 +1101,45 @@ class AdvancedStimulation(StimulationHelpers):
         nshapes = ntooth + 1
         return vertices,nshapes
         
-    def moving_cross(self, speeds, sizes, positions, movement_directions, contrasts = 1.0, background = 0.0):
+    def moving_cross(self, speeds, sizes, position, movement_directions, contrasts = 1.0, background = 0.0):
         self._save_stimulus_frame_info(inspect.currentframe())
         bar_height = numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['row']**2+self.machine_config.SCREEN_SIZE_UM['col']**2)
         ds = numpy.array(speeds)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
-        movement = float(max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']))
+        movement = float(max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']))+max(sizes)
+        trajectories = []
         for i in range(len(movement_directions)):
-            startx = -0.5*movement
-            starty = 0
-            endx = 0.5*movement
-            endy = 0
-            
-            pass
-            
-            
+            startp = geometry.point_coordinates(0.5*movement, numpy.radians(movement_directions[i]-180), self.config.SCREEN_CENTER)
+            if i>0:
+                startp = utils.rc_add(startp, position)
+            endp = geometry.point_coordinates(0.5*movement, numpy.radians(movement_directions[i]), self.config.SCREEN_CENTER)
+            if ds[i] == 0:
+                startp = position
+                trajectories.append(numpy.repeat(startp,trajectories[0].shape[0]))
+            else:
+                trajectories.append(numpy.tile(utils.calculate_trajectory(startp, endp, ds[i]),int(numpy.ceil(ds[i]/ds[0]))))
+            if i>0:
+                if trajectories[0].shape[0]<trajectories[i].shape[0]:
+                    trajectories[i] = trajectories[i][:trajectories[0].shape[0]]
+        nframes = trajectories[0].shape[0]
+        trajectories = numpy.array([numpy.array([t['col'], t['row']]) for t in trajectories])
+        trajectories = numpy.concatenate([trajectories[:,:,i] for i in range(trajectories.shape[2])])
+        base_vertices = numpy.concatenate([geometry.rectangle_vertices(utils.rc((bar_height, sizes[i])), movement_directions[i]) for i in range(len(sizes))]).T
+        vertices = numpy.tile(base_vertices,trajectories.shape[0]/2).T
+        vertices += numpy.repeat(trajectories,4,axis=0)
         
         vertices = utils.um2pixel(utils.cr(vertices), self.config.ORIGO, utils.cr((self.config.SCREEN_UM_TO_PIXEL_SCALE, -1 if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down' else 1 * self.config.SCREEN_UM_TO_PIXEL_SCALE)))
         vertices = numpy.array([vertices['col'], vertices['row']]).T
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        for frame_i in range(nframes):
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv(colors.convert_color(1.0, self.config))
+            glDrawArrays(GL_POLYGON, frame_i*8, 4)
+            glDrawArrays(GL_POLYGON, frame_i*8+4, 4)
+            self._flip(frame_trigger = True)
+            if self.abort:
+                break
+        glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
     
     def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
