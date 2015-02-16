@@ -11,7 +11,7 @@ from visexpman.engine.vision_experiment.configuration import HiMEAConfig
 
 class MEAConfig(HiMEAConfig):
     def _set_user_parameters(self):
-        FULLSCREEN = not True
+        FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([1024, 768])
         self.root_folder = fileop.select_folder_exists(['/mnt/rzws/experiment_data','r:\\experiment_data', '/tmp'])
         LOG_PATH = self.root_folder

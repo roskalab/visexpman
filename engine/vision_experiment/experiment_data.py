@@ -375,6 +375,8 @@ class SmrVideoAligner(object):
         if len(avi_file) == 1:
             if fileop.free_space(tempfile.gettempdir())<10e9 and os.name == 'nt':
                 tmpdir = 'e:\\temp'
+            elif fileop.free_space(tempfile.gettempdir())<10e9 and os.name == 'posix':
+                tmpdir = '/mnt/rzws/temp'
             else:
                 tmpdir = tempfile.gettempdir()
             if fileop.free_space(tmpdir)<10e9:

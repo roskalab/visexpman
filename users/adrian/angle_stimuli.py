@@ -8,13 +8,13 @@ class AngleTest(experiment.ExperimentConfig):
 class AngleStimulus(experiment.Experiment):
     def run(self):
         for i in range(2):
-            self.show_shape(shape='L', duration = 1, orientation = 0,L_shape_config = \
+            self.show_shape(shape='L', duration = 10, orientation = 0,L_shape_config = \
                                             {'shorter_side':100, 'longer_side':200, 'shorter_position': 'end', 'angle' : 90, 'width': 10})
-        return
-        self.show_shape(shape='L', duration = 1, orientation = 0,L_shape_config = \
+        
+        self.show_shape(shape='L', duration = 100, orientation = 0,L_shape_config = \
                                             {'shorter_side':100, 'longer_side':200, 'shorter_position': 'start', 'angle' : 10, 'width': 10})
         for angle in [45,90]:
-            self.show_shape(shape='L', duration = 1, orientation = 0,L_shape_config = \
+            self.show_shape(shape='L', duration = 100, orientation = 0,L_shape_config = \
                                             {'shorter_side':100, 'longer_side':200, 'shorter_position': 'end', 'angle' : angle, 'width': 10})
         return
         i=200

@@ -2,9 +2,12 @@ import os
 import os.path
 import numpy
 import tempfile
-import serial
 from visexpman.engine.generic import utils,fileop
 from visexpman.engine.vision_experiment.configuration import ElphysRetinalCaImagingConfig
+try:
+    import serial
+except:
+    pass
 
 
 class ReiSetupConfig(ElphysRetinalCaImagingConfig):

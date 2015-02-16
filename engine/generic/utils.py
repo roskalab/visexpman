@@ -422,7 +422,7 @@ def fetch_classes(basemodule, classname=None,  exclude_classtypes=[],  required_
         except ImportError:
             print modname
             import traceback
-            traceback.format_exc()
+            print traceback.format_exc()
     #Filter experiment config list. In test mode, experiment configs are loaded only from automated_test_data. In application run mode
     #this module is omitted
     filtered_class_list = []
