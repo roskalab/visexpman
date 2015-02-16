@@ -376,9 +376,8 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             shape_type = shape
             #create skeleton
             if L_shape_config['shorter_position'] == 'middle':
-                p=geometry.point_coordinates(L_shape_config['shorter_side'], numpy.radians(L_shape_config['angle']), utils.rc((0,0)))
-                v = numpy.array([[-0.5*L_shape_config['longer_side'], 0], [0,0], [0.5*L_shape_config['longer_side'],0],
-                                                                                                        [p['col'], p['row']]])
+                p=geometry.point_coordinates(L_shape_config['shorter_side'], numpy.radians(L_shape_config['angle']), numpy.array([0,0]))
+                v = numpy.array([[-0.5*L_shape_config['longer_side'], 0], [0,0], [0.5*L_shape_config['longer_side'],0],p])
             elif L_shape_config['shorter_position'] == 'start':
                 start_point = numpy.array([-0.5*L_shape_config['longer_side'],0])
                 p=geometry.point_coordinates(L_shape_config['shorter_side'], numpy.radians(L_shape_config['angle']), start_point)
@@ -388,16 +387,20 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 p=geometry.point_coordinates(L_shape_config['shorter_side'], numpy.radians(L_shape_config['angle']), start_point)
                 v=numpy.array([[-0.5*L_shape_config['longer_side'],0], start_point, p])
             if L_shape_config['shorter_position'] == 'middle':
+                wrist_distance = 0.5* L_shape_config['width']/numpy.sin(numpy.radians(45))
                 base_shape = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(90), v[0]), 
                                                                 geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(-90), v[0]),
                                                                 geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(-90), v[2]),
                                                                 geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(90), v[2])])
-                wrist = numpy.array([geometry.point_coordinates(wrist_distance, numpy.radians(L_shape_config['angle']*0.5-90), v[1]),
-                                                geometry.point_coordinates(wrist_distance, numpy.radians(L_shape_config['angle']*0.5+90), v[1]),
-                                                geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']+90), v[3]),
-                                                geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']-90), v[3]),
-                                                ])
-                vertices = numpy.concatenate((base_shape, wrist))
+                angle = numpy.radians(L_shape_config['angle'])
+                endpoints = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']+90), v[3]),
+                                                        geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(L_shape_config['angle']-90), v[3]),
+                                                        ])
+                wrist = numpy.array([
+                                            geometry.point_coordinates(L_shape_config['shorter_side'], angle-numpy.pi, endpoints[1]),
+                                            geometry.point_coordinates(L_shape_config['shorter_side'], angle-numpy.pi, endpoints[0])
+                                            ])
+                vertices = numpy.concatenate((base_shape, wrist, endpoints))
             elif L_shape_config['shorter_position'] == 'start':
                 wrist_distance = 0.5* L_shape_config['width']/numpy.sin(numpy.radians(L_shape_config['angle']*0.5))
                 endvertices1 = numpy.array([geometry.point_coordinates(0.5*L_shape_config['width'], numpy.radians(90), v[0]), 
@@ -419,6 +422,9 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                                                     geometry.point_coordinates(wrist_distance, angle, v[1])])
                 vertices = numpy.concatenate((endvertices1, wrist, wrist[::-1], endvertices2))
             vertices = geometry.rotate_point(vertices.T,orientation,numpy.array([0,0])).T
+            #Convert to pixels
+            vertices = utils.um2pixel(utils.cr(vertices), self.config.ORIGO, utils.cr((self.config.SCREEN_UM_TO_PIXEL_SCALE, -1 if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down' else 1 * self.config.SCREEN_UM_TO_PIXEL_SCALE)))
+            vertices = numpy.array([vertices['col'], vertices['row']]).T
         n_vertices = vertices.shape[0]
         if len(pos_pixel.shape) == 0:#When does it happen?????????????
             number_of_positions = 1
@@ -469,7 +475,11 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     if shape_type == 'star':
                         raise NotImplementedError('moving star is not implemented')
-                    glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices)
+                    elif shape_type == 'L':
+                        glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices/2)
+                        glDrawArrays(GL_POLYGON,  int((frame_i+0.5) * n_vertices), n_vertices/2)
+                    else:
+                        glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices)
             else:
                 n = int(n_vertices/2)
                 glColor3fv(converted_background_color)
@@ -1067,7 +1077,7 @@ class AdvancedStimulation(StimulationHelpers):
             if self.abort:
                 break
         
-        glDisableClientState(GL_VERTEX_ARRAY)        
+        glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
     
     def _draw_comb(self, orientation, bar_width, tooth_size, tooth_type):
@@ -1089,15 +1099,46 @@ class AdvancedStimulation(StimulationHelpers):
         nshapes = ntooth + 1
         return vertices,nshapes
         
-    def moving_cross(self, speeds, sizes, positions, orientations, movement_directions, contrasts = 1.0, background = 0.0):
+    def moving_cross(self, speeds, sizes, position, movement_directions, contrasts = 1.0, background = 0.0):
         self._save_stimulus_frame_info(inspect.currentframe())
-        bar_height = numpy.sqrt(self.machine_config.SCREEN_RESOLUTION['row']**2+self.machine_config.SCREEN_RESOLUTION['col']**2)
+        bar_height = numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['row']**2+self.machine_config.SCREEN_SIZE_UM['col']**2)
+        ds = numpy.array(speeds)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
+        movement = float(max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']))+max(sizes)
+        trajectories = []
+        for i in range(len(movement_directions)):
+            startp = geometry.point_coordinates(0.5*movement, numpy.radians(movement_directions[i]-180), self.config.SCREEN_CENTER)
+            if i>0:
+                startp = utils.rc_add(startp, position)
+            endp = geometry.point_coordinates(0.5*movement, numpy.radians(movement_directions[i]), self.config.SCREEN_CENTER)
+            if ds[i] == 0:
+                startp = position
+                trajectories.append(numpy.repeat(startp,trajectories[0].shape[0]))
+            else:
+                trajectories.append(numpy.tile(utils.calculate_trajectory(startp, endp, ds[i]),int(numpy.ceil(ds[i]/ds[0]))))
+            if i>0:
+                if trajectories[0].shape[0]<trajectories[i].shape[0]:
+                    trajectories[i] = trajectories[i][:trajectories[0].shape[0]]
+        nframes = trajectories[0].shape[0]
+        trajectories = numpy.array([numpy.array([t['col'], t['row']]) for t in trajectories])
+        trajectories = numpy.concatenate([trajectories[:,:,i] for i in range(trajectories.shape[2])])
+        base_vertices = numpy.concatenate([geometry.rectangle_vertices(utils.rc((bar_height, sizes[i])), movement_directions[i]) for i in range(len(sizes))]).T
+        vertices = numpy.tile(base_vertices,trajectories.shape[0]/2).T
+        vertices += numpy.repeat(trajectories,4,axis=0)
         
-        
-        
+        vertices = utils.um2pixel(utils.cr(vertices), self.config.ORIGO, utils.cr((self.config.SCREEN_UM_TO_PIXEL_SCALE, -1 if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down' else 1 * self.config.SCREEN_UM_TO_PIXEL_SCALE)))
+        vertices = numpy.array([vertices['col'], vertices['row']]).T
+        glEnableClientState(GL_VERTEX_ARRAY)
+        glVertexPointerf(vertices)
+        for frame_i in range(nframes):
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glColor3fv(colors.convert_color(1.0, self.config))
+            glDrawArrays(GL_POLYGON, frame_i*8, 4)
+            glDrawArrays(GL_POLYGON, frame_i*8+4, 4)
+            self._flip(frame_trigger = True)
+            if self.abort:
+                break
+        glDisableClientState(GL_VERTEX_ARRAY)
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
-        
-    
     
     def flash_stimulus(self, shape, timing, colors, sizes = utils.rc((0, 0)), position = utils.rc((0, 0)), background_color = 0.0, repeats = 1, block_trigger = True, save_frame_info = True,  ring_sizes = None):
         '''

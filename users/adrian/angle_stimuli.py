@@ -1,4 +1,6 @@
+import numpy
 from visexpman.engine.vision_experiment import experiment
+from visexpman.engine.generic import utils
 
 class AngleTest(experiment.ExperimentConfig):
     def _create_parameters(self):
@@ -7,11 +9,14 @@ class AngleTest(experiment.ExperimentConfig):
 
 class AngleStimulus(experiment.Experiment):
     def run(self):
-        for i in range(2):
-            self.show_shape(shape='L', duration = 10, orientation = 0,L_shape_config = \
-                                            {'shorter_side':100, 'longer_side':200, 'shorter_position': 'end', 'angle' : 90, 'width': 10})
-        
-        self.show_shape(shape='L', duration = 100, orientation = 0,L_shape_config = \
+        self.moving_cross(speeds = [400,200], sizes = [20,20], position = utils.rc((0,0)), movement_directions = [45,0], contrasts = 1.0, background = 0.0)
+        return
+        for i in range(1):
+            self.show_shape(shape='L', duration = 100, orientation = 0,L_shape_config = \
+                                            {'shorter_side':100, 'longer_side':100, 'shorter_position': 'middle', 'angle' : 135, 'width': 20})#,
+                                            #pos = utils.rc((2*numpy.arange(200), numpy.zeros(200))))
+        return
+        self.show_shape(shape='L', duration = 1, orientation = 0,L_shape_config = \
                                             {'shorter_side':100, 'longer_side':200, 'shorter_position': 'start', 'angle' : 10, 'width': 10})
         for angle in [45,90]:
             self.show_shape(shape='L', duration = 100, orientation = 0,L_shape_config = \
