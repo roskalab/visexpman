@@ -17,7 +17,10 @@ import multiprocessing
 
 if QtCore.QCoreApplication.instance() is None:
     qt_app = Qt.QApplication([])
-from visexpA.engine import analysis
+try:
+    from visexpA.engine import analysis
+except:
+    pass
 import visexpman
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import command_parser
@@ -637,6 +640,112 @@ class TestJobhandler(unittest.TestCase):
                 f.write(txt+'\r\n')
                 print txt
         f.close()
+        
+def get_data_timing(filename):
+    m=matlabfile.MatData(filename.replace('.hdf5', '.mat'))
+    indexes = numpy.where(m.get_field('DATA.0.DI0.y',copy_field=False)[0][0][0][1])[0]
+    stimulus_time = m.get_field('DATA.0.DI0.y',copy_field=False)[0][0][0][0][indexes]/1e6#1 us per count
+    indexes = numpy.where(m.get_field('DATA.0.SyncFrame.y',copy_field=False)[0][0][0][1])[0]
+    imaging_time = m.get_field('DATA.0.SyncFrame.y',copy_field=False)[0][0][0][0][indexes]/1e6#1 us per count
+    h=hdf5io.Hdf5io(filename,filelocking=False)
+    rawdata = h.findvar('rawdata')
+    imaging_time = imaging_time[:rawdata.shape[2]]
+    import visexpA.engine.component_guesser as cg
+    sfi = h.findvar('_'.join(cg.get_mes_name_timestamp(h)))['stimulus_frame_info']
+    block_times, stimulus_parameter_times,block_info, organized_blocks = process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
+    h.close()
+    
+    
+def sfi2signature(sfi):
+    '''
+    Remove varying keys from stimulus frame info
+    '''
+    import copy
+    sfisig = []
+    for sfii in sfi:
+        if sfii.has_key('parameters'):
+            item = copy.deepcopy(sfii)
+            item.update(item['parameters'])
+            removable_keys = ['elapsed_time', 'counter', 'data_series_index', 'flip', 'parameters', 'count']
+            for k in removable_keys:
+                if item.has_key(k):
+                    del item[k]
+            sfisig.append(item)
+    return sfisig
+
+def cmp_signature(sig1, sig2):
+    if len(sig1) != len(sig2):
+        return False
+    else:
+        for i in range(len(sig1)):
+            if cmp(sig1[i], sig2[i]) != 0:
+                return False
+        return True
+    
+def sfi2blocks(sfi):
+    '''
+    Group stimulus frame info entries into blocks
+    '''
+    block_start_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_start')]
+    block_end_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_end')]
+    grouped_sfi_by_blocks = []
+    for i in range(len(block_start_indexes)):
+        grouped_sfi_by_blocks.append(sfi[block_start_indexes[i]+1:block_end_indexes[i]])
+    return grouped_sfi_by_blocks
+    
+def stimulus_frame_counter2image_frame_counter(ct, imaging_time, stimulus_time):
+    stim_time_value = stimulus_time[ct]
+    return numpy.where(imaging_time>=stim_time_value)[0][0]
+    
+def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
+    #Collect parameter names
+    parnames = []
+    for sfii in sfi:
+        if sfii.has_key('parameters'):
+            parnames.extend(sfii['parameters'].keys())
+    parnames = list(set(parnames))
+    map(parnames.remove, ['frame_trigger', 'count', 'flip'])
+    #assign frame counts and values to each parameters
+    stimulus_parameter_times = {}
+    block_times = []
+    for sfii in sfi:
+        if sfii.has_key('parameters'):
+            for k in parnames:
+                if sfii['parameters'].has_key(k):
+                    if not stimulus_parameter_times.has_key(k):
+                        stimulus_parameter_times[k] = []
+                    stimulus_parameter_times[k].append([sfii['counter'], stimulus_frame_counter2image_frame_counter(sfii['counter'], imaging_time, stimulus_time), sfii['parameters'][k]])
+        elif sfii.has_key('block_start'):
+            block_times.append([stimulus_frame_counter2image_frame_counter(sfii['block_start'], imaging_time, stimulus_time), 1])
+        elif sfii.has_key('block_end'):
+            block_times.append([stimulus_frame_counter2image_frame_counter(sfii['block_end'], imaging_time, stimulus_time), 0])
+    block_times = numpy.array(block_times)
+    grouped_sfi_by_blocks = sfi2blocks(sfi)
+    block_signatures = [sfi2signature(block_sfi) for block_sfi in grouped_sfi_by_blocks]
+    block_boundaries = []
+    for b in grouped_sfi_by_blocks:
+        c=[item['counter'] for item in b]
+        block_boundaries.append([min(c), max(c)])
+    block_info = [{'sig': block_signatures[i], 'start': block_boundaries[i][0], 'end': block_boundaries[i][1]} for i in range(len(block_boundaries))]
+    #Calculate time and frame indexes for each block
+    for block_info_i in block_info:
+        for e in ['start', 'end']:
+            block_info_i[e] = stimulus_frame_counter2image_frame_counter(block_info_i[e], imaging_time, stimulus_time)
+    
+    #Find repetitions
+    organized_blocks = [[block_info[0]]]
+    import itertools
+    for b1, b2 in itertools.combinations(block_info, 2):
+        if not cmp_signature(b1['sig'],b2['sig']) and [b2] not in organized_blocks:
+            organized_blocks.append([b2])
+    #Find repetitions and group them
+    for organized_block in organized_blocks:
+        for block_info_i in block_info:
+            if cmp_signature(block_info_i['sig'],organized_block[0]['sig']) and block_info_i not in organized_block:
+                organized_block.append(block_info_i)
+    return block_times, stimulus_parameter_times,block_info, organized_blocks
+                
+    
 
 if __name__=='__main__':
     if len(sys.argv)==1:

@@ -19,7 +19,7 @@ class MyExperiment(experiment.Experiment):
 ##################################################################
 class Retinotopy(experiment.ExperimentConfig):#was MyInstrConfig
     def _create_parameters(self):
-        self.SCREEN_PER_MASK_RATIO = 3
+        self.SCREEN_PER_MASK_RATIO = 1
         self.MASK_PER_GRATING_RATIO = 4
         self.MASK_SIZE = utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] / self.SCREEN_PER_MASK_RATIO, self.machine_config.SCREEN_SIZE_UM['col'] / self.SCREEN_PER_MASK_RATIO))
         self.GRATING_SIZE = self.machine_config.SCREEN_SIZE_UM['row'] / self.SCREEN_PER_MASK_RATIO/self.MASK_PER_GRATING_RATIO
@@ -53,9 +53,9 @@ class MyIntrinsicProtocol(experiment.Experiment):
 #            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *1/6, self.machine_config.SCREEN_SIZE_UM['col'] *3/6)), 
             utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *3/6, self.machine_config.SCREEN_SIZE_UM['col'] *3/6)), 
 #            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *5/6, self.machine_config.SCREEN_SIZE_UM['col'] *3/6)),
-            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *1/6, self.machine_config.SCREEN_SIZE_UM['col'] *1/ 6)), 
+#            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *1/6, self.machine_config.SCREEN_SIZE_UM['col'] *1/ 6)), 
 #            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *3/6, self.machine_config.SCREEN_SIZE_UM['col'] *1/ 6)), 
-            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *5/6, self.machine_config.SCREEN_SIZE_UM['col'] *1/ 6))
+#            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *5/6, self.machine_config.SCREEN_SIZE_UM['col'] *1/ 6))
             ]
         self.fragment_durations = [self.experiment_config.DURATION*len(self.positions)*2+self.experiment_config.BLANK_DELAY]
         print self.fragment_durations
@@ -66,7 +66,7 @@ class MyIntrinsicProtocol(experiment.Experiment):
 #        self.show_fullscreen(color = 0.5, duration=6.0)
 #        self.show_fullscreen(color = 0.5, duration=self.experiment_config.PAUSE)
         
-        for i in range(4):
+        for i in range(15):
             spd = self.experiment_config.SPEEDS
             self.show_fullscreen(color = 0.005, duration=self.experiment_config.BLANK_DELAY)
     

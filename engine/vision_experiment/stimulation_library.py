@@ -1025,15 +1025,17 @@ class StimulationSequences(Stimulations):
                     break
                 if hasattr(self, 'block_start'):
                     self.block_start()
+                self.show_fullscreen(color = background_color, duration = off_time*0.5)
                 self.show_shape(shape = 'rect',
                             size = shape_size,
                             color = color,
                             background_color = background_color,
                             duration = on_time,
                             pos = p)
+                self.show_fullscreen(color = background_color, duration = off_time*0.5)
                 if hasattr(self, 'block_end'):
                     self.block_end()
-                self.show_fullscreen(color = background_color, duration = off_time)
+                
         
     def _parse_receptive_field_parameters(self, shape_size, nrows, ncolumns, display_size, shape_colors, background_color):
         if background_color is None:
