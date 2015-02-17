@@ -116,7 +116,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         '''
         self.trigger_pulse(self.config.FRAME_TRIGGER_PIN, self.config.FRAME_TRIGGER_PULSE_WIDTH)
             
-    def block_start(self, block_name = ''):
+    def block_start(self, block_name = 'stimulus function'):
         if hasattr(self.digital_output,'set_data_bit'):
             self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
         self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
@@ -125,7 +125,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if hasattr(self.log, 'info'):
             self.log.info('{0} block started' .format(block_name))
                 
-    def block_end(self, block_name = ''):
+    def block_end(self, block_name = 'stimulus function'):
         if hasattr(self.digital_output,'set_data_bit'):
             self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
         self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})

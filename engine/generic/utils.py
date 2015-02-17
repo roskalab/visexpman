@@ -1137,6 +1137,10 @@ def printl(self, message, loglevel='info', stdio = True):
         sys.stdout.write(message_string+'\n')
     if hasattr(self.log, loglevel):
         getattr(self.log, loglevel)(message_string, self.machine_config.user_interface_name)
+        
+def list_swap(l, i1, i2):
+    l[i1], l[i2] = l[i2], l[i1]
+    return l
 
 class TestUtils(unittest.TestCase):
     def setUp(self):

@@ -473,6 +473,13 @@ class SmrVideoAligner(object):
         from skimage import filter
         return numpy.array([filter.threshold_otsu(self._read_frame(files[i])) for i in range(0,len(files))]).mean()
     
+######################### Stimulus frame info manipulating #######################
+
+def get_block_entry_indexes(sfi, block_name):
+    block_start_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_start') and sfi[i]['block_name'] == block_name]
+    block_end_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_end') and sfi[i]['block_name'] == block_name]
+    return block_start_indexes, block_end_indexes
+
 class TestExperimentData(unittest.TestCase):
 #    @unittest.skip("")
     def test_01_read_merge_rois(self):

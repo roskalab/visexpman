@@ -502,6 +502,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_software_environment())
         setattr(self.datafile, 'configs_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_configs(self))
+        #Organize stimulus frame info. 'stimulus function' block starts saved after sfi entry and block ends before sfi entry. This has to be reordered
+        block_start_indexes, block_end_indexes = experiment_data.get_block_entry_indexes(self.stimulus_frame_info, block_name = 'stimulus function')
+        for i in block_start_indexes:
+            self.stimulus_frame_info = utils.list_swap(self.stimulus_frame_info, i, i-1)
+        for i in block_end_indexes:
+            self.stimulus_frame_info = utils.list_swap(self.stimulus_frame_info, i, i+1)
         
     def _save2file(self):
         '''

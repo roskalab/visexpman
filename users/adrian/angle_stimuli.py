@@ -8,7 +8,7 @@ class AngleTest(experiment.ExperimentConfig):
         self.LOOM_START_SIZE = 300
         self.LOOMING_SHAPES = ['rect', 'spot', 'triangle', 'star4', 'star5']
         self.PAUSE = 4.0
-        self.REPEATS = 2/2
+        self.REPEATS = 2
         self.TOOTH_PROFILES = ['sawtooth', 'square']
         self.BAR_WIDTH = 100
         self.TOOTH_SIZE = 100
@@ -101,18 +101,15 @@ class AngleStimulus(experiment.Experiment):
         self.show_shape(shape='rect', duration = self.experiment_config.PAUSE, 
                                 size = utils.rc((self.machine_config.SCREEN_SIZE_UM['col']*2, self.experiment_config.BAR_WIDTH)), pos = pos,
                                 orientation = ori)
-        
-    
+
     def run(self):
-        d=45
+        d=0
         self.looming_block(d)
         self.moving_bars(d)
         self.moving_T_and_L(d)
         self.moving_combs(d)
         self.export2video('/tmp/{0}_angle_stimulus.mp4'.format(d))
-        
-        
-        
+
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester
     stimulation_tester('adrian', 'StimulusDevelopment', 'AngleTest', ENABLE_FRAME_CAPTURE=True)

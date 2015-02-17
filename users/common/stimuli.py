@@ -296,16 +296,6 @@ class LaserBeamStimulus(experiment.Experiment):
             
 class ReceptiveFieldExplore(experiment.Experiment):
     '''
-    
-    
-    
-    
-    
-    
-    
-    
-    When MESH_SIZE not defined or MESH_SIZE == None: shape_size and screen size determines the mesh size
-    
     Repeats: flash or sequence
     
     Supported use cases: fixed size squares are presented with no gaps and no overlaps. Fractional squares are not shown at the edges
@@ -318,7 +308,7 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                                     None,
                                                     self.experiment_config.COLORS,
                                                     self.experiment_config.BACKGROUND_COLOR)
-        self.stimulus_duration , positions= self.receptive_field_explore_durations_and_positions(shape_size=shape_size, 
+        self.stimulus_duration, positions= self.receptive_field_explore_durations_and_positions(shape_size=shape_size, 
                                                                             nrows = nrows,
                                                                             ncolumns = ncolumns,
                                                                             shape_colors = shape_colors,
