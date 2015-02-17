@@ -24,7 +24,7 @@ class Retinotopy(experiment.ExperimentConfig):#was MyInstrConfig
         self.MASK_SIZE = utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] / self.SCREEN_PER_MASK_RATIO, self.machine_config.SCREEN_SIZE_UM['col'] / self.SCREEN_PER_MASK_RATIO))
         self.GRATING_SIZE = self.machine_config.SCREEN_SIZE_UM['row'] / self.SCREEN_PER_MASK_RATIO/self.MASK_PER_GRATING_RATIO
         self.DUTY_CYCLE = 1.0
-        self.BACKGROUND_COLOR = 0.5
+        self.BACKGROUND_COLOR = 0.005
         #Speeds
         #5/6 of screen is 60 degree of mouse visual field
         angular_factor = self.machine_config.SCREEN_SIZE_UM['col']*(5.0/6.0)/60.0
@@ -33,38 +33,43 @@ class Retinotopy(experiment.ExperimentConfig):#was MyInstrConfig
             self.FINAL_ANGULAR_SPEED = 50.0#degree/sec
             self.SPEEDS = numpy.array([self.STARTING_ANGULAR_SPEED, self.FINAL_ANGULAR_SPEED]) * angular_factor
 
+        
         self.ENABLE_TRIGGER_WAIT = True
-        self.DURATION = 10.0*0.05
+        self.DURATION = 10.0*0.1
         self.SPEEDS = 200
         self.ORIENTATIONS = range(0,360,90)
-        self.FULLFIELD_ORIENTATIONS = range(0,360,45)
-        self.PAUSE = 2.0
-        self.INITIAL_DELAY = 2.0
+        self.FULLFIELD_ORIENTATIONS = range(0,360,90)
+        self.PAUSE = 10.0
+        self.BLANK_DELAY = 14.0
         self.runnable='MyIntrinsicProtocol'
+        self.pre_runnable='IntrinsicPre'
         
 class MyIntrinsicProtocol(experiment.Experiment):
     def prepare(self):
         self.positions = [
-            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *1/ 6, self.machine_config.SCREEN_SIZE_UM['col'] *5/6)), 
-            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *3/6, self.machine_config.SCREEN_SIZE_UM['col'] *5/6)), 
-            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *5/6, self.machine_config.SCREEN_SIZE_UM['col'] *5/6)),
-            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *1/6, self.machine_config.SCREEN_SIZE_UM['col'] *3/6)), 
+#            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *1/ 6, self.machine_config.SCREEN_SIZE_UM['col'] *5/6)), 
+#            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *3/6, self.machine_config.SCREEN_SIZE_UM['col'] *5/6)), 
+#            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *5/6, self.machine_config.SCREEN_SIZE_UM['col'] *5/6)),
+#            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *1/6, self.machine_config.SCREEN_SIZE_UM['col'] *3/6)), 
             utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *3/6, self.machine_config.SCREEN_SIZE_UM['col'] *3/6)), 
-            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *5/6, self.machine_config.SCREEN_SIZE_UM['col'] *3/6)),
+#            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *5/6, self.machine_config.SCREEN_SIZE_UM['col'] *3/6)),
             utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *1/6, self.machine_config.SCREEN_SIZE_UM['col'] *1/ 6)), 
-            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *3/6, self.machine_config.SCREEN_SIZE_UM['col'] *1/ 6)), 
+#            utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *3/6, self.machine_config.SCREEN_SIZE_UM['col'] *1/ 6)), 
             utils.rc((self.machine_config.SCREEN_SIZE_UM['row'] *5/6, self.machine_config.SCREEN_SIZE_UM['col'] *1/ 6))
             ]
-        self.fragment_durations = [self.experiment_config.DURATION*len(self.positions)*2+self.experiment_config.PAUSE]
+        self.fragment_durations = [self.experiment_config.DURATION*len(self.positions)*2+self.experiment_config.BLANK_DELAY]
         print self.fragment_durations
 
     def run(self):
         #Initial delay and flash
-        self.show_fullscreen(color = 0.5, duration=self.experiment_config.INITIAL_DELAY)
+    
 #        self.show_fullscreen(color = 0.5, duration=6.0)
 #        self.show_fullscreen(color = 0.5, duration=self.experiment_config.PAUSE)
-        for i in range(1):
+        
+        for i in range(4):
             spd = self.experiment_config.SPEEDS
+            self.show_fullscreen(color = 0.005, duration=self.experiment_config.BLANK_DELAY)
+    
             if i ==1 and isinstance(spd, list):
                 spd = spd[::-1]
             if self.experiment_config.ENABLE_TRIGGER_WAIT:
@@ -92,7 +97,7 @@ class MyIntrinsicProtocol(experiment.Experiment):
                                     pos = position,
                                     duty_cycle = self.experiment_config.DUTY_CYCLE,
                                     background_color = self.experiment_config.BACKGROUND_COLOR)
-                self.show_fullscreen(color = 0.5, duration=self.experiment_config.PAUSE)
+                self.show_fullscreen(color = 0.005, duration=self.experiment_config.PAUSE)
                 self.printl('Waiting for next MES trigger')
                 if self.experiment_config.ENABLE_TRIGGER_WAIT:
                     while True:
@@ -131,3 +136,7 @@ class MyFFGratingsExp(experiment.Experiment):
                         color_contrast = 1.0,  
                         color_offset = 0.5,
                         duty_cycle = self.experiment_config.DUTY_CYCLE)
+
+class IntrinsicPre(experiment.PreExperiment):    
+    def run(self):
+       self.show_fullscreen(duration = 0, color = 0.005,  flip=False)

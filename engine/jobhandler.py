@@ -450,9 +450,12 @@ class CommandInterface(command_parser.CommandParser):
                         from visexpA.users.zoltan import converters
                         converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal', 'image_scale'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
                     elif self.kwargs['export'] == 'EXPORT_DATA_TO_VIDEO':
-                        nodes = ['idnode','rawdata', 'sync_signal', 'image_scale', 'soma_rois', 'roi_curves']
+                        nodes = ['idnode','rawdata', 'sync_signal', 'image_scale']
+                        if 'movinggrating' in full_fragment_path.lower():
+                            nodes.extend(['soma_rois', 'roi_curves'])
                         self.printl('Saving the followings to mat file: {0}' .format(', '.join(nodes)))
                         from visexpA.users.zoltan import converters
+                        time.sleep(5)
                         converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
                         from visexpman.users.zoltan.mes2video import mes2video
                         mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])

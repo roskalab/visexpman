@@ -123,6 +123,24 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 1, log = False)
             time.sleep(self.config.FRAME_TRIGGER_PULSE_WIDTH)
             self.parallel_port.set_data_bit(self.config.FRAME_TRIGGER_PIN, 0, log = False)
+            
+    def block_start(self, block_name = ''):
+        if hasattr(self, 'digital_output') and hasattr(self.digital_output,'set_data_bit'):
+            self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 1, log = False)
+        self.stimulus_frame_info.append({'block_start':self.frame_counter, 'block_name': block_name})
+        if self.machine_config.PLATFORM == 'elphys_retinal_ca':
+            self.send({'plot': [time.time(), 1]})
+        if hasattr(self.log, 'info'):
+            self.log.info('{0} block started' .format(block_name))
+                
+    def block_end(self, block_name = ''):
+        if hasattr(self, 'digital_output') and hasattr(self.digital_output,'set_data_bit'):
+            self.digital_output.set_data_bit(self.config.BLOCK_TRIGGER_PIN, 0, log = False)
+        self.stimulus_frame_info.append({'block_end':self.frame_counter, 'block_name': block_name})
+        if self.machine_config.PLATFORM == 'elphys_retinal_ca':
+            self.send({'plot': [time.time(), 0]})
+        if hasattr(self.log, 'info'):
+            self.log.info('{0} block ended' .format(block_name))
         
     def _show_text(self):
         '''
@@ -971,6 +989,81 @@ class StimulationSequences(Stimulations):
                     self.show_fullscreen(color = background_color, duration = duration)
                 state = not state
             
+    def receptive_field_explore(self,shape_size, on_time, off_time, nrows = None, ncolumns=None, display_size = None, flash_repeat = 1, sequence_repeat = 1, background_color = None, shape_colors = [1.0], random_order = False):
+        '''        
+        Aka Marching Squares
+    
+        Input parameters/use cases
+        1) nrows, ncolumns -> if None, automatically calculate for the whole screen surface
+        2) shape size -> if none, nrows and ncolumns and screen size will be used for determining the shape size
+        3) optional: display area
+        4) Random order
+        5) Colors
+        6) On time, off time
+        7) flash repeat
+        8) Sequence repeat
+        9) Background color
+    
+        '''
+        shape_size, nrows, ncolumns, display_size, shape_colors, background_color = \
+                self._parse_receptive_field_parameters(shape_size, nrows, ncolumns, display_size, shape_colors, background_color)
+        duration, positions = self.receptive_field_explore_durations_and_positions(shape_size=shape_size, 
+                                                                            nrows = nrows,
+                                                                            ncolumns = ncolumns,
+                                                                            shape_colors = shape_colors,
+                                                                            flash_repeat = flash_repeat,
+                                                                            sequence_repeat = sequence_repeat,
+                                                                            on_time = on_time,
+                                                                            off_time = off_time)
+        if random_order:
+            import random
+            random.shuffle(positions)
+        self.show_fullscreen(color = background_color, duration = off_time)
+        for p in positions:
+            for color in shape_colors:
+                if self.abort:
+                    break
+                if hasattr(self, 'block_start'):
+                    self.block_start()
+                self.show_shape(shape = 'rect',
+                            size = shape_size,
+                            color = color,
+                            background_color = background_color,
+                            duration = on_time,
+                            pos = p)
+                if hasattr(self, 'block_end'):
+                    self.block_end()
+                self.show_fullscreen(color = background_color, duration = off_time)
+        
+    def _parse_receptive_field_parameters(self, shape_size, nrows, ncolumns, display_size, shape_colors, background_color):
+        if background_color is None:
+            background_color = self.experiment_config.BACKGROUND_COLOR
+        if not isinstance(shape_colors, list):
+            shape_colors = [shape_colors]
+        if display_size is None:
+            display_size = self.machine_config.SCREEN_SIZE_UM
+        if shape_size is None:
+            shape_size = utils.rc((display_size['row']/float(nrows), display_size['col']/float(ncolumns)))
+        elif not hasattr(shape_size, 'dtype'):
+            shape_size = utils.rc((shape_size, shape_size))
+        if nrows is None and ncolumns is None:
+            nrows = int(numpy.floor(display_size['row']/float(shape_size['row'])))
+            ncolumns = int(numpy.floor(display_size['col']/float(shape_size['row'])))
+        return shape_size, nrows, ncolumns, display_size, shape_colors, background_color
+        
+    def _receptive_field_explore_positions(self,shape_size, nrows, ncolumns):
+        y_dir = 1 if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up' else -1
+        first_position = utils.rc_add(self.machine_config.SCREEN_CENTER, utils.rc((shape_size['row']*(0.5*nrows-0.5)*y_dir, shape_size['col']*(0.5*ncolumns-0.5))), '-')
+        positions = []
+        for r in range(nrows):
+            for c in range(ncolumns):
+                p=utils.rc_add(first_position, utils.rc((y_dir*r*shape_size['row'], c*shape_size['col'])))
+                positions.append(p)
+        return positions
+        
+    def receptive_field_explore_durations_and_positions(self, **kwargs):
+        positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'])
+        return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
         
     def moving_grating_stimulus(self):
         pass

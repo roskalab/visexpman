@@ -57,11 +57,11 @@ class ReceptiveFieldExploreConfig(experiment.ExperimentConfig):
         self.COLORS = [1.0, 0.0]
         self.BACKGROUND_COLOR = 0.25
         self.SHAPE_SIZE = 300.0
-        self.MESH_XY = utils.rc((4,6))
+        self.MESH_XY = utils.rc((8,8))
         self.ON_TIME = 0.5*2
-        self.OFF_TIME = 0.5*6
+        self.OFF_TIME = 0.5*4
         self.PAUSE_BEFORE_AFTER = 2.0
-        self.REPEATS = 3
+        self.REPEATS = 1#Only 1 repetition works. Otherwise datafile is not always saved by MES
         self.ENABLE_ZOOM = False 
         self.SELECTED_POSITION = 1
         self.ZOOM_MESH_XY = utils.rc((3,3))

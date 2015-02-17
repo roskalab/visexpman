@@ -43,7 +43,8 @@ def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_sign
         for stimulus_item in stimulus_frame_info:
             info = stimulus_item
             try:
-                info['data_series_index'] = rising_edges_indexes[info['counter']]
+                if info.has_key('counter'):
+                    info['data_series_index'] = rising_edges_indexes[info['counter']]
             except IndexError:
                 #less pulses detected
                 info['data_series_index'] = -1
