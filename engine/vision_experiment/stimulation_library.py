@@ -15,7 +15,7 @@ from OpenGL.GLUT import *
 
 import command_handler
 import experiment_control
-from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry
+from visexpman.engine.generic import graphics,utils,colors,fileop, signal,geometry,videofile
 from visexpman.engine.vision_experiment import screen
 from visexpman.users.test import unittest_aggregator
 
@@ -301,7 +301,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 break
 
     def show_shape(self, shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  
-                orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, ncorners = None, inner_radius = None, L_shape_config = None,
+                orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = None, ncorners = None, inner_radius = None, L_shape_config = None, X_shape_angle = None,
                 flip = True, is_block = False, save_frame_info = True, enable_centering = True, part_of_drawing_sequence = False):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
@@ -372,6 +372,10 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
             vertices[2::3] = vertices_[1::2]
             vertices = numpy.concatenate((vertices, vertices_[1::2]))
             shape_type = shape
+        elif shape == 'X':
+            shape_type = shape
+            vertices = numpy.concatenate([geometry.rectangle_vertices(size_pixel, orientation = orientation),
+                    geometry.rectangle_vertices(size_pixel, orientation = orientation+X_shape_angle)])
         elif shape == 'L':
             shape_type = shape
             #create skeleton
@@ -467,7 +471,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                         for i in range(ncorners):
                             glDrawArrays(GL_POLYGON,  i*3, 3)
                         glDrawArrays(GL_POLYGON,  ncorners*3, ncorners)
-                    elif shape_type == 'L':
+                    elif shape_type == 'L' or shape_type == 'X':
                         glDrawArrays(GL_POLYGON,  0, n_vertices/2)
                         glDrawArrays(GL_POLYGON,  n_vertices/2, n_vertices/2)
                     else:
@@ -475,7 +479,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 else:
                     if shape_type == 'star':
                         raise NotImplementedError('moving star is not implemented')
-                    elif shape_type == 'L':
+                    elif shape_type == 'L' or shape_type == 'X':
                         glDrawArrays(GL_POLYGON,  frame_i * n_vertices, n_vertices/2)
                         glDrawArrays(GL_POLYGON,  int((frame_i+0.5) * n_vertices), n_vertices/2)
                     else:
@@ -1019,7 +1023,8 @@ class StimulationHelpers(Stimulations):
             raise RuntimeError('Micro LED array stimulation is not configured properly, make sure that {0} parameters have correct values'.format(expected_configs))
         
     def export2video(self, filename, img_format='png'):
-        utils.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
+        if self.machine_config.ENABLE_FRAME_CAPTURE:
+            videofile.images2mpeg4(os.path.join(self.machine_config.CAPTURE_PATH,  'captured_%5d.{0}'.format(img_format)), filename, int(self.machine_config.SCREEN_EXPECTED_FRAME_RATE))
 
     def projector_calibration(self, intensity_range = [0.0, 1.0], npoints = 128, time_per_point = 1.0, repeats = 3, sync_flash = False):
         self._save_stimulus_frame_info(inspect.currentframe())
@@ -1099,7 +1104,7 @@ class AdvancedStimulation(StimulationHelpers):
         nshapes = ntooth + 1
         return vertices,nshapes
         
-    def moving_cross(self, speeds, sizes, position, movement_directions, contrasts = 1.0, background = 0.0):
+    def moving_cross(self, speeds, sizes, position, movement_directions):
         self._save_stimulus_frame_info(inspect.currentframe())
         bar_height = numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['row']**2+self.machine_config.SCREEN_SIZE_UM['col']**2)
         ds = numpy.array(speeds)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
@@ -1243,6 +1248,9 @@ class AdvancedStimulation(StimulationHelpers):
                                                                             sequence_repeat = sequence_repeat,
                                                                             on_time = on_time,
                                                                             off_time = off_time)
+        if random_order:
+            import random
+            random.shuffle(positions)
         self.show_fullscreen(color = background_color, duration = off_time)
         for p in positions:
             for color in shape_colors:
@@ -1311,8 +1319,8 @@ class AdvancedStimulation(StimulationHelpers):
         trajectories = []
         nframes = 0
         for spd in speeds:
-            for rep in range(repetition):
-                for direction in directions:
+            for direction in directions:
+                for rep in range(repetition):
                     end_point = utils.rc_add(utils.cr((0.5 * self.movement *  numpy.cos(numpy.radians(self.vaf*direction)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction)))), self.machine_config.SCREEN_CENTER, operation = '+')
                     start_point = utils.rc_add(utils.cr((0.5 * self.movement * numpy.cos(numpy.radians(self.vaf*direction - 180.0)), 0.5 * self.movement * numpy.sin(numpy.radians(self.vaf*direction - 180.0)))), self.machine_config.SCREEN_CENTER, operation = '+')
                     if spd == 0:

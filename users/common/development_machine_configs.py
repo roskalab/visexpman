@@ -10,19 +10,19 @@ class StimulusDevelopment(VisionExperimentConfig):
     def _set_user_parameters(self):
         PLATFORM = 'standalone'
         if os.name == 'nt':
-            root_folder = 'c:\\data'
+            self.root_folder = 'c:\\data'
         elif os.path.exists('/mnt/rzws/dataslow/temp'):
-            root_folder = '/mnt/rzws/dataslow/temp'
+            self.root_folder = '/mnt/rzws/dataslow/temp'
         else:
-            root_folder = '/tmp'
-        LOG_PATH = os.path.join(root_folder, 'log')
-        CAPTURE_PATH = os.path.join(root_folder, 'capture')
-        CONTEXT_PATH = root_folder
+            self.root_folder = '/tmp'
+        LOG_PATH = os.path.join(self.root_folder, 'log')
+        CAPTURE_PATH = os.path.join(self.root_folder, 'capture')
+        CONTEXT_PATH = self.root_folder
         for p in [CAPTURE_PATH, LOG_PATH]:
             if not os.path.exists(p):
                 os.mkdir(p)
-        DATA_PATH = root_folder
-        EXPERIMENT_DATA_PATH = root_folder
+        DATA_PATH = self.root_folder
+        EXPERIMENT_DATA_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH
         
         #=== screen ===
