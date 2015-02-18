@@ -1252,21 +1252,24 @@ class AdvancedStimulation(StimulationHelpers):
             import random
             random.shuffle(positions)
         self.show_fullscreen(color = background_color, duration = off_time)
-        for p in positions:
-            for color in shape_colors:
-                if self.abort:
-                    break
-                if hasattr(self, 'block_start'):
-                    self.block_start()
-                self.show_shape(shape = 'rect',
-                            size = shape_size,
-                            color = color,
-                            background_color = background_color,
-                            duration = on_time,
-                            pos = p)
-                if hasattr(self, 'block_end'):
-                    self.block_end()
-                self.show_fullscreen(color = background_color, duration = off_time)
+        for r1 in range(sequence_repeat):
+            for p in positions:
+                for color in shape_colors:
+                    for r2 in range(flash_repeat):
+                        if self.abort:
+                            break
+                        if hasattr(self, 'block_start'):
+                            self.block_start()
+                        self.show_fullscreen(color = background_color, duration = off_time*0.5)
+                        self.show_shape(shape = 'rect',
+                                    size = shape_size,
+                                    color = color,
+                                    background_color = background_color,
+                                    duration = on_time,
+                                    pos = p)
+                        self.show_fullscreen(color = background_color, duration = off_time*0.5)
+                        if hasattr(self, 'block_end'):
+                            self.block_end()
         
     def _parse_receptive_field_parameters(self, shape_size, nrows, ncolumns, display_size, shape_colors, background_color):
         if background_color is None:
@@ -1297,7 +1300,7 @@ class AdvancedStimulation(StimulationHelpers):
     def receptive_field_explore_durations_and_positions(self, **kwargs):
         positions = self._receptive_field_explore_positions(kwargs['shape_size'], kwargs['nrows'], kwargs['ncolumns'])
         return len(positions)*len(kwargs['shape_colors'])*kwargs['flash_repeat']*kwargs['sequence_repeat']*(kwargs['on_time']+kwargs['off_time'])+kwargs['off_time'], positions
-
+        
     def moving_grating_stimulus(self):
         pass
         
