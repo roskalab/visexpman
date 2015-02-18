@@ -393,6 +393,7 @@ class CommandInterface(command_parser.CommandParser):
                 #self.zeromq_pusher.send((('suspend', full_fragment_path)))
                 mes_extractor = importers.MESExtractor(full_fragment_path, config = self.analysis_config, queue_out = self.queues['low_priority_processor']['out'])                
                 data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = force_recreate)
+                mes_extractor.hdfhandler.close()
                 file.set_file_dates(full_fragment_path, file_info)
                 self.queues['low_priority_processor']['out'].put('SOC_mesextractor_readyEOCid={0}EOP' .format(id))
             else:
@@ -434,12 +435,11 @@ class CommandInterface(command_parser.CommandParser):
                                     self.printl('export_'+e)
                                     getattr(h,'export_'+e)()
                                 h.close()
+                                file.set_file_dates(full_fragment_path, file_info)
                         else:
                             self.printl('No online analysis for this type of experiment')
                     else:
                         runtime=0
-                    file.set_file_dates(full_fragment_path, file_info)
-                    
                     if len(sys.argv) > 3:
                         self.kwargs['export'] = sys.argv[3]
                     else:
@@ -458,8 +458,7 @@ class CommandInterface(command_parser.CommandParser):
                             nodes.extend(['soma_rois', 'roi_curves'])
                         self.printl('Saving the followings to mat file: {0}' .format(', '.join(nodes)))
                         from visexpA.users.zoltan import converters
-                        time.sleep(5)
-                        converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
+                        converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0],  config=self.analysis_config)
                         from visexpman.users.zoltan.mes2video import mes2video
                         mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])
                     self.queues['low_priority_processor']['out'].put('SOC_find_cells_readyEOCid={0},runtime={1}EOP'.format(id, runtime))

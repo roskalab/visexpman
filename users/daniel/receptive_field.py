@@ -10,10 +10,10 @@ class ReceptiveFieldExploreNew(experiment.ExperimentConfig):
         self.SHAPE = 'rect'
         self.COLORS = [1.0, 0.0]
         self.BACKGROUND_COLOR = 0.25
-        self.SHAPE_SIZE = 300.0*2
-        self.ON_TIME = 1.0
-        self.OFF_TIME = 2.0*0
-        self.REPEATS = 1
+        self.SHAPE_SIZE = 300.0*3
+        self.ON_TIME = 1.0*2
+        self.OFF_TIME = 2.0
+        self.REPEATS = 2
         self.REPEAT_SEQUENCE = 1
         self.ENABLE_RANDOM_ORDER = False
         self.runnable='ReceptiveFieldExplore'
