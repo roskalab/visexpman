@@ -2,13 +2,13 @@ import numpy
 from visexpman.engine.vision_experiment import experiment
 from visexpman.engine.generic import utils
 
-class AngleTest(experiment.ExperimentConfig):
+class Angle0(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SPEEDS = [400]
-        self.LOOM_START_SIZE = 300
+        self.LOOM_START_SIZE = 50
         self.LOOMING_SHAPES = ['rect', 'spot', 'triangle', 'star4', 'star5']
         self.PAUSE = 4.0
-        self.REPEATS = 2
+        self.REPEATS = 1
         self.TOOTH_PROFILES = ['sawtooth', 'square']
         self.BAR_WIDTH = 100
         self.TOOTH_SIZE = 100
@@ -17,10 +17,14 @@ class AngleTest(experiment.ExperimentConfig):
         self.LT_SHORTER_SIDE = 200
         self.SECOND_MOVING_BAR_SPEEDS = [0]
         self.SECOND_MOVING_BAR_ANGLES = [45,90,135]
+        self.DIRECTION = int(self.__class__.__name__.replace('Angle',  ''))
         self.runnable = 'AngleStimulus'
         self._create_parameters_from_locals(locals())
 
 class AngleStimulus(experiment.Experiment):
+    def prepare(self):
+        self.fragment_durations = [200]
+    
     def pause(self):
         self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE*0.5)
         
@@ -103,7 +107,7 @@ class AngleStimulus(experiment.Experiment):
                                 orientation = ori)
 
     def run(self):
-        d=0
+        d=self.experiment_config.DIRECTION
         self.looming_block(d)
         self.moving_bars(d)
         self.moving_T_and_L(d)

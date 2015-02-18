@@ -427,8 +427,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
                 vertices = numpy.concatenate((endvertices1, wrist, wrist[::-1], endvertices2))
             vertices = geometry.rotate_point(vertices.T,orientation,numpy.array([0,0])).T
             #Convert to pixels
-            vertices = utils.um2pixel(utils.cr(vertices), self.config.ORIGO, utils.cr((self.config.SCREEN_UM_TO_PIXEL_SCALE, -1 if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down' else 1 * self.config.SCREEN_UM_TO_PIXEL_SCALE)))
-            vertices = numpy.array([vertices['col'], vertices['row']]).T
+            vertices *= self.config.SCREEN_UM_TO_PIXEL_SCALE
         n_vertices = vertices.shape[0]
         if len(pos_pixel.shape) == 0:#When does it happen?????????????
             number_of_positions = 1
@@ -1071,7 +1070,7 @@ class AdvancedStimulation(StimulationHelpers):
         for frame_i in range(trajectories[0].shape[0]):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv(colors.convert_color(contrast, self.config))
-            v=combv + numpy.array([trajectories[0][frame_i]['col'],trajectories[0][frame_i]['row']])
+            v=combv + numpy.array([trajectories[0][frame_i]['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE,trajectories[0][frame_i]['row']]*self.config.SCREEN_UM_TO_PIXEL_SCALE)
             glVertexPointerf(v)
             for shi in range(nshapes):
                 if shi == 0:
@@ -1129,9 +1128,7 @@ class AdvancedStimulation(StimulationHelpers):
         base_vertices = numpy.concatenate([geometry.rectangle_vertices(utils.rc((bar_height, sizes[i])), movement_directions[i]) for i in range(len(sizes))]).T
         vertices = numpy.tile(base_vertices,trajectories.shape[0]/2).T
         vertices += numpy.repeat(trajectories,4,axis=0)
-        
-        vertices = utils.um2pixel(utils.cr(vertices), self.config.ORIGO, utils.cr((self.config.SCREEN_UM_TO_PIXEL_SCALE, -1 if self.config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'down' else 1 * self.config.SCREEN_UM_TO_PIXEL_SCALE)))
-        vertices = numpy.array([vertices['col'], vertices['row']]).T
+        vertices *= self.config.SCREEN_UM_TO_PIXEL_SCALE
         glEnableClientState(GL_VERTEX_ARRAY)
         glVertexPointerf(vertices)
         for frame_i in range(nframes):
