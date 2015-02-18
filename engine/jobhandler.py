@@ -422,7 +422,7 @@ class CommandInterface(command_parser.CommandParser):
                         runtime = result.get()
                     elif not False:
                         runtime = 0
-                        excluded_experiments = ['natural','receptive',  'waveform', 'naturalbars']
+                        excluded_experiments = ['natural','receptive',  'waveform', 'naturalbars',  'angle']
                         if len([True for excluded_experiment in excluded_experiments if excluded_experiment.lower() in full_fragment_path.lower()]) == 0:
                             create = ['roi_curves','soma_rois_manual_info']#'rawdata_mask',
                             export = ['roi_curves'] 
@@ -665,7 +665,7 @@ def sfi2signature(sfi):
         if sfii.has_key('parameters'):
             item = copy.deepcopy(sfii)
             item.update(item['parameters'])
-            removable_keys = ['elapsed_time', 'counter', 'data_series_index', 'flip', 'parameters', 'count']
+            removable_keys = ['elapsed_time', 'counter', 'data_series_index', 'flip', 'parameters', 'count', 'frame_trigger']
             for k in removable_keys:
                 if item.has_key(k):
                     del item[k]

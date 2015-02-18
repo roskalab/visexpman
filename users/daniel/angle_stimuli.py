@@ -44,7 +44,7 @@ class Angle315(Angle0):
     
 class AngleStimulus(experiment.Experiment):
     def prepare(self):
-        self.fragment_durations = [2]
+        self.fragment_durations = [470]
     
     def pause(self):
         self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE*0.5)
@@ -69,15 +69,19 @@ class AngleStimulus(experiment.Experiment):
                             break
                         shape_size_per_speed_dir = shape_size_per_speed[::d]
                         for rep in range(self.experiment_config.REPEATS):
-                            for s in shape_size_per_speed_dir:
+                            self.block_start(block_name = 'loom')
+                            for i in range(shape_size_per_speed_dir.shape[0]):
+                                save_sfi = (i == 0 or  i == shape_size_per_speed_dir.shape[0]-1)
+#                                self.printl((save_sfi, i))
+                                s = shape_size_per_speed_dir[i]
                                 if self.abort:
                                     break
-                                self.block_start(block_name = 'loom')
                                 if 'star' in shape:
-                                    self.show_shape(shape=shape[:-1], ncorners = int(shape[-1]), size = s*0.5, orientation = direction, background_color = bg, color = col,  pos = self.machine_config.SCREEN_CENTER)
+                                    self.show_shape(shape=shape[:-1], ncorners = int(shape[-1]), size = s*0.5, orientation = direction, background_color = bg, color = col,  pos = self.machine_config.SCREEN_CENTER, save_sfi = save_sfi)
                                 else:
-                                    self.show_shape(shape=shape, size = s, orientation = direction, background_color = bg, color = col,  pos = self.machine_config.SCREEN_CENTER)
-                                self.block_end(block_name = 'loom')
+                                    self.show_shape(shape=shape, size = s, orientation = direction, background_color = bg, color = col,  pos = self.machine_config.SCREEN_CENTER, save_sfi= save_sfi)
+                            self.block_end(block_name = 'loom')
+#                            return
                         
     def moving_combs(self, direction):
         for spd in self.experiment_config.SPEEDS:
@@ -137,10 +141,10 @@ class AngleStimulus(experiment.Experiment):
 
     def run(self):
         d=self.experiment_config.DIRECTION
-        self.looming_block(d) #DONE
-        self.moving_bars(d)# DONE
-        self.moving_T_and_L(d)#DONE
-        self.moving_combs(d)
+        block_names = ['looming_block', 'moving_bars', 'moving_T_and_L', 'moving_combs']
+        for bn in block_names:
+            getattr(self, bn)(d)
+#            self.printl((len(self.stimulus_frame_info), self.frame_counter))
 
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester

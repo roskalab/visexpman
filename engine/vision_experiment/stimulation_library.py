@@ -379,7 +379,7 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
 #            if self.stimulation_control.abort_stimulus():
 #                break
 
-    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True, L_shape_config = None, X_shape_angle = None, ncorners = None,  inner_radius=None):
+    def show_shape(self,  shape = '',  duration = 0.0,  pos = utils.rc((0,  0)),  color = [1.0,  1.0,  1.0],  background_color = None,  orientation = 0.0,  size = utils.rc((0,  0)),  ring_size = 1.0, flip = True, L_shape_config = None, X_shape_angle = None, ncorners = None,  inner_radius=None, save_sfi = True):
         '''
         This function shows simple, individual shapes like rectangle, circle or ring. It is shown for one frame time when the duration is 0. 
         If pos is an array of rc values, duration parameter is not used for determining the whole duration of the stimulus
@@ -387,7 +387,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         #Generate log messages
         self.log_on_flip_message_initial = 'show_shape(' + str(shape)+ ', ' + str(duration) + ', ' + str(pos) + ', ' + str(color)  + ', ' + str(background_color)  + ', ' + str(orientation)  + ', ' + str(size)  + ', ' + str(ring_size) + ')'
         self.log_on_flip_message_continous = 'show_shape'
-        self._save_stimulus_frame_info(inspect.currentframe())
+        if save_sfi:
+            self._save_stimulus_frame_info(inspect.currentframe())
         #Calculate number of frames
         n_frames = int(float(duration) * float(self.config.SCREEN_EXPECTED_FRAME_RATE))
         if n_frames == 0:
@@ -560,7 +561,8 @@ class Stimulations(experiment_control.ExperimentControl):#, screen.ScreenAndKeyb
         #Restore original background color
         if background_color != None:            
             glClearColor(background_color_saved[0], background_color_saved[1], background_color_saved[2], background_color_saved[3])
-        self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
+        if save_sfi:
+            self._save_stimulus_frame_info(inspect.currentframe(), is_last = True)
         
 #                    
 #    def show_checkerboard(self,   n_checkers,  duration = 0.0,  pos = (0,  0),  color = [],  box_size = (0, 0), flip = True):
