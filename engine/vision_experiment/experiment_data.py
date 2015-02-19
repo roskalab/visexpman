@@ -479,9 +479,12 @@ def get_block_entry_indexes(sfi, block_name):
     block_start_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_start') and sfi[i]['block_name'] == block_name]
     block_end_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_end') and sfi[i]['block_name'] == block_name]
     return block_start_indexes, block_end_indexes
+    
+def images2mip(rawdata, timeseries_dimension = 0):
+    return rawdata.max(axis=timeseries_dimension)
 
 class TestExperimentData(unittest.TestCase):
-#    @unittest.skip("")
+    @unittest.skip("")
     def test_01_read_merge_rois(self):
         path = '/mnt/databig/testdata/read_merge_rois/mouse_test_1-1-2012_1-1-2012_0_0.hdf5'
         cells = hdf5io.read_item(path, 'cells', filelocking = self.config.ENABLE_HDF5_FILELOCKING)
@@ -489,13 +492,13 @@ class TestExperimentData(unittest.TestCase):
         roi_locations, rois = add_auxiliary_rois(rois, 9, -130, -100, aux_roi_distance = 5.0)
         pass
 
-#    @unittest.skip("")
+    @unittest.skip("")
     def test_02_elphys(self):
         from visexpman.users.test import unittest_aggregator
         working_folder = unittest_aggregator.prepare_test_data('elphys')
         map(read_phys, fileop.listdir_fullpath(working_folder))
         
-#    @unittest.skip("")
+    @unittest.skip("")
     def test_03_smr(self):
         folder=fileop.select_folder_exists(['/home/rz/rzws/temp/santiago/181214_Lema_offcell', '/home/rz/codes/data/181214_Lema_offcell'])
         if folder is None:
@@ -507,7 +510,7 @@ class TestExperimentData(unittest.TestCase):
                 SmrVideoAligner((fn, '/tmp/out'))
                 break
 
-#    @unittest.skip("")
+    @unittest.skip("")
     def test_04_check_retinal_ca_datafile(self):
         from visexpman.users.test import unittest_aggregator
         from visexpman.users.test.test_configurations import GUITestConfig
@@ -517,7 +520,7 @@ class TestExperimentData(unittest.TestCase):
         res = map(check, files, [conf]*len(files))
         map(self.assertEqual, res, len(res)*[[]])
 
-#    @unittest.skip("")
+    @unittest.skip("")
     def test_05_align_stim_with_imaging(self):
         from visexpman.users.test.test_configurations import GUITestConfig
         conf = GUITestConfig()
@@ -531,6 +534,70 @@ class TestExperimentData(unittest.TestCase):
                     savefig('r:\\temp\\plot\\'+os.path.split(file)[1]+'.png')
                     clf()
 #                    h.close()
+    def test_06_find_cells(self):
+        from pylab import imshow,show,plot
+        from scipy.ndimage.filters import gaussian_filter,maximum_filter
+        from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
+        from skimage import filter
+        from PIL import ImageDraw
+        fn = '/mnt/rzws/temp/cell_detection_test_data.mat'
+        folder = '/mnt/rzws/test_data/cortical_cell_detection'
+        cell_size = 12#um
+        sigma = 0.1 #cell size scaled
+        for fn in fileop.listdir_fullpath(folder):
+            if '68975' not in fn: continue
+            data = scipy.io.loadmat(fn)
+            rawdata = data['rawdata']
+            scale = data['image_scale']['row'][0][0][0][0]
+            
+            mip=images2mip(rawdata,2)[:,:,0]
+            mip = anti_zigzag(mip)
+            gaussian_filtered = gaussian_filter(mip, cell_size*scale*sigma)
+            th=filter.threshold_otsu(gaussian_filtered)
+            gaussian_filtered[gaussian_filtered<th] = 0
+            neighborhood = generate_binary_structure(gaussian_filtered.ndim,gaussian_filtered.ndim)
+            local_max = maximum_filter(gaussian_filtered, footprint=neighborhood)==gaussian_filtered
+            background_mask = (gaussian_filtered==0)
+            eroded_background_mask = binary_erosion(background_mask, structure=neighborhood, border_value=1)
+            centers = numpy.nonzero(local_max - eroded_background_mask)
+            from visexpA.engine.dataprocessors.roi import ratio_center_perimeter
+            centers = utils.cr((centers[0],centers[1]))
+            if 1:
+                radii, cell_centers, cent_perim_means = ratio_center_perimeter(mip, centers, [int(1*cell_size/scale)])
+            else:
+                cell_centers = centers
+            
+            
+            
+            im = numpy.zeros((mip.shape[0],mip.shape[1]*2,3))
+            im[:,:mip.shape[1],1]=mip
+            im[:,mip.shape[1]:,0] = numpy.cast['float'](local_max - eroded_background_mask)*mip.max()
+            im[:,mip.shape[1]:,1] = mip
+            
+            
+            
+            imc=Image.new('L', mip.shape)
+            d=ImageDraw.Draw(imc)
+            for i in range(cell_centers.shape[0]):
+                d.ellipse((cell_centers[i]['col']-0.5*radii[i], cell_centers[i]['row']-0.5*radii[i], cell_centers[i]['col']+0.5*radii[i], cell_centers[i]['row']+0.5*radii[i]),fill = 1)
+            
+            im[:,mip.shape[1]:,2] = numpy.cast['float'](numpy.asarray(imc).T)*mip.max()*0.5
+            
+            Image.fromarray(numpy.cast['uint8'](signal.scale(im, 0, 255))).save('/tmp/1/{0}.png'.format(os.path.split(fn)[1]))
+            pass
+#            imshow(gaussian_filter(mip,1), cmap='gray');show()
+        pass
+        
+def anti_zigzag(im):
+    shifts = [shift_between_arrays(im[line],im[line+1]) for line in range(im.shape[1]-1)]
+    
+        
+        
+        
+    
+
+def shift_between_arrays(a1, a2):
+    return numpy.array([numpy.correlate(numpy.cast['float'](a1), numpy.roll(numpy.cast['float'](a2),shift)) for shift in range(-a1.shape[0], a1.shape[0])]).argmax()
 
 if __name__=='__main__':
     unittest.main()
