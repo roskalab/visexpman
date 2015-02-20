@@ -123,7 +123,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
             self.send({'plot': [time.time(), 1]})
         if hasattr(self.log, 'info'):
-            self.log.info('{0} block started' .format(block_name))
+            self.log.info('{0} block started' .format(block_name), source='stim')
                 
     def block_end(self, block_name = 'stimulus function'):
         if hasattr(self.digital_output,'set_data_bit'):
@@ -132,7 +132,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if self.machine_config.PLATFORM == 'elphys_retinal_ca':
             self.send({'plot': [time.time(), 0]})
         if hasattr(self.log, 'info'):
-            self.log.info('{0} block ended' .format(block_name))
+            self.log.info('{0} block ended' .format(block_name), source='stim')
         
     def _add_block_start(self, is_block, frame_i, nframes):
         if frame_i == 0 and is_block:
@@ -1256,7 +1256,7 @@ class AdvancedStimulation(StimulationHelpers):
                         if self.abort:
                             break
                         if hasattr(self, 'block_start'):
-                            self.block_start()
+                            self.block_start(block_name = 'position')
                         self.show_fullscreen(color = background_color, duration = off_time*0.5)
                         self.show_shape(shape = 'rect',
                                     size = shape_size,
@@ -1266,7 +1266,7 @@ class AdvancedStimulation(StimulationHelpers):
                                     pos = p)
                         self.show_fullscreen(color = background_color, duration = off_time*0.5)
                         if hasattr(self, 'block_end'):
-                            self.block_end()
+                            self.block_end(block_name = 'position')
         
     def _parse_receptive_field_parameters(self, shape_size, nrows, ncolumns, display_size, shape_colors, background_color):
         if background_color is None:

@@ -473,21 +473,31 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Calls the run method of the experiment class. 
         Also takes care of all communication, synchronization with other applications and file handling
         '''
-        self.prepare()
-        self.printl('Starting stimulation: {0}/{1}'.format(self.experiment_name,self.experiment_config_name))
-        time.sleep(0.1)
-        self.send({'trigger':'stim started'})
-        self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
-        self.run()
-        self.log.resume()
-        self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
-        self.printl('Stimulation ended, saving data to file')
-        self._save2file()
-        self.send({'trigger':'stim data ready'})
-        self.frame_rates = numpy.array(self.frame_rates)
-        fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
-        self.log.info(fri, source = 'stim')
+        try:
+            self.prepare()
+            self.printl('Starting stimulation: {0}/{1}'.format(self.experiment_name,self.experiment_config_name))
+            time.sleep(0.1)
+            self.send({'trigger':'stim started'})
+            self.log.suspend()#Log entries are stored in memory and flushed to file when stimulation is over ensuring more reliable frame rate
+            self.run()
+            self.log.resume()
+            self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
+            self.printl('Stimulation ended, saving data to file')
+            self._save2file()
+            self.send({'trigger':'stim data ready'})
+            self.frame_rates = numpy.array(self.frame_rates)
+            fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
+            self.log.info(fri, source = 'stim')
+        except:
+            exc_info = sys.exc_info()
+            raise exc_info[0], exc_info[1], exc_info[2]#And reraise exception such that higher level modules could display it
+        finally:
+            self.close()#If something goes wrong, close serial port
+            
 
+    def close(self):
+        if hasattr(self.digital_output, 'release_instrument'):
+                self.digital_output.release_instrument()
 
     def printl(self, message, loglevel='info', stdio = True):
         utils.printl(self, message, loglevel, stdio)

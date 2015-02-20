@@ -14,19 +14,19 @@ class SerialPortDigitalIO(instrument.Instrument):
     Serial port lines are controlled as digital io lines
     '''
     def init_instrument(self):
-        if isinstance(self.config.SERIAL_DIO_PORT, list) and len(self.config.SERIAL_DIO_PORT)>1:
+        if isinstance(self.config.DIGITAL_IO_PORT, list) and len(self.config.DIGITAL_IO_PORT)>1:
             self.s = []
-            for port in self.config.SERIAL_DIO_PORT:
+            for port in self.config.DIGITAL_IO_PORT:
                 self.s.append(serial.Serial(port))
         else:
-            self.s = [serial.Serial(self.config.SERIAL_DIO_PORT)]
+            self.s = [serial.Serial(self.config.DIGITAL_IO_PORT)]
         if os.name != 'nt':
             self.s.open()
         self.clear_pins()
             
     def clear_pins(self):
-        if isinstance(self.config.SERIAL_DIO_PORT, list):
-            n = len(self.config.SERIAL_DIO_PORT)
+        if isinstance(self.config.DIGITAL_IO_PORT, list):
+            n = len(self.config.DIGITAL_IO_PORT)
         else:
             n=1
         for i in range(n):
