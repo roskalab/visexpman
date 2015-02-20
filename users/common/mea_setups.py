@@ -13,6 +13,8 @@ class MEAConfig(HiMEAConfig):
     def _set_user_parameters(self):
         FULLSCREEN = True
         SCREEN_RESOLUTION = utils.cr([1024, 768])
+        SCREEN_UM_TO_PIXEL_SCALE = 1.0
+        COLOR_MASK = numpy.array([0.0, 1.0, 1.0])
         self.root_folder = fileop.select_folder_exists(['/mnt/rzws/experiment_data','r:\\experiment_data', '/tmp', 'c:\\temp'])
         LOG_PATH = self.root_folder
         EXPERIMENT_LOG_PATH = LOG_PATH        

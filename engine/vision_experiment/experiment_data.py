@@ -14,7 +14,7 @@ import tempfile
 import StringIO
 from PIL import Image
 
-from visexpman.engine.generic import utils,fileop,signal,videofile
+from visexpman.engine.generic import utils,fileop,signal,videofile,geometry
 from visexpman.engine import generic
 import hdf5io
 
@@ -483,6 +483,188 @@ def get_block_entry_indexes(sfi, block_name):
 def images2mip(rawdata, timeseries_dimension = 0):
     return rawdata.max(axis=timeseries_dimension)
 
+def detect_cells(rawdata, scale, cell_size):
+    from scipy.ndimage.filters import gaussian_filter,maximum_filter
+    from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
+    from scipy.ndimage.measurements import label
+    import skimage
+    from skimage import filter
+    minimal_cell_size = 0.25 #
+    maximal_cell_size = 1.1 #
+    sigma = 0.1 #cell size scaled
+    mip=images2mip(rawdata,2)[:,:,0]
+    cell_size_pixel = cell_size*scale
+    minimal_cell_area_pixels = (cell_size_pixel*minimal_cell_size*0.5)**2*numpy.pi
+    maximal_cell_area_pixels = (cell_size_pixel*maximal_cell_size*0.5)**2*numpy.pi
+    gaussian_filtered = gaussian_filter(mip, cell_size_pixel*sigma)
+    th=filter.threshold_otsu(gaussian_filtered)
+    gaussian_filtered[gaussian_filtered<th] = 0
+    neighborhood = generate_binary_structure(gaussian_filtered.ndim,gaussian_filtered.ndim)
+    local_max = maximum_filter(gaussian_filtered, footprint=neighborhood)==gaussian_filtered
+    background_mask = (gaussian_filtered==0)
+    eroded_background_mask = binary_erosion(background_mask, structure=neighborhood, border_value=1)
+    centers = numpy.array(numpy.nonzero(local_max - eroded_background_mask)).T
+    cell_rois = []
+    for center in centers:
+        distances = list(numpy.sqrt(((centers-center)**2).sum(axis=1)))
+        distances.sort()
+        if distances[1]<cell_size_pixel:#Use a smaller bounding box if the closest roi is closer than nominal cell size
+            roi_size_factor = 1
+        else:
+            roi_size_factor = 1
+        roi_size = numpy.round((roi_size_factor*cell_size_pixel))
+        offset = numpy.round(numpy.array([center[0]-0.5*roi_size, center[1]-0.5*roi_size]))
+        offset = numpy.where(offset<0, 0, offset)
+        for i in range(offset.shape[0]):
+            if offset[i]>mip.shape[i]:
+                offset[i] = mip.shape[i]-1
+        roi = mip[offset[0]:offset[0]+roi_size, offset[1]:offset[1]+roi_size]
+        center_pixel_value = roi[roi.shape[0]/2-1:roi.shape[0]/2+1,roi.shape[1]/2-1:roi.shape[1]/2+1].mean()
+        bright_pixels_saturated = numpy.where(roi>center_pixel_value,center_pixel_value, roi)
+        roi_th = filter.threshold_otsu(bright_pixels_saturated)
+        roi_binary = numpy.where(bright_pixels_saturated>roi_th,1,0)
+        labeled, nlabels = label(roi_binary)
+        center_pixels = labeled[labeled.shape[0]/2-1:labeled.shape[0]/2+1,labeled.shape[1]/2-1:labeled.shape[1]/2+1]
+        center_label = center_pixels.mean()
+        if center_pixels.std() == 0 and center_label>0:#all pixels are labeled with the same value
+            one_labeled = numpy.cast['uint8'](numpy.where(labeled==center_label,1,0))
+            roi_coordinates = numpy.array(numpy.nonzero(one_labeled))
+            #Exclude roi if roi edges are touched
+            if numpy.where(numpy.logical_or(roi_coordinates==0, roi_coordinates==roi_size-1))[0].shape[0]>0.5*roi_size:
+                continue
+            #calculate perimeter and diameter. Accept as cell if it is close to circle
+            inner_pixel_coordinates = numpy.array(numpy.where(scipy.ndimage.filters.convolve(one_labeled, numpy.ones((3,3)))==9))
+            perimeter = roi_coordinates.shape[1] - inner_pixel_coordinates[0].shape[0]
+            area = roi_coordinates.shape[1]
+            #Diameter: get two furthest points
+            import itertools
+            #Checking the distance between all pixels. Optimal would be to do it for perimeter pixels
+            diameter = max([numpy.sqrt(((roi_coordinates[:,ci[0]]-roi_coordinates[:,ci[1]])**2).sum()) for ci in [i for i in itertools.combinations(range(roi_coordinates.shape[1]), 2)]])
+            #perimeter/diameter shall be around pi
+            peri_diam_ratio = perimeter/diameter
+            if (peri_diam_ratio<1.5*numpy.pi) and \
+                            (area > minimal_cell_area_pixels and area < maximal_cell_area_pixels):
+                #Transform these coordinates back to mip coordinates
+                cell_rois.append(numpy.cast['int']((roi_coordinates.T+offset).T))
+    return mip,cell_rois
+    
+def get_roi_curves(rawdata, cell_rois):
+    return [numpy.cast['float'](rawdata[cell_roi[0], cell_roi[1], :,0]).mean(axis=0) for cell_roi in cell_rois]
+        
+def get_data_timing(filename):
+    from pylab import imshow,show,plot,figure,title#TMP
+    m=matlabfile.MatData(filename.replace('.hdf5', '.mat'))
+    indexes = numpy.where(m.get_field('DATA.0.DI0.y',copy_field=False)[0][0][0][1])[0]
+    stimulus_time = m.get_field('DATA.0.DI0.y',copy_field=False)[0][0][0][0][indexes]/1e6#1 us per count
+    indexes = numpy.where(m.get_field('DATA.0.SyncFrame.y',copy_field=False)[0][0][0][1])[0]
+    imaging_time = m.get_field('DATA.0.SyncFrame.y',copy_field=False)[0][0][0][0][indexes]/1e6#1 us per count
+    h=hdf5io.Hdf5io(filename,filelocking=False)
+    rawdata = h.findvar('rawdata')
+    imaging_time = imaging_time[:rawdata.shape[2]]
+    import visexpA.engine.component_guesser as cg
+    sfi = h.findvar('_'.join(cg.get_mes_name_timestamp(h)))['stimulus_frame_info']
+    block_times, stimulus_parameter_times,block_info, organized_blocks = process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
+    
+    scale = h.findvar('image_scale')['row'][0]
+    mip,cell_rois = experiment_data.detect_cells(rawdata, scale, 12)
+    roi_curves = experiment_data.get_roi_curves(rawdata, cell_rois)
+    #def plot_receptive_field_stimulus()
+    
+    
+    h.close()
+    
+
+    
+    
+def sfi2signature(sfi):
+    '''
+    Remove varying keys from stimulus frame info
+    '''
+    import copy
+    sfisig = []
+    for sfii in sfi:
+        if sfii.has_key('parameters'):
+            item = copy.deepcopy(sfii)
+            item.update(item['parameters'])
+            removable_keys = ['elapsed_time', 'counter', 'data_series_index', 'flip', 'parameters', 'count', 'frame_trigger']
+            for k in removable_keys:
+                if item.has_key(k):
+                    del item[k]
+            sfisig.append(item)
+    return sfisig
+
+def cmp_signature(sig1, sig2):
+    if len(sig1) != len(sig2):
+        return False
+    else:
+        for i in range(len(sig1)):
+            if cmp(sig1[i], sig2[i]) != 0:
+                return False
+        return True
+    
+def sfi2blocks(sfi):
+    '''
+    Group stimulus frame info entries into blocks
+    '''
+    block_start_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_start')]
+    block_end_indexes = [i for i in range(len(sfi)) if sfi[i].has_key('block_end')]
+    grouped_sfi_by_blocks = []
+    for i in range(len(block_start_indexes)):
+        grouped_sfi_by_blocks.append(sfi[block_start_indexes[i]+1:block_end_indexes[i]])
+    return grouped_sfi_by_blocks
+    
+def stimulus_frame_counter2image_frame_counter(ct, imaging_time, stimulus_time):
+    stim_time_value = stimulus_time[ct]
+    return numpy.where(imaging_time>=stim_time_value)[0][0]
+    
+def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
+    #Collect parameter names
+    parnames = []
+    for sfii in sfi:
+        if sfii.has_key('parameters'):
+            parnames.extend(sfii['parameters'].keys())
+    parnames = list(set(parnames))
+    map(parnames.remove, ['frame_trigger', 'count', 'flip'])
+    #assign frame counts and values to each parameters
+    stimulus_parameter_times = {}
+    block_times = []
+    for sfii in sfi:
+        if sfii.has_key('parameters'):
+            for k in parnames:
+                if sfii['parameters'].has_key(k):
+                    if not stimulus_parameter_times.has_key(k):
+                        stimulus_parameter_times[k] = []
+                    stimulus_parameter_times[k].append([sfii['counter'], stimulus_frame_counter2image_frame_counter(sfii['counter'], imaging_time, stimulus_time), sfii['parameters'][k]])
+        elif sfii.has_key('block_start'):
+            block_times.append([stimulus_frame_counter2image_frame_counter(sfii['block_start'], imaging_time, stimulus_time), 1])
+        elif sfii.has_key('block_end'):
+            block_times.append([stimulus_frame_counter2image_frame_counter(sfii['block_end'], imaging_time, stimulus_time), 0])
+    block_times = numpy.array(block_times)
+    grouped_sfi_by_blocks = sfi2blocks(sfi)
+    block_signatures = [sfi2signature(block_sfi) for block_sfi in grouped_sfi_by_blocks]
+    block_boundaries = []
+    for b in grouped_sfi_by_blocks:
+        c=[item['counter'] for item in b]
+        block_boundaries.append([min(c), max(c)])
+    block_info = [{'sig': block_signatures[i], 'start': block_boundaries[i][0], 'end': block_boundaries[i][1]} for i in range(len(block_boundaries))]
+    #Calculate time and frame indexes for each block
+    for block_info_i in block_info:
+        for e in ['start', 'end']:
+            block_info_i[e] = stimulus_frame_counter2image_frame_counter(block_info_i[e], imaging_time, stimulus_time)
+    
+    #Find repetitions
+    organized_blocks = [[block_info[0]]]
+    import itertools
+    for b1, b2 in itertools.combinations(block_info, 2):
+        if not cmp_signature(b1['sig'],b2['sig']) and [b2] not in organized_blocks:
+            organized_blocks.append([b2])
+    #Find repetitions and group them
+    for organized_block in organized_blocks:
+        for block_info_i in block_info:
+            if cmp_signature(block_info_i['sig'],organized_block[0]['sig']) and block_info_i not in organized_block:
+                organized_block.append(block_info_i)
+    return block_times, stimulus_parameter_times,block_info, organized_blocks
+
 class TestExperimentData(unittest.TestCase):
     @unittest.skip("")
     def test_01_read_merge_rois(self):
@@ -534,58 +716,41 @@ class TestExperimentData(unittest.TestCase):
                     savefig('r:\\temp\\plot\\'+os.path.split(file)[1]+'.png')
                     clf()
 #                    h.close()
+
     def test_06_find_cells(self):
-        from pylab import imshow,show,plot
+        '''
+        Issue: two cells close to each other 
+        '''
+        from pylab import imshow,show,plot,figure,title
         from scipy.ndimage.filters import gaussian_filter,maximum_filter
         from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
+        from scipy.ndimage.measurements import label
+        import skimage
         from skimage import filter
         from PIL import ImageDraw
+        figct = 1
         fn = '/mnt/rzws/temp/cell_detection_test_data.mat'
         folder = '/mnt/rzws/test_data/cortical_cell_detection'
         cell_size = 12#um
+        minimal_cell_size = 0.25 #
+        maximal_cell_size = 1.1 #
         sigma = 0.1 #cell size scaled
         for fn in fileop.listdir_fullpath(folder):
             if '68975' not in fn: continue
             data = scipy.io.loadmat(fn)
             rawdata = data['rawdata']
             scale = data['image_scale']['row'][0][0][0][0]
-            
-            mip=images2mip(rawdata,2)[:,:,0]
-            mip = anti_zigzag(mip)
-            gaussian_filtered = gaussian_filter(mip, cell_size*scale*sigma)
-            th=filter.threshold_otsu(gaussian_filtered)
-            gaussian_filtered[gaussian_filtered<th] = 0
-            neighborhood = generate_binary_structure(gaussian_filtered.ndim,gaussian_filtered.ndim)
-            local_max = maximum_filter(gaussian_filtered, footprint=neighborhood)==gaussian_filtered
-            background_mask = (gaussian_filtered==0)
-            eroded_background_mask = binary_erosion(background_mask, structure=neighborhood, border_value=1)
-            centers = numpy.nonzero(local_max - eroded_background_mask)
-            from visexpA.engine.dataprocessors.roi import ratio_center_perimeter
-            centers = utils.cr((centers[0],centers[1]))
-            if 1:
-                radii, cell_centers, cent_perim_means = ratio_center_perimeter(mip, centers, [int(1*cell_size/scale)])
-            else:
-                cell_centers = centers
-            
-            
-            
-            im = numpy.zeros((mip.shape[0],mip.shape[1]*2,3))
-            im[:,:mip.shape[1],1]=mip
-            im[:,mip.shape[1]:,0] = numpy.cast['float'](local_max - eroded_background_mask)*mip.max()
-            im[:,mip.shape[1]:,1] = mip
-            
-            
-            
-            imc=Image.new('L', mip.shape)
-            d=ImageDraw.Draw(imc)
-            for i in range(cell_centers.shape[0]):
-                d.ellipse((cell_centers[i]['col']-0.5*radii[i], cell_centers[i]['row']-0.5*radii[i], cell_centers[i]['col']+0.5*radii[i], cell_centers[i]['row']+0.5*radii[i]),fill = 1)
-            
-            im[:,mip.shape[1]:,2] = numpy.cast['float'](numpy.asarray(imc).T)*mip.max()*0.5
-            
+            mip,cell_rois = detect_cells(rawdata, scale, cell_size)
+            im = numpy.zeros((mip.shape[0],mip.shape[1]*1,3))
+#            im[:,:mip.shape[1],0] = numpy.cast['float'](local_max - eroded_background_mask)*mip.max()
+            im[:,:mip.shape[1],1] = mip
+            for r in cell_rois:
+                im[:,:mip.shape[1],2][r[0],r[1]] = mip.max()*(0.4+0.6*numpy.random.random())
+                im[:,:mip.shape[1],0][r[0],r[1]] = mip.max()*(0.4+0.6*numpy.random.random())
             Image.fromarray(numpy.cast['uint8'](signal.scale(im, 0, 255))).save('/tmp/1/{0}.png'.format(os.path.split(fn)[1]))
-            pass
-#            imshow(gaussian_filter(mip,1), cmap='gray');show()
+            roi_curves = get_roi_curves(rawdata, cell_rois)
+            map(plot, roi_curves);show()
+
         pass
         
 def anti_zigzag(im):
