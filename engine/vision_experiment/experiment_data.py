@@ -552,26 +552,53 @@ def get_roi_curves(rawdata, cell_rois):
     return [numpy.cast['float'](rawdata[cell_roi[0], cell_roi[1], :,0]).mean(axis=0) for cell_roi in cell_rois]
         
 def get_data_timing(filename):
-    from pylab import imshow,show,plot,figure,title#TMP
+    from pylab import imshow,show,plot,figure,title,subplot#TMP
+    from visexpA.engine.datahandlers import matlabfile
     m=matlabfile.MatData(filename.replace('.hdf5', '.mat'))
     indexes = numpy.where(m.get_field('DATA.0.DI0.y',copy_field=False)[0][0][0][1])[0]
     stimulus_time = m.get_field('DATA.0.DI0.y',copy_field=False)[0][0][0][0][indexes]/1e6#1 us per count
     indexes = numpy.where(m.get_field('DATA.0.SyncFrame.y',copy_field=False)[0][0][0][1])[0]
     imaging_time = m.get_field('DATA.0.SyncFrame.y',copy_field=False)[0][0][0][0][indexes]/1e6#1 us per count
-    h=hdf5io.Hdf5io(filename,filelocking=False)
-    rawdata = h.findvar('rawdata')
+#    h=hdf5io.Hdf5io(filename,filelocking=False)
+    if 0:
+        import visexpA.engine.component_guesser as cg
+        rawdata = h.findvar('rawdata')
+        sfi = h.findvar('_'.join(cg.get_mes_name_timestamp(h)))['stimulus_frame_info']
+        scale = h.findvar('image_scale')['row'][0]
+    else:
+        rawdata = utils.array2object(numpy.load(os.path.split(filename)[0]+'/rawdata.npy'))
+        sfi = hdf5io.read_item(os.path.split(filename)[0]+'/sfi.hdf5', 'sfi', filelocking=False)
+        scale = 1.42624
     imaging_time = imaging_time[:rawdata.shape[2]]
-    import visexpA.engine.component_guesser as cg
-    sfi = h.findvar('_'.join(cg.get_mes_name_timestamp(h)))['stimulus_frame_info']
     block_times, stimulus_parameter_times,block_info, organized_blocks = process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
     
-    scale = h.findvar('image_scale')['row'][0]
-    mip,cell_rois = experiment_data.detect_cells(rawdata, scale, 12)
-    roi_curves = experiment_data.get_roi_curves(rawdata, cell_rois)
+    
+    mip,cell_rois = detect_cells(rawdata, scale, 12)
+    roi_curves = get_roi_curves(rawdata, cell_rois)
     #def plot_receptive_field_stimulus()
-    
-    
-    h.close()
+    #match positions with curve fragments
+    positioned_curves = []
+    positions = []
+    for ob in organized_blocks:
+        pos = ob[0]['sig'][2]['pos']
+        positions.append([pos['col'], pos['row']])
+        roi_curve_fragment = [[roi_curve[obi['start']:obi['end']] for obi in ob] for roi_curve in roi_curves]
+        positioned_curves.append([pos, ob[0]['sig'][2]['color'], roi_curve_fragment])
+    positions = numpy.array(positions)
+    nrows = len(set(positions[:,1]))
+    ncols = len(set(positions[:,0]))
+    col_start = positions[:,0].min()
+    row_start = positions[:,1].min()
+    grid_size = organized_blocks[0][0]['sig'][2]['size']['row']
+    selected_roi = 1
+    for positioned_curve in positioned_curves:
+        ploti = (positioned_curve[0]['row']-row_start)/grid_size*ncols+(positioned_curve[0]['col']-col_start)/grid_size+1
+        subplot(nrows, ncols, ploti)
+        for i in range(len(positioned_curve[2][selected_roi])):
+            plot(positioned_curve[2][selected_roi][i], color = [1.0, 0.0, 0.0] if positioned_curve[1] == 1 else [0.0, 0.0, 0.0])
+    pass
+    show()
+#    h.close()
     
 
     
@@ -656,7 +683,7 @@ def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
     organized_blocks = [[block_info[0]]]
     import itertools
     for b1, b2 in itertools.combinations(block_info, 2):
-        if not cmp_signature(b1['sig'],b2['sig']) and [b2] not in organized_blocks:
+        if not cmp_signature(b1['sig'],b2['sig']) and len([ob for ob in organized_blocks if cmp_signature(ob[0]['sig'], b2['sig'])])==0:
             organized_blocks.append([b2])
     #Find repetitions and group them
     for organized_block in organized_blocks:
@@ -717,6 +744,7 @@ class TestExperimentData(unittest.TestCase):
                     clf()
 #                    h.close()
 
+    @unittest.skip("")
     def test_06_find_cells(self):
         '''
         Issue: two cells close to each other 
@@ -752,6 +780,11 @@ class TestExperimentData(unittest.TestCase):
             map(plot, roi_curves);show()
 
         pass
+        
+    def test_07_receptive_field_stim_plot(self):
+        fn='/home/rz/codes/data/recfield/fragment_xy_tr_0_0_0.0_ReceptiveFieldExploreNew_1424256866_0.hdf5'
+        get_data_timing(fn)
+        
         
 def anti_zigzag(im):
     shifts = [shift_between_arrays(im[line],im[line+1]) for line in range(im.shape[1]-1)]
