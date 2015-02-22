@@ -552,7 +552,7 @@ def get_roi_curves(rawdata, cell_rois):
     return [numpy.cast['float'](rawdata[cell_roi[0], cell_roi[1], :,0]).mean(axis=0) for cell_roi in cell_rois]
         
 def get_data_timing(filename):
-    from pylab import imshow,show,plot,figure,title,subplot#TMP
+    from pylab import imshow,show,plot,figure,title,subplot,clf,savefig#TMP
     from visexpA.engine.datahandlers import matlabfile
     m=matlabfile.MatData(filename.replace('.hdf5', '.mat'))
     indexes = numpy.where(m.get_field('DATA.0.DI0.y',copy_field=False)[0][0][0][1])[0]
@@ -591,17 +591,29 @@ def get_data_timing(filename):
     row_start = positions[:,1].min()
     grid_size = organized_blocks[0][0]['sig'][2]['size']['row']
     selected_roi = 1
-    for positioned_curve in positioned_curves:
-        ploti = (positioned_curve[0]['row']-row_start)/grid_size*ncols+(positioned_curve[0]['col']-col_start)/grid_size+1
-        subplot(nrows, ncols, ploti)
-        for i in range(len(positioned_curve[2][selected_roi])):
-            plot(positioned_curve[2][selected_roi][i], color = [1.0, 0.0, 0.0] if positioned_curve[1] == 1 else [0.0, 0.0, 0.0])
-    pass
-    show()
-#    h.close()
-    
-
-    
+    for roi_i in range(len(roi_curves)):
+        for positioned_curve in positioned_curves:
+            ploti = (positioned_curve[0]['row']-row_start)/grid_size*ncols+(positioned_curve[0]['col']-col_start)/grid_size+1
+            subplot(nrows, ncols, ploti)
+            for i in range(len(positioned_curve[2][roi_i])):
+                title(numpy.round(utils.nd(positioned_curve[0])))
+                plot(positioned_curve[2][roi_i][i], color = [1.0, 0.0, 0.0] if positioned_curve[1] == 1 else [0.0, 0.0, 0.0])
+        fn=os.path.join(tempfile.gettempdir(), '{0:0=3}.png'.format(roi_i))
+        savefig(fn,dpi=300)
+        clf()
+        plotim=numpy.asarray(Image.open(fn))
+        mip_with_cell = numpy.zeros((mip.shape[0], mip.shape[1], 3),dtype=numpy.float)
+        mip_with_cell[:,:,1] = mip/mip.max()
+        for i in range(cell_rois[roi_i][0].shape[0]):
+            mip_with_cell[cell_rois[roi_i][0][i],cell_rois[roi_i][1][i], 0] = 0.5
+        scaling_factor = plotim.shape[0]/float(mip_with_cell.shape[0])
+        new_size = (int(mip_with_cell.shape[0]*scaling_factor),int(mip_with_cell.shape[1]*scaling_factor))
+        scaled = numpy.asarray(Image.fromarray(numpy.cast['uint8'](255*mip_with_cell)).resize(new_size))
+        merged = numpy.zeros((max(scaled.shape[0],plotim.shape[0]), scaled.shape[1]+plotim.shape[1], 3))
+        merged[:scaled.shape[0], :scaled.shape[1],:] = scaled
+        merged[:plotim.shape[0], scaled.shape[1]:,:] = plotim[:,:,:3]
+        Image.fromarray(numpy.cast['uint8'](merged)).save(fn)
+        
     
 def sfi2signature(sfi):
     '''
