@@ -4,6 +4,9 @@ from visexpman.engine.generic import utils
 
 class Angle0(experiment.ExperimentConfig):
     def _create_parameters(self):
+        ##### IMPORTANT #####
+        #If any parameter is changed the experiment duration might also change. The duration has to be measured and FRAGMENT_DURATION parameter needs to be updated.
+        self.FRAGMENT_DURATION = 470
         self.SPEEDS = [400]
         self.LOOM_START_SIZE = 50
         self.LOOMING_SHAPES = ['rect', 'spot', 'triangle', 'star4', 'star5']
@@ -44,7 +47,7 @@ class Angle315(Angle0):
     
 class AngleStimulus(experiment.Experiment):
     def prepare(self):
-        self.fragment_durations = [470]
+        self.fragment_durations = [self.experiment_config.FRAGMENT_DURATION]
     
     def pause(self):
         self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE*0.5)

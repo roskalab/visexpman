@@ -1193,6 +1193,7 @@ class StimulationSequences(Stimulations):
                                                                             off_time = off_time)
         if random_order:
             import random
+#            random.seed(0)
             random.shuffle(positions)
         self.show_fullscreen(color = background_color, duration = off_time)
         for r1 in range(sequence_repeat):

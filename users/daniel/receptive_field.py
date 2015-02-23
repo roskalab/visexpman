@@ -8,14 +8,14 @@ from visexpman.engine.vision_experiment import experiment
 class ReceptiveFieldExploreNew(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.SHAPE = 'rect'
-        self.COLORS = [1.0, 0.0]
-        self.BACKGROUND_COLOR = 0.25
-        self.SHAPE_SIZE = 300.0*3
-        self.ON_TIME = 1.0*2
+        self.COLORS = [1.0]
+        self.BACKGROUND_COLOR = 0.0
+        self.SHAPE_SIZE = 300.0
+        self.ON_TIME = 1.0
         self.OFF_TIME = 2.0
-        self.REPEATS = 2
+        self.REPEATS = 1
         self.REPEAT_SEQUENCE = 1
-        self.ENABLE_RANDOM_ORDER = False
+        self.ENABLE_RANDOM_ORDER = not False
         self.runnable='ReceptiveFieldExplore'
         self._create_parameters_from_locals(locals())
 
