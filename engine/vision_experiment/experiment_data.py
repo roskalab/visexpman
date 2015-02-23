@@ -504,7 +504,11 @@ def detect_cells(rawdata, scale, cell_size):
     background_mask = (gaussian_filtered==0)
     eroded_background_mask = binary_erosion(background_mask, structure=neighborhood, border_value=1)
     centers = numpy.array(numpy.nonzero(local_max - eroded_background_mask)).T
+    print 'Found {0} maximums'.format(centers.shape[0])
     cell_rois = []
+    if centers.shape[0]>200 and mip.max()<200:
+        print 'the recording is probably just noise'
+        return mip, cell_rois
     for center in centers:
         distances = list(numpy.sqrt(((centers-center)**2).sum(axis=1)))
         distances.sort()
@@ -512,12 +516,13 @@ def detect_cells(rawdata, scale, cell_size):
             roi_size_factor = 1
         else:
             roi_size_factor = 1
-        roi_size = numpy.round((roi_size_factor*cell_size_pixel))
+        roi_size = int(numpy.round((roi_size_factor*cell_size_pixel)))
         offset = numpy.round(numpy.array([center[0]-0.5*roi_size, center[1]-0.5*roi_size]))
         offset = numpy.where(offset<0, 0, offset)
         for i in range(offset.shape[0]):
             if offset[i]>mip.shape[i]:
                 offset[i] = mip.shape[i]-1
+        offset=numpy.cast['int'](offset)
         roi = mip[offset[0]:offset[0]+roi_size, offset[1]:offset[1]+roi_size]
         center_pixel_value = roi[roi.shape[0]/2-1:roi.shape[0]/2+1,roi.shape[1]/2-1:roi.shape[1]/2+1].mean()
         bright_pixels_saturated = numpy.where(roi>center_pixel_value,center_pixel_value, roi)
@@ -552,15 +557,14 @@ def get_roi_curves(rawdata, cell_rois):
     return [numpy.cast['float'](rawdata[cell_roi[0], cell_roi[1], :,0]).mean(axis=0) for cell_roi in cell_rois]
         
 def get_data_timing(filename):
-    from pylab import imshow,show,plot,figure,title,subplot,clf,savefig#TMP
     from visexpA.engine.datahandlers import matlabfile
     m=matlabfile.MatData(filename.replace('.hdf5', '.mat'))
     indexes = numpy.where(m.get_field('DATA.0.DI0.y',copy_field=False)[0][0][0][1])[0]
     stimulus_time = m.get_field('DATA.0.DI0.y',copy_field=False)[0][0][0][0][indexes]/1e6#1 us per count
     indexes = numpy.where(m.get_field('DATA.0.SyncFrame.y',copy_field=False)[0][0][0][1])[0]
     imaging_time = m.get_field('DATA.0.SyncFrame.y',copy_field=False)[0][0][0][0][indexes]/1e6#1 us per count
-#    h=hdf5io.Hdf5io(filename,filelocking=False)
-    if 0:
+    h=hdf5io.Hdf5io(filename,filelocking=False)
+    if 1:
         import visexpA.engine.component_guesser as cg
         rawdata = h.findvar('rawdata')
         sfi = h.findvar('_'.join(cg.get_mes_name_timestamp(h)))['stimulus_frame_info']
@@ -571,12 +575,26 @@ def get_data_timing(filename):
         scale = 1.42624
     imaging_time = imaging_time[:rawdata.shape[2]]
     block_times, stimulus_parameter_times,block_info, organized_blocks = process_stimulus_frame_info(sfi, stimulus_time, imaging_time)
+    if 'grating' not in filename.lower():
+        print 'Detect cells'
+        mip,cell_rois = detect_cells(rawdata, scale, 12)
+        roi_curves = get_roi_curves(rawdata, cell_rois)
+    h.quick_analysis = {}
+    if 'grating' not in filename.lower():
+        h.quick_analysis['roi_curves']=roi_curves
+        h.quick_analysis['cell_rois']=cell_rois
+    h.quick_analysis['block_times']=block_times
+    h.quick_analysis['stimulus_parameter_times']=utils.object2array(stimulus_parameter_times)
+    h.quick_analysis['block_info']=block_info
+    h.quick_analysis['organized_blocks']=organized_blocks
+    h.save('quick_analysis')
+    if 'receptive' in filename.lower():
+        plot_receptive_field_stimulus(organized_blocks,roi_curves, mip)
+    h.close()
     
-    
-    mip,cell_rois = detect_cells(rawdata, scale, 12)
-    roi_curves = get_roi_curves(rawdata, cell_rois)
-    #def plot_receptive_field_stimulus()
-    #match positions with curve fragments
+def plot_receptive_field_stimulus(organized_blocks,roi_curves, mip):
+    '''match positions with curve fragments'''
+    from pylab import imshow,show,plot,figure,title,subplot,clf,savefig#TMP
     positioned_curves = []
     positions = []
     for ob in organized_blocks:
@@ -598,7 +616,10 @@ def get_data_timing(filename):
             for i in range(len(positioned_curve[2][roi_i])):
                 title(numpy.round(utils.nd(positioned_curve[0])))
                 plot(positioned_curve[2][roi_i][i], color = [1.0, 0.0, 0.0] if positioned_curve[1] == 1 else [0.0, 0.0, 0.0])
-        fn=os.path.join(tempfile.gettempdir(), '{0:0=3}.png'.format(roi_i))
+        outfolder = tempfile.gettempdir() if 1 else os.path.join(os.path.split(filename)[0], out, os.path.split(filename)[1])
+        if not os.path.exists(outfolder):
+            os.path.makedirs(outfolder)
+        fn=os.path.join(outfolder, '{1}-{0:0=3}.png'.format(roi_i, os.path.split(filename)[1]))
         savefig(fn,dpi=300)
         clf()
         plotim=numpy.asarray(Image.open(fn))
@@ -613,7 +634,6 @@ def get_data_timing(filename):
         merged[:scaled.shape[0], :scaled.shape[1],:] = scaled
         merged[:plotim.shape[0], scaled.shape[1]:,:] = plotim[:,:,:3]
         Image.fromarray(numpy.cast['uint8'](merged)).save(fn)
-        
     
 def sfi2signature(sfi):
     '''
@@ -633,6 +653,9 @@ def sfi2signature(sfi):
     return sfisig
 
 def cmp_signature(sig1, sig2):
+    '''
+    Compares two stimulus block signatures
+    '''
     if len(sig1) != len(sig2):
         return False
     else:
@@ -653,17 +676,24 @@ def sfi2blocks(sfi):
     return grouped_sfi_by_blocks
     
 def stimulus_frame_counter2image_frame_counter(ct, imaging_time, stimulus_time):
+    '''
+    stimulus frame counter values is converted to image data frame index using timing information
+    '''
     stim_time_value = stimulus_time[ct]
     return numpy.where(imaging_time>=stim_time_value)[0][0]
     
 def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
+    '''
+    1) Organizes stimulus frame info into blocks and repetitions
+    2) Stimulus function call parameters (size, position, color etc) are matched with imaging frame index
+    '''
     #Collect parameter names
     parnames = []
     for sfii in sfi:
         if sfii.has_key('parameters'):
             parnames.extend(sfii['parameters'].keys())
     parnames = list(set(parnames))
-    map(parnames.remove, ['frame_trigger', 'count', 'flip'])
+    [parnames.remove(pn) for pn in ['frame_trigger', 'count', 'flip'] if pn in parnames]
     #assign frame counts and values to each parameters
     stimulus_parameter_times = {}
     block_times = []
@@ -673,11 +703,15 @@ def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
                 if sfii['parameters'].has_key(k):
                     if not stimulus_parameter_times.has_key(k):
                         stimulus_parameter_times[k] = []
-                    stimulus_parameter_times[k].append([sfii['counter'], stimulus_frame_counter2image_frame_counter(sfii['counter'], imaging_time, stimulus_time), sfii['parameters'][k]])
+                    if sfii['parameters'][k] is not None and sfii['parameters'][k] != {} and sfii['parameters'][k] != []:#hdf5io cannot handle this data
+                        stimulus_parameter_times[k].append([sfii['counter'], stimulus_frame_counter2image_frame_counter(sfii['counter'], imaging_time, stimulus_time), sfii['parameters'][k]])
         elif sfii.has_key('block_start'):
             block_times.append([stimulus_frame_counter2image_frame_counter(sfii['block_start'], imaging_time, stimulus_time), 1])
         elif sfii.has_key('block_end'):
             block_times.append([stimulus_frame_counter2image_frame_counter(sfii['block_end'], imaging_time, stimulus_time), 0])
+    for k in stimulus_parameter_times.keys():
+        if stimulus_parameter_times[k] == []:
+            del stimulus_parameter_times[k]
     block_times = numpy.array(block_times)
     grouped_sfi_by_blocks = sfi2blocks(sfi)
     block_signatures = [sfi2signature(block_sfi) for block_sfi in grouped_sfi_by_blocks]
@@ -690,7 +724,8 @@ def process_stimulus_frame_info(sfi, stimulus_time, imaging_time):
     for block_info_i in block_info:
         for e in ['start', 'end']:
             block_info_i[e] = stimulus_frame_counter2image_frame_counter(block_info_i[e], imaging_time, stimulus_time)
-    
+    if len(block_info) ==0:
+        return None, stimulus_parameter_times,None,None
     #Find repetitions
     organized_blocks = [[block_info[0]]]
     import itertools
