@@ -1128,7 +1128,7 @@ class ExperimentControl(gui.WidgetControl):
             return
         function_call = {'function': 'live_scan_start', 'args': [self.check_scan_parameters(experiment=False)]}
         self.poller.send(function_call,connection='ca_imaging')
-        self.poller.plotdata = {}
+        self.poller.clear_curves()
         
     def live_scan_stop(self):
         if len([r for r in self.poller.animal_file.recordings if r['status'] == 'running' or r['status'] == 'preparing' or r['status'] == 'queued'])>0:
@@ -1180,6 +1180,7 @@ class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
     def create_widgets(self):
         self.cell_name = gui.LabeledInput(self, 'Cell name')
         self.cell_name.setToolTip('Providing cell name is not mandatory')
+        self.cell_name.setFixedWidth(270)
         self.enable_scanner_synchronization = QtGui.QCheckBox(self)
         self.enable_scanner_synchronization.setText('Scanner-stimulus synchronization')
         self.enable_scanner_synchronization.setToolTip('Synchronize stimulation with two photon scanning')
@@ -1188,12 +1189,15 @@ class RetinalExperimentOptionsGroupBox(QtGui.QGroupBox):
         rec_channels.append('Electrophysiology signal')
         self.recording_channel = gui.LabeledListWidget(self, 'Recording channels', items = rec_channels)
         self.recording_channel.setFixedHeight(100)
+        self.recording_channel.setFixedWidth(270)
         self.recording_channel.setToolTip('Selection of any channels enables calcium or electrophysiology signal recording.\nSelect none of the PMTs for disabling calcium imaging.\nMultiple channels can be also selected.' )
         self.scanning_range = gui.LabeledInput(self, 'Scan range (height, width) [um]')
+        self.scanning_range.setFixedWidth(270)
         self.resolution_label = QtGui.QLabel('Pixel size', self)
         self.resolution_unit = QtGui.QComboBox(self)
         self.resolution_unit.addItems(QtCore.QStringList(['pixel/um', 'um/pixel', 'us']))
         self.pixel_size = QtGui.QLineEdit(self)
+        self.pixel_size.setFixedWidth(70)
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -1881,10 +1885,14 @@ class Plot(Qwt.QwtPlot):
         self.setAxisScale(Qwt.QwtPlot.xBottom, 0, duration)
         
     def update(self, curves):
-        for ci in range(len(curves)):
-            if curves[ci] == []:
-                continue
-            self.curves[ci].setData(curves[ci][0], curves[ci][1])
+        if curves is None:
+             for ci in range(3):
+                 self.curves[ci].setData([],[])
+        else:
+            for ci in range(len(curves)):
+                if curves[ci] == []:
+                    continue
+                self.curves[ci].setData(curves[ci][0], curves[ci][1])
 #        self.setAxisScale(Qwt.QwtPlot.yLeft, min(data), max(data))
         self.replot()
         
@@ -1998,20 +2006,20 @@ class MainWidget(QtGui.QWidget):
         
     def create_widgets(self):
         self.experiment_control_groupbox = ExperimentControlGroupBox(self)
-        self.experiment_control_groupbox.setFixedWidth(350)
+        self.experiment_control_groupbox.setMaximumWidth(350)
         self.experiment_control_groupbox.setFixedHeight(150)
         if self.config.PLATFORM == 'elphys_retinal_ca':
             self.experiment_options_groupbox = RetinalExperimentOptionsGroupBox(self)
             self.toolbox = RetinalToolbox(self)
         elif self.config.PLATFORM == 'rc_cortical' or self.config.PLATFORM == 'ao_cortical':
             self.experiment_options_groupbox = CorticalExperimentOptionsGroupBox(self)
-        self.experiment_options_groupbox.setFixedWidth(350)
+        self.experiment_options_groupbox.setMaximumWidth(350)
         self.experiment_options_groupbox.setFixedHeight(380)
         self.recording_status = RecordingStatusGroupbox(self)
-        self.recording_status.setFixedWidth(400)
+        self.recording_status.setMaximumWidth(400)
         self.recording_status.setFixedHeight(300)
         self.experiment_parameters = ExperimentParametersGroupBox(self)
-        self.experiment_parameters.setFixedWidth(400)
+        self.experiment_parameters.setMaximumWidth(400)
         self.experiment_parameters.setFixedHeight(230)
         self.experiment_parameters.values.setColumnWidth(0, 200)
 

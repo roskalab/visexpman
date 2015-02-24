@@ -116,6 +116,7 @@ class Poller(QtCore.QThread, queued_socket.QueuedSocketHelpers):
                     getattr(getattr(self, function_call[0]),function_call[1])()
                 except:
                     self.printc(traceback.format_exc())
+                    self.printc(function_call)
             elif hasattr(self, function_call):
                 try:
                     getattr(self, function_call)()
@@ -2842,7 +2843,11 @@ class VisexpGuiPoller(Poller):
             else:
                 for i in range(plotdata.shape[1]):
                     curves[1] = [t, plotdata[:,i]]
-        self.emit(QtCore.SIGNAL('update_curve'), curves)
+        self.emit(QtCore.SIGNAL('update_curve'), curves)        
+        
+    def clear_curves(self):
+        self.plotdata = {}
+        self.emit(QtCore.SIGNAL('update_curve'),  None)
     
     def _calculate_tdiff(self, msg, connection):
         self.sync_samples[connection].append(msg)
@@ -2934,8 +2939,8 @@ class VisexpGuiPoller(Poller):
                         trigger_name = msg['trigger']
                         arg = msg.get('arg', None)
                         if trigger_name=='imaging started' and arg=='started':
+                            self.clear_curves()
                             res = self.experiment_control.start_stimulation()
-                            self.plotdata = {}
                         elif trigger_name == 'stim started':
                             res = self.experiment_control.stimulation_started()
                             self.emit(QtCore.SIGNAL('set_experiment_progressbar_range'), self.experiment_control.current_stimulus_duration)

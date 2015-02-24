@@ -77,7 +77,7 @@ class ServerLoop(queued_socket.QueuedSocketHelpers):
                     break
                 if self.application_callback() == 'terminate':
                     break
-                time.sleep(0.1)#This delay might influence the performance of live scanning
+                time.sleep(0.05)#This delay might influence the performance of live scanning
             except:
                 self.printl(traceback.format_exc())
         self.at_process_end()

@@ -60,6 +60,7 @@ class MovingShapeExperiment(experiment.Experiment):
                                   background_color = self.shape_background,
                                   pause = self.pause_between_directions,
                                   repetition = self.experiment_config.REPETITIONS,
+                                  block_trigger = True,
                                   shape_starts_from_edge = True)
 
 class IncreasingSpotExperiment(experiment.Experiment):

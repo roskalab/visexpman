@@ -44,12 +44,14 @@ def check(h, config):
         ca_frame_trigger_edges = signal.trigger_indexes(ca_frame_trigger)
         block_trigger_edges = signal.trigger_indexes(block_trigger)
         if block_trigger_edges.shape[0]>0 and (block_trigger_edges.min() < ca_frame_trigger_edges.min() or block_trigger_edges.max() > ca_frame_trigger_edges.max()):
-            error_messages.append('Some parts of the stimulus might not be imaged')
+            error_messages.append('Some parts of the stimulus might not have been imaged')
         npulses = 0.5 * (ca_frame_trigger_edges.shape[0]-2)#Last pulse is ignored
         if h.imaging_run_info['acquired_frames'] < npulses and (1-h.imaging_run_info['acquired_frames']/npulses>5e-2 and abs(h.imaging_run_info['acquired_frames'] - npulses) >= 1):
             error_messages.append('Acquired frames ({0}) and generated pulses ({1}) differ'.format(h.imaging_run_info['acquired_frames'], npulses))
         #Check frame rate
         distance_between_edges = numpy.diff(ca_frame_trigger_edges)[:-1]
+        if distance_between_edges.shape[0]%2==1:#Sometimes the lenght of this array is odd and it causes errors when resized at frame durations calculations
+            distance_between_edges[:-1]
         try:
             frame_durations = numpy.cast['float'](distance_between_edges.reshape(distance_between_edges.shape[0]/2,2).sum(axis=1))/h.recording_parameters['elphys_sync_sample_rate']
         except ValueError:#TMP: this error has to be catched
