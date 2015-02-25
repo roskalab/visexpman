@@ -4,6 +4,7 @@ from visexpman.engine.generic import utils
 
 class Angle0(experiment.ExperimentConfig):
     def _create_parameters(self):
+        self.POSITION = utils.rc((100,0))
         self.SPEEDS = [400]
         self.LOOM_START_SIZE = 50
         self.LOOMING_SHAPES = ['rect', 'spot', 'triangle', 'star4', 'star5']
@@ -52,9 +53,9 @@ class AngleStimulus(experiment.Experiment):
                                 if self.abort:
                                     break
                                 if 'star' in shape:
-                                    self.show_shape(shape=shape[:-1], ncorners = int(shape[-1]), size = s*0.5, orientation = direction, background_color = bg, color = col)
+                                    self.show_shape(shape=shape[:-1], ncorners = int(shape[-1]), size = s*0.5, orientation = direction, background_color = bg, color = col, pos = self.experiment_config.POSITION)
                                 else:
-                                    self.show_shape(shape=shape, size = s, orientation = direction, background_color = bg, color = col)
+                                    self.show_shape(shape=shape, size = s, orientation = direction, background_color = bg, color = col, pos = self.experiment_config.POSITION)
                         
     def moving_combs(self, direction):
         for spd in self.experiment_config.SPEEDS:
@@ -62,13 +63,14 @@ class AngleStimulus(experiment.Experiment):
                 for rep in range(self.experiment_config.REPEATS):
                     self.pause()
                     self.moving_comb(speed=spd, orientation=direction, bar_width=self.experiment_config.BAR_WIDTH,
-                                tooth_size=self.experiment_config.TOOTH_SIZE, tooth_type=profile, contrast=1.0, background=0.0)
+                                tooth_size=self.experiment_config.TOOTH_SIZE, tooth_type=profile, contrast=1.0, background=0.0, pos = self.experiment_config.POSITION)
                     self.pause()
         
     def moving_T_and_L(self, direction):
         self.lt_longer_side = 0.7*min(self.machine_config.SCREEN_SIZE_UM['col'], self.machine_config.SCREEN_SIZE_UM['row'])
         for spd in self.experiment_config.SPEEDS:
             positions = self.moving_shape_trajectory(self.experiment_config.BAR_WIDTH, spd, [direction],1,pause=0.0,shape_starts_from_edge=True)
+            positions[0][0] = utils.rc_add(positions[0][0], self.experiment_config.POSITION)
             for sh in ['X', 'L']:
                 for ltangle in self.experiment_config.LT_ANGLES:
                     for ltpos in self.experiment_config.LT_POSITIONS:
@@ -85,12 +87,12 @@ class AngleStimulus(experiment.Experiment):
                                 break
                         if sh == 'X':
                             break
-        
+
     def moving_bars(self, direction):
         for spd in self.experiment_config.SPEEDS:
             for spd2 in self.experiment_config.SECOND_MOVING_BAR_SPEEDS:
                 for angle in self.experiment_config.SECOND_MOVING_BAR_ANGLES:
-                    second_bar_positions = [self.machine_config.SCREEN_CENTER, 
+                    second_bar_positions = [utils.rc_add(self.machine_config.SCREEN_CENTER,self.experiment_config.POSITION), 
                                         ]
                     for pos2 in second_bar_positions:
                         self.static_bar(direction+angle, pos2)
@@ -116,4 +118,4 @@ class AngleStimulus(experiment.Experiment):
 
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester
-    stimulation_tester('adrian', 'StimulusDevelopment', 'AngleTest', ENABLE_FRAME_CAPTURE=True)
+    stimulation_tester('adrian', 'StimulusDevelopment', 'Angle0', ENABLE_FRAME_CAPTURE=True)

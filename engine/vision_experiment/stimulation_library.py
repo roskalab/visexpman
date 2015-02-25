@@ -1052,25 +1052,25 @@ class AdvancedStimulation(StimulationHelpers):
     Stimulation sequences, helpers
     ''' 
     
-    def moving_comb(self, speed, orientation, bar_width, tooth_size, tooth_type, contrast, background):
+    def moving_comb(self, speed, orientation, bar_width, tooth_size, tooth_type, contrast, background,pos = utils.rc((0,0))):
         '''
         tooth_type: square, sawtooth
         '''
         self._save_stimulus_frame_info(inspect.currentframe(), is_last = False)
         bar_width_pix = self.config.SCREEN_UM_TO_PIXEL_SCALE*bar_width
         tooth_size_pix = self.config.SCREEN_UM_TO_PIXEL_SCALE*tooth_size
+        pos_pix = utils.rc_multiply_with_constant(pos, self.config.SCREEN_UM_TO_PIXEL_SCALE)
         converted_background_color = colors.convert_color(self.config.BACKGROUND_COLOR, self.config)
         combv,nshapes=self._draw_comb(orientation, bar_width_pix, tooth_size_pix, tooth_type)
         combv = geometry.rotate_point(utils.cr((combv[:,0],combv[:,1])),orientation,utils.cr((0,0)))
         combv = numpy.array([combv['col'], combv['row']]).T
         trajectories, trajectory_directions, duration = self.moving_shape_trajectory(bar_width, [speed], [orientation],1,0,shape_starts_from_edge=True)
-        v = []
         glEnableClientState(GL_VERTEX_ARRAY)
         nvertice = (combv.shape[0]-4)/(nshapes-1)
         for frame_i in range(trajectories[0].shape[0]):
             glClear (GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
             glColor3fv(colors.convert_color(contrast, self.config))
-            v=combv + numpy.array([trajectories[0][frame_i]['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE,trajectories[0][frame_i]['row']]*self.config.SCREEN_UM_TO_PIXEL_SCALE)
+            v=combv + numpy.array([trajectories[0][frame_i]['col']*self.config.SCREEN_UM_TO_PIXEL_SCALE+pos_pix['col'],trajectories[0][frame_i]['row']*self.config.SCREEN_UM_TO_PIXEL_SCALE+pos_pix['row']])
             glVertexPointerf(v)
             for shi in range(nshapes):
                 if shi == 0:
