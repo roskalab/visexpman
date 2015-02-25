@@ -22,6 +22,27 @@ class Angle0(experiment.ExperimentConfig):
         self.runnable = 'AngleStimulus'
         self._create_parameters_from_locals(locals())
 
+class Angle45(Angle0):
+    pass
+    
+class Angle90(Angle0):
+    pass
+
+class Angle135(Angle0):
+    pass
+    
+class Angle180(Angle0):
+    pass
+    
+class Angle225(Angle0):
+    pass
+    
+class Angle270(Angle0):
+    pass
+    
+class Angle315(Angle0):
+    pass
+    
 class AngleStimulus(experiment.Experiment):
     def prepare(self):
         self.fragment_durations = [200]
@@ -110,12 +131,11 @@ class AngleStimulus(experiment.Experiment):
 
     def run(self):
         d=self.experiment_config.DIRECTION
-        self.looming_block(d)
-        self.moving_bars(d)
-        self.moving_T_and_L(d)
-        self.moving_combs(d)
+        block_names = ['looming_block', 'moving_bars', 'moving_T_and_L', 'moving_combs']
+        for bn in block_names:
+            getattr(self, bn)(d)
         self.export2video('/tmp/{0}_angle_stimulus.mp4'.format(d))
 
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester
-    stimulation_tester('adrian', 'StimulusDevelopment', 'Angle0', ENABLE_FRAME_CAPTURE=True)
+    stimulation_tester('adrian', 'StimulusDevelopment', 'Angle45', ENABLE_FRAME_CAPTURE=not True)

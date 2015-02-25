@@ -1105,7 +1105,7 @@ class AdvancedStimulation(StimulationHelpers):
         
     def moving_cross(self, speeds, sizes, position, movement_directions):
         self._save_stimulus_frame_info(inspect.currentframe())
-        bar_height = numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['row']**2+self.machine_config.SCREEN_SIZE_UM['col']**2)
+        bar_height = 3*numpy.sqrt(self.machine_config.SCREEN_SIZE_UM['row']**2+self.machine_config.SCREEN_SIZE_UM['col']**2)
         ds = numpy.array(speeds)/self.machine_config.SCREEN_EXPECTED_FRAME_RATE
         movement = float(max(self.machine_config.SCREEN_SIZE_UM['row'], self.machine_config.SCREEN_SIZE_UM['col']))+max(sizes)
         trajectories = []
