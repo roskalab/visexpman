@@ -5,6 +5,8 @@ from visexpman.engine.generic import utils
 class Angle0(experiment.ExperimentConfig):
     def _create_parameters(self):
         self.POSITION = utils.rc((100,0))
+        #If any parameter is changed the experiment duration might also change. The duration has to be measured and FRAGMENT_DURATION parameter needs to be updated.
+        self.FRAGMENT_DURATION = 470
         self.SPEEDS = [400]
         self.LOOM_START_SIZE = 50
         self.LOOMING_SHAPES = ['rect', 'spot', 'triangle', 'star4', 'star5']
@@ -45,7 +47,7 @@ class Angle315(Angle0):
     
 class AngleStimulus(experiment.Experiment):
     def prepare(self):
-        self.fragment_durations = [200]
+        self.fragment_durations = [self.experiment_config.FRAGMENT_DURATION]
     
     def pause(self):
         self.show_fullscreen(color = 0.0, duration = self.experiment_config.PAUSE*0.5)
@@ -70,25 +72,32 @@ class AngleStimulus(experiment.Experiment):
                             break
                         shape_size_per_speed_dir = shape_size_per_speed[::d]
                         for rep in range(self.experiment_config.REPEATS):
-                            for s in shape_size_per_speed_dir:
+                            self.block_start(block_name = 'loom')
+                            for i in range(shape_size_per_speed_dir.shape[0]):
+                                save_sfi = (i == 0 or  i == shape_size_per_speed_dir.shape[0]-1)
+#                                self.printl((save_sfi, i))
+                                s = shape_size_per_speed_dir[i]
                                 if self.abort:
                                     break
                                 if 'star' in shape:
                                     self.show_shape(shape=shape[:-1], ncorners = int(shape[-1]), size = s*0.5, orientation = direction, background_color = bg, color = col, pos = self.experiment_config.POSITION)
                                 else:
                                     self.show_shape(shape=shape, size = s, orientation = direction, background_color = bg, color = col, pos = self.experiment_config.POSITION)
+                            self.block_end(block_name = 'loom')
                         
     def moving_combs(self, direction):
         for spd in self.experiment_config.SPEEDS:
             for profile in self.experiment_config.TOOTH_PROFILES:
                 for rep in range(self.experiment_config.REPEATS):
+                    self.block_start(block_name = 'comb')
                     self.pause()
                     self.moving_comb(speed=spd, orientation=direction, bar_width=self.experiment_config.BAR_WIDTH,
                                 tooth_size=self.experiment_config.TOOTH_SIZE, tooth_type=profile, contrast=1.0, background=0.0, pos = self.experiment_config.POSITION)
                     self.pause()
+                    self.block_end(block_name = 'comb')
         
     def moving_T_and_L(self, direction):
-        self.lt_longer_side = 0.7*min(self.machine_config.SCREEN_SIZE_UM['col'], self.machine_config.SCREEN_SIZE_UM['row'])
+        self.lt_longer_side = 0.6*min(self.machine_config.SCREEN_SIZE_UM['col'], self.machine_config.SCREEN_SIZE_UM['row'])
         for spd in self.experiment_config.SPEEDS:
             positions = self.moving_shape_trajectory(self.experiment_config.BAR_WIDTH, spd, [direction],1,pause=0.0,shape_starts_from_edge=True)
             positions[0][0] = utils.rc_add(positions[0][0], self.experiment_config.POSITION)
@@ -98,12 +107,14 @@ class AngleStimulus(experiment.Experiment):
                         for rep in range(self.experiment_config.REPEATS):
                             Lconfig = {'shorter_side':self.experiment_config.LT_SHORTER_SIDE, 'longer_side':self.lt_longer_side, 
                             'shorter_position': ltpos, 'angle' : ltangle, 'width': self.experiment_config.BAR_WIDTH}
+                            self.block_start(block_name = 'LT')
                             self.pause()
                             if sh == 'L':
                                 self.show_shape(shape=sh, orientation = direction+90,L_shape_config = Lconfig,pos = positions[0][0])
                             else:
                                 self.show_shape(shape=sh,  size = utils.cr((Lconfig['longer_side'], Lconfig['width'])), orientation = direction+90,X_shape_angle = Lconfig['angle'],pos = positions[0][0])
                             self.pause()
+                            self.block_end(block_name = 'LT')
                             if self.abort:
                                 break
                         if sh == 'X':
@@ -116,11 +127,13 @@ class AngleStimulus(experiment.Experiment):
                     second_bar_positions = [utils.rc_add(self.machine_config.SCREEN_CENTER,self.experiment_config.POSITION), 
                                         ]
                     for pos2 in second_bar_positions:
+                        self.block_start(block_name = 'movingbar')
                         self.static_bar(direction+angle, pos2)
                         self.moving_cross(speeds = [spd, spd2], sizes = [self.experiment_config.BAR_WIDTH, self.experiment_config.BAR_WIDTH], 
                                         position = pos2,
                                         movement_directions=[direction, direction+angle])
                         self.static_bar(direction+angle, pos2)
+                        self.block_end(block_name = 'movingbar')
                         if self.abort:
                             break
     
