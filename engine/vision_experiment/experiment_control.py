@@ -482,8 +482,9 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
             self.run()
             self.log.resume()
             self.send({'trigger':'stim done'})#Notify main_ui about the end of stimulus. sync signal and ca signal recording needs to be terminated
-            self.printl('Stimulation ended, saving data to file')
-            self._save2file()
+            if not self.abort:
+                self.printl('Stimulation ended, saving data to file')
+                self._save2file()
             self.send({'trigger':'stim data ready'})
             self.frame_rates = numpy.array(self.frame_rates)
             fri = 'mean: {0}, std {1}, max {2}, min {3}, values: {4}'.format(self.frame_rates.mean(), self.frame_rates.std(), self.frame_rates.max(), self.frame_rates.min(), numpy.round(self.frame_rates,0))
@@ -510,8 +511,12 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         '''
         Pack software enviroment and configs
         '''
-        setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_software_environment())
-        setattr(self.datafile, 'configs_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_configs(self))
+        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
+            setattr(self.datafile, 'software_environment_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_software_environment())
+            setattr(self.datafile, 'configs_{0}'.format(self.machine_config.user_interface_name), experiment_data.pack_configs(self))
+        elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
+            self.datafile['software_environment_{0}'.format(self.machine_config.user_interface_name)] = experiment_data.pack_software_environment()
+            self.datafile['configs_{0}'.format(self.machine_config.user_interface_name)] = experiment_data.pack_configs(self)
         #Organize stimulus frame info. 'stimulus function' block starts saved after sfi entry and block ends before sfi entry. This has to be reordered
         block_start_indexes, block_end_indexes = experiment_data.get_block_entry_indexes(self.stimulus_frame_info, block_name = 'stimulus function')
         for i in block_start_indexes:
@@ -524,11 +529,57 @@ class StimulationControlHelper(Trigger,queued_socket.QueuedSocketHelpers):
         Certain variables are saved to hdf5 file
         '''
         variables2save = ['stimulus_frame_info', 'configs_{0}'.format(self.machine_config.user_interface_name), 'user_data', 'software_environment_{0}'.format(self.machine_config.user_interface_name)]#['experiment_name', 'experiment_config_name']
-        self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.parameters, self.machine_config, prefix = 'stim'),filelocking=False)
-        self._prepare_data2save()
-        res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v)]
-        self.datafile.save(variables2save)
-        self.datafile.close()
+        if self.machine_config.EXPERIMENT_FILE_FORMAT == 'hdf5':
+            self.datafile = hdf5io.Hdf5io(fileop.get_recording_path(self.parameters, self.machine_config, prefix = 'stim'),filelocking=False)
+            self._prepare_data2save()
+            res=[setattr(self.datafile, v, getattr(self,v)) for v in variables2save if hasattr(self, v)]
+            self.datafile.save(variables2save)
+            self.datafile.close()
+        elif self.machine_config.EXPERIMENT_FILE_FORMAT == 'mat':
+            self.datafile = {}
+            self._prepare_data2save()
+            for v in variables2save:
+                if hasattr(self, v):
+                    self.datafile[v] = getattr(self,v)
+            self._data2matfile_compatible()
+            if self.machine_config.PLATFORM == 'hi_mea':
+                #the latest file's name with a specific format
+                latest_file = fileop.find_latest(os.path.split(fileop.get_user_experiment_data_folder(self.machine_config))[0],extension=None)#TODO: extension tbd
+                if latest_file is None:
+                    filename_prefix = ''
+                else:
+                    filename_prefix = str(os.path.split(latest_file)[1].replace(fileop.file_extension(latest_file),'')[:-1])
+                fn = fileop.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
+                fn = os.path.join(os.path.split(os.path.split(fn)[0])[0], os.path.split(fn)[1])
+            else:
+                filename_prefix = 'stim'
+                fn = fileop.get_recording_path(self.parameters, self.machine_config, prefix = filename_prefix)
+            scipy.io.savemat(fn, self.datafile, oned_as = 'column') 
+            
+    def _data2matfile_compatible(self):
+        '''Make sure that keys are not longer than 31 characters'''
+        max_len = 31
+        for k1 in self.datafile.keys():
+            if (isinstance(self.datafile[k1], dict) and self.datafile[k1] == {}) or (isinstance(self.datafile[k1], list) and self.datafile[k1] == []):
+                del self.datafile[k1]
+            elif len(k1)>max_len:
+                self.datafile[k1[:max_len]] = self.datafile[k1]
+                del self.datafile[k1]
+            if self.datafile.has_key(k1) and hasattr(self.datafile[k1], 'keys'):
+                for k2 in self.datafile[k1].keys():
+                    if (isinstance(self.datafile[k1][k2], dict) and self.datafile[k1][k2] == {}) or (isinstance(self.datafile[k1][k2], list) and self.datafile[k1][k2] == []):
+                        del self.datafile[k1][k2]
+                    elif len(k2)>max_len:
+                        self.datafile[k1][k2[:max_len]] = self.datafile[k1][k2]
+                        del self.datafile[k1][k2]
+                    if self.datafile[k1].has_key(k2) and hasattr(self.datafile[k1][k2], 'keys'):
+                        for k3 in self.datafile[k1][k2].keys():
+                            if (isinstance(self.datafile[k1][k2][k3], dict) and self.datafile[k1][k2][k3] == {}) or (isinstance(self.datafile[k1][k2][k3], list) and self.datafile[k1][k2][k3] == []):
+                                del self.datafile[k1][k2][k3]
+                            elif len(k3)>max_len:
+                                self.datafile[k1][k2][k3[:max_len]] = self.datafile[k1][k2][k3]
+                                del self.datafile[k1][k2][k3]
+        
         
 class ExperimentControl(object):#OBSOLETE
     '''

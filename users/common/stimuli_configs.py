@@ -38,6 +38,13 @@ class NHPMarchingSquares(experiment.ExperimentConfig):
         self.runnable='ReceptiveFieldExplore'
         self._create_parameters_from_locals(locals())
         
+class TESTNHPMarchingSquares(NHPMarchingSquares):
+    def _create_parameters(self):
+        NHPMarchingSquares._create_parameters(self)
+        self.SHAPE_SIZE = 500.0
+        
+
+        
 if __name__ == "__main__":
     from visexpman.engine.visexp_app import stimulation_tester
     stimulation_tester('test', 'StimulusDevelopment', 'TestCommonExperimentConfig')

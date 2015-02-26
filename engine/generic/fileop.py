@@ -184,17 +184,18 @@ def listdir_fullpath(folder):
     files = os.listdir(folder)
     return map(os.path.join, len(files)*[folder],files)
     
-def find_latest(path):
-    number_of_digits = 5
-    latest_date = 0
-    latest_file = ''
-    for file in listdir_fullpath(os.path.split(path)[0]):
-        if fileop.find(os.path.split(path)[-1].split('.')[0][:-number_of_digits]) != -1:
-            file_date = os.path.getmtime(file)
-            if latest_date < file_date:
-                latest_date = file_date
-                latest_file = file
-    return latest_file
+def find_latest(path, extension=None):
+    '''
+    Find the latest file in the folder
+    '''
+    if not os.path.isdir(path):
+        raise RuntimeError('Foldername expected not filename: {0}'.format(path))
+    fns = [fn for fn in listdir_fullpath(path) if file_extension(fn)==extension or extension is None and not os.path.isdir(fn)]
+    if len(fns) == 0:
+        return
+    fns_dates = map(os.path.getmtime, fns)
+    latest_file_index = fns_dates.index(max(fns_dates))
+    return fns[latest_file_index]
      
 def find_content_in_folder(content, folder_name, file_filter):
     found_in_files = []
