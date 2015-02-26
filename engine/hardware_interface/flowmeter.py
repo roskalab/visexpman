@@ -5,6 +5,7 @@ except:
 import time
 import numpy
 import struct
+import os
 
 class Flowmeter(object):
     def __init__(self, config):
@@ -129,9 +130,46 @@ class Flowmeter(object):
         if self.config.FLOWMETER['ENABLE']:
             self.s.close()
             self.init_ready = False
+            
+class SLI_2000Flowmeter(object):
+    def __init__(self):
+        self.s=serial.Serial(port='COM6' if os.name=='nt' else '/dev/ttyUSB0',baudrate=115200,timeout=1)
+        self.cmd_SetResolutionto14bit = [0x7E, 0x00, 0x41, 0x01, 0x0C, 0xB1,0x7E]
+        self.cmd_SetTotalizatorStatusEnabled = [0x7E, 0x00, 0x37, 0x01, 0x01, 0xC6,0x7E]
+        self.cmd_StartContinuousMeasurement20ms = [0x7E, 0x00, 0x33, 0x02, 0x0, 0x14, 0xB6,0x7E]
+        self.cmd_ResetTotalizator = [0x7E, 0x00, 0x39, 0x0, 0xC6,0x7E]
+        self.cmd_DeviceReset = [0x7E, 0x00, 0xD3, 0x0, 0x2C,0x7E]
+        self.cmd_GetTotalizatorValue = [0x7E, 0x0, 0x38, 0x0, 0xC7, 0x7E]
+        self.init_procedure()
         
+    def init_procedure(self):
+        cmds = [self.cmd_DeviceReset, self.cmd_SetResolutionto14bit, self.cmd_StartContinuousMeasurement20ms, self.cmd_SetTotalizatorStatusEnabled, self.cmd_ResetTotalizator, self.cmd_GetTotalizatorValue]
+        for cmd in cmds:
+            self.send_cmd(cmd)
+            time.sleep(0.1)
+            print self.read_response()
+     
+    def hex2str(self, cmd):
+        return ''.join(map(chr,cmd))
+        
+    def str2hex(self, resp):
+        return map(hex,map(ord,resp))
+        
+    def send_cmd(self, cmd):
+        self.s.write(self.hex2str(cmd))
+        
+    def read_response(self):
+        return self.str2hex(self.s.read(1000))
+        
+    def close(self):
+        self.s.close()
+    
 if __name__ == '__main__':
-    f = Flowmeter()
-    print f.init_ready
-    f.measure()
-    f.close()
+    if 0:
+        f = Flowmeter()
+        print f.init_ready
+        f.measure()
+        f.close()
+    else:
+        s=SLI_2000Flowmeter()
+        s.close()
