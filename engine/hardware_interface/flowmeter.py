@@ -6,6 +6,7 @@ import time
 import numpy
 import struct
 import os
+import unittest
 
 class Flowmeter(object):
     def __init__(self, config):
@@ -133,36 +134,106 @@ class Flowmeter(object):
             
 class SLI_2000Flowmeter(object):
     def __init__(self):
-        self.s=serial.Serial(port='COM6' if os.name=='nt' else '/dev/ttyUSB0',baudrate=115200,timeout=1)
+        self.response_time = 0.05
+        self.s=serial.Serial(port='COM7' if os.name=='nt' else '/dev/ttyUSB0',baudrate=115200,timeout=0.3)
         self.cmd_SetResolutionto14bit = [0x7E, 0x00, 0x41, 0x01, 0x0C, 0xB1,0x7E]
-        self.cmd_SetTotalizatorStatusEnabled = [0x7E, 0x00, 0x37, 0x01, 0x01, 0xC6,0x7E]
-        self.cmd_StartContinuousMeasurement20ms = [0x7E, 0x00, 0x33, 0x02, 0x0, 0x14, 0xB6,0x7E]
-        self.cmd_ResetTotalizator = [0x7E, 0x00, 0x39, 0x0, 0xC6,0x7E]
+        self.resp_SetResolutionto14bit = [0x7E, 0x00, 0x41, 0x0, 0x0, 0xBE,0x7E]
         self.cmd_DeviceReset = [0x7E, 0x00, 0xD3, 0x0, 0x2C,0x7E]
-        self.cmd_GetTotalizatorValue = [0x7E, 0x0, 0x38, 0x0, 0xC7, 0x7E]
-        self.init_procedure()
+        self.resp_DeviceReset = [0x7E, 0x00, 0xD3, 0x0, 0x0, 0x2C,0x7E]
+        self.cmd_StartSingleMeasurement = [0x7E, 0x00, 0x31, 0x0, 0xCE,0x7E]
+        self.resp_StartSingleMeasurement = [0x7E, 0x00, 0x31, 0x0, 0x0, 0xCE,0x7E]
+        self.cmd_GetSingleMeasurement = [0x7E, 0x00, 0x32, 0x0, 0xCD,0x7E]
+        self.cmd_GetScaleFactor = [0x7E, 0x00, 0x53, 0x0, 0xAC,0x7E]
+        self.cmd_FlowUnit = [0x7E, 0x00, 0x52, 0x0, 0xAD,0x7E]
+        self.cmd_GetMeasurementDataType = [0x7E, 0x00, 0x55, 0x0, 0xAA,0x7E]
+        self.cmd_GetLinearization = [0x7E, 0x00, 0x45, 0x0, 0xBA,0x7E]
+        self.init_device()
         
-    def init_procedure(self):
-        cmds = [self.cmd_DeviceReset, self.cmd_SetResolutionto14bit, self.cmd_StartContinuousMeasurement20ms, self.cmd_SetTotalizatorStatusEnabled, self.cmd_ResetTotalizator, self.cmd_GetTotalizatorValue]
-        for cmd in cmds:
+    def init_device(self):
+        cmds = [[self.cmd_DeviceReset, self.resp_DeviceReset], [self.cmd_SetResolutionto14bit, self.resp_SetResolutionto14bit]]
+        for cmd, expected_resp in cmds:
             self.send_cmd(cmd)
-            time.sleep(0.1)
+            resp = self.read_response()
+            if cmp(resp, expected_resp) != 0:
+                raise RuntimeError('Expexted response is {1}, got: {0}'.format(resp, expected_resp))
+        self.get_sensor_info()
+            
+    def get_sensor_info(self):
+        self.send_cmd(self.cmd_GetScaleFactor)
+        resp = self.read_response()
+        self.scale_factor = float((numpy.array(resp[5:5+resp[4]])*numpy.array([256,1])).sum())
+        self.send_cmd(self.cmd_FlowUnit)
+        resp = self.read_response()
+        val=hex((numpy.array(resp[5:5+resp[4]])*numpy.array([256,1])).sum())
+        if val[-2] == '4':
+            prefix = 'u'
+        else:
+            raise NotImplementedError(''.format(val))
+        if val[-3] == '4':
+            timebase = 'min'
+        else:
+            raise NotImplementedError(''.format(val))
+        if val[-4] == '8':
+            unit = 'l'
+        else:
+            raise NotImplementedError(''.format(val))
+        self.send_cmd(self.cmd_GetMeasurementDataType)
+        resp = self.read_response()
+        self.measurement_data_signed = (resp[5] == 0)
+        self.flow_rate_unit = '{0}{1}/{2}'.format(prefix, unit, timebase)
+        if 0:
+            self.send_cmd(self.cmd_GetLinearization)
             print self.read_response()
+        
+    def get_flow_rate(self):
+        self.send_cmd(self.cmd_StartSingleMeasurement)
+        resp = self.read_response()
+        if cmp(resp, self.resp_StartSingleMeasurement) != 0:
+            raise RuntimeError('Expected response is {1}, got: {0}'.format(resp, expected_resp))
+        time.sleep(0.05)
+        self.send_cmd(self.cmd_GetSingleMeasurement)
+        resp = self.read_response()
+        value=resp[5:5+resp[4]]
+        if 0x7d in value:
+            return
+        if not self.measurement_data_signed:
+            raise NotImplementedError('unsigned measurement data is not handled')
+        raw = (numpy.array(value)*numpy.array([256,1])).sum() 
+        flow_rate = int(numpy.cast['int16'](raw))
+        return flow_rate/self.scale_factor
+        
      
     def hex2str(self, cmd):
         return ''.join(map(chr,cmd))
         
+    def str2hexstr(self, resp):
+        return map(hex,self.str2hex(resp))
+        
     def str2hex(self, resp):
-        return map(hex,map(ord,resp))
+        return map(ord,resp)
         
     def send_cmd(self, cmd):
         self.s.write(self.hex2str(cmd))
         
     def read_response(self):
-        return self.str2hex(self.s.read(1000))
+        time.sleep(self.response_time)
+        resp = self.str2hex(self.s.read(1000))
+        self.check_response(resp)
+        return resp
+        
+    def check_response(self,resp):
+        if not (resp[0] == 0x7E and resp[-1] == 0x7E and resp[1] == 0x0 and resp[3] == 0x0):
+            raise RuntimeError('Invalid response: {0}'.format(self.str2hexstr(resp)))
         
     def close(self):
         self.s.close()
+        
+class TestFlowmeter(unittest.TestCase):
+    def test_01_sli2000(self):
+        s=SLI_2000Flowmeter()
+        for i in range(5):
+            print s.get_flow_rate()
+        s.close()
     
 if __name__ == '__main__':
     if 0:
@@ -171,5 +242,4 @@ if __name__ == '__main__':
         f.measure()
         f.close()
     else:
-        s=SLI_2000Flowmeter()
-        s.close()
+        unittest.main()

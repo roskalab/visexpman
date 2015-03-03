@@ -12,41 +12,44 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
 import visexpman
-from visexpman.engine.generic import utils
-from visexpman.engine.generic import fileop
-from visexpman.engine.generic import log
-from visexpman.engine.vision_experiment import configuration
-from visexpman.engine.vision_experiment import gui
+from visexpman.engine.generic import utils,log,fileop
+from visexpman.engine.vision_experiment import configuration,gui
 from visexpman.engine.generic import gui as gui_generic
 from visexpman.engine.vision_experiment import gui_pollers
-from visexpman.engine.hardware_interface import digital_io
+from visexpman.engine.hardware_interface import digital_io,flowmeter
 
 class SmallApp(QtGui.QWidget):
     '''
     Small  application gui
     '''
-    def __init__(self, user, config_class):
+    def __init__(self, user=None, config_class=None):
         if hasattr(config_class, 'OS'):
             self.config=config_class
             config_class_name = config_class.__class__.__name__
-        else:
+        elif config_class is not None:
             self.config = utils.fetch_classes('visexpman.users.'+user, classname = config_class, required_ancestors = visexpman.engine.vision_experiment.configuration.VisionExperimentConfig,direct = False)[0][1]()
             config_class_name = config_class
-        self.config.user = user
-        if not hasattr(self.config, 'SMALLAPP'):
+        else:
+            self.config=None
+            config_class_name = self.__class__.__name__
+        if self.config is not None:
+            self.config.user = user
+        if not hasattr(self.config, 'SMALLAPP') and self.config is not None:
             raise RuntimeError('No small application configuration is provided, check machine config')
         if hasattr(self.config, 'LOG_PATH'):
             self.log = log.Log('gui log', fileop.generate_filename(os.path.join(self.config.LOG_PATH, self.config.SMALLAPP['NAME'].replace(' ', '_') +'.txt')), local_saving = True)
         self.console_text = ''
-        if self.config.SMALLAPP.has_key('POLLER'):
+        if self.config is not None and self.config.SMALLAPP.has_key('POLLER'):
             if hasattr(gui_pollers, self.config.SMALLAPP['POLLER']):
                 self.poller =  getattr(gui_pollers, self.config.SMALLAPP['POLLER'])(self, self.config)
             else:
                 self.poller =  getattr(self.config.SMALLAPP['POLLER_MODULE'], self.config.SMALLAPP['POLLER'])(self, self.config)
         QtGui.QWidget.__init__(self)
-        self.setWindowTitle('{2} - {0} - {1}' .format(user,  config_class_name, self.config.SMALLAPP['NAME']))
+        self.setWindowTitle('{2} - {0} - {1}' .format(user if user is not None else '',  config_class_name, self.config.SMALLAPP['NAME'] if self.config is not None else ''))
         if hasattr(self.config, 'GUI_SIZE'):
             self.resize(self.config.GUI_SIZE['col'], self.config.GUI_SIZE['row'])
+        else:
+            self.resize(800,600)
         if hasattr(self.config, 'GUI_POSITION'):
             self.move(self.config.GUI_POSITION['col'], self.config.GUI_POSITION['row'])
         self.create_gui()
@@ -54,7 +57,7 @@ class SmallApp(QtGui.QWidget):
         self.create_layout()
         self.connect_signals()
         self.show()
-        if self.config.SMALLAPP.has_key('POLLER'):
+        if self.config is not None and self.config.SMALLAPP.has_key('POLLER'):
             if hasattr(self.poller,  'init_widgets'):
                 self.poller.init_widgets()
             self.poller.start()
@@ -102,7 +105,7 @@ class SmallApp(QtGui.QWidget):
         e.accept()
         if hasattr(self, 'log'):
             self.log.copy()
-        if self.config.SMALLAPP.has_key('POLLER'):
+        if self.config is not None and self.config.SMALLAPP.has_key('POLLER'):
             self.poller.abort = True
         time.sleep(1.0)
         sys.exit(0)
@@ -130,6 +133,24 @@ class FlowmeterLogger(SmallApp):
         else:
             self.flowmeter.status_label.setText('{0}, {1:2.2f} ul/min'.format(status, value))
             
+class SLI2000FlowmeterLogger(SmallApp, flowmeter.SLI_2000Flowmeter):
+    def __init__(self):
+        SmallApp.__init__(self)
+        self.timer=QtCore.QTimer()
+        self.timer.start(100)
+        self.connect(self.timer, QtCore.SIGNAL('timeout()'), self.periodic)
+        flowmeter.SLI_2000Flowmeter.__init__(self)
+        
+    def periodic(self):
+        self.printc(self.get_flow_rate())
+        
+    def create_layout(self):
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.text_out, 1, 0, 1, 10)
+        self.setLayout(self.layout)
+        
+    def __del__(self):
+        self.close()
             
 class SerialportPulseGenerator(SmallApp):
     def create_gui(self):
@@ -194,6 +215,7 @@ class BehavioralTester(SmallApp):
         self.connect_and_map_signal(self.close_valve, 'close_valve')
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
 
+
 def run_gui():
     '''
     1. argument: username
@@ -201,10 +223,13 @@ def run_gui():
     3. small application class name
     Example: python visexp_smallapp.py peter MEASetup FlowmeterLogger
     '''
-    if len(sys.argv) < 3:
+    if len(sys.argv) < 4 and len(sys.argv) != 2:
         raise RuntimeError('The following commandline parameters are required: username machine_config and smallapp class name')
     app = Qt.QApplication(sys.argv)
-    gui = getattr(sys.modules[__name__], sys.argv[3])(sys.argv[1], sys.argv[2])
+    if len(sys.argv) ==4:
+        gui = getattr(sys.modules[__name__], sys.argv[3])(sys.argv[1], sys.argv[2])
+    else:
+        gui = getattr(sys.modules[__name__], sys.argv[1])()
     app.exec_()
 
 if __name__ == '__main__':
