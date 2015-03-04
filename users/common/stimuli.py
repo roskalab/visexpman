@@ -303,10 +303,10 @@ class ReceptiveFieldExplore(experiment.Experiment):
     '''
     def prepare(self):
         shape_size, nrows, ncolumns, display_size, shape_colors, background_color = \
-                self._parse_receptive_field_parameters(self.experiment_config.SHAPE_SIZE,
+                self._parse_receptive_field_parameters(self.experiment_config.SHAPE_SIZE if hasattr(self.experiment_config, 'SHAPE_SIZE') else None,
                                                     self.experiment_config.NROWS if hasattr(self.experiment_config, 'NROWS') else None,
                                                     self.experiment_config.NCOLUMNS if hasattr(self.experiment_config, 'NCOLUMNS') else None,
-                                                    None,
+                                                    self.experiment_config.DISPLAY_SIZE if hasattr(self.experiment_config, 'DISPLAY_SIZE') else None,
                                                     self.experiment_config.COLORS,
                                                     self.experiment_config.BACKGROUND_COLOR)
         self.stimulus_duration, positions= self.receptive_field_explore_durations_and_positions(shape_size=shape_size, 
@@ -319,13 +319,16 @@ class ReceptiveFieldExplore(experiment.Experiment):
                                                                             off_time = self.experiment_config.OFF_TIME)
             
     def run(self):
-        self.receptive_field_explore(self.experiment_config.SHAPE_SIZE, 
+        self.receptive_field_explore(self.experiment_config.SHAPE_SIZE if hasattr(self.experiment_config, 'SHAPE_SIZE') else None, 
                                     self.experiment_config.ON_TIME,
                                     self.experiment_config.OFF_TIME,
                                     nrows = self.experiment_config.NROWS if hasattr(self.experiment_config, 'NROWS') else None,
                                     ncolumns = self.experiment_config.NCOLUMNS if hasattr(self.experiment_config, 'NCOLUMNS') else None,
+                                    display_size = self.experiment_config.DISPLAY_SIZE if hasattr(self.experiment_config, 'DISPLAY_SIZE') else None,
                                     flash_repeat = self.experiment_config.REPEATS, 
                                     sequence_repeat = self.experiment_config.REPEAT_SEQUENCE,
                                     background_color = self.experiment_config.BACKGROUND_COLOR, 
                                     shape_colors = self.experiment_config.COLORS, 
-                                    random_order = False)
+                                    random_order = self.experiment_config.ENABLE_RANDOM_ORDER)
+        self.show_fullscreen(color = self.experiment_config.BACKGROUND_COLOR)
+        self.user_data = { 'nrows':self.nrows,  'ncolumns': self.ncolumns,  'shape_size':self.shape_size}
