@@ -1194,6 +1194,9 @@ class StimulationSequences(Stimulations):
                                                                             sequence_repeat = sequence_repeat,
                                                                             on_time = on_time,
                                                                             off_time = off_time)
+        self.nrows=nrows
+        self.ncolumns=ncolumns
+        self.shape_size=shape_size
         if random_order:
             import random
 #            random.seed(0)
@@ -1235,6 +1238,8 @@ class StimulationSequences(Stimulations):
         return shape_size, nrows, ncolumns, display_size, shape_colors, background_color
         
     def _receptive_field_explore_positions(self,shape_size, nrows, ncolumns):
+        if shape_size.shape == (1, ):
+            shape_size = shape_size[0]
         y_dir = 1 if self.machine_config.VERTICAL_AXIS_POSITIVE_DIRECTION == 'up' else -1
         first_position = utils.rc_add(self.machine_config.SCREEN_CENTER, utils.rc((shape_size['row']*(0.5*nrows-0.5)*y_dir, shape_size['col']*(0.5*ncolumns-0.5))), '-')
         positions = []
