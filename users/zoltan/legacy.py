@@ -1,3 +1,7 @@
+import copy_reg
+import types
+import multiprocessing
+import pdb
 from pylab import plot,show,imshow
 import time
 import hdf5io
@@ -12,6 +16,14 @@ from visexpman.engine.vision_experiment import experiment_data
 from visexpA.engine.datahandlers import importers
 import unittest
 
+def _pickle_method(m):
+    if m.im_self is None:
+        return getattr, (m.im_class, m.im_func.func_name)
+    else:
+        return getattr, (m.im_self, m.im_func.func_name)
+
+copy_reg.pickle(types.MethodType, _pickle_method)
+
 class PhysTiff2Hdf5(object):
     '''
     Convert phys/tiff data into hdf5
@@ -22,8 +34,13 @@ class PhysTiff2Hdf5(object):
         self.use_tiff = True
         self.skipped_files = []
         self.match_files()
-        for k,v in self.assignments.items():
-            self.build_hdf5(k, v[0])
+        if 1:
+            for k,v in self.assignments.items():
+                self.build_hdf5(k, v[0])
+        else:
+            p=multiprocessing.Pool(processes=14)
+            pars = [(k, v[0]) for k, v in self.assignments.items()]
+            res = p.map(self.build_hdf5_2,pars)
         print self.skipped_files
         
     def match_files(self):
@@ -42,7 +59,6 @@ class PhysTiff2Hdf5(object):
                     assignments[fphys] = [ftif, tdiff]
                 elif assignments[fphys][1]>tdiff:
                     assignments[fphys] = [ftif, tdiff]
-            pass
         #check assignment for redundancy
         assigned_tiffiles = [fn for fn, tdiff in assignments.values()]
         if len(assigned_tiffiles) != len(set(assigned_tiffiles)):
@@ -54,13 +70,17 @@ class PhysTiff2Hdf5(object):
         self.assignments = assignments
         pass
         
+    def build_hdf5_2(self,entry):
+        fphys,ftiff = entry
+        self.build_hdf5(fphys,ftiff)
+        
     def build_hdf5(self,fphys,ftiff):
         tmptiff = '/tmp/temp.tiff'
         if self.use_tiff:
             if os.path.exists(tmptiff):
                 os.remove(tmptiff)
             fileop.write_text_file('/tmp/m.txt', 'saveAs("tiff","/tmp/temp.tiff");')
-            cmd = 'imagej {0} -batchpath /tmp/m.txt'.format(ftiff)
+            cmd = 'imagej "{0}" -batchpath /tmp/m.txt'.format(ftiff)
             subprocess.call(cmd,shell=True)
             time.sleep(4)
             if not os.path.exists(tmptiff):
@@ -75,9 +95,15 @@ class PhysTiff2Hdf5(object):
         data, metadata = experiment_data.read_phys(fphys)
         sync_and_elphys = numpy.zeros((data.shape[1], 5))
         sync_and_elphys[:,2] = data[1]#stim sync
-        sync_and_elphys[:,4] = data[2]
+        sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']))
+        if sig is None:
+            return
+        sync_and_elphys[:,4] = sig
         id = int(os.path.getmtime(fphys))
-        filename = '/tmp/data_{0}.hdf5'.format(id)
+        folder = os.path.join('/tmp', os.path.split(ftiff)[0].split('rei_data')[1][1:])
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        filename = os.path.join(folder, 'data_{0}.hdf5'.format(id))
         h=hdf5io.Hdf5io(filename,filelocking=False)
         h.raw_data = raw_data
         h.fphys = fphys
@@ -87,23 +113,45 @@ class PhysTiff2Hdf5(object):
         h.phys_metadata = utils.object2array(metadata)
         h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys', 'phys_metadata'])
         h.close()
-        #TODO: run for all
-        #TODO: y scanner signal to sync signal
-        #TODO: save to directory structure
+        #TODO: use pool for parallel processing
         
-    
-    
+    def yscanner_signal2trigger(self,waveform, fsample):
+        #First harmonic will be the frame rate
+        factor=5
+        f=numpy.fft.fft(waveform[:waveform.shape[0]/factor])
+        f=f[:f.shape[0]/2]
+        df=1.0/(waveform.shape[0]/fsample)
+        frame_rate = factor*abs(f)[1:].argmax()*df#First harmonic has the highest amplitude
+        if frame_rate>30:
+            return None
+        if frame_rate<8 or frame_rate>12:
+            pdb.set_trace()
+            raise RuntimeError(frame_rate)
+        #first frame's start time has to be calculated
+        start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>1000)[0][0]
+        if start_of_first_frame>fsample*10:
+            pdb.set_trace()
+            raise RuntimeError(start_of_first_frame)
+        flyback_duration = 10#sample
+        nsample_per_period = int(fsample/frame_rate)
+        try:
+            one_period = numpy.concatenate((numpy.ones(nsample_per_period-flyback_duration), numpy.zeros(flyback_duration)))
+        except:
+            pdb.set_trace()
+        nperiods = (waveform.shape[0]-start_of_first_frame)/nsample_per_period
+        trigger_signal = numpy.zeros_like(waveform)
+        pulses = numpy.concatenate((numpy.zeros(start_of_first_frame), numpy.tile(one_period, nperiods)))
+        trigger_signal[:pulses.shape[0]]=pulses
         
-        
-        
-        
+        return trigger_signal
         
 class TestConverter(unittest.TestCase):
     def test_01_phystiff2hdf5(self):
-#        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data/20150206')
+        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data')
 #        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data/20150206')
-        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data')
-#        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data')
+#        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data')
+#        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data/20150206')
+        
         
 if __name__ == '__main__':
     unittest.main()
