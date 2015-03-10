@@ -14,7 +14,7 @@ import tempfile
 import StringIO
 from PIL import Image
 
-from pylab import show,plot,imshow,figure,title
+from pylab import show,plot,imshow,figure,title,subplot
 
 from visexpman.engine.generic import utils,fileop,signal,videofile,geometry
 from visexpman.engine import generic
@@ -840,19 +840,21 @@ class TestExperimentData(unittest.TestCase):
         
     def test_08_cell_detection(self):
         files = fileop.find_files_and_folders('/mnt/rzws/dataslow/rei_data_c')[1]
-        
+        from skimage import filter
+        otsu=True
         f=[f for f in files if 'data_1423066844.hdf5' in f][0]
         h=hdf5io.Hdf5io(f, filelocking=False)
         h.load('raw_data')
         meanimage = numpy.cast[h.raw_data.dtype.name]((numpy.cast['float'](h.raw_data).mean(axis=0)[0]))
         maxval=2**int(h.raw_data.dtype.name.replace('uint',''))
-        threshold = entropy_threshold(meanimage, maxval)
-        marker = numpy.where(meanimage>1.0*threshold,1,0)
+        threshold = filter.threshold_otsu(meanimage) if otsu else entropy_threshold(meanimage, maxval)
+        marker = numpy.where(meanimage>threshold,1,0)
         geo = geodesic_dilation(marker,meanimage-meanimage.min())
-#        geo = geodesic_dilation(meanimage-meanimage.min(),marker)
-        threshold = entropy_threshold(geo, maxval)
-        geot = geo#numpy.where(geo>1.0*threshold,1,0)
-        figure(1);title('meanimg');imshow(meanimage,cmap='gray');figure(2);title('marker');imshow(marker,cmap='gray');figure(3);title('geot');imshow(geot,cmap='gray');show()
+        gm=geo*meanimage
+        threshold = filter.threshold_otsu(geo) if otsu else entropy_threshold(geo, maxval)
+        geot = numpy.where(geo>threshold,1,0)
+        figure(3);subplot(1,2,1);title('meanimg');imshow(meanimage,cmap='gray');
+        subplot(1,2,2);title('geot');imshow(geot,cmap='gray');show()
         pass
         h.close()
         
@@ -875,15 +877,15 @@ def geodesic_dilation(marker, mask):
     import itk
     import copy
     pixelType = itk.US
-    pixelType = itk.F
+#    pixelType = itk.F
     imageType = itk.Image[pixelType, 2]
     itk_py_converter = itk.PyBuffer[imageType]
 #    marker[:,:]=0
 #    marker[10,10]=1
 #    mask[:,:]=0
 #    mask[5:15,5:15]=1
-    marker_image = itk_py_converter.GetImageFromArray( marker.astype(numpy.float32)-10 )
-    mask_image = itk_py_converter.GetImageFromArray( mask.astype(numpy.float32) )
+    marker_image = itk_py_converter.GetImageFromArray( marker.astype(numpy.uint16)*mask.max() )
+    mask_image = itk_py_converter.GetImageFromArray( mask.astype(numpy.uint16) )
     filter = itk.GrayscaleGeodesicDilateImageFilter[imageType, imageType].New()
 #    filter.RunOneIterationOff()
 #    filter.SetFullyConnected(True)
