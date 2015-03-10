@@ -36,6 +36,7 @@ class PhysTiff2Hdf5(object):
         self.match_files()
         if 1:
             for k,v in self.assignments.items():
+                print k
                 self.build_hdf5(k, v[0])
         else:
             p=multiprocessing.Pool(processes=14)
@@ -95,7 +96,7 @@ class PhysTiff2Hdf5(object):
         data, metadata = experiment_data.read_phys(fphys)
         sync_and_elphys = numpy.zeros((data.shape[1], 5))
         sync_and_elphys[:,2] = data[1]#stim sync
-        sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']))
+        sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']), raw_data.shape[2])
         if sig is None:
             return
         sync_and_elphys[:,4] = sig
@@ -103,7 +104,7 @@ class PhysTiff2Hdf5(object):
         folder = os.path.join('/tmp', os.path.split(ftiff)[0].split('rei_data')[1][1:])
         if not os.path.exists(folder):
             os.makedirs(folder)
-        filename = os.path.join(folder, 'data_{0}.hdf5'.format(id))
+        filename = os.path.join(folder, 'data_cx_unknownstim_{0}_0.hdf5'.format(id))
         h=hdf5io.Hdf5io(filename,filelocking=False)
         h.raw_data = raw_data
         h.fphys = fphys
@@ -113,22 +114,25 @@ class PhysTiff2Hdf5(object):
         h.phys_metadata = utils.object2array(metadata)
         h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys', 'phys_metadata'])
         h.close()
+        print filename
         #TODO: use pool for parallel processing
         
-    def yscanner_signal2trigger(self,waveform, fsample):
+    def yscanner_signal2trigger(self,waveform, fsample,nxlines):
         #First harmonic will be the frame rate
         factor=5
         f=numpy.fft.fft(waveform[:waveform.shape[0]/factor])
         f=f[:f.shape[0]/2]
         df=1.0/(waveform.shape[0]/fsample)
         frame_rate = factor*abs(f)[1:].argmax()*df#First harmonic has the highest amplitude
-        if frame_rate>30:
-            return None
-        if frame_rate<8 or frame_rate>12:
+        if frame_rate>30:#Then probably x scanner signal
+            frame_rate /= nxlines
+            start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>2000)[0][0]
+        else:
+            start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>1000)[0][0]
+        if frame_rate<5 or frame_rate>12:
             pdb.set_trace()
             raise RuntimeError(frame_rate)
         #first frame's start time has to be calculated
-        start_of_first_frame = numpy.where(abs(numpy.diff(waveform))>1000)[0][0]
         if start_of_first_frame>fsample*10:
             pdb.set_trace()
             raise RuntimeError(start_of_first_frame)
@@ -142,7 +146,6 @@ class PhysTiff2Hdf5(object):
         trigger_signal = numpy.zeros_like(waveform)
         pulses = numpy.concatenate((numpy.zeros(start_of_first_frame), numpy.tile(one_period, nperiods)))
         trigger_signal[:pulses.shape[0]]=pulses
-        
         return trigger_signal
         
 class TestConverter(unittest.TestCase):

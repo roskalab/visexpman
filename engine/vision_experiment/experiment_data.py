@@ -14,6 +14,8 @@ import tempfile
 import StringIO
 from PIL import Image
 
+from pylab import show,plot,imshow,figure,title
+
 from visexpman.engine.generic import utils,fileop,signal,videofile,geometry
 from visexpman.engine import generic
 import hdf5io
@@ -830,10 +832,65 @@ class TestExperimentData(unittest.TestCase):
 
         pass
         
+    @unittest.skip("")
     def test_07_receptive_field_stim_plot(self):
         fn='/home/rz/codes/data/recfield/fragment_xy_tr_0_0_0.0_ReceptiveFieldExploreNew_1424256866_0.hdf5'
         get_data_timing(fn)
         
+        
+    def test_08_cell_detection(self):
+        files = fileop.find_files_and_folders('/mnt/rzws/dataslow/rei_data_c')[1]
+        
+        f=[f for f in files if 'data_1423066844.hdf5' in f][0]
+        h=hdf5io.Hdf5io(f, filelocking=False)
+        h.load('raw_data')
+        meanimage = numpy.cast[h.raw_data.dtype.name]((numpy.cast['float'](h.raw_data).mean(axis=0)[0]))
+        maxval=2**int(h.raw_data.dtype.name.replace('uint',''))
+        threshold = entropy_threshold(meanimage, maxval)
+        marker = numpy.where(meanimage>1.0*threshold,1,0)
+        geo = geodesic_dilation(marker,meanimage-meanimage.min())
+#        geo = geodesic_dilation(meanimage-meanimage.min(),marker)
+        threshold = entropy_threshold(geo, maxval)
+        geot = geo#numpy.where(geo>1.0*threshold,1,0)
+        figure(1);title('meanimg');imshow(meanimage,cmap='gray');figure(2);title('marker');imshow(marker,cmap='gray');figure(3);title('geot');imshow(geot,cmap='gray');show()
+        pass
+        h.close()
+        
+        
+def entropy_threshold(image, maxval):
+    hist, bins=numpy.histogram(image,numpy.arange(maxval+1))
+    pi=hist/float(image.shape[0]*image.shape[1])
+    entropy = []
+    for s in range(1,maxval):
+        ps=sum([pi[i] for i in range(s)])
+        ha=sum([-pi[i]/ps*numpy.log(pi[i]/ps)for i in range(s) if pi[i]>0])
+        hb=sum([-pi[i]/(1-ps)*numpy.log(pi[i]/(1-ps))for i in range(s,maxval) if pi[i]>0])
+        entropy.append(ha+hb)
+        pass
+    threshold = numpy.array(entropy).argmax()
+    return threshold
+    
+def geodesic_dilation(marker, mask):
+    import scipy.ndimage.morphology
+    import itk
+    import copy
+    pixelType = itk.US
+    pixelType = itk.F
+    imageType = itk.Image[pixelType, 2]
+    itk_py_converter = itk.PyBuffer[imageType]
+#    marker[:,:]=0
+#    marker[10,10]=1
+#    mask[:,:]=0
+#    mask[5:15,5:15]=1
+    marker_image = itk_py_converter.GetImageFromArray( marker.astype(numpy.float32)-10 )
+    mask_image = itk_py_converter.GetImageFromArray( mask.astype(numpy.float32) )
+    filter = itk.GrayscaleGeodesicDilateImageFilter[imageType, imageType].New()
+#    filter.RunOneIterationOff()
+#    filter.SetFullyConnected(True)
+    filter.SetMarkerImage(marker_image)
+    filter.SetMaskImage(mask_image)
+    out_converter = itk.PyBuffer[imageType]
+    return copy.deepcopy(out_converter.GetArrayFromImage(filter.GetOutput() ))
         
 def anti_zigzag(im):
     shifts = [shift_between_arrays(im[line],im[line+1]) for line in range(im.shape[1]-1)]
