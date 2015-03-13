@@ -12,6 +12,7 @@ import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
 import visexpman
+import hdf5io
 from visexpman.engine.generic import utils,log,fileop
 from visexpman.engine.vision_experiment import configuration,gui
 from visexpman.engine.generic import gui as gui_generic
@@ -100,6 +101,21 @@ class SmallApp(QtGui.QWidget):
                 self.log.info(text)
         except:
             print 'gui: logging error'
+            
+    
+    def ask4confirmation(self, action2confirm):
+        reply = QtGui.QMessageBox.question(self, 'Confirm following action', action2confirm, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
+        if reply == QtGui.QMessageBox.No:
+            return False
+        else:
+            return True
+            
+    def ask4filename(self,title, directory, filter):
+        filename = QtGui.QFileDialog.getOpenFileName(self, title, directory, filter)
+        return filename
+        
+    def notify_user(self, title, message):
+        QtGui.QMessageBox.question(self, title, message, QtGui.QMessageBox.Ok)
     
     def closeEvent(self, e):
         e.accept()
@@ -215,6 +231,32 @@ class BehavioralTester(SmallApp):
         self.connect_and_map_signal(self.close_valve, 'close_valve')
         self.signal_mapper.mapped[str].connect(self.poller.pass_signal)
 
+
+
+class ReceptiveFieldPlotter(SmallApp):
+    def __init__(self):
+        SmallApp.__init__(self)
+        self.resize(1300,900)
+        self.image = gui.Image(self)
+        self.plots = gui.Plots(self)
+        self.open_file_button = QtGui.QPushButton('Open file', self)
+        self.text_out.setMaximumHeight(300)
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.open_file_button, 0, 0, 1, 1)
+        self.layout.addWidget(self.plots, 1, 0, 1, 5)
+        self.layout.addWidget(self.image, 1, 6, 1, 4)
+        self.layout.addWidget(self.text_out, 2, 0, 1, 10)
+        self.setLayout(self.layout)
+        self.connect(self.open_file_button, QtCore.SIGNAL('clicked()'),  self.open_file)
+        
+    def open_file(self):
+        filename = self.ask4filename('Select data file', fileop.select_folder_exists(['/mnt/databig/debug/recfield', 'v:\\experiment_data', '/tmp']), '*.hdf5')
+        if not os.path.exists(filename):return
+        self.printc('Opening file {0}'.format(filename))
+        hh=hdf5io.Hdf5io(filename,filelocking=False)
+        hh.close()
+        
+        
 
 def run_gui():
     '''

@@ -10,6 +10,8 @@ import time
 import copy
 import shutil
 import inspect
+import pdb
+import pyqtgraph
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -21,7 +23,7 @@ import hdf5io
 from visexpman.engine.vision_experiment import experiment, experiment_data
 from visexpman.engine.hardware_interface import scanner_control,daq_instrument,instrument
 from visexpman.engine import ExperimentConfigError, AnimalFileError
-from visexpman.engine.generic import gui,fileop,stringop,introspect,utils
+from visexpman.engine.generic import gui,fileop,stringop,introspect,utils,colors
 
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
@@ -1995,6 +1997,88 @@ class ImageWidget(QtGui.QWidget):
         self.layout.addWidget(self.min, 3, 1, 1, 1)
         
         self.setLayout(self.layout)
+        
+class Image(pyqtgraph.GraphicsLayoutWidget):
+    def __init__(self,parent):
+        pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
+        self.setBackground((255,255,255))
+        self.view = self.addViewBox()
+        self.img = pyqtgraph.ImageItem(border='w')
+        self.view.addItem(self.img)
+        self.view.setAspectLocked(True)
+        self.view.setRange(QtCore.QRectF(0, 0, 100, 100))
+        self.scene().sigMouseClicked.connect(self.mouse_clicked)
+        return
+        ima=numpy.random.random((100,100,3))
+        ima[:,:,1:]=0
+        ima[39:41,:,:]=0
+        ima[:,28:32,:]=0.5
+        self.set_image(ima)
+        self.rois = []
+        
+        
+    def set_image(self, image):
+        self.img.setImage(image)
+
+    def mouse_clicked(self,e):
+        p=self.img.mapFromScene(e.scenePos())
+        if e.double():
+            if int(e.buttons()) == 1:
+                self.add_roi(p.x(), p.y())
+            elif int(e.buttons()) == 2:
+                self.remove_roi(p.x(), p.y())
+            self.update_roi_info()
+#            print self.roi_info
+        
+    def add_roi(self,x,y):
+        roi = pyqtgraph.CircleROI([x, y], [20, 20])
+        roi.setPen((0,0,0,255), width=3)
+        self.rois.append(roi)
+        self.view.addItem(self.rois[-1])
+        
+    def remove_roi(self,x,y):
+        distances = [(r.pos().x()-x)**2+(r.pos().y()-y)**2 for r in self.rois]
+        self.view.removeItem(self.rois[numpy.array(distances).argmin()])
+        
+    def update_roi_info(self):
+        self.roi_info = [[i, self.rois[i].x(), self.rois[i].y()] for i in range(len(self.rois))]
+        
+class Plots(pyqtgraph.GraphicsLayoutWidget):
+    '''
+    Number of plots can be updated in runtime
+    '''
+    def __init__(self,parent):
+        pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
+        self.setBackground((255,255,255))
+        self.setAntialiasing(True)
+        self.plots = []
+        return
+        self.set_plot_num(3,4)
+        traces = []
+        for i in range(3):
+            traces1 = []
+            for j in range(4):
+                traces1.append({'x':numpy.arange(100), 'y': numpy.sin(numpy.arange(100)/(j+1+i)), 'title': (i,j)})
+            traces.append(traces1)
+        self.addplots(traces)
+        
+    def addplots(self,traces):
+        for r in range(self.nrows):
+            for c in range(self.ncols):
+                self.addplot([[traces[r][c]['x'], traces[r][c]['y']]],title=traces[r][c]['title'])
+            self.nextRow()
+        
+    def set_plot_num(self,nrows,ncols):
+        self.nrows=nrows
+        self.ncols=ncols
+        
+    def addplot(self,traces, title = '', vertical_lines = None, plot_mean=True):
+        self.plots.append(self.addPlot(title=title))
+        color_index=0
+        for trace in traces:
+            self.plots[-1].plot(trace[0], trace[1], pen=tuple(numpy.cast['int'](numpy.array(colors.get_color(0))*255)), name="Red curve")
+            color_index+=1
+        self.plots[-1].showGrid(True,True,1.0)
         
 ################### Application widgets #######################
 class MainWidget(QtGui.QWidget):

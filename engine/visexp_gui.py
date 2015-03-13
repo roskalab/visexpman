@@ -963,6 +963,7 @@ class GuiTest(QtCore.QThread):
         
     def printc(self, text):
         self.emit(QtCore.SIGNAL('printc'), text)
+
         
 class CentralWidget(QtGui.QWidget):
     def __init__(self, parent, config):
@@ -1002,7 +1003,12 @@ class CentralWidget(QtGui.QWidget):
         self.snap = QtGui.QPushButton('Snap', self)
         self.save2file = gui_generic.LabeledCheckBox(self, 'Save to file')
         self.averaging = gui_generic.LabeledInput(self, 'Averaging')
-        self.image = gui.ImageWidget(self)        
+        self.image = gui.Image(self)
+        
+        self.plots = gui.Plots(self)
+        self.main_tab.addTab(self.plots, 'Plots')
+        self.main_tab.setCurrentIndex(6)
+        
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -1094,6 +1100,7 @@ class VisionExperimentGui(Qt.QMainWindow):
 #        gui_generic.load_experiment_config_names(self.config, self.central_widget.main_widget.experiment_control_groupbox.experiment_name)
         
     def connect_signals(self):
+        
         self.connect(self.central_widget.main_widget.experiment_control_groupbox.experiment_name, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.experiment_name_changed)
         self.connect(self.central_widget.animal_parameters_groupbox.animal_filename.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'),  self.animal_filename_changed)
         self.connect(self.central_widget.animal_parameters_groupbox.animal_filename.input, QtCore.SIGNAL('editTextChanged(const QString &)'),  self.animal_filename_changed)

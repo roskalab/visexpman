@@ -860,6 +860,15 @@ class TestExperimentData(unittest.TestCase):
         
         
 def entropy_threshold(image, maxval):
+    import itk
+    import copy
+    pixelType = itk.US
+    imageType = itk.Image[pixelType, 2]
+    itk_py_converter = itk.PyBuffer[imageType]
+    itk_image = itk_py_converter.GetImageFromArray( image.astype(numpy.uint16) )
+    filter = itk.MaximumEntropyThresholdImageFilter[imageType,imageType].New()
+#    
+#    return threshold
     hist, bins=numpy.histogram(image,numpy.arange(maxval+1))
     pi=hist/float(image.shape[0]*image.shape[1])
     entropy = []
