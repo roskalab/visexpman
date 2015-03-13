@@ -571,7 +571,8 @@ def get_data_timing(filename):
     if 1:
         import visexpA.engine.component_guesser as cg
         rawdata = h.findvar('rawdata')
-        sfi = h.findvar('_'.join(cg.get_mes_name_timestamp(h)))['stimulus_frame_info']
+        idnode = h.findvar('_'.join(cg.get_mes_name_timestamp(h)))
+        sfi = idnode['stimulus_frame_info']
         scale = h.findvar('image_scale')['row'][0]
     else:
         rawdata = utils.array2object(numpy.load(os.path.split(filename)[0]+'/rawdata.npy'))

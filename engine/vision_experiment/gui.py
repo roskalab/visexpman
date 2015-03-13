@@ -2008,13 +2008,14 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.view.setAspectLocked(True)
         self.view.setRange(QtCore.QRectF(0, 0, 100, 100))
         self.scene().sigMouseClicked.connect(self.mouse_clicked)
+        self.rois = []
         return
         ima=numpy.random.random((100,100,3))
         ima[:,:,1:]=0
         ima[39:41,:,:]=0
         ima[:,28:32,:]=0.5
         self.set_image(ima)
-        self.rois = []
+        
         
         
     def set_image(self, image):
@@ -2031,14 +2032,16 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
 #            print self.roi_info
         
     def add_roi(self,x,y):
-        roi = pyqtgraph.CircleROI([x, y], [20, 20])
-        roi.setPen((0,0,0,255), width=3)
+        roi = pyqtgraph.CircleROI([x, y], [10, 10])
+        roi.setPen((255,0,0,255), width=2)
         self.rois.append(roi)
         self.view.addItem(self.rois[-1])
         
     def remove_roi(self,x,y):
         distances = [(r.pos().x()-x)**2+(r.pos().y()-y)**2 for r in self.rois]
-        self.view.removeItem(self.rois[numpy.array(distances).argmin()])
+        removable_roi = self.rois[numpy.array(distances).argmin()]
+        self.view.removeItem(removable_roi)
+        self.rois.remove(removable_roi)
         
     def update_roi_info(self):
         self.roi_info = [[i, self.rois[i].x(), self.rois[i].y()] for i in range(len(self.rois))]
@@ -2063,20 +2066,26 @@ class Plots(pyqtgraph.GraphicsLayoutWidget):
         self.addplots(traces)
         
     def addplots(self,traces):
+        self.plots = []
+        self.clear()
         for r in range(self.nrows):
             for c in range(self.ncols):
-                self.addplot([[traces[r][c]['x'], traces[r][c]['y']]],title=traces[r][c]['title'])
+                self.addplot(traces[r][c])
             self.nextRow()
         
     def set_plot_num(self,nrows,ncols):
         self.nrows=nrows
         self.ncols=ncols
         
-    def addplot(self,traces, title = '', vertical_lines = None, plot_mean=True):
-        self.plots.append(self.addPlot(title=title))
+    def addplot(self,traces):
+        self.plots.append(self.addPlot(title=traces['title']))
         color_index=0
-        for trace in traces:
-            self.plots[-1].plot(trace[0], trace[1], pen=tuple(numpy.cast['int'](numpy.array(colors.get_color(0))*255)), name="Red curve")
+        for trace in traces['trace']:
+            if trace.has_key('color'):
+                c=trace['color']
+            else:
+                c = tuple(numpy.cast['int'](numpy.array(colors.get_color(0))*255))
+            self.plots[-1].plot(trace['x'], trace['y'], pen=c)
             color_index+=1
         self.plots[-1].showGrid(True,True,1.0)
         

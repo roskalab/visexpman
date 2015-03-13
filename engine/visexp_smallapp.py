@@ -6,6 +6,8 @@ import sys
 import os
 import os.path
 import traceback
+import pdb
+import numpy
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -13,7 +15,7 @@ import PyQt4.QtCore as QtCore
 
 import visexpman
 import hdf5io
-from visexpman.engine.generic import utils,log,fileop
+from visexpman.engine.generic import utils,log,fileop,signal
 from visexpman.engine.vision_experiment import configuration,gui
 from visexpman.engine.generic import gui as gui_generic
 from visexpman.engine.vision_experiment import gui_pollers
@@ -240,23 +242,123 @@ class ReceptiveFieldPlotter(SmallApp):
         self.image = gui.Image(self)
         self.plots = gui.Plots(self)
         self.open_file_button = QtGui.QPushButton('Open file', self)
+        self.update_plots_button = QtGui.QPushButton('Update plots', self)
         self.text_out.setMaximumHeight(300)
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.open_file_button, 0, 0, 1, 1)
+        self.layout.addWidget(self.update_plots_button, 0, 1, 1, 1)
         self.layout.addWidget(self.plots, 1, 0, 1, 5)
         self.layout.addWidget(self.image, 1, 6, 1, 4)
         self.layout.addWidget(self.text_out, 2, 0, 1, 10)
         self.setLayout(self.layout)
         self.connect(self.open_file_button, QtCore.SIGNAL('clicked()'),  self.open_file)
+        self.connect(self.update_plots_button, QtCore.SIGNAL('clicked()'),  self.update_plots)
+        
+    def update_image(self,img,mask=None):
+        self.display_image = numpy.zeros((img.shape[0], img.shape[1], 3))
+        self.display_image[:,:,1]=img
+        if mask is not None:
+            self.display_image[:,:,2] = mask
+        self.image.set_image(self.display_image)
         
     def open_file(self):
-        filename = self.ask4filename('Select data file', fileop.select_folder_exists(['/mnt/databig/debug/recfield', 'v:\\experiment_data', '/tmp']), '*.hdf5')
-        if not os.path.exists(filename):return
-        self.printc('Opening file {0}'.format(filename))
-        hh=hdf5io.Hdf5io(filename,filelocking=False)
+        self.filename = str(self.ask4filename('Select data file', fileop.select_folder_exists(['/mnt/databig/debug/recfield', 'v:\\experiment_data1', '/tmp', 'c:\\temp\\rec']), '*.hdf5'))
+        if not os.path.exists(self.filename):return
+        if 'ReceptiveFieldExploreNew' not in self.filename:
+            self.notify_user('Warning', 'This stimulus is not supported')
+            return
+        from visexpman.engine.vision_experiment import experiment_data
+        import copy
+        hh=hdf5io.Hdf5io(self.filename,filelocking=False)
+        self.rawdata =copy.deepcopy(hh.findvar('rawdata'))
+#        self.rawdata[50:70,40:70,:,0]=self.rawdata.mean()*2#TMP
+        idnode = hh.findvar('_'.join(os.path.split(self.filename)[1].replace('.hdf5','').split('_')[-3:]))
+        self.sfi = copy.deepcopy(idnode['stimulus_frame_info'])
+        self.sd = copy.deepcopy(idnode['sync_data'])
+        self.scale = copy.deepcopy(hh.findvar('image_scale')['row'][0])
+        self.machine_config = utils.array2object(idnode['machine_config'])
+        self.sync_sample_rate = float(self.machine_config.DAQ_CONFIG[0]['SAMPLE_RATE'])
+        #Calculate timing from sync signal
+        self.imaging_time = signal.trigger_indexes(self.sd[:,0])[::2]/self.sync_sample_rate
+        self.stimulus_time = signal.trigger_indexes(self.sd[:,1])[::2]/self.sync_sample_rate
+        #Display meanimage
+        self.overall_activity = self.rawdata.mean(axis=0).mean(axis=0)[:,0]
+        self.meanimage = self.rawdata.mean(axis = 2)[:,:,0]
+        self.update_image(self.meanimage)
+        #Find repetitions and positions
+        block_times, stimulus_parameter_times,block_info, self.organized_blocks = experiment_data.process_stimulus_frame_info(self.sfi, self.stimulus_time, self.imaging_time)
+        self.positions = [o[0]['sig'][2]['pos'] for o in self.organized_blocks]
+        self.colors = [o[0]['sig'][2]['color'] for o in self.organized_blocks]
+        self.boundaries = []
+        for o in self.organized_blocks:
+            self.boundaries.append([[r['start'], r['end']  ] for r in o])
         hh.close()
+        self.printc('File opened {0}'.format(self.filename))
         
-        
+    def update_plots(self):
+        if not hasattr(self,'filename'):
+            self.notify_user('Warning', 'Open a file first')
+            return
+        #Generate plot data
+        if len(self.image.rois)==0:
+            raw_trace = self.overall_activity
+            self.notify_user('Warning', 'No roi selected,overall activity is plotted')
+        elif len(self.image.rois)==1:
+            roipos = self.image.rois[0].pos()
+            roiposx=roipos.x()
+            roiposy=roipos.y()
+            roisize = self.image.rois[0].size().x()
+            mask=numpy.zeros_like(self.meanimage)
+            m=numpy.zeros_like(mask)
+            m[roiposx:roiposx+roisize,roiposy:roiposy+roisize]=1
+            coo=numpy.nonzero(m)
+            rsq=(0.5*roisize)**2
+            for cx,cy in zip(coo[0],coo[1]):
+                if (roiposx+0.5*roisize-cx)**2+(roiposy+0.5*roisize-cy)**2<rsq:
+                    mask[cx,cy]=1
+            masked = numpy.rollaxis(self.rawdata, 2, 0)[:,:,:,0]*mask
+            raw_trace =numpy.cast['float'](masked).mean(axis=1).mean(axis=1)
+            self.update_image(self.meanimage,mask*self.meanimage.max()*0.7)
+        else:
+            self.notify_user('Warning', 'More than one roi cannot be handled')
+            return
+        nrows = len(set([p['row'] for p in self.positions]))
+        ncols = len(set([p['col'] for p in self.positions]))
+        col_start = min(set([p['col'] for p in self.positions]))
+        row_start = min(set([p['row'] for p in self.positions]))
+        grid_size = self.organized_blocks[0][0]['sig'][2]['size']['row']
+        traces = []
+        for r in range(nrows):
+            traces1 = []
+            for r in range(ncols):
+                traces1.append({})
+            traces.append(traces1)
+        plotrangemax=[]
+        plotrangemin=[]
+        for i in range(len(self.positions)):
+            p=self.positions[i]
+            plot_color = tuple([int(255*self.colors[i]), 0,0])
+            r=int((self.positions[i]['row']-row_start)/grid_size)
+            c=int((self.positions[i]['col']-col_start)/grid_size)
+            traces[r][c]['title'] = 'x={0}, y={1}, utils.cr(({2},{3}))'.format(int(p['col']), int(p['row']), int(p['col']), int(p['row']))
+            if not traces[r][c].has_key('trace'):
+                traces[r][c]['trace'] = []
+            boundaries = self.boundaries[i]
+            for rep in range(len(boundaries)):
+                boundary=boundaries[rep]
+                y=raw_trace[boundary[0]:boundary[1]]
+                x=self.imaging_time[boundary[0]:boundary[1]]
+                x-=x[0]
+                t = {'x':  x, 'y':y, 'color': plot_color}
+                plotrangemax.append(max(y))
+                plotrangemin.append(min(y))
+                traces[r][c]['trace'].append(t)
+                
+        self.plots.set_plot_num(nrows,ncols)
+        self.plots.addplots(traces)
+        for pp in self.plots.plots:
+            pp.setYRange(min(plotrangemin), max(plotrangemax))
+        self.printc('Plots are updated')
 
 def run_gui():
     '''
