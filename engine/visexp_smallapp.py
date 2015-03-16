@@ -271,7 +271,7 @@ class ReceptiveFieldPlotter(SmallApp):
         import copy
         hh=hdf5io.Hdf5io(self.filename,filelocking=False)
         self.rawdata =copy.deepcopy(hh.findvar('rawdata'))
-        self.rawdata[50:70,40:70,:,0]=self.rawdata.mean()*2#TMP
+#        self.rawdata[50:70,40:70,:,0]=self.rawdata.mean()*2#TMP
         idnode = hh.findvar('_'.join(os.path.split(self.filename)[1].replace('.hdf5','').split('_')[-3:]))
         self.sfi = copy.deepcopy(idnode['stimulus_frame_info'])
         self.sd = copy.deepcopy(idnode['sync_data'])

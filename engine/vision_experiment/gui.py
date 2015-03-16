@@ -2002,6 +2002,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
         self.setBackground((255,255,255))
+        self.roi_default_diameter = 20
 #        self.view = self.addViewBox()
         self.plot=self.addPlot()
         self.img = pyqtgraph.ImageItem(border='w')
@@ -2015,7 +2016,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
 #        self.plot.autoRange()
         
     def set_image(self, image):
-        im=0.75*numpy.ones((image.shape[0],image.shape[1], 4))*image.max()
+        im=0.8*numpy.ones((image.shape[0],image.shape[1], 4))*image.max()
         im[:,:,:3]=image
         self.img.setImage(im)
 
@@ -2030,8 +2031,7 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
 #            print self.roi_info
         
     def add_roi(self,x,y):
-        roi = pyqtgraph.CircleROI([x-10, y-10], [20, 20])
-#        roi.setScale(self.img.scale())
+        roi = pyqtgraph.CircleROI([x-0.5*self.roi_default_diameter , y-0.5*self.roi_default_diameter ], [self.roi_default_diameter , self.roi_default_diameter ])
         roi.setPen((255,0,0,255), width=2)
         self.rois.append(roi)
         self.plot.addItem(self.rois[-1])
