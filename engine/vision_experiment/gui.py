@@ -2002,45 +2002,44 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
     def __init__(self,parent):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
         self.setBackground((255,255,255))
-        self.view = self.addViewBox()
+#        self.view = self.addViewBox()
+        self.plot=self.addPlot()
         self.img = pyqtgraph.ImageItem(border='w')
-        self.view.addItem(self.img)
-        self.view.setAspectLocked(True)
-        self.view.setRange(QtCore.QRectF(0, 0, 100, 100))
+        self.plot.addItem(self.img)
+        self.plot.showGrid(True,True,1.0)
+#        self.plot.setZValue(5)
+#        self.view.setAspectLocked(True)
+#        self.view.setRange(QtCore.QRectF(0, 0, 100, 100))
         self.scene().sigMouseClicked.connect(self.mouse_clicked)
         self.rois = []
-        return
-        ima=numpy.random.random((100,100,3))
-        ima[:,:,1:]=0
-        ima[39:41,:,:]=0
-        ima[:,28:32,:]=0.5
-        self.set_image(ima)
-        
-        
+#        self.plot.autoRange()
         
     def set_image(self, image):
-        self.img.setImage(image)
+        im=0.75*numpy.ones((image.shape[0],image.shape[1], 4))*image.max()
+        im[:,:,:3]=image
+        self.img.setImage(im)
 
     def mouse_clicked(self,e):
         p=self.img.mapFromScene(e.scenePos())
         if e.double():
             if int(e.buttons()) == 1:
-                self.add_roi(p.x(), p.y())
+                self.add_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
             elif int(e.buttons()) == 2:
-                self.remove_roi(p.x(), p.y())
+                self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
             self.update_roi_info()
 #            print self.roi_info
         
     def add_roi(self,x,y):
-        roi = pyqtgraph.CircleROI([x, y], [10, 10])
+        roi = pyqtgraph.CircleROI([x-10, y-10], [20, 20])
+#        roi.setScale(self.img.scale())
         roi.setPen((255,0,0,255), width=2)
         self.rois.append(roi)
-        self.view.addItem(self.rois[-1])
+        self.plot.addItem(self.rois[-1])
         
     def remove_roi(self,x,y):
         distances = [(r.pos().x()-x)**2+(r.pos().y()-y)**2 for r in self.rois]
         removable_roi = self.rois[numpy.array(distances).argmin()]
-        self.view.removeItem(removable_roi)
+        self.plot.removeItem(removable_roi)
         self.rois.remove(removable_roi)
         
     def update_roi_info(self):

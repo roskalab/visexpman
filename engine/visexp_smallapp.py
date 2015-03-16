@@ -271,7 +271,7 @@ class ReceptiveFieldPlotter(SmallApp):
         import copy
         hh=hdf5io.Hdf5io(self.filename,filelocking=False)
         self.rawdata =copy.deepcopy(hh.findvar('rawdata'))
-#        self.rawdata[50:70,40:70,:,0]=self.rawdata.mean()*2#TMP
+        self.rawdata[50:70,40:70,:,0]=self.rawdata.mean()*2#TMP
         idnode = hh.findvar('_'.join(os.path.split(self.filename)[1].replace('.hdf5','').split('_')[-3:]))
         self.sfi = copy.deepcopy(idnode['stimulus_frame_info'])
         self.sd = copy.deepcopy(idnode['sync_data'])
@@ -285,6 +285,7 @@ class ReceptiveFieldPlotter(SmallApp):
         self.overall_activity = self.rawdata.mean(axis=0).mean(axis=0)[:,0]
         self.meanimage = self.rawdata.mean(axis = 2)[:,:,0]
         self.update_image(self.meanimage)
+        self.image.img.setScale(self.scale)
         #Find repetitions and positions
         block_times, stimulus_parameter_times,block_info, self.organized_blocks = experiment_data.process_stimulus_frame_info(self.sfi, self.stimulus_time, self.imaging_time)
         self.positions = [o[0]['sig'][2]['pos'] for o in self.organized_blocks]
@@ -305,9 +306,9 @@ class ReceptiveFieldPlotter(SmallApp):
             self.notify_user('Warning', 'No roi selected,overall activity is plotted')
         elif len(self.image.rois)==1:
             roipos = self.image.rois[0].pos()
-            roiposx=roipos.x()
-            roiposy=roipos.y()
-            roisize = self.image.rois[0].size().x()
+            roiposx=roipos.x()/self.scale
+            roiposy=roipos.y()/self.scale
+            roisize = self.image.rois[0].size().x()/self.scale
             mask=numpy.zeros_like(self.meanimage)
             m=numpy.zeros_like(mask)
             m[roiposx:roiposx+roisize,roiposy:roiposy+roisize]=1
@@ -353,7 +354,6 @@ class ReceptiveFieldPlotter(SmallApp):
                 plotrangemax.append(max(y))
                 plotrangemin.append(min(y))
                 traces[r][c]['trace'].append(t)
-                
         self.plots.set_plot_num(nrows,ncols)
         self.plots.addplots(traces)
         for pp in self.plots.plots:
