@@ -14,6 +14,11 @@ except ImportError:
     pass
 timestamp_re = re.compile('.*(\d{10,10}).*')
 
+def select_folder_exists(folders):
+    for folder in folders:
+        if os.path.exists(folder) and os.path.isdir(folder):
+            return folder
+
 def BackgroundCopier(command_queue,postpone_seconds = 60, thread=1,debug=0):
     if thread:
         base = threading.Thread
