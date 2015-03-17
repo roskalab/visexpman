@@ -12,7 +12,7 @@ import string
 import shutil
 import tempfile
 import StringIO
-from PIL import Image
+from PIL import Image,ImageDraw
 
 from pylab import show,plot,imshow,figure,title,subplot
 
@@ -91,7 +91,7 @@ def get_sync_events(h):
     h.timg = telphyssync[signal.trigger_indexes(img_sync)[0::2]]
     return h.tsync,h.timg
     
-def  get_ca_activity(h, mask = None):
+def get_ca_activity(h, mask = None):
     if not hasattr(h, 'raw_data'):
         h.load('raw_data')
     if h.raw_data.shape[1] != 1:
@@ -103,7 +103,11 @@ def  get_ca_activity(h, mask = None):
     masked_data = h.raw_data * mask
     return masked_data.mean(axis=2).mean(axis=2).flatten()
     
-def get_activity_plotdata(h):
+def get_activity_plotdata(h):#TODO rename
+    '''
+    Gets overall activity plotting data
+    May return meanimage
+    '''
     h_opened = False
     if not hasattr(h, 'filename'):
         h = hdf5io.Hdf5io(h, filelocking=False)
@@ -114,8 +118,39 @@ def get_activity_plotdata(h):
     if h_opened:
         h.close()
     return tsync, timg[:l], a[:l]
+    
+def get_imagedata(h):
+    h_opened = False
+    if not hasattr(h, 'filename'):
+        h = hdf5io.Hdf5io(h, filelocking=False)
+        h_opened = True
+    h.load('raw_data')
+    meanimage = h.raw_data.mean(axis=0)[0]
+    h.load('recording_parameters')
+    if h.recording_parameters['resolution_unit']=='pixel/um':
+        scale = 1/h.recording_parameters['pixel_size']
+    else:
+        raise NotImplementedError('')
+    if h_opened:
+        h.close()
+    return meanimage,copy.deepcopy(h.raw_data), scale
+    
+def extract_roi_curve(rawdata, roix, roiy, roisize,roitype,scale):
+    if roitype != 'circle':
+        raise NotImplementedError('')
+    size=roisize/scale
+    x=roix/scale
+    y=roiy/scale
+    bbox=(x, y,x+size, y+size)
+    im=Image.fromarray(numpy.zeros((rawdata.shape[2], rawdata.shape[3])))
+    draw = ImageDraw.Draw(im)
+    draw.ellipse(bbox, fill=1)
+    mask = numpy.asarray(im)
+    return get_roi_curves(rawdata, [numpy.nonzero(mask)])[0]
+    
+    
 
-def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None,  sync_signal_min_amplitude = 1.5):
+def preprocess_stimulus_sync(sync_signal, stimulus_frame_info = None, sync_signal_min_amplitude = 1.5):
     #Find out high and low voltage levels
     histogram, bin_edges = numpy.histogram(sync_signal, bins = 20)
     if histogram.max() == histogram[0] or histogram.max() == histogram[-1]:
@@ -558,7 +593,10 @@ def detect_cells(rawdata, scale, cell_size):
     return mip,cell_rois
     
 def get_roi_curves(rawdata, cell_rois):
-    return [numpy.cast['float'](rawdata[cell_roi[0], cell_roi[1], :,0]).mean(axis=0) for cell_roi in cell_rois]
+    if rawdata.shape[3]<rawdata.shape[1]:
+        return [numpy.cast['float'](rawdata[cell_roi[0], cell_roi[1], :,0]).mean(axis=0) for cell_roi in cell_rois]
+    else:
+        return [numpy.cast['float'](rawdata[:, 0, cell_roi[0], cell_roi[1]]).mean(axis=1) for cell_roi in cell_rois]
         
 def get_data_timing(filename):
     from visexpA.engine.datahandlers import matlabfile
@@ -838,7 +876,7 @@ class TestExperimentData(unittest.TestCase):
         fn='/home/rz/codes/data/recfield/fragment_xy_tr_0_0_0.0_ReceptiveFieldExploreNew_1424256866_0.hdf5'
         get_data_timing(fn)
         
-        
+    @unittest.skip("")
     def test_08_cell_detection(self):
         files = fileop.find_files_and_folders('/mnt/rzws/dataslow/rei_data_c')[1]
         from skimage import filter
@@ -857,6 +895,16 @@ class TestExperimentData(unittest.TestCase):
         figure(3);subplot(1,2,1);title('meanimg');imshow(meanimage,cmap='gray');
         subplot(1,2,2);title('geot');imshow(geot,cmap='gray');show()
         pass
+        h.close()
+        
+    def test_09_extract_roi_curve(self):
+        h=hdf5io.Hdf5io(fileop.listdir_fullpath('/mnt/rzws/test_data/extract_roi')[0],filelocking=False)
+        h.load('raw_data')
+        roitype='circle'
+        roix=10
+        roiy=10
+        roisize=5
+        extract_roi_curve(h.raw_data, roix, roiy, roisize,roitype)
         h.close()
         
         

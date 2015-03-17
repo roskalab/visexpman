@@ -968,6 +968,7 @@ class GuiTest(QtCore.QThread):
 class CentralWidget(QtGui.QWidget):
     def __init__(self, parent, config):
         QtGui.QWidget.__init__(self, parent)
+        self.parent=parent
         self.config = config
         self.create_widgets()
         self.create_layout()
@@ -1003,12 +1004,14 @@ class CentralWidget(QtGui.QWidget):
         self.snap = QtGui.QPushButton('Snap', self)
         self.save2file = gui_generic.LabeledCheckBox(self, 'Save to file')
         self.averaging = gui_generic.LabeledInput(self, 'Averaging')
-        self.image = gui.Image(self)
+        self.analysis = gui.Analysis(self)
+        self.image = gui.ImageMainUI(self,roi_diameter=5)
         
-        self.plots = gui.Plots(self)
-        self.main_tab.addTab(self.plots, 'Plots')
+        
+        self.main_tab.addTab(self.analysis, 'Analysis')
         self.main_tab.setCurrentIndex(6)
-        
+        self.console = gui.PythonConsole(self)
+        self.main_tab.addTab(self.console, 'Debug')
 
     def create_layout(self):
         self.layout = QtGui.QGridLayout()
@@ -1044,6 +1047,7 @@ class VisionExperimentGui(Qt.QMainWindow):
         self.create_widgets()
         self.resize(self.config.GUI['GUI_SIZE']['col'], self.config.GUI['GUI_SIZE']['row'])
         self.poller = gui_pollers.VisexpGuiPoller(self)
+        self.central_widget.console.set_poller(self.poller)
         self.block_widgets(True)
         self.init_variables()
         self.connect_signals()
@@ -1328,6 +1332,10 @@ class VisionExperimentGui(Qt.QMainWindow):
         
     def update_curve(self,curves):
         self.central_widget.plot.update(curves)
+        
+    def update_image(self, image,scale=1):
+        self.central_widget.image.set_image(image)
+        self.central_widget.image.set_scale(scale)
         
     def set_experiment_progressbar(self, value, attribute='setValue'):
         self.central_widget.main_widget.experiment_control_groupbox.experiment_progress.setValue(value)

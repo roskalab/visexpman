@@ -53,7 +53,7 @@ class LabeledComboBox(QtGui.QWidget):
         self.create_widgets()
         self.create_layout()
         if items is not None:
-            self.input.addItems(QtCore.QStringList(items))
+            self.update_items(items)
             
 
     def create_widgets(self):
@@ -65,6 +65,12 @@ class LabeledComboBox(QtGui.QWidget):
         self.layout.addWidget(self.labelw, 0, 0)
         self.layout.addWidget(self.input, 0, 1)
         self.setLayout(self.layout)
+        
+    def update_items(self,items):
+        self.input.blockSignals(True)
+        self.input.clear()
+        self.input.blockSignals(False)
+        self.input.addItems(QtCore.QStringList(items))
         
 class LabeledListWidget(QtGui.QWidget):
     '''

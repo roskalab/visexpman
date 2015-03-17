@@ -12,6 +12,7 @@ import shutil
 import inspect
 import pdb
 import pyqtgraph
+import pyqtgraph.console
 
 import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
@@ -1999,26 +2000,24 @@ class ImageWidget(QtGui.QWidget):
         self.setLayout(self.layout)
         
 class Image(pyqtgraph.GraphicsLayoutWidget):
-    def __init__(self,parent):
+    def __init__(self,parent, roi_diameter = 20):
         pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
         self.setBackground((255,255,255))
-        self.roi_default_diameter = 20
-#        self.view = self.addViewBox()
+        self.roi_default_diameter = roi_diameter
         self.plot=self.addPlot()
         self.img = pyqtgraph.ImageItem(border='w')
         self.plot.addItem(self.img)
         self.plot.showGrid(True,True,1.0)
-#        self.plot.setZValue(5)
-#        self.view.setAspectLocked(True)
-#        self.view.setRange(QtCore.QRectF(0, 0, 100, 100))
         self.scene().sigMouseClicked.connect(self.mouse_clicked)
         self.rois = []
-#        self.plot.autoRange()
         
     def set_image(self, image):
         im=0.8*numpy.ones((image.shape[0],image.shape[1], 4))*image.max()
         im[:,:,:3]=image
         self.img.setImage(im)
+        
+    def set_scale(self,scale):
+        self.img.setScale(scale)
 
     def mouse_clicked(self,e):
         p=self.img.mapFromScene(e.scenePos())
@@ -2028,11 +2027,11 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
             elif int(e.buttons()) == 2:
                 self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
             self.update_roi_info()
-#            print self.roi_info
         
     def add_roi(self,x,y):
         roi = pyqtgraph.CircleROI([x-0.5*self.roi_default_diameter , y-0.5*self.roi_default_diameter ], [self.roi_default_diameter , self.roi_default_diameter ])
         roi.setPen((255,0,0,255), width=2)
+        roi.sigRegionChanged.connect(self.update_roi_info)
         self.rois.append(roi)
         self.plot.addItem(self.rois[-1])
         
@@ -2043,9 +2042,87 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         self.rois.remove(removable_roi)
         
     def update_roi_info(self):
-        self.roi_info = [[i, self.rois[i].x(), self.rois[i].y()] for i in range(len(self.rois))]
+        self.roi_info = [[i, int(self.rois[i].x()), int(self.rois[i].y()), int(self.rois[i].size().x())] for i in range(len(self.rois))]
+        self.emit(QtCore.SIGNAL('roi_update'))
         
-class Plots(pyqtgraph.GraphicsLayoutWidget):
+class ImageMainUI(Image):
+    def __init__(self, parent, roi_diameter=10):
+        Image.__init__(self, parent, roi_diameter)
+        self.connect(self, QtCore.SIGNAL('roi_update'), parent.analysis.roi_update)
+
+        
+class ROITools(QtGui.QGroupBox):
+    def __init__(self,parent):
+        QtGui.QGroupBox.__init__(self,'ROI', parent)
+        self.save = QtGui.QPushButton('Save',  self)
+        self.suggest = QtGui.QPushButton('Suggest',  self)
+        for w in [self.save,self.suggest]:
+            w.setFixedWidth(70)
+        self.select = gui.LabeledComboBox(self, 'Select')
+        self.select.input.setFixedWidth(120)
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.save, 0, 0)
+        self.layout.addWidget(self.suggest, 0, 1)
+        self.layout.addWidget(self.select, 0, 2)
+        self.setLayout(self.layout)
+        
+class Analysis(QtGui.QWidget):
+    def __init__(self, parent):
+        QtGui.QWidget.__init__(self, parent)
+        self.parent=parent
+        self.prev_frame = QtGui.QPushButton('Previous frame',  self)
+        self.next_frame = QtGui.QPushButton('Next frame',  self)
+        self.show_meanimage = QtGui.QPushButton('Show meanimage',  self)
+        
+        self.roi=ROITools(self)
+        
+        self.gw = pyqtgraph.GraphicsLayoutWidget(self)
+        self.gw.setBackground((255,255,255))
+        self.gw.setFixedHeight(400)
+        self.gw.setAntialiasing(True)
+        self.plot=self.gw.addPlot()
+        self.curve = self.plot.plot(pen=(0,0,0))
+        
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.gw, 0, 0, 2,4)
+        self.layout.addWidget(self.roi, 2, 0, 1,2)
+
+        self.layout.addWidget(self.prev_frame, 3, 0)
+        self.layout.addWidget(self.next_frame, 3, 1)
+        self.layout.addWidget(self.show_meanimage, 3, 2)
+        self.layout.setRowStretch(300, 300)
+        self.setLayout(self.layout)
+        
+        self.connect(self.roi.select.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'), self.selected_roi_changed)
+        
+    def roi_update(self):
+        self.roi.select.update_items(['{0} {1},{2}@{3}'.format(r[0],r[1],r[2],r[3]) for r in self.parent.image.roi_info])
+        
+    def selected_roi_changed(self):
+        self.poller = self.parent.parent.poller
+        index=int(self.roi.select.input.currentIndex())
+        for i in range(len(self.parent.image.rois)):
+            if i == index:
+                self.parent.image.rois[i].setPen((0,0,255))
+            else:
+                self.parent.image.rois[i].setPen((255,0,0))
+        #Update plot
+        roi_info=self.parent.image.roi_info[index]
+        self.ca = experiment_data.extract_roi_curve(self.poller.rawdata, roi_info[1],roi_info[2],roi_info[3],'circle', self.poller.scale)[:self.poller.ti.shape[0]]
+        self.curve.setData(self.poller.ti, self.ca)
+        
+        
+        
+        
+class PythonConsole(pyqtgraph.console.ConsoleWidget):
+    def __init__(self, parent):
+        pyqtgraph.console.ConsoleWidget.__init__(self, namespace={'self':self}, text = 'Poller: self.p')
+        
+    def set_poller(self, poller):
+        self.p=poller
+        
+        
+class ReceptiveFieldPlots(pyqtgraph.GraphicsLayoutWidget):
     '''
     Number of plots can be updated in runtime
     '''

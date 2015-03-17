@@ -11,7 +11,7 @@ import os
 import os.path
 import itertools
 import tifffile
-from visexpman.engine.generic import fileop,utils
+from visexpman.engine.generic import fileop,utils,signal
 from visexpman.engine.vision_experiment import experiment_data
 from visexpA.engine.datahandlers import importers
 import unittest
@@ -93,9 +93,10 @@ class PhysTiff2Hdf5(object):
             recording_parameters['resolution_unit'] = 'pixel/um'
             recording_parameters['pixel_size'] = float(ftiff.split('_')[-1].replace('.'+fileop.file_extension(ftiff), ''))
             recording_parameters['scanning_range'] = utils.rc((map(float,ftiff.split('_')[-5:-3])))
+            recording_parameters['elphys_sync_sample_rate'] = 10000
         data, metadata = experiment_data.read_phys(fphys)
         sync_and_elphys = numpy.zeros((data.shape[1], 5))
-        sync_and_elphys[:,2] = data[1]#stim sync
+        sync_and_elphys[:,2] = self.sync_signal2block_trigger(data[1])#stim sync
         sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']), raw_data.shape[2])
         if sig is None:
             return
@@ -110,12 +111,29 @@ class PhysTiff2Hdf5(object):
         h.fphys = fphys
         h.ftiff = ftiff
         h.recording_parameters=recording_parameters
-        h.sync_and_elphys = sync_and_elphys
+        h.sync_and_elphys_data = sync_and_elphys
+        h.conversion_factor=1
         h.phys_metadata = utils.object2array(metadata)
-        h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys', 'phys_metadata'])
+        h.configs_stim = {'machine_config':{'ELPHYS_SYNC_RECORDING': {'ELPHYS_INDEXES': [0,1],'SYNC_INDEXES': [2,3,4]}}}
+        h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys_data', 'conversion_factor', 'phys_metadata', 'configs_stim'])
         h.close()
         print filename
         #TODO: use pool for parallel processing
+        
+    def sync_signal2block_trigger(self, sig):
+        indexes = signal.trigger_indexes(sig)
+        if (10000.0/numpy.diff(indexes)[1::2]).mean()<55:
+            return sig
+        else:
+            #assuming
+            delay_before_start=15
+            ontime=2
+            frame_rate=60
+            sig2=numpy.zeros_like(sig)
+            rising_index = delay_before_start*frame_rate
+            falling_index = (delay_before_start+ontime)*frame_rate
+            sig2[indexes[2*rising_index]:indexes[2*falling_index]]=5
+            return sig2
         
     def yscanner_signal2trigger(self,waveform, fsample,nxlines):
         #First harmonic will be the frame rate

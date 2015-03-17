@@ -140,9 +140,10 @@ class Poller(QtCore.QThread, queued_socket.QueuedSocketHelpers):
             return self.gui_thread_queue.get()
         
     def ask4filename(self, title, directory, filter):
+        utils.empty_queue(self.gui_thread_queue)
         self.emit(QtCore.SIGNAL('ask4filename'),title, directory, filter)
         while self.gui_thread_queue.empty() :
-            time.sleep(0.1) 
+            time.sleep(0.1)
         return self.gui_thread_queue.get()
     
     def notify_user(self, title, message):
@@ -2684,6 +2685,7 @@ class VisexpGuiPoller(Poller):
         self.connected_nodes = ''
         self.sync_samples = {'ca_imaging':[], 'stim':[]}
         self.tdiff = {'ca_imaging':0, 'stim':0}
+        self.measurement_loaded = False
         self.plotdata = {}
         self.context_paths = {}
         self.unittest_context_paths = ['self.parent.central_widget.main_widget.experiment_parameters.values.rowCount',#only used by unittest
@@ -2790,6 +2792,7 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('ask4filename'), self.parent.ask4filename)
         self.connect(self, QtCore.SIGNAL('notify_user'), self.parent.notify_user)
         self.connect(self, QtCore.SIGNAL('update_curve'), self.parent.update_curve)
+        self.connect(self, QtCore.SIGNAL('update_image'), self.parent.update_image)
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar'), self.parent.set_experiment_progressbar)
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar_range'), self.parent.set_experiment_progressbar_range)
         self.connect(self, QtCore.SIGNAL('set_experiment_names'), self.parent.set_experiment_names)
@@ -2861,21 +2864,32 @@ class VisexpGuiPoller(Poller):
     def display_datafile(self,datafile = None):
         if datafile is None:
             datafile = self.ask4filename('Select datafile', fileop.get_user_experiment_data_folder(self.config),  '*.hdf5')
+#            datafile = self.gui_thread_queue.get()
         if not os.path.exists(datafile):
             return
-        self.printc(datafile)
         if fileop.parse_recording_filename(datafile)['type'] != 'data':
             self.printc('This file cannot be displayed')
             return
         ts, ti, a = experiment_data.get_activity_plotdata(datafile)
-#        import pdb
-#        pdb.set_trace()
         rect_heights = numpy.ones_like(ts)
         rect_heights[0::2] = a.min()
         rect_heights[1::2] = a.max()
         curves = [[ts, rect_heights]]
         curves.append([ti,a])
         self.emit(QtCore.SIGNAL('update_curve'), curves)
+        #Display meanimage
+        meanimage,rawdata, scale=experiment_data.get_imagedata(datafile)
+        mi=numpy.zeros((meanimage.shape[0],meanimage.shape[1],3))
+        mi[:,:,1]=meanimage
+        self.emit(QtCore.SIGNAL('update_image'), mi,scale)
+        self.rawdata = rawdata
+        self.ts = ts
+        self.ti = ti
+        self.meanimage = meanimage
+        self.scale = scale
+        self.measurement_loaded = True
+        self.printc(datafile)
+        
             
     def run_in_all_iterations(self):
         #### Calling functions all the time #### 

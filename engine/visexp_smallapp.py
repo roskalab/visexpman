@@ -240,7 +240,7 @@ class ReceptiveFieldPlotter(SmallApp):
         SmallApp.__init__(self)
         self.resize(1300,900)
         self.image = gui.Image(self)
-        self.plots = gui.Plots(self)
+        self.plots = gui.ReceptiveFieldPlots(self)
         self.open_file_button = QtGui.QPushButton('Open file', self)
         self.update_plots_button = QtGui.QPushButton('Update plots', self)
         self.text_out.setMaximumHeight(300)
