@@ -932,6 +932,7 @@ class Stimulations(experiment_control.StimulationControlHelper):#, screen.Screen
         if self.intensity_profile.shape[0] < self.config.SCREEN_RESOLUTION['col']:
             self.intensity_profile = numpy.tile(self.intensity_profile, numpy.ceil(float(self.config.SCREEN_RESOLUTION['col'])/self.intensity_profile.shape[0]))
         alltexture = numpy.repeat(self.intensity_profile,3).reshape(self.intensity_profile.shape[0],1,3)
+        alltexture=numpy.concatenate((numpy.zeros((self.config.SCREEN_RESOLUTION['col'],1,3)),alltexture))
         texture = alltexture[:self.config.SCREEN_RESOLUTION['col']]
         diagonal = numpy.sqrt(2) * numpy.sqrt(self.config.SCREEN_RESOLUTION['row']**2 + self.config.SCREEN_RESOLUTION['col']**2)
         diagonal =  1*numpy.sqrt(2) * self.config.SCREEN_RESOLUTION['col']
@@ -1500,7 +1501,7 @@ class TestStimulationPatterns(unittest.TestCase):
         #TODO: check captured files: shape size, speed
         numpy.testing.assert_almost_equal((len(stim_frames)-2)/float(context['machine_config'].SCREEN_EXPECTED_FRAME_RATE), calculated_duration, int(-numpy.log10(3.0/context['machine_config'].SCREEN_EXPECTED_FRAME_RATE))-1)
 
-#    @unittest.skip('')
+    @unittest.skip('')
     def test_03_natural_stim_spectrum(self):
         from visexpman.engine.visexp_app import stimulation_tester
         from PIL import Image
