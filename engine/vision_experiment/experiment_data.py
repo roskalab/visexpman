@@ -522,7 +522,7 @@ def get_block_entry_indexes(sfi, block_name):
 def images2mip(rawdata, timeseries_dimension = 0):
     return rawdata.max(axis=timeseries_dimension)
 
-def detect_cells(rawdata, scale, cell_size):
+def detect_cells(rawdata, scale, cell_size):#This concept does not work
     from scipy.ndimage.filters import gaussian_filter,maximum_filter
     from scipy.ndimage.morphology import generate_binary_structure, binary_erosion
     from scipy.ndimage.measurements import label
@@ -876,27 +876,41 @@ class TestExperimentData(unittest.TestCase):
         fn='/home/rz/codes/data/recfield/fragment_xy_tr_0_0_0.0_ReceptiveFieldExploreNew_1424256866_0.hdf5'
         get_data_timing(fn)
         
-    @unittest.skip("")
+    
     def test_08_cell_detection(self):
         files = fileop.find_files_and_folders('/mnt/rzws/dataslow/rei_data_c')[1]
         from skimage import filter
         otsu=True
-        f=[f for f in files if 'data_1423066844.hdf5' in f][0]
+        f=[f for f in files if '1423066844' in f][0]
         h=hdf5io.Hdf5io(f, filelocking=False)
         h.load('raw_data')
         meanimage = numpy.cast[h.raw_data.dtype.name]((numpy.cast['float'](h.raw_data).mean(axis=0)[0]))
-        maxval=2**int(h.raw_data.dtype.name.replace('uint',''))
-        threshold = filter.threshold_otsu(meanimage) if otsu else entropy_threshold(meanimage, maxval)
-        marker = numpy.where(meanimage>threshold,1,0)
-        geo = geodesic_dilation(marker,meanimage-meanimage.min())
-        gm=geo*meanimage
-        threshold = filter.threshold_otsu(geo) if otsu else entropy_threshold(geo, maxval)
-        geot = numpy.where(geo>threshold,1,0)
-        figure(3);subplot(1,2,1);title('meanimg');imshow(meanimage,cmap='gray');
-        subplot(1,2,2);title('geot');imshow(geot,cmap='gray');show()
+        g=find_rois(meanimage)
+        gcolored=numpy.zeros((g.shape[0],g.shape[1],3))
+        for i in range(1,g.max()):
+            c=numpy.random.random(3)
+            gcolored[numpy.where(g==i)]=c
+            
+        subplot(1,2,1)
+        imshow(meanimage,cmap='gray')
+        subplot(1,2,2)
+        imshow(gcolored,cmap='gray')
+        show()
+        if 0:
+            maxval=2**int(h.raw_data.dtype.name.replace('uint',''))
+            threshold = filter.threshold_otsu(meanimage) if otsu else entropy_threshold(meanimage, maxval)
+            marker = numpy.where(meanimage>threshold,1,0)
+            geo = geodesic_dilation(marker,meanimage-meanimage.min())
+            gm=geo*meanimage
+            threshold = filter.threshold_otsu(geo) if otsu else entropy_threshold(geo, maxval)
+            geot = numpy.where(geo>threshold,1,0)
+            figure(3);subplot(1,3,1);title('meanimg');imshow(meanimage,cmap='gray');
+            subplot(1,3,2);title('geot');imshow(geot,cmap='gray')
+            subplot(1,3,3);title('marker');imshow(marker,cmap='gray');show()
         pass
         h.close()
         
+    @unittest.skip("")
     def test_09_extract_roi_curve(self):
         h=hdf5io.Hdf5io(fileop.listdir_fullpath('/mnt/rzws/test_data/extract_roi')[0],filelocking=False)
         h.load('raw_data')
@@ -907,15 +921,27 @@ class TestExperimentData(unittest.TestCase):
         extract_roi_curve(h.raw_data, roix, roiy, roisize,roitype)
         h.close()
         
+def find_rois(meanimage):
+    from skimage import filter
+    import scipy.ndimage.measurements
+    threshold = filter.threshold_otsu(meanimage)
+    marker = numpy.where(meanimage>threshold,1,0)
+    geo = geodesic_dilation(marker,meanimage-meanimage.min())
+    threshold2 = filter.threshold_otsu(geo)
+    geot = numpy.where(geo>threshold2,1,0)
+    labeled, n = scipy.ndimage.measurements.label(geot)
+    return labeled
+    
+        
         
 def entropy_threshold(image, maxval):
-    import itk
-    import copy
-    pixelType = itk.US
-    imageType = itk.Image[pixelType, 2]
-    itk_py_converter = itk.PyBuffer[imageType]
-    itk_image = itk_py_converter.GetImageFromArray( image.astype(numpy.uint16) )
-    filter = itk.MaximumEntropyThresholdImageFilter[imageType,imageType].New()
+#    import itk
+#    import copy
+#    pixelType = itk.US
+#    imageType = itk.Image[pixelType, 2]
+#    itk_py_converter = itk.PyBuffer[imageType]
+#    itk_image = itk_py_converter.GetImageFromArray( image.astype(numpy.uint16) )
+#    filter = itk.MaximumEntropyThresholdImageFilter[imageType,imageType].New()
 #    
 #    return threshold
     hist, bins=numpy.histogram(image,numpy.arange(maxval+1))

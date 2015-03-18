@@ -24,7 +24,7 @@ import hdf5io
 from visexpman.engine.vision_experiment import experiment, experiment_data
 from visexpman.engine.hardware_interface import scanner_control,daq_instrument,instrument
 from visexpman.engine import ExperimentConfigError, AnimalFileError
-from visexpman.engine.generic import gui,fileop,stringop,introspect,utils,colors
+from visexpman.engine.generic import gui,fileop,stringop,introspect,utils,colors,signal
 
 BRAIN_TILT_HELP = 'Provide tilt degrees in text input box in the following format: vertical axis [degree],horizontal axis [degree]\n\
         Positive directions: horizontal axis: right, vertical axis: outer side (closer to user)'
@@ -2056,6 +2056,7 @@ class ROITools(QtGui.QGroupBox):
         QtGui.QGroupBox.__init__(self,'ROI', parent)
         self.save = QtGui.QPushButton('Save',  self)
         self.suggest = QtGui.QPushButton('Suggest',  self)
+        self.show = gui.LabeledCheckBox(self, 'Show/hide suggested')
         for w in [self.save,self.suggest]:
             w.setFixedWidth(70)
         self.select = gui.LabeledComboBox(self, 'Select')
@@ -2063,54 +2064,106 @@ class ROITools(QtGui.QGroupBox):
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.save, 0, 0)
         self.layout.addWidget(self.suggest, 0, 1)
-        self.layout.addWidget(self.select, 0, 2)
+        self.layout.addWidget(self.show, 0, 2)
+        self.layout.addWidget(self.select, 0, 3)
+        self.setLayout(self.layout)
+        
+class TraceAnalysis(QtGui.QGroupBox):
+    def __init__(self,parent):
+        QtGui.QGroupBox.__init__(self,'ROI', parent)
+        self.normalization = gui.LabeledComboBox(self, 'Normalization',items = ['no', 'dF/F', 'std'])
+        self.baseline_lenght = gui.LabeledInput(self, 'Baseline lenght [s]')
+        self.layout = QtGui.QGridLayout()
+        self.layout.addWidget(self.baseline_lenght, 0, 0)
+        self.layout.addWidget(self.normalization, 0, 1)
         self.setLayout(self.layout)
         
 class Analysis(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.parent=parent
-        self.prev_frame = QtGui.QPushButton('Previous frame',  self)
-        self.next_frame = QtGui.QPushButton('Next frame',  self)
-        self.show_meanimage = QtGui.QPushButton('Show meanimage',  self)
+        self.prev_frame = QtGui.QPushButton('Previous frame', self)
+        self.next_frame = QtGui.QPushButton('Next frame', self)
+        self.show_meanimage = QtGui.QPushButton('Show meanimage', self)
         
         self.roi=ROITools(self)
+        self.ta=TraceAnalysis(self)
         
         self.gw = pyqtgraph.GraphicsLayoutWidget(self)
         self.gw.setBackground((255,255,255))
         self.gw.setFixedHeight(400)
         self.gw.setAntialiasing(True)
         self.plot=self.gw.addPlot()
+        self.plot.enableAutoRange()
+        self.plot.showGrid(True,True,1.0)
         self.curve = self.plot.plot(pen=(0,0,0))
         
         self.layout = QtGui.QGridLayout()
         self.layout.addWidget(self.gw, 0, 0, 2,4)
         self.layout.addWidget(self.roi, 2, 0, 1,2)
+        self.layout.addWidget(self.ta, 3, 0, 1,2)
 
-        self.layout.addWidget(self.prev_frame, 3, 0)
-        self.layout.addWidget(self.next_frame, 3, 1)
-        self.layout.addWidget(self.show_meanimage, 3, 2)
+        self.layout.addWidget(self.prev_frame, 4, 0)
+        self.layout.addWidget(self.next_frame, 4, 1)
+        self.layout.addWidget(self.show_meanimage, 4, 2)
         self.layout.setRowStretch(300, 300)
         self.setLayout(self.layout)
         
         self.connect(self.roi.select.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'), self.selected_roi_changed)
+        self.connect(self.roi.suggest, QtCore.SIGNAL('clicked()'), self.suggest)
+        self.connect(self.roi.show.input, QtCore.SIGNAL('stateChanged(int)'), self.update_image)
+        self.connect(self.ta.normalization.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'), self.selected_roi_changed)
+        self.connect(self.ta.baseline_lenght.input, QtCore.SIGNAL('textChanged(const QString &)'), self.selected_roi_changed)
+        self.connect(self, QtCore.SIGNAL('update_image'), self.parent.parent.update_image)
         
     def roi_update(self):
         self.roi.select.update_items(['{0} {1},{2}@{3}'.format(r[0],r[1],r[2],r[3]) for r in self.parent.image.roi_info])
+        self.roi.select.input.setCurrentIndex(len(self.parent.image.roi_info)-1)
         
     def selected_roi_changed(self):
         self.poller = self.parent.parent.poller
+        if not hasattr(self.poller, 'rawdata'):
+            return
         index=int(self.roi.select.input.currentIndex())
         for i in range(len(self.parent.image.rois)):
             if i == index:
-                self.parent.image.rois[i].setPen((0,0,255))
+                self.parent.image.rois[i].setPen((255,102,0))
             else:
                 self.parent.image.rois[i].setPen((255,0,0))
         #Update plot
         roi_info=self.parent.image.roi_info[index]
         self.ca = experiment_data.extract_roi_curve(self.poller.rawdata, roi_info[1],roi_info[2],roi_info[3],'circle', self.poller.scale)[:self.poller.ti.shape[0]]
-        self.curve.setData(self.poller.ti, self.ca)
+        #normalize
+        baseline_length=float(str(self.ta.baseline_lenght.input.text()))
+        normalization_mode = str(self.ta.normalization.input.currentText())
+        if normalization_mode == 'no':
+            self.normalized = self.ca
+        elif normalization_mode == 'dF/F':
+            baseline = self.ca[numpy.where(numpy.logical_and(self.poller.ti<self.poller.ts[0],self.poller.ti>self.poller.ts[0]-baseline_length))].mean()
+            self.normalized = self.ca / baseline
+        elif normalization_mode == 'std':
+            baseline = self.ca[numpy.where(numpy.logical_and(self.poller.ti<self.poller.ts[0],self.poller.ti>self.poller.ts[0]-baseline_length))]
+            self.normalized = (self.ca-baseline.mean())/baseline.std()
+        self.curve.setData(self.poller.ti, self.normalized)
+        self.plot.setYRange(min(self.normalized), max(self.normalized))
+        if hasattr(self,'stimulus_time'):
+            self.plot.removeItem(self.stimulus_time)
+        self.stimulus_time = pyqtgraph.LinearRegionItem(self.poller.ts, movable=False)
+        self.plot.addItem(self.stimulus_time)
         
+    def suggest(self):
+        self.poller = self.parent.parent.poller
+        self.suggested_rois = experiment_data.find_rois(numpy.cast['uint16'](signal.scale(self.poller.meanimage, 0,2**16-1)))
+        self.update_image()
+        
+        
+    def update_image(self):
+        show = self.roi.show.input.checkState()==2
+        mi=numpy.zeros((self.poller.meanimage.shape[0],self.poller.meanimage.shape[1],3))
+        mi[:,:,1]=self.poller.meanimage
+        if show:
+            mi[:,:,2]=numpy.where(self.suggested_rois>0,1,0)*self.poller.meanimage.max()*0.2
+        self.emit(QtCore.SIGNAL('update_image'), mi,self.poller.scale)
         
         
         
