@@ -327,7 +327,7 @@ class ExperimentControl(object):
                     else:
                         data_acquisition_stop_success =  self.mes_interface.wait_for_line_scan_complete(self.mes_timeout)
                     if not data_acquisition_stop_success:
-                        self.printl('Line scan complete ERROR')
+                        self.printl('Line scan complete ERROR {0}'.format(self.mes_timeout))
                 else:
                     data_acquisition_stop_success =  False
         elif self.config.PLATFORM == 'standalone':

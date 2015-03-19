@@ -17,14 +17,17 @@ import multiprocessing
 
 if QtCore.QCoreApplication.instance() is None:
     qt_app = Qt.QApplication([])
-from visexpA.engine import analysis
+try:
+    from visexpA.engine import analysis
+except:
+    pass
 import visexpman
 from visexpman.engine.hardware_interface import network_interface
 from visexpman.engine.generic import command_parser
 from visexpman.engine.generic import log
 from visexpman.engine.generic import utils
 from visexpman.engine.generic import file
-from visexpman.engine.vision_experiment import configuration
+from visexpman.engine.vision_experiment import configuration,experiment_data
 from visexpA.engine.dataprocessors import itk_image_registration
 from visexpA.engine.datahandlers import hdf5io
 from visexpA.engine.datahandlers import matlabfile
@@ -390,6 +393,7 @@ class CommandInterface(command_parser.CommandParser):
                 #self.zeromq_pusher.send((('suspend', full_fragment_path)))
                 mes_extractor = importers.MESExtractor(full_fragment_path, config = self.analysis_config, queue_out = self.queues['low_priority_processor']['out'])                
                 data_class, stimulus_class,anal_class_name, mes_name = mes_extractor.parse(fragment_check = True, force_recreate = force_recreate)
+                mes_extractor.hdfhandler.close()
                 file.set_file_dates(full_fragment_path, file_info)
                 self.queues['low_priority_processor']['out'].put('SOC_mesextractor_readyEOCid={0}EOP' .format(id))
             else:
@@ -418,7 +422,7 @@ class CommandInterface(command_parser.CommandParser):
                         runtime = result.get()
                     elif not False:
                         runtime = 0
-                        excluded_experiments = ['natural','receptive',  'waveform', 'naturalbars']
+                        excluded_experiments = ['natural','receptive',  'waveform', 'naturalbars',  'angle']
                         if len([True for excluded_experiment in excluded_experiments if excluded_experiment.lower() in full_fragment_path.lower()]) == 0:
                             create = ['roi_curves','soma_rois_manual_info']#'rawdata_mask',
                             export = ['roi_curves'] 
@@ -431,12 +435,11 @@ class CommandInterface(command_parser.CommandParser):
                                     self.printl('export_'+e)
                                     getattr(h,'export_'+e)()
                                 h.close()
+                                file.set_file_dates(full_fragment_path, file_info)
                         else:
                             self.printl('No online analysis for this type of experiment')
                     else:
                         runtime=0
-                    file.set_file_dates(full_fragment_path, file_info)
-                    
                     if len(sys.argv) > 3:
                         self.kwargs['export'] = sys.argv[3]
                     else:
@@ -446,14 +449,21 @@ class CommandInterface(command_parser.CommandParser):
                         from visexpA.users.zoltan import converters
                         converters.hdf52mat(full_fragment_path, rootnode_names = ['sync_signal', 'idnode'],  outtag = 'sync', outdir = os.path.split(full_fragment_path)[0], retain_idnode_name=False)
                     elif self.kwargs['export'] == 'EXPORT_DATA_TO_MAT':
+                        self.printl('Calculate timing, blocks and repetitions')
+                        try:
+                            experiment_data.get_data_timing(full_fragment_path)
+                        except:
+                            self.printl(traceback.format_exc())
                         self.printl('Saving data to mat file')
                         from visexpA.users.zoltan import converters
-                        converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal', 'image_scale'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
+                        converters.hdf52mat(full_fragment_path, rootnode_names = ['idnode','rawdata', 'sync_signal', 'image_scale', 'quick_analysis'],  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
                     elif self.kwargs['export'] == 'EXPORT_DATA_TO_VIDEO':
-                        nodes = ['idnode','rawdata', 'sync_signal', 'image_scale', 'soma_rois', 'roi_curves']
+                        nodes = ['idnode','rawdata', 'sync_signal', 'image_scale']
+                        if 'movinggrating' in full_fragment_path.lower():
+                            nodes.extend(['soma_rois', 'roi_curves'])
                         self.printl('Saving the followings to mat file: {0}' .format(', '.join(nodes)))
                         from visexpA.users.zoltan import converters
-                        converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0])
+                        converters.hdf52mat(full_fragment_path, rootnode_names = nodes,  outtag = '_mat', outdir = os.path.split(full_fragment_path)[0],  config=self.analysis_config)
                         from visexpman.users.zoltan.mes2video import mes2video
                         mes2video(full_fragment_path.replace('.hdf5','.mat'), outfolder = os.path.split(full_fragment_path)[0])
                     self.queues['low_priority_processor']['out'].put('SOC_find_cells_readyEOCid={0},runtime={1}EOP'.format(id, runtime))

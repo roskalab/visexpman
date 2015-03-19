@@ -15,6 +15,8 @@ import PyQt4.Qt as Qt
 import PyQt4.QtGui as QtGui
 import PyQt4.QtCore as QtCore
 
+import pyqtgraph
+
 from visexpman.engine.vision_experiment import experiment_data
 from visexpman.engine.hardware_interface import mes_interface
 from visexpman.engine.hardware_interface import network_interface
@@ -2608,6 +2610,96 @@ class MouseFileHandler(Poller):
                     cell['group'] = 'none'
                 cell['roi_center'] = utils.rcd((cell['roi_center']['row'], cell['roi_center']['col'], cell['roi_center']['depth']))
         return cells
+
+class Image(pyqtgraph.GraphicsLayoutWidget):
+    def __init__(self,parent):
+        pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
+        self.setBackground((255,255,255))
+        self.roi_default_diameter = 20
+#        self.view = self.addViewBox()
+        self.plot=self.addPlot()
+        self.img = pyqtgraph.ImageItem(border='w')
+        self.plot.addItem(self.img)
+        self.plot.showGrid(True,True,1.0)
+#        self.plot.setZValue(5)
+#        self.view.setAspectLocked(True)
+#        self.view.setRange(QtCore.QRectF(0, 0, 100, 100))
+        self.scene().sigMouseClicked.connect(self.mouse_clicked)
+        self.rois = []
+#        self.plot.autoRange()
+        
+    def set_image(self, image):
+        im=0.8*numpy.ones((image.shape[0],image.shape[1], 4))*image.max()
+        im[:,:,:3]=image
+        self.img.setImage(im)
+
+    def mouse_clicked(self,e):
+        p=self.img.mapFromScene(e.scenePos())
+        if e.double():
+            if int(e.buttons()) == 1:
+                self.add_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
+            elif int(e.buttons()) == 2:
+                self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
+            self.update_roi_info()
+#            print self.roi_info
+        
+    def add_roi(self,x,y):
+        roi = pyqtgraph.CircleROI([x-0.5*self.roi_default_diameter , y-0.5*self.roi_default_diameter ], [self.roi_default_diameter , self.roi_default_diameter ])
+        roi.setPen((255,0,0,255), width=2)
+        self.rois.append(roi)
+        self.plot.addItem(self.rois[-1])
+        
+    def remove_roi(self,x,y):
+        distances = [(r.pos().x()-x)**2+(r.pos().y()-y)**2 for r in self.rois]
+        removable_roi = self.rois[numpy.array(distances).argmin()]
+        self.plot.removeItem(removable_roi)
+        self.rois.remove(removable_roi)
+        
+    def update_roi_info(self):
+        self.roi_info = [[i, self.rois[i].x(), self.rois[i].y()] for i in range(len(self.rois))]
+        
+class Plots(pyqtgraph.GraphicsLayoutWidget):
+    '''
+    Number of plots can be updated in runtime
+    '''
+    def __init__(self,parent):
+        pyqtgraph.GraphicsLayoutWidget.__init__(self,parent)
+        self.setBackground((255,255,255))
+        self.setAntialiasing(True)
+        self.plots = []
+        return
+        self.set_plot_num(3,4)
+        traces = []
+        for i in range(3):
+            traces1 = []
+            for j in range(4):
+                traces1.append({'x':numpy.arange(100), 'y': numpy.sin(numpy.arange(100)/(j+1+i)), 'title': (i,j)})
+            traces.append(traces1)
+        self.addplots(traces)
+        
+    def addplots(self,traces):
+        self.plots = []
+        self.clear()
+        for r in range(self.nrows):
+            for c in range(self.ncols):
+                self.addplot(traces[r][c])
+            self.nextRow()
+        
+    def set_plot_num(self,nrows,ncols):
+        self.nrows=nrows
+        self.ncols=ncols
+        
+    def addplot(self,traces):
+        self.plots.append(self.addPlot(title=traces['title']))
+        color_index=0
+        for trace in traces['trace']:
+            if trace.has_key('color'):
+                c=trace['color']
+            else:
+                c = tuple(numpy.cast['int'](numpy.array(colors.get_color(0))*255))
+            self.plots[-1].plot(trace['x'], trace['y'], pen=c)
+            color_index+=1
+        self.plots[-1].showGrid(True,True,1.0)
 
 def update_mouse_files_list(config, current_mouse_files = []):
     new_mouse_files = file.filtered_file_list(config.EXPERIMENT_DATA_PATH,  ['mouse', 'hdf5'], filter_condition = 'and')
