@@ -40,7 +40,7 @@ def check(h, config):
             error_messages.append('inconsistent imaging_run_info')
         if not isinstance(h.stimulus_frame_info, list):
             error_messages.append('Invalid stimulus_frame_info')
-        sync_signals = numpy.cast['float'](h.sync_and_elphys_data[:,config.ELPHYS_SYNC_RECORDING['SYNC_INDEXES']])/h.conversion_factor
+        sync_signals = numpy.cast['float'](h.sync_and_elphys_data[:,config.ELPHYS_SYNC_RECORDING['SYNC_INDEXES']])/h.ephys_sync_conversion_factor
         ca_frame_trigger = sync_signals[:,2]
         block_trigger = sync_signals[:,0]
         ca_frame_trigger_edges = signal.trigger_indexes(ca_frame_trigger)
@@ -69,12 +69,12 @@ def check(h, config):
 
 ############### Preprocess measurement data ####################
 def read_sync_rawdata(h):
-    for v in  ['configs_stim', 'sync_and_elphys_data', 'conversion_factor']:
+    for v in  ['configs_stim', 'sync_and_elphys_data', 'ephys_sync_conversion_factor']:
         if not hasattr(h, v):
             h.load(v)
     machine_config = h.configs_stim['machine_config']
     sync_and_elphys_data = numpy.cast['float'](h.sync_and_elphys_data)
-    sync_and_elphys_data /= h.conversion_factor#Scale back to original value
+    sync_and_elphys_data /= h.ephys_sync_conversion_factor#Scale back to original value
     elphys = sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['ELPHYS_INDEXES']]
     stim_sync =  sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]]
     img_sync =  sync_and_elphys_data[:,machine_config['ELPHYS_SYNC_RECORDING']['SYNC_INDEXES'][0]+2]

@@ -11,6 +11,7 @@ import copy
 import shutil
 import inspect
 import pdb
+import scipy.io
 import pyqtgraph
 import pyqtgraph.console
 
@@ -1067,7 +1068,7 @@ class ExperimentControl(gui.WidgetControl):
             if len(rec)==1:
                 hh = hdf5io.Hdf5io(fileop.get_recording_path(rec[0], self.config, prefix = 'sync'),filelocking=False)
                 hh.sync_and_elphys_data = sync_and_elphys_data
-                hh.conversion_factor = float216bit_factor
+                hh.ephys_sync_conversion_factor = float216bit_factor
                 setattr(hh, 'software_environment_{0}'.format(self.config.user_interface_name), experiment_data.pack_software_environment())
                 setattr(hh, 'configs_{0}'.format(self.config.user_interface_name), experiment_data.pack_configs(self))
                 hh.save(['sync_and_elphys_data', 'conversion_factor', 'software_environment_{0}'.format(self.config.user_interface_name), 'configs_{0}'.format(self.config.user_interface_name)])
@@ -2028,8 +2029,10 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
                 self.remove_roi(p.x()*self.img.scale(), p.y()*self.img.scale())
             self.update_roi_info()
         
-    def add_roi(self,x,y):
-        roi = pyqtgraph.CircleROI([x-0.5*self.roi_default_diameter , y-0.5*self.roi_default_diameter ], [self.roi_default_diameter , self.roi_default_diameter ])
+    def add_roi(self,x,y, size=None):
+        if size is None:
+            size = self.roi_default_diameter
+        roi = pyqtgraph.CircleROI([x-0.5*size, y-0.5*size], [size, size])
         roi.setPen((255,0,0,255), width=2)
         roi.sigRegionChanged.connect(self.update_roi_info)
         self.rois.append(roi)
@@ -2037,19 +2040,31 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
         
     def remove_roi(self,x,y):
         distances = [(r.pos().x()-x)**2+(r.pos().y()-y)**2 for r in self.rois]
+        if len(distances)==0:return
         removable_roi = self.rois[numpy.array(distances).argmin()]
         self.plot.removeItem(removable_roi)
         self.rois.remove(removable_roi)
         
     def update_roi_info(self):
-        self.roi_info = [[i, int(self.rois[i].x()), int(self.rois[i].y()), int(self.rois[i].size().x())] for i in range(len(self.rois))]
+        self.roi_info = [[i, self.rois[i].x(), self.rois[i].y(), self.rois[i].size().x()] for i in range(len(self.rois))]
+        self.emit(QtCore.SIGNAL('roi_update'))
+        
+    def load_rois(self,roi_info):
+        scale=1
+        self.roi_info = roi_info
+        if len(roi_info)==0:
+            for r in self.rois:
+                self.plot.removeItem(r)
+            self.rois=[]
+        else:
+            for r in roi_info:
+                self.add_roi(r[1]+0.5*r[3],r[2]+0.5*r[3],r[3])
         self.emit(QtCore.SIGNAL('roi_update'))
         
 class ImageMainUI(Image):
     def __init__(self, parent, roi_diameter=10):
         Image.__init__(self, parent, roi_diameter)
         self.connect(self, QtCore.SIGNAL('roi_update'), parent.analysis.roi_update)
-
         
 class ROITools(QtGui.QGroupBox):
     def __init__(self,parent):
@@ -2070,7 +2085,7 @@ class ROITools(QtGui.QGroupBox):
         
 class TraceAnalysis(QtGui.QGroupBox):
     def __init__(self,parent):
-        QtGui.QGroupBox.__init__(self,'ROI', parent)
+        QtGui.QGroupBox.__init__(self,'Trace    ', parent)
         self.normalization = gui.LabeledComboBox(self, 'Normalization',items = ['no', 'dF/F', 'std'])
         self.baseline_lenght = gui.LabeledInput(self, 'Baseline lenght [s]')
         self.layout = QtGui.QGridLayout()
@@ -2082,9 +2097,7 @@ class Analysis(QtGui.QWidget):
     def __init__(self, parent):
         QtGui.QWidget.__init__(self, parent)
         self.parent=parent
-        self.prev_frame = QtGui.QPushButton('Previous frame', self)
-        self.next_frame = QtGui.QPushButton('Next frame', self)
-        self.show_meanimage = QtGui.QPushButton('Show meanimage', self)
+        self.export2mat = QtGui.QPushButton('Export to mat', self)
         
         self.roi=ROITools(self)
         self.ta=TraceAnalysis(self)
@@ -2103,18 +2116,22 @@ class Analysis(QtGui.QWidget):
         self.layout.addWidget(self.roi, 2, 0, 1,2)
         self.layout.addWidget(self.ta, 3, 0, 1,2)
 
-        self.layout.addWidget(self.prev_frame, 4, 0)
-        self.layout.addWidget(self.next_frame, 4, 1)
-        self.layout.addWidget(self.show_meanimage, 4, 2)
+        self.layout.addWidget(self.export2mat, 4, 0)
         self.layout.setRowStretch(300, 300)
         self.setLayout(self.layout)
         
         self.connect(self.roi.select.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'), self.selected_roi_changed)
         self.connect(self.roi.suggest, QtCore.SIGNAL('clicked()'), self.suggest)
+        self.connect(self.roi.save, QtCore.SIGNAL('clicked()'), self.save)
+        self.connect(self.export2mat, QtCore.SIGNAL('clicked()'), self.export)
         self.connect(self.roi.show.input, QtCore.SIGNAL('stateChanged(int)'), self.update_image)
         self.connect(self.ta.normalization.input, QtCore.SIGNAL('currentIndexChanged(const QString &)'), self.selected_roi_changed)
         self.connect(self.ta.baseline_lenght.input, QtCore.SIGNAL('textChanged(const QString &)'), self.selected_roi_changed)
         self.connect(self, QtCore.SIGNAL('update_image'), self.parent.parent.update_image)
+        self.connect(self, QtCore.SIGNAL('printc'), self.parent.parent.printc)
+        
+    def printc(self, text):
+        self.emit(QtCore.SIGNAL('printc'), text)
         
     def roi_update(self):
         self.roi.select.update_items(['{0} {1},{2}@{3}'.format(r[0],r[1],r[2],r[3]) for r in self.parent.image.roi_info])
@@ -2156,7 +2173,6 @@ class Analysis(QtGui.QWidget):
         self.suggested_rois = experiment_data.find_rois(numpy.cast['uint16'](signal.scale(self.poller.meanimage, 0,2**16-1)))
         self.update_image()
         
-        
     def update_image(self):
         show = self.roi.show.input.checkState()==2
         mi=numpy.zeros((self.poller.meanimage.shape[0],self.poller.meanimage.shape[1],3))
@@ -2165,6 +2181,32 @@ class Analysis(QtGui.QWidget):
             mi[:,:,2]=numpy.where(self.suggested_rois>0,1,0)*self.poller.meanimage.max()*0.2
         self.emit(QtCore.SIGNAL('update_image'), mi,self.poller.scale)
         
+    def save(self):
+        if not hasattr(self.parent.parent.poller, 'current_datafile') and not hasattr(self.parent.image, 'roi_info'):
+            return
+        file_info = os.stat(self.parent.parent.poller.current_datafile)
+        h=hdf5io.Hdf5io(self.parent.parent.poller.current_datafile,filelocking=False)
+        h.rois = self.parent.image.roi_info
+        h.roi_curves = [experiment_data.extract_roi_curve(self.poller.rawdata, roi_info[1],roi_info[2],roi_info[3],'circle', self.poller.scale)[:self.poller.ti.shape[0]] for roi_info in self.parent.image.roi_info]
+        h.save(['rois','roi_curves'])
+        h.close()
+        fileop.set_file_dates(self.parent.parent.poller.current_datafile, file_info)
+        self.printc('{0} rois are saved'.format(len(h.rois)))
+        
+    def export(self):
+        if not hasattr(self.parent.parent.poller, 'current_datafile'):
+            return
+        h=hdf5io.Hdf5io(self.parent.parent.poller.current_datafile, filelocking=False)
+        items = [r._v_name for r in h.h5f.list_nodes('/')]
+        data={}
+        for item in items:
+            h.load(item)
+            data[item]=getattr(h,item)
+        outfile=self.parent.parent.poller.current_datafile.replace('.hdf5', '.mat')
+        scipy.io.savemat(outfile, data, oned_as = 'row', long_field_names=True)
+        fileop.set_file_dates(outfile, os.stat(self.parent.parent.poller.current_datafile))
+        h.close()
+        self.printc('Data exported to {0}'.format(outfile))
         
         
 class PythonConsole(pyqtgraph.console.ConsoleWidget):

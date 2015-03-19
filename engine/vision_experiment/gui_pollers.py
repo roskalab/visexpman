@@ -2697,6 +2697,7 @@ class VisexpGuiPoller(Poller):
                                      'self.animal_file.filename', 
                                      'self.parent.log.filename', 
                                      'self.parent.central_widget.parameters_groupbox.machine_parameters', 
+                                     'self.current_datafile'
                                      ]
         self.context_paths['variables'].extend(self.unittest_context_paths)
         self.optional_context_paths = ['self.animal_file.filename',]#If these items not found in context file, no warning is given
@@ -2786,6 +2787,12 @@ class VisexpGuiPoller(Poller):
             self.parent.central_widget.parameters_groupbox.machine_parameters = self.context['variables']['self.parent.central_widget.parameters_groupbox.machine_parameters']
         self.visualisation_control = gui.CaImagingVisualisationControl(self, self.config, self.parent.central_widget.ca_displays)
         self.toolbox = gui.RetinaTools(self, self.config, self.parent.central_widget.main_widget.toolbox)
+        if self.context['variables'].has_key('self.current_datafile'):
+            self.current_datafile = self.context['variables']['self.current_datafile']
+            if self.config.ENABLE_PHYS_FILE_CONVERSION:
+                from visexpman.users.zoltan.legacy import PhysTiff2Hdf5
+                folder=os.path.split(self.current_datafile)[0]
+                self.physconverter=PhysTiff2Hdf5(folder,folder)
 
     def connect_signals(self):
         self.connect(self, QtCore.SIGNAL('printc'), self.parent.printc)
@@ -2794,6 +2801,7 @@ class VisexpGuiPoller(Poller):
         self.connect(self, QtCore.SIGNAL('notify_user'), self.parent.notify_user)
         self.connect(self, QtCore.SIGNAL('update_curve'), self.parent.update_curve)
         self.connect(self, QtCore.SIGNAL('update_image'), self.parent.update_image)
+        self.connect(self, QtCore.SIGNAL('load_rois'), self.parent.central_widget.image.load_rois)
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar'), self.parent.set_experiment_progressbar)
         self.connect(self, QtCore.SIGNAL('set_experiment_progressbar_range'), self.parent.set_experiment_progressbar_range)
         self.connect(self, QtCore.SIGNAL('set_experiment_names'), self.parent.set_experiment_names)
@@ -2852,7 +2860,7 @@ class VisexpGuiPoller(Poller):
     def clear_curves(self):
         self.plotdata = {}
         self.emit(QtCore.SIGNAL('update_curve'),  None)
-    
+
     def _calculate_tdiff(self, msg, connection):
         self.sync_samples[connection].append(msg)
         for c in ['stim', 'ca_imaging']:
@@ -2861,10 +2869,14 @@ class VisexpGuiPoller(Poller):
                 self.tdiff[c] = self.sync_samples[c][-1]['sync']['t1'] + 0.5 * latency - self.sync_samples[c][-1]['sync']['t2']
                 self.printc(self.tdiff)
                 self.sync_samples[c] = []
-                
+
     def display_datafile(self,datafile = None):
         if datafile is None:
-            datafile = self.ask4filename('Select datafile', fileop.get_user_experiment_data_folder(self.config),  '*.hdf5')
+            folder = os.path.split(self.current_datafile)[0] if hasattr(self, 'current_datafile') and os.path.exists(os.path.split(self.current_datafile)[0]) else fileop.get_user_experiment_data_folder(self.config)
+            self.printc(folder)
+            if hasattr(self, 'current_datafile'):
+                self.printc(self.current_datafile)
+            datafile = self.ask4filename('Select datafile', folder,  '*.hdf5')
 #            datafile = self.gui_thread_queue.get()
         if not os.path.exists(datafile):
             return
@@ -2879,7 +2891,7 @@ class VisexpGuiPoller(Poller):
         curves.append([ti,a])
         self.emit(QtCore.SIGNAL('update_curve'), curves)
         #Display meanimage
-        meanimage,rawdata, scale=experiment_data.get_imagedata(datafile)
+        meanimage,rawdata,scale=experiment_data.get_imagedata(datafile)
         mi=numpy.zeros((meanimage.shape[0],meanimage.shape[1],3))
         mi[:,:,1]=meanimage
         self.emit(QtCore.SIGNAL('update_image'), mi,scale)
@@ -2890,8 +2902,14 @@ class VisexpGuiPoller(Poller):
         self.scale = scale
         self.measurement_loaded = True
         self.printc(datafile)
-        
-            
+        self.current_datafile = datafile
+        #Load rois
+        roi_info = hdf5io.read_item(datafile, 'rois', filelocking=False)
+        if roi_info is not None:
+            self.emit(QtCore.SIGNAL('load_rois'), roi_info)
+        else:
+            self.emit(QtCore.SIGNAL('load_rois'), [])
+
     def run_in_all_iterations(self):
         #### Calling functions all the time #### 
         self.experiment_control.prepare_next_experiment()
@@ -2912,8 +2930,10 @@ class VisexpGuiPoller(Poller):
                 self.update_network_connection_status()
             if not self.phase%15:
                 self.experiment_log.update_suggested_date()
-            if not self.phase%7:
-                pass
+            if not self.phase%7 and hasattr(self, 'physconverter'):
+                r=self.physconverter.detect_and_convert()
+                if len(r)>0:
+                    self.printc('New file(s) available: {0}'.format(', '.join(r)))
             if not self.phase%9:
                 self.experiment_control.check_stimulus_and_imaging_start_timeout()
                 self.experiment_control.check_data_ready_timeout()

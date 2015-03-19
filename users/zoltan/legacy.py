@@ -15,24 +15,41 @@ from visexpman.engine.generic import fileop,utils,signal
 from visexpman.engine.vision_experiment import experiment_data
 from visexpA.engine.datahandlers import importers
 import unittest
-
-def _pickle_method(m):
-    if m.im_self is None:
-        return getattr, (m.im_class, m.im_func.func_name)
-    else:
-        return getattr, (m.im_self, m.im_func.func_name)
-
-copy_reg.pickle(types.MethodType, _pickle_method)
+import tempfile
 
 class PhysTiff2Hdf5(object):
     '''
     Convert phys/tiff data into hdf5
     '''
-    def __init__(self, folder):
+    def __init__(self, folder, outfolder=None):
         self.folder=folder
+        self.outfolder=outfolder
         self.maximal_timediff = 3
         self.use_tiff = True
         self.skipped_files = []
+        
+    def detect_and_convert(self):
+        self.allfiles = fileop.find_files_and_folders(self.folder)[1]
+        self.outfiles = fileop.find_files_and_folders(self.outfolder)[1]
+        physfiles = [f for f in self.allfiles if fileop.file_extension(f)=='phys']
+        tiffiles = [f for f in self.allfiles if fileop.file_extension(f)=='tif']
+        processable_physfiles = []
+        for f in physfiles:
+            id = str(int(os.path.getmtime(f)))
+            if len([of for of in self.outfiles if id in of and fileop.file_extension(of)=='hdf5'])==0:
+                processable_physfiles.append(f)
+        #Find corresponding folder with tiff file
+        pairs = []
+        for pf in processable_physfiles:
+            found = [tf for tf in tiffiles if os.path.split(pf.replace(fileop.file_extension(pf),''))[1][:-1] in tf]
+            if len(found)>0:
+                pairs.append([pf, found[0]])
+        converted=[self.build_hdf5(p[0],p[1], self.outfolder) for p in pairs]
+        print pairs
+        return converted
+        
+        
+    def convert_old_files(self):
         self.match_files()
         if 1:
             for k,v in self.assignments.items():
@@ -75,13 +92,13 @@ class PhysTiff2Hdf5(object):
         fphys,ftiff = entry
         self.build_hdf5(fphys,ftiff)
         
-    def build_hdf5(self,fphys,ftiff):
-        tmptiff = '/tmp/temp.tiff'
+    def build_hdf5(self,fphys,ftiff,folder=None):
+        tmptiff = os.path.join(tempfile.gettempdir(), 'temp.tiff')
         if self.use_tiff:
             if os.path.exists(tmptiff):
                 os.remove(tmptiff)
-            fileop.write_text_file('/tmp/m.txt', 'saveAs("tiff","/tmp/temp.tiff");')
-            cmd = 'imagej "{0}" -batchpath /tmp/m.txt'.format(ftiff)
+            fileop.write_text_file(os.path.join(tempfile.gettempdir(),'m.txt'), 'saveAs("tiff","{0}");'.format(tmptiff))
+            cmd = 'imagej "{0}" -batchpath {1}'.format(ftiff, os.path.join(tempfile.gettempdir(),'m.txt'))
             subprocess.call(cmd,shell=True)
             time.sleep(4)
             if not os.path.exists(tmptiff):
@@ -95,6 +112,10 @@ class PhysTiff2Hdf5(object):
             recording_parameters['scanning_range'] = utils.rc((map(float,ftiff.split('_')[-5:-3])))
             recording_parameters['elphys_sync_sample_rate'] = 10000
         data, metadata = experiment_data.read_phys(fphys)
+        if float(metadata['Sample Rate'])!=10000:
+            raise RuntimeError('Sync signal sampling rate is expected to be 10 kHz. Make sure that spike recording is enabled')
+        if data.shape[0]!=3:
+            raise RuntimeError('Sync signals might not be recorded. Make sure that recording ai4:5 channels are enabled')
         sync_and_elphys = numpy.zeros((data.shape[1], 5))
         sync_and_elphys[:,2] = self.sync_signal2block_trigger(data[1])#stim sync
         sig = self.yscanner_signal2trigger(data[2], float(metadata['Sample Rate']), raw_data.shape[2])
@@ -102,7 +123,8 @@ class PhysTiff2Hdf5(object):
             return
         sync_and_elphys[:,4] = sig
         id = int(os.path.getmtime(fphys))
-        folder = os.path.join('/tmp', os.path.split(ftiff)[0].split('rei_data')[1][1:])
+        if folder is None:
+            folder = os.path.join(tempfile.gettempdir(), os.path.split(ftiff)[0].split('rei_data')[1][1:])
         if not os.path.exists(folder):
             os.makedirs(folder)
         filename = os.path.join(folder, 'data_cx_unknownstim_{0}_0.hdf5'.format(id))
@@ -112,12 +134,14 @@ class PhysTiff2Hdf5(object):
         h.ftiff = ftiff
         h.recording_parameters=recording_parameters
         h.sync_and_elphys_data = sync_and_elphys
-        h.conversion_factor=1
+        h.ephys_sync_conversion_factor=1
         h.phys_metadata = utils.object2array(metadata)
         h.configs_stim = {'machine_config':{'ELPHYS_SYNC_RECORDING': {'ELPHYS_INDEXES': [0,1],'SYNC_INDEXES': [2,3,4]}}}
-        h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys_data', 'conversion_factor', 'phys_metadata', 'configs_stim'])
+        h.save(['raw_data', 'fphys', 'ftiff', 'recording_parameters', 'sync_and_elphys_data', 'ephys_sync_conversion_factor', 'phys_metadata', 'configs_stim'])
         h.close()
+        fileop.set_file_dates(filename, id)
         print filename
+        return filename
         #TODO: use pool for parallel processing
         
     def sync_signal2block_trigger(self, sig):
@@ -168,7 +192,10 @@ class PhysTiff2Hdf5(object):
         
 class TestConverter(unittest.TestCase):
     def test_01_phystiff2hdf5(self):
-        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data')
+        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data/20150206')
+        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/temp/2','/tmp/2')
+        p.detect_and_convert()
+#        p.convert_old_files()
 #        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data/20150206')
 #        p=PhysTiff2Hdf5('/home/rz/codes/data/rei_data')
 #        p=PhysTiff2Hdf5('/mnt/rzws/dataslow/rei_data/20150206')

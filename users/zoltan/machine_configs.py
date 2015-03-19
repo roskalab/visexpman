@@ -147,12 +147,14 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
         EXPERIMENT_DATA_PATH = self.root_folder
         DATA_STORAGE_PATH = fileop.select_folder_exists([ '/mnt/rzws/dataslow', '/tmp', 'C:\\temp'])
         CONTEXT_PATH = self.root_folder
-        CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
-        os.mkdir(CAPTURE_PATH)
+        ENABLE_FRAME_CAPTURE = not True
+        if ENABLE_FRAME_CAPTURE:
+            CAPTURE_PATH = fileop.generate_foldername(os.path.join(tempfile.gettempdir(),'capture'))
+            os.mkdir(CAPTURE_PATH)
         EXPERIMENT_FILE_FORMAT = 'hdf5'
         #### experiment specific ####
         PARSE_PERIOD = [0.1, [0.0, 100.0]]
-        ENABLE_FRAME_CAPTURE = not True
+        
         #### Network ####
         self.CONNECTIONS['stim']['ip']['stim'] = None
         self.CONNECTIONS['stim']['ip']['main_ui'] = '172.27.26.45'
@@ -195,6 +197,7 @@ class CaImagingTestConfig(configuration.ElphysRetinalCaImagingConfig):
                                                 'ND40': 4, 
                                                 }
                         }]
+        self.ENABLE_PHYS_FILE_CONVERSION = True
         self._create_parameters_from_locals(locals())
 
 class JobhandlerTestConfig(configuration.VisionExperimentConfig):

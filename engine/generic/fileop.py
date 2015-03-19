@@ -110,7 +110,10 @@ def free_space(path):
     
 def set_file_dates(path, file_info):
     try:
-        os.utime(path, (file_info.st_atime, file_info.st_mtime))
+        if hasattr(file_info,'st_atime') and hasattr(file_info,'st_mtime'):
+            os.utime(path, (file_info.st_atime, file_info.st_mtime))
+        else:
+            os.utime(path, (file_info, file_info))
     except:
         pass
         
