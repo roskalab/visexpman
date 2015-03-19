@@ -524,6 +524,28 @@ def rotate_vector(vector, angle):
     vector_matrix = vector_matrix.transpose()
     return numpy.squeeze(numpy.asarray((rotation_matrix_x * rotation_matrix_y * rotation_matrix_z * vector_matrix).transpose()))
 
+def rotation_matrix(axis, theta):
+    """
+    Return the rotation matrix associated with counterclockwise rotation about
+    the given axis by theta radians.
+    """
+    axis = numpy.asarray(axis)
+    theta = numpy.asarray(theta)
+    axis = axis/numpy.sqrt(numpy.dot(axis, axis))
+    a = numpy.cos(theta/2)
+    b, c, d = -axis*numpy.sin(theta/2)
+    aa, bb, cc, dd = a*a, b*b, c*c, d*d
+    bc, ad, ac, ab, bd, cd = b*c, a*d, a*c, a*b, b*d, c*d
+    return numpy.array([[aa+bb-cc-dd, 2*(bc+ad), 2*(bd-ac)],
+                     [2*(bc-ad), aa+cc-bb-dd, 2*(cd+ab)],
+                     [2*(bd+ac), 2*(cd-ab), aa+dd-bb-cc]])
+
+def test_rotation_matrix():
+    v = [3, 5, 0]
+    axis = [4, 4, 1]
+    theta = 1.2
+    print(np.dot(rotation_matrix(axis,theta), v))
+
 def rotate_around_center(inarray, angle, center=None,  reshape=False):
     '''Extends rotate function of scipy with user definable center. Uses larger image with NaN values
     to prevent data loss. NaNs are converted to a mask at the end'''
