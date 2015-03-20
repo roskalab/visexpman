@@ -2099,6 +2099,7 @@ class Analysis(QtGui.QWidget):
         QtGui.QWidget.__init__(self, parent)
         self.parent=parent
         self.export2mat = QtGui.QPushButton('Export to mat', self)
+        self.export2mat.setToolTip('Exports datafile to mat file. Current rois are also saved to both hdf5 and mat')
         self.roi=ROITools(self)
         self.ta=TraceAnalysis(self)
         self.gw = pyqtgraph.GraphicsLayoutWidget(self)
@@ -2186,6 +2187,9 @@ class Analysis(QtGui.QWidget):
         self.emit(QtCore.SIGNAL('update_image'), mi,self.poller.scale)
         
     def save(self):
+        '''
+        Saving rois
+        '''
         if not hasattr(self.parent.parent.poller, 'current_datafile') and not hasattr(self.parent.image, 'roi_info'):
             return
         file_info = os.stat(self.parent.parent.poller.current_datafile)
@@ -2200,6 +2204,7 @@ class Analysis(QtGui.QWidget):
     def export(self):
         if not hasattr(self.parent.parent.poller, 'current_datafile'):
             return
+        self.save()
         h=hdf5io.Hdf5io(self.parent.parent.poller.current_datafile, filelocking=False)
         items = [r._v_name for r in h.h5f.list_nodes('/')]
         data={}
