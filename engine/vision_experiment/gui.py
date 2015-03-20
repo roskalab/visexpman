@@ -2052,13 +2052,11 @@ class Image(pyqtgraph.GraphicsLayoutWidget):
     def load_rois(self,roi_info):
         scale=1
         self.roi_info = roi_info
-        if len(roi_info)==0:
-            for r in self.rois:
-                self.plot.removeItem(r)
-            self.rois=[]
-        else:
-            for r in roi_info:
-                self.add_roi(r[1]+0.5*r[3],r[2]+0.5*r[3],r[3])
+        for r in self.rois:
+            self.plot.removeItem(r)
+        self.rois=[]
+        for r in roi_info:
+            self.add_roi(r[1]+0.5*r[3],r[2]+0.5*r[3],r[3])
         self.emit(QtCore.SIGNAL('roi_update'))
         
 class ImageMainUI(Image):
